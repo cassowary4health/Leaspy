@@ -1,0 +1,10 @@
+{
+  "type": "univariate",
+  "parameters": {
+    "P0": 0.3,
+    "tau_mean": 50,
+    "tau_std": 2,
+    "xi_mean": -10,
+    "xi_std": 0.8
+  }
+}

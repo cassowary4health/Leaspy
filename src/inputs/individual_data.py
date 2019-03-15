@@ -10,6 +10,7 @@ class IndividualData():
         self.raw_observations = None
         self.tensor_observations = None
 
+
     def add_observation(self, timepoint, values):
         if self.timepoints is None:
             self.timepoints = []

@@ -3,6 +3,7 @@ import unittest
 from src.inputs.individual_data import IndividualData
 from src.inputs.data import Data
 
+
 class DataTest(unittest.TestCase):
 
     def test_constructor(self):

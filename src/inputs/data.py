@@ -12,3 +12,10 @@ class Data():
 
         self.indices.append(individual.idx)
         self.individuals.append(individual)
+
+
+    def __getitem__(self, index):
+         return self.individuals[index]
+
+    def __iter__(self):
+        return iter(self.individuals)

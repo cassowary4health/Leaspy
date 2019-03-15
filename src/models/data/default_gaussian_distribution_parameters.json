@@ -1,0 +1,7 @@
+{
+  "type": "gaussian_distribution",
+  "parameters": {
+    "mean": 0,
+    "std": 1
+  }
+}

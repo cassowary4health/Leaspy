@@ -10,3 +10,6 @@ class UnivariateModel(AbstractModel):
         data_dir = os.path.join(default_data_dir, "default_univariate_parameters.json")
         reader = ModelParametersReader(data_dir)
         self.model_parameters = reader.parameters
+
+        if reader.model_type != 'univariate':
+            raise ValueError("The default univariate parameters are not of univariate type")

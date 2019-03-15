@@ -21,11 +21,12 @@ class Leaspy():
     def save(self, path):
         self.model.save_parameters(path)
 
-    def fit(self, path_to_algorithm_settings):
+    def fit(self, data, path_to_algorithm_settings):
         return 0
 
-    def predict(self, path_to_data, path_to_prediction_settings):
+    def predict(self, data, path_to_prediction_settings):
         return 0
 
-    def simulate(self, path_to_simulation_settings):
+    def simulate(self, data, path_to_simulation_settings):
+
         return 0

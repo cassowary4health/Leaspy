@@ -22,6 +22,8 @@ class IndividualData():
         index = bisect(self.timepoints, timepoint)
         self.timepoints.insert(index, timepoint)
         self.raw_observations.insert(index, values)
+        # Torch
         self.tensor_observations = torch.from_numpy(np.array(self.raw_observations)).float()
+        self.tensor_timepoints = torch.from_numpy(np.array(self.timepoints)).float()
 
 

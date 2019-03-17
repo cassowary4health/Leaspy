@@ -25,7 +25,7 @@ class GaussianDistributionModel(AbstractModel):
 
 
     def initialize_individual_realization(self, individual):
-        individual.individual_parameters['a'] = 0
+        individual.individual_parameters = {'a' : 0}
 
     def compute_individual(self, indiviual):
         return self.model_parameters['mu'] + indiviual.individual_parameters['a']*torch.ones_like(indiviual.tensor_timepoints)

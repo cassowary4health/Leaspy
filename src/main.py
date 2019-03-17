@@ -1,5 +1,7 @@
 from src.inputs.model_parameters_reader import ModelParametersReader
 from src.models.model_factory import ModelFactory
+from src.inputs.algo_reader import AlgoReader
+from src.algo.algo_factory import AlgoFactory
 
 
 class Leaspy():
@@ -22,11 +24,25 @@ class Leaspy():
         self.model.save_parameters(path)
 
     def fit(self, data, path_to_algorithm_settings):
-        return 0
+
+        # TODO Important : realizations in data or realizations object ???
+        # Initialize the individual realizations
+        self.initialize_individual_realizations_(data)
+
+        reader = AlgoReader(path_to_algorithm_settings)
+        algo = AlgoFactory.algo(reader.algo_type)
+        algo.load_parameters(reader.parameters)
+
+        # Run algo
+        algo.run(data, self.model)
 
     def predict(self, data, path_to_prediction_settings):
         return 0
 
     def simulate(self, data, path_to_simulation_settings):
-
         return 0
+
+
+    def initialize_individual_realizations_(self, data):
+        for individual in data:
+            self.model.initialize_individual_realization(individual)

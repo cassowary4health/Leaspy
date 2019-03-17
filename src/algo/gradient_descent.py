@@ -14,10 +14,10 @@ class GradientDescent(AbstractAlgo):
         if reader.algo_type != 'gradient_descent':
             raise ValueError("The default gradient descent parameters are not of gradient_descent type")
 
-        self.parameters = reader.parameters
+        self.algo_parameters = reader.parameters
 
     def run(self, data, model):
-        for iter in range(self.parameters['n_iter']):
+        for iter in range(self.algo_parameters['n_iter']):
             self.iter(data, model)
 
     def iter(self, data, model):
@@ -32,7 +32,7 @@ class GradientDescent(AbstractAlgo):
             for key in model.model_parameters:
                 # TODO not model specific optimization of parameters : sigma ? When grad is none
                 if model.model_parameters[key].grad is not None:
-                    model.model_parameters[key] -= self.parameters['learning_rate'] * model.model_parameters[key].grad
+                    model.model_parameters[key] -= self.algo_parameters['learning_rate'] * model.model_parameters[key].grad
                     model.model_parameters[key].grad.zero_()
         return 0
 

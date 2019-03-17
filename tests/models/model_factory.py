@@ -18,6 +18,6 @@ class ModelFactoryTest(unittest.TestCase):
 
         model = ModelFactory.model('gaussian_distribution')
         self.assertEqual(type(model), GaussianDistributionModel)
-        self.assertEqual(model.model_parameters['mean'], 0)
-        self.assertEqual(model.model_parameters['std'], 1)
+        self.assertEqual(model.model_parameters['mu'], 0)
+        self.assertEqual(model.model_parameters['sigma'], 1)
 

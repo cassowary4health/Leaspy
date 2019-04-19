@@ -10,4 +10,6 @@ test:mac:
 
   script:
     - pwd
+    - source activate leaspy
     - python test.py
+    - source deactivate

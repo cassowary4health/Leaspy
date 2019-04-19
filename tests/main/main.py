@@ -38,15 +38,41 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.model_parameters['xi_mean'], -10)
         self.assertEqual(leaspy.model.model_parameters['xi_std'], 0.8)
 
-
     def test_gaussian_distribution_model(self):
-        leaspy = Leaspy('gaussian_distribution')
-        self.assertEqual(leaspy.type, 'gaussian_distribution')
+        path_to_model_parameters = os.path.join(test_data_dir, '_gaussiandistribution_gradientdescent','model_parameters.json')
+        leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
+        self.assertEqual(leaspy.type, 'gaussian_distribution')
         # Create the data
         data_path = os.path.join(test_data_dir, 'univariate_data.csv')
         reader = DataReader()
         data = reader.read(data_path)
 
-        leaspy.fit(data, os.path.join(test_data_dir, "algorithm_settings.json"))
-        self.assertAlmostEqual(leaspy.model.model_parameters['mu'], 0.1493, delta=0.001)
+        leaspy.fit(data, os.path.join(test_data_dir,
+                                      '_gaussiandistribution_gradientdescent', "algorithm_settings.json"),
+                   seed=0)
+        self.assertAlmostEqual(leaspy.model.model_parameters['mu'], 0.16181408, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.model_parameters['intercept_var'], 0.011426399, delta=0.001)
+
+
+    """
+
+    def test_univariate_model(self):
+        path_to_model_parameters = os.path.join(test_data_dir, '_univariate_gradientdescent', 'model_parameters.json')
+        leaspy = Leaspy.from_parameters(path_to_model_parameters)
+
+        self.assertEqual(leaspy.type, 'univariate')
+        # Create the data
+        data_path = os.path.join(test_data_dir, 'univariate_data.csv')
+        reader = DataReader()
+        data = reader.read(data_path)
+
+        leaspy.fit(data, os.path.join(test_data_dir, '_univariate_gradientdescent', "algorithm_settings.json"),
+                   seed=0)        
+        """
+
+
+
+
+
+

@@ -16,7 +16,7 @@ class GradientDescent(AbstractAlgo):
 
         self.algo_parameters = reader.parameters
 
-    def run(self, data, model, seed):
+    def run(self, data, model, seed=None):
 
         if seed is not None:
             torch.manual_seed(seed)

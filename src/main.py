@@ -23,26 +23,17 @@ class Leaspy():
     def save(self, path):
         self.model.save_parameters(path)
 
-    def fit(self, data, path_to_algorithm_settings):
-
-        # TODO Important : realizations in data or realizations object ???
-        # Initialize the individual realizations
-        self.initialize_individual_realizations_(data)
+    def fit(self, data, path_to_algorithm_settings, seed=0):
 
         reader = AlgoReader(path_to_algorithm_settings)
         algo = AlgoFactory.algo(reader.algo_type)
         algo.load_parameters(reader.parameters)
 
         # Run algo
-        algo.run(data, self.model)
+        algo.run(data, self.model, seed)
 
     def predict(self, data, path_to_prediction_settings):
         return 0
 
     def simulate(self, data, path_to_simulation_settings):
         return 0
-
-
-    def initialize_individual_realizations_(self, data):
-        for individual in data:
-            self.model.initialize_individual_realization(individual)

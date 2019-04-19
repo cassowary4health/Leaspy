@@ -15,3 +15,6 @@ class AbstractModel():
     def save_parameters(self, path):
         with open(path, 'w') as outfile:
             json.dump(self.model_parameters, outfile)
+
+    def initialize_realizations(self):
+        raise NotImplementedError

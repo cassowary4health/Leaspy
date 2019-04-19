@@ -1,0 +1,11 @@
+{
+  "type": "univariate",
+  "parameters": {
+    "P0": 0.4,
+    "tau_mean": 80.0,
+    "tau_std": 3.0,
+    "xi_mean": -3.8,
+    "xi_std": 0.05,
+    "noise_var": 1.0
+  }
+}

@@ -10,6 +10,10 @@ class IndividualData():
         self.raw_observations = None
         self.tensor_observations = None
 
+        # Metrics
+        self.n_visits = 0
+        self.n_observations = 0
+
 
     def add_observation(self, timepoint, values):
         if self.timepoints is None:
@@ -27,3 +31,6 @@ class IndividualData():
         self.tensor_timepoints = torch.from_numpy(np.array(self.timepoints)).float()
 
 
+        # Update metrics
+        self.n_visits += 1
+        self.n_observations += np.array(values).shape[0]

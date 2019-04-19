@@ -19,5 +19,5 @@ class ModelFactoryTest(unittest.TestCase):
         model = ModelFactory.model('gaussian_distribution')
         self.assertEqual(type(model), GaussianDistributionModel)
         self.assertEqual(model.model_parameters['mu'], 0)
-        self.assertEqual(model.model_parameters['sigma'], 1)
+        self.assertEqual(model.model_parameters['intercept_var'], 1)
 

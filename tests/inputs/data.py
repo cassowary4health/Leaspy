@@ -13,7 +13,7 @@ class DataTest(unittest.TestCase):
 
     def test_add_individual(self):
         individual = IndividualData('idx')
-        individual.add_observation(70, 1)
+        individual.add_observation(70, [1])
 
         data = Data()
         data.add_individual(individual)
@@ -21,6 +21,6 @@ class DataTest(unittest.TestCase):
         self.assertEqual(data.individuals, [individual])
         self.assertEqual(data.individuals[0].timepoints, [70])
 
-        individual.add_observation(80, 2)
+        individual.add_observation(80, [2])
         self.assertEqual(data.individuals[0].timepoints, [70, 80])
-        self.assertEqual(data.individuals[0].raw_observations, [1, 2])
+        self.assertEqual(data.individuals[0].raw_observations, [[1], [2]])

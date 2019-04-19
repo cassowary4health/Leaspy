@@ -1,0 +1,13 @@
+stages:
+  - build
+  - test
+
+test:mac:
+  stage:test
+
+  tags:
+    - macos
+
+  script:
+    - pwd
+    - python test.py

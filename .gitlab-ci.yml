@@ -3,7 +3,7 @@ stages:
   - test
 
 test:mac:
-  stage:test
+  stage: test
 
   tags:
     - macos

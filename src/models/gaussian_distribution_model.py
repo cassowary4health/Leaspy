@@ -19,6 +19,10 @@ class GaussianDistributionModel(AbstractModel):
 
         self.model_parameters = reader.parameters
 
+        self.reals_pop_name = []
+        self.reals_ind_name = ['intercept']
+
+
 
         # TODO to Pytorch, peut être dans le reader ????
         #for key in self.model_parameters.keys():
@@ -33,18 +37,15 @@ class GaussianDistributionModel(AbstractModel):
         :return:
         """
 
-        reals_pop_name = []
-        reals_ind_name = ['intercept']
-
         # Population parameters
-        reals_pop = dict.fromkeys(reals_pop_name)
-        for pop_name in reals_pop_name:
+        reals_pop = dict.fromkeys(self.reals_pop_name)
+        for pop_name in self.reals_pop_name:
             reals_pop[pop_name] = self.model_parameters[pop_name]
 
         # Individual parameters
-        reals_ind = dict.fromkeys(reals_ind_name)
-        for ind_name in reals_ind_name:
-            reals_ind_temp = dict(zip(data.indices, (np.sqrt(self.model_parameters['intercept_var'])*np.random.randn(1,len(data.indices))).reshape(-1).tolist()))
+        reals_ind = dict.fromkeys(self.reals_ind_name)
+        for ind_name in self.reals_ind_name:
+            reals_ind_temp = dict(zip(data.indices, (self.model_parameters['mu']+np.sqrt(self.model_parameters['intercept_var'])*np.random.randn(1,len(data.indices))).reshape(-1).tolist()))
             reals_ind[ind_name] = reals_ind_temp
 
         # To Torch
@@ -87,6 +88,18 @@ class GaussianDistributionModel(AbstractModel):
 
         # Noise
         self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()
+
+
+    def simulate_individual_parameters(self, indices, seed=0):
+
+        np.random.seed(seed)
+
+        reals_ind = dict.fromkeys(self.reals_ind_name)
+
+        for ind_name in self.reals_ind_name:
+            reals_ind_temp = dict(zip(indices, self.model_parameters['mu']+(np.sqrt(self.model_parameters['intercept_var'])*np.random.randn(1, len(indices))).reshape(-1).tolist()))
+            reals_ind[ind_name] = reals_ind_temp
+        return reals_ind
 
 
     def plot(self, data, iter, realizations):

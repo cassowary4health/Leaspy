@@ -90,6 +90,37 @@ class LeaspyTest(unittest.TestCase):
 
 
 
+    def test_simulate_gaussian_distribution_model(self):
+        path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent','model_parameters.json')
+        path_to_fitalgo_parameters = os.path.join(test_data_dir,
+                                      '_fit_gaussiandistribution_gradientdescent', "algorithm_settings.json")
+        path_to_simulation_parameters = os.path.join(test_data_dir,
+                                      '_simulate_gaussiandistribution_gradientdescent', "simulation_parameters.json")
+
+        leaspy = Leaspy.from_parameters(path_to_model_parameters)
+
+        self.assertEqual(leaspy.type, 'gaussian_distribution')
+        # Create the data
+        data_path = os.path.join(test_data_dir, 'univariate_data.csv')
+        reader = DataReader()
+        data = reader.read(data_path)
+
+
+        # Run or load parameters of already trained model ???
+        leaspy.fit(data, path_to_fitalgo_parameters, seed=0)
+
+        # Predict
+        reals_ind = leaspy.simulate(path_to_simulation_parameters, seed=0)
+
+        self.assertAlmostEqual(np.mean([value for value in reals_ind['intercept'].values()]), 0.16181408, delta=0.09)
+        self.assertAlmostEqual(np.var([value for value in reals_ind['intercept'].values()]), 0.011426399, delta=0.02)
+
+
+
+
+
+
+
 
     """
 

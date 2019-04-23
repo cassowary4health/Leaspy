@@ -18,3 +18,6 @@ class AbstractModel():
 
     def initialize_realizations(self):
         raise NotImplementedError
+
+    def simulate_individual_parameters(self):
+        raise NotImplementedError

@@ -2,7 +2,7 @@ from src.inputs.model_parameters_reader import ModelParametersReader
 from src.models.model_factory import ModelFactory
 from src.inputs.algo_reader import AlgoReader
 from src.algo.algo_factory import AlgoFactory
-
+import json
 
 class Leaspy():
     def __init__(self, type):
@@ -53,5 +53,11 @@ class Leaspy():
         return reals_ind
 
 
-    def simulate(self, data, path_to_simulation_settings):
-        return 0
+    def simulate(self, path_to_simulation_settings, seed=0):
+
+        with open(path_to_simulation_settings) as file:
+            simulation_settings = json.load(file)
+
+        indices = ['simulated_patient_{0}'.format(i) for i in range(simulation_settings['number_patients_to_simulate'])]
+        simulated_individual_parameters = self.model.simulate_individual_parameters(indices, seed=seed)
+        return simulated_individual_parameters

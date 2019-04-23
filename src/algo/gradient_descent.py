@@ -14,6 +14,9 @@ class GradientDescent(AbstractAlgo):
         if reader.algo_type != 'gradient_descent':
             raise ValueError("The default gradient descent parameters are not of gradient_descent type")
 
+
+        self.realizations = None
+        self.model = None
         self.algo_parameters = reader.parameters
 
     def run(self, data, model, seed=None):
@@ -29,7 +32,9 @@ class GradientDescent(AbstractAlgo):
             self.iter(data, model, realizations)
 
             if iter%100 == 0:
-                model.plot(data, realizations, iter)
+                model.plot(data, iter, realizations)
+
+        self.realizations = realizations
 
     def iter(self, data, model, realizations):
 
@@ -50,19 +55,38 @@ class GradientDescent(AbstractAlgo):
         loss.backward()
 
         with torch.no_grad():
-            for key in reals_pop.keys():
-                reals_pop[key] -= self.algo_parameters['learning_rate'] * reals_pop[key].grad
-                reals_pop[key].grad.zero_()
 
-            for key in reals_ind.keys():
-                for idx in reals_ind[key].keys():
-                    reals_ind[key][idx] -= self.algo_parameters['learning_rate'] * reals_ind[key][idx].grad
-                    reals_ind[key][idx].grad.zero_()
+            if self.algo_parameters['estimate_population_parameters']:
+                for key in reals_pop.keys():
+                    reals_pop[key] -= self.algo_parameters['learning_rate'] * reals_pop[key].grad
+                    reals_pop[key].grad.zero_()
+
+            if self.algo_parameters['estimate_individual_parameters']:
+                for key in reals_ind.keys():
+                    for idx in reals_ind[key].keys():
+                        reals_ind[key][idx] -= self.algo_parameters['learning_rate'] * reals_ind[key][idx].grad
+                        reals_ind[key][idx].grad.zero_()
+
 
         # Update the sufficient statistics
-        model.update_sufficient_statistics(data, reals_ind, reals_pop)
+        if self.algo_parameters['estimate_population_parameters']:
+            model.update_sufficient_statistics(data, reals_ind, reals_pop)
 
         return 0
+
+
+    def get_realizations(self):
+        return self.realizations
+
+    def set_mode(self, task):
+        self.task = task
+        if self.task == 'fit':
+            self.algo_parameters['estimate_individual_parameters'] = True
+            self.algo_parameters['estimate_population_parameters'] = True
+        elif self.task == 'predict':
+            self.algo_parameters['estimate_individual_parameters'] = True
+            self.algo_parameters['estimate_population_parameters'] = False
+
 
 
 

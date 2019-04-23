@@ -28,12 +28,30 @@ class Leaspy():
         reader = AlgoReader(path_to_algorithm_settings)
         algo = AlgoFactory.algo(reader.algo_type)
         algo.load_parameters(reader.parameters)
+        algo.set_mode('fit')
 
         # Run algo
         algo.run(data, self.model, seed)
 
-    def predict(self, data, path_to_prediction_settings):
-        return 0
+    def predict(self, data, path_to_prediction_settings, seed=0):
+        """
+        Predict individual parameters of a list of patients
+        :param data:
+        :param path_to_prediction_settings:
+        :return:
+        """
+
+        # Instanciate optimization algorithm
+        reader = AlgoReader(path_to_prediction_settings)
+        algo = AlgoFactory.algo(reader.algo_type)
+        algo.load_parameters(reader.parameters)
+        algo.set_mode('predict')
+
+        # Run optimization
+        algo.run(data, self.model, seed)
+        reals_pop, reals_ind = algo.get_realizations()
+        return reals_ind
+
 
     def simulate(self, data, path_to_simulation_settings):
         return 0

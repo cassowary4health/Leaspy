@@ -39,7 +39,7 @@ class GaussianDistributionModel(AbstractModel):
         # Population parameters
         reals_pop = dict.fromkeys(reals_pop_name)
         for pop_name in reals_pop_name:
-            reals_pop[pop_name] = 0
+            reals_pop[pop_name] = self.model_parameters[pop_name]
 
         # Individual parameters
         reals_ind = dict.fromkeys(reals_ind_name)
@@ -62,7 +62,7 @@ class GaussianDistributionModel(AbstractModel):
         return reals_ind['intercept'][individual.idx]*torch.ones_like(individual.tensor_timepoints)
 
     def compute_sumsquared(self, data, reals_pop, reals_ind):
-        return np.sum([self.compute_individual_sumsquared(individual, reals_pop, reals_ind) for individual in data])
+        return np.sum([self.compute_individual_sumsquared(individual, reals_pop, reals_ind) for key,individual in data.individuals.items()])
 
     def compute_attachment(self, data, reals_pop, reals_ind):
         return self.compute_sumsquared(data, reals_pop, reals_ind)*np.power(self.model_parameters['noise_var'], -1) + data.n_observations*np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
@@ -89,10 +89,8 @@ class GaussianDistributionModel(AbstractModel):
         self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()
 
 
-    def plot(self, data, realizations, iter):
-        pass
+    def plot(self, data, iter, realizations):
 
-        """
         import matplotlib.pyplot as plt
 
         import matplotlib.cm as cm
@@ -104,7 +102,7 @@ class GaussianDistributionModel(AbstractModel):
         fig, ax = plt.subplots(1,1)
 
 
-        for i, individual in enumerate(data):
+        for i, (id, individual) in enumerate(data.individuals.items()):
             model_value = self.compute_individual(individual, reals_pop, reals_ind)
             score = individual.tensor_observations
 
@@ -118,7 +116,7 @@ class GaussianDistributionModel(AbstractModel):
             os.mkdir('../../plots/gaussian_distribution/')
 
         plt.savefig('../../plots/gaussian_distribution/plot_patients_{0}.pdf'.format(iter))
-        """
+
 
 
 

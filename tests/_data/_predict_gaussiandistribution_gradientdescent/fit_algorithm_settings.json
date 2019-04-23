@@ -1,8 +1,8 @@
 {
   "type": "gradient_descent",
   "parameters": {
-    "n_iter": 100,
-    "learning_rate": 0.005,
+    "n_iter": 401,
+    "learning_rate": 0.01,
     "estimate_individual_parameters":true,
     "estimate_population_parameters":true
   }

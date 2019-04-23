@@ -7,6 +7,7 @@ from src.models.univariate_model import UnivariateModel
 from src.inputs.model_parameters_reader import ModelParametersReader
 from src.inputs.data_reader import DataReader
 from src.inputs.data import Data
+import numpy as np
 
 from src.algo.algo_factory import AlgoFactory
 from src.inputs.algo_reader import AlgoReader
@@ -38,8 +39,13 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.model_parameters['xi_mean'], -10)
         self.assertEqual(leaspy.model.model_parameters['xi_std'], 0.8)
 
-    def test_gaussian_distribution_model(self):
-        path_to_model_parameters = os.path.join(test_data_dir, '_gaussiandistribution_gradientdescent','model_parameters.json')
+    def test_fit_gaussian_distribution_model(self):
+        path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent','model_parameters.json')
+
+        path_to_fitalgo_parameters = os.path.join(test_data_dir,
+                                      '_fit_gaussiandistribution_gradientdescent', "algorithm_settings.json")
+
+
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
         self.assertEqual(leaspy.type, 'gaussian_distribution')
@@ -48,11 +54,41 @@ class LeaspyTest(unittest.TestCase):
         reader = DataReader()
         data = reader.read(data_path)
 
-        leaspy.fit(data, os.path.join(test_data_dir,
-                                      '_gaussiandistribution_gradientdescent', "algorithm_settings.json"),
-                   seed=0)
+        leaspy.fit(data, path_to_fitalgo_parameters ,seed=0)
         self.assertAlmostEqual(leaspy.model.model_parameters['mu'], 0.16181408, delta=0.01)
         self.assertAlmostEqual(leaspy.model.model_parameters['intercept_var'], 0.011426399, delta=0.001)
+
+
+    def test_predict_gaussian_distribution_model(self):
+        path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent','model_parameters.json')
+        path_to_fitalgo_parameters = os.path.join(test_data_dir,
+                                      '_fit_gaussiandistribution_gradientdescent', "algorithm_settings.json")
+        path_to_predictalgo_parameters = os.path.join(test_data_dir,
+                                      '_predict_gaussiandistribution_gradientdescent', "predict_algorithm_settings.json")
+
+        leaspy = Leaspy.from_parameters(path_to_model_parameters)
+
+        self.assertEqual(leaspy.type, 'gaussian_distribution')
+        # Create the data
+        data_path = os.path.join(test_data_dir, 'univariate_data.csv')
+        reader = DataReader()
+        data = reader.read(data_path)
+
+        train_ids = data.indices[0:5]
+        test_ids = data.indices[5:7]
+        data_train, data_test = data.split(train_ids, test_ids)
+
+        # Run or load parameters of already trained model ???
+        leaspy.fit(data_train, path_to_fitalgo_parameters, seed=0)
+
+        # Predict
+        reals_ind = leaspy.predict(data_test, path_to_predictalgo_parameters, seed=0)
+
+        # Assert
+        for patient_id in reals_ind['intercept'].keys():
+            self.assertAlmostEqual(reals_ind['intercept'][patient_id], np.mean(data_test[patient_id].raw_observations), delta=0.04)
+
+
 
 
     """
@@ -67,7 +103,7 @@ class LeaspyTest(unittest.TestCase):
         reader = DataReader()
         data = reader.read(data_path)
 
-        leaspy.fit(data, os.path.join(test_data_dir, '_univariate_gradientdescent', "algorithm_settings.json"),
+        leaspy.fit(data, os.path.join(test_data_dir, '_univariate_gradientdescent', "fit_algorithm_settings.json"),
                    seed=0)        
         """
 

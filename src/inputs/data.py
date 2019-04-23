@@ -4,7 +4,7 @@ from src.inputs.individual_data import IndividualData
 class Data():
     def __init__(self):
         self.indices = []
-        self.individuals = []
+        self.individuals = {}
 
         # Metrics
         self.n_individuals = 0
@@ -16,7 +16,7 @@ class Data():
             raise ValueError("There already")
 
         self.indices.append(individual.idx)
-        self.individuals.append(individual)
+        self.individuals[individual.idx] = individual
 
         self.update_metrics(individual)
 
@@ -25,8 +25,19 @@ class Data():
         self.n_visits += individual.n_visits
         self.n_observations += individual.n_observations
 
-    def __getitem__(self, index):
-         return self.individuals[index]
+    def split(self, indices_train, indices_test):
+        data_train = Data()
+        data_test = Data()
 
-    def __iter__(self):
-        return iter(self.individuals)
+        for idx_train in indices_train:
+            data_train.add_individual(self[idx_train])
+
+        for idx_test in indices_test:
+            data_test.add_individual(self[idx_test])
+
+        return data_train, data_test
+
+
+    def __getitem__(self, id):
+         return self.individuals[id]
+

@@ -90,6 +90,9 @@ class GaussianDistributionModel(AbstractModel):
 
 
     def plot(self, data, iter, realizations):
+        pass
+
+        """
 
         import matplotlib.pyplot as plt
 
@@ -116,7 +119,7 @@ class GaussianDistributionModel(AbstractModel):
             os.mkdir('../../plots/gaussian_distribution/')
 
         plt.savefig('../../plots/gaussian_distribution/plot_patients_{0}.pdf'.format(iter))
-
+        """
 
 
 

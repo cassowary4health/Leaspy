@@ -17,6 +17,9 @@ class UnivariateModel(AbstractModel):
             raise ValueError("The default univariate parameters are not of univariate type")
 
 
+        self.reals_pop_name = ['p0']
+        self.reals_ind_name = ['xi','tau']
+
     def initialize_realizations(self, data):
         """
         Initialize the realizations.
@@ -26,8 +29,8 @@ class UnivariateModel(AbstractModel):
         :return:
         """
 
-        reals_pop_name = ['p0']
-        reals_ind_name = ['xi','tau']
+        reals_pop_name = self.reals_pop_name
+        reals_ind_name = self.reals_ind_name
 
         # Population parameters
         reals_pop = dict.fromkeys(reals_pop_name)
@@ -65,20 +68,37 @@ class UnivariateModel(AbstractModel):
 
 
     def compute_sumsquared(self, data, reals_pop, reals_ind):
-        return np.sum([self.compute_individual_sumsquared(individual, reals_pop, reals_ind) for individual in data])
-
-    def compute_attachment(self, data, reals_pop, reals_ind):
-        return self.compute_sumsquared(data, reals_pop, reals_ind)*np.power(self.model_parameters['noise_var'], -1) + data.n_observations*np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+        return np.sum([self.compute_individual_sumsquared(individual, reals_pop, reals_ind) for _,individual in data.individuals.items()])
 
     def compute_individual_sumsquared(self, individual, reals_pop, reals_ind):
          return torch.sum((self.compute_individual(individual, reals_pop, reals_ind)-individual.tensor_observations)**2)
 
+    # Likelihood
+
+    def compute_individual_attachment(self, individual, reals_pop, reals_ind):
+        return self.compute_individual_sumsquared(individual, reals_pop, reals_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+
+    def compute_individual_regularity(self, individual, reals_ind):
+        tau_regularity = (reals_ind['tau'][individual.idx]-self.model_parameters['tau_mean'])**2/(2*self.model_parameters['tau_var'])+np.log(self.model_parameters['tau_var']*np.sqrt(2*np.pi))
+        xi_regularity = (reals_ind['xi'][individual.idx]-self.model_parameters['xi_mean'])**2/(2*self.model_parameters['xi_var'])+np.log(self.model_parameters['xi_var']*np.sqrt(2*np.pi))
+        return tau_regularity+xi_regularity
+
+    def compute_attachment(self, data, reals_pop, reals_ind):
+        return self.compute_sumsquared(data, reals_pop, reals_ind)*np.power(2*self.model_parameters['noise_var'], -1) + data.n_observations*np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+
     def compute_regularity(self, data, reals_pop, reals_ind):
-        tau_regularity = np.var([x.detach().numpy() for x in reals_ind['tau'].values()])*np.power(self.model_parameters['tau_std'], -2) + data.n_individuals*np.log(self.model_parameters['tau_std']*np.sqrt(2*np.pi))
-        xi_regularity = np.var([x.detach().numpy() for x in reals_ind['xi'].values()])*np.power(self.model_parameters['xi_std'], -2) + data.n_individuals*np.log(self.model_parameters['xi_std']*np.sqrt(2*np.pi))
+        tau_regularity = np.var([x.detach().numpy() for x in reals_ind['tau'].values()])*np.power(self.model_parameters['tau_var'], -1) + data.n_individuals*np.log(self.model_parameters['tau_var']*np.sqrt(2*np.pi))
+        xi_regularity = np.var([x.detach().numpy() for x in reals_ind['xi'].values()])*np.power(self.model_parameters['xi_var'], -1) + data.n_individuals*np.log(self.model_parameters['xi_var']*np.sqrt(2*np.pi))
         return tau_regularity+xi_regularity
 
     def update_sufficient_statistics(self, data, reals_ind, reals_pop):
+
+        #TODO parameters, how to tune ????
+        m_xi = data.n_individuals/20
+        sigma2_xi_0 = 0.05
+
+        m_tau = data.n_individuals/20
+        sigma2_tau_0 = 10
 
         # Update Parameters
 
@@ -87,23 +107,28 @@ class UnivariateModel(AbstractModel):
             self.model_parameters[pop_name] = reals_pop[pop_name].detach().numpy()
 
         # population parameters not as realizations
-        self.model_parameters['tau_std'] = np.std([x.detach().numpy() for x in reals_ind['tau'].values()])
-        self.model_parameters['xi_std'] = np.std([x.detach().numpy() for x in reals_ind['xi'].values()])
+        empirical_tau_var = np.var([x.detach().numpy() for x in reals_ind['tau'].values()])
+        tau_var_update = (1/(data.n_individuals+m_tau))*(data.n_individuals*empirical_tau_var+m_tau*sigma2_tau_0)
+        self.model_parameters['tau_var'] = tau_var_update
+
+        empirical_xi_var = np.var([x.detach().numpy() for x in reals_ind['xi'].values()])
+        xi_var_update = (1/(data.n_individuals+m_xi))*(data.n_individuals*empirical_xi_var+m_xi*sigma2_xi_0)
+        self.model_parameters['xi_var'] = xi_var_update
 
         self.model_parameters['tau_mean'] = np.mean([x.detach().numpy() for x in reals_ind['tau'].values()])
         self.model_parameters['xi_mean'] = np.mean([x.detach().numpy() for x in reals_ind['xi'].values()])
 
         # Noise
-        self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()
+        self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
 
 
-    def plot(self, data, realizations, iter):
+    def plot(self, data, iter, realizations, output_path):
 
         import matplotlib.pyplot as plt
 
         import matplotlib.cm as cm
 
-        colors = cm.rainbow(np.linspace(0, 1, 10))
+        colors = cm.rainbow(np.linspace(0, 1, 12))
 
         reals_pop, reals_ind = realizations
 
@@ -112,21 +137,23 @@ class UnivariateModel(AbstractModel):
 
 
 
-        for i, individual in enumerate(data):
+        for i, (_,individual) in enumerate(data.individuals.items()):
             model_value = self.compute_individual(individual, reals_pop, reals_ind)
             score = individual.tensor_observations
 
             ax.plot(individual.tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=colors[i])
             ax.plot(individual.tensor_timepoints.detach().numpy(), score.detach().numpy(), c=colors[i], linestyle='--', marker='o')
 
+            if i>10:
+                break
         # Plot average model
         tensor_timepoints = torch.Tensor(np.linspace(60,90,20).reshape(-1))
         model_average = self.compute_average(individual, reals_pop, tensor_timepoints)
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth = 4, alpha = 0.3)
 
 
-        if not os.path.exists('../../plots/univariate/'):
-            os.mkdir('../../plots/univariate/')
+        if not os.path.exists(os.path.join(output_path, 'plots/')):
+            os.mkdir(os.path.join(output_path, 'plots/'))
 
-        plt.savefig('../../plots/univariate/plot_patients_{0}.pdf'.format(iter))
+        plt.savefig(os.path.join(output_path, 'plots', 'plot_patients_{0}.pdf'.format(iter)))
 

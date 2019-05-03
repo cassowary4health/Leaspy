@@ -23,7 +23,7 @@ class Leaspy():
     def save(self, path):
         self.model.save_parameters(path)
 
-    def fit(self, data, path_to_algorithm_settings, seed=0):
+    def fit(self, data, path_to_algorithm_settings, path_output, seed=0):
 
         reader = AlgoReader(path_to_algorithm_settings)
         algo = AlgoFactory.algo(reader.algo_type)
@@ -31,13 +31,15 @@ class Leaspy():
         algo.set_mode('fit')
 
         # Run algo
-        algo.run(data, self.model, seed)
+        algo.run(data, self.model, seed, path_output)
 
     def predict(self, data, path_to_prediction_settings, seed=0):
         """
         Predict individual parameters of a list of patients
         :param data:
         :param path_to_prediction_settings:
+        :param path output
+        :param seed
         :return:
         """
 

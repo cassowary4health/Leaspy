@@ -16,23 +16,46 @@ class GradientDescent(AbstractAlgo):
 
 
         self.realizations = None
-        self.model = None
+        self.task = None
         self.algo_parameters = reader.parameters
 
-    def run(self, data, model, seed=None):
+        self.path_output = 'output/'
+
+    def run(self, data, model, seed=None, path_output=None):
 
         if seed is not None:
             torch.manual_seed(seed)
             np.random.seed(seed)
             print(" ==> Setting seed to {0}".format(seed))
 
+        if path_output is not None:
+            self.path_output = path_output
+
         realizations = model.initialize_realizations(data)
 
-        for iter in range(self.algo_parameters['n_iter']):
+        for iteration in range(self.algo_parameters['n_iter']):
             self.iter(data, model, realizations)
 
-            if iter%100 == 0:
-                model.plot(data, iter, realizations)
+            if iteration%100 == 0:
+                model.plot(data, iteration, realizations, self.path_output)
+
+                reals_pop, reals_ind = realizations
+
+                # TODO factorize this
+                print("=============================================")
+                print("ITER ---- {0}".format(iteration))
+                print("Noise variance iter {0} : {1}".format(iteration, model.model_parameters['noise_var']))
+                for variable, realization in reals_pop.items():
+                    print("{0} : {1}".format(variable, realization))
+
+                for variable_ind in reals_ind.keys():
+                    print("{0}".format(variable_ind))
+                    print("{0}_mean : {1}".format(variable_ind, np.mean([x.detach().numpy() for _, x in reals_ind[variable_ind].items()])))
+                    print("{0}_var : {1}".format(variable_ind, np.var([x.detach().numpy()  for _, x in reals_ind[variable_ind].items()])))
+                    print(reals_ind[variable_ind])
+
+                    if np.var([x.detach().numpy()  for _, x in reals_ind[variable_ind].items()])<1e-6:
+                        print("--->WARNING<----- : Variance degenerate")
 
         self.realizations = realizations
 
@@ -71,6 +94,8 @@ class GradientDescent(AbstractAlgo):
         # Update the sufficient statistics
         if self.algo_parameters['estimate_population_parameters']:
             model.update_sufficient_statistics(data, reals_ind, reals_pop)
+
+
 
         return 0
 

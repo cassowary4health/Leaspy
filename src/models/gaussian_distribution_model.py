@@ -65,16 +65,26 @@ class GaussianDistributionModel(AbstractModel):
     def compute_sumsquared(self, data, reals_pop, reals_ind):
         return np.sum([self.compute_individual_sumsquared(individual, reals_pop, reals_ind) for key,individual in data.individuals.items()])
 
+    def compute_individual_sumsquared(self, individual, reals_pop, reals_ind):
+         return torch.sum((self.compute_individual(individual, reals_pop, reals_ind)-individual.tensor_observations)**2)
+
+    def compute_individual_attachment(self, individual, reals_pop, reals_ind):
+        return self.compute_individual_sumsquared(individual, reals_pop, reals_ind) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+
     def compute_attachment(self, data, reals_pop, reals_ind):
         return self.compute_sumsquared(data, reals_pop, reals_ind)*np.power(self.model_parameters['noise_var'], -1) + data.n_observations*np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
 
-    def compute_individual_sumsquared(self, individual, reals_pop, reals_ind):
-         return torch.sum((self.compute_individual(individual, reals_pop, reals_ind)-individual.tensor_observations)**2)
+    def compute_individual_regularity(self, individual, reals_ind):
+        intercept_regularity = (reals_ind['intercept'][individual.idx]-self.model_parameters['mu'])**2/(2*self.model_parameters['intercept_var'])+np.log(self.model_parameters['intercept_var']*np.sqrt(2*np.pi))
+        return intercept_regularity
 
     def compute_regularity(self, data, reals_pop, reals_ind):
         return np.var([x.detach().numpy() for x in reals_ind['intercept'].values()])*np.power(self.model_parameters['intercept_var'], -1) + data.n_individuals*np.log(np.sqrt(2*np.pi*self.model_parameters['intercept_var']))
 
     def update_sufficient_statistics(self, data, reals_ind, reals_pop):
+
+        m_intercept = data.n_individuals/20
+        sigma2_intercept_0 = 0.1 # TODO smart initialization
 
         # Update Parameters
 
@@ -83,11 +93,14 @@ class GaussianDistributionModel(AbstractModel):
             self.model_parameters[pop_name] = reals_pop[pop_name].detach().numpy()
 
         # population parameters not as realizations
-        self.model_parameters['intercept_var'] = np.var([x.detach().numpy() for x in reals_ind['intercept'].values()])
+        empirical_intercept_var = np.var([x.detach().numpy() for x in reals_ind['intercept'].values()])
+        intercept_var_update = (1 / (data.n_individuals + m_intercept)) * (
+                    data.n_individuals * empirical_intercept_var + m_intercept * sigma2_intercept_0)
+        self.model_parameters['intercept_var'] = intercept_var_update
         self.model_parameters['mu'] = np.mean([x.detach().numpy() for x in reals_ind['intercept'].values()])
 
         # Noise
-        self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()
+        self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
 
 
     def simulate_individual_parameters(self, indices, seed=0):
@@ -102,13 +115,9 @@ class GaussianDistributionModel(AbstractModel):
         return reals_ind
 
 
-    def plot(self, data, iter, realizations):
-        pass
-
-        """
+    def plot(self, data, iter, realizations, output_path):
 
         import matplotlib.pyplot as plt
-
         import matplotlib.cm as cm
 
         colors = cm.rainbow(np.linspace(0, 1, 10))
@@ -128,11 +137,10 @@ class GaussianDistributionModel(AbstractModel):
 
         ax.plot([70,90],[self.model_parameters['mu'], self.model_parameters['mu']], linewidth = 5, c='black', alpha = 0.3)
 
-        if not os.path.exists('../../plots/gaussian_distribution/'):
-            os.mkdir('../../plots/gaussian_distribution/')
+        if not os.path.exists(os.path.join(output_path, 'plots/')):
+            os.mkdir(os.path.join(output_path, 'plots/'))
 
-        plt.savefig('../../plots/gaussian_distribution/plot_patients_{0}.pdf'.format(iter))
-        """
+        plt.savefig(os.path.join(output_path, 'plots','plot_patients_{0}.pdf'.format(iter)))
 
 
 

@@ -1,7 +1,7 @@
 {
   "type": "gradient_descent",
   "parameters": {
-    "n_iter": 1001,
-    "learning_rate": 0.00025
+    "n_iter": 2001,
+    "learning_rate": 0.0008
   }
 }

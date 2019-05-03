@@ -15,7 +15,7 @@ class ModelParametersReader():
             raise ValueError('The \'parameters\' key is missing in the model parameters (JSON file) you are loading')
 
         model_type = parameters['type']
-        parameters = {k.lower(): v for k, v in parameters['parameters'].items()}
+        parameters = {k.lower(): float(v) for k, v in parameters['parameters'].items()}
 
         return model_type, parameters
 

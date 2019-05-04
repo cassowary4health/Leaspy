@@ -115,34 +115,6 @@ class GaussianDistributionModel(AbstractModel):
         return reals_ind
 
 
-    def plot(self, data, iter, realizations, path_output):
-
-        import matplotlib.pyplot as plt
-        import matplotlib.cm as cm
-
-        colors = cm.rainbow(np.linspace(0, 1, 10))
-
-        reals_pop, reals_ind = realizations
-
-        fig, ax = plt.subplots(1,1)
-
-
-        for i, (id, individual) in enumerate(data.individuals.items()):
-            model_value = self.compute_individual(individual, reals_pop, reals_ind)
-            score = individual.tensor_observations
-
-            ax.plot(individual.tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=colors[i])
-            ax.plot(individual.tensor_timepoints.detach().numpy(), score.detach().numpy(), c=colors[i], linestyle='--', marker='o')
-
-
-        ax.plot([70,90],[self.model_parameters['mu'], self.model_parameters['mu']], linewidth = 5, c='black', alpha = 0.3)
-
-        if not os.path.exists(os.path.join(path_output, 'plots/')):
-            os.mkdir(os.path.join(path_output, 'plots/'))
-
-        plt.savefig(os.path.join(path_output, 'plots','plot_patients_{0}.pdf'.format(iter)))
-        plt.close()
-
 
 
 

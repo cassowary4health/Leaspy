@@ -40,7 +40,7 @@ class UnivariateModel(AbstractModel):
         # Individual parameters
         reals_ind = dict.fromkeys(reals_ind_name)
         for ind_name in reals_ind_name:
-            reals_ind_temp = dict(zip(data.indices, (self.model_parameters['{0}_mean'.format(ind_name)]+self.model_parameters['{0}_std'.format(ind_name)]*np.random.randn(1,len(data.indices))).reshape(-1).tolist()))
+            reals_ind_temp = dict(zip(data.indices, (self.model_parameters['{0}_mean'.format(ind_name)]+np.sqrt(self.model_parameters['{0}_var'.format(ind_name)])*np.random.randn(1,len(data.indices))).reshape(-1).tolist()))
             reals_ind[ind_name] = reals_ind_temp
 
         # To Torch
@@ -58,14 +58,15 @@ class UnivariateModel(AbstractModel):
         p0 = reals_pop['p0']
         reparametrized_time = torch.exp(reals_ind['xi'][individual.idx])*(individual.tensor_timepoints-reals_ind['tau'][individual.idx])
         return torch.pow(1+(1/p0-1)*torch.exp(-reparametrized_time/(p0*(1-p0))), -1)
-        #return p0 + reparametrized_time
 
     def compute_average(self, individual, reals_pop, tensor_timepoints):
         p0 = reals_pop['p0']
         reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
-        #return p0 + reparametrized_time
 
+
+
+    # Likelihood
 
     def compute_sumsquared(self, data, reals_pop, reals_ind):
         return np.sum([self.compute_individual_sumsquared(individual, reals_pop, reals_ind) for _,individual in data.individuals.items()])
@@ -73,7 +74,6 @@ class UnivariateModel(AbstractModel):
     def compute_individual_sumsquared(self, individual, reals_pop, reals_ind):
          return torch.sum((self.compute_individual(individual, reals_pop, reals_ind)-individual.tensor_observations)**2)
 
-    # Likelihood
 
     def compute_individual_attachment(self, individual, reals_pop, reals_ind):
         return self.compute_individual_sumsquared(individual, reals_pop, reals_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
@@ -120,39 +120,4 @@ class UnivariateModel(AbstractModel):
 
         # Noise
         self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
-
-
-    def plot(self, data, iter, realizations, path_output):
-
-        import matplotlib.pyplot as plt
-
-        import matplotlib.cm as cm
-
-        colors = cm.rainbow(np.linspace(0, 1, 12))
-
-        reals_pop, reals_ind = realizations
-
-        fig, ax = plt.subplots(1,1)
-
-
-        for i, (_,individual) in enumerate(data.individuals.items()):
-            model_value = self.compute_individual(individual, reals_pop, reals_ind)
-            score = individual.tensor_observations
-
-            ax.plot(individual.tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=colors[i])
-            ax.plot(individual.tensor_timepoints.detach().numpy(), score.detach().numpy(), c=colors[i], linestyle='--', marker='o')
-
-            if i>10:
-                break
-        # Plot average model
-        tensor_timepoints = torch.Tensor(np.linspace(60,90,20).reshape(-1))
-        model_average = self.compute_average(individual, reals_pop, tensor_timepoints)
-        ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth = 4, alpha = 0.3)
-
-
-        if not os.path.exists(os.path.join(path_output, 'plots/')):
-            os.mkdir(os.path.join(path_output, 'plots/'))
-
-        plt.savefig(os.path.join(path_output, 'plots', 'plot_patients_{0}.pdf'.format(iter)))
-        plt.close()
 

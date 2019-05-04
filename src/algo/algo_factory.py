@@ -1,5 +1,4 @@
 from src.algo.gradient_descent import GradientDescent
-from src.algo.greedy_sampling import GreedySampling
 from src.algo.mcmc_saem import MCMCSAEM
 
 class AlgoFactory():

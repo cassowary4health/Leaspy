@@ -1,5 +1,5 @@
 from src.inputs.individual_data import IndividualData
-
+import numpy as np
 
 class Data():
     def __init__(self):
@@ -10,6 +10,8 @@ class Data():
         self.n_individuals = 0
         self.n_visits = 0
         self.n_observations = 0
+        self.time_min = np.nan
+        self.time_max = np.nan
 
     def add_individual(self, individual):
         if individual.idx in self.indices:
@@ -24,6 +26,8 @@ class Data():
         self.n_individuals += 1
         self.n_visits += individual.n_visits
         self.n_observations += individual.n_observations
+        self.time_min = np.nanmin(np.concatenate([individual.timepoints, [self.time_min]]))
+        self.time_max = np.nanmax(np.concatenate([individual.timepoints, [self.time_max]]))
 
     def split(self, indices_train, indices_test):
         data_train = Data()

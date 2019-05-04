@@ -26,8 +26,8 @@ class Data():
         self.n_individuals += 1
         self.n_visits += individual.n_visits
         self.n_observations += individual.n_observations
-        self.time_min = np.nanmin(np.concatenate([individual.timepoints, [self.time_min]]))
-        self.time_max = np.nanmax(np.concatenate([individual.timepoints, [self.time_max]]))
+        self.time_min = np.nanmin(np.concatenate([individual.tensor_timepoints.detach().numpy(), [self.time_min]]))
+        self.time_max = np.nanmax(np.concatenate([individual.tensor_timepoints.detach().numpy(), [self.time_max]]))
 
     def split(self, indices_train, indices_test):
         data_train = Data()

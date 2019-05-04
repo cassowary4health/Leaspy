@@ -8,7 +8,12 @@ from tests.inputs.data import DataTest
 from tests.models.model_factory import ModelFactoryTest
 from tests.models.abstract_model import AbstractModelTest
 from tests.models.univariate_model import UnivariateModelTest
+
+from tests.utils.sampler import SamplerTest
+
+# Main
 from tests.main.main import LeaspyTest
+from tests.main.main_fit import LeaspyFitTest
 
 
 unittest.main()

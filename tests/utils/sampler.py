@@ -4,7 +4,7 @@ from src.utils.sampler import Sampler
 import numpy as np
 
 
-class UnivariateModelTest(unittest.TestCase):
+class SamplerTest(unittest.TestCase):
 
     def test_sample(self):
         sampler = Sampler("sampler_test", 1, temp_length=100)

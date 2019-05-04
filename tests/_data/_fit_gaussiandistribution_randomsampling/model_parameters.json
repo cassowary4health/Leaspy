@@ -1,7 +1,7 @@
 {
   "type": "gaussian_distribution",
   "parameters": {
-    "mu": 0.0,
+    "intercept_mean": 0.0,
     "intercept_var": 1.0,
     "noise_var":1.0
   }

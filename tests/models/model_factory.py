@@ -12,12 +12,12 @@ class ModelFactoryTest(unittest.TestCase):
         self.assertEqual(type(model), UnivariateModel)
         self.assertEqual(model.model_parameters['p0'], 0.5)
         self.assertEqual(model.model_parameters['tau_mean'], 70)
-        self.assertEqual(model.model_parameters['tau_std'], 5)
+        self.assertEqual(model.model_parameters['tau_var'], 25.0)
         self.assertEqual(model.model_parameters['xi_mean'], -2)
-        self.assertEqual(model.model_parameters['xi_std'], 0.1)
+        self.assertEqual(model.model_parameters['xi_var'], 0.1)
 
         model = ModelFactory.model('gaussian_distribution')
         self.assertEqual(type(model), GaussianDistributionModel)
-        self.assertEqual(model.model_parameters['mu'], 0)
+        self.assertEqual(model.model_parameters['intercept_mean'], 0)
         self.assertEqual(model.model_parameters['intercept_var'], 1)
 

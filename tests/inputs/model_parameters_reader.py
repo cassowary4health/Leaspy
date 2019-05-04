@@ -13,6 +13,6 @@ class ModelParametersReaderTest(unittest.TestCase):
         self.assertEqual(model_parameters.model_type, "univariate")
         self.assertEqual(model_parameters.parameters['p0'], 0.3)
         self.assertEqual(model_parameters.parameters['tau_mean'], 50)
-        self.assertEqual(model_parameters.parameters['tau_std'], 2)
+        self.assertEqual(model_parameters.parameters['tau_var'], 2)
         self.assertEqual(model_parameters.parameters['xi_mean'], -10)
-        self.assertEqual(model_parameters.parameters['xi_std'], 0.8)
+        self.assertEqual(model_parameters.parameters['xi_var'], 0.8)

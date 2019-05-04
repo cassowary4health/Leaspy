@@ -37,49 +37,54 @@ class GaussianDistributionModel(AbstractModel):
         :return:
         """
 
+        reals_ind_name = self.reals_ind_name
+
         # Population parameters
         reals_pop = dict.fromkeys(self.reals_pop_name)
         for pop_name in self.reals_pop_name:
             reals_pop[pop_name] = self.model_parameters[pop_name]
 
-        # Individual parameters
-        reals_ind = dict.fromkeys(self.reals_ind_name)
-        for ind_name in self.reals_ind_name:
-            reals_ind_temp = dict(zip(data.indices, (self.model_parameters['mu']+np.sqrt(self.model_parameters['intercept_var'])*np.random.randn(1,len(data.indices))).reshape(-1).tolist()))
-            reals_ind[ind_name] = reals_ind_temp
+        # Instanciate individual realizations
+        reals_ind = dict.fromkeys(data.indices)
+
+        # For all patients
+        for idx in data.indices:
+            # Create dictionnary of individual random variables
+            reals_ind[idx] = dict.fromkeys(reals_ind_name)
+            # For all invididual random variables, initialize
+            for ind_name in reals_ind_name:
+                reals_ind[idx][ind_name] = np.random.normal(loc=self.model_parameters['{0}_mean'.format(ind_name)],
+                                                            scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
 
         # To Torch
         for key in reals_pop.keys():
             reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
 
-        for key in reals_ind.keys():
-            for idx in reals_ind[key]:
-                reals_ind[key][idx] = Variable(torch.tensor(reals_ind[key][idx]).float(), requires_grad=True)
+        for idx in reals_ind.keys():
+            for key in reals_ind[idx]:
+                reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
 
         return reals_pop, reals_ind
 
 
-    def compute_individual(self, individual, reals_pop, reals_ind):
-        return reals_ind['intercept'][individual.idx]*torch.ones_like(individual.tensor_timepoints)
+    def compute_individual(self, individual, reals_pop, real_ind):
+        return real_ind['intercept']*torch.ones_like(individual.tensor_timepoints)
+
+    def compute_average(self, tensor_timepoints):
+        return self.model_parameters['intercept_mean'] * torch.ones_like(tensor_timepoints)
 
     def compute_sumsquared(self, data, reals_pop, reals_ind):
-        return np.sum([self.compute_individual_sumsquared(individual, reals_pop, reals_ind) for key,individual in data.individuals.items()])
+        return np.sum([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
 
-    def compute_individual_sumsquared(self, individual, reals_pop, reals_ind):
-         return torch.sum((self.compute_individual(individual, reals_pop, reals_ind)-individual.tensor_observations)**2)
+    def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
+         return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)
 
-    def compute_individual_attachment(self, individual, reals_pop, reals_ind):
-        return self.compute_individual_sumsquared(individual, reals_pop, reals_ind) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+    def compute_individual_attachment(self, individual, reals_pop, real_ind):
+        return self.compute_individual_sumsquared(individual, reals_pop, real_ind) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
 
-    def compute_attachment(self, data, reals_pop, reals_ind):
-        return self.compute_sumsquared(data, reals_pop, reals_ind)*np.power(self.model_parameters['noise_var'], -1) + data.n_observations*np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
-
-    def compute_individual_regularity(self, individual, reals_ind):
-        intercept_regularity = (reals_ind['intercept'][individual.idx]-self.model_parameters['mu'])**2/(2*self.model_parameters['intercept_var'])+np.log(self.model_parameters['intercept_var']*np.sqrt(2*np.pi))
+    def compute_individual_regularity(self, real_ind):
+        intercept_regularity = (real_ind['intercept']-self.model_parameters['intercept_mean'])**2/(2*self.model_parameters['intercept_var'])+np.log(self.model_parameters['intercept_var']*np.sqrt(2*np.pi))
         return intercept_regularity
-
-    def compute_regularity(self, data, reals_pop, reals_ind):
-        return np.var([x.detach().numpy() for x in reals_ind['intercept'].values()])*np.power(self.model_parameters['intercept_var'], -1) + data.n_individuals*np.log(np.sqrt(2*np.pi*self.model_parameters['intercept_var']))
 
     def update_sufficient_statistics(self, data, reals_ind, reals_pop):
 
@@ -93,12 +98,18 @@ class GaussianDistributionModel(AbstractModel):
             self.model_parameters[pop_name] = reals_pop[pop_name].detach().numpy()
 
         # population parameters not as realizations
-        empirical_intercept_var = np.var([x.detach().numpy() for x in reals_ind['intercept'].values()])
+        intercept_array = []
+        for idx in reals_ind.keys():
+            intercept_array.append(reals_ind[idx]['intercept'])
+        intercept_array = torch.Tensor(intercept_array)
+        empirical_intercept_var = np.sum(
+            ((intercept_array - self.model_parameters['intercept_mean']) ** 2).detach().numpy()) / (
+                                   data.n_individuals - 1)
+
         intercept_var_update = (1 / (data.n_individuals + m_intercept)) * (
                     data.n_individuals * empirical_intercept_var + m_intercept * sigma2_intercept_0)
         self.model_parameters['intercept_var'] = intercept_var_update
-        self.model_parameters['mu'] = np.mean([x.detach().numpy() for x in reals_ind['intercept'].values()])
-
+        self.model_parameters['intercept_mean'] = np.mean(intercept_array.detach().numpy())
         # Noise
         self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
 
@@ -110,7 +121,7 @@ class GaussianDistributionModel(AbstractModel):
         reals_ind = dict.fromkeys(self.reals_ind_name)
 
         for ind_name in self.reals_ind_name:
-            reals_ind_temp = dict(zip(indices, self.model_parameters['mu']+(np.sqrt(self.model_parameters['intercept_var'])*np.random.randn(1, len(indices))).reshape(-1).tolist()))
+            reals_ind_temp = dict(zip(indices, self.model_parameters['intercept_mean']+(np.sqrt(self.model_parameters['intercept_var'])*np.random.randn(1, len(indices))).reshape(-1).tolist()))
             reals_ind[ind_name] = reals_ind_temp
         return reals_ind
 

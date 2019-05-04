@@ -44,18 +44,18 @@ class AbstractModel():
         fig, ax = plt.subplots(1,1)
 
 
-        for i, (_,individual) in enumerate(data.individuals.items()):
-            model_value = self.compute_individual(individual, reals_pop, reals_ind)
-            score = individual.tensor_observations
+        for i, idx in enumerate(data.indices):
+            model_value = self.compute_individual(data[idx], reals_pop, reals_ind[idx])
+            score = data[idx].tensor_observations
 
-            ax.plot(individual.tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=colors[i])
-            ax.plot(individual.tensor_timepoints.detach().numpy(), score.detach().numpy(), c=colors[i], linestyle='--', marker='o')
+            ax.plot(data[idx].tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=colors[i])
+            ax.plot(data[idx].tensor_timepoints.detach().numpy(), score.detach().numpy(), c=colors[i], linestyle='--', marker='o')
 
             if i>10:
                 break
         # Plot average model
         tensor_timepoints = torch.Tensor(np.linspace(data.time_min,data.time_max,40).reshape(-1))
-        model_average = self.compute_average(individual, reals_pop, tensor_timepoints)
+        model_average = self.compute_average(tensor_timepoints)
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth = 4, alpha = 0.3)
 
 
@@ -64,5 +64,13 @@ class AbstractModel():
 
         plt.savefig(os.path.join(path_output, 'plots', 'plot_patients_{0}.pdf'.format(iter)))
         plt.close()
+
+    def compute_attachment(self, data, reals_pop, reals_ind):
+        return np.sum(
+            [self.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
+
+    def compute_regularity(self, data, reals_pop, reals_ind):
+        return np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
+
 
 

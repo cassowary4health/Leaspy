@@ -25,17 +25,12 @@ class MCMCSAEM(AbstractAlgo):
         self.samplers_pop = None
         self.samplers_ind = None
 
-        self.output_path = "output/"
+        self.path_output = "output/"
 
-    def run(self, data, model, seed=None, output_path=None):
+    def run(self, data, model, seed=None, path_output=None):
 
-        if seed is not None:
-            torch.manual_seed(seed)
-            np.random.seed(seed)
-            print(" ==> Setting seed to {0}".format(seed))
-
-        if output_path is not None:
-            self.output_path = output_path
+        self._initialize_seed(seed)
+        self._initialize_path_output(path_output)
 
         realizations = model.initialize_realizations(data)
         self.initialize_samplers(model)
@@ -59,7 +54,9 @@ class MCMCSAEM(AbstractAlgo):
             self.iter(data, model, realizations)
 
             if iteration % 100 == 0:
-                model.plot(data, iteration, realizations, self.output_path)
+                """
+                model.plot(data, iteration, realizations, self.path_output)
+                """
 
                 reals_pop, reals_ind = realizations
 
@@ -108,23 +105,13 @@ class MCMCSAEM(AbstractAlgo):
 
                 print("=============================================")
                 print("ITER ---- {0}".format(iteration))
-                print("Noise variance iter {0} : {1}".format(iteration, model.model_parameters['noise_var']))
-                for variable, realization in reals_pop.items():
-                    print("{0} : {1}".format(variable, realization))
-                    print(self.samplers_pop[variable])
+                print(model)
+                print("       Samplers      ")
 
+                # Samplers
                 for variable_ind in reals_ind.keys():
-                    print("{0}".format(variable_ind))
-                    print("{0}_mean : {1}".format(variable_ind, np.mean([x.detach().numpy() for _, x in reals_ind[variable_ind].items()])))
-                    print("{0}_var : {1}".format(variable_ind, np.var([x.detach().numpy()  for _, x in reals_ind[variable_ind].items()])))
-                    print(reals_ind[variable_ind])
                     print(self.samplers_ind[variable_ind])
 
-                    if np.var([x.detach().numpy()  for _, x in reals_ind[variable_ind].items()])<1e-6:
-                        print("--->WARNING<----- : Variance degenerate")
-
-
-        #print("Noise variance iter {0} : {1}".format(iter, model.model_parameters['noise_var']))
 
     def iter(self, data, model, realizations):
 
@@ -194,15 +181,11 @@ class MCMCSAEM(AbstractAlgo):
 
                 # Compute acceptation
                 accepted = self.samplers_ind[key].acceptation(alpha)
-                #print(new_loss-previous_loss, accepted)
-                #print(new_loss-previous_loss, accepted)
 
                 # Revert if not accepted
                 if not accepted:
                     reals_ind[key][idx] = previous_reals_ind
-            #print("Intercept var : {0}".format(model.model_parameters['intercept_var']))
-            #print("Regularity diff  : {0}".format(new_regularity-previous_regularity))
-            #print("Attachment diff  : {0}".format(new_attachment - previous_attachment))
+
 
 
         # Maximization step
@@ -233,6 +216,7 @@ class MCMCSAEM(AbstractAlgo):
         self.samplers_pop = dict.fromkeys(pop_name)
         self.samplers_ind = dict.fromkeys(ind_name)
 
+        # TODO Change this arbitrary parameters --> samplers parameters ???
         for key in pop_name:
             self.samplers_pop[key] = Sampler(key, 0.01, 20)
 

@@ -21,3 +21,11 @@ class AbstractModel():
 
     def simulate_individual_parameters(self):
         raise NotImplementedError
+
+    def __str__(self):
+        output = "         Model Summary         \n"
+
+        for key in self.model_parameters.keys():
+            output += "{0} : {1}\n".format(key, self.model_parameters[key])
+
+        return output

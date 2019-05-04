@@ -115,7 +115,7 @@ class GaussianDistributionModel(AbstractModel):
         return reals_ind
 
 
-    def plot(self, data, iter, realizations, output_path):
+    def plot(self, data, iter, realizations, path_output):
 
         import matplotlib.pyplot as plt
         import matplotlib.cm as cm
@@ -137,10 +137,12 @@ class GaussianDistributionModel(AbstractModel):
 
         ax.plot([70,90],[self.model_parameters['mu'], self.model_parameters['mu']], linewidth = 5, c='black', alpha = 0.3)
 
-        if not os.path.exists(os.path.join(output_path, 'plots/')):
-            os.mkdir(os.path.join(output_path, 'plots/'))
+        if not os.path.exists(os.path.join(path_output, 'plots/')):
+            os.mkdir(os.path.join(path_output, 'plots/'))
 
-        plt.savefig(os.path.join(output_path, 'plots','plot_patients_{0}.pdf'.format(iter)))
+        plt.savefig(os.path.join(path_output, 'plots','plot_patients_{0}.pdf'.format(iter)))
+        plt.close()
+
 
 
 

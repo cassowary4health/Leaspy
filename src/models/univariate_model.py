@@ -122,7 +122,7 @@ class UnivariateModel(AbstractModel):
         self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
 
 
-    def plot(self, data, iter, realizations, output_path):
+    def plot(self, data, iter, realizations, path_output):
 
         import matplotlib.pyplot as plt
 
@@ -133,8 +133,6 @@ class UnivariateModel(AbstractModel):
         reals_pop, reals_ind = realizations
 
         fig, ax = plt.subplots(1,1)
-
-
 
 
         for i, (_,individual) in enumerate(data.individuals.items()):
@@ -152,8 +150,9 @@ class UnivariateModel(AbstractModel):
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth = 4, alpha = 0.3)
 
 
-        if not os.path.exists(os.path.join(output_path, 'plots/')):
-            os.mkdir(os.path.join(output_path, 'plots/'))
+        if not os.path.exists(os.path.join(path_output, 'plots/')):
+            os.mkdir(os.path.join(path_output, 'plots/'))
 
-        plt.savefig(os.path.join(output_path, 'plots', 'plot_patients_{0}.pdf'.format(iter)))
+        plt.savefig(os.path.join(path_output, 'plots', 'plot_patients_{0}.pdf'.format(iter)))
+        plt.close()
 

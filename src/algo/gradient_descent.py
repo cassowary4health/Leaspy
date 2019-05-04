@@ -21,15 +21,14 @@ class GradientDescent(AbstractAlgo):
 
         self.path_output = 'output/'
 
+
+
     def run(self, data, model, seed=None, path_output=None):
 
-        if seed is not None:
-            torch.manual_seed(seed)
-            np.random.seed(seed)
-            print(" ==> Setting seed to {0}".format(seed))
+        self._initialize_seed(seed)
+        self._initialize_path_output(path_output)
 
-        if path_output is not None:
-            self.path_output = path_output
+
 
         realizations = model.initialize_realizations(data)
 
@@ -37,25 +36,16 @@ class GradientDescent(AbstractAlgo):
             self.iter(data, model, realizations)
 
             if iteration%100 == 0:
+
+                # Plot
+                """
                 model.plot(data, iteration, realizations, self.path_output)
+                """
 
-                reals_pop, reals_ind = realizations
-
-                # TODO factorize this
+                # Print
                 print("=============================================")
                 print("ITER ---- {0}".format(iteration))
-                print("Noise variance iter {0} : {1}".format(iteration, model.model_parameters['noise_var']))
-                for variable, realization in reals_pop.items():
-                    print("{0} : {1}".format(variable, realization))
-
-                for variable_ind in reals_ind.keys():
-                    print("{0}".format(variable_ind))
-                    print("{0}_mean : {1}".format(variable_ind, np.mean([x.detach().numpy() for _, x in reals_ind[variable_ind].items()])))
-                    print("{0}_var : {1}".format(variable_ind, np.var([x.detach().numpy()  for _, x in reals_ind[variable_ind].items()])))
-                    print(reals_ind[variable_ind])
-
-                    if np.var([x.detach().numpy()  for _, x in reals_ind[variable_ind].items()])<1e-6:
-                        print("--->WARNING<----- : Variance degenerate")
+                print(model)
 
         self.realizations = realizations
 
@@ -67,12 +57,6 @@ class GradientDescent(AbstractAlgo):
         attachment = model.compute_attachment(data, reals_pop, reals_ind)
         regularity = model.compute_regularity(data, reals_pop, reals_ind)
         loss = attachment + regularity
-
-
-        #print(loss, attachment, regularity)
-        #print(model.model_parameters)
-        #print(reals_ind)
-        #print("Sigma2 {0}".format(np.var([x.detach().numpy() for x in reals_ind['intercept'].values()])))
 
         # Do backward and backprop on realizations
         loss.backward()

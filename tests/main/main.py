@@ -108,7 +108,7 @@ class LeaspyTest(unittest.TestCase):
                                                   '_fit_gaussiandistribution_gradientdescent',
                                                   "algorithm_settings.json")
 
-        path_output = '../output_leaspy/gaussiandistribution_mcmcsaem/'
+        path_output = '../output_leaspy/gaussiandistribution_gradientdescent/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')

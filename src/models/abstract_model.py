@@ -2,6 +2,7 @@ import json
 import torch
 import numpy as np
 import os
+from torch.autograd import Variable
 
 class AbstractModel():
     def __init__(self):
@@ -74,3 +75,51 @@ class AbstractModel():
 
 
 
+    def initialize_realizations(self, data):
+        """
+        Initialize the realizations.
+        All individual parameters, and population parameters that need to be considered as realizations.
+        TODO : initialize settings + smart initialization
+        :param data:
+        :return:
+        """
+
+        reals_pop_name = self.reals_pop_name
+        reals_ind_name = self.reals_ind_name
+
+        # Population parameters
+        reals_pop = dict.fromkeys(reals_pop_name)
+        for pop_name in reals_pop_name:
+            reals_pop[pop_name] = self.model_parameters[pop_name]
+
+
+        # Instanciate individual realizations
+        reals_ind = dict.fromkeys(data.indices)
+
+        # For all patients
+        for idx in data.indices:
+            # Create dictionnary of individual random variables
+            reals_ind[idx] = dict.fromkeys(reals_ind_name)
+            # For all invididual random variables, initialize
+            for ind_name in reals_ind_name:
+                reals_ind[idx][ind_name] = np.random.normal(loc = self.model_parameters['{0}_mean'.format(ind_name)],
+                                                            scale = np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
+
+        # To Torch
+        for key in reals_pop.keys():
+            reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
+
+        for idx in reals_ind.keys():
+            for key in reals_ind[idx]:
+                reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
+
+        return reals_pop, reals_ind
+
+    def compute_sumsquared(self, data, reals_pop, reals_ind):
+        return np.sum([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
+
+    def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
+         return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)
+
+    def compute_individual_attachment(self, individual, reals_pop, real_ind):
+        return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))

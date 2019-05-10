@@ -1,10 +1,10 @@
 {
   "type": "univariate",
   "parameters": {
-    "P0": 0.3,
-    "tau_mean": 74,
-    "tau_var": 5,
-    "xi_mean": -2.5,
+    "P0": 0.2,
+    "tau_mean": 80,
+    "tau_var": 25,
+    "xi_mean": -3.0,
     "xi_var": 0.8
   }
 }

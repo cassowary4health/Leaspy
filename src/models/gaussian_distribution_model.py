@@ -28,59 +28,14 @@ class GaussianDistributionModel(AbstractModel):
         #for key in self.model_parameters.keys():
         #    self.model_parameters[key] = Variable(torch.tensor(self.model_parameters[key]).float(), requires_grad=True)
 
-    def initialize_realizations(self, data):
-        """
-        Initialize the realizations.
-        All individual parameters, and population parameters that need to be considered as realizations.
-        TODO : initialize settings + smart initialization
-        :param data:
-        :return:
-        """
-
-        reals_ind_name = self.reals_ind_name
-
-        # Population parameters
-        reals_pop = dict.fromkeys(self.reals_pop_name)
-        for pop_name in self.reals_pop_name:
-            reals_pop[pop_name] = self.model_parameters[pop_name]
-
-        # Instanciate individual realizations
-        reals_ind = dict.fromkeys(data.indices)
-
-        # For all patients
-        for idx in data.indices:
-            # Create dictionnary of individual random variables
-            reals_ind[idx] = dict.fromkeys(reals_ind_name)
-            # For all invididual random variables, initialize
-            for ind_name in reals_ind_name:
-                reals_ind[idx][ind_name] = np.random.normal(loc=self.model_parameters['{0}_mean'.format(ind_name)],
-                                                            scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
-
-        # To Torch
-        for key in reals_pop.keys():
-            reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
-
-        for idx in reals_ind.keys():
-            for key in reals_ind[idx]:
-                reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
-
-        return reals_pop, reals_ind
 
 
     def compute_individual(self, individual, reals_pop, real_ind):
-        return real_ind['intercept']*torch.ones_like(individual.tensor_timepoints)
+        return real_ind['intercept']*torch.ones_like(individual.tensor_timepoints.reshape(-1,1))
 
     def compute_average(self, tensor_timepoints):
-        return self.model_parameters['intercept_mean'] * torch.ones_like(tensor_timepoints)
+        return self.model_parameters['intercept_mean'] * torch.ones_like(tensor_timepoints.reshape(-1,1))
 
-    def compute_sumsquared(self, data, reals_pop, reals_ind):
-        return np.sum([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
-
-    def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
-         return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)
-
-    def compute_individual_attachment(self, individual, reals_pop, real_ind):
-        return self.compute_individual_sumsquared(individual, reals_pop, real_ind) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
 
     def compute_individual_regularity(self, real_ind):
         intercept_regularity = (real_ind['intercept']-self.model_parameters['intercept_mean'])**2/(2*self.model_parameters['intercept_var'])+np.log(self.model_parameters['intercept_var']*np.sqrt(2*np.pi))

@@ -40,6 +40,8 @@ class LeaspyFitTest(unittest.TestCase):
 
     #### Test on univariate data
 
+
+
     def test_fit_gaussiandisstribution_mcmcsaem(self):
         path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_mcmcsaem',
                                                 'model_parameters.json')
@@ -67,6 +69,8 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.model_parameters['intercept_var'], 0.00519, delta=0.0015)
 
     ## Test Gradient Descent Algorithm
+
+    
 
     def  test_fit_gaussiandistribution_gradientdescent(self):
         path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent',
@@ -97,7 +101,7 @@ class LeaspyFitTest(unittest.TestCase):
 
 
 
-
+    
 
     def test_fit_univariatesigmoid_gradientdescent(self):
         path_to_model_parameters = os.path.join(test_data_dir, '_fit_univariatesigmoid_gradientdescent',
@@ -123,8 +127,8 @@ class LeaspyFitTest(unittest.TestCase):
 
         leaspy.fit(data, path_to_fitalgo_parameters, path_output, seed=0)
 
-        self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.04805, delta=0.02)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 75.99, delta=2)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 3.16, delta=1)
-        self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -4.5, delta=0.2)
+        self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.00358, delta=0.008)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 91.297, delta=8)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 501, delta=10)
+        self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -5.0749, delta=0.2)
         self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.002, delta=0.08)

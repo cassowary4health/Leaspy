@@ -164,8 +164,15 @@ class MCMCSAEM(AbstractAlgo):
                 new_individual_loss = new_individual_attachment + new_individual_regularity
                 
                 alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy())
+                #print(alpha)
+                #print(key)
+                #print('--')
 
 
+                #print("New loss {0} : Previous Loss : ".format(new_individual_loss-previous_individual_loss))
+                #print("New att {0} : Previous att : ".format(new_individual_attachment-previous_individual_attachment))
+                #print("New reg {0} : Previous reg : ".format(new_individual_regularity-previous_individual_regularity))
+                #print("alpha : {0}".format(alpha))
                 """
                 previous_attachment = model.compute_attachment(data, reals_pop, reals_ind)
                 previous_regularity = model.compute_regularity(data, reals_pop,reals_ind)
@@ -195,6 +202,10 @@ class MCMCSAEM(AbstractAlgo):
 
         self.realizations = realizations
 
+        #print("Previous loss {0}".format(previous_individual_loss))
+        #print("Previous individual regularity{0}".format(previous_individual_regularity))
+        #print("Previous individual attachment{0}".format(previous_individual_attachment))
+
 
     def get_realizations(self):
         return self.realizations
@@ -219,7 +230,7 @@ class MCMCSAEM(AbstractAlgo):
 
         # TODO Change this arbitrary parameters --> samplers parameters ???
         for key in pop_name:
-            self.samplers_pop[key] = Sampler(key, 0.01, 20)
+            self.samplers_pop[key] = Sampler(key, 0.01, 50)
 
         for key in ind_name:
-            self.samplers_ind[key] = Sampler(key, 0.5, 200)
+            self.samplers_ind[key] = Sampler(key, np.sqrt(model.model_parameters["{0}_var".format(key)])/2, 200)

@@ -3,7 +3,7 @@
   "parameters": {
     "P0": 0.3,
     "tau_mean": 74,
-    "tau_var": 5,
+    "tau_var": 25,
     "xi_mean": -3,
     "xi_var": 0.1
   }

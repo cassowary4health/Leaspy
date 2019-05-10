@@ -20,85 +20,50 @@ class UnivariateModel(AbstractModel):
         self.reals_pop_name = ['p0']
         self.reals_ind_name = ['xi','tau']
 
-    def initialize_realizations(self, data):
-        """
-        Initialize the realizations.
-        All individual parameters, and population parameters that need to be considered as realizations.
-        TODO : initialize settings + smart initialization
-        :param data:
-        :return:
-        """
-
-        reals_pop_name = self.reals_pop_name
-        reals_ind_name = self.reals_ind_name
-
-        # Population parameters
-        reals_pop = dict.fromkeys(reals_pop_name)
-        for pop_name in reals_pop_name:
-            reals_pop[pop_name] = 0.3
-
-
-        # Instanciate individual realizations
-        reals_ind = dict.fromkeys(data.indices)
-
-        # For all patients
-        for idx in data.indices:
-            # Create dictionnary of individual random variables
-            reals_ind[idx] = dict.fromkeys(reals_ind_name)
-            # For all invididual random variables, initialize
-            for ind_name in reals_ind_name:
-                reals_ind[idx][ind_name] = np.random.normal(loc = self.model_parameters['{0}_mean'.format(ind_name)],
-                                                            scale = np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
-
-        # To Torch
-        for key in reals_pop.keys():
-            reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
-
-        for idx in reals_ind.keys():
-            for key in reals_ind[idx]:
-                reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
-
-        return reals_pop, reals_ind
-
 
 
     def compute_individual(self, individual, reals_pop, real_ind):
         p0 = reals_pop['p0']
-        reparametrized_time = torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
+        reparametrized_time = torch.exp(real_ind['xi'])*(individual.tensor_timepoints.reshape(-1,1)-real_ind['tau'])
         return torch.pow(1+(1/p0-1)*torch.exp(-reparametrized_time/(p0*(1-p0))), -1)
 
     def compute_average(self, tensor_timepoints):
         p0 = self.model_parameters['p0']
-        reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints-self.model_parameters['tau_mean'])
+        reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
-
 
 
     # Likelihood
 
-    def compute_sumsquared(self, data, reals_pop, reals_ind):
-        return np.sum([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
-    def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
-         return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)
-
-
-    def compute_individual_attachment(self, individual, reals_pop, real_ind):
-        return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
-
     def compute_individual_regularity(self, real_ind):
-        tau_regularity = (real_ind['tau']-self.model_parameters['tau_mean'])**2/(2*self.model_parameters['tau_var'])+np.log(self.model_parameters['tau_var']*np.sqrt(2*np.pi))
-        xi_regularity = (real_ind['xi']-self.model_parameters['xi_mean'])**2/(2*self.model_parameters['xi_var'])+np.log(self.model_parameters['xi_var']*np.sqrt(2*np.pi))
+        tau_regularity = (real_ind['tau']-self.model_parameters['tau_mean'])**2/(2*self.model_parameters['tau_var'])#+np.log(np.sqrt(2*np.pi*self.model_parameters['tau_var']))
+
+        if self.model_parameters['xi_var']<0.0001:
+            print("Warning xi var : {0}".format(self.model_parameters['xi_var']))
+            print(real_ind)
+        xi_regularity = (real_ind['xi']-self.model_parameters['xi_mean'])**2/(2*self.model_parameters['xi_var'])#+np.log(np.sqrt(2*np.pi*self.model_parameters['xi_var']))
         return tau_regularity+xi_regularity
 
 
     def update_sufficient_statistics(self, data, reals_ind, reals_pop):
 
-        #TODO parameters, how to tune ????
+        #TODO parameters, automatic initialization of these parameters
         m_xi = data.n_individuals/20
         sigma2_xi_0 = 0.05
 
-        m_tau = data.n_individuals/20
+        m_tau = data.n_individuals / 20
         sigma2_tau_0 = 10
+
+
+        """
+        m_xi = 10
+        sigma2_xi_0 = 0.5
+
+        m_tau = 10
+        sigma2_tau_0 = 60
+
+        m_tau = data.n_individuals/20
+        sigma2_tau_0 = 10"""
 
         # Update Parameters
 
@@ -113,7 +78,9 @@ class UnivariateModel(AbstractModel):
         for idx in reals_ind.keys():
             tau_array.append(reals_ind[idx]['tau'])
         tau_array = torch.Tensor(tau_array)
-        empirical_tau_var = np.sum(((tau_array - self.model_parameters['tau_mean'])**2).detach().numpy())/(data.n_individuals-1)
+        self.model_parameters['tau_mean'] = np.mean(tau_array.detach().numpy())
+        #empirical_tau_var = np.sum(((tau_array - self.model_parameters['tau_mean'])**2).detach().numpy())/(data.n_individuals-1)
+        empirical_tau_var = torch.sum(tau_array**2)/(data.n_individuals)-self.model_parameters['tau_mean']**2
         tau_var_update = (1/(data.n_individuals+m_tau))*(data.n_individuals*empirical_tau_var+m_tau*sigma2_tau_0)
         self.model_parameters['tau_var'] = tau_var_update
 
@@ -122,20 +89,26 @@ class UnivariateModel(AbstractModel):
         for idx in reals_ind.keys():
             xi_array.append(reals_ind[idx]['xi'])
         xi_array = torch.Tensor(xi_array)
-        empirical_xi_var = np.sum(
-            ((xi_array - self.model_parameters['xi_mean']) ** 2).detach().numpy()) / (
-                                        data.n_individuals - 1)
+        self.model_parameters['xi_mean'] = np.mean(xi_array.detach().numpy())
+        #empirical_xi_var = np.sum(((xi_array - self.model_parameters['xi_mean']) ** 2).detach().numpy()) / (data.n_individuals - 1)
+        empirical_xi_var = torch.sum(xi_array**2)/(data.n_individuals)-self.model_parameters['xi_mean']**2
         xi_var_update = (1/(data.n_individuals+m_xi))*(data.n_individuals*empirical_xi_var+m_xi*sigma2_xi_0)
         self.model_parameters['xi_var'] = xi_var_update
 
-        self.model_parameters['tau_mean'] = np.mean(tau_array.detach().numpy())
-        self.model_parameters['xi_mean'] = np.mean(xi_array.detach().numpy())
 
         # P0
         self.model_parameters['p0'] = reals_pop['p0'].detach().numpy()
 
         # Noise
         self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
+
+        def compute_sumsquared(self, data, reals_pop, reals_ind):
+            return np.sum(
+                [self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
+
+        def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
+            return torch.sum(
+                (self.compute_individual(individual, reals_pop, real_ind) - individual.tensor_observations) ** 2)
 
 """
         reals_pop_name = self.reals_pop_name

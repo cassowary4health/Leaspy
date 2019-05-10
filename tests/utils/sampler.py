@@ -14,8 +14,8 @@ class SamplerTest(unittest.TestCase):
             reals.append(sampler.sample())
         reals = np.array(reals)
 
-        self.assertAlmostEqual(np.mean(reals), 0., delta=0.05)
-        self.assertAlmostEqual(np.std(reals), 1., delta=0.05)
+        self.assertAlmostEqual(np.mean(reals), 0., delta=0.08)
+        self.assertAlmostEqual(np.std(reals), 1., delta=0.08)
 
 
     def test_acceptation(self):
@@ -30,7 +30,7 @@ class SamplerTest(unittest.TestCase):
         sampler = Sampler("sampler_test", 1, temp_length=1000)
         alpha = 0.5
         accepted_list = []
-        for i in range(500):
+        for i in range(1000):
             accepted_list.append(sampler.acceptation(alpha))
         accepted_list = np.array(accepted_list)
         self.assertAlmostEqual(np.mean(accepted_list), 0.5, delta=0.05)

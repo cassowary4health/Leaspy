@@ -3,6 +3,10 @@ import torch
 import numpy as np
 import os
 from torch.autograd import Variable
+from decimal import Decimal as D
+import io
+from src.utils.numpy_encoder import NumpyEncoder
+
 
 class AbstractModel():
     def __init__(self):
@@ -16,8 +20,12 @@ class AbstractModel():
             self.model_parameters[k] = v
 
     def save_parameters(self, path):
-        with open(path, 'w') as outfile:
-            json.dump(self.model_parameters, outfile)
+
+        dumped = json.dumps(self.model_parameters, cls=NumpyEncoder)
+
+        with open(path, 'w') as f:
+            json.dump(dumped, f)
+
 
     def get_parameters(self):
         return self.model_parameters
@@ -95,3 +103,6 @@ class AbstractModel():
 
     def compute_individual_attachment(self, individual, reals_pop, real_ind):
         return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+
+
+

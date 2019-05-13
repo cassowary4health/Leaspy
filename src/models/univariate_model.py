@@ -82,7 +82,7 @@ class UnivariateModel(AbstractModel):
         #empirical_tau_var = np.sum(((tau_array - self.model_parameters['tau_mean'])**2).detach().numpy())/(data.n_individuals-1)
         empirical_tau_var = torch.sum(tau_array**2)/(data.n_individuals)-self.model_parameters['tau_mean']**2
         tau_var_update = (1/(data.n_individuals+m_tau))*(data.n_individuals*empirical_tau_var+m_tau*sigma2_tau_0)
-        self.model_parameters['tau_var'] = tau_var_update
+        self.model_parameters['tau_var'] = tau_var_update.detach().numpy()
 
         # Xi
         xi_array = []
@@ -93,7 +93,7 @@ class UnivariateModel(AbstractModel):
         #empirical_xi_var = np.sum(((xi_array - self.model_parameters['xi_mean']) ** 2).detach().numpy()) / (data.n_individuals - 1)
         empirical_xi_var = torch.sum(xi_array**2)/(data.n_individuals)-self.model_parameters['xi_mean']**2
         xi_var_update = (1/(data.n_individuals+m_xi))*(data.n_individuals*empirical_xi_var+m_xi*sigma2_xi_0)
-        self.model_parameters['xi_var'] = xi_var_update
+        self.model_parameters['xi_var'] = xi_var_update.detach().numpy()
 
 
         # P0

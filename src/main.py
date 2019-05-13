@@ -34,6 +34,7 @@ class Leaspy():
 
         # Output manager
         output_manager = OutputManager(path_output)
+        output_manager.initialize_model_statistics(self.model)
 
         # Run algo
         algo.run(data, self.model, output_manager, seed)

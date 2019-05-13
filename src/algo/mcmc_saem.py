@@ -37,7 +37,7 @@ class MCMCSAEM(AbstractAlgo):
         self.initialize_samplers(model)
 
         for iteration in range(self.algo_parameters['n_iter']):
-            output_manager.iter(iteration, model, self)
+            output_manager.iter(self, data, model, realizations)
             self.iter(data, model, realizations)
 
 

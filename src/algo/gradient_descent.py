@@ -33,19 +33,9 @@ class GradientDescent(AbstractAlgo):
         realizations = model.initialize_realizations(data)
 
         for iteration in range(self.algo_parameters['n_iter']):
+            output_manager.iter(self, data, model, realizations)
             self.iter(data, model, realizations)
 
-            if iteration%100 == 0:
-
-                # Plot
-                """
-                model.plot(data, iteration, realizations, self.path_output)
-                """
-
-                # Print
-                print("=============================================")
-                print("ITER ---- {0}".format(iteration))
-                print(model)
 
         self.realizations = realizations
 

@@ -1,5 +1,9 @@
 
-
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import numpy as np
+import torch
+import os
 
 
 class OutputManager():
@@ -13,10 +17,17 @@ class OutputManager():
         # save every
 
         self.print_periodicity = 100
-        self.plot_periodicity = None
+        self.plot_periodicity = 100
         self.save_periodicity = None
 
-    def iter(self, iteration, model, algo):
+        # Options
+        self.plot_options = {}
+        self.plot_options['maximum_patient_number'] = 10
+
+    def iter(self, algo, data, model, realizations):
+
+        iteration = algo.iteration
+
         if self.print_periodicity is not None:
             if iteration % self.print_periodicity == 0:
                 self.print_algo_statistics(algo)
@@ -26,6 +37,11 @@ class OutputManager():
             if iteration % self.save_periodicity == 0:
                 self.save_model_statistics()
                 self.save_alo_statistics()
+
+        if self.plot_periodicity is not None:
+            if iteration % self.plot_periodicity == 0:
+                self.plot_patient_reconstructions(iteration, data, model, realizations)
+
 
 
 
@@ -56,8 +72,33 @@ class OutputManager():
     def plot_model_average_trajectory(self, model):
         raise NotImplementedError
 
-    def plot_patient_reconstructions(self, model, reals_pop, reals_ind):
-        raise NotImplementedError
+    def plot_patient_reconstructions(self, iteration, data, model, realizations):
+
+        colors = cm.rainbow(np.linspace(0, 1, self.plot_options['maximum_patient_number']+2))
+        reals_pop, reals_ind = realizations
+
+        fig, ax = plt.subplots(1, 1)
+
+        for i, idx in enumerate(data.indices):
+            model_value = model.compute_individual(data[idx], reals_pop, reals_ind[idx])
+            score = data[idx].tensor_observations
+            ax.plot(data[idx].tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=colors[i])
+            ax.plot(data[idx].tensor_timepoints.detach().numpy(), score.detach().numpy(), c=colors[i], linestyle='--',
+                    marker='o')
+
+            if i > self.plot_options['maximum_patient_number']:
+                break
+
+        # Plot average model
+        tensor_timepoints = torch.Tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1))
+        model_average = model.compute_average(tensor_timepoints)
+        ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
+
+        if not os.path.exists(os.path.join(self.path_output, 'plots/')):
+            os.mkdir(os.path.join(self.path_output, 'plots/'))
+
+        plt.savefig(os.path.join(self.path_output, 'plots', 'plot_patients_{0}.pdf'.format(iteration)))
+        plt.close()
 
 
 """
@@ -102,3 +143,4 @@ ax[2].set_title("Mu list")
 plt.tight_layout()
 plt.savefig(os.path.join(output_path,'Convergence_parameters.pdf'))
 """
+

@@ -25,93 +25,28 @@ class MCMCSAEM(AbstractAlgo):
         self.samplers_pop = None
         self.samplers_ind = None
 
+        self.iteration = 0
+
         self.path_output = "output/"
 
-    def run(self, data, model, seed=None, path_output=None):
+    def run(self, data, model, output_manager, seed=None):
 
         self._initialize_seed(seed)
-        self._initialize_path_output(path_output)
 
         realizations = model.initialize_realizations(data)
         self.initialize_samplers(model)
 
-
-
-
-        iters = []
-        noise_var_list = []
-        xi_mean_list = []
-        xi_std_list = []
-        tau_mean_list = []
-        tau_std_list = []
-        p0_list = []
-
-        mu_list = []
-        intercept_var_list = []
-
-
         for iteration in range(self.algo_parameters['n_iter']):
+            output_manager.iter(iteration, model, self)
             self.iter(data, model, realizations)
 
-            if iteration % 100 == 0:
-
-                """
-                model.plot(data, iteration, realizations, self.path_output)
-                """
-
-                reals_pop, reals_ind = realizations
-
-                """
-
-                fig, ax = plt.subplots(6, 1, figsize=(6,12))
-                
-                iters.append(iteration)
-                noise_var_list.append(model.model_parameters['noise_var'])
-
-                xi_mean_list.append(np.mean([x.detach().numpy() for _,x in reals_ind['xi'].items()]))
-                xi_std_list.append(np.std([x.detach().numpy() for _,x in reals_ind['xi'].items()]))
-                tau_mean_list.append(np.mean([x.detach().numpy() for _,x in reals_ind['tau'].items()]))
-                tau_std_list.append(np.std([x.detach().numpy() for _,x in reals_ind['tau'].items()]))
-                p0_list.append((reals_pop['p0'].detach().numpy()))
-
-                ax[0].plot(iters, noise_var_list)
-                ax[0].set_title('Noise variance')
-                ax[1].plot(iters, xi_mean_list)
-                ax[1].set_title('Xi mean, rate {0}'.format(np.mean(self.samplers_ind['xi'].acceptation_temp)))
-                ax[2].plot(iters, xi_std_list)
-                ax[2].set_title('Xi std')
-                ax[3].plot(iters, tau_mean_list)
-                ax[3].set_title('tau mean, rate {0}'.format(np.mean(self.samplers_ind['tau'].acceptation_temp)))
-                ax[4].plot(iters, tau_std_list)
-                ax[4].set_title('Tau std')
-                ax[5].plot(iters, p0_list)
-                ax[5].set_title('p0, rate {0}'.format(np.mean(self.samplers_pop['p0'].acceptation_temp)))
 
 
-                
-                intercept_var_list.append(np.var([x.detach().numpy() for _,x in reals_ind['intercept'].items()]))
-                mu_list.append(np.mean([x.detach().numpy() for _,x in reals_ind['intercept'].items()]))
 
-                ax[0].plot(iters, noise_var_list)
-                ax[0].set_title('Noise')
-                ax[1].plot(iters, intercept_var_list)
-                ax[1].set_title('Intercept var list')
-                ax[2].plot(iters, mu_list)
-                ax[2].set_title("Mu list")
-                
-
-                plt.tight_layout()
-                plt.savefig(os.path.join(output_path,'Convergence_parameters.pdf'))
-                """
-
-                print("=============================================")
-                print("ITER ---- {0}".format(iteration))
-                print(model)
-                print("       Samplers      ")
-
-                # Samplers
-                for variable_ind in model.reals_ind_name:
-                    print(self.samplers_ind[variable_ind])
+            # Samplers
+            """
+            for variable_ind in model.reals_ind_name:
+                print(self.samplers_ind[variable_ind])"""
 
 
     def iter(self, data, model, realizations):
@@ -207,6 +142,9 @@ class MCMCSAEM(AbstractAlgo):
         #print("Previous individual attachment{0}".format(previous_individual_attachment))
 
 
+        self.iteration += 1
+
+
     def get_realizations(self):
         return self.realizations
 
@@ -234,3 +172,5 @@ class MCMCSAEM(AbstractAlgo):
 
         for key in ind_name:
             self.samplers_ind[key] = Sampler(key, np.sqrt(model.model_parameters["{0}_var".format(key)])/2, 200)
+
+

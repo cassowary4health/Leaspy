@@ -2,6 +2,7 @@ from src.inputs.model_parameters_reader import ModelParametersReader
 from src.models.model_factory import ModelFactory
 from src.inputs.algo_reader import AlgoReader
 from src.algo.algo_factory import AlgoFactory
+from src.utils.output_manager import OutputManager
 import json
 
 class Leaspy():
@@ -25,13 +26,17 @@ class Leaspy():
 
     def fit(self, data, path_to_algorithm_settings, path_output, seed=0):
 
+        # Algo settings
         reader = AlgoReader(path_to_algorithm_settings)
         algo = AlgoFactory.algo(reader.algo_type)
         algo.load_parameters(reader.parameters)
         algo.set_mode('fit')
 
+        # Output manager
+        output_manager = OutputManager(path_output)
+
         # Run algo
-        algo.run(data, self.model, seed, path_output)
+        algo.run(data, self.model, output_manager, seed)
 
     def predict(self, data, path_to_prediction_settings, seed=0):
         """

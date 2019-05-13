@@ -26,7 +26,7 @@ class AbstractModel():
         raise NotImplementedError
 
     def __str__(self):
-        output = "         Model Summary         \n"
+        output = "=== MODEL ===\n"
 
         for key in self.model_parameters.keys():
             output += "{0} : {1}\n".format(key, self.model_parameters[key])

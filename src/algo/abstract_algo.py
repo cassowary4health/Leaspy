@@ -17,6 +17,8 @@ class AbstractAlgo():
             np.random.seed(seed)
             print(" ==> Setting seed to {0}".format(seed))
 
-    def _initialize_path_output(self, path_output):
-        if path_output is not None:
-            self.path_output = path_output
+    def __str__(self):
+        out = ""
+        out += "=== ALGO ===\n"
+        out += "Iteration {0}".format(self.iteration)
+        return out

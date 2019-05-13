@@ -19,15 +19,15 @@ class GradientDescent(AbstractAlgo):
         self.task = None
         self.algo_parameters = reader.parameters
 
+        self.iteration = 0
+
         self.path_output = 'output/'
 
 
 
-    def run(self, data, model, seed=None, path_output=None):
+    def run(self, data, model, output_manager, seed=None):
 
         self._initialize_seed(seed)
-        self._initialize_path_output(path_output)
-
 
 
         realizations = model.initialize_realizations(data)
@@ -79,9 +79,7 @@ class GradientDescent(AbstractAlgo):
         if self.algo_parameters['estimate_population_parameters']:
             model.update_sufficient_statistics(data, reals_ind, reals_pop)
 
-
-
-        return 0
+        self.iteration += 1
 
 
     def get_realizations(self):

@@ -4,21 +4,23 @@ import matplotlib.cm as cm
 import numpy as np
 import torch
 import os
-
+import csv
 
 class OutputManager():
 
     # TODO: add a loading bar for a run
 
     def __init__(self, path_output):
+        # Paths
         self.path_output = path_output
+        self.path_save_model = os.path.join(path_output, "model_history.csv")
+
         # print every
         # plot every
         # save every
-
         self.print_periodicity = 100
         self.plot_periodicity = 100
-        self.save_periodicity = None
+        self.save_periodicity = 100
 
         # Options
         self.plot_options = {}
@@ -35,8 +37,8 @@ class OutputManager():
 
         if self.save_periodicity is not None:
             if iteration % self.save_periodicity == 0:
-                self.save_model_statistics()
-                self.save_alo_statistics()
+                self.save_model_statistics(iteration, model)
+                #self.save_alo_statistics()
 
         if self.plot_periodicity is not None:
             if iteration % self.plot_periodicity == 0:
@@ -59,10 +61,22 @@ class OutputManager():
     ## Saving methods
     ########
 
-    def save_model_statistics(self, model):
-        raise NotImplementedError
+    def save_model_statistics(self, iteration, model):
+        model_parameters = model.get_parameters()
 
-    def save_realizations(self, reals_pop, reals_ind):
+        if not os.path.exists(self.path_save_model):
+            with open(self.path_save_model, 'w', newline='') as filename:
+                writer = csv.writer(filename)
+                writer.writerow(["Iteration"] + list(model_parameters.keys()))
+
+        with open(self.path_save_model, 'a', newline='') as filename:
+            writer = csv.writer(filename)
+            writer.writerow([iteration]+list(model_parameters.values()))
+
+
+
+
+    def save_realizations(self, realizations):
         raise NotImplementedError
 
     ########

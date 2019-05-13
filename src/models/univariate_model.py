@@ -38,7 +38,7 @@ class UnivariateModel(AbstractModel):
     def compute_individual_regularity(self, real_ind):
         tau_regularity = (real_ind['tau']-self.model_parameters['tau_mean'])**2/(2*self.model_parameters['tau_var'])#+np.log(np.sqrt(2*np.pi*self.model_parameters['tau_var']))
 
-        if self.model_parameters['xi_var']<0.0001:
+        if self.model_parameters['xi_var'] < 0.0001:
             print("Warning xi var : {0}".format(self.model_parameters['xi_var']))
             print(real_ind)
         xi_regularity = (real_ind['xi']-self.model_parameters['xi_mean'])**2/(2*self.model_parameters['xi_var'])#+np.log(np.sqrt(2*np.pi*self.model_parameters['xi_var']))

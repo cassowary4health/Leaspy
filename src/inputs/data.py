@@ -42,6 +42,10 @@ class Data():
         return data_train, data_test
 
 
+    def set_time_normalization_info(self, time_mean, time_std):
+        self.time_mean = time_mean
+        self.time_std = time_std
+
     def __getitem__(self, id):
          return self.individuals[id]
 

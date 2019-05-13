@@ -1,6 +1,0 @@
-{
-  "type": "random_sampling",
-  "parameters": {
-    "n_iter": 401
-  }
-}

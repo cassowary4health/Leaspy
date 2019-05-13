@@ -1,8 +1,0 @@
-{
-  "type": "gaussian_distribution",
-  "parameters": {
-    "intercept_mean": 0.0,
-    "intercept_var": 1.0,
-    "noise_var":1.0
-  }
-}

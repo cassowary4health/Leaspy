@@ -2,8 +2,8 @@
   "type": "univariate",
   "parameters": {
     "P0": 0.2,
-    "tau_mean": 80,
-    "tau_var": 25,
+    "tau_mean": 0,
+    "tau_var": 1,
     "xi_mean": -3.0,
     "xi_var": 0.8
   }

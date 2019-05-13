@@ -2,9 +2,9 @@
   "type": "univariate",
   "parameters": {
     "P0": 0.3,
-    "tau_mean": 74,
-    "tau_var": 25,
-    "xi_mean": -3,
+    "tau_mean": 0,
+    "tau_var": 1,
+    "xi_mean": -1,
     "xi_var": 0.1
   }
 }

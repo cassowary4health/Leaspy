@@ -3,12 +3,13 @@ from src.utils.random_variable.abstract_random_variable import AbstractRandomVar
 import numpy as np
 
 class GaussianRandomVariable(AbstractRandomVariable):
-    def __init__(self, mu, variance):
+    def __init__(self, name, mu, variance):
 
+        self.name = name
         self._mu = mu
         self._variance = variance
         self._variance_inverse = 1/variance
-        self._log_constant = -np.log(np.sqrt(2*np.pi*variance))
+        self._log_constant = np.log(np.sqrt(2*np.pi*variance))
 
     @property
     def mu(self):
@@ -29,14 +30,14 @@ class GaussianRandomVariable(AbstractRandomVariable):
     @mu.setter
     def mu(self, mu):
         self._mu = mu
-        self._log_constant = -np.log(np.sqrt(2 * np.pi * self.variance))
+        self._log_constant = np.log(np.sqrt(2 * np.pi * self.variance))
 
     @variance.setter
     def variance(self, variance):
         self._variance = variance
         self._variance_inverse = 1 / variance
-        self._log_constant = -np.log(np.sqrt(2 * np.pi * variance))
+        self._log_constant = np.log(np.sqrt(2 * np.pi * variance))
 
-    def compute_loglikelihood(self, x):
-        return -self.variance_inverse*(x - self.mu)**2 + self._log_constant
+    def compute_negativeloglikelihood(self, x):
+        return self.variance_inverse*(x - self.mu)**2 + self._log_constant
 

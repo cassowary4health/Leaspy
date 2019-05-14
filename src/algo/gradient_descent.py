@@ -14,13 +14,10 @@ class GradientDescent(AbstractAlgo):
         if reader.algo_type != 'gradient_descent':
             raise ValueError("The default gradient descent parameters are not of gradient_descent type")
 
-
         self.realizations = None
         self.task = None
         self.algo_parameters = reader.parameters
-
         self.iteration = 0
-
         self.path_output = 'output/'
 
 

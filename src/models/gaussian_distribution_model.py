@@ -22,6 +22,8 @@ class GaussianDistributionModel(AbstractModel):
         self.reals_pop_name = []
         self.reals_ind_name = ['intercept']
 
+        self._initialize_random_variables()
+
 
 
         # TODO to Pytorch, peut être dans le reader ????
@@ -68,6 +70,7 @@ class GaussianDistributionModel(AbstractModel):
         # Noise
         self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
 
+        self._update_random_variables()
 
     def simulate_individual_parameters(self, indices, seed=0):
 

@@ -6,6 +6,7 @@ from torch.autograd import Variable
 from decimal import Decimal as D
 import io
 from src.utils.numpy_encoder import NumpyEncoder
+from src.utils.random_variable.gaussian_random_variable import GaussianRandomVariable
 
 
 class AbstractModel():
@@ -50,9 +51,6 @@ class AbstractModel():
         return np.sum(
             [self.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
 
-    def compute_regularity(self, data, reals_pop, reals_ind):
-        return np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
-
 
 
     def initialize_realizations(self, data):
@@ -82,8 +80,8 @@ class AbstractModel():
             reals_ind[idx] = dict.fromkeys(reals_ind_name)
             # For all invididual random variables, initialize
             for ind_name in reals_ind_name:
-                reals_ind[idx][ind_name] = np.random.normal(loc = self.model_parameters['{0}_mean'.format(ind_name)],
-                                                            scale = np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
+                reals_ind[idx][ind_name] = np.random.normal(loc=self.model_parameters['{0}_mean'.format(ind_name)],
+                                                            scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
 
         # To Torch
         for key in reals_pop.keys():
@@ -104,5 +102,41 @@ class AbstractModel():
     def compute_individual_attachment(self, individual, reals_pop, real_ind):
         return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
 
+
+
+    def compute_regularity(self, data, reals_pop, reals_ind):
+        #TODO only reg on reals_ind for now
+        return np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
+
+    def compute_individual_regularity(self, real_ind):
+        return np.sum([self.compute_individual_regularity_variable(real, key) for key, real in real_ind.items()])
+
+    def compute_individual_regularity_variable(self, real, key):
+        return self.random_variables[key].compute_negativeloglikelihood(real)
+
+    def _update_random_variables(self):
+
+        # TODO float for torch operations
+
+        for real_pop_name in self.reals_pop_name:
+            self.random_variables[real_pop_name].mu = float(self.model_parameters[real_pop_name])
+
+        for real_ind_name in self.reals_ind_name:
+            self.random_variables[real_ind_name].mu = float(self.model_parameters["{0}_mean".format(real_ind_name)])
+            self.random_variables[real_ind_name].variance = float(self.model_parameters["{0}_var".format(real_ind_name)])
+
+    def _initialize_random_variables(self):
+
+        self.random_variables = dict.fromkeys(self.reals_pop_name+self.reals_ind_name)
+
+        for real_pop_name in self.reals_pop_name:
+            self.random_variables[real_pop_name] = GaussianRandomVariable(name=real_pop_name,
+                                                                          mu=self.model_parameters[real_pop_name],
+                                                                          variance=0.00001)
+
+        for real_ind_name in self.reals_ind_name:
+            self.random_variables[real_ind_name] = GaussianRandomVariable(name=real_ind_name,
+                                                                          mu=self.model_parameters["{0}_mean".format(real_ind_name)],
+                                                                          variance=self.model_parameters["{0}_var".format(real_ind_name)])
 
 

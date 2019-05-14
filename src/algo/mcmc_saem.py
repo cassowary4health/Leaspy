@@ -35,12 +35,8 @@ class MCMCSAEM(AbstractAlgo):
         self._initialize_samplers(model)
 
 
+    def _sample_population_realizations(self, data, model, reals_pop, reals_ind):
 
-    def iter(self, data, model, realizations):
-
-        reals_pop, reals_ind = realizations
-
-        # Sample step
         for key in reals_pop.keys():
 
             # Old loss
@@ -48,6 +44,7 @@ class MCMCSAEM(AbstractAlgo):
             previous_attachment = model.compute_attachment(data, reals_pop, reals_ind)
             previous_regularity = model.compute_regularity(data, reals_pop, reals_ind)
             previous_loss = previous_attachment + previous_regularity
+
             # New loss
             reals_pop[key] = reals_pop[key] + self.samplers_pop[key].sample()
             new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
@@ -64,16 +61,21 @@ class MCMCSAEM(AbstractAlgo):
                 reals_pop[key] = previous_reals_pop
 
 
+
+    """
+    def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
+
         for idx in reals_ind.keys():
             for key in reals_ind[idx].keys():
 
                 # Save previous realization
                 previous_reals_ind = reals_ind[idx][key]
-                #print(previous_reals_ind)
+                # print(previous_reals_ind)
 
                 # Compute previous loss
 
-                previous_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
+                previous_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop,
+                                                                                     reals_ind[idx])
                 previous_individual_regularity = model.compute_individual_regularity(reals_ind[idx])
                 previous_individual_loss = previous_individual_attachment + previous_individual_regularity
 
@@ -84,7 +86,42 @@ class MCMCSAEM(AbstractAlgo):
                 new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
                 new_individual_regularity = model.compute_individual_regularity(reals_ind[idx])
                 new_individual_loss = new_individual_attachment + new_individual_regularity
-                
+
+                alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy())
+
+                # Compute acceptation
+                accepted = self.samplers_ind[key].acceptation(alpha)
+
+                # Revert if not accepted
+                if not accepted:
+                    reals_ind[idx][key] = previous_reals_ind"""
+
+
+
+    def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
+
+        for idx in reals_ind.keys():
+            for key in reals_ind[idx].keys():
+
+                # Save previous realization
+                previous_reals_ind = reals_ind[idx][key]
+                # print(previous_reals_ind)
+
+                # Compute previous loss
+
+                previous_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop,
+                                                                                     reals_ind[idx])
+                previous_individual_regularity = model.compute_individual_regularity_variable(reals_ind[idx][key], key)
+                previous_individual_loss = previous_individual_attachment + previous_individual_regularity
+
+                # Sample a new realization
+                reals_ind[idx][key] = reals_ind[idx][key] + self.samplers_ind[key].sample()
+
+                # Compute new loss
+                new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
+                new_individual_regularity = model.compute_individual_regularity_variable(reals_ind[idx][key], key)
+                new_individual_loss = new_individual_attachment + new_individual_regularity
+
                 alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy())
 
                 # Compute acceptation
@@ -95,6 +132,14 @@ class MCMCSAEM(AbstractAlgo):
                     reals_ind[idx][key] = previous_reals_ind
 
 
+
+    def iter(self, data, model, realizations):
+
+        reals_pop, reals_ind = realizations
+
+        # Sample step
+        self._sample_population_realizations(data, model, reals_pop, reals_ind)
+        self._sample_individual_realizations(data, model, reals_pop, reals_ind)
 
         # Maximization step
         if self.algo_parameters['estimate_population_parameters']:

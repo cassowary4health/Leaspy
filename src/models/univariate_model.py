@@ -7,6 +7,7 @@ import torch
 from torch.autograd import Variable
 import numpy as np
 
+
 class UnivariateModel(AbstractModel):
     def __init__(self):
         data_dir = os.path.join(default_data_dir, "default_univariate_parameters.json")
@@ -19,6 +20,10 @@ class UnivariateModel(AbstractModel):
 
         self.reals_pop_name = ['p0']
         self.reals_ind_name = ['xi','tau']
+
+        self._initialize_random_variables()
+
+
 
 
 
@@ -35,16 +40,6 @@ class UnivariateModel(AbstractModel):
 
     # Likelihood
 
-    def compute_individual_regularity(self, real_ind):
-        tau_regularity = (real_ind['tau']-self.model_parameters['tau_mean'])**2/(2*self.model_parameters['tau_var'])#+np.log(np.sqrt(2*np.pi*self.model_parameters['tau_var']))
-
-        if self.model_parameters['xi_var'] < 0.0001:
-            print("Warning xi var : {0}".format(self.model_parameters['xi_var']))
-            print(real_ind)
-        xi_regularity = (real_ind['xi']-self.model_parameters['xi_mean'])**2/(2*self.model_parameters['xi_var'])#+np.log(np.sqrt(2*np.pi*self.model_parameters['xi_var']))
-        return tau_regularity+xi_regularity
-
-
     def update_sufficient_statistics(self, data, reals_ind, reals_pop):
 
         #TODO parameters, automatic initialization of these parameters
@@ -54,16 +49,6 @@ class UnivariateModel(AbstractModel):
         m_tau = data.n_individuals / 20
         sigma2_tau_0 = 10
 
-
-        """
-        m_xi = 10
-        sigma2_xi_0 = 0.5
-
-        m_tau = 10
-        sigma2_tau_0 = 60
-
-        m_tau = data.n_individuals/20
-        sigma2_tau_0 = 10"""
 
         # Update Parameters
 
@@ -78,7 +63,7 @@ class UnivariateModel(AbstractModel):
         for idx in reals_ind.keys():
             tau_array.append(reals_ind[idx]['tau'])
         tau_array = torch.Tensor(tau_array)
-        self.model_parameters['tau_mean'] = np.mean(tau_array.detach().numpy())
+        self.model_parameters['tau_mean'] = np.mean(tau_array.detach().numpy()).tolist()
         #empirical_tau_var = np.sum(((tau_array - self.model_parameters['tau_mean'])**2).detach().numpy())/(data.n_individuals-1)
         empirical_tau_var = torch.sum(tau_array**2)/(data.n_individuals)-self.model_parameters['tau_mean']**2
         tau_var_update = (1/(data.n_individuals+m_tau))*(data.n_individuals*empirical_tau_var+m_tau*sigma2_tau_0)
@@ -89,7 +74,7 @@ class UnivariateModel(AbstractModel):
         for idx in reals_ind.keys():
             xi_array.append(reals_ind[idx]['xi'])
         xi_array = torch.Tensor(xi_array)
-        self.model_parameters['xi_mean'] = np.mean(xi_array.detach().numpy())
+        self.model_parameters['xi_mean'] = np.mean(xi_array.detach().numpy()).tolist()
         #empirical_xi_var = np.sum(((xi_array - self.model_parameters['xi_mean']) ** 2).detach().numpy()) / (data.n_individuals - 1)
         empirical_xi_var = torch.sum(xi_array**2)/(data.n_individuals)-self.model_parameters['xi_mean']**2
         xi_var_update = (1/(data.n_individuals+m_xi))*(data.n_individuals*empirical_xi_var+m_xi*sigma2_xi_0)
@@ -102,6 +87,17 @@ class UnivariateModel(AbstractModel):
         # Noise
         self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
 
+
+        self._update_random_variables()
+
+        """
+        def compute_individual_regularity(self, real_ind):
+            tau_regularity = (real_ind['tau']-self.model_parameters['tau_mean'])**2/(2*self.model_parameters['tau_var'])#+np.log(np.sqrt(2*np.pi*self.model_parameters['tau_var']))
+            xi_regularity = (real_ind['xi']-self.model_parameters['xi_mean'])**2/(2*self.model_parameters['xi_var'])#+np.log(np.sqrt(2*np.pi*self.model_parameters['xi_var']))
+            return tau_regularity+xi_regularity"""
+
+
+"""
         def compute_sumsquared(self, data, reals_pop, reals_ind):
             return np.sum(
                 [self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
@@ -110,7 +106,8 @@ class UnivariateModel(AbstractModel):
             return torch.sum(
                 (self.compute_individual(individual, reals_pop, real_ind) - individual.tensor_observations) ** 2)
 
-"""
+
+
         reals_pop_name = self.reals_pop_name
         reals_ind_name = self.reals_ind_name
 

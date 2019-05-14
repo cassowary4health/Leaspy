@@ -10,6 +10,7 @@ from tests.models.abstract_model import AbstractModelTest
 from tests.models.univariate_model import UnivariateModelTest
 
 from tests.utils.sampler import SamplerTest
+from tests.utils.random_variable.gaussian_random_variable import GaussianRandomVariableTest
 
 # Main
 from tests.main.main import LeaspyTest

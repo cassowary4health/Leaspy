@@ -111,7 +111,7 @@ class MCMCSAEM(AbstractAlgo):
 
                 previous_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop,
                                                                                      reals_ind[idx])
-                previous_individual_regularity = model.compute_individual_regularity_variable(reals_ind[idx][key], key)
+                previous_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
                 previous_individual_loss = previous_individual_attachment + previous_individual_regularity
 
                 # Sample a new realization
@@ -119,7 +119,7 @@ class MCMCSAEM(AbstractAlgo):
 
                 # Compute new loss
                 new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
-                new_individual_regularity = model.compute_individual_regularity_variable(reals_ind[idx][key], key)
+                new_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
                 new_individual_loss = new_individual_attachment + new_individual_regularity
 
                 alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy())

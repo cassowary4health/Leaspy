@@ -111,7 +111,7 @@ class AbstractModel():
     def compute_individual_regularity(self, real_ind):
         return np.sum([self.compute_individual_regularity_variable(real, key) for key, real in real_ind.items()])
 
-    def compute_individual_regularity_variable(self, real, key):
+    def compute_regularity_variable(self, real, key):
         return self.random_variables[key].compute_negativeloglikelihood(real)
 
     def _update_random_variables(self):

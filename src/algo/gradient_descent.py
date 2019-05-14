@@ -24,20 +24,11 @@ class GradientDescent(AbstractAlgo):
         self.path_output = 'output/'
 
 
-
-    def run(self, data, model, output_manager, seed=None):
-
-        self._initialize_seed(seed)
-
-
-        realizations = model.initialize_realizations(data)
-
-        for iteration in range(self.algo_parameters['n_iter']):
-            output_manager.iter(self, data, model, realizations)
-            self.iter(data, model, realizations)
+    def _initialize_algo(self, model):
+        # TODO Initialize the learning rate ???
+        pass
 
 
-        self.realizations = realizations
 
     def iter(self, data, model, realizations):
 

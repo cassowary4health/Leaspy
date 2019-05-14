@@ -29,24 +29,11 @@ class MCMCSAEM(AbstractAlgo):
 
         self.path_output = "output/"
 
-    def run(self, data, model, output_manager, seed=None):
-
-        self._initialize_seed(seed)
-
-        realizations = model.initialize_realizations(data)
-        self.initialize_samplers(model)
-
-        for iteration in range(self.algo_parameters['n_iter']):
-            output_manager.iter(self, data, model, realizations)
-            self.iter(data, model, realizations)
 
 
+    def _initialize_algo(self, model):
+        self._initialize_samplers(model)
 
-
-            # Samplers
-            """
-            for variable_ind in model.reals_ind_name:
-                print(self.samplers_ind[variable_ind])"""
 
 
     def iter(self, data, model, realizations):
@@ -99,28 +86,6 @@ class MCMCSAEM(AbstractAlgo):
                 new_individual_loss = new_individual_attachment + new_individual_regularity
                 
                 alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy())
-                #print(alpha)
-                #print(key)
-                #print('--')
-
-
-                #print("New loss {0} : Previous Loss : ".format(new_individual_loss-previous_individual_loss))
-                #print("New att {0} : Previous att : ".format(new_individual_attachment-previous_individual_attachment))
-                #print("New reg {0} : Previous reg : ".format(new_individual_regularity-previous_individual_regularity))
-                #print("alpha : {0}".format(alpha))
-                """
-                previous_attachment = model.compute_attachment(data, reals_pop, reals_ind)
-                previous_regularity = model.compute_regularity(data, reals_pop,reals_ind)
-                previous_loss = previous_attachment + previous_regularity
-
-                # Sample a new realization
-                reals_ind[key][idx] = reals_ind[key][idx] + self.samplers_ind[key].sample()
-
-                new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
-                new_regularity = model.compute_regularity(data, reals_pop, reals_ind)
-                new_loss = new_attachment + new_regularity
-
-                alpha = np.exp(-(new_loss - previous_loss).detach().numpy())"""
 
                 # Compute acceptation
                 accepted = self.samplers_ind[key].acceptation(alpha)
@@ -134,13 +99,6 @@ class MCMCSAEM(AbstractAlgo):
         # Maximization step
         if self.algo_parameters['estimate_population_parameters']:
             model.update_sufficient_statistics(data, reals_ind, reals_pop)
-
-        self.realizations = realizations
-
-        #print("Previous loss {0}".format(previous_individual_loss))
-        #print("Previous individual regularity{0}".format(previous_individual_regularity))
-        #print("Previous individual attachment{0}".format(previous_individual_attachment))
-
 
         self.iteration += 1
 
@@ -158,7 +116,7 @@ class MCMCSAEM(AbstractAlgo):
             self.algo_parameters['estimate_population_parameters'] = False
 
 
-    def initialize_samplers(self, model):
+    def _initialize_samplers(self, model):
 
         pop_name = model.reals_pop_name
         ind_name = model.reals_ind_name

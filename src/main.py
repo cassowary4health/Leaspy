@@ -56,8 +56,8 @@ class Leaspy():
         algo.set_mode('predict')
 
         # Run optimization
-        algo.run(data, self.model, seed)
-        reals_pop, reals_ind = algo.get_realizations()
+        realizations = algo.run(data, self.model, seed)
+        reals_pop, reals_ind = realizations
         return reals_ind
 
 

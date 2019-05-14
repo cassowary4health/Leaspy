@@ -23,9 +23,9 @@ class UnivariateModel(AbstractModel):
 
         self._initialize_random_variables()
 
-
-
-
+    ###########################
+    ## Core
+    ###########################
 
     def compute_individual(self, individual, reals_pop, real_ind):
         p0 = reals_pop['p0']
@@ -36,9 +36,6 @@ class UnivariateModel(AbstractModel):
         p0 = self.model_parameters['p0']
         reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
-
-
-    # Likelihood
 
     def update_sufficient_statistics(self, data, reals_ind, reals_pop):
 

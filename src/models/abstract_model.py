@@ -13,6 +13,11 @@ class AbstractModel():
     def __init__(self):
         self.model_parameters = {}
 
+    ###########################
+    ## Initialization
+    ###########################
+
+
     def load_parameters(self, model_parameters):
         for k, v in model_parameters.items():
             if k in self.model_parameters.keys():
@@ -26,32 +31,6 @@ class AbstractModel():
 
         with open(path, 'w') as f:
             json.dump(dumped, f)
-
-
-    def get_parameters(self):
-        return self.model_parameters
-
-
-    def initialize_realizations(self):
-        raise NotImplementedError
-
-    def simulate_individual_parameters(self):
-        raise NotImplementedError
-
-    def __str__(self):
-        output = "=== MODEL ===\n"
-
-        for key in self.model_parameters.keys():
-            output += "{0} : {1}\n".format(key, self.model_parameters[key])
-
-        return output
-
-
-    def compute_attachment(self, data, reals_pop, reals_ind):
-        return np.sum(
-            [self.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
-
-
 
     def initialize_realizations(self, data):
         """
@@ -93,40 +72,6 @@ class AbstractModel():
 
         return reals_pop, reals_ind
 
-    def compute_sumsquared(self, data, reals_pop, reals_ind):
-        return np.sum([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
-
-    def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
-         return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)
-
-    def compute_individual_attachment(self, individual, reals_pop, real_ind):
-        return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
-
-
-
-    def compute_regularity(self, data, reals_pop, reals_ind):
-        #TODO only reg on reals_ind for now
-        regularity_ind = np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
-        #regularity_pop = self.compute_individual_regularity(reals_pop)
-        return regularity_ind#+regularity_pop
-
-    def compute_individual_regularity(self, real_ind):
-        return np.sum([self.compute_regularity_variable(real, key) for key, real in real_ind.items()])
-
-    def compute_regularity_variable(self, real, key):
-        return self.random_variables[key].compute_negativeloglikelihood(real)
-
-    def _update_random_variables(self):
-
-        # TODO float for torch operations
-
-        for real_pop_name in self.reals_pop_name:
-            self.random_variables[real_pop_name].mu = float(self.model_parameters[real_pop_name])
-
-        for real_ind_name in self.reals_ind_name:
-            self.random_variables[real_ind_name].mu = float(self.model_parameters["{0}_mean".format(real_ind_name)])
-            self.random_variables[real_ind_name].variance = float(self.model_parameters["{0}_var".format(real_ind_name)])
-
     def _initialize_random_variables(self):
 
         self.random_variables = dict.fromkeys(self.reals_pop_name+self.reals_ind_name)
@@ -141,4 +86,64 @@ class AbstractModel():
                                                                           mu=self.model_parameters["{0}_mean".format(real_ind_name)],
                                                                           variance=self.model_parameters["{0}_var".format(real_ind_name)])
 
+
+    ###########################
+    ## Getters / Setters
+    ###########################
+
+    def get_parameters(self):
+        return self.model_parameters
+
+    def _update_random_variables(self):
+        # TODO float for torch operations
+
+        for real_pop_name in self.reals_pop_name:
+            self.random_variables[real_pop_name].mu = float(self.model_parameters[real_pop_name])
+
+        for real_ind_name in self.reals_ind_name:
+            self.random_variables[real_ind_name].mu = float(self.model_parameters["{0}_mean".format(real_ind_name)])
+            self.random_variables[real_ind_name].variance = float(
+                self.model_parameters["{0}_var".format(real_ind_name)])
+
+    def __str__(self):
+        output = "=== MODEL ===\n"
+
+        for key in self.model_parameters.keys():
+            output += "{0} : {1}\n".format(key, self.model_parameters[key])
+
+        return output
+
+    ###########################
+    ## Core
+    ###########################
+
+    # Attachment
+    def compute_attachment(self, data, reals_pop, reals_ind):
+        return np.sum(
+            [self.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
+
+    def compute_sumsquared(self, data, reals_pop, reals_ind):
+        return np.sum([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
+
+    def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
+         return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)
+
+    def compute_individual_attachment(self, individual, reals_pop, real_ind):
+        return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+
+    # Regularity
+    def compute_regularity(self, data, reals_pop, reals_ind):
+        #TODO only reg on reals_ind for now
+        regularity_ind = np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
+        #regularity_pop = self.compute_individual_regularity(reals_pop)
+        return regularity_ind#+regularity_pop
+
+    def compute_individual_regularity(self, real_ind):
+        return np.sum([self.compute_regularity_variable(real, key) for key, real in real_ind.items()])
+
+    def compute_regularity_variable(self, real, key):
+        return self.random_variables[key].compute_negativeloglikelihood(real)
+
+    def simulate_individual_parameters(self):
+        raise NotImplementedError
 

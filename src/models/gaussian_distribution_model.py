@@ -24,12 +24,15 @@ class GaussianDistributionModel(AbstractModel):
 
         self._initialize_random_variables()
 
-
-
         # TODO to Pytorch, peut être dans le reader ????
         #for key in self.model_parameters.keys():
         #    self.model_parameters[key] = Variable(torch.tensor(self.model_parameters[key]).float(), requires_grad=True)
 
+
+
+    ###########################
+    ## Core
+    ###########################
 
 
     def compute_individual(self, individual, reals_pop, real_ind):
@@ -39,9 +42,6 @@ class GaussianDistributionModel(AbstractModel):
         return self.model_parameters['intercept_mean'] * torch.ones_like(tensor_timepoints.reshape(-1,1))
 
 
-    def compute_individual_regularity(self, real_ind):
-        intercept_regularity = (real_ind['intercept']-self.model_parameters['intercept_mean'])**2/(2*self.model_parameters['intercept_var'])+np.log(self.model_parameters['intercept_var']*np.sqrt(2*np.pi))
-        return intercept_regularity
 
     def update_sufficient_statistics(self, data, reals_ind, reals_pop):
 

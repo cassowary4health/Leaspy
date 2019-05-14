@@ -106,10 +106,12 @@ class AbstractModel():
 
     def compute_regularity(self, data, reals_pop, reals_ind):
         #TODO only reg on reals_ind for now
-        return np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
+        regularity_ind = np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
+        #regularity_pop = self.compute_individual_regularity(reals_pop)
+        return regularity_ind#+regularity_pop
 
     def compute_individual_regularity(self, real_ind):
-        return np.sum([self.compute_individual_regularity_variable(real, key) for key, real in real_ind.items()])
+        return np.sum([self.compute_regularity_variable(real, key) for key, real in real_ind.items()])
 
     def compute_regularity_variable(self, real, key):
         return self.random_variables[key].compute_negativeloglikelihood(real)

@@ -24,7 +24,7 @@ class GradientDescent(AbstractAlgo):
     ## Initialization
     ###########################
 
-    def _initialize_algo(data, model, realizations):
+    def _initialize_algo(self, data, model, realizations):
         # TODO Initialize the learning rate ???
         pass
 

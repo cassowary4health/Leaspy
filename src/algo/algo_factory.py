@@ -7,7 +7,6 @@ class AlgoFactory():
     def algo(type):
         if type.lower() == 'gradient_descent':
             return GradientDescent()
-            return RandomSampling()
         elif type.lower() == 'mcmc_saem':
             return MCMCSAEM()
 

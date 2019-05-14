@@ -5,6 +5,7 @@ from src.inputs.algo_reader import AlgoReader
 from src import default_algo_dir
 from src.utils.sampler import Sampler
 import matplotlib.pyplot as plt
+from src.utils.likelihood import Likelihood
 
 import numpy as np
 
@@ -33,11 +34,11 @@ class MCMCSAEM(AbstractAlgo):
     ## Initialization
     ###########################
 
-    def _initialize_algo(self, model):
+    def _initialize_algo(self, data, model, realizations):
         self._initialize_samplers(model)
+        self._initialize_likelihood(data, model, realizations)
 
     def _initialize_samplers(self, model):
-
         pop_name = model.reals_pop_name
         ind_name = model.reals_ind_name
 
@@ -50,6 +51,11 @@ class MCMCSAEM(AbstractAlgo):
 
         for key in ind_name:
             self.samplers_ind[key] = Sampler(key, np.sqrt(model.model_parameters["{0}_var".format(key)])/2, 200)
+
+
+    def _initialize_likelihood(self, data, model, realizations):
+        self.likelihood = Likelihood()
+        self.likelihood._initialize_likelihood(data, model, realizations)
 
     ###########################
     ## Getters / Setters
@@ -109,16 +115,14 @@ class MCMCSAEM(AbstractAlgo):
 
     def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
         for idx in reals_ind.keys():
+            previous_individual_attachment = self.likelihood.individual_attachment[idx]
             for key in reals_ind[idx].keys():
 
                 # Save previous realization
                 previous_reals_ind = reals_ind[idx][key]
-                # print(previous_reals_ind)
 
                 # Compute previous loss
-
-                previous_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop,
-                                                                                     reals_ind[idx])
+                #previous_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
                 previous_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
                 previous_individual_loss = previous_individual_attachment + previous_individual_regularity
 
@@ -138,4 +142,6 @@ class MCMCSAEM(AbstractAlgo):
                 # Revert if not accepted
                 if not accepted:
                     reals_ind[idx][key] = previous_reals_ind
-
+                # Keep new attachment if accepted
+                else:
+                    self.likelihood.individual_attachment[idx] = new_individual_attachment

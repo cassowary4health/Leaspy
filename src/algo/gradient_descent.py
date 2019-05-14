@@ -24,22 +24,10 @@ class GradientDescent(AbstractAlgo):
     ## Initialization
     ###########################
 
-    def _initialize_algo(self, model):
+    def _initialize_algo(data, model, realizations):
         # TODO Initialize the learning rate ???
         pass
 
-    ###########################
-    ## Getters / Setters
-    ###########################
-
-    def set_mode(self, task):
-        self.task = task
-        if self.task == 'fit':
-            self.algo_parameters['estimate_individual_parameters'] = True
-            self.algo_parameters['estimate_population_parameters'] = True
-        elif self.task == 'predict':
-            self.algo_parameters['estimate_individual_parameters'] = True
-            self.algo_parameters['estimate_population_parameters'] = False
 
     ###########################
     ## Core

@@ -20,12 +20,30 @@ class GradientDescent(AbstractAlgo):
         self.iteration = 0
         self.path_output = 'output/'
 
+    ###########################
+    ## Initialization
+    ###########################
 
     def _initialize_algo(self, model):
         # TODO Initialize the learning rate ???
         pass
 
+    ###########################
+    ## Getters / Setters
+    ###########################
 
+    def set_mode(self, task):
+        self.task = task
+        if self.task == 'fit':
+            self.algo_parameters['estimate_individual_parameters'] = True
+            self.algo_parameters['estimate_population_parameters'] = True
+        elif self.task == 'predict':
+            self.algo_parameters['estimate_individual_parameters'] = True
+            self.algo_parameters['estimate_population_parameters'] = False
+
+    ###########################
+    ## Core
+    ###########################
 
     def iter(self, data, model, realizations):
 
@@ -39,19 +57,11 @@ class GradientDescent(AbstractAlgo):
         # Do backward and backprop on realizations
         loss.backward()
 
-        with torch.no_grad():
+        #if self.algo_parameters['estimate_population_parameters']:
+        self._gradient_update_pop(reals_pop)
 
-            if self.algo_parameters['estimate_population_parameters']:
-                for key in reals_pop.keys():
-                    reals_pop[key] -= self.algo_parameters['learning_rate'] * reals_pop[key].grad
-                    reals_pop[key].grad.zero_()
-
-            if self.algo_parameters['estimate_individual_parameters']:
-                for key in reals_ind.keys():
-                    for idx in reals_ind[key].keys():
-                        reals_ind[key][idx] -= self.algo_parameters['learning_rate'] * reals_ind[key][idx].grad
-                        reals_ind[key][idx].grad.zero_()
-
+        #if self.algo_parameters['estimate_individual_parameters']:
+        self._gradient_update_ind(reals_ind)
 
         # Update the sufficient statistics
         if self.algo_parameters['estimate_population_parameters']:
@@ -60,17 +70,19 @@ class GradientDescent(AbstractAlgo):
         self.iteration += 1
 
 
-    def get_realizations(self):
-        return self.realizations
+    def _gradient_update_pop(self, reals_pop):
+        with torch.no_grad():
+            for key in reals_pop.keys():
+                reals_pop[key] -= self.algo_parameters['learning_rate'] * reals_pop[key].grad
+                reals_pop[key].grad.zero_()
 
-    def set_mode(self, task):
-        self.task = task
-        if self.task == 'fit':
-            self.algo_parameters['estimate_individual_parameters'] = True
-            self.algo_parameters['estimate_population_parameters'] = True
-        elif self.task == 'predict':
-            self.algo_parameters['estimate_individual_parameters'] = True
-            self.algo_parameters['estimate_population_parameters'] = False
+    def _gradient_update_ind(self, reals_ind):
+        with torch.no_grad():
+            for key in reals_ind.keys():
+                for idx in reals_ind[key].keys():
+                    reals_ind[key][idx] -= self.algo_parameters['learning_rate'] * reals_ind[key][idx].grad
+                    reals_ind[key][idx].grad.zero_()
+
 
 
 

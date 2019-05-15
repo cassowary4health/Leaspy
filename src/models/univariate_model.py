@@ -37,7 +37,42 @@ class UnivariateModel(AbstractModel):
         reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
 
-    def update_sufficient_statistics(self, data, reals_ind, reals_pop):
+    def compute_sufficient_statistics(self, data, reals_ind, reals_pop):
+
+        # Tau
+        tau_array = []
+        for idx in reals_ind.keys():
+            tau_array.append(reals_ind[idx]['tau'])
+        tau_array = torch.Tensor(tau_array)
+
+        tau_mean = np.mean(tau_array.detach().numpy()).tolist()
+        tau_var = np.var(tau_array.detach().numpy()).tolist()
+
+        # Ksi
+        xi_array = []
+        for idx in reals_ind.keys():
+            xi_array.append(reals_ind[idx]['xi'])
+        xi_array = torch.Tensor(xi_array)
+
+        xi_mean = np.mean(xi_array.detach().numpy()).tolist()
+        xi_var = np.var(xi_array.detach().numpy()).tolist()
+
+        # P0
+        p0 = reals_pop['p0'].detach().numpy()
+
+        sufficient_statistics = {}
+        sufficient_statistics['p0'] = p0
+        sufficient_statistics['tau_mean'] = tau_mean
+        sufficient_statistics['tau_var'] = tau_var
+        sufficient_statistics['xi_mean'] = xi_mean
+        sufficient_statistics['xi_var'] = xi_var
+        sufficient_statistics['sum_squared'] = float(self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy())
+
+        return sufficient_statistics
+
+
+
+    def update_model(self, data, sufficient_statistics):
 
         #TODO parameters, automatic initialization of these parameters
         m_xi = data.n_individuals/20
@@ -47,43 +82,20 @@ class UnivariateModel(AbstractModel):
         sigma2_tau_0 = 10
 
 
-        # Update Parameters
-
-        # Population parameters as realizations
-        for pop_name in reals_pop.keys():
-            self.model_parameters[pop_name] = reals_pop[pop_name].detach().numpy()
-
-        # population parameters not as realizations
+        self.model_parameters['p0'] = sufficient_statistics['p0']
 
         # Tau
-        tau_array = []
-        for idx in reals_ind.keys():
-            tau_array.append(reals_ind[idx]['tau'])
-        tau_array = torch.Tensor(tau_array)
-        self.model_parameters['tau_mean'] = np.mean(tau_array.detach().numpy()).tolist()
-        #empirical_tau_var = np.sum(((tau_array - self.model_parameters['tau_mean'])**2).detach().numpy())/(data.n_individuals-1)
-        empirical_tau_var = torch.sum(tau_array**2)/(data.n_individuals)-self.model_parameters['tau_mean']**2
-        tau_var_update = (1/(data.n_individuals+m_tau))*(data.n_individuals*empirical_tau_var+m_tau*sigma2_tau_0)
-        self.model_parameters['tau_var'] = tau_var_update.detach().numpy()
+        self.model_parameters['tau_mean'] = sufficient_statistics['tau_mean']
+        tau_var_update = (1/(data.n_individuals+m_tau))*(data.n_individuals * sufficient_statistics['tau_var']+m_tau*sigma2_tau_0)
+        self.model_parameters['tau_var'] = tau_var_update
 
         # Xi
-        xi_array = []
-        for idx in reals_ind.keys():
-            xi_array.append(reals_ind[idx]['xi'])
-        xi_array = torch.Tensor(xi_array)
-        self.model_parameters['xi_mean'] = np.mean(xi_array.detach().numpy()).tolist()
-        #empirical_xi_var = np.sum(((xi_array - self.model_parameters['xi_mean']) ** 2).detach().numpy()) / (data.n_individuals - 1)
-        empirical_xi_var = torch.sum(xi_array**2)/(data.n_individuals)-self.model_parameters['xi_mean']**2
-        xi_var_update = (1/(data.n_individuals+m_xi))*(data.n_individuals*empirical_xi_var+m_xi*sigma2_xi_0)
-        self.model_parameters['xi_var'] = xi_var_update.detach().numpy()
-
-
-        # P0
-        self.model_parameters['p0'] = reals_pop['p0'].detach().numpy()
+        self.model_parameters['xi_mean'] = sufficient_statistics['xi_mean']
+        tau_var_update = (1/(data.n_individuals+m_xi))*(data.n_individuals * sufficient_statistics['xi_var']+m_tau*sigma2_xi_0)
+        self.model_parameters['xi_var'] = tau_var_update
 
         # Noise
-        self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
+        self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/data.n_observations
 
-
+        # Update the Random Variables
         self._update_random_variables()
-

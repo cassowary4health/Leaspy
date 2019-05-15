@@ -64,3 +64,8 @@ class AbstractAlgo():
     def iter(self, data, model, realizations):
         raise NotImplementedError
 
+    @staticmethod
+    def _maximization_step(data, model, reals_ind, reals_pop):
+        sufficient_statistics = model.compute_sufficient_statistics(data, reals_ind, reals_pop)
+        model.update_model(data, sufficient_statistics)
+

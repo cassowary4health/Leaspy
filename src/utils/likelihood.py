@@ -1,4 +1,4 @@
-
+import numpy as np
 
 class Likelihood:
     def __init__(self):
@@ -13,3 +13,6 @@ class Likelihood:
 
     def __getitem__(self, idx):
         return self.individual_attachment[idx]
+
+    def compute_current_attachment(self):
+        return np.sum(list(self.individual_attachment.values()))

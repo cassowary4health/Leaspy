@@ -85,16 +85,18 @@ class MCMCSAEM(AbstractAlgo):
 
         # Maximization step
         if self.algo_parameters['estimate_population_parameters']:
-            model.update_sufficient_statistics(data, reals_ind, reals_pop)
+            self._maximization_step(data, model, reals_ind, reals_pop)
 
         self.iteration += 1
+
+
 
     def _sample_population_realizations(self, data, model, reals_pop, reals_ind):
         for key in reals_pop.keys():
 
             # Old loss
             previous_reals_pop = reals_pop[key]
-            previous_attachment = model.compute_attachment(data, reals_pop, reals_ind)
+            previous_attachment = self.likelihood.compute_current_attachment()
             previous_regularity = model.compute_regularity(data, reals_pop, reals_ind)
             previous_loss = previous_attachment + previous_regularity
 

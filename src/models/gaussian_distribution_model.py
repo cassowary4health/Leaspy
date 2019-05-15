@@ -29,11 +29,9 @@ class GaussianDistributionModel(AbstractModel):
         #    self.model_parameters[key] = Variable(torch.tensor(self.model_parameters[key]).float(), requires_grad=True)
 
 
-
     ###########################
     ## Core
     ###########################
-
 
     def compute_individual(self, individual, reals_pop, real_ind):
         return real_ind['intercept']*torch.ones_like(individual.tensor_timepoints.reshape(-1,1))
@@ -41,43 +39,43 @@ class GaussianDistributionModel(AbstractModel):
     def compute_average(self, tensor_timepoints):
         return self.model_parameters['intercept_mean'] * torch.ones_like(tensor_timepoints.reshape(-1,1))
 
-
-
-    def update_sufficient_statistics(self, data, reals_ind, reals_pop):
-
-        m_intercept = data.n_individuals/20
-        sigma2_intercept_0 = 0.1 # TODO smart initialization
-
-        # Update Parameters
-
-        # Population parameters as realizations
-        for pop_name in reals_pop.keys():
-            self.model_parameters[pop_name] = reals_pop[pop_name].detach().numpy()
-
-        # population parameters not as realizations
+    def compute_sufficient_statistics(self, data, reals_ind, reals_pop):
+        # Intercept
         intercept_array = []
         for idx in reals_ind.keys():
             intercept_array.append(reals_ind[idx]['intercept'])
         intercept_array = torch.Tensor(intercept_array)
-        empirical_intercept_var = np.sum(
-            ((intercept_array - self.model_parameters['intercept_mean']) ** 2).detach().numpy()) / (
-                                   data.n_individuals - 1)
+        intercept_mean = np.mean(intercept_array.detach().numpy()).tolist()
+        intercept_var = np.var(intercept_array.detach().numpy()).tolist()
 
+        # Sufficient statistics
+        sufficient_statistics = {}
+        sufficient_statistics['intercept_mean'] = intercept_mean
+        sufficient_statistics['intercept_var'] = intercept_var
+        sufficient_statistics['sum_squared'] = float(self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy())
+
+        return sufficient_statistics
+
+    def update_model(self, data, sufficient_statistics):
+        #TODO parameters, automatic initialization of these parameters
+        m_intercept = data.n_individuals/20
+        sigma2_intercept_0 = 0.1
+
+        # Intercept
+        self.model_parameters['intercept_mean'] = sufficient_statistics['intercept_mean']
         intercept_var_update = (1 / (data.n_individuals + m_intercept)) * (
-                    data.n_individuals * empirical_intercept_var + m_intercept * sigma2_intercept_0)
+                data.n_individuals * sufficient_statistics['intercept_var'] + m_intercept * sigma2_intercept_0)
         self.model_parameters['intercept_var'] = intercept_var_update
-        self.model_parameters['intercept_mean'] = np.mean(intercept_array.detach().numpy())
-        # Noise
-        self.model_parameters['noise_var'] = self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy()/data.n_observations
 
+        # Noise
+        self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/data.n_observations
+
+        # Update the Random Variables
         self._update_random_variables()
 
     def simulate_individual_parameters(self, indices, seed=0):
-
         np.random.seed(seed)
-
         reals_ind = dict.fromkeys(self.reals_ind_name)
-
         for ind_name in self.reals_ind_name:
             reals_ind_temp = dict(zip(indices, self.model_parameters['intercept_mean']+(np.sqrt(self.model_parameters['intercept_var'])*np.random.randn(1, len(indices))).reshape(-1).tolist()))
             reals_ind[ind_name] = reals_ind_temp

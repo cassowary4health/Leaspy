@@ -52,8 +52,7 @@ class GradientDescent(AbstractAlgo):
         self._gradient_update_ind(reals_ind)
 
         # Update the sufficient statistics
-        if self.algo_parameters['estimate_population_parameters']:
-            model.update_sufficient_statistics(data, reals_ind, reals_pop)
+        self._maximization_step(data, model, reals_ind, reals_pop)
 
         self.iteration += 1
 

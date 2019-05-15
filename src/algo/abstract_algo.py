@@ -19,16 +19,6 @@ class AbstractAlgo():
     ## Getters / Setters
     ###########################
 
-    def set_mode(self, task):
-        self.task = task
-        if self.task == 'fit':
-            self.algo_parameters['estimate_individual_parameters'] = True
-            self.algo_parameters['estimate_population_parameters'] = True
-        elif self.task == 'predict':
-            self.algo_parameters['estimate_individual_parameters'] = True
-            self.algo_parameters['estimate_population_parameters'] = False
-
-
     def load_parameters(self, parameters):
         for k, v in parameters.items():
             if k in self.algo_parameters.keys():

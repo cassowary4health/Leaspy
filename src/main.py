@@ -30,7 +30,6 @@ class Leaspy():
         reader = AlgoReader(path_to_algorithm_settings)
         algo = AlgoFactory.algo(reader.algo_type)
         algo.load_parameters(reader.parameters)
-        algo.set_mode('fit')
 
         # Output manager
         output_manager = OutputManager(path_output)
@@ -40,6 +39,7 @@ class Leaspy():
         algo.run(data, self.model, output_manager, seed)
 
     def predict(self, data, path_to_prediction_settings, seed=0):
+        #TODO Change, use specific algorithms
         """
         Predict individual parameters of a list of patients
         :param data:
@@ -53,7 +53,6 @@ class Leaspy():
         reader = AlgoReader(path_to_prediction_settings)
         algo = AlgoFactory.algo(reader.algo_type)
         algo.load_parameters(reader.parameters)
-        algo.set_mode('predict')
 
         # Run optimization
         realizations = algo.run(data, self.model, seed)

@@ -61,16 +61,6 @@ class MCMCSAEM(AbstractAlgo):
     ## Getters / Setters
     ###########################
 
-    def set_mode(self, task):
-        self.task = task
-        if self.task == 'fit':
-            self.algo_parameters['estimate_individual_parameters'] = True
-            self.algo_parameters['estimate_population_parameters'] = True
-        elif self.task == 'predict':
-            self.algo_parameters['estimate_individual_parameters'] = True
-            self.algo_parameters['estimate_population_parameters'] = False
-
-
     ###########################
     ## Core
     ###########################
@@ -84,8 +74,7 @@ class MCMCSAEM(AbstractAlgo):
         self._sample_individual_realizations(data, model, reals_pop, reals_ind)
 
         # Maximization step
-        if self.algo_parameters['estimate_population_parameters']:
-            self._maximization_step(data, model, reals_ind, reals_pop)
+        self._maximization_step(data, model, reals_ind, reals_pop)
 
         self.iteration += 1
 

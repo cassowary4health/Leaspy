@@ -15,10 +15,12 @@ class DataReader():
         self.check_headers(path)
         df = pd.read_csv(path, index_col=['ID', 'TIME'])
 
-        df, time_mean, time_std = self.normalize_time(df)
+        df, time_mean, time_std, time_min, time_max = self.normalize_time(df)
+        dimension = df.shape[1]
 
         data = Data()
-        data.set_time_normalization_info(time_mean, time_std)
+        data.set_time_normalization_info(time_mean, time_std, time_min, time_max)
+        data.set_dimension(dimension)
 
         for idx in df.index.get_level_values(0).unique():
             individual = IndividualData(idx)
@@ -50,6 +52,9 @@ class DataReader():
 
         df['TIME'] = (df['TIME']-time_mean)/time_std
 
+        time_min = df['TIME'].min()
+        time_max = df['TIME'].max()
+
         df.set_index(['ID', 'TIME'], inplace=True)
 
-        return df, time_mean, time_std
+        return df, time_mean, time_std, time_min, time_max

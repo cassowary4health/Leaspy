@@ -12,6 +12,7 @@ class Data():
         self.n_observations = 0
         self.time_min = np.nan
         self.time_max = np.nan
+        self.dimension = None
 
     def add_individual(self, individual):
         if individual.idx in self.indices:
@@ -26,8 +27,6 @@ class Data():
         self.n_individuals += 1
         self.n_visits += individual.n_visits
         self.n_observations += individual.n_observations
-        self.time_min = np.nanmin(np.concatenate([individual.tensor_timepoints.detach().numpy(), [self.time_min]]))
-        self.time_max = np.nanmax(np.concatenate([individual.tensor_timepoints.detach().numpy(), [self.time_max]]))
 
     def split(self, indices_train, indices_test):
         data_train = Data()
@@ -42,10 +41,16 @@ class Data():
         return data_train, data_test
 
 
-    def set_time_normalization_info(self, time_mean, time_std):
+    def set_time_normalization_info(self, time_mean, time_std, time_min, time_max):
         self.time_mean = time_mean
         self.time_std = time_std
+        self.time_min = time_min
+        self.time_max = time_max
 
     def __getitem__(self, id):
          return self.individuals[id]
+
+    def set_dimension(self, dimension):
+        self.dimension = dimension
+
 

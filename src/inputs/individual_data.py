@@ -29,7 +29,7 @@ class IndividualData():
 
         # Torch
         self.tensor_observations = torch.from_numpy(np.array(self.raw_observations)).float()
-        self.tensor_timepoints = torch.from_numpy(np.array(self.timepoints)).float()
+        self.tensor_timepoints = torch.from_numpy(np.array(self.timepoints)).float().reshape(-1, 1)
 
 
         # Update metrics

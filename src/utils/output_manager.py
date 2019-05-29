@@ -6,6 +6,8 @@ import torch
 import os
 import csv
 import pandas as pd
+import shutil
+import time
 
 class OutputManager():
 
@@ -15,23 +17,29 @@ class OutputManager():
         # Paths
         self.path_output = path_output
         self.path_save_model = os.path.join(path_output, "model", "model.json")
-        self.path_save_model_parameters_convergence = os.path.join(path_output, "model_parameters_convergence.csv")
-        self.path_plot_convergence_model_parameters = os.path.join(path_output, "plot_model_parameters_convergence.pdf")
-        self.path_plot_convergence_model_parametersv2 = os.path.join(path_output, "plot_model_parameters_convergencev2.pdf")
+        self.path_save_model_parameters_convergence = os.path.join(path_output, "model_parameters_convergence/")
+        self.path_plot = os.path.join(path_output, "plot/")
+        self.path_plot_patients = os.path.join(self.path_plot, 'patients')
+        self.path_plot_convergence_model_parameters_1 = os.path.join(path_output, "plot_model_parameters_convergence_1.pdf")
+        self.path_plot_convergence_model_parameters_2 = os.path.join(path_output, "plot_model_parameters_convergence_2.pdf")
+
 
         # print every
         # plot every
         # save every
-        self.print_periodicity = 100
-        self.plot_periodicity = 100
-        self.save_periodicity = 100
+        self.print_periodicity = 50
+        self.plot_periodicity = 50
+        self.save_periodicity = 50
 
         # Options
         self.plot_options = {}
         self.plot_options['maximum_patient_number'] = 10
 
-    def initialize(self, model):
-        self.initialize_model_statistics(model)
+        self.initialize()
+
+    def initialize(self):
+        self.clean_output_folder()
+        self.time = time.time()
 
     def iter(self, algo, data, model, realizations):
 
@@ -41,12 +49,12 @@ class OutputManager():
             if iteration % self.print_periodicity == 0:
                 self.print_algo_statistics(algo)
                 self.print_model_statistics(model)
+                self.print_time()
 
         if self.save_periodicity is not None:
             if iteration % self.save_periodicity == 0:
                 self.save_model_parameters_convergence(iteration, model)
                 self.save_model(model)
-                #self.save_alo_statistics()
 
         if self.plot_periodicity is not None:
             if iteration % self.plot_periodicity == 0:
@@ -60,6 +68,13 @@ class OutputManager():
     ## Printing methods
     ########
 
+    def print_time(self):
+        current_time = time.time()
+        print("Duration since last print : {0}s".format(np.round(current_time-self.time), decimals=4))
+        self.time = current_time
+
+
+
     def print_model_statistics(self, model):
         print(model)
 
@@ -70,26 +85,52 @@ class OutputManager():
     ## Saving methods
     ########
 
-    def initialize_model_statistics(self, model):
-        model_parameters = model.get_parameters()
-        with open(self.path_save_model_parameters_convergence, 'w', newline='') as filename:
-            writer = csv.writer(filename)
-            writer.writerow(["Iteration"] + list(model_parameters.keys()))
+
+    def clean_output_folder(self):
+        # Remove what exists
+        if os.path.exists(self.path_save_model_parameters_convergence):
+            shutil.rmtree(self.path_save_model_parameters_convergence)
+
+        if os.path.exists(self.path_plot):
+            shutil.rmtree(self.path_plot)
+
+        if os.path.exists(self.path_plot_convergence_model_parameters_1):
+            os.remove(self.path_plot_convergence_model_parameters_1)
+
+        if os.path.exists(self.path_plot_convergence_model_parameters_2):
+            os.remove(self.path_plot_convergence_model_parameters_2)
+
+        # Create if not exists
+        if not os.path.exists(self.path_save_model_parameters_convergence):
+            os.mkdir(self.path_save_model_parameters_convergence)
+
+        if not os.path.exists(self.path_plot):
+            os.mkdir(self.path_plot)
+
+        if not os.path.exists(self.path_plot_patients):
+            os.mkdir(self.path_plot_patients)
+
+
 
     def save_model_parameters_convergence(self, iteration, model):
         model_parameters = model.get_parameters()
 
-        with open(self.path_save_model_parameters_convergence, 'a', newline='') as filename:
-            writer = csv.writer(filename)
-            writer.writerow([iteration]+list(model_parameters.values()))
+        for key, value in model_parameters.items():
+            if type(value) in [float]:
+                value = [value]
+            elif value.shape==():
+                value = [float(value)]
+            path = os.path.join(self.path_save_model_parameters_convergence, key+".csv")
+            with open(path, 'a', newline='') as filename:
+                writer = csv.writer(filename)
+                #writer.writerow([iteration]+list(model_parameters.values()))
+                writer.writerow([iteration]+list(value))
 
     def save_model(self, model):
         if not os.path.exists(os.path.join(self.path_output, "model")):
             os.mkdir(os.path.join(self.path_output, "model"))
 
         model.save_parameters(self.path_save_model)
-
-
 
 
 
@@ -102,58 +143,75 @@ class OutputManager():
 
     def plot_convergence_model_parameters(self, model):
 
-        with open(self.path_save_model_parameters_convergence, 'r') as filename:
-            df_convergence = pd.read_csv(filename)
+        # Make the plot 1
 
-        df_convergence.set_index('Iteration', inplace=True)
-        cols = df_convergence.columns.tolist()
-        cols.remove('noise_var')
-        df_convergence = df_convergence[["noise_var"]+cols]
+        fig, ax = plt.subplots(int(len(model.model_parameters.keys()) / 2) + 1, 2, figsize=(10, 20))
 
+        for i, key in enumerate(model.model_parameters.keys()):
+            path = os.path.join(self.path_save_model_parameters_convergence, key + ".csv")
+            df_convergence = pd.read_csv(path, index_col=0, header=None)
+            df_convergence.index.rename("iter", inplace=True)
 
-        # Plot 1
-        fig, ax = plt.subplots(int(len(cols)/2)+2, 2, figsize = (10,20))
-
-        df_convergence.plot(use_index=True, y='noise_var', ax=ax[0][0], legend=False)
-        ax[0][0].set_title('noise_var')
-
-        for i, key in enumerate(cols):
-            x_position = int(i/2)+1
+            x_position = int(i / 2)
             y_position = i % 2
-            df_convergence.plot(use_index=True, y=key, ax=ax[x_position][y_position], legend=False)
+            #ax[x_position][y_position].plot(df_convergence.index.values, df_convergence.values)
+            df_convergence.plot(ax=ax[x_position][y_position], legend=False)
             ax[x_position][y_position].set_title(key)
-
         plt.tight_layout()
-        plt.savefig(self.path_plot_convergence_model_parameters)
+        plt.savefig(self.path_plot_convergence_model_parameters_1)
         plt.close()
 
-        # Plot 2
+        # Make the plot 2
+
         reals_pop_name = model.reals_pop_name
         reals_ind_name = model.reals_ind_name
 
+        fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
 
-        fig, ax = plt.subplots(len(reals_pop_name+reals_ind_name)+1, 1, figsize = (10,20))
-
-        df_convergence.plot(use_index=True, y='noise_var', ax=ax[0], legend=False)
-        ax[0].set_title('noise_var')
+        # Noise var
+        path = os.path.join(self.path_save_model_parameters_convergence, 'noise_var' + ".csv")
+        df_convergence = pd.read_csv(path, index_col=0, header=None)
+        df_convergence.index.rename("iter", inplace=True)
         y_position = 0
+        df_convergence.plot(ax=ax[y_position], legend=False)
+        ax[y_position].set_title('noise_var')
+
         for i, key in enumerate(reals_pop_name):
-            y_position += 1
-            df_convergence.plot(use_index=True, y=key, ax=ax[y_position], legend=False)
+            y_position+=1
+            path = os.path.join(self.path_save_model_parameters_convergence, key + ".csv")
+            df_convergence = pd.read_csv(path, index_col=0, header=None)
+            df_convergence.index.rename("iter", inplace=True)
+            df_convergence.plot(ax=ax[y_position], legend=False)
             ax[y_position].set_title(key)
 
         for i, key in enumerate(reals_ind_name):
+            path_mean = os.path.join(self.path_save_model_parameters_convergence, key + "_mean.csv")
+            df_convergence_mean = pd.read_csv(path_mean, index_col=0, header=None)
+            df_convergence_mean.index.rename("iter", inplace=True)
+
+            path_var = os.path.join(self.path_save_model_parameters_convergence, key + "_var.csv")
+            df_convergence_var = pd.read_csv(path_var, index_col=0, header=None)
+            df_convergence_var.index.rename("iter", inplace=True)
+
+            df_convergence_mean.columns = [key+"_mean"]
+            df_convergence_var.columns = [key + "_var"]
+
+            df_convergence = pd.concat([df_convergence_mean, df_convergence_var], axis=1)
+
             y_position += 1
             df_convergence.plot(use_index=True, y="{0}_mean".format(key), ax=ax[y_position], legend=False)
             ax[y_position].fill_between(df_convergence.index,
-                             df_convergence["{0}_mean".format(key)]-np.sqrt(df_convergence["{0}_var".format(key)]),
-                             df_convergence["{0}_mean".format(key)]+np.sqrt(df_convergence["{0}_var".format(key)]),
-                             color='b', alpha=0.2)
+                                        df_convergence["{0}_mean".format(key)] - np.sqrt(
+                                            df_convergence["{0}_var".format(key)]),
+                                        df_convergence["{0}_mean".format(key)] + np.sqrt(
+                                            df_convergence["{0}_var".format(key)]),
+                                        color='b', alpha=0.2)
             ax[y_position].set_title(key)
 
         plt.tight_layout()
-        plt.savefig(self.path_plot_convergence_model_parametersv2)
+        plt.savefig(self.path_plot_convergence_model_parameters_2)
         plt.close()
+
 
 
 
@@ -178,57 +236,70 @@ class OutputManager():
                 break
 
         # Plot average model
-        tensor_timepoints = torch.Tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1))
+        tensor_timepoints = torch.Tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1,1))
         model_average = model.compute_average(tensor_timepoints)
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
 
-        if not os.path.exists(os.path.join(self.path_output, 'plots/')):
-            os.mkdir(os.path.join(self.path_output, 'plots/'))
-
-        plt.savefig(os.path.join(self.path_output, 'plots', 'plot_patients_{0}.pdf'.format(iteration)))
+        plt.savefig(os.path.join(self.path_plot_patients,'plot_patients_{0}.pdf'.format(iteration)))
         plt.close()
 
+    # with open(self.path_save_model_parameters_convergence, 'r') as filename:
+    #       df_convergence = pd.read_csv(filename)
 
-"""
+    """
+    df_convergence.set_index('Iteration', inplace=True)
+    cols = df_convergence.columns.tolist()
+    cols.remove('noise_var')
+    df_convergence = df_convergence[["noise_var"]+cols]
 
-fig, ax = plt.subplots(6, 1, figsize=(6,12))
+    # Plot 1
+    fig, ax = plt.subplots(int(len(cols)/2)+2, 2, figsize=(10,20))
 
-iters.append(iteration)
-noise_var_list.append(model.model_parameters['noise_var'])
+    df_convergence.plot(use_index=True, y='noise_var', ax=ax[0][0], legend=False)
+    ax[0][0].set_title('noise_var')
 
-xi_mean_list.append(np.mean([x.detach().numpy() for _,x in reals_ind['xi'].items()]))
-xi_std_list.append(np.std([x.detach().numpy() for _,x in reals_ind['xi'].items()]))
-tau_mean_list.append(np.mean([x.detach().numpy() for _,x in reals_ind['tau'].items()]))
-tau_std_list.append(np.std([x.detach().numpy() for _,x in reals_ind['tau'].items()]))
-p0_list.append((reals_pop['p0'].detach().numpy()))
+    for i, key in enumerate(cols):
+        x_position = int(i/2)+1
+        y_position = i % 2
+        ax[x_position][y_position].plot(x=df_convergence.index.values, y=df_convergence[key].values, legend=False)
+        ax[x_position][y_position].set_title(key)
 
-ax[0].plot(iters, noise_var_list)
-ax[0].set_title('Noise variance')
-ax[1].plot(iters, xi_mean_list)
-ax[1].set_title('Xi mean, rate {0}'.format(np.mean(self.samplers_ind['xi'].acceptation_temp)))
-ax[2].plot(iters, xi_std_list)
-ax[2].set_title('Xi std')
-ax[3].plot(iters, tau_mean_list)
-ax[3].set_title('tau mean, rate {0}'.format(np.mean(self.samplers_ind['tau'].acceptation_temp)))
-ax[4].plot(iters, tau_std_list)
-ax[4].set_title('Tau std')
-ax[5].plot(iters, p0_list)
-ax[5].set_title('p0, rate {0}'.format(np.mean(self.samplers_pop['p0'].acceptation_temp)))
-
+    plt.tight_layout()
+    plt.show()
+    plt.savefig(self.path_plot_convergence_model_parameters)
+    plt.close()
 
 
-intercept_var_list.append(np.var([x.detach().numpy() for _,x in reals_ind['intercept'].items()]))
-mu_list.append(np.mean([x.detach().numpy() for _,x in reals_ind['intercept'].items()]))
-
-ax[0].plot(iters, noise_var_list)
-ax[0].set_title('Noise')
-ax[1].plot(iters, intercept_var_list)
-ax[1].set_title('Intercept var list')
-ax[2].plot(iters, mu_list)
-ax[2].set_title("Mu list")
+    fig, ax = plt.subplots(1,1)
+    ax.plot(x=df_convergence.index.values, y=df_convergence['p0'].values, legend=False)
+    plt.show()
 
 
-plt.tight_layout()
-plt.savefig(os.path.join(output_path,'Convergence_parameters.pdf'))
-"""
+    # Plot 2
+    reals_pop_name = model.reals_pop_name
+    reals_ind_name = model.reals_ind_name
 
+
+    fig, ax = plt.subplots(len(reals_pop_name+reals_ind_name)+1, 1, figsize = (10,20))
+
+    df_convergence.plot(use_index=True, y='noise_var', ax=ax[0], legend=False)
+    ax[0].set_title('noise_var')
+    y_position = 0
+    for i, key in enumerate(reals_pop_name):
+        y_position += 1
+        ax[y_position].plot(x=df_convergence.index.values, y=df_convergence[key].values, legend=False)
+        ax[y_position].set_title(key)
+
+    for i, key in enumerate(reals_ind_name):
+        y_position += 1
+        df_convergence.plot(use_index=True, y="{0}_mean".format(key), ax=ax[y_position], legend=False)
+        ax[y_position].fill_between(df_convergence.index,
+                         df_convergence["{0}_mean".format(key)]-np.sqrt(df_convergence["{0}_var".format(key)]),
+                         df_convergence["{0}_mean".format(key)]+np.sqrt(df_convergence["{0}_var".format(key)]),
+                         color='b', alpha=0.2)
+        ax[y_position].set_title(key)
+
+    plt.tight_layout()
+    plt.savefig(self.path_plot_convergence_model_parametersv2)
+    plt.close()
+    """

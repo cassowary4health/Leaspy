@@ -1,6 +1,6 @@
 {
   "type": "mcmc_saem",
   "parameters": {
-    "n_iter": 801
+    "n_iter": 301
   }
 }

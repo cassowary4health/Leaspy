@@ -46,10 +46,11 @@ class GradientDescent(AbstractAlgo):
         loss.backward()
 
         #if self.algo_parameters['estimate_population_parameters']:
-        self._gradient_update_pop(reals_pop)
+        self._gradient_update_pop(reals_pop, lr=self.algo_parameters['learning_rate']/data.n_individuals)
 
         #if self.algo_parameters['estimate_individual_parameters']:
-        self._gradient_update_ind(reals_ind)
+        if self.iteration > 100:
+            self._gradient_update_ind(reals_ind, lr=self.algo_parameters['learning_rate'])
 
         # Update the sufficient statistics
         self._maximization_step(data, model, reals_ind, reals_pop)
@@ -57,17 +58,17 @@ class GradientDescent(AbstractAlgo):
         self.iteration += 1
 
 
-    def _gradient_update_pop(self, reals_pop):
+    def _gradient_update_pop(self, reals_pop, lr):
         with torch.no_grad():
             for key in reals_pop.keys():
-                reals_pop[key] -= self.algo_parameters['learning_rate'] * reals_pop[key].grad
+                reals_pop[key] -= lr * reals_pop[key].grad
                 reals_pop[key].grad.zero_()
 
-    def _gradient_update_ind(self, reals_ind):
+    def _gradient_update_ind(self, reals_ind, lr):
         with torch.no_grad():
             for key in reals_ind.keys():
                 for idx in reals_ind[key].keys():
-                    reals_ind[key][idx] -= self.algo_parameters['learning_rate'] * reals_ind[key][idx].grad
+                    reals_ind[key][idx] -= lr * reals_ind[key][idx].grad
                     reals_ind[key][idx].grad.zero_()
 
 

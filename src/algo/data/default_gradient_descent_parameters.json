@@ -2,7 +2,7 @@
   "type": "gradient_descent",
   "parameters": {
     "n_iter": 100,
-    "learning_rate": 0.005,
+    "learning_rate": 0.00001,
     "estimate_individual_parameters":true,
     "estimate_population_parameters":true
   }

@@ -8,18 +8,24 @@ from torch.autograd import Variable
 import numpy as np
 
 
-class UnivariateModel(AbstractModel):
+class MultivariateModel(AbstractModel):
+    # TODO dimension in multivariate model parameters initialization ???
     def __init__(self):
-        data_dir = os.path.join(default_data_dir, "default_univariate_parameters.json")
+        data_dir = os.path.join(default_data_dir, "default_multivariate_parameters.json")
         reader = ModelParametersReader(data_dir)
         self.model_parameters = reader.parameters
+        self.dimension = None
 
-        if reader.model_type != 'univariate':
-            raise ValueError("The default univariate parameters are not of univariate type")
+        if reader.model_type != 'multivariate':
+            raise ValueError("The default multivariate parameters are not of multivariate type")
 
 
-        self.reals_pop_name = ['p0']
+        self.reals_pop_name = ['p0','v0']
         self.reals_ind_name = ['xi','tau']
+
+
+
+
 
     ###########################
     ## Core
@@ -27,14 +33,14 @@ class UnivariateModel(AbstractModel):
 
     def compute_individual(self, individual, reals_pop, real_ind):
         p0 = reals_pop['p0']
-        reparametrized_time = torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
+        v0 = reals_pop['v0']
+        reparametrized_time = v0*torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
         return torch.pow(1+(1/p0-1)*torch.exp(-reparametrized_time/(p0*(1-p0))), -1)
 
     def compute_average(self, tensor_timepoints):
-        p0 = self.model_parameters['p0']
-        # TODO better
-        #p0 = p0[0]
-        reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
+        p0 = torch.Tensor(self.model_parameters['p0'])
+        v0 = torch.Tensor(self.model_parameters['v0'])
+        reparametrized_time = v0*np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
 
     def compute_sufficient_statistics(self, data, reals_ind, reals_pop):
@@ -60,8 +66,12 @@ class UnivariateModel(AbstractModel):
         # P0
         p0 = reals_pop['p0'].detach().numpy()
 
+        # V0
+        v0 = reals_pop['v0'].detach().numpy()
+
         sufficient_statistics = {}
         sufficient_statistics['p0'] = p0
+        sufficient_statistics['v0'] = v0
         sufficient_statistics['tau_mean'] = tau_mean
         sufficient_statistics['tau_var'] = tau_var
         sufficient_statistics['xi_mean'] = xi_mean
@@ -81,8 +91,8 @@ class UnivariateModel(AbstractModel):
         m_tau = data.n_individuals / 20
         sigma2_tau_0 = 10
 
-
         self.model_parameters['p0'] = sufficient_statistics['p0']
+        self.model_parameters['v0'] = sufficient_statistics['v0']
 
         # Tau
         self.model_parameters['tau_mean'] = sufficient_statistics['tau_mean']

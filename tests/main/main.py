@@ -24,10 +24,10 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.type, 'univariate')
         self.assertEqual(type(leaspy.model), UnivariateModel)
         self.assertEqual(leaspy.model.model_parameters['p0'], 0.5)
-        self.assertEqual(leaspy.model.model_parameters['tau_mean'], 70)
-        self.assertEqual(leaspy.model.model_parameters['tau_var'], 25)
-        self.assertEqual(leaspy.model.model_parameters['xi_mean'], -2)
-        self.assertEqual(leaspy.model.model_parameters['xi_var'], 0.1)
+        self.assertEqual(leaspy.model.model_parameters['tau_mean'], 0)
+        self.assertEqual(leaspy.model.model_parameters['tau_var'], 1)
+        self.assertEqual(leaspy.model.model_parameters['xi_mean'], 0)
+        self.assertEqual(leaspy.model.model_parameters['xi_var'], 1)
 
     def test_constructor_from_parameters(self):
         path_to_model_parameters = os.path.join(test_data_dir, 'model_parameters.json')

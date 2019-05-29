@@ -1,5 +1,6 @@
 {
   "type": "gaussian_distribution",
+  "dimension":1,
   "parameters": {
     "intercept_mean": 0.0,
     "intercept_var": 1.0,

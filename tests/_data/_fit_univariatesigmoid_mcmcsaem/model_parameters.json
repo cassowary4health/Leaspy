@@ -1,5 +1,6 @@
 {
   "type": "univariate",
+  "dimension":1,
   "parameters": {
     "P0": 0.3,
     "tau_mean": 0,

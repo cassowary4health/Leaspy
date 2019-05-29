@@ -83,26 +83,28 @@ class MCMCSAEM(AbstractAlgo):
     def _sample_population_realizations(self, data, model, reals_pop, reals_ind):
         for key in reals_pop.keys():
 
-            # Old loss
-            previous_reals_pop = reals_pop[key]
-            previous_attachment = self.likelihood.compute_current_attachment()
-            previous_regularity = model.compute_regularity(data, reals_pop, reals_ind)
-            previous_loss = previous_attachment + previous_regularity
+            for dim in range(model.dimension):
 
-            # New loss
-            reals_pop[key] = reals_pop[key] + self.samplers_pop[key].sample()
-            new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
-            new_regularity = model.compute_regularity(data, reals_pop, reals_ind)
-            new_loss = new_attachment + new_regularity
+                # Old loss
+                previous_reals_pop = reals_pop[key].reshape(-1)[dim] #TODO bof
+                previous_attachment = self.likelihood.compute_current_attachment()
+                previous_regularity = model.compute_regularity(data, reals_pop, reals_ind)
+                previous_loss = previous_attachment + previous_regularity
 
-            alpha = np.exp(-(new_loss-previous_loss).detach().numpy())
+                # New loss
+                reals_pop[key].reshape(-1)[dim] = reals_pop[key].reshape(-1)[dim] + self.samplers_pop[key].sample()
+                new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
+                new_regularity = model.compute_regularity(data, reals_pop, reals_ind)
+                new_loss = new_attachment + new_regularity
 
-            # Compute acceptation
-            accepted = self.samplers_pop[key].acceptation(alpha)
+                alpha = np.exp(-(new_loss-previous_loss).detach().numpy())
 
-            # Revert if not accepted
-            if not accepted:
-                reals_pop[key] = previous_reals_pop
+                # Compute acceptation
+                accepted = self.samplers_pop[key].acceptation(alpha)
+
+                # Revert if not accepted
+                if not accepted:
+                    reals_pop[key].reshape(-1)[dim] = previous_reals_pop
 
     def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
         for idx in reals_ind.keys():

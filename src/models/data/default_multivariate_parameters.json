@@ -1,8 +1,9 @@
 {
-  "type": "univariate",
+  "type": "multivariate",
   "dimension": 1,
   "parameters": {
-    "P0": 0.5,
+    "P0": [0.3, 0.3, 0.3, 0.3],
+    "V0": [0.1, 0.1, 0.1, 0.1],
     "tau_mean": 0.0,
     "tau_var": 1.0,
     "xi_mean": 0.0,

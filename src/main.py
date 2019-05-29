@@ -15,11 +15,16 @@ class Leaspy():
         reader = ModelParametersReader(path_to_model_parameters)
         leaspy = cls(reader.model_type)
         leaspy.model.load_parameters(reader.parameters)
+        leaspy.model.load_dimension(reader.dimension)
+        leaspy.model.initialize_random_variables()
         return leaspy
 
     def load(self, path_to_model_parameters):
         reader = ModelParametersReader(path_to_model_parameters)
         self.model.load_parameters(reader.parameters)
+        # TODO assert same dimension
+        self.model.load_dimension(reader.dimension)
+        self.model.initialize_random_variables()
 
     def save(self, path):
         self.model.save_parameters(path)
@@ -33,7 +38,6 @@ class Leaspy():
 
         # Output manager
         output_manager = OutputManager(path_output)
-        output_manager.initialize_model_statistics(self.model)
 
         # Run algo
         algo.run(data, self.model, output_manager, seed)

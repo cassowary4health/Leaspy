@@ -17,13 +17,17 @@ class AbstractModel():
     ## Initialization
     ###########################
 
-
     def load_parameters(self, model_parameters):
         for k, v in model_parameters.items():
             if k in self.model_parameters.keys():
                 previous_v = self.model_parameters[k]
                 print("Replacing {} parameter from value {} to value {}".format(k, previous_v, v))
             self.model_parameters[k] = v
+
+    def load_dimension(self, dimension):
+        self.dimension = dimension
+        print("Setting model dimension to : {0}".format(dimension))
+
 
     def save_parameters(self, path):
 
@@ -40,6 +44,8 @@ class AbstractModel():
         :param data:
         :return:
         """
+
+        print("Initialize realizations")
 
         reals_pop_name = self.reals_pop_name
         reals_ind_name = self.reals_ind_name
@@ -72,14 +78,17 @@ class AbstractModel():
 
         return reals_pop, reals_ind
 
-    def _initialize_random_variables(self):
+    def initialize_random_variables(self):
+        print("Initialize random variables")
 
         self.random_variables = dict.fromkeys(self.reals_pop_name+self.reals_ind_name)
 
         for real_pop_name in self.reals_pop_name:
-            self.random_variables[real_pop_name] = GaussianRandomVariable(name=real_pop_name,
-                                                                          mu=self.model_parameters[real_pop_name],
-                                                                          variance=0.00001)
+            self.random_variables[real_pop_name] = []
+            for dim in range(self.dimension):
+                self.random_variables[real_pop_name].append(GaussianRandomVariable(name=real_pop_name,
+                                                                              mu=self.model_parameters[real_pop_name],
+                                                                              variance=0.00001))
 
         for real_ind_name in self.reals_ind_name:
             self.random_variables[real_ind_name] = GaussianRandomVariable(name=real_ind_name,
@@ -98,7 +107,9 @@ class AbstractModel():
         # TODO float for torch operations
 
         for real_pop_name in self.reals_pop_name:
-            self.random_variables[real_pop_name].mu = float(self.model_parameters[real_pop_name])
+            rv = self.random_variables[real_pop_name]
+            for dim in range(len(rv)):
+                self.random_variables[real_pop_name][dim].mu = float(self.model_parameters[real_pop_name].reshape(-1)[dim])
 
         for real_ind_name in self.reals_ind_name:
             self.random_variables[real_ind_name].mu = float(self.model_parameters["{0}_mean".format(real_ind_name)])

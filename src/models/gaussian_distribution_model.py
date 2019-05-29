@@ -22,8 +22,6 @@ class GaussianDistributionModel(AbstractModel):
         self.reals_pop_name = []
         self.reals_ind_name = ['intercept']
 
-        self._initialize_random_variables()
-
         # TODO to Pytorch, peut être dans le reader ????
         #for key in self.model_parameters.keys():
         #    self.model_parameters[key] = Variable(torch.tensor(self.model_parameters[key]).float(), requires_grad=True)

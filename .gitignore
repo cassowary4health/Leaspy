@@ -128,3 +128,6 @@ dmypy.json
 
 # Files
 reflexion
+
+# Folders
+example/

@@ -37,7 +37,7 @@ class AbstractAlgo():
     ## Core
     ###########################
 
-    def run(self, data, model, output_manager, seed=None):
+    def run(self, data, model, output_manager=None, seed=None):
 
         # Initialize Algorithm
         self._initialize_seed(seed)
@@ -46,7 +46,8 @@ class AbstractAlgo():
 
         # Iterate
         for iteration in range(self.algo_parameters['n_iter']):
-            output_manager.iter(self, data, model, realizations)
+            if output_manager is not None:
+                output_manager.iter(self, data, model, realizations)
             self.iter(data, model, realizations)
 
         return realizations

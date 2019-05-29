@@ -16,11 +16,15 @@ class LeaspyFitTest(unittest.TestCase):
         path_to_algo_parameters = os.path.join(test_data_dir,
                                                '_fit_univariatesigmoid_mcmcsaem', "algorithm_settings.json")
 
+        # Path output
+        """
         path_output = '../output_leaspy/univariatesigmoid_mcmcsaem/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
-            os.mkdir(path_output)
+            os.mkdir(path_output)"""
+
+        path_output = None
 
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
@@ -48,11 +52,13 @@ class LeaspyFitTest(unittest.TestCase):
         path_to_fitalgo_parameters = os.path.join(test_data_dir,
                                                   '_fit_gaussiandistribution_mcmcsaem', "algorithm_settings.json")
 
+        """
         path_output = '../output_leaspy/gaussiandistribution_mcmcsaem/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
-            os.mkdir(path_output)
+            os.mkdir(path_output)"""
+        path_output = None
 
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
@@ -79,11 +85,14 @@ class LeaspyFitTest(unittest.TestCase):
                                                   '_fit_gaussiandistribution_gradientdescent',
                                                   "algorithm_settings.json")
 
+        # Path output
+        """
         path_output = '../output_leaspy/gaussiandistribution_gradientdescent/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
-            os.mkdir(path_output)
+            os.mkdir(path_output)"""
+        path_output = None
 
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
@@ -110,11 +119,14 @@ class LeaspyFitTest(unittest.TestCase):
                                                   '_fit_univariatesigmoid_gradientdescent',
                                                   "algorithm_settings.json")
 
+        # Path Output
+        """
         path_output = '../output_leaspy/univariatesigmoid_gradientdescent/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
-            os.mkdir(path_output)
+            os.mkdir(path_output)"""
+        path_output = None
 
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 

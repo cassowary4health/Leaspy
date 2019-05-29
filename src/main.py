@@ -29,7 +29,7 @@ class Leaspy():
     def save(self, path):
         self.model.save_parameters(path)
 
-    def fit(self, data, path_to_algorithm_settings, path_output, seed=0):
+    def fit(self, data, path_to_algorithm_settings, path_output=None, seed=0):
 
         # Algo settings
         reader = AlgoReader(path_to_algorithm_settings)
@@ -37,7 +37,10 @@ class Leaspy():
         algo.load_parameters(reader.parameters)
 
         # Output manager
-        output_manager = OutputManager(path_output)
+        if path_output is not None:
+            output_manager = OutputManager(path_output)
+        else:
+            output_manager = None
 
         # Run algo
         algo.run(data, self.model, output_manager, seed)

@@ -17,14 +17,14 @@ class LeaspyFitTest(unittest.TestCase):
                                                '_fit_univariatesigmoid_mcmcsaem', "algorithm_settings.json")
 
         # Path output
-        """
+
         path_output = '../output_leaspy/univariatesigmoid_mcmcsaem/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
-            os.mkdir(path_output)"""
+            os.mkdir(path_output)
 
-        path_output = None
+        #path_output = None
 
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
@@ -33,14 +33,14 @@ class LeaspyFitTest(unittest.TestCase):
         reader = DataReader()
         data = reader.read(data_path)
 
-        leaspy.fit(data, path_to_algo_parameters, path_output, seed=0)
+        leaspy.fit(data, path_to_algo_parameters, None, seed=0)
 
         self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.003, delta=0.02)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 1.862, delta=2)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 1.231, delta=2)
-        self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -0.920, delta=0.2)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 0.39, delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 1.231, delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -1.26, delta=0.2)
         self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.00277, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.model_parameters['p0'], 0.622, delta=0.08)
+        self.assertAlmostEqual(leaspy.model.model_parameters['p0'], [0.11], delta=0.1)
 
 
     #### Test on univariate data
@@ -52,13 +52,12 @@ class LeaspyFitTest(unittest.TestCase):
         path_to_fitalgo_parameters = os.path.join(test_data_dir,
                                                   '_fit_gaussiandistribution_mcmcsaem', "algorithm_settings.json")
 
-        """
+
         path_output = '../output_leaspy/gaussiandistribution_mcmcsaem/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
-            os.mkdir(path_output)"""
-        path_output = None
+            os.mkdir(path_output)
 
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
@@ -67,7 +66,7 @@ class LeaspyFitTest(unittest.TestCase):
         reader = DataReader()
         data = reader.read(data_path)
 
-        leaspy.fit(data, path_to_fitalgo_parameters, path_output, seed=0)
+        leaspy.fit(data, path_to_fitalgo_parameters, None, seed=0)
 
         self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.0040, delta=0.01)
         self.assertAlmostEqual(leaspy.model.model_parameters['intercept_mean'], 0.15880, delta=0.02)
@@ -86,13 +85,12 @@ class LeaspyFitTest(unittest.TestCase):
                                                   "algorithm_settings.json")
 
         # Path output
-        """
+
         path_output = '../output_leaspy/gaussiandistribution_gradientdescent/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
-            os.mkdir(path_output)"""
-        path_output = None
+            os.mkdir(path_output)
 
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
@@ -102,7 +100,7 @@ class LeaspyFitTest(unittest.TestCase):
         reader = DataReader()
         data = reader.read(data_path)
 
-        leaspy.fit(data, path_to_fitalgo_parameters, path_output, seed=0)
+        leaspy.fit(data, path_to_fitalgo_parameters, None, seed=0)
         self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.00335, delta=0.01)
         self.assertAlmostEqual(leaspy.model.model_parameters['intercept_mean'], 0.1596, delta=0.01)
         self.assertAlmostEqual(leaspy.model.model_parameters['intercept_var'], 0.013, delta=0.01)
@@ -120,13 +118,11 @@ class LeaspyFitTest(unittest.TestCase):
                                                   "algorithm_settings.json")
 
         # Path Output
-        """
         path_output = '../output_leaspy/univariatesigmoid_gradientdescent/'
         if not os.path.exists(path_output):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
-            os.mkdir(path_output)"""
-        path_output = None
+            os.mkdir(path_output)
 
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
@@ -136,11 +132,11 @@ class LeaspyFitTest(unittest.TestCase):
         reader = DataReader()
         data = reader.read(data_path)
 
-        leaspy.fit(data, path_to_fitalgo_parameters, path_output, seed=0)
+        leaspy.fit(data, path_to_fitalgo_parameters, None, seed=0)
 
         self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.00358, delta=0.008)
         self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 1.004027, delta=8)
         self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 1.143, delta=10)
         self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -1.273, delta=0.2)
         self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.00239, delta=0.08)
-        self.assertAlmostEqual(leaspy.model.model_parameters['p0'], 0.2830, delta=0.08)
+        self.assertAlmostEqual(leaspy.model.model_parameters['p0'], [0.2830], delta=0.08)

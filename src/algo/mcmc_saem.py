@@ -87,14 +87,14 @@ class MCMCSAEM(AbstractAlgo):
 
                 # Old loss
                 previous_reals_pop = reals_pop[key].reshape(-1)[dim] #TODO bof
-                previous_attachment = self.likelihood.compute_current_attachment()
-                previous_regularity = model.compute_regularity(data, reals_pop, reals_ind)
+                previous_attachment = self.likelihood.get_current_attachment()
+                previous_regularity = model.compute_regularity_arrayvariable(previous_reals_pop, key, dim)
                 previous_loss = previous_attachment + previous_regularity
 
                 # New loss
                 reals_pop[key].reshape(-1)[dim] = reals_pop[key].reshape(-1)[dim] + self.samplers_pop[key].sample()
                 new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
-                new_regularity = model.compute_regularity(data, reals_pop, reals_ind)
+                new_regularity = model.compute_regularity_arrayvariable(reals_pop[key].reshape(-1)[dim], key, dim)
                 new_loss = new_attachment + new_regularity
 
                 alpha = np.exp(-(new_loss-previous_loss).detach().numpy())

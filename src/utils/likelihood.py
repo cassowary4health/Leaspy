@@ -14,5 +14,5 @@ class Likelihood:
     def __getitem__(self, idx):
         return self.individual_attachment[idx]
 
-    def compute_current_attachment(self):
+    def get_current_attachment(self):
         return np.sum(list(self.individual_attachment.values()))

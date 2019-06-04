@@ -1,5 +1,5 @@
 from src.utils.random_variable.abstract_random_variable import AbstractRandomVariable
-
+import src.utils.conformity.Profiler
 import numpy as np
 
 class GaussianRandomVariable(AbstractRandomVariable):
@@ -38,6 +38,7 @@ class GaussianRandomVariable(AbstractRandomVariable):
         self._variance_inverse = 1 / variance
         self._log_constant = np.log(np.sqrt(2 * np.pi * variance))
 
+    #@src.utils.conformity.Profiler.do_profile()
     def compute_negativeloglikelihood(self, x):
         return self.variance_inverse*(x - self.mu)**2 + self._log_constant
 

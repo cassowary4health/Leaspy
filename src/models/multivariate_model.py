@@ -6,7 +6,7 @@ from src.inputs.model_parameters_reader import ModelParametersReader
 import torch
 from torch.autograd import Variable
 import numpy as np
-
+import src.utils.conformity.Profiler
 
 class MultivariateModel(AbstractModel):
     # TODO dimension in multivariate model parameters initialization ???
@@ -23,6 +23,9 @@ class MultivariateModel(AbstractModel):
         self.reals_pop_name = ['p0','v0']
         self.reals_ind_name = ['xi','tau']
 
+        # Cache variables
+        self._initialize_cache_variables()
+
 
 
 
@@ -31,11 +34,27 @@ class MultivariateModel(AbstractModel):
     ## Core
     ###########################
 
+    #@src.utils.conformity.Profiler.do_profile()
     def compute_individual(self, individual, reals_pop, real_ind):
-        p0 = reals_pop['p0']
+
+        # Load from dict
         v0 = reals_pop['v0']
-        reparametrized_time = v0*torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
-        return torch.pow(1+(1/p0-1)*torch.exp(-reparametrized_time/(p0*(1-p0))), -1)
+        #g = self.cache_variables['g']
+        #b = self.cache_variables['b']
+        p0 = reals_pop['p0']
+
+        g = torch.pow(p0, -1) - 1
+        b =  torch.pow(p0, 2) * g
+
+
+        # Time reparametrized
+        a = v0*torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
+
+        # Compute parallel curve
+        parallel_curve = torch.pow(1 + g * torch.exp(-a / b), -1)
+
+        return parallel_curve
+
 
     def compute_average(self, tensor_timepoints):
         p0 = torch.Tensor(self.model_parameters['p0'])
@@ -109,3 +128,17 @@ class MultivariateModel(AbstractModel):
 
         # Update the Random Variables
         self._update_random_variables()
+
+        # Update Cached Variables
+        self.cache_variables['noise_inverse'] = 1/self.model_parameters['noise_var']
+        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
+
+    def update_cache_variables(self, reals, keys):
+        # Update the p0
+        if 'p0' in keys:
+            self.cache_variables['g'] = torch.pow(reals['p0'], -1) - 1
+            self.cache_variables['b'] = torch.pow(reals['p0'], 2) * self.cache_variables['g']
+
+
+
+

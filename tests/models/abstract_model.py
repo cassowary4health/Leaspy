@@ -19,7 +19,7 @@ class AbstractModelTest(unittest.TestCase):
         reader = ModelParametersReader(path_to_model_parameters)
 
         abstract_model.load_parameters(reader.parameters)
-        self.assertEqual(abstract_model.model_parameters['p0'], 0.5)
+        self.assertEqual(abstract_model.model_parameters['p0'], [0.5])
         self.assertEqual(abstract_model.model_parameters['tau_mean'], 0)
         self.assertEqual(abstract_model.model_parameters['tau_var'], 1)
         self.assertEqual(abstract_model.model_parameters['xi_mean'], 0)

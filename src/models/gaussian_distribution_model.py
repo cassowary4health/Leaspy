@@ -26,6 +26,9 @@ class GaussianDistributionModel(AbstractModel):
         #for key in self.model_parameters.keys():
         #    self.model_parameters[key] = Variable(torch.tensor(self.model_parameters[key]).float(), requires_grad=True)
 
+        # Cache variables
+        self._initialize_cache_variables()
+
 
     ###########################
     ## Core
@@ -70,6 +73,10 @@ class GaussianDistributionModel(AbstractModel):
 
         # Update the Random Variables
         self._update_random_variables()
+
+        # Update Cached Variables
+        self.cache_variables['noise_inverse'] = 1/self.model_parameters['noise_var']
+        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
 
     def simulate_individual_parameters(self, indices, seed=0):
         np.random.seed(seed)

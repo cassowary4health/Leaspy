@@ -21,6 +21,9 @@ class UnivariateModel(AbstractModel):
         self.reals_pop_name = ['p0']
         self.reals_ind_name = ['xi','tau']
 
+        # Cache variables
+        self._initialize_cache_variables()
+
     ###########################
     ## Core
     ###########################
@@ -33,7 +36,7 @@ class UnivariateModel(AbstractModel):
     def compute_average(self, tensor_timepoints):
         p0 = self.model_parameters['p0']
         # TODO better
-        #p0 = p0[0]
+        p0 = p0[0]
         reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
 
@@ -99,3 +102,7 @@ class UnivariateModel(AbstractModel):
 
         # Update the Random Variables
         self._update_random_variables()
+
+        # Update Cached Variables
+        self.cache_variables['noise_inverse'] = 1/self.model_parameters['noise_var']
+        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))

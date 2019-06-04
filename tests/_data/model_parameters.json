@@ -2,7 +2,7 @@
   "type": "univariate",
   "dimension":1,
   "parameters": {
-    "P0": 0.3,
+    "P0": [0.3],
     "tau_mean": 50,
     "tau_var": 2,
     "xi_mean": -10,

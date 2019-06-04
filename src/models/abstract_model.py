@@ -11,6 +11,7 @@ from src.utils.random_variable.gaussian_random_variable import GaussianRandomVar
 
 class AbstractModel():
     def __init__(self):
+        # TODO Use it
         self.model_parameters = {}
 
     ###########################
@@ -87,7 +88,7 @@ class AbstractModel():
             self.random_variables[real_pop_name] = []
             for dim in range(self.dimension):
                 self.random_variables[real_pop_name].append(GaussianRandomVariable(name=real_pop_name,
-                                                                              mu=self.model_parameters[real_pop_name],
+                                                                              mu=self.model_parameters[real_pop_name][dim],
                                                                               variance=0.00001))
 
         for real_ind_name in self.reals_ind_name:
@@ -140,7 +141,20 @@ class AbstractModel():
          return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)
 
     def compute_individual_attachment(self, individual, reals_pop, real_ind):
-        return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+        #return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
+
+        #TODO Remove constant terms ???
+        constant_term = self.cache_variables['constant_fit_variable']
+        noise_inverse = self.cache_variables['noise_inverse']
+
+        sum_squared = self.compute_individual_sumsquared(individual, reals_pop, real_ind)
+
+        fit = 0.5 * noise_inverse * sum_squared
+
+        res = fit + constant_term
+
+
+        return res
 
     # Regularity
     def compute_regularity(self, data, reals_pop, reals_ind):
@@ -155,6 +169,21 @@ class AbstractModel():
     def compute_regularity_variable(self, real, key):
         return self.random_variables[key].compute_negativeloglikelihood(real)
 
+    def compute_regularity_arrayvariable(self, real, key, dim):
+        return self.random_variables[key][dim].compute_negativeloglikelihood(real)
+
+
     def simulate_individual_parameters(self):
         raise NotImplementedError
 
+    def update_cache_variables(self):
+        """
+        Has to implement the inverse of noise
+        :return:
+        """
+        raise NotImplementedError
+
+    def _initialize_cache_variables(self):
+        self.cache_variables = {}
+        self.cache_variables['noise_inverse'] = 1 / self.model_parameters['noise_var']
+        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))

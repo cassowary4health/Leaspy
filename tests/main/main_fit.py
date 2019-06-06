@@ -178,6 +178,7 @@ class LeaspyFitTest(unittest.TestCase):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
             os.mkdir(path_output)
+        path_output = None
 
         # Algorithm settings
         path_to_algo_parameters = os.path.join(test_data_dir, '_fit_univariatesigmoid_mcmcsaem', "algorithm_settings.json")

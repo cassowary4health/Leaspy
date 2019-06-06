@@ -6,6 +6,7 @@
     "tau_mean": 0,
     "tau_var": 1,
     "xi_mean": -1,
-    "xi_var": 0.1
+    "xi_var": 0.1,
+    "noise_var": 1.0
   }
 }

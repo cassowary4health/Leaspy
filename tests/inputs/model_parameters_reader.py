@@ -2,14 +2,14 @@ import os
 import unittest
 
 from tests import test_data_dir
-from src.inputs.model_parameters_reader import ModelParametersReader
+from src.inputs.model_settings import ModelSettings
 
 
 class ModelParametersReaderTest(unittest.TestCase):
 
     def test_model_parameters(self):
         path_to_model_parameters = os.path.join(test_data_dir, 'model_parameters.json')
-        model_parameters = ModelParametersReader(path_to_model_parameters)
+        model_parameters = ModelSettings(path_to_model_parameters)
         self.assertEqual(model_parameters.model_type, "univariate")
         self.assertEqual(model_parameters.parameters['p0'], [0.3])
         self.assertEqual(model_parameters.parameters['tau_mean'], 50)

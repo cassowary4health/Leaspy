@@ -2,17 +2,18 @@ import os
 
 from src import default_data_dir
 from src.models.abstract_model import AbstractModel
-from src.inputs.model_parameters_reader import ModelParametersReader
+from src.inputs.model_settings import ModelSettings
 
 import torch
 from torch.autograd import Variable
 import numpy as np
+import json
 
 
 class GaussianDistributionModel(AbstractModel):
     def __init__(self):
         data_dir = os.path.join(default_data_dir, "default_gaussian_distribution_parameters.json")
-        reader = ModelParametersReader(data_dir)
+        reader = ModelSettings(data_dir)
 
         if reader.model_type != 'gaussian_distribution':
             raise ValueError("The default univariate parameters are not of gaussian_distribution type")
@@ -26,8 +27,8 @@ class GaussianDistributionModel(AbstractModel):
         #for key in self.model_parameters.keys():
         #    self.model_parameters[key] = Variable(torch.tensor(self.model_parameters[key]).float(), requires_grad=True)
 
-        # Cache variables
-        self._initialize_cache_variables()
+
+        self.model_name = 'gaussian_distribution'
 
 
     ###########################
@@ -85,6 +86,58 @@ class GaussianDistributionModel(AbstractModel):
             reals_ind_temp = dict(zip(indices, self.model_parameters['intercept_mean']+(np.sqrt(self.model_parameters['intercept_var'])*np.random.randn(1, len(indices))).reshape(-1).tolist()))
             reals_ind[ind_name] = reals_ind_temp
         return reals_ind
+
+
+
+    def smart_initialization(self, data):
+        """
+        Assigns dimension + model_parameters
+
+        model parameters from the data
+        :param data:
+        :return:
+        """
+
+        # Initializes Dimension
+        self.dimension = data.dimension
+
+        # Pre-Initialize from dimension
+        SMART_INITIALIZATION = {
+            'intercept_mean': 0., 'intercept_var': 1., 'noise_var': 0.05
+        }
+
+        # Initialize Cache
+        self._initialize_cache_variables()
+
+        # Initializes Parameters
+        for parameter_key in self.model_parameters.keys():
+            if self.model_parameters[parameter_key] is None:
+                self.model_parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
+
+
+        # Initialize Cache
+        self._initialize_cache_variables()
+
+
+
+    def save_parameters(self, path):
+
+
+        #TODO check que c'est le bon format (IGOR)
+        model_settings = {}
+
+        model_settings['parameters'] = self.model_parameters
+        model_settings['dimension'] = self.dimension
+        model_settings['type'] = self.model_name
+
+
+        with open(path, 'w') as fp:
+            json.dump(model_settings, fp)
+
+
+
+
+
 
 
 

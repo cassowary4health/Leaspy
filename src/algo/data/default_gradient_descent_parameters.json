@@ -5,5 +5,9 @@
     "learning_rate": 0.00001,
     "estimate_individual_parameters":true,
     "estimate_population_parameters":true
+  },
+    "output":{
+    "path": null
   }
 }
+

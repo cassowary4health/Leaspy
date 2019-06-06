@@ -2,5 +2,6 @@
   "type": "mcmc_saem",
   "parameters": {
     "n_iter": 301
-  }
+  },
+   "output":{"path":null}
 }

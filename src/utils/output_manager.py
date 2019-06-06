@@ -16,22 +16,31 @@ class OutputManager():
     # TODO: add a loading bar for a run
 
     def __init__(self, path_output):
-        # Paths
-        self.path_output = path_output
-        self.path_save_model = os.path.join(path_output, "model", "model.json")
-        self.path_save_model_parameters_convergence = os.path.join(path_output, "model_parameters_convergence/")
-        self.path_plot = os.path.join(path_output, "plot/")
-        self.path_plot_patients = os.path.join(self.path_plot, 'patients')
-        self.path_plot_convergence_model_parameters_1 = os.path.join(path_output, "plot_model_parameters_convergence_1.pdf")
-        self.path_plot_convergence_model_parameters_2 = os.path.join(path_output, "plot_model_parameters_convergence_2.pdf")
+
 
 
         # print every
         # plot every
         # save every
         self.print_periodicity = 50
-        self.plot_periodicity = 100
-        self.save_periodicity = 100
+        self.plot_periodicity = None
+        self.save_periodicity = None
+
+        # Paths
+        self.path_output = path_output
+
+        #TODO clean
+        if path_output is not None:
+            self.path_save_model = os.path.join(path_output, "model", "model.json")
+            self.path_save_model_parameters_convergence = os.path.join(path_output, "model_parameters_convergence/")
+            self.path_plot = os.path.join(path_output, "plot/")
+            self.path_plot_patients = os.path.join(self.path_plot, 'patients')
+            self.path_plot_convergence_model_parameters_1 = os.path.join(path_output, "plot_model_parameters_convergence_1.pdf")
+            self.path_plot_convergence_model_parameters_2 = os.path.join(path_output, "plot_model_parameters_convergence_2.pdf")
+
+            self.plot_periodicity = 20
+            self.save_periodicity = 20
+
 
         # Options
         self.plot_options = {}
@@ -41,11 +50,16 @@ class OutputManager():
         self.initialize()
 
     def initialize(self):
-        self.clean_output_folder()
         self.time = time.time()
+
+        # #TODO clean
+        if self.path_output is not None:
+            self.clean_output_folder()
+
 
     def iter(self, algo, data, model, realizations):
 
+        #print("Iteration : {0}, path_output: {1}".format(algo.iteration, self.path_output))
         iteration = algo.iteration
 
         if self.print_periodicity is not None:
@@ -53,6 +67,9 @@ class OutputManager():
                 self.print_algo_statistics(algo)
                 self.print_model_statistics(model)
                 self.print_time()
+
+        if self.path_output is None:
+            return
 
         if self.save_periodicity is not None:
             if iteration % self.save_periodicity == 0:
@@ -63,8 +80,6 @@ class OutputManager():
             if iteration % self.plot_periodicity == 0:
                 self.plot_patient_reconstructions(iteration, data, model, realizations)
                 self.plot_convergence_model_parameters(model)
-
-
 
 
     ########

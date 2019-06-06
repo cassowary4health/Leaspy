@@ -1,7 +1,7 @@
 import torch
 from src.algo.abstract_algo import AbstractAlgo
 import os
-from src.inputs.algo_reader import AlgoReader
+from src.inputs.algo_settings import AlgoSettings
 from src import default_algo_dir
 from src.utils.sampler import Sampler
 import matplotlib.pyplot as plt
@@ -13,7 +13,7 @@ class MCMCSAEM(AbstractAlgo):
 
     def __init__(self):
         data_dir = os.path.join(default_algo_dir, "default_mcmc_saem_parameters.json")
-        reader = AlgoReader(data_dir)
+        reader = AlgoSettings(data_dir)
 
         if reader.algo_type != 'mcmc_saem':
             raise ValueError("The default mcmc saem parameters are not of random_sampling type")
@@ -35,8 +35,10 @@ class MCMCSAEM(AbstractAlgo):
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
+        model.initialize_random_variables()
         self._initialize_samplers(model)
         self._initialize_likelihood(data, model, realizations)
+
 
     def _initialize_samplers(self, model):
         pop_name = model.reals_pop_name

@@ -1,9 +1,9 @@
 {
   "type": "gaussian_distribution",
-  "dimension":1,
+  "dimension":null,
   "parameters": {
-    "intercept_mean": 0.0,
-    "intercept_var": 1.0,
-    "noise_var":1.0
+    "intercept_mean": null,
+    "intercept_var": null,
+    "noise_var":null
   }
 }

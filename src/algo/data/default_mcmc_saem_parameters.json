@@ -4,5 +4,8 @@
     "n_iter": 400,
     "estimate_individual_parameters":true,
     "estimate_population_parameters":true
+  },
+  "output":{
+    "path": null
   }
 }

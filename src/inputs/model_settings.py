@@ -1,7 +1,7 @@
 import json
 
 
-class ModelParametersReader():
+class ModelSettings():
     def __init__(self, path_to_model_parameters):
         with open(path_to_model_parameters) as fp:
             parameters = json.load(fp)

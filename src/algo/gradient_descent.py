@@ -1,7 +1,7 @@
 import torch
 from src.algo.abstract_algo import AbstractAlgo
 import os
-from src.inputs.algo_reader import AlgoReader
+from src.inputs.algo_settings import AlgoSettings
 from src import default_algo_dir
 import numpy as np
 
@@ -9,7 +9,7 @@ class GradientDescent(AbstractAlgo):
 
     def __init__(self):
         data_dir = os.path.join(default_algo_dir, "default_gradient_descent_parameters.json")
-        reader = AlgoReader(data_dir)
+        reader = AlgoSettings(data_dir)
 
         if reader.algo_type != 'gradient_descent':
             raise ValueError("The default gradient descent parameters are not of gradient_descent type")
@@ -25,8 +25,7 @@ class GradientDescent(AbstractAlgo):
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
-        # TODO Initialize the learning rate ???
-        pass
+        model.initialize_random_variables()
 
 
     ###########################

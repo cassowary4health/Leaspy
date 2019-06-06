@@ -1,13 +1,13 @@
 {
   "type": "multivariate",
-  "dimension": 1,
+  "dimension": null,
   "parameters": {
-    "P0": [0.3, 0.3, 0.3, 0.3],
-    "V0": [0.1, 0.1, 0.1, 0.1],
-    "tau_mean": 0.0,
-    "tau_var": 1.0,
-    "xi_mean": 0.0,
-    "xi_var": 1.0,
-    "noise_var":0.001
+    "P0": null,
+    "V0": null,
+    "tau_mean": null,
+    "tau_var": null,
+    "xi_mean": null,
+    "xi_var": null,
+    "noise_var": null
   }
 }

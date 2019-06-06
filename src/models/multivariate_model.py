@@ -2,7 +2,7 @@ import os
 
 from src import default_data_dir
 from src.models.abstract_model import AbstractModel
-from src.inputs.model_parameters_reader import ModelParametersReader
+from src.inputs.model_settings import ModelSettings
 import torch
 from torch.autograd import Variable
 import numpy as np
@@ -12,7 +12,7 @@ class MultivariateModel(AbstractModel):
     # TODO dimension in multivariate model parameters initialization ???
     def __init__(self):
         data_dir = os.path.join(default_data_dir, "default_multivariate_parameters.json")
-        reader = ModelParametersReader(data_dir)
+        reader = ModelSettings(data_dir)
         self.model_parameters = reader.parameters
         self.dimension = None
 
@@ -23,9 +23,8 @@ class MultivariateModel(AbstractModel):
         self.reals_pop_name = ['p0','v0']
         self.reals_ind_name = ['xi','tau']
 
-        # Cache variables
-        self._initialize_cache_variables()
 
+        self.model_name = 'multivariate'
 
 
 
@@ -141,4 +140,23 @@ class MultivariateModel(AbstractModel):
 
 
 
+    def smart_initialization(self, data):
 
+        # Initializes Dimension
+        self.dimension = data.dimension
+
+        # Pre-Initialize from dimension
+        SMART_INITIALIZATION = {
+            'p0': np.array([0.5]*self.dimension), 'v0':np.array([0.1] * self.dimension),
+                               'tau_mean': 0., 'tau_var': 1.,
+            'xi_mean': 0., 'xi_var': 1., 'noise_var': 0.05
+        }
+
+        # Initializes Parameters
+        for parameter_key in self.model_parameters.keys():
+            if self.model_parameters[parameter_key] is None:
+                self.model_parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
+
+
+        # Initialize Cache
+        self._initialize_cache_variables()

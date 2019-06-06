@@ -21,6 +21,9 @@ class AbstractModel():
     def load_parameters(self, model_parameters):
         for k, v in model_parameters.items():
             if k in self.model_parameters.keys():
+                # TODO problem type list as np array
+                #if type(self.model_parameters[k]) in [list]:
+                #   self.model_parameters[k] = np.array(self.model_parameters[k])
                 previous_v = self.model_parameters[k]
                 print("Replacing {} parameter from value {} to value {}".format(k, previous_v, v))
             self.model_parameters[k] = v
@@ -31,11 +34,24 @@ class AbstractModel():
 
 
     def save_parameters(self, path):
+        raise NotImplementedError
 
-        dumped = json.dumps(self.model_parameters, cls=NumpyEncoder)
+        """
+
+        #TODO check que c'est le bon format (IGOR)
+        model_settings = {}
+
+        model_settings['parameters'] = self.model_parameters
+        model_settings['dimension'] = self.dimension
+        model_settings['type'] = self.model_name
+
+
+        dumped = json.dumps(model_settings, cls=NumpyEncoder)
 
         with open(path, 'w') as f:
             json.dump(dumped, f)
+        """
+
 
     def initialize_realizations(self, data):
         """
@@ -187,3 +203,6 @@ class AbstractModel():
         self.cache_variables = {}
         self.cache_variables['noise_inverse'] = 1 / self.model_parameters['noise_var']
         self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
+
+    def smart_initialization(self, data):
+        raise NotImplementedError

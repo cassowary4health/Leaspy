@@ -2,16 +2,18 @@ import os
 
 from src import default_data_dir
 from src.models.abstract_model import AbstractModel
-from src.inputs.model_parameters_reader import ModelParametersReader
+from src.inputs.model_settings import ModelSettings
 import torch
 from torch.autograd import Variable
 import numpy as np
+import json
+from scipy.optimize import minimize
 
 
 class UnivariateModel(AbstractModel):
     def __init__(self):
         data_dir = os.path.join(default_data_dir, "default_univariate_parameters.json")
-        reader = ModelParametersReader(data_dir)
+        reader = ModelSettings(data_dir)
         self.model_parameters = reader.parameters
 
         if reader.model_type != 'univariate':
@@ -21,8 +23,7 @@ class UnivariateModel(AbstractModel):
         self.reals_pop_name = ['p0']
         self.reals_ind_name = ['xi','tau']
 
-        # Cache variables
-        self._initialize_cache_variables()
+        self.model_name = 'univariate'
 
     ###########################
     ## Core
@@ -106,3 +107,86 @@ class UnivariateModel(AbstractModel):
         # Update Cached Variables
         self.cache_variables['noise_inverse'] = 1/self.model_parameters['noise_var']
         self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
+
+
+    def smart_initialization(self, data):
+        """
+        Assigns dimension + model_parameters
+
+        model parameters from the data
+        :param data:
+        :return:
+        """
+
+        # Initializes Dimension
+        self.dimension = data.dimension
+
+        # Find a P0
+        p0 = 0
+        for indices in data.indices:
+            p0 += data[indices].tensor_timepoints.mean()
+        p0 /= data.n_individuals
+        p0 = p0.detach().numpy()
+
+        # Optimize for alpha/tau
+        # TODO Torch/float/numpy
+        def cost_function(x, *args):
+            xi, tau = x
+            individual, p0 = args
+            reals_pop_dummy = {'p0': p0}
+            real_ind_dummy = {'xi': torch.Tensor([xi]), 'tau':tau}
+            squared_diff = torch.sum((self.compute_individual(individual, reals_pop_dummy, real_ind_dummy)-individual.tensor_timepoints)**2)
+            squared_diff = float(squared_diff.detach().numpy())
+
+            return squared_diff
+
+        results = []
+
+        for idx in data.indices:
+            res = minimize(cost_function, x0=(-2.0, 0.0),
+                           args = (data[idx], p0),
+                           method='Powell',
+                           options={'xtol': 1e-15, 'disp': True})
+
+            if res.success and res.x[0] > -4 and res.x[0] < 4:
+                results.append(res.x)
+            else:
+                print(res.x, data[idx].tensor_observations)
+
+        xi_mean, tau_mean = np.mean(results, axis=0)
+        xi_var, tau_var = np.var(results, axis=0)/10
+
+        # Pre-Initialize from dimension
+        SMART_INITIALIZATION = {
+            'p0': p0.reshape(-1), 'tau_mean': 0.0, 'tau_var': 1.0,
+            'xi_mean': -1.0, 'xi_var': 0.1, 'noise_var': 0.5
+        }
+
+        # Initializes Parameters
+        for parameter_key in self.model_parameters.keys():
+            if self.model_parameters[parameter_key] is None:
+                print("Changing value of {0} from {1} to {2}".format(parameter_key, "None", SMART_INITIALIZATION[parameter_key]))
+                self.model_parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
+
+        # Initialize Cache
+        self._initialize_cache_variables()
+
+
+
+
+    def save_parameters(self, path):
+
+
+        #TODO check que c'est le bon format (IGOR)
+        model_settings = {}
+
+        model_settings['parameters'] = self.model_parameters
+        model_settings['dimension'] = self.dimension
+        model_settings['type'] = self.model_name
+
+        if type(model_settings['parameters']['p0']) not in [list]:
+            model_settings['parameters']['p0'] = model_settings['parameters']['p0'].tolist()
+
+
+        with open(path, 'w') as fp:
+            json.dump(model_settings, fp)

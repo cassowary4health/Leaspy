@@ -41,7 +41,9 @@ class UnivariateModel(AbstractModel):
         reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
 
-    def compute_sufficient_statistics(self, data, reals_ind, reals_pop):
+    def compute_sufficient_statistics(self, data, realizations):
+
+        reals_pop, reals_ind = realizations
 
         # Tau
         tau_array = []
@@ -128,6 +130,8 @@ class UnivariateModel(AbstractModel):
         p0 /= data.n_individuals
         p0 = p0.detach().numpy()
 
+        """
+
         # Optimize for alpha/tau
         # TODO Torch/float/numpy
         def cost_function(x, *args):
@@ -154,7 +158,7 @@ class UnivariateModel(AbstractModel):
                 print(res.x, data[idx].tensor_observations)
 
         xi_mean, tau_mean = np.mean(results, axis=0)
-        xi_var, tau_var = np.var(results, axis=0)/10
+        xi_var, tau_var = np.var(results, axis=0)/10"""
 
         # Pre-Initialize from dimension
         SMART_INITIALIZATION = {

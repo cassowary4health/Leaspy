@@ -25,7 +25,7 @@ class GradientDescent(AbstractAlgo):
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
-        model.initialize_random_variables()
+        pass
 
 
     ###########################
@@ -52,7 +52,7 @@ class GradientDescent(AbstractAlgo):
             self._gradient_update_ind(reals_ind, lr=self.algo_parameters['learning_rate'])
 
         # Update the sufficient statistics
-        self._maximization_step(data, model, reals_ind, reals_pop)
+        self._maximization_step(data, model, realizations)
 
         self.iteration += 1
 

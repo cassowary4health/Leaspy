@@ -2,6 +2,8 @@ from src.utils.random_variable.abstract_random_variable import AbstractRandomVar
 import src.utils.conformity.Profiler
 import numpy as np
 
+# TODO Numba class ??? do the sampling as well ???
+
 class GaussianRandomVariable(AbstractRandomVariable):
     def __init__(self, name, mu, variance):
 

@@ -1,6 +1,7 @@
 import numpy as np
 
 
+# TODO Numba this
 class Sampler:
     def __init__(self, name, std, temp_length=100):
         self.name = name
@@ -14,7 +15,7 @@ class Sampler:
     def sample(self):
         return np.random.normal(loc=0, scale=self.std)
 
-
+    # TODO Numba this
     def acceptation(self, alpha):
         """
         Update according to the difference in negative log likelihood: nll_new - nll_old

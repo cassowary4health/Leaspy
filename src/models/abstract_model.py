@@ -83,7 +83,7 @@ class AbstractModel():
             # For all invididual random variables, initialize
             for ind_name in reals_ind_name:
                 reals_ind[idx][ind_name] = np.random.normal(loc=self.model_parameters['{0}_mean'.format(ind_name)],
-                                                            scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
+                                                        scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
 
         # To Torch
         for key in reals_pop.keys():
@@ -91,7 +91,7 @@ class AbstractModel():
 
         for idx in reals_ind.keys():
             for key in reals_ind[idx]:
-                reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
+                    reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
 
         return reals_pop, reals_ind
 
@@ -103,9 +103,10 @@ class AbstractModel():
         for real_pop_name in self.reals_pop_name:
             self.random_variables[real_pop_name] = []
             for dim in range(self.dimension):
+                # TODO variance arbitrary here
                 self.random_variables[real_pop_name].append(GaussianRandomVariable(name=real_pop_name,
                                                                               mu=self.model_parameters[real_pop_name][dim],
-                                                                              variance=0.00001))
+                                                                              variance=0.001))
 
         for real_ind_name in self.reals_ind_name:
             self.random_variables[real_ind_name] = GaussianRandomVariable(name=real_ind_name,

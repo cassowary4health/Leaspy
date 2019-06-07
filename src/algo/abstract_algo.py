@@ -42,9 +42,16 @@ class AbstractAlgo():
 
     def run(self, data, model, seed=None):
 
-        # Initialize Algorithm
+        # Initialize Model
         self._initialize_seed(seed)
         realizations = model.initialize_realizations(data)
+        model.initialize_random_variables()
+
+        # First update of the model
+        #sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
+        #model.update_model(data, sufficient_statistics)
+
+        # Initialize Algo
         self._initialize_algo(data, model, realizations)
 
         # Iterate
@@ -58,7 +65,7 @@ class AbstractAlgo():
         raise NotImplementedError
 
     @staticmethod
-    def _maximization_step(data, model, reals_ind, reals_pop):
-        sufficient_statistics = model.compute_sufficient_statistics(data, reals_ind, reals_pop)
+    def _maximization_step(data, model, realizations):
+        sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
         model.update_model(data, sufficient_statistics)
 

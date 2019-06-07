@@ -56,13 +56,22 @@ if not os.path.exists(path_output):
         os.mkdir('../output_leaspy')
     os.mkdir(path_output)
 
+algo_settings.output_path = path_output
+
 # Leaspy instanciate
-leaspy = Leaspy.from_model_settings(path_to_model_parameters)
+#leaspy = Leaspy.from_model_settings(path_to_model_parameters)
+leaspy = Leaspy('multivariate')
 
 # Load the data
-data_path = os.path.join(data_dir, 'data2.csv')
+data_path = os.path.join(data_dir, 'data2_tiny.csv')
 reader = DataReader()
 data = reader.read(data_path)
+
+#%%
+#import pandas as pd
+#df = pd.read_csv(os.path.join(data_dir, 'data2.csv'))
+#df = df.iloc[:200,:]
+#df.set_index(['ID','TIME']).to_csv(os.path.join(data_dir, 'data2_tiny.csv'))
 
 #%%
 

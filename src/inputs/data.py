@@ -1,5 +1,6 @@
 from src.inputs.individual_data import IndividualData
 import numpy as np
+import pandas as pd
 
 class Data():
     def __init__(self):
@@ -52,5 +53,19 @@ class Data():
 
     def set_dimension(self, dimension):
         self.dimension = dimension
+
+    def to_pandas(self):
+
+        df = pd.DataFrame()
+        for idx in self.indices:
+            times = self[idx].tensor_timepoints
+            x = self[idx].tensor_observations
+            df_patient = pd.DataFrame(data=x.detach().numpy(), index=times.detach().numpy().reshape(-1))
+            df_patient = df_patient.add_prefix('value_')
+            df_patient.index.name = 'TIMES'
+            df_patient['ID'] = idx
+            df = pd.concat([df, df_patient])
+
+        return df.reset_index().set_index(['ID', 'TIMES'])
 
 

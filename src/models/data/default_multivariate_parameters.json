@@ -8,6 +8,8 @@
     "tau_var": null,
     "xi_mean": null,
     "xi_var": null,
+    "s0_mean":0,
+    "s0_var":1.0,
     "noise_var": null
   }
 }

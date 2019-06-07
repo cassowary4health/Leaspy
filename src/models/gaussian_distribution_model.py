@@ -41,7 +41,10 @@ class GaussianDistributionModel(AbstractModel):
     def compute_average(self, tensor_timepoints):
         return self.model_parameters['intercept_mean'] * torch.ones_like(tensor_timepoints.reshape(-1,1))
 
-    def compute_sufficient_statistics(self, data, reals_ind, reals_pop):
+    def compute_sufficient_statistics(self, data, realizations):
+
+        reals_pop, reals_ind = realizations
+
         # Intercept
         intercept_array = []
         for idx in reals_ind.keys():

@@ -10,6 +10,7 @@ from src.inputs.algo_settings import AlgoSettings
 class LeaspyFitTest(unittest.TestCase):
     ## Test MCMC-SAEM
 
+
     """
 
     def test_fit_univariatesigmoid_mcmcsaem(self):
@@ -39,7 +40,7 @@ class LeaspyFitTest(unittest.TestCase):
         reader = DataReader()
         data = reader.read(data_path)
 
-        leaspy.fit(data, algo_settings, seed=0)
+        leaspy.fit(data, algo_settings, seed=1)
 
         self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.003, delta=0.02)
         self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 0.39, delta=0.1)
@@ -162,7 +163,10 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -1.273, delta=0.2)
         self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.00239, delta=0.08)
         self.assertAlmostEqual(leaspy.model.model_parameters['p0'], [0.2830], delta=0.08)
-"""
+
+
+        """
+
 
     # With Smart Initialization
     def test_fit_univariatesigmoid_mcmcsaem_smartinitialization(self):

@@ -16,7 +16,7 @@ class MCMCSAEM(AbstractAlgo):
         reader = AlgoSettings(data_dir)
 
         if reader.algo_type != 'mcmc_saem':
-            raise ValueError("The default mcmc saem parameters are not of random_sampling type")
+            raise ValueError("The default mcmc saem parameters are not of mcmc_saem type")
 
 
         self.realizations = None
@@ -35,7 +35,6 @@ class MCMCSAEM(AbstractAlgo):
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
-        model.initialize_random_variables()
         self._initialize_samplers(model)
         self._initialize_likelihood(data, model, realizations)
 
@@ -49,10 +48,11 @@ class MCMCSAEM(AbstractAlgo):
 
         # TODO Change this arbitrary parameters --> samplers parameters ???
         for key in pop_name:
-            self.samplers_pop[key] = Sampler(key, 0.01, 50)
+            self.samplers_pop[key] = Sampler(key, 0.001, 50)
 
         for key in ind_name:
-            self.samplers_ind[key] = Sampler(key, np.sqrt(model.model_parameters["{0}_var".format(key)])/2, 200)
+            #self.samplers_ind[key] = Sampler(key, np.sqrt(model.model_parameters["{0}_var".format(key)])/2, 200)
+            self.samplers_ind[key] = Sampler(key, 0.01, 100)
 
 
     def _initialize_likelihood(self, data, model, realizations):
@@ -76,25 +76,25 @@ class MCMCSAEM(AbstractAlgo):
         self._sample_individual_realizations(data, model, reals_pop, reals_ind)
 
         # Maximization step
-        self._maximization_step(data, model, reals_ind, reals_pop)
+        self._maximization_step(data, model, realizations)
 
         self.iteration += 1
 
 
-
+    # TODO Numba this
     def _sample_population_realizations(self, data, model, reals_pop, reals_ind):
         for key in reals_pop.keys():
 
             for dim in range(model.dimension):
 
                 # Old loss
-                previous_reals_pop = reals_pop[key].reshape(-1)[dim] #TODO bof
+                previous_reals_pop = reals_pop[key][dim].clone() #TODO bof
                 previous_attachment = self.likelihood.get_current_attachment()
                 previous_regularity = model.compute_regularity_arrayvariable(previous_reals_pop, key, dim)
                 previous_loss = previous_attachment + previous_regularity
 
                 # New loss
-                reals_pop[key].reshape(-1)[dim] = reals_pop[key].reshape(-1)[dim] + self.samplers_pop[key].sample()
+                reals_pop[key][dim] = reals_pop[key][dim] + self.samplers_pop[key].sample()
                 new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
                 new_regularity = model.compute_regularity_arrayvariable(reals_pop[key].reshape(-1)[dim], key, dim)
                 new_loss = new_attachment + new_regularity
@@ -104,10 +104,12 @@ class MCMCSAEM(AbstractAlgo):
                 # Compute acceptation
                 accepted = self.samplers_pop[key].acceptation(alpha)
 
+
                 # Revert if not accepted
                 if not accepted:
-                    reals_pop[key].reshape(-1)[dim] = previous_reals_pop
+                    reals_pop[key][dim] = previous_reals_pop
 
+    # TODO Numba this
     def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
         for idx in reals_ind.keys():
             previous_individual_attachment = self.likelihood.individual_attachment[idx]
@@ -140,3 +142,23 @@ class MCMCSAEM(AbstractAlgo):
                 # Keep new attachment if accepted
                 else:
                     self.likelihood.individual_attachment[idx] = new_individual_attachment
+
+
+
+    def __str__(self):
+        out = ""
+        out += "=== ALGO ===\n"
+        out += "Iteration {0}\n".format(self.iteration)
+        out += "=Samplers \n"
+
+        for sampler_name, sampler in self.samplers_pop.items():
+            acceptation_rate = np.mean(sampler.acceptation_temp)
+            out += "    {0} rate : {1}%, std: {2}\n".format(sampler_name, 100*acceptation_rate,
+                                                            sampler.std)
+
+        for sampler_name, sampler in self.samplers_ind.items():
+            acceptation_rate = np.mean(sampler.acceptation_temp)
+            out += "    {0} rate : {1}%, std: {2}\n".format(sampler_name, 100 * acceptation_rate,
+                                                            sampler.std)
+
+        return out

@@ -22,7 +22,7 @@ class OutputManager():
         # print every
         # plot every
         # save every
-        self.print_periodicity = 10
+        self.print_periodicity = 50
         self.plot_periodicity = None
         self.save_periodicity = None
 

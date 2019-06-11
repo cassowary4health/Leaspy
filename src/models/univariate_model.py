@@ -126,7 +126,7 @@ class UnivariateModel(AbstractModel):
         # Find a P0
         p0 = 0
         for indices in data.indices:
-            p0 += data[indices].tensor_timepoints.mean()
+            p0 += data[indices].tensor_observations.mean()
         p0 /= data.n_individuals
         p0 = p0.detach().numpy()
 

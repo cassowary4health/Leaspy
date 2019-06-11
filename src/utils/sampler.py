@@ -12,6 +12,7 @@ class Sampler:
         self.acceptation_temp = []
         self.counter_acceptation = 0
 
+
     def sample(self):
         return np.random.normal(loc=0, scale=self.std)
 
@@ -23,12 +24,14 @@ class Sampler:
         :return:
         """
 
-        alpha = min(alpha, 1)
-
         accepted = 1
 
-        # If new loss > previous loss
-        if alpha < 1:
+        if alpha >= 1:
+            # Case 1: we improved the LogL
+            return accepted
+
+        else:
+            # Case 2: we decreased the LogL
 
             # Sample a realization from uniform law
             realization = np.random.uniform(low=0, high=1)

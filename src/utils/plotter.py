@@ -43,6 +43,8 @@ class Plotter():
         y_position = 0
         df_convergence.plot(ax=ax[y_position], legend=False)
         ax[y_position].set_title('noise_var')
+        ax[y_position].set_yscale("log", nonposy='clip')
+        plt.grid(True)
 
         for i, key in enumerate(reals_pop_name):
             y_position+=1

@@ -22,14 +22,25 @@ class AlgoSettings():
 
         algo_type = parameters['type']
 
+        # Output path
         if 'path' in parameters['output'].keys() and parameters['output']['path'] is not None:
             algo_output_path = parameters['output']['path']
         else:
             algo_output_path = None
 
+
+        # Annealing
+        #if 'annealing' in parameters.keys():
+        #    print("Annealing options given")
+        #    if "do_annealing" in parameters['annealing'].keys() and parameters['annealing']['do_annealing']:
+        #        print("Doing annealing")
+
+        # Annealing for some algo
+        #annealing_parameters = parameters['annealing']
+        #if annealing_parameters is not None:
+
+
         parameters = {k.lower(): v for k, v in parameters['parameters'].items()}
-
-
 
         return algo_type, parameters, algo_output_path
 

@@ -56,6 +56,7 @@ if not os.path.exists(path_output):
         os.mkdir('../output_leaspy')
     os.mkdir(path_output)
 
+path_output = None
 algo_settings.output_path = path_output
 
 # Leaspy instanciate

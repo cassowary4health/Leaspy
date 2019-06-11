@@ -30,16 +30,30 @@ class MCMCSAEM(AbstractAlgo):
 
         self.path_output = "output/"
 
+        self.temperature_inv = 1
+        self.temperature = 1
+
     ###########################
     ## Initialization
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
-        self._initialize_samplers(model)
+        self._initialize_samplers(model, data)
         self._initialize_likelihood(data, model, realizations)
+        if self.algo_parameters['annealing']['do_annealing']:
+            self._initialize_annealing()
+
+    def _initialize_annealing(self):
+        if self.algo_parameters['annealing']['do_annealing']:
+            if self.algo_parameters['annealing']['n_iter'] is None:
+                self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['n_iter']/2)
+
+        self.temperature = self.algo_parameters['annealing']['initial_temperature']
+        self.temperature_inv = 1/self.temperature
 
 
-    def _initialize_samplers(self, model):
+
+    def _initialize_samplers(self, model, data):
         pop_name = model.reals_pop_name
         ind_name = model.reals_ind_name
 
@@ -48,11 +62,11 @@ class MCMCSAEM(AbstractAlgo):
 
         # TODO Change this arbitrary parameters --> samplers parameters ???
         for key in pop_name:
-            self.samplers_pop[key] = Sampler(key, 0.001, 50)
+            self.samplers_pop[key] = Sampler(key, 0.005, 25)
 
         for key in ind_name:
             #self.samplers_ind[key] = Sampler(key, np.sqrt(model.model_parameters["{0}_var".format(key)])/2, 200)
-            self.samplers_ind[key] = Sampler(key, 0.01, 100)
+            self.samplers_ind[key] = Sampler(key, 0.1, 25*data.n_individuals)
 
 
     def _initialize_likelihood(self, data, model, realizations):
@@ -80,6 +94,20 @@ class MCMCSAEM(AbstractAlgo):
 
         self.iteration += 1
 
+        # Annealing
+        if self.algo_parameters['annealing']['do_annealing']:
+            self._update_temperature()
+
+    def _update_temperature(self):
+
+        if self.iteration <= self.algo_parameters['annealing']['n_iter']:
+            # If we cross a plateau step
+            if self.iteration % int(self.algo_parameters['annealing']['n_iter']/self.algo_parameters['annealing']['n_plateau']) == 0:
+                # Decrease temperature linearly
+                self.temperature -= self.algo_parameters['annealing']['initial_temperature']/self.algo_parameters['annealing']['n_plateau']
+                self.temperature = max(self.temperature, 1)
+                self.temperature_inv = 1/self.temperature
+
 
     # TODO Numba this
     def _sample_population_realizations(self, data, model, reals_pop, reals_ind):
@@ -99,7 +127,7 @@ class MCMCSAEM(AbstractAlgo):
                 new_regularity = model.compute_regularity_arrayvariable(reals_pop[key].reshape(-1)[dim], key, dim)
                 new_loss = new_attachment + new_regularity
 
-                alpha = np.exp(-(new_loss-previous_loss).detach().numpy())
+                alpha = np.exp(-(new_loss-previous_loss).detach().numpy()*self.temperature_inv)
 
                 # Compute acceptation
                 accepted = self.samplers_pop[key].acceptation(alpha)
@@ -131,7 +159,7 @@ class MCMCSAEM(AbstractAlgo):
                 new_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
                 new_individual_loss = new_individual_attachment + new_individual_regularity
 
-                alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy())
+                alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy()*self.temperature_inv)
 
                 # Compute acceptation
                 accepted = self.samplers_ind[key].acceptation(alpha)
@@ -160,5 +188,9 @@ class MCMCSAEM(AbstractAlgo):
             acceptation_rate = np.mean(sampler.acceptation_temp)
             out += "    {0} rate : {1}%, std: {2}\n".format(sampler_name, 100 * acceptation_rate,
                                                             sampler.std)
+
+        if self.algo_parameters['annealing']['do_annealing']:
+            out += "Annealing \n"
+            out += "Temperature : {0}".format(self.temperature)
 
         return out

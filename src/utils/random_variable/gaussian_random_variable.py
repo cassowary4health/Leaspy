@@ -1,8 +1,14 @@
 from src.utils.random_variable.abstract_random_variable import AbstractRandomVariable
 import src.utils.conformity.Profiler
 import numpy as np
+from numba import jit
 
 # TODO Numba class ??? do the sampling as well ???
+
+
+@jit(nopython=True, cache=True)
+def compute_negativeloglikelihood_numba(x, mu, inv_var, log_ctst):
+    return inv_var * (x - mu) ** 2 + log_ctst
 
 class GaussianRandomVariable(AbstractRandomVariable):
     def __init__(self, name, mu, variance):
@@ -40,7 +46,19 @@ class GaussianRandomVariable(AbstractRandomVariable):
         self._variance_inverse = 1 / variance
         self._log_constant = np.log(np.sqrt(2 * np.pi * variance))
 
+
+
+
     #@src.utils.conformity.Profiler.do_profile()
     def compute_negativeloglikelihood(self, x):
-        return self.variance_inverse*(x - self.mu)**2 + self._log_constant
+        return self.variance_inverse * (x - self.mu) ** 2 + self._log_constant
+
+        """
+        return compute_negativeloglikelihood_numba(x.detach().numpy(),
+                                                   self.mu,
+                                                   self.variance_inverse,
+                                                   self._log_constant)"""
+
+
+
 

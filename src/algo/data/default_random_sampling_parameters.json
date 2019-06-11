@@ -1,8 +1,0 @@
-{
-  "type": "random_sampling",
-  "parameters": {
-    "n_iter": 100,
-    "estimate_individual_parameters":true,
-    "estimate_population_parameters":true
-  }
-}

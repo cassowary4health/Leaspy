@@ -33,6 +33,19 @@ class MultivariateModel(AbstractModel):
         self.reals_pop_name = ['p0','v0']
         self.reals_ind_name = ['xi','tau']+['s'+str(i) for i in range(self.source_dimension)]
 
+        self.dimension = 4
+        self.reals_pop_info = [
+            ('p0', (self.dimension, 1)),
+            ('v0', (self.dimension, 1)),
+            ('beta', (self.dimension-1, self.source_dimension))
+        ]
+
+        self.reals_ind_info = [
+            ('xi', (1, 1), 'freezed'),
+            ('tau', (1, 1), 'flex'),
+            ('s', (self.source_dimension, 1))
+        ]
+
 
     ###########################
     ## Core
@@ -40,7 +53,6 @@ class MultivariateModel(AbstractModel):
 
     # TODO Numba this
     #@src.utils.conformity.Profiler.do_profile()
-    """
     def compute_individual(self, individual, reals_pop, real_ind):
 
         # Load from dict
@@ -61,13 +73,14 @@ class MultivariateModel(AbstractModel):
         # Compute parallel curve
         parallel_curve = torch.pow(1 + g * torch.exp(-a / b), -1)
 
-        return parallel_curve"""
+        return parallel_curve
 
+    """
     def compute_individual(self,  individual, reals_pop, real_ind):
         p0 = reals_pop['p0']
         v0 = reals_pop['v0']
         reparametrized_time = v0*torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
-        return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
+        return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)"""
 
 
     def compute_average(self, tensor_timepoints):
@@ -124,7 +137,7 @@ class MultivariateModel(AbstractModel):
         sufficient_statistics['s0_var'] = sources_var
 
         # TODO : non identifiable here with the xi, but how do we update each xi ?
-        #sufficient_statistics['v0'][sufficient_statistics['v0'] < 0] = 0.001
+        sufficient_statistics['v0'][sufficient_statistics['v0'] < 0] = 0.01
         #elf.model_parameters['v0'] = np.exp(sufficient_statistics['xi_mean']) * np.array(self.model_parameters['v0'])
         #for idx in reals_ind.keys():
         #    reals_ind[idx]['xi'] = reals_ind[idx]['xi']-sufficient_statistics['xi_mean']
@@ -157,7 +170,7 @@ class MultivariateModel(AbstractModel):
         self.model_parameters['xi_var'] = tau_var_update
 
         # Sources
-        #self.model_parameters['s0_var'] = sufficient_statistics['s0_var']
+        self.model_parameters['s0_var'] = sufficient_statistics['s0_var']
 
         # Noise
         self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/data.n_observations

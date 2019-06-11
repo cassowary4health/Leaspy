@@ -1,5 +1,5 @@
 import unittest
-
+import torch
 from src.utils.random_variable.gaussian_random_variable import GaussianRandomVariable
 import numpy as np
 
@@ -30,7 +30,7 @@ class GaussianRandomVariableTest(unittest.TestCase):
         mu = 1
         variance = 2
         gaussian_rv = GaussianRandomVariable(name="test", mu=mu, variance=variance)
-        self.assertAlmostEqual(gaussian_rv.compute_negativeloglikelihood(1), 1.26551, delta=1e-5)
-        self.assertAlmostEqual(gaussian_rv.compute_negativeloglikelihood(2), 1.7655121, delta=1e-5)
-        self.assertAlmostEqual(gaussian_rv.compute_negativeloglikelihood(3), 3.265512, delta=1e-5)
-        self.assertAlmostEqual(gaussian_rv.compute_negativeloglikelihood(1000), 499001.7655121235, delta=1e-5)
+        self.assertAlmostEqual(gaussian_rv.compute_negativeloglikelihood(torch.Tensor([1])), 1.26551, delta=1e-5)
+        self.assertAlmostEqual(gaussian_rv.compute_negativeloglikelihood(torch.Tensor([2])), 1.7655121, delta=1e-5)
+        self.assertAlmostEqual(gaussian_rv.compute_negativeloglikelihood(torch.Tensor([3])), 3.265512, delta=1e-5)
+        self.assertAlmostEqual(gaussian_rv.compute_negativeloglikelihood(torch.Tensor([1000])), 499001.7655121235, delta=1e-5)

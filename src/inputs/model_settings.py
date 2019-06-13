@@ -1,5 +1,5 @@
 import json
-
+import numpy as np
 
 class ModelSettings():
     def __init__(self, path_to_model_parameters):
@@ -19,6 +19,12 @@ class ModelSettings():
         model_type = parameters['type']
         dimension = parameters['dimension']
         parameters = {k.lower(): self.to_float(v) for k, v in parameters['parameters'].items()}
+
+        # Check that there is no list
+        for key in parameters.keys():
+            # Transform to numpy if list
+            if type(parameters[key]) in [list]:
+                parameters[key] = np.array(parameters[key])
 
         return model_type, dimension, parameters
 

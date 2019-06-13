@@ -27,8 +27,24 @@ class GaussianDistributionModel(AbstractModel):
         #for key in self.model_parameters.keys():
         #    self.model_parameters[key] = Variable(torch.tensor(self.model_parameters[key]).float(), requires_grad=True)
 
-
         self.model_name = 'gaussian_distribution'
+
+    def get_info_variables(self, data):
+
+            n_individuals = data.n_individuals
+
+            intercept_infos = {
+                "name": "intercept",
+                "shape": (n_individuals, 1),
+                "type": "individual",
+                "rv_type": "gaussian"
+            }
+
+            variables_infos = {
+                "intercept" : intercept_infos,
+            }
+
+            return variables_infos
 
 
     ###########################

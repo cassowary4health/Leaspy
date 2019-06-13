@@ -23,7 +23,46 @@ class UnivariateModel(AbstractModel):
         self.reals_pop_name = ['p0']
         self.reals_ind_name = ['xi','tau']
 
+
         self.model_name = 'univariate'
+
+        ###########################
+        ## Initialization
+        ###########################
+
+    def get_info_variables(self, data):
+
+            n_individuals = data.n_individuals
+
+            p0_infos = {
+                "name": "p0",
+                "shape": (1, 1),
+                "type": "population",
+                "rv_type": "multigaussian"
+            }
+
+            tau_infos = {
+                "name": "tau",
+                "shape": (n_individuals, 1),
+                "type": "individual",
+                "rv_type": "gaussian"
+            }
+
+            xi_infos = {
+                "name": "xi",
+                "shape": (n_individuals, 1),
+                "type": "individual",
+                "rv_type": "gaussian"
+            }
+
+            variables_infos = {
+                "p0" : p0_infos,
+                "tau" : tau_infos,
+                "xi" : xi_infos
+            }
+
+            return variables_infos
+
 
     ###########################
     ## Core
@@ -81,11 +120,11 @@ class UnivariateModel(AbstractModel):
     def update_model(self, data, sufficient_statistics):
 
         #TODO parameters, automatic initialization of these parameters
-        m_xi = data.n_individuals/20
-        sigma2_xi_0 = 0.05
+        m_xi = data.n_individuals / 20
+        sigma2_xi_0 = 1.0
 
         m_tau = data.n_individuals / 20
-        sigma2_tau_0 = 10
+        sigma2_tau_0 = 1.0
 
 
         self.model_parameters['p0'] = sufficient_statistics['p0']

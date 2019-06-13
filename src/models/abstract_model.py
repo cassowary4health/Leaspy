@@ -7,7 +7,7 @@ from decimal import Decimal as D
 import io
 from src.utils.numpy_encoder import NumpyEncoder
 from src.utils.random_variable.gaussian_random_variable import GaussianRandomVariable
-
+from src.utils.random_variable.random_variable_factory import RandomVariableFactory
 
 class AbstractModel():
     def __init__(self):
@@ -95,10 +95,29 @@ class AbstractModel():
 
         return reals_pop, reals_ind
 
-    def initialize_random_variables(self):
+    def initialize_random_variables(self, data):
         print("Initialize random variables")
 
-        self.random_variables = dict.fromkeys(self.reals_pop_name+self.reals_ind_name)
+
+        random_variable_factory = RandomVariableFactory()
+
+        # Get the info variables
+        info_variables = self.get_info_variables(data)
+        self.random_variables = dict.fromkeys(info_variables.keys())
+
+        for name, info in info_variables.items():
+            # Create the random variable
+            self.random_variables[name] = random_variable_factory.random_variable(info)
+
+            # TODO
+            # Initialize the random variable to parameters
+            # /!\ We need a convention here for rv_parameters e.g. loc, var,
+            # ie rv to parameters and parameters to rv, for now only text with append the parameter name
+            self.random_variables[name].initialize(self.model_parameters)
+
+            """
+                self.random_variables = dict.fromkeys(self.reals_pop_name+self.reals_ind_name)
+
 
         for real_pop_name in self.reals_pop_name:
             self.random_variables[real_pop_name] = []
@@ -113,6 +132,8 @@ class AbstractModel():
                                                                           mu=self.model_parameters["{0}_mean".format(real_ind_name)],
                                                                           variance=self.model_parameters["{0}_var".format(real_ind_name)])
 
+            """
+
 
     ###########################
     ## Getters / Setters
@@ -125,9 +146,7 @@ class AbstractModel():
         # TODO float for torch operations
 
         for real_pop_name in self.reals_pop_name:
-            rv = self.random_variables[real_pop_name]
-            for dim in range(len(rv)):
-                self.random_variables[real_pop_name][dim].mu = float(self.model_parameters[real_pop_name].reshape(-1)[dim])
+            self.random_variables[real_pop_name].mu = self.model_parameters[real_pop_name]
 
         for real_ind_name in self.reals_ind_name:
             self.random_variables[real_ind_name].mu = float(self.model_parameters["{0}_mean".format(real_ind_name)])
@@ -187,7 +206,7 @@ class AbstractModel():
         return self.random_variables[key].compute_negativeloglikelihood(real)
 
     def compute_regularity_arrayvariable(self, real, key, dim):
-        return self.random_variables[key][dim].compute_negativeloglikelihood(real)
+        return self.random_variables[key].compute_negativeloglikelihood(real, dim)
 
 
     def simulate_individual_parameters(self):

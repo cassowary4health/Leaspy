@@ -45,7 +45,7 @@ class AbstractAlgo():
         # Initialize Model
         self._initialize_seed(seed)
         realizations = model.initialize_realizations(data)
-        model.initialize_random_variables()
+        model.initialize_random_variables(data)
 
         # First update of the model
         #sufficient_statistics = model.compute_sufficient_statistics(data, realizations)

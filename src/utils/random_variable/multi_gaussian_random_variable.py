@@ -10,7 +10,10 @@ from numba import jit
 def compute_negativeloglikelihood_numba(x, mu, inv_var, log_ctst):
     return inv_var * (x - mu) ** 2 + log_ctst
 
-class GaussianRandomVariable(AbstractRandomVariable):
+class MultiGaussianRandomVariable(AbstractRandomVariable):
+    """
+    In this class mu is multi dimensional
+    """
     def __init__(self, infos):
         self.name = infos['name']
         self.shape = infos['shape']
@@ -59,6 +62,7 @@ class GaussianRandomVariable(AbstractRandomVariable):
     @mu.setter
     def mu(self, mu):
         self._mu = mu
+        self._log_constant = np.log(np.sqrt(2 * np.pi * self.variance))
 
     @variance.setter
     def variance(self, variance):
@@ -67,14 +71,11 @@ class GaussianRandomVariable(AbstractRandomVariable):
         self._log_constant = np.log(np.sqrt(2 * np.pi * variance))
 
 
-    ################
-    # Core
-    ################
 
 
     #@src.utils.conformity.Profiler.do_profile()
-    def compute_negativeloglikelihood(self, x):
-        return self.variance_inverse * (x - self.mu) ** 2 + self._log_constant
+    def compute_negativeloglikelihood(self, x, dim):
+        return self.variance_inverse * (x - self.mu[dim]) ** 2 + self._log_constant
         #return compute_negativeloglikelihood_numba(x.detach().numpy(),
         #                                           self.mu,
         #                                           self.variance_inverse,

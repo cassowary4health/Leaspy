@@ -127,7 +127,9 @@ class MCMCSAEM(AbstractAlgo):
                 new_regularity = model.compute_regularity_arrayvariable(reals_pop[key].reshape(-1)[dim], key, dim)
                 new_loss = new_attachment + new_regularity
 
-                alpha = np.exp(-(new_loss-previous_loss).detach().numpy()*self.temperature_inv)
+                #alpha = np.exp(-(new_loss-previous_loss).detach().numpy()*self.temperature_inv)
+                alpha = np.exp(-((new_regularity-previous_regularity)*self.temperature_inv +
+                               (new_attachment-previous_attachment)).detach().numpy())
 
                 # Compute acceptation
                 accepted = self.samplers_pop[key].acceptation(alpha)
@@ -159,7 +161,10 @@ class MCMCSAEM(AbstractAlgo):
                 new_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
                 new_individual_loss = new_individual_attachment + new_individual_regularity
 
-                alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy()*self.temperature_inv)
+                #alpha = np.exp(-(new_individual_loss - previous_individual_loss).detach().numpy()*self.temperature_inv)
+
+                alpha = np.exp(-((new_individual_regularity-previous_individual_regularity)*self.temperature_inv +
+                               (new_individual_attachment-previous_individual_attachment)).detach().numpy())
 
                 # Compute acceptation
                 accepted = self.samplers_ind[key].acceptation(alpha)

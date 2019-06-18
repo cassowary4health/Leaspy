@@ -10,6 +10,12 @@ import json
 from scipy.optimize import minimize
 
 
+
+#@torch.jit.script
+#def compute_individual_torch(timepoints, p0, xi, tau):
+#    reparametrized_time = torch.exp(xi) * (timepoints - tau)
+#    return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
+
 class UnivariateModel(AbstractModel):
     def __init__(self):
         data_dir = os.path.join(default_data_dir, "default_univariate_parameters.json")
@@ -68,17 +74,29 @@ class UnivariateModel(AbstractModel):
     ## Core
     ###########################
 
+
     def compute_individual(self, individual, reals_pop, real_ind):
         p0 = reals_pop['p0']
         reparametrized_time = torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
         return torch.pow(1+(1/p0-1)*torch.exp(-reparametrized_time/(p0*(1-p0))), -1)
+        #return compute_individual_torch(individual.tensor_timepoints,
+        #                                    reals_pop['p0'],
+        #                                     real_ind['xi'],
+        #                                     real_ind['tau'])
+
+
+
 
     def compute_average(self, tensor_timepoints):
         p0 = self.model_parameters['p0']
         # TODO better
-        p0 = p0[0]
+        p0 = p0[0,0]
         reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
+        #return compute_individual_torch(tensor_timepoints,
+        #                         torch.tensor(self.model_parameters['p0']),
+        #                         torch.tensor([0]),
+        #                         torch.tensor([0]))
 
     def compute_sufficient_statistics(self, data, realizations):
 

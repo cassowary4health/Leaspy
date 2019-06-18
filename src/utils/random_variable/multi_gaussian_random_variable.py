@@ -1,14 +1,14 @@
 from src.utils.random_variable.abstract_random_variable import AbstractRandomVariable
 import src.utils.conformity.Profiler
 import numpy as np
-from numba import jit
+#from numba import jit
 
 # TODO Numba class ??? do the sampling as well ???
 
 
-@jit(nopython=True, cache=True)
-def compute_negativeloglikelihood_numba(x, mu, inv_var, log_ctst):
-    return inv_var * (x - mu) ** 2 + log_ctst
+#@jit(nopython=True, cache=True)
+#def compute_negativeloglikelihood_numba(x, mu, inv_var, log_ctst):
+#    return inv_var * (x - mu) ** 2 + log_ctst
 
 class MultiGaussianRandomVariable(AbstractRandomVariable):
     """
@@ -34,7 +34,7 @@ class MultiGaussianRandomVariable(AbstractRandomVariable):
             raise ValueError("In rv initialization : type not individual, nor population")
 
     def _from_parameters(self, mu, variance):
-        self._mu = mu
+        self._mu = np.array(mu).reshape(self.shape)
         self._variance = variance
         self._variance_inverse = 1/variance
         self._log_constant = np.log(np.sqrt(2*np.pi*variance))
@@ -75,7 +75,7 @@ class MultiGaussianRandomVariable(AbstractRandomVariable):
 
     #@src.utils.conformity.Profiler.do_profile()
     def compute_negativeloglikelihood(self, x, dim):
-        return self.variance_inverse * (x - self.mu[dim]) ** 2 + self._log_constant
+        return self.variance_inverse * (x - self.mu[dim[0], dim[1]]) ** 2 + self._log_constant
         #return compute_negativeloglikelihood_numba(x.detach().numpy(),
         #                                           self.mu,
         #                                           self.variance_inverse,

@@ -6,9 +6,10 @@ from src.utils.output_manager import OutputManager
 import json
 
 class Leaspy():
-    def __init__(self, type):
-        self.type = type
-        self.model = ModelFactory.model(type)
+    def __init__(self, model_name):
+        #TODO change type to model_name
+        self.type = model_name
+        self.model = ModelFactory.model(model_name)
 
     @classmethod
     def from_model_settings(cls, path_to_model_parameters):

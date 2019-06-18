@@ -3,6 +3,8 @@ from src.algo.mcmc_saem import MCMCSAEM
 
 class AlgoFactory():
 
+    #TODO change name of type
+
     @staticmethod
     def algo(type):
         if type.lower() == 'gradient_descent':

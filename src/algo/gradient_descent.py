@@ -17,7 +17,7 @@ class GradientDescent(AbstractAlgo):
         self.realizations = None
         self.task = None
         self.algo_parameters = reader.parameters
-        self.iteration = 0
+        self.current_iteration = 0
         self.path_output = 'output/'
 
     ###########################
@@ -32,7 +32,7 @@ class GradientDescent(AbstractAlgo):
     ## Core
     ###########################
 
-    def iter(self, data, model, realizations):
+    def iteration(self, data, model, realizations):
 
         reals_pop, reals_ind = realizations
 
@@ -48,13 +48,13 @@ class GradientDescent(AbstractAlgo):
         self._gradient_update_pop(reals_pop, lr=self.algo_parameters['learning_rate']/data.n_individuals)
 
         #if self.algo_parameters['estimate_individual_parameters']:
-        if self.iteration > 100:
+        if self.current_iteration > 100:
             self._gradient_update_ind(reals_ind, lr=self.algo_parameters['learning_rate'])
 
         # Update the sufficient statistics
         self._maximization_step(data, model, realizations)
 
-        self.iteration += 1
+        self.current_iteration += 1
 
 
     def _gradient_update_pop(self, reals_pop, lr):

@@ -26,7 +26,7 @@ class MCMCSAEM(AbstractAlgo):
         self.samplers_pop = None
         self.samplers_ind = None
 
-        self.iteration = 0
+        self.current_iteration = 0
 
         self.path_output = "output/"
 
@@ -81,7 +81,7 @@ class MCMCSAEM(AbstractAlgo):
     ## Core
     ###########################
 
-    def iter(self, data, model, realizations):
+    def iteration(self, data, model, realizations):
 
         reals_pop, reals_ind = realizations
 
@@ -92,7 +92,7 @@ class MCMCSAEM(AbstractAlgo):
         # Maximization step
         self._maximization_step(data, model, realizations)
 
-        self.iteration += 1
+        self.current_iteration += 1
 
         # Annealing
         if self.algo_parameters['annealing']['do_annealing']:
@@ -100,44 +100,54 @@ class MCMCSAEM(AbstractAlgo):
 
     def _update_temperature(self):
 
-        if self.iteration <= self.algo_parameters['annealing']['n_iter']:
+        if self.current_iteration <= self.algo_parameters['annealing']['n_iter']:
             # If we cross a plateau step
-            if self.iteration % int(self.algo_parameters['annealing']['n_iter']/self.algo_parameters['annealing']['n_plateau']) == 0:
+            if self.current_iteration % int(self.algo_parameters['annealing']['n_iter']/self.algo_parameters['annealing']['n_plateau']) == 0:
                 # Decrease temperature linearly
                 self.temperature -= self.algo_parameters['annealing']['initial_temperature']/self.algo_parameters['annealing']['n_plateau']
                 self.temperature = max(self.temperature, 1)
                 self.temperature_inv = 1/self.temperature
 
 
-    # TODO Numba this
+    # TODO Factorize these functions:
+    # We need:
+    # -per rv type
+    # -per individual/population
+
     def _sample_population_realizations(self, data, model, reals_pop, reals_ind):
+
+        info_variables = model.get_info_variables(data)
+
         for key in reals_pop.keys():
 
-            for dim in range(model.dimension):
+            shape_current_variable = info_variables[key]["shape"]
 
-                # Old loss
-                previous_reals_pop = reals_pop[key][dim].clone() #TODO bof
-                previous_attachment = self.likelihood.get_current_attachment()
-                previous_regularity = model.compute_regularity_arrayvariable(previous_reals_pop, key, dim)
-                previous_loss = previous_attachment + previous_regularity
+            for dim_1 in range(shape_current_variable[0]):
+                for dim_2 in range(shape_current_variable[1]):
 
-                # New loss
-                reals_pop[key][dim] = reals_pop[key][dim] + self.samplers_pop[key].sample()
-                new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
-                new_regularity = model.compute_regularity_arrayvariable(reals_pop[key].reshape(-1)[dim], key, dim)
-                new_loss = new_attachment + new_regularity
+                    # Old loss
+                    previous_reals_pop = reals_pop[key][dim_1, dim_2].clone() #TODO bof
+                    previous_attachment = self.likelihood.get_current_attachment()
+                    previous_regularity = model.compute_regularity_arrayvariable(previous_reals_pop, key, (dim_1, dim_2))
+                    previous_loss = previous_attachment + previous_regularity
 
-                #alpha = np.exp(-(new_loss-previous_loss).detach().numpy()*self.temperature_inv)
-                alpha = np.exp(-((new_regularity-previous_regularity)*self.temperature_inv +
-                               (new_attachment-previous_attachment)).detach().numpy())
+                    # New loss
+                    reals_pop[key][dim_1, dim_2] = reals_pop[key][dim_1, dim_2] + self.samplers_pop[key].sample()
+                    new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
+                    new_regularity = model.compute_regularity_arrayvariable(reals_pop[key][dim_1, dim_2], key, (dim_1, dim_2))
+                    new_loss = new_attachment + new_regularity
 
-                # Compute acceptation
-                accepted = self.samplers_pop[key].acceptation(alpha)
+                    #alpha = np.exp(-(new_loss-previous_loss).detach().numpy()*self.temperature_inv)
+                    alpha = np.exp(-((new_regularity-previous_regularity)*self.temperature_inv +
+                                   (new_attachment-previous_attachment)).detach().numpy())
+
+                    # Compute acceptation
+                    accepted = self.samplers_pop[key].acceptation(alpha)
 
 
-                # Revert if not accepted
-                if not accepted:
-                    reals_pop[key][dim] = previous_reals_pop
+                    # Revert if not accepted
+                    if not accepted:
+                        reals_pop[key][dim_1, dim_2] = previous_reals_pop
 
     # TODO Numba this
     def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
@@ -169,6 +179,8 @@ class MCMCSAEM(AbstractAlgo):
                 # Compute acceptation
                 accepted = self.samplers_ind[key].acceptation(alpha)
 
+                #TODO Handle here if dim sources > 1
+
                 # Revert if not accepted
                 if not accepted:
                     reals_ind[idx][key] = previous_reals_ind
@@ -181,7 +193,7 @@ class MCMCSAEM(AbstractAlgo):
     def __str__(self):
         out = ""
         out += "=== ALGO ===\n"
-        out += "Iteration {0}\n".format(self.iteration)
+        out += "Iteration {0}\n".format(self.current_iteration)
         out += "=Samplers \n"
 
         for sampler_name, sampler in self.samplers_pop.items():

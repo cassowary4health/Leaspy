@@ -57,10 +57,10 @@ class OutputManager():
             self.clean_output_folder()
 
 
-    def iter(self, algo, data, model, realizations):
+    def iteration(self, algo, data, model, realizations):
 
         #print("Iteration : {0}, path_output: {1}".format(algo.iteration, self.path_output))
-        iteration = algo.iteration
+        iteration = algo.current_iteration
 
         if self.print_periodicity is not None:
             if iteration % self.print_periodicity == 0:
@@ -132,6 +132,8 @@ class OutputManager():
 
     def save_model_parameters_convergence(self, iteration, model):
         model_parameters = model.get_parameters()
+
+        #TODO I Stopped here, 2d array saves should be fixed.
 
         for key, value in model_parameters.items():
             if type(value) in [float]:

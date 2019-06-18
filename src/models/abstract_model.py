@@ -52,6 +52,8 @@ class AbstractModel():
             json.dump(dumped, f)
         """
 
+    def get_info_variables(self, data):
+        raise NotImplementedError
 
     def initialize_realizations(self, data):
         """
@@ -64,13 +66,17 @@ class AbstractModel():
 
         print("Initialize realizations")
 
+
+        # TODO Change here from get_info
         reals_pop_name = self.reals_pop_name
         reals_ind_name = self.reals_ind_name
+
+        infos_variables = self.get_info_variables(data)
 
         # Population parameters
         reals_pop = dict.fromkeys(reals_pop_name)
         for pop_name in reals_pop_name:
-            reals_pop[pop_name] = self.model_parameters[pop_name]
+            reals_pop[pop_name] = np.array(self.model_parameters[pop_name]).reshape(infos_variables[pop_name]["shape"])
 
 
         # Instanciate individual realizations
@@ -83,7 +89,10 @@ class AbstractModel():
             # For all invididual random variables, initialize
             for ind_name in reals_ind_name:
                 reals_ind[idx][ind_name] = np.random.normal(loc=self.model_parameters['{0}_mean'.format(ind_name)],
-                                                        scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]))
+                                                        scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]),
+                                                            size=(1, infos_variables[ind_name]["shape"][1]))
+
+
 
         # To Torch
         for key in reals_pop.keys():

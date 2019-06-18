@@ -28,24 +28,85 @@ class MultivariateModel(AbstractModel):
 
         # TODO Change hyperparameter
         self.source_dimension = 1
-        self.a_matrix = torch.Tensor(np.random.normal(loc=0, scale=1e-2, size=(4, self.source_dimension)))
-
-        self.reals_pop_name = ['p0','v0']
-        self.reals_ind_name = ['xi','tau']+['s'+str(i) for i in range(self.source_dimension)]
-
         self.dimension = 4
-        self.reals_pop_info = [
-            ('p0', (self.dimension, 1)),
-            ('v0', (self.dimension, 1)),
-            ('beta', (self.dimension-1, self.source_dimension))
-        ]
+        self.a_matrix = torch.Tensor(np.random.normal(loc=0, scale=1e-2, size=(self.dimension, self.source_dimension)))
 
-        self.reals_ind_info = [
-            ('xi', (1, 1), 'freezed'),
-            ('tau', (1, 1), 'flex'),
-            ('s', (self.source_dimension, 1))
-        ]
+        self.reals_pop_name = ['p0','v0','beta']
+        self.reals_ind_name = ['xi','tau','sources']
 
+
+        #self.reals_pop_info = [
+        #    ('p0', (self.dimension, 1)),
+        #    ('v0', (self.dimension, 1)),
+        #    ('beta', (self.dimension-1, self.source_dimension))
+        #]
+
+        #self.reals_ind_info = [
+        #    ('xi', (1, 1), 'freezed'),
+        #    ('tau', (1, 1), 'flex'),
+        #    ('sources', (self.source_dimension, 1))
+        #]
+
+    def get_info_variables(self, data):
+
+            n_individuals = data.n_individuals
+
+            ## Population variables
+
+            p0_infos = {
+                "name": "p0",
+                "shape": (1, self.dimension),
+                "type": "population",
+                "rv_type": "multigaussian"
+            }
+
+            v0_infos = {
+                "name": "v0",
+                "shape": (1, self.dimension),
+                "type": "population",
+                "rv_type": "multigaussian"
+            }
+
+            beta_infos = {
+                "name": "beta",
+                "shape": (self.dimension-1, self.source_dimension),
+                "type": "population",
+                "rv_type": "multigaussian"
+            }
+
+            ## Individual variables
+
+            tau_infos = {
+                "name": "tau",
+                "shape": (n_individuals, 1),
+                "type": "individual",
+                "rv_type": "gaussian"
+            }
+
+            xi_infos = {
+                "name": "xi",
+                "shape": (n_individuals, 1),
+                "type": "individual",
+                "rv_type": "gaussian"
+            }
+
+            sources_infos = {
+                "name": "sources",
+                "shape": (n_individuals, self.source_dimension),
+                "type": "individual",
+                "rv_type": "gaussian"
+            }
+
+            variables_infos = {
+                "p0": p0_infos,
+                "v0": v0_infos,
+                "beta": beta_infos,
+                "tau": tau_infos,
+                "xi": xi_infos,
+                "sources": sources_infos
+            }
+
+            return variables_infos
 
     ###########################
     ## Core
@@ -66,7 +127,9 @@ class MultivariateModel(AbstractModel):
 
         # Time reparametrized
         a = v0*torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
-        #a += torch.mm(self.a_matrix, real_ind['s0']).t()
+
+        # Problem with the case multi...
+        a += torch.mm(self.a_matrix, real_ind['sources'].t()).t()
         #TODO LAter
         #a += (self.a_matrix*real_ind['s0']).t()
 
@@ -117,10 +180,13 @@ class MultivariateModel(AbstractModel):
         # V0
         v0 = reals_pop['v0'].detach().numpy()
 
+        # Beta
+        beta = reals_pop['beta'].detach().numpy()
+
         # Sources
         sources_array = []
         for idx in reals_ind.keys():
-            sources_array.append(reals_ind[idx]['s0'].detach().numpy())
+            sources_array.append(reals_ind[idx]['sources'].detach().numpy())
         sources_array = np.array(sources_array)
 
         sources_var = np.var(sources_array).tolist()
@@ -129,12 +195,13 @@ class MultivariateModel(AbstractModel):
         sufficient_statistics = {}
         sufficient_statistics['p0'] = p0
         sufficient_statistics['v0'] = v0
+        sufficient_statistics['beta'] = beta
         sufficient_statistics['tau_mean'] = tau_mean
         sufficient_statistics['tau_var'] = tau_var
         sufficient_statistics['xi_mean'] = xi_mean
         sufficient_statistics['xi_var'] = xi_var
         sufficient_statistics['sum_squared'] = float(self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy())
-        sufficient_statistics['s0_var'] = sources_var
+        sufficient_statistics['sources_var'] = sources_var
 
         # TODO : non identifiable here with the xi, but how do we update each xi ?
         sufficient_statistics['v0'][sufficient_statistics['v0'] < 0] = 0.01
@@ -159,6 +226,7 @@ class MultivariateModel(AbstractModel):
 
         self.model_parameters['p0'] = sufficient_statistics['p0']
         self.model_parameters['v0'] = sufficient_statistics['v0']
+        self.model_parameters['beta'] = sufficient_statistics['beta']
 
         # Tau
         self.model_parameters['tau_mean'] = sufficient_statistics['tau_mean']
@@ -170,7 +238,7 @@ class MultivariateModel(AbstractModel):
         self.model_parameters['xi_var'] = tau_var_update
 
         # Sources
-        self.model_parameters['s0_var'] = sufficient_statistics['s0_var']
+        self.model_parameters['sources_var'] = sufficient_statistics['sources_var']
 
         # Noise
         self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/data.n_observations
@@ -266,6 +334,7 @@ class MultivariateModel(AbstractModel):
         SMART_INITIALIZATION = {
             'p0': p0_array,
             'v0' : v0_array,
+            'beta': np.zeros(shape=(self.dimension-1, self.source_dimension)),
             'tau_mean': 0., 'tau_var': 1.0,
             'xi_mean': 0., 'xi_var': 0.5,
             'noise_var': 0.005
@@ -282,7 +351,7 @@ class MultivariateModel(AbstractModel):
 
     def save_parameters(self, path):
 
-
+        #TODO, shouldnt be this be in the output manager ???
         #TODO check que c'est le bon format (IGOR)
         model_settings = {}
 
@@ -296,6 +365,14 @@ class MultivariateModel(AbstractModel):
         if type(model_settings['parameters']['v0']) not in [list]:
             model_settings['parameters']['v0'] = model_settings['parameters']['v0'].tolist()
 
+        if type(model_settings['parameters']['beta']) not in [list]:
+            beta = model_settings['parameters']['beta']
+            beta_n_columns = beta.shape[1]
+            model_settings['parameters'].pop('beta')
+            # Save per column
+            for beta_dim in range(beta_n_columns):
+                beta_column = beta[beta_dim].tolist()
+                model_settings['parameters']['beta_'+ str(beta_dim)] = beta_column
 
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)

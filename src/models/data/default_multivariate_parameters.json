@@ -4,12 +4,13 @@
   "parameters": {
     "P0": null,
     "V0": null,
+    "beta":null,
     "tau_mean": null,
     "tau_var": null,
     "xi_mean": null,
     "xi_var": null,
-    "s0_mean":0,
-    "s0_var":1.0,
+    "sources_mean":0,
+    "sources_var":1.0,
     "noise_var": null
   }
 }

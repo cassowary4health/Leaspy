@@ -30,7 +30,7 @@ class AbstractAlgo():
     def __str__(self):
         out = ""
         out += "=== ALGO ===\n"
-        out += "Iteration {0}".format(self.iteration)
+        out += "Iteration {0}".format(self.current_iteration)
         return out
 
     def set_output_manager(self, output_manager):
@@ -55,13 +55,13 @@ class AbstractAlgo():
         self._initialize_algo(data, model, realizations)
 
         # Iterate
-        for iteration in range(self.algo_parameters['n_iter']):
-            self.output_manager.iter(self, data, model, realizations)
-            self.iter(data, model, realizations)
+        for it in range(self.algo_parameters['n_iter']):
+            self.output_manager.iteration(self, data, model, realizations)
+            self.iteration(data, model, realizations)
 
         return realizations
 
-    def iter(self, data, model, realizations):
+    def iteration(self, data, model, realizations):
         raise NotImplementedError
 
     @staticmethod

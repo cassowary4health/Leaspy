@@ -35,7 +35,7 @@ class SamplerTest(unittest.TestCase):
         accepted_list = np.array(accepted_list)
         self.assertAlmostEqual(np.mean(accepted_list), 0.5, delta=0.05)
 
-    """
+
     #TODO why does noit it work ?
     def test_adaptative_proposition_variance(self):
 
@@ -64,7 +64,7 @@ class SamplerTest(unittest.TestCase):
             if accepted:
                 real = prop_real
 
-        self.assertAlmostEqual(np.mean(accepted_list[-200:]), 0.3, delta=0.2)"""
+        self.assertAlmostEqual(np.mean(accepted_list[-200:]), 0.3, delta=0.2)
 
 
 

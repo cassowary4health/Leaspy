@@ -24,11 +24,11 @@ class Sampler:
         :return:
         """
 
-        accepted = 1
+        accepted = 0
 
         if alpha >= 1:
             # Case 1: we improved the LogL
-            return accepted
+            accepted = 1
 
         else:
             # Case 2: we decreased the LogL
@@ -37,8 +37,8 @@ class Sampler:
             realization = np.random.uniform(low=0, high=1)
 
             # Choose to keep a lesser parameter value from it
-            if realization > alpha:
-                accepted = 0
+            if realization < alpha:
+                accepted = 1
 
         # Update acceptance rate of sampler
         self.update_acceptation_rate(accepted)

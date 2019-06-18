@@ -42,12 +42,12 @@ class LeaspyFitTest(unittest.TestCase):
 
         leaspy.fit(data, algo_settings, seed=1)
 
-        self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.003, delta=0.02)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'],  1.418, delta=0.1)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 0.102, delta=0.1)
-        self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -1.741, delta=0.2)
-        self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.267, delta=0.1)
-        self.assertAlmostEqual(leaspy.model.model_parameters['p0'], [0.31], delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.0109, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'],  0.9175, delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 0.0903, delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -1.486, delta=0.2)
+        self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.1067, delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['p0'], [0.28], delta=0.1)
         #self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 0.39, delta=0.1)
         #self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 1.231, delta=0.1)
         #self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -1.26, delta=0.2)

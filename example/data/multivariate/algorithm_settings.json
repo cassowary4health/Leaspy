@@ -1,0 +1,7 @@
+{
+  "type": "mcmc_saem",
+  "parameters": {
+    "n_iter": 601
+  },
+  "output":{"path":null}
+}

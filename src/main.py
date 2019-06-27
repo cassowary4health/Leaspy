@@ -17,6 +17,7 @@ class Leaspy():
         leaspy = cls(reader.model_type)
         leaspy.model.load_parameters(reader.parameters)
         leaspy.model.load_dimension(reader.dimension)
+        leaspy.model.adapt_shapes()
         return leaspy
 
     """

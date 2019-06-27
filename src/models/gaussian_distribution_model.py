@@ -29,6 +29,11 @@ class GaussianDistributionModel(AbstractModel):
 
         self.model_name = 'gaussian_distribution'
 
+
+    def get_pop_shapes(self):
+        return None
+
+
     def get_info_variables(self, data):
 
             n_individuals = data.n_individuals

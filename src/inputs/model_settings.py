@@ -33,7 +33,11 @@ class ModelSettings():
         if type(x) == int:
             return float(x)
         elif type(x) == list:
-            return [float(el) for el in x]
+            #TODO make this recursive
+            if type(x[0]) not in [list]:
+                return [float(el) for el in x]
+            else:
+                return [[float(el) for el in els] for els in x]
         else:
             return x
 

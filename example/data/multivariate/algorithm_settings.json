@@ -1,7 +1,13 @@
 {
   "type": "mcmc_saem",
   "parameters": {
-    "n_iter": 601
+    "n_iter": 1001,
+    "annealing": {
+      "do_annealing": true,
+      "initial_temperature": 100,
+      "n_iter": 500,
+      "n_plateau": 10
+    }
   },
   "output":{"path":null}
 }

@@ -16,15 +16,17 @@ class Plotter():
         fig, ax = plt.subplots(int(len(model.model_parameters.keys()) / 2) + 1, 2, figsize=(10, 20))
 
         for i, key in enumerate(model.model_parameters.keys()):
-            import_path = os.path.join(path, key + ".csv")
-            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
-            df_convergence.index.rename("iter", inplace=True)
 
-            x_position = int(i / 2)
-            y_position = i % 2
-            #ax[x_position][y_position].plot(df_convergence.index.values, df_convergence.values)
-            df_convergence.plot(ax=ax[x_position][y_position], legend=False)
-            ax[x_position][y_position].set_title(key)
+            if key not in ['beta']:
+                import_path = os.path.join(path, key + ".csv")
+                df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+                df_convergence.index.rename("iter", inplace=True)
+
+                x_position = int(i / 2)
+                y_position = i % 2
+                #ax[x_position][y_position].plot(df_convergence.index.values, df_convergence.values)
+                df_convergence.plot(ax=ax[x_position][y_position], legend=False)
+                ax[x_position][y_position].set_title(key)
         plt.tight_layout()
         plt.savefig(path_saveplot_1)
         plt.close()
@@ -46,13 +48,22 @@ class Plotter():
         ax[y_position].set_yscale("log", nonposy='clip')
         plt.grid(True)
 
+
         for i, key in enumerate(reals_pop_name):
-            y_position+=1
-            import_path = os.path.join(path, key + ".csv")
-            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
-            df_convergence.index.rename("iter", inplace=True)
-            df_convergence.plot(ax=ax[y_position], legend=False)
-            ax[y_position].set_title(key)
+            y_position += 1
+            if key not in ['beta']:
+                import_path = os.path.join(path, key + ".csv")
+                df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+                df_convergence.index.rename("iter", inplace=True)
+                df_convergence.plot(ax=ax[y_position], legend=False)
+                ax[y_position].set_title(key)
+            if key in ['beta']:
+                for source_dim in range(model.source_dimension):
+                    import_path = os.path.join(path, key + "_" + str(source_dim) +".csv")
+                    df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+                    df_convergence.index.rename("iter", inplace=True)
+                    df_convergence.plot(ax=ax[y_position], legend=False)
+                    ax[y_position].set_title(key)
 
         for i, key in enumerate(reals_ind_name):
             import_path_mean = os.path.join(path, key + "_mean.csv")

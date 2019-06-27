@@ -92,8 +92,6 @@ class MCMCSAEM(AbstractAlgo):
         # Maximization step
         self._maximization_step(data, model, realizations)
 
-        self.current_iteration += 1
-
         # Annealing
         if self.algo_parameters['annealing']['do_annealing']:
             self._update_temperature()
@@ -125,7 +123,7 @@ class MCMCSAEM(AbstractAlgo):
             for dim_1 in range(shape_current_variable[0]):
                 for dim_2 in range(shape_current_variable[1]):
 
-                    # Old loss
+                    # Compute Old loss
                     previous_reals_pop = reals_pop[key][dim_1, dim_2].clone() #TODO bof
                     previous_attachment = self.likelihood.get_current_attachment()
                     previous_regularity = model.compute_regularity_arrayvariable(previous_reals_pop, key, (dim_1, dim_2))
@@ -133,6 +131,11 @@ class MCMCSAEM(AbstractAlgo):
 
                     # New loss
                     reals_pop[key][dim_1, dim_2] = reals_pop[key][dim_1, dim_2] + self.samplers_pop[key].sample()
+
+                    # Update intermediary model variables if necessary
+                    model.update_variable_info(key, reals_pop)
+
+                    # Compute new loss
                     new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
                     new_regularity = model.compute_regularity_arrayvariable(reals_pop[key][dim_1, dim_2], key, (dim_1, dim_2))
                     new_loss = new_attachment + new_regularity
@@ -148,6 +151,8 @@ class MCMCSAEM(AbstractAlgo):
                     # Revert if not accepted
                     if not accepted:
                         reals_pop[key][dim_1, dim_2] = previous_reals_pop
+                        # Update intermediary model variables if necessary
+                        model.update_variable_info(key, reals_pop)
 
     # TODO Numba this
     def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):

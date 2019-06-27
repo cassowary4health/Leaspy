@@ -24,7 +24,7 @@ try:
         return inner
 
 except ImportError:
-    print("Error")
+    print("Line Profiler Error")
     def do_profile(follow=[]):
         "Helpful if you accidentally leave in production!"
         def inner(func):

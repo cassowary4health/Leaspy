@@ -1,5 +1,4 @@
 from src.utils.random_variable.abstract_random_variable import AbstractRandomVariable
-import src.utils.conformity.Profiler
 import numpy as np
 #from numba import jit
 
@@ -71,8 +70,6 @@ class GaussianRandomVariable(AbstractRandomVariable):
     # Core
     ################
 
-
-    #@src.utils.conformity.Profiler.do_profile()
     def compute_negativeloglikelihood(self, x):
         return self.variance_inverse * (x - self.mu) ** 2 + self._log_constant
         #return compute_negativeloglikelihood_numba(x.detach().numpy(),

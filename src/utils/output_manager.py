@@ -38,8 +38,8 @@ class OutputManager():
             self.path_plot_convergence_model_parameters_1 = os.path.join(path_output, "plot_model_parameters_convergence_1.pdf")
             self.path_plot_convergence_model_parameters_2 = os.path.join(path_output, "plot_model_parameters_convergence_2.pdf")
 
-            self.plot_periodicity = 20
-            self.save_periodicity = 20
+            self.plot_periodicity = 50
+            self.save_periodicity = 50
 
 
         # Options
@@ -133,15 +133,32 @@ class OutputManager():
     def save_model_parameters_convergence(self, iteration, model):
         model_parameters = model.get_parameters()
 
+        # TODO maybe better way ???
+        model_parameters_save = model_parameters.copy()
+
         #TODO I Stopped here, 2d array saves should be fixed.
 
+        # Transform the types
         for key, value in model_parameters.items():
             if type(value) in [float]:
-                value = [value]
+                model_parameters_save[key] = [value]
             elif type(value) in [list]:
-                value = np.array(value)
+                model_parameters_save[key] = np.array(value)
             elif value.shape == ():
-                value = [float(value)]
+                model_parameters_save[key] = [float(value)]
+            # TODO, apriori only for beta
+            elif type(value) in [np.ndarray]:
+                # Beta
+                if value.shape[0] > 1:
+                    model_parameters_save.pop(key)
+                    for column in range(value.shape[1]):
+                        model_parameters_save["{0}_{1}".format(key, column)] = value[:, column]
+                # P0, V0
+                elif value.shape[0] == 1 and len(value.shape) > 1:
+                    model_parameters_save[key] = value[0]
+
+        # Save the dictionnary
+        for key, value in model_parameters_save.items():
             path = os.path.join(self.path_save_model_parameters_convergence, key+".csv")
             with open(path, 'a', newline='') as filename:
                 writer = csv.writer(filename)

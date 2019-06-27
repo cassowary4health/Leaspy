@@ -11,6 +11,6 @@
     "xi_var": null,
     "sources_mean":0,
     "sources_var":1.0,
-    "noise_var": null
+    "noise_var": 1.0
   }
 }

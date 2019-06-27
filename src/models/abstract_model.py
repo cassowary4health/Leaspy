@@ -19,6 +19,7 @@ class AbstractModel():
     ###########################
 
     def load_parameters(self, model_parameters):
+
         for k, v in model_parameters.items():
             if k in self.model_parameters.keys():
                 # TODO problem type list as np array
@@ -31,6 +32,16 @@ class AbstractModel():
     def load_dimension(self, dimension):
         self.dimension = dimension
         print("Setting model dimension to : {0}".format(dimension))
+
+    def adapt_shapes(self):
+
+        shapes = self.get_pop_shapes()
+
+        for pop_var, pop_shape in shapes.items():
+            print(pop_var)
+            self.model_parameters[pop_var] = np.array(self.model_parameters[pop_var]).reshape(pop_shape)
+
+
 
 
     def save_parameters(self, path):
@@ -76,6 +87,7 @@ class AbstractModel():
         # Population parameters
         reals_pop = dict.fromkeys(reals_pop_name)
         for pop_name in reals_pop_name:
+            print(pop_name)
             reals_pop[pop_name] = np.array(self.model_parameters[pop_name]).reshape(infos_variables[pop_name]["shape"])
 
 
@@ -102,6 +114,10 @@ class AbstractModel():
             for key in reals_ind[idx]:
                     reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
 
+        # initialize intermediary variables
+        for key in reals_pop.keys():
+            self.update_variable_info(key, reals_pop)
+
         return reals_pop, reals_ind
 
     def initialize_random_variables(self, data):
@@ -123,6 +139,8 @@ class AbstractModel():
             # /!\ We need a convention here for rv_parameters e.g. loc, var,
             # ie rv to parameters and parameters to rv, for now only text with append the parameter name
             self.random_variables[name].initialize(self.model_parameters)
+
+
 
             """
                 self.random_variables = dict.fromkeys(self.reals_pop_name+self.reals_ind_name)
@@ -235,3 +253,12 @@ class AbstractModel():
 
     def smart_initialization(self, data):
         raise NotImplementedError
+
+
+    def update_variable_info(self, key, reals_pop):
+        """
+        Check according to the key, if some intermediary parameters need to be re-computed.
+        :param key:
+        :return:
+        """
+        pass

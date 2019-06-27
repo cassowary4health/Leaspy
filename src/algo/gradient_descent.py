@@ -36,6 +36,9 @@ class GradientDescent(AbstractAlgo):
 
         reals_pop, reals_ind = realizations
 
+        # Update the intermediary variables (Q, A if needed)
+        model.update_variable_info('v0', reals_pop)
+
         # Compute loss
         attachment = model.compute_attachment(data, reals_pop, reals_ind)
         regularity = model.compute_regularity(data, reals_pop, reals_ind)
@@ -53,8 +56,6 @@ class GradientDescent(AbstractAlgo):
 
         # Update the sufficient statistics
         self._maximization_step(data, model, realizations)
-
-        self.current_iteration += 1
 
 
     def _gradient_update_pop(self, reals_pop, lr):

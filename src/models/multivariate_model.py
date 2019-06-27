@@ -6,7 +6,6 @@ from src.inputs.model_settings import ModelSettings
 import torch
 from torch.autograd import Variable
 import numpy as np
-import src.utils.conformity.Profiler
 import json
 from scipy import stats
 
@@ -16,6 +15,10 @@ class MultivariateModel(AbstractModel):
         data_dir = os.path.join(default_data_dir, "default_multivariate_parameters.json")
         reader = ModelSettings(data_dir)
         self.model_parameters = reader.parameters
+
+        # Initialize Cache
+        self._initialize_cache_variables()
+
         self.dimension = None
 
         if reader.model_type != 'multivariate':
@@ -28,11 +31,11 @@ class MultivariateModel(AbstractModel):
 
         # TODO Change hyperparameter
         self.source_dimension = 1
-        self.dimension = 4
-        self.a_matrix = torch.Tensor(np.random.normal(loc=0, scale=1e-2, size=(self.dimension, self.source_dimension)))
+        #self.dimension = 4
+        #self.a_matrix = torch.Tensor(np.random.normal(loc=0, scale=1e-2, size=(self.dimension, self.source_dimension)))
 
-        self.reals_pop_name = ['p0','v0','beta']
-        self.reals_ind_name = ['xi','tau','sources']
+        self.reals_pop_name = ['p0', 'v0', 'beta']
+        self.reals_ind_name = ['xi', 'tau', 'sources']
 
 
         #self.reals_pop_info = [
@@ -46,6 +49,16 @@ class MultivariateModel(AbstractModel):
         #    ('tau', (1, 1), 'flex'),
         #    ('sources', (self.source_dimension, 1))
         #]
+
+    def get_pop_shapes(self):
+        p0_shape = (1, self.dimension)
+        v0_shape = (1, self.dimension)
+        beta_shape = (self.dimension-1, self.source_dimension)
+
+        return {"p0": p0_shape,
+                "v0": v0_shape,
+                "beta": beta_shape}
+
 
     def get_info_variables(self, data):
 
@@ -108,12 +121,20 @@ class MultivariateModel(AbstractModel):
 
             return variables_infos
 
+    #TODO better this
+    def update_variable_info(self, key, reals_pop):
+        if key in ['v0']:
+            self.update_Q_matrix()
+        if key in ['v0','beta']:
+            self.update_a_matrix(reals_pop['beta'])
+
+
+
     ###########################
     ## Core
     ###########################
 
     # TODO Numba this
-    #@src.utils.conformity.Profiler.do_profile()
     def compute_individual(self, individual, reals_pop, real_ind):
 
         # Load from dict
@@ -201,14 +222,14 @@ class MultivariateModel(AbstractModel):
         sufficient_statistics['xi_mean'] = xi_mean
         sufficient_statistics['xi_var'] = xi_var
         sufficient_statistics['sum_squared'] = float(self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy())
-        sufficient_statistics['sources_var'] = sources_var
+        sufficient_statistics['empirical_sources_var'] = sources_var
 
         # TODO : non identifiable here with the xi, but how do we update each xi ?
-        sufficient_statistics['v0'][sufficient_statistics['v0'] < 0] = 0.01
-        #elf.model_parameters['v0'] = np.exp(sufficient_statistics['xi_mean']) * np.array(self.model_parameters['v0'])
+        #sufficient_statistics['v0'][sufficient_statistics['v0'] < 0.01] = 0.01
+        #self.model_parameters['v0'] = np.exp(sufficient_statistics['xi_mean']/2) * np.array(self.model_parameters['v0'])
         #for idx in reals_ind.keys():
-        #    reals_ind[idx]['xi'] = reals_ind[idx]['xi']-sufficient_statistics['xi_mean']
-        #sufficient_statistics['xi_mean'] = 0.0
+        #    reals_ind[idx]['xi'] = reals_ind[idx]['xi']-sufficient_statistics['xi_mean']/2
+        #ufficient_statistics['xi_mean'] = sufficient_statistics['xi_mean']/2
 
 
         return sufficient_statistics
@@ -238,7 +259,8 @@ class MultivariateModel(AbstractModel):
         self.model_parameters['xi_var'] = tau_var_update
 
         # Sources
-        self.model_parameters['sources_var'] = sufficient_statistics['sources_var']
+        self.model_parameters['empirical_sources_var'] = sufficient_statistics['empirical_sources_var']
+        self.model_parameters['sources_var'] = 1.0
 
         # Noise
         self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/data.n_observations
@@ -251,12 +273,16 @@ class MultivariateModel(AbstractModel):
         self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
 
         # Compute the a_matrix
-        self.update_a_matrix()
+        #self.update_a_matrix()
 
-    def update_a_matrix(self):
+    def update_Q_matrix(self):
+        self.Q_matrix = torch.tensor(self.householder()).type(torch.FloatTensor)
+
+    def update_a_matrix(self, real_beta):
 
         # TODO better this
 
+        """
         ## Alex method
 
         v0 = torch.Tensor(self.model_parameters['v0']).reshape(-1, 1)
@@ -273,11 +299,8 @@ class MultivariateModel(AbstractModel):
         ## Householder
         """
 
-        # Householer to get Q
-        Q = self.householder()
-
         # Product with Beta
-        A = Q.dot(self.model_parameters['beta'])"""
+        self.a_matrix = torch.mm(self.Q_matrix, real_beta)
 
 
 
@@ -323,13 +346,16 @@ class MultivariateModel(AbstractModel):
 
 
         # Pre-Initialize from dimension
+        """
         SMART_INITIALIZATION = {
             'p0': np.repeat(np.mean(p0_array), self.dimension),
             'v0' : np.repeat(np.mean(v0_array), self.dimension),
+            'beta': np.zeros(shape=(self.dimension - 1, self.source_dimension)),
             'tau_mean': 0., 'tau_var': 1.0,
             'xi_mean': 0., 'xi_var': 0.5,
             'noise_var': 0.005
-        }
+        }"""
+
 
         SMART_INITIALIZATION = {
             'p0': p0_array,
@@ -366,13 +392,14 @@ class MultivariateModel(AbstractModel):
             model_settings['parameters']['v0'] = model_settings['parameters']['v0'].tolist()
 
         if type(model_settings['parameters']['beta']) not in [list]:
-            beta = model_settings['parameters']['beta']
-            beta_n_columns = beta.shape[1]
-            model_settings['parameters'].pop('beta')
+            model_settings['parameters']['beta'] = model_settings['parameters']['beta'].tolist()
+            #beta = model_settings['parameters']['beta']
+            #beta_n_columns = beta.shape[1]
+            #model_settings['parameters'].pop('beta')
             # Save per column
-            for beta_dim in range(beta_n_columns):
-                beta_column = beta[beta_dim].tolist()
-                model_settings['parameters']['beta_'+ str(beta_dim)] = beta_column
+            #for beta_dim in range(beta_n_columns):
+            #    beta_column = beta[beta_dim].tolist()
+            #    model_settings['parameters']['beta_'+ str(beta_dim)] = beta_column
 
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)

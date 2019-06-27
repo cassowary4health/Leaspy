@@ -36,6 +36,10 @@ class UnivariateModel(AbstractModel):
         ## Initialization
         ###########################
 
+    def get_pop_shapes(self):
+        p0_shape = (1, 1)
+        return {"p0": p0_shape}
+
     def get_info_variables(self, data):
 
             n_individuals = data.n_individuals
@@ -88,9 +92,9 @@ class UnivariateModel(AbstractModel):
 
 
     def compute_average(self, tensor_timepoints):
-        p0 = self.model_parameters['p0']
+        p0 = torch.Tensor(self.model_parameters['p0'])
         # TODO better
-        p0 = p0[0,0]
+        #p0 = p0[0][0]
         reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
         #return compute_individual_torch(tensor_timepoints,
@@ -219,7 +223,7 @@ class UnivariateModel(AbstractModel):
 
         # Pre-Initialize from dimension
         SMART_INITIALIZATION = {
-            'p0': p0.reshape(-1), 'tau_mean': 0.0, 'tau_var': 1.0,
+            'p0': p0.reshape(1,1), 'tau_mean': 0.0, 'tau_var': 1.0,
             'xi_mean': -1.0, 'xi_var': 0.1, 'noise_var': 0.5
         }
 

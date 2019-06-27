@@ -47,6 +47,7 @@ class AbstractAlgo():
         realizations = model.initialize_realizations(data)
         model.initialize_random_variables(data)
 
+        #TODO because of dimension problems, maybe not here
         # First update of the model
         #sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
         #model.update_model(data, sufficient_statistics)
@@ -56,8 +57,10 @@ class AbstractAlgo():
 
         # Iterate
         for it in range(self.algo_parameters['n_iter']):
-            self.output_manager.iteration(self, data, model, realizations)
             self.iteration(data, model, realizations)
+            self.output_manager.iteration(self, data, model, realizations)
+            self.current_iteration += 1
+
 
         return realizations
 

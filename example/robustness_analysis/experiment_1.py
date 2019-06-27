@@ -1,3 +1,5 @@
+
+#%%
 import os
 from tests import test_data_dir
 from src.main import Leaspy
@@ -5,6 +7,9 @@ from src.utils.data_generator import generate_data_from_model
 from src.inputs.algo_settings import AlgoSettings
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.pyplot import cm
+import numpy as np
+import torch
 
 
 """
@@ -16,28 +21,34 @@ From the same initial parameters, with the same synthetic data, do we get the sa
 # Parameters
 n_patients = 100
 n_iter = 500
+n_jobs = 3
 
+file_path = os.path.dirname(__file__)
 
-path_output = '../../output_leaspy/synthetic_data_validation/'
+path_output_file = os.path.join(file_path, "../../../output_leaspy/synthetic_data_validation")
+path_output = os.path.join(file_path, "../../../output_leaspy/")
+path_to_algo_parameters = os.path.join(file_path,"../data", '_generate_data', "algorithm_settings.json")
+path_to_true_model_parameters = os.path.join(file_path,"../data", '_generate_data', 'true_model_parameters.json')
+path_to_initial_model_parameters = os.path.join(file_path,"../data", '_generate_data', 'initial_model_parameters.json')
+
 if not os.path.exists(path_output):
-    if not os.path.exists('../../output_leaspy'):
-        os.mkdir('../../output_leaspy')
+    #if not os.path.exists(path_output):
+    #    os.mkdir(path_output)
     os.mkdir(path_output)
 
 # Algorithm settings
-path_to_algo_parameters = os.path.join(test_data_dir, '_generate_data', "algorithm_settings.json")
+
 algo_settings = AlgoSettings(path_to_algo_parameters)
 algo_settings.parameters['n_iter'] = n_iter
 
 # Create the data
-path_to_true_model_parameters = os.path.join(test_data_dir, '_generate_data', 'true_model_parameters.json')
 leaspy_dummy = Leaspy.from_model_settings(path_to_true_model_parameters)
 data = generate_data_from_model(leaspy_dummy.model, n_patients=n_patients)
 
 
 
 
-path_to_initial_model_parameters = os.path.join(test_data_dir, '_generate_data', 'initial_model_parameters.json')
+
 #leaspy = Leaspy.from_model_settings(path_to_initial_model_parameters)
 #leaspy.fit(data, algo_settings, seed=seed)
 
@@ -56,21 +67,21 @@ def run_experiment_1(data, model_settings_path, algo_settings, seed):
     
     return leaspy
 
+#res = run_experiment_1(data,path_to_initial_model_parameters,algo_settings, 0)
 
 
 from joblib import Parallel, delayed
-res = Parallel(n_jobs=3)(delayed(lambda seed:
+res = Parallel(n_jobs=n_jobs)(delayed(lambda seed:
                            run_experiment_1(data,
                                             path_to_initial_model_parameters,
                                             algo_settings,
-                                            seed))(seed) for seed in range(3))
+                                            seed))(seed) for seed in range(n_jobs))
 
 
-
+#%%
 
 # Plot the estimated average trajectory vs true average trajectory
-import numpy as np
-import torch
+
 numpy_timepoints = np.linspace(-2,2,50)
 tensor_timepoints = torch.Tensor(numpy_timepoints)
 true_average_trajectory = leaspy_dummy.model.compute_average(tensor_timepoints).detach().numpy()
@@ -88,7 +99,8 @@ ax.plot([-2, true_model_parameters['tau_mean']],
         [true_model_parameters['p0'][0], true_model_parameters['p0'][0]], c='black')
 
 
-colors = ['blue','red','cyan']
+colors = cm.rainbow(np.linspace(0,1,n_jobs))
+
 i=0
 for estimated_model_parameters, estimated_average_trajectory in zip(estimated_model_parameters_array,
                                                                     estimated_average_trajectories):
@@ -105,7 +117,6 @@ for estimated_model_parameters, estimated_average_trajectory in zip(estimated_mo
 
 plt.savefig(os.path.join(path_output, "average_trajectories.pdf"))
 plt.show()
-
 
 
 

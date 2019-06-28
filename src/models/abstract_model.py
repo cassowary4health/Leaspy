@@ -82,7 +82,7 @@ class AbstractModel():
         reals_pop_name = self.reals_pop_name
         reals_ind_name = self.reals_ind_name
 
-        infos_variables = self.get_info_variables(data)
+        infos_variables = self.get_info_variables()
 
         # Population parameters
         reals_pop = dict.fromkeys(reals_pop_name)
@@ -127,7 +127,7 @@ class AbstractModel():
         random_variable_factory = RandomVariableFactory()
 
         # Get the info variables
-        info_variables = self.get_info_variables(data)
+        info_variables = self.get_info_variables()
         self.random_variables = dict.fromkeys(info_variables.keys())
 
         for name, info in info_variables.items():

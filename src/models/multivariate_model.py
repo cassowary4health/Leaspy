@@ -28,7 +28,7 @@ class MultivariateModel(AbstractModel):
         self.model_name = 'multivariate'
 
         # TODO Change hyperparameter
-        self.source_dimension = 1
+        self.source_dimension = 2
         #self.dimension = 4
         #self.a_matrix = torch.Tensor(np.random.normal(loc=0, scale=1e-2, size=(self.dimension, self.source_dimension)))
 
@@ -58,9 +58,8 @@ class MultivariateModel(AbstractModel):
                 "beta": beta_shape}
 
 
-    def get_info_variables(self, data):
+    def get_info_variables(self):
 
-            n_individuals = data.n_individuals
 
             ## Population variables
 
@@ -89,21 +88,21 @@ class MultivariateModel(AbstractModel):
 
             tau_infos = {
                 "name": "tau",
-                "shape": (n_individuals, 1),
+                "shape": (1, 1),
                 "type": "individual",
                 "rv_type": "gaussian"
             }
 
             xi_infos = {
                 "name": "xi",
-                "shape": (n_individuals, 1),
+                "shape": (1, 1),
                 "type": "individual",
                 "rv_type": "gaussian"
             }
 
             sources_infos = {
                 "name": "sources",
-                "shape": (n_individuals, self.source_dimension),
+                "shape": (1, self.source_dimension),
                 "type": "individual",
                 "rv_type": "gaussian"
             }

@@ -57,17 +57,13 @@ class MCMCSAEM(AbstractAlgo):
         # TODO change the parameters ????
 
 
-        infos_variables = model.get_info_variables(data)
+        infos_variables = model.get_info_variables()
 
         self.samplers = dict.fromkeys(infos_variables.keys())
 
         for variable, info in infos_variables.items():
-            if info['type'] == "population":
-                self.samplers[variable] = Sampler(variable, 0.005, 25)
-            elif info['type'] == "individual":
-                self.samplers[variable] = Sampler(variable, 0.1, 25 * data.n_individuals)
-            else:
-                raise ValueError("Nor Population nor individual variable")
+            self.samplers[variable] = Sampler(info, data.n_individuals)
+
 
 
 
@@ -110,9 +106,24 @@ class MCMCSAEM(AbstractAlgo):
     # -per rv type
     # -per individual/population
 
+    def _metropolisacceptation_step(self, new_regularity, previous_regularity, new_attachment, previous_attachment, key):
+
+        # Compute energy difference
+        alpha = np.exp(-((new_regularity - previous_regularity) * self.temperature_inv +
+                         (new_attachment - previous_attachment)).detach().numpy())
+
+        # Compute acceptation
+        accepted = self.samplers[key].acceptation(alpha)
+        return accepted
+
+
+    def _metropolissampling_step(self, model, real, key, dim_1, dim_2):
+        pass
+
+
     def _sample_population_realizations(self, data, model, reals_pop, reals_ind):
 
-        info_variables = model.get_info_variables(data)
+        info_variables = model.get_info_variables()
 
         for key in reals_pop.keys():
 
@@ -136,7 +147,7 @@ class MCMCSAEM(AbstractAlgo):
                     new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
                     new_regularity = model.compute_regularity_arrayvariable(reals_pop[key][dim_1, dim_2], key, (dim_1, dim_2))
 
-                    accepted = self._metropolis_step(new_regularity, previous_regularity,
+                    accepted = self._metropolisacceptation_step(new_regularity, previous_regularity,
                                                 new_attachment, previous_attachment,
                                                 key)
 
@@ -145,51 +156,81 @@ class MCMCSAEM(AbstractAlgo):
                     if not accepted:
                         reals_pop[key][dim_1, dim_2] = previous_reals_pop
 
-            # Update intermediary model variables if necessary
-            model.update_variable_info(key, reals_pop)
+                    # Update intermediary model variables if necessary
+                    model.update_variable_info(key, reals_pop)
 
-    def _metropolis_step(self, new_regularity, previous_regularity, new_attachment, previous_attachment, key):
 
-        # Compute energy difference
-        alpha = np.exp(-((new_regularity - previous_regularity) * self.temperature_inv +
-                         (new_attachment - previous_attachment)).detach().numpy())
-
-        # Compute acceptation
-        accepted = self.samplers[key].acceptation(alpha)
-        return accepted
 
     # TODO Numba this
     def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
+
+        infos_variables = model.get_info_variables()
+
         for idx in reals_ind.keys():
             previous_individual_attachment = self.likelihood.individual_attachment[idx]
             for key in reals_ind[idx].keys():
 
-                # Save previous realization
-                previous_reals_ind = reals_ind[idx][key]
+                shape_current_variable = infos_variables[key]["shape"]
 
-                # Compute previous loss
-                #previous_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
-                previous_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
+                if shape_current_variable == (1,1):
 
-                # Sample a new realization
-                reals_ind[idx][key] = reals_ind[idx][key] + self.samplers[key].sample()
 
-                # Compute new loss
-                new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
-                new_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
+                    # Save previous realization
+                    previous_reals_ind = reals_ind[idx][key]
 
-                accepted = self._metropolis_step(new_individual_regularity, previous_individual_regularity,
-                                                 new_individual_attachment, previous_individual_attachment,
-                                                 key)
+                    # Compute previous loss
+                    #previous_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
+                    previous_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
 
-                #TODO Handle here if dim sources > 1
+                    # Sample a new realization
+                    reals_ind[idx][key] = reals_ind[idx][key] + self.samplers[key].sample()
 
-                # Revert if not accepted
-                if not accepted:
-                    reals_ind[idx][key] = previous_reals_ind
-                # Keep new attachment if accepted
+                    # Compute new loss
+                    new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx])
+                    new_individual_regularity = model.compute_regularity_variable(reals_ind[idx][key], key)
+
+                    accepted = self._metropolisacceptation_step(new_individual_regularity, previous_individual_regularity,
+                                                     new_individual_attachment, previous_individual_attachment,
+                                                     key)
+
+                    #TODO Handle here if dim sources > 1
+
+                    # Revert if not accepted
+                    if not accepted:
+                        reals_ind[idx][key] = previous_reals_ind
+                    # Keep new attachment if accepted
+                    else:
+                        self.likelihood.individual_attachment[idx] = new_individual_attachment
+
+
+
                 else:
-                    self.likelihood.individual_attachment[idx] = new_individual_attachment
+
+
+                    for dim_1 in range(shape_current_variable[0]):
+                        for dim_2 in range(shape_current_variable[1]):
+
+                            # Compute Old loss
+                            previous_reals_ind = reals_ind[idx][key][dim_1, dim_2].clone()  # TODO bof
+                            previous_attachment = self.likelihood.get_current_attachment()
+                            previous_regularity = model.compute_regularity_variable(previous_reals_ind, key)
+
+                            # New loss
+                            reals_ind[idx][key][dim_1, dim_2] = reals_ind[idx][key][dim_1, dim_2] + self.samplers[key].sample()
+
+                            # Compute new loss
+                            new_attachment = model.compute_attachment(data, reals_pop, reals_ind)
+                            new_regularity = model.compute_regularity_variable(reals_ind[idx][key][dim_1, dim_2], key)
+
+                            accepted = self._metropolisacceptation_step(new_regularity, previous_regularity,
+                                                                        new_attachment, previous_attachment,
+                                                                        key)
+
+                            # Revert if not accepted
+                            if not accepted:
+                                reals_ind[idx][key][dim_1, dim_2] = previous_reals_ind
+
+
 
 
 

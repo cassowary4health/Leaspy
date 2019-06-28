@@ -34,13 +34,12 @@ class GaussianDistributionModel(AbstractModel):
         return None
 
 
-    def get_info_variables(self, data):
+    def get_info_variables(self):
 
-            n_individuals = data.n_individuals
 
             intercept_infos = {
                 "name": "intercept",
-                "shape": (n_individuals, 1),
+                "shape": (1, 1),
                 "type": "individual",
                 "rv_type": "gaussian"
             }

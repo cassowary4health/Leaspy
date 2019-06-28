@@ -40,9 +40,7 @@ class UnivariateModel(AbstractModel):
         p0_shape = (1, 1)
         return {"p0": p0_shape}
 
-    def get_info_variables(self, data):
-
-            n_individuals = data.n_individuals
+    def get_info_variables(self):
 
             p0_infos = {
                 "name": "p0",
@@ -53,14 +51,14 @@ class UnivariateModel(AbstractModel):
 
             tau_infos = {
                 "name": "tau",
-                "shape": (n_individuals, 1),
+                "shape": (1, 1),
                 "type": "individual",
                 "rv_type": "gaussian"
             }
 
             xi_infos = {
                 "name": "xi",
-                "shape": (n_individuals, 1),
+                "shape": (1, 1),
                 "type": "individual",
                 "rv_type": "gaussian"
             }

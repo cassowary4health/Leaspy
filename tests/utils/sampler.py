@@ -6,8 +6,18 @@ import numpy as np
 
 class SamplerTest(unittest.TestCase):
 
+
+
     def test_sample(self):
-        sampler = Sampler("sampler_test", 1, temp_length=100)
+
+        var_infos = {
+            "name": "x",
+            "shape": (1, 1),
+            "type": "individual",
+            "rv_type": "gaussian"
+        }
+
+        sampler = Sampler(var_infos,1, temp_length=100)
 
         reals = []
         for i in range(1000):
@@ -15,19 +25,26 @@ class SamplerTest(unittest.TestCase):
         reals = np.array(reals)
 
         self.assertAlmostEqual(np.mean(reals), 0., delta=0.08)
-        self.assertAlmostEqual(np.std(reals), 1., delta=0.08)
+        self.assertAlmostEqual(np.std(reals), 0.1, delta=0.08)
 
 
     def test_acceptation(self):
 
+        var_infos = {
+            "name": "x",
+            "shape": (1, 1),
+            "type": "individual",
+            "rv_type": "gaussian"
+        }
+
         # Case where likelihood is improved
-        sampler = Sampler("sampler_test", 1, temp_length=1000)
+        sampler = Sampler(var_infos, 1, temp_length=1000)
         alpha = 1.5
         accepted = sampler.acceptation(alpha)
         self.assertEqual(accepted, True)
 
         # Case where likelihood is decreased
-        sampler = Sampler("sampler_test", 1, temp_length=1000)
+        sampler = Sampler(var_infos, 1,  temp_length=1000)
         alpha = 0.5
         accepted_list = []
         for i in range(1000):
@@ -40,7 +57,14 @@ class SamplerTest(unittest.TestCase):
     def test_adaptative_proposition_variance(self):
 
         # Create sampler
-        sampler = Sampler("sampler_test", 0.05, temp_length=50)
+        var_infos = {
+            "name": "x",
+            "shape": (1, 1),
+            "type": "population",
+            "rv_type": "gaussian"
+        }
+
+        sampler = Sampler(var_infos, 1, temp_length=50)
 
         # Create random variable
         std = np.random.uniform(low=2, high=10)

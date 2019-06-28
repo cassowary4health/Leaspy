@@ -3,18 +3,46 @@ import numpy as np
 
 # TODO Numba this
 class Sampler:
-    def __init__(self, name, std, temp_length=100):
-        self.name = name
-        self.std = std
+    def __init__(self, info, n_patients, temp_length=None):
+
+
+        self.name = info["name"]
+
+        self.std = None
+        self.temp_length = 25
+
+        if info["type"] == "population":
+            self.std = 0.005
+        elif info["type"] == "individual":
+            self.std = 0.1
+            self.temp_length *= n_patients
+
+        if temp_length is not None:
+            self.temp_length = temp_length
+
+        # For sampling options
+        self.shape = info["shape"]
+        self.rv_type = info["rv_type"]
+
+        self.samplewithshape = False
+        if self.rv_type == "gaussian" and self.shape != (1,1):
+            self.samplewithshape = True
 
         # Acceptation rate
-        self.temp_length = temp_length
         self.acceptation_temp = []
         self.counter_acceptation = 0
 
 
     def sample(self):
+            return self.sample_withoutshape()
+
+
+
+    def sample_withoutshape(self):
         return np.random.normal(loc=0, scale=self.std)
+
+    def sample_withshape(self):
+        return np.random.normal(loc=0, scale=self.std, size=self.shape)
 
     # TODO Numba this
     def acceptation(self, alpha):

@@ -5,7 +5,7 @@ from src.inputs.algo_settings import AlgoSettings
 from src import default_algo_dir
 from src.utils.sampler import Sampler
 import matplotlib.pyplot as plt
-from src.utils.likelihood import Likelihood
+
 
 import numpy as np
 
@@ -69,9 +69,7 @@ class MCMCSAEM(AbstractAlgo):
             self.samplers_ind[key] = Sampler(key, 0.1, 25*data.n_individuals)
 
 
-    def _initialize_likelihood(self, data, model, realizations):
-        self.likelihood = Likelihood()
-        self.likelihood._initialize_likelihood(data, model, realizations)
+
 
     ###########################
     ## Getters / Setters

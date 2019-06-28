@@ -25,7 +25,7 @@ class GradientDescent(AbstractAlgo):
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
-        pass
+        self._initialize_likelihood(data, model, realizations)
 
 
     ###########################

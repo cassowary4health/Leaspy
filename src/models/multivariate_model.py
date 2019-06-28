@@ -16,8 +16,6 @@ class MultivariateModel(AbstractModel):
         reader = ModelSettings(data_dir)
         self.model_parameters = reader.parameters
 
-        # Initialize Cache
-        self._initialize_cache_variables()
 
         self.dimension = None
 
@@ -363,7 +361,7 @@ class MultivariateModel(AbstractModel):
             'beta': np.zeros(shape=(self.dimension-1, self.source_dimension)),
             'tau_mean': 0., 'tau_var': 1.0,
             'xi_mean': 0., 'xi_var': 0.5,
-            'noise_var': 0.005
+            'noise_var': None
         }
 
         # Initializes Parameters
@@ -371,8 +369,7 @@ class MultivariateModel(AbstractModel):
             if self.model_parameters[parameter_key] is None:
                 self.model_parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
 
-        # Initialize Cache
-        self._initialize_cache_variables()
+
 
 
     def save_parameters(self, path):

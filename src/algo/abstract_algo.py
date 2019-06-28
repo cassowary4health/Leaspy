@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from src.utils.likelihood import Likelihood
 
 class AbstractAlgo():
 
@@ -71,4 +72,8 @@ class AbstractAlgo():
     def _maximization_step(data, model, realizations):
         sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
         model.update_model(data, sufficient_statistics)
+
+    def _initialize_likelihood(self, data, model, realizations):
+        self.likelihood = Likelihood()
+        self.likelihood._initialize_likelihood(data, model, realizations)
 

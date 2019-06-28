@@ -234,7 +234,7 @@ class UnivariateModel(AbstractModel):
                 self.model_parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
 
         # Initialize Cache
-        self._initialize_cache_variables()
+        #self._initialize_cache_variables()
 
 
 

@@ -140,7 +140,7 @@ class GaussianDistributionModel(AbstractModel):
 
 
         # Initialize Cache
-        self._initialize_cache_variables()
+        #self._initialize_cache_variables()
 
 
 

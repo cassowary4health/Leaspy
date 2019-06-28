@@ -42,11 +42,11 @@ class LeaspyFitTest(unittest.TestCase):
 
         leaspy.fit(data, algo_settings, seed=1)
 
-        self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.005, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'],  1.5, delta=0.1)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 0.0903, delta=0.1)
-        self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -2.28, delta=0.2)
-        self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.356, delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.0046, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'],  1.824, delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 0.1340, delta=0.1)
+        self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'],-1.989, delta=0.2)
+        self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.150, delta=0.1)
         self.assertAlmostEqual(leaspy.model.model_parameters['p0'][0][0], 0.28, delta=0.1)
         #self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 0.39, delta=0.1)
         #self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 1.231, delta=0.1)
@@ -161,12 +161,12 @@ class LeaspyFitTest(unittest.TestCase):
 
         leaspy.fit(data, algo_settings, seed=0)
 
-        self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'], 0.00358, delta=0.008)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 1.004027, delta=8)
-        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 1.143, delta=10)
+        self.assertAlmostEqual(leaspy.model.model_parameters['noise_var'],  0.004, delta=0.008)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_mean'], 1.42134027, delta=0.3)
+        self.assertAlmostEqual(leaspy.model.model_parameters['tau_var'], 0.134, delta=0.1)
         self.assertAlmostEqual(leaspy.model.model_parameters['xi_mean'], -1.273, delta=0.2)
-        self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.00239, delta=0.08)
-        self.assertAlmostEqual(leaspy.model.model_parameters['p0'], [0.2830], delta=0.08)
+        self.assertAlmostEqual(leaspy.model.model_parameters['xi_var'], 0.146, delta=0.08)
+        self.assertAlmostEqual(leaspy.model.model_parameters['p0'], [0.3230], delta=0.08)
 
 
     """

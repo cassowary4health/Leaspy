@@ -1,5 +1,6 @@
 {
   "type": "gaussian_distribution",
+  "source_dimension":null,
   "dimension":1,
   "parameters": {
     "intercept_mean": 0.0,

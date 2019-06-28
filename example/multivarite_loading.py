@@ -42,3 +42,7 @@ tensor_timepoints = torch.Tensor(np.linspace(-1, 1, 10)).reshape(-1, 1)
 
 average = leaspy.model.compute_average(tensor_timepoints)
 
+import matplotlib.pyplot as plt
+plt.plot(average.detach().numpy())
+plt.show()
+

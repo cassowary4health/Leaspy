@@ -1,5 +1,6 @@
 {
   "type": "multivariate",
+  "source_dimension": 1,
   "dimension": null,
   "parameters": {
     "P0": null,

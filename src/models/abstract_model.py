@@ -33,6 +33,11 @@ class AbstractModel():
         self.dimension = dimension
         print("Setting model dimension to : {0}".format(dimension))
 
+
+    def load_source_dimension(self, source_dimension):
+        self.source_dimension = source_dimension
+        print("Setting model source dimension to : {0}".format(source_dimension))
+
     def adapt_shapes(self):
 
         shapes = self.get_pop_shapes()
@@ -79,10 +84,15 @@ class AbstractModel():
 
 
         # TODO Change here from get_info
-        reals_pop_name = self.reals_pop_name
-        reals_ind_name = self.reals_ind_name
+        #reals_pop_name = self.reals_pop_name
+        #reals_ind_name = self.reals_ind_name
 
         infos_variables = self.get_info_variables()
+
+        reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
+                          infos_variables[key]["type"] == "population"]
+        reals_ind_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
+                          infos_variables[key]["type"] == "individual"]
 
         # Population parameters
         reals_pop = dict.fromkeys(reals_pop_name)

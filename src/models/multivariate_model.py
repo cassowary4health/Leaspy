@@ -28,25 +28,12 @@ class MultivariateModel(AbstractModel):
         self.model_name = 'multivariate'
 
         # TODO Change hyperparameter
-        self.source_dimension = 2
-        #self.dimension = 4
-        #self.a_matrix = torch.Tensor(np.random.normal(loc=0, scale=1e-2, size=(self.dimension, self.source_dimension)))
+        #self.source_dimension = 2
 
         self.reals_pop_name = ['p0', 'v0', 'beta']
         self.reals_ind_name = ['xi', 'tau', 'sources']
 
 
-        #self.reals_pop_info = [
-        #    ('p0', (self.dimension, 1)),
-        #    ('v0', (self.dimension, 1)),
-        #    ('beta', (self.dimension-1, self.source_dimension))
-        #]
-
-        #self.reals_ind_info = [
-        #    ('xi', (1, 1), 'freezed'),
-        #    ('tau', (1, 1), 'flex'),
-        #    ('sources', (self.source_dimension, 1))
-        #]
 
     def get_pop_shapes(self):
         p0_shape = (1, self.dimension)

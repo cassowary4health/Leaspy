@@ -1,9 +1,10 @@
 {
   "type": "multivariate",
   "dimension" : 4,
+  "source_dimension":1,
   "parameters": {
-    "P0": [0.3, 0.3, 0.3, 0.3],
-    "V0": [0.1, 0.1, 0.1, 0.1],
+    "P0": [0.3, 0.4, 0.1, 0.3],
+    "V0": [0.1, 0.2, 0.12, 0.1],
     "Beta": [[0.1, 0.2, 0.3]],
     "tau_mean": 0,
     "tau_var": 1,

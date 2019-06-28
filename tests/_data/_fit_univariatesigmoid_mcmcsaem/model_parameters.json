@@ -1,6 +1,7 @@
 {
   "type": "univariate",
   "dimension":1,
+  "source_dimension":null,
   "parameters": {
     "P0": [0.3],
     "tau_mean": 0,

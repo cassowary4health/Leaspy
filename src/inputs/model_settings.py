@@ -6,7 +6,7 @@ class ModelSettings():
         with open(path_to_model_parameters) as fp:
             parameters = json.load(fp)
 
-        self.model_type, self.dimension, self.parameters = self.read_parameters(parameters)
+        self.model_type, self.dimension, self.source_dimension, self.parameters = self.read_parameters(parameters)
 
     def read_parameters(self, parameters):
         if 'type' not in parameters.keys():
@@ -18,6 +18,7 @@ class ModelSettings():
 
         model_type = parameters['type']
         dimension = parameters['dimension']
+        source_dimension = parameters['source_dimension']
         parameters = {k.lower(): self.to_float(v) for k, v in parameters['parameters'].items()}
 
         # Check that there is no list
@@ -26,7 +27,7 @@ class ModelSettings():
             if type(parameters[key]) in [list]:
                 parameters[key] = np.array(parameters[key])
 
-        return model_type, dimension, parameters
+        return model_type, dimension, source_dimension, parameters
 
     @staticmethod
     def to_float(x):

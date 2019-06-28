@@ -29,7 +29,7 @@ class LeaspyFitTest(unittest.TestCase):
             if not os.path.exists('../output_leaspy'):
                 os.mkdir('../output_leaspy')
             os.mkdir(path_output)
-        algo_settings.output_path = path_output
+        algo_settings.output_path = None
 
         #path_output = None
 

@@ -371,6 +371,7 @@ class MultivariateModel(AbstractModel):
 
         model_settings['parameters'] = self.model_parameters
         model_settings['dimension'] = self.dimension
+        model_settings['source_dimension'] = self.dimension
         model_settings['type'] = self.model_name
 
         if type(model_settings['parameters']['p0']) not in [list]:

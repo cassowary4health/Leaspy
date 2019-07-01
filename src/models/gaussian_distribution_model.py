@@ -151,6 +151,7 @@ class GaussianDistributionModel(AbstractModel):
 
         model_settings['parameters'] = self.model_parameters
         model_settings['dimension'] = self.dimension
+        model_settings['source_dimension'] = self.dimension
         model_settings['type'] = self.model_name
 
 

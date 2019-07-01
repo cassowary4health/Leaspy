@@ -134,7 +134,8 @@ class MCMCSAEM(AbstractAlgo):
 
                     # Compute Old loss
                     previous_reals_pop = reals_pop[key][dim_1, dim_2].clone() #TODO bof
-                    previous_attachment = self.likelihood.get_current_attachment()
+                    #previous_attachment = self.likelihood.get_current_attachment()
+                    previous_attachment = model.compute_attachment(data, reals_pop, reals_ind)
                     previous_regularity = model.compute_regularity_arrayvariable(previous_reals_pop, key, (dim_1, dim_2))
 
                     # New loss
@@ -150,11 +151,21 @@ class MCMCSAEM(AbstractAlgo):
                     accepted = self._metropolisacceptation_step(new_regularity, previous_regularity,
                                                 new_attachment, previous_attachment,
                                                 key)
+                    #print("dim {0} : {1}".format(dim_1, reals_pop[key][dim_1, dim_2]))
+                    #print(new_attachment, previous_attachment)
+                    #print(accepted)
 
 
                     # Revert if not accepted
                     if not accepted:
                         reals_pop[key][dim_1, dim_2] = previous_reals_pop
+                    else:
+                        #TODO better, with the update variables infos I guess ???
+                        for idx in data.indices:
+                            new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop,
+                                                                                            reals_ind[idx])
+                            self.likelihood.individual_attachment[idx] = new_individual_attachment
+
 
                     # Update intermediary model variables if necessary
                     model.update_variable_info(key, reals_pop)

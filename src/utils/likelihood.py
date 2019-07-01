@@ -4,7 +4,7 @@ class Likelihood:
     def __init__(self):
         self.individual_attachment = None
 
-    def _initialize_likelihood(self, data, model, realizations):
+    def initialize_likelihood(self, data, model, realizations):
         self.individual_attachment = dict.fromkeys(data.indices)
         reals_pop, reals_ind = realizations
 

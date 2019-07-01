@@ -16,8 +16,11 @@ class MultivariateModel(AbstractModel):
         reader = ModelSettings(data_dir)
         self.model_parameters = reader.parameters
 
+        self.load_source_dimension(reader.source_dimension)
+
 
         self.dimension = None
+
 
         if reader.model_type != 'multivariate':
             raise ValueError("The default multivariate parameters are not of multivariate type")
@@ -28,7 +31,6 @@ class MultivariateModel(AbstractModel):
         self.model_name = 'multivariate'
 
         # TODO Change hyperparameter
-        #self.source_dimension = 2
 
         self.reals_pop_name = ['p0', 'v0', 'beta']
         self.reals_ind_name = ['xi', 'tau', 'sources']
@@ -327,6 +329,9 @@ class MultivariateModel(AbstractModel):
             slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
             p0_array[dim], v0_array[dim] = intercept, slope
             noise_array[dim] = np.mean((intercept+slope*x-y)**2)**2
+
+            # V0 array minimum value
+            v0_array[dim] = max(v0_array[dim], 0.05)
 
 
         # Pre-Initialize from dimension

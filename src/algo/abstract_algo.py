@@ -75,5 +75,5 @@ class AbstractAlgo():
 
     def _initialize_likelihood(self, data, model, realizations):
         self.likelihood = Likelihood()
-        self.likelihood._initialize_likelihood(data, model, realizations)
+        self.likelihood.initialize_likelihood(data, model, realizations)
 

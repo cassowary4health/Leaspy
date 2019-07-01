@@ -29,7 +29,7 @@ class Sampler:
             self.samplewithshape = True
 
         # Acceptation rate
-        self.acceptation_temp = []
+        self.acceptation_temp = [0.0] * self.temp_length
         self.counter_acceptation = 0
 
 
@@ -75,7 +75,9 @@ class Sampler:
 
     def update_acceptation_rate(self, accepted):
 
-        self.acceptation_temp.append(accepted)
+        self.acceptation_temp.insert(0, accepted)
+        self.acceptation_temp.pop()
+
         self.counter_acceptation += 1
 
         if self.counter_acceptation == self.temp_length:
@@ -94,11 +96,9 @@ class Sampler:
 
 
             # reset acceptation temp list
-            self.reset_acceptation_temp()
+            self.counter_acceptation = 0
 
-    def reset_acceptation_temp(self):
-        self.acceptation_temp = []
-        self.counter_acceptation = 0
+
 
     def __str__(self):
         return "Sampler {0}, std:{1} , rate:{2}".format(self.name, self.std, np.mean(self.acceptation_temp))

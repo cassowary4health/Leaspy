@@ -1,5 +1,6 @@
 from src.algo.gradient_descent import GradientDescent
 from src.algo.mcmc_saem import MCMCSAEM
+from src.algo.tuned_mcmcsaem import TunedMCMCSAEM
 
 class AlgoFactory():
 
@@ -11,5 +12,7 @@ class AlgoFactory():
             return GradientDescent()
         elif type.lower() == 'mcmc_saem':
             return MCMCSAEM()
+        elif type.lower() == 'tuned_mcmc_saem':
+            return TunedMCMCSAEM()
 
 

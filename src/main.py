@@ -50,26 +50,33 @@ class Leaspy():
         # Run algo
         algo.run(data, self.model, seed)
 
-    def predict(self, data, path_to_prediction_settings, seed=0):
+    def predict(self, individual, prediction_settings, seed=0, method="map"):
         #TODO Change, use specific algorithms
         """
-        Predict individual parameters of a list of patients
+        Predict individual parameters of a patient, or an iterable of patients
         :param data:
         :param path_to_prediction_settings:
         :param path output
         :param seed
+        :param method : map or distribution
         :return:
         """
 
-        # Instanciate optimization algorithm
-        reader = AlgoReader(path_to_prediction_settings)
-        algo = AlgoFactory.algo(reader.algo_type)
-        algo.load_parameters(reader.parameters)
+        # Instanciate optimization algorithm for predict
 
-        # Run optimization
-        realizations = algo.run(data, self.model, seed)
-        reals_pop, reals_ind = realizations
-        return reals_ind
+        # Chekc that in predict algo
+        if prediction_settings.algo_type not in ['mcmc_predict']:
+            raise ValueError("Optimization Algorithm is not adapted for predict")
+
+
+        print("Load predict algorithm")
+        predict_algo = AlgoFactory.algo(prediction_settings.algo_type)
+        predict_algo.load_parameters(prediction_settings.parameters)
+
+        # Predict
+        print("Launch predict algo")
+        res = predict_algo.run(individual, self.model, seed)
+        return res
 
 
     def simulate(self, path_to_simulation_settings, seed=0):
@@ -80,6 +87,10 @@ class Leaspy():
         indices = ['simulated_patient_{0}'.format(i) for i in range(simulation_settings['number_patients_to_simulate'])]
         simulated_individual_parameters = self.model.simulate_individual_parameters(indices, seed=seed)
         return simulated_individual_parameters
+
+
+    def __str__(self):
+        return self.model.__str__()
 
 """
     def fit(self, data, path_to_algorithm_settings, path_output=None, seed=0):

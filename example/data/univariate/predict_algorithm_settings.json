@@ -1,7 +1,7 @@
 {
-  "type": "mcmc_saem",
+  "type": "mcmc_predict",
   "parameters": {
-    "n_iter": 10
+    "n_iter": 100
   },
     "output":{
     "path": null

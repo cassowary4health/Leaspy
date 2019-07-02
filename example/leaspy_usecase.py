@@ -30,6 +30,10 @@ algosettings.output_path = "../../output_leaspy/usecase/"
 leaspy.fit(data, algosettings)
 
 ## Play
+# Print
+print(leaspy.model)
+
+# Plot
 tensor_timepoints = torch.Tensor(np.linspace(-1, 1, 10)).reshape(-1, 1)
 average = leaspy.model.compute_average(tensor_timepoints)
 plt.plot(tensor_timepoints.detach().numpy(), average.detach().numpy())
@@ -37,7 +41,6 @@ plt.show()
 
 ## Save
 leaspy.save("../../output_leaspy/usecase/model_usecase_1.json")
-
 
 
 
@@ -50,6 +53,7 @@ tensor_timepoints = torch.Tensor(np.linspace(-1, 1, 10)).reshape(-1, 1)
 leaspy2 = Leaspy.from_model_settings("../../output_leaspy/usecase/model_usecase_1.json")
 
 ## Play
+print(leaspy2.model)
 average_before = leaspy2.model.compute_average(tensor_timepoints)
 
 ## Fit leaspy object
@@ -61,17 +65,21 @@ algosettings.output_path = "../../output_leaspy/usecase/"
 leaspy2.fit(data, algosettings)
 
 ## Play
+print(leaspy2.model)
 average_after = leaspy2.model.compute_average(tensor_timepoints)
 
 ## Save
 leaspy2.save("../../output_leaspy/usecase/model_usecase_2.json")
 
-
-### 3. Predict a new patient / iterable of patients
-
-
+## Plot
 fig, ax = plt.subplots(1,1)
 ax.plot(tensor_timepoints.detach().numpy(), average_before.detach().numpy(), c='blue')
 ax.plot(tensor_timepoints.detach().numpy(), average_after.detach().numpy(), c ='red')
 plt.show()
+
+
+### 3. Predict a new patient / iterable of patients
+
+
+
 

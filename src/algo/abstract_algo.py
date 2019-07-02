@@ -63,6 +63,8 @@ class AbstractAlgo():
             self.current_iteration += 1
 
 
+
+
         return realizations
 
     def iteration(self, data, model, realizations):

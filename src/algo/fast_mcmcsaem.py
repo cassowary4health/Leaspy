@@ -9,21 +9,22 @@ import numpy as np
 
 
 
-class TunedMCMCSAEM(AbstractMCMC):
+class FastMCMCSAEM(AbstractMCMC):
 
     def __init__(self):
         super().__init__()
 
 
-
-
     def _sample_population_realizations(self, data, model, reals_pop, reals_ind):
 
         indices = reals_ind.keys()
-        subset_indices = np.random.choice(list(indices), int(data.n_individuals/4))
 
-        data = {k: v for k, v in data.items() if k in subset_indices}
-        reals_ind = {k: v for k, v in reals_ind.items() if k in subset_indices}
+        n_subset_patients = max(int(data.n_individuals/10), 20)
+
+        subset_indices = np.random.choice(list(indices), n_subset_patients)
+
+        data = data.subset(subset_indices)
+        #reals_ind = {k: v for k, v in reals_ind.items() if k in subset_indices}
 
 
         info_variables = model.get_info_variables()
@@ -37,8 +38,8 @@ class TunedMCMCSAEM(AbstractMCMC):
 
                     # Compute Old loss
                     previous_reals_pop = reals_pop[key][dim_1, dim_2].clone() #TODO bof
-                    #previous_attachment = self.likelihood.get_current_attachment()
-                    previous_attachment = model.compute_attachment(data, reals_pop, reals_ind)
+                    previous_attachment = self.likelihood.get_current_attachment(data.indices)
+                    #previous_attachment = model.compute_attachment(data, reals_pop, reals_ind)
                     previous_regularity = model.compute_regularity_arrayvariable(previous_reals_pop, key, (dim_1, dim_2))
 
                     # New loss
@@ -59,16 +60,17 @@ class TunedMCMCSAEM(AbstractMCMC):
                     # Revert if not accepted
                     if not accepted:
                         reals_pop[key][dim_1, dim_2] = previous_reals_pop
-                    else:
-                        #TODO better, with the update variables infos I guess ???
-                        for idx in data.indices:
-                            new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop,
-                                                                                            reals_ind[idx])
-                            self.likelihood.individual_attachment[idx] = new_individual_attachment
+
+                        # Update intermediary model variables if necessary
+                        model.update_variable_info(key, reals_pop)
+
+        # Recompute the individual attachment
+        for idx in data.indices:
+            new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop,
+                                                                            reals_ind[idx])
+            self.likelihood.individual_attachment[idx] = new_individual_attachment
 
 
-                    # Update intermediary model variables if necessary
-                    model.update_variable_info(key, reals_pop)
 
 
     # TODO Numba this
@@ -76,7 +78,7 @@ class TunedMCMCSAEM(AbstractMCMC):
 
         infos_variables = model.get_info_variables()
         indices = reals_ind.keys()
-        subset_indices = np.random.choice(list(indices), int(data.n_individuals/4))
+        subset_indices = np.random.choice(list(indices), int((0.66*data.n_individuals)))
 
         for idx in subset_indices:
             previous_individual_attachment = self.likelihood.individual_attachment[idx]

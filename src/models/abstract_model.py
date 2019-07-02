@@ -72,6 +72,11 @@ class AbstractModel():
         raise NotImplementedError
 
     def initialize_realizations(self, data):
+        reals_pop = self.initialize_population_realizations()
+        reals_ind = self.initialize_individual_realizations(data)
+        return reals_pop, reals_ind
+
+    def initialize_individual_realizations(self, data):
         """
         Initialize the realizations.
         All individual parameters, and population parameters that need to be considered as realizations.
@@ -88,17 +93,9 @@ class AbstractModel():
         #reals_ind_name = self.reals_ind_name
 
         infos_variables = self.get_info_variables()
-
-        reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
-                          infos_variables[key]["type"] == "population"]
         reals_ind_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
                           infos_variables[key]["type"] == "individual"]
 
-        # Population parameters
-        reals_pop = dict.fromkeys(reals_pop_name)
-        for pop_name in reals_pop_name:
-            print(pop_name)
-            reals_pop[pop_name] = np.array(self.model_parameters[pop_name]).reshape(infos_variables[pop_name]["shape"])
 
 
         # Instanciate individual realizations
@@ -114,21 +111,37 @@ class AbstractModel():
                                                         scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]),
                                                             size=(1, infos_variables[ind_name]["shape"][1]))
 
+        # To Torch
+        for idx in reals_ind.keys():
+            for key in reals_ind[idx]:
+                    reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
 
+
+        return reals_ind
+
+
+    def initialize_population_realizations(self):
+        infos_variables = self.get_info_variables()
+
+        reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
+                          infos_variables[key]["type"] == "population"]
+
+        # Population parameters
+        reals_pop = dict.fromkeys(reals_pop_name)
+        for pop_name in reals_pop_name:
+            print(pop_name)
+            reals_pop[pop_name] = np.array(self.model_parameters[pop_name]).reshape(infos_variables[pop_name]["shape"])
 
         # To Torch
         for key in reals_pop.keys():
             reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
 
-        for idx in reals_ind.keys():
-            for key in reals_ind[idx]:
-                    reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
 
         # initialize intermediary variables
         for key in reals_pop.keys():
             self.update_variable_info(key, reals_pop)
 
-        return reals_pop, reals_ind
+        return reals_pop
 
     def initialize_random_variables(self, data):
         print("Initialize random variables")

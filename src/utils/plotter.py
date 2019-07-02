@@ -122,3 +122,27 @@ class Plotter():
 
         plt.savefig(path)
         plt.close()
+
+
+
+
+    @staticmethod
+    def plot_patient_reconstruction(individual, model, realizations, color="blue", ax=None):
+
+        if ax is None:
+            fig, ax = plt.subplots(1,1)
+
+        idx = individual.idx
+        reals_pop, real_ind = realizations
+
+        model_value = model.compute_individual(individual, reals_pop, real_ind[idx])
+        score = individual.tensor_observations
+        ax.plot(individual.tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=color)
+        ax.plot(individual.tensor_timepoints.detach().numpy(), score.detach().numpy(), c=color, linestyle='--',
+                marker='o')
+
+        # Plot average model
+        tensor_timepoints = torch.Tensor(np.linspace(-1.5, 1.5, 40).reshape(-1,1))
+        model_average = model.compute_average(tensor_timepoints)
+        ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
+

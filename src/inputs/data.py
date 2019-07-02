@@ -69,3 +69,30 @@ class Data():
         return df.reset_index().set_index(['ID', 'TIMES'])
 
 
+    def subset(self, indices):
+
+        data_out = Data()
+
+        n_visits = 0
+
+        for idx in indices:
+            individual = self[idx]
+            data_out.individuals[idx] = individual
+            n_visits += individual.n_visits
+
+        # Update metrics
+        data_out.indices = indices
+        data_out.n_visits = n_visits
+        data_out.n_observations = n_visits*self.dimension
+        data_out.n_individuals = len(indices)
+
+        return data_out
+
+
+
+
+
+
+
+
+

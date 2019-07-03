@@ -4,6 +4,7 @@ import os
 from src.inputs.algo_settings import AlgoSettings
 from src import default_algo_dir
 import numpy as np
+from torch.autograd import Variable
 
 class GradientDescent(AbstractAlgo):
 
@@ -26,6 +27,22 @@ class GradientDescent(AbstractAlgo):
 
     def _initialize_algo(self, data, model, realizations):
         self._initialize_likelihood(data, model, realizations)
+        realizations = self._initialize_torchvariables(realizations)
+        return realizations
+
+
+    def _initialize_torchvariables(self, realizations):
+
+        reals_pop, reals_ind = realizations
+
+        for key in reals_pop.keys():
+            reals_pop[key] = Variable(reals_pop[key].float(), requires_grad=True)
+
+        # To Torch
+        for idx in reals_ind.keys():
+            for key in reals_ind[idx]:
+                reals_ind[idx][key] = Variable(reals_ind[idx][key].float(), requires_grad=True)
+        return realizations
 
 
     ###########################

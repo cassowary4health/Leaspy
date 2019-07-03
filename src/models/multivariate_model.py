@@ -17,8 +17,6 @@ class MultivariateModel(AbstractModel):
         self.model_parameters = reader.parameters
 
         self.load_source_dimension(reader.source_dimension)
-
-
         self.dimension = None
 
 
@@ -34,6 +32,8 @@ class MultivariateModel(AbstractModel):
 
         self.reals_pop_name = ['p0', 'v0', 'beta']
         self.reals_ind_name = ['xi', 'tau', 'sources']
+
+
 
 
 
@@ -109,10 +109,8 @@ class MultivariateModel(AbstractModel):
 
     #TODO better this
     def update_variable_info(self, key, reals_pop):
-        if key in ['v0']:
-            self.update_Q_matrix()
-        if key in ['v0','beta']:
-            self.update_a_matrix(reals_pop['beta'])
+        if key in ['v0', 'beta']:
+            self.update_a_matrix(reals_pop['beta'], reals_pop['v0'])
 
 
 
@@ -249,7 +247,7 @@ class MultivariateModel(AbstractModel):
         self.model_parameters['sources_var'] = 1.0
 
         # Noise
-        self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/data.n_observations
+        self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/(data.n_observations)
 
         # Update the Random Variables
         self._update_random_variables()
@@ -261,14 +259,14 @@ class MultivariateModel(AbstractModel):
         # Compute the a_matrix
         #self.update_a_matrix()
 
-    def update_Q_matrix(self):
-        self.Q_matrix = torch.tensor(self.householder()).type(torch.FloatTensor)
+    def update_Q_matrix(self, real_v0):
+        self.Q_matrix = torch.tensor(self.householder(real_v0)).type(torch.FloatTensor)
 
-    def update_a_matrix(self, real_beta):
+    def update_a_matrix(self, real_beta, real_v0):
 
         # TODO better this
-
         """
+
         ## Alex method
 
         v0 = torch.Tensor(self.model_parameters['v0']).reshape(-1, 1)
@@ -285,14 +283,22 @@ class MultivariateModel(AbstractModel):
         ## Householder
         """
 
+
+        # Update the Q
+        self.update_Q_matrix(real_v0)
+
         # Product with Beta
         self.a_matrix = torch.mm(self.Q_matrix, real_beta)
 
 
 
-    def householder(self):
+    def householder(self, real_v0):
+        # TODO problem here not possible to update the beta with gradient
 
-        s = self.model_parameters['v0']
+
+
+        #s = self.model_parameters['v0']
+        s = real_v0.detach().numpy()
         e1 = np.repeat(0, self.dimension)
         e1[0] = 1
         a = (s+np.sign(s[0])*np.linalg.norm(s)*e1).reshape(1, -1)
@@ -359,6 +365,11 @@ class MultivariateModel(AbstractModel):
         for parameter_key in self.model_parameters.keys():
             if self.model_parameters[parameter_key] is None:
                 self.model_parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
+
+
+
+        #self.a_matrix = np.identity(max(self.dimension, self.source_dimension))[:self.dimension, :self.source_dimension]
+        #self.a_matrix = torch.Tensor(self.a_matrix)
 
 
 

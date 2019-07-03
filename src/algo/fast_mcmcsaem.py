@@ -19,7 +19,7 @@ class FastMCMCSAEM(AbstractMCMC):
 
         indices = reals_ind.keys()
 
-        n_subset_patients = max(int(data.n_individuals/10), 20)
+        n_subset_patients = max(int(data.n_individuals/10), 50)
 
         subset_indices = np.random.choice(list(indices), n_subset_patients)
 
@@ -61,8 +61,9 @@ class FastMCMCSAEM(AbstractMCMC):
                     if not accepted:
                         reals_pop[key][dim_1, dim_2] = previous_reals_pop
 
-                        # Update intermediary model variables if necessary
-                        model.update_variable_info(key, reals_pop)
+        # TODO hypothesis : independance between population variable update (false but..)
+        # Update intermediary model variables if necessary
+        model.update_variable_info(key, reals_pop)
 
         # Recompute the individual attachment
         for idx in data.indices:

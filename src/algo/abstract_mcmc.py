@@ -43,6 +43,8 @@ class AbstractMCMC(AbstractAlgo):
         if self.algo_parameters['annealing']['do_annealing']:
             self._initialize_annealing()
 
+        return realizations
+
     def _initialize_annealing(self):
         if self.algo_parameters['annealing']['do_annealing']:
             if self.algo_parameters['annealing']['n_iter'] is None:
@@ -85,6 +87,9 @@ class AbstractMCMC(AbstractAlgo):
 
         # Maximization step
         self._maximization_step(data, model, realizations)
+
+        # Update the likelihood with the new noise_var
+        self.likelihood.update_likelihood(data, model, realizations)
 
         # Annealing
         if self.algo_parameters['annealing']['do_annealing']:
@@ -132,10 +137,14 @@ class AbstractMCMC(AbstractAlgo):
             for dim_1 in range(shape_current_variable[0]):
                 for dim_2 in range(shape_current_variable[1]):
 
+
                     # Compute Old loss
                     previous_reals_pop = reals_pop[key][dim_1, dim_2].clone() #TODO bof
-                    #previous_attachment = self.likelihood.get_current_attachment()
-                    previous_attachment = model.compute_attachment(data, reals_pop, reals_ind)
+                    previous_attachment = self.likelihood.get_current_attachment(data.indices)
+                    #previous_attachment2 = model.compute_attachment(data, reals_pop, reals_ind)
+
+
+
                     previous_regularity = model.compute_regularity_arrayvariable(previous_reals_pop, key, (dim_1, dim_2))
 
                     # New loss
@@ -156,16 +165,23 @@ class AbstractMCMC(AbstractAlgo):
                     # Revert if not accepted
                     if not accepted:
                         reals_pop[key][dim_1, dim_2] = previous_reals_pop
+
+                        # Revert model (A matrix)
+                        model.update_variable_info(key, reals_pop)
+
                     else:
                         #TODO better, with the update variables infos I guess ???
                         for idx in data.indices:
                             new_individual_attachment = model.compute_individual_attachment(data[idx], reals_pop,
                                                                                             reals_ind[idx])
-                            self.likelihood.individual_attachment[idx] = new_individual_attachment
+
+                            self.likelihood.set_individual_attachment(idx, new_individual_attachment)
 
 
-                    # Update intermediary model variables if necessary
-                    model.update_variable_info(key, reals_pop)
+
+
+
+
 
 
 
@@ -175,6 +191,7 @@ class AbstractMCMC(AbstractAlgo):
         infos_variables = model.get_info_variables()
 
         for idx in reals_ind.keys():
+
             previous_individual_attachment = self.likelihood.individual_attachment[idx]
             for key in reals_ind[idx].keys():
 
@@ -208,7 +225,7 @@ class AbstractMCMC(AbstractAlgo):
                         reals_ind[idx][key] = previous_reals_ind
                     # Keep new attachment if accepted
                     else:
-                        self.likelihood.individual_attachment[idx] = new_individual_attachment
+                        self.likelihood.set_individual_attachment(idx, new_individual_attachment)
 
 
 
@@ -236,7 +253,10 @@ class AbstractMCMC(AbstractAlgo):
 
                             # Revert if not accepted
                             if not accepted:
-                                reals_ind[idx][key][dim_1, dim_2] = previous_reals_ind
+                                reals_ind[idx][key] = previous_reals_ind
+                            # Keep new attachment if accepted
+                            else:
+                                self.likelihood.set_individual_attachment(idx, new_individual_attachment)
 
 
 

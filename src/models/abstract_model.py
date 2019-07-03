@@ -114,7 +114,8 @@ class AbstractModel():
         # To Torch
         for idx in reals_ind.keys():
             for key in reals_ind[idx]:
-                    reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
+                reals_ind[idx][key] = torch.tensor(reals_ind[idx][key]).float()
+                    #reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
 
 
         return reals_ind
@@ -134,7 +135,8 @@ class AbstractModel():
 
         # To Torch
         for key in reals_pop.keys():
-            reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
+            reals_pop[key] = torch.tensor(reals_pop[key]).float()
+            #reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
 
 
         # initialize intermediary variables
@@ -195,10 +197,18 @@ class AbstractModel():
     def _update_random_variables(self):
         # TODO float for torch operations
 
-        for real_pop_name in self.reals_pop_name:
+        infos_variables = self.get_info_variables()
+
+        reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
+                          infos_variables[key]["type"] == "population"]
+
+        reals_ind_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
+                          infos_variables[key]["type"] == "individual"]
+
+        for real_pop_name in reals_pop_name:
             self.random_variables[real_pop_name].mu = self.model_parameters[real_pop_name]
 
-        for real_ind_name in self.reals_ind_name:
+        for real_ind_name in reals_ind_name:
             self.random_variables[real_ind_name].mu = float(self.model_parameters["{0}_mean".format(real_ind_name)])
             self.random_variables[real_ind_name].variance = float(
                 self.model_parameters["{0}_var".format(real_ind_name)])
@@ -217,11 +227,10 @@ class AbstractModel():
 
     # Attachment
     def compute_attachment(self, data, reals_pop, reals_ind):
-        return np.sum(
-            [self.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
+        return torch.stack([self.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices]).sum()
 
     def compute_sumsquared(self, data, reals_pop, reals_ind):
-        return np.sum([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices])
+        return torch.stack([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices]).sum()
 
     def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
          return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)

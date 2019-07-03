@@ -28,7 +28,7 @@ algo_settings.output_path = path_output
 leaspy = Leaspy('multivariate')
 
 # Load the data
-data_path = os.path.join(data_dir, 'data2_tiny.csv')
+data_path = os.path.join(data_dir, 'data2.csv')
 #data_path = os.path.join(data_dir, 'data2.csv')
 reader = DataReader()
 data = reader.read(data_path)

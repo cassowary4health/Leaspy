@@ -16,7 +16,7 @@ class AbstractModelTest(unittest.TestCase):
     """
     def test_load_parameters(self):
         abstract_model = AbstractModel()
-        path_to_model_parameters = os.path.join(default_data_dir, 'default_univariate_parameters.json')
+        path_to_model_parameters = os.path.join(default_data_dir, 'default_model_settings_univariate.json')
         reader = ModelSettings(path_to_model_parameters)
 
         abstract_model.load_parameters(reader.parameters)

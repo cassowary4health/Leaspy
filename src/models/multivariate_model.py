@@ -1,38 +1,39 @@
 import os
-
-from src import default_data_dir
-from src.models.abstract_model import AbstractModel
-from src.inputs.model_settings import ModelSettings
 import torch
-from torch.autograd import Variable
 import numpy as np
 import json
 from scipy import stats
 
+from src import default_data_dir
+from src.models.abstract_model import AbstractModel
+from src.inputs.model_settings import ModelSettings
+
+
 class MultivariateModel(AbstractModel):
-    # TODO dimension in multivariate model parameters initialization ???
     def __init__(self):
-        data_dir = os.path.join(default_data_dir, "default_multivariate_parameters.json")
-        reader = ModelSettings(data_dir)
-        self.model_parameters = reader.parameters
+        super(MultivariateModel, self).__init__()
 
-        self.load_source_dimension(reader.source_dimension)
-        self.dimension = None
+        data_dir = os.path.join(default_data_dir, "default_model_settings_multivariate.json")
+        model_settings = ModelSettings(data_dir)
 
-
-        if reader.model_type != 'multivariate':
-            raise ValueError("The default multivariate parameters are not of multivariate type")
-
-
-
-
+        self.load_hyperparameters(model_settings.hyperparameters)
+        self.load_parameters(model_settings.parameters)
         self.model_name = 'multivariate'
-
-        # TODO Change hyperparameter
 
         self.reals_pop_name = ['p0', 'v0', 'beta']
         self.reals_ind_name = ['xi', 'tau', 'sources']
 
+    def load_parameters(self, model_parameters):
+
+        for k, v in model_parameters.items():
+            if k in self.model_parameters.keys():
+                previous_v = self.model_parameters[k]
+                print("Replacing {} parameter from value {} to value {}".format(k, previous_v, v))
+            self.model_parameters[k] = v
+
+    def load_hyperparameters(self, hyperparameters):
+        self.dimension = hyperparameters['dimension']
+        self.source_dimension = hyperparameters['source_dimension']
 
 
 

@@ -1,9 +1,23 @@
-from src.inputs.individual_data import IndividualData
-import numpy as np
-import pandas as pd
+import csv
 
-class Data():
-    def __init__(self):
+from src.inputs.data.data_reader import DataReader
+
+
+class Data:
+    def __init__(self, path):
+        reader = DataReader(path)
+
+        self.individuals = reader.individuals
+        self.iter_to_idx = reader.iter_to_idx
+        self.headers = reader.headers
+        self.n_individuals = reader.n_individuals
+        self.n_visits = reader.n_visits
+        self.n_observations = reader.n_observations
+
+    def __getitem__(self, idx):
+         return self.individuals[self.iter_to_idx[idx]]
+
+    '''
         self.indices = []
         self.individuals = {}
 
@@ -42,15 +56,6 @@ class Data():
         return data_train, data_test
 
 
-    def set_time_normalization_info(self, time_mean, time_std, time_min, time_max):
-        self.time_mean = time_mean
-        self.time_std = time_std
-        self.time_min = time_min
-        self.time_max = time_max
-
-    def __getitem__(self, id):
-         return self.individuals[id]
-
     def set_dimension(self, dimension):
         self.dimension = dimension
 
@@ -87,7 +92,7 @@ class Data():
         data_out.n_individuals = len(indices)
 
         return data_out
-
+    '''
 
 
 

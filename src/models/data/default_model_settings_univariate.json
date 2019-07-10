@@ -1,9 +1,7 @@
 {
-  "type": "univariate",
-  "dimension": 1,
-  "source_dimension":null,
+  "name": "univariate",
   "parameters": {
-    "P0": null,
+    "p0": null,
     "tau_mean": null,
     "tau_var": null,
     "xi_mean": null,

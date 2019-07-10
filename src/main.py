@@ -5,50 +5,37 @@ from src.algo.algo_factory import AlgoFactory
 from src.utils.output_manager import OutputManager
 import json
 
-class Leaspy():
+
+class Leaspy:
     def __init__(self, model_name):
-        #TODO change type to model_name
         self.type = model_name
         self.model = ModelFactory.model(model_name)
+
+    def __str__(self):
+        return self.model.__str__()
 
     @classmethod
     def from_model_settings(cls, path_to_model_parameters):
         reader = ModelSettings(path_to_model_parameters)
         leaspy = cls(reader.model_type)
         leaspy.model.load_parameters(reader.parameters)
-        leaspy.model.load_dimension(reader.dimension)
-        leaspy.model.load_source_dimension(reader.source_dimension)
-        leaspy.model.adapt_shapes()
+        leaspy.model.load_hyperparameters(reader.hyperparameters)
         return leaspy
-
-    """
-    def load(self, path_to_model_parameters):
-        reader = ModelParametersReader(path_to_model_parameters)
-        self.model.load_parameters(reader.parameters)
-        # TODO assert same dimension
-        self.model.load_dimension(reader.dimension)
-        self.model.initialize_random_variables()"""
 
     def save(self, path):
         self.model.save_parameters(path)
 
-    def fit(self, data, algo_settings, seed=0):
-
-        # Algo settings
-        #reader = AlgoReader(path_to_algorithm_settings)
-        algo = AlgoFactory.algo(algo_settings.algo_type)
-        algo.load_parameters(algo_settings.parameters)
-
-        # Output Manager
-        path_output = algo_settings.get_path_output()
-        output_manager = OutputManager(path_output)
-        algo.set_output_manager(output_manager)
+    def fit(self, data, algorithm_settings):
+        algorithm = AlgoFactory.algo(algorithm_settings)
+        # 1. Get the good data format  : check if it is possible, given potential previous model parameters
+        # 2. (Optional) Smart initialization
 
         # Initialize model
         self.model.smart_initialization(data)
 
+
         # Run algo
-        algo.run(data, self.model, seed)
+        algo.run(data, self.model)
 
     def predict(self, individual, prediction_settings, seed=0, method="map"):
         #TODO Change, use specific algorithms
@@ -78,7 +65,6 @@ class Leaspy():
         res = predict_algo.run(individual, self.model, seed)
         return res
 
-
     def simulate(self, path_to_simulation_settings, seed=0):
 
         with open(path_to_simulation_settings) as file:
@@ -89,25 +75,3 @@ class Leaspy():
         return simulated_individual_parameters
 
 
-    def __str__(self):
-        return self.model.__str__()
-
-"""
-    def fit(self, data, path_to_algorithm_settings, path_output=None, seed=0):
-
-        # Algo settings
-        reader = AlgoReader(path_to_algorithm_settings)
-        algo = AlgoFactory.algo(reader.algo_type)
-        algo.load_parameters(reader.parameters)
-
-        # Output manager
-        if path_output is not None:
-            output_manager = OutputManager(path_output)
-        else:
-            output_manager = None
-
-        # Initialize model
-        self.model.smart_initialization(data)
-
-        # Run algo
-        algo.run(data, self.model, output_manager, seed)"""

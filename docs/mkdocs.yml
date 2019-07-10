@@ -14,13 +14,13 @@ theme:
 # Navigation
 nav:
    - Home: 'index.md'
-   - User Guide:
-     - 'Model': 'model.md'
-     - 'Getting Started': 'start.md'
-     - 'Documentation' : 'documentation.md'
+   - Model: 'model.md'
+   - Inputs: 'inputs.md'
+   - Getting Started: 'start.md'
+   - Documentation : 'documentation.md'
    - About: 'about.md'
 
-   
+
 # Extensions
 markdown_extensions:
   - admonition

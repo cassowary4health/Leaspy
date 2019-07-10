@@ -1,7 +1,7 @@
 import torch
 from src.algo.abstract_algo import AbstractAlgo
 import os
-from src.inputs.algo_settings import AlgoSettings
+from src.inputs.algorithm_settings import AlgorithmSettings
 from src import default_algo_dir
 from src.utils.sampler import Sampler
 import numpy as np
@@ -13,7 +13,7 @@ class AbstractMCMC(AbstractAlgo):
 
     def __init__(self):
         data_dir = os.path.join(default_algo_dir, "default_mcmc_saem_parameters.json")
-        reader = AlgoSettings(data_dir)
+        reader = AlgorithmSettings(data_dir)
 
         if reader.algo_type != 'mcmc_saem':
             raise ValueError("The default mcmc saem parameters are not of mcmc_saem type")

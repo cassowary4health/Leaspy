@@ -1,0 +1,16 @@
+{
+  "name": "multivariate",
+  "dimension": 3,
+  "source_dimension": 2,
+  "parameters": {
+    "p0": 0.3,
+    "beta": [[0.1, 0.2, 0.3], [0.5, 0.6, 0.9]],
+    "tau_mean": 70,
+    "tau_var": 50,
+    "xi_mean": -2,
+    "xi_var": 4,
+    "sources_mean": [0.0, 0.1],
+    "sources_var": [1.1, 0.9],
+    "noise_var": 0.02
+  }
+}

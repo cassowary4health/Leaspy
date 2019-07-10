@@ -6,10 +6,10 @@ from src.models.gaussian_distribution_model import GaussianDistributionModel
 class ModelFactory():
 
     @staticmethod
-    def model(type):
-        if type.lower() == 'univariate':
+    def model(model_type):
+        if model_type.lower() == 'univariate':
             return UnivariateModel()
-        if type.lower() == 'multivariate':
+        if model_type.lower() == 'multivariate':
             return MultivariateModel()
-        if type.lower() == 'gaussian_distribution':
+        if model_type.lower() == 'gaussian_distribution':
             return GaussianDistributionModel()

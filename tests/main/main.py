@@ -4,17 +4,6 @@ import unittest
 from tests import test_data_dir
 from src.main import Leaspy
 from src.models.univariate_model import UnivariateModel
-from src.inputs.model_settings import ModelSettings
-from src.inputs.data_reader import DataReader
-from src.inputs.data import Data
-import numpy as np
-
-from src.algo.algo_factory import AlgoFactory
-from src.inputs.algo_settings import AlgoSettings
-
-from src.algo.gradient_descent import GradientDescent
-
-import torch
 
 
 class LeaspyTest(unittest.TestCase):
@@ -30,7 +19,7 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.model_parameters['xi_var'], None)
 
     def test_constructor_from_parameters(self):
-        path_to_model_parameters = os.path.join(test_data_dir, 'model_parameters.json')
+        path_to_model_parameters = os.path.join(test_data_dir, 'model_settings_univariate.json')
         leaspy = Leaspy.from_model_settings(path_to_model_parameters)
         self.assertEqual(leaspy.type, "univariate")
         self.assertEqual(leaspy.model.model_parameters['p0'], [0.3])
@@ -48,7 +37,7 @@ class LeaspyTest(unittest.TestCase):
 
 
     def test_predict_gaussian_distribution_model(self):
-        path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent','model_parameters.json')
+        path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent','model_settings_univariate.json')
         path_to_fitalgo_parameters = os.path.join(test_data_dir,
                                       '_fit_gaussiandistribution_gradientdescent', "algorithm_settings.json")
         path_to_predictalgo_parameters = os.path.join(test_data_dir,
@@ -79,7 +68,7 @@ class LeaspyTest(unittest.TestCase):
 
 
     def test_simulate_gaussian_distribution_model(self):
-        path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent','model_parameters.json')
+        path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent','model_settings_univariate.json')
         path_to_fitalgo_parameters = os.path.join(test_data_dir,
                                       '_fit_gaussiandistribution_gradientdescent', "algorithm_settings.json")
         path_to_simulation_parameters = os.path.join(test_data_dir,
@@ -106,7 +95,7 @@ class LeaspyTest(unittest.TestCase):
 
 
     def test_univariate_model(self):
-        path_to_model_parameters = os.path.join(test_data_dir, '_univariate_gradientdescent', 'model_parameters.json')
+        path_to_model_parameters = os.path.join(test_data_dir, '_univariate_gradientdescent', 'model_settings_univariate.json')
         leaspy = Leaspy.from_parameters(path_to_model_parameters)
 
         self.assertEqual(leaspy.type, 'univariate')

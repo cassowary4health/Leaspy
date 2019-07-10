@@ -10,19 +10,13 @@ import json
 from scipy.optimize import minimize
 
 
-
-#@torch.jit.script
-#def compute_individual_torch(timepoints, p0, xi, tau):
-#    reparametrized_time = torch.exp(xi) * (timepoints - tau)
-#    return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
-
 class UnivariateModel(AbstractModel):
     def __init__(self):
-        data_dir = os.path.join(default_data_dir, "default_univariate_parameters.json")
+        data_dir = os.path.join(default_data_dir, "default_model_settings_univariate.json")
         reader = ModelSettings(data_dir)
         self.model_parameters = reader.parameters
 
-        if reader.model_type != 'univariate':
+        if reader.type != 'univariate':
             raise ValueError("The default univariate parameters are not of univariate type")
 
 

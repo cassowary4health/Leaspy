@@ -1,10 +1,10 @@
 import torch
 import numpy as np
 from src.utils.likelihood import Likelihood
+from src.utils.output_manager import OutputManager
 
-class AbstractAlgo():
 
-
+class AbstractAlgo:
     ###########################
     ## Initialization
     ###########################
@@ -34,8 +34,11 @@ class AbstractAlgo():
         out += "Iteration {0}".format(self.current_iteration)
         return out
 
-    def set_output_manager(self, output_manager):
-        self.output_manager = output_manager
+    def set_output_manager(self, output_path):
+        if output_path is not None:
+            self.output_manager = OutputManager(output_path)
+        else:
+            self.output_manager = None
 
     ###########################
     ## Core
@@ -61,9 +64,6 @@ class AbstractAlgo():
             self.iteration(data, model, realizations)
             self.output_manager.iteration(self, data, model, realizations)
             self.current_iteration += 1
-
-
-
 
         return realizations
 

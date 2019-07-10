@@ -1,7 +1,7 @@
 import os
 from src.main import Leaspy
-from src.inputs.data_reader import DataReader
-from src.inputs.algo_settings import AlgoSettings
+from src.inputs.data.data_reader import DataReader
+from src.inputs.algorithm_settings import AlgorithmSettings
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,7 +23,7 @@ data = reader.read(data_path)
 path_to_algorithm_settings = os.path.join(test_data_dir,
                                           '_fit_univariatesigmoid_gradientdescent',
                                           "algorithm_settings.json")
-algosettings = AlgoSettings(path_to_algorithm_settings)
+algosettings = AlgorithmSettings(path_to_algorithm_settings)
 algosettings.output_path = "../../output_leaspy/usecase/"
 
 ## FIT
@@ -60,7 +60,7 @@ average_before = leaspy2.model.compute_average(tensor_timepoints)
 path_to_algorithm_settings = os.path.join(test_data_dir,
                                           '_fit_univariatesigmoid_mcmcsaem',
                                           "algorithm_settings.json")
-algosettings = AlgoSettings(path_to_algorithm_settings)
+algosettings = AlgorithmSettings(path_to_algorithm_settings)
 algosettings.output_path = "../../output_leaspy/usecase/"
 leaspy2.fit(data, algosettings)
 

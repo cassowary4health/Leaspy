@@ -1,10 +1,10 @@
 import os
 from tests import test_data_dir
 from src.main import Leaspy
-from src.inputs.data_reader import DataReader
+from src.inputs.data.data_reader import DataReader
 import unittest
 
-from src.inputs.algo_settings import AlgoSettings
+from src.inputs.algorithm_settings import AlgorithmSettings
 
 
 class LeaspyFitTest(unittest.TestCase):
@@ -15,13 +15,13 @@ class LeaspyFitTest(unittest.TestCase):
 
     def test_fit_univariatesigmoid_mcmcsaem(self):
         path_to_model_parameters = os.path.join(test_data_dir, '_fit_univariatesigmoid_mcmcsaem',
-                                                'model_parameters.json')
+                                                'model_settings_univariate.json')
 
         path_to_algo_parameters = os.path.join(test_data_dir,
                                                '_fit_univariatesigmoid_mcmcsaem', "algorithm_settings.json")
 
         # Algorithm settings
-        algo_settings = AlgoSettings(path_to_algo_parameters)
+        algo_settings = AlgorithmSettings(path_to_algo_parameters)
 
         # Path output
         path_output = '../output_leaspy/univariatesigmoid_mcmcsaem/'
@@ -62,7 +62,7 @@ class LeaspyFitTest(unittest.TestCase):
 
     def test_fit_gaussiandisstribution_mcmcsaem(self):
         path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_mcmcsaem',
-                                                'model_parameters.json')
+                                                'model_settings_univariate.json')
 
         path_to_fitalgo_parameters = os.path.join(test_data_dir,
                                                   '_fit_gaussiandistribution_mcmcsaem', "algorithm_settings.json")
@@ -97,7 +97,7 @@ class LeaspyFitTest(unittest.TestCase):
 
     def  test_fit_gaussiandistribution_gradientdescent(self):
         path_to_model_parameters = os.path.join(test_data_dir, '_fit_gaussiandistribution_gradientdescent',
-                                                'model_parameters.json')
+                                                'model_settings_univariate.json')
 
         path_to_fitalgo_parameters = os.path.join(test_data_dir,
                                                   '_fit_gaussiandistribution_gradientdescent',
@@ -134,14 +134,14 @@ class LeaspyFitTest(unittest.TestCase):
 
     def test_fit_univariatesigmoid_gradientdescent(self):
         path_to_model_parameters = os.path.join(test_data_dir, '_fit_univariatesigmoid_gradientdescent',
-                                                'model_parameters.json')
+                                                'model_settings_univariate.json')
 
         path_to_fitalgo_parameters = os.path.join(test_data_dir,
                                                   '_fit_univariatesigmoid_gradientdescent',
                                                   "algorithm_settings.json")
 
         # Algorithm settings
-        algo_settings = AlgoSettings(path_to_fitalgo_parameters)
+        algo_settings = AlgorithmSettings(path_to_fitalgo_parameters)
 
         # Path Output
         path_output = '../output_leaspy/univariatesigmoid_gradientdescent/'

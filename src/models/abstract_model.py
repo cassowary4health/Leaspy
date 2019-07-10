@@ -1,6 +1,7 @@
 import json
 import torch
 import numpy as np
+import warnings
 import os
 from torch.autograd import Variable
 from decimal import Decimal as D
@@ -9,64 +10,28 @@ from src.utils.numpy_encoder import NumpyEncoder
 from src.utils.random_variable.gaussian_random_variable import GaussianRandomVariable
 from src.utils.random_variable.random_variable_factory import RandomVariableFactory
 
+
 class AbstractModel():
     def __init__(self):
-        # TODO Use it
         self.model_parameters = {}
 
-    ###########################
-    ## Initialization
-    ###########################
-
     def load_parameters(self, model_parameters):
+        raise NotImplementedError
 
-        for k, v in model_parameters.items():
-            if k in self.model_parameters.keys():
-                # TODO problem type list as np array
-                #if type(self.model_parameters[k]) in [list]:
-                #   self.model_parameters[k] = np.array(self.model_parameters[k])
-                previous_v = self.model_parameters[k]
-                print("Replacing {} parameter from value {} to value {}".format(k, previous_v, v))
-            self.model_parameters[k] = v
-
-    def load_dimension(self, dimension):
-        self.dimension = dimension
-        print("Setting model dimension to : {0}".format(dimension))
-
-
-    def load_source_dimension(self, source_dimension):
-        self.source_dimension = source_dimension
-        print("Setting model source dimension to : {0}".format(source_dimension))
-
-    def adapt_shapes(self):
-
-        shapes = self.get_pop_shapes()
-
-        for pop_var, pop_shape in shapes.items():
-            print(pop_var)
-            self.model_parameters[pop_var] = np.array(self.model_parameters[pop_var]).reshape(pop_shape)
-
-
-
+    def load_hyperparameters(self, hyperparameters):
+        raise NotImplementedError
 
     def save_parameters(self, path):
         raise NotImplementedError
 
-        """
+    def smart_initialization(self, data):
+        warnings.warn("There is no smart initialization for your model")
 
-        #TODO check que c'est le bon format (IGOR)
-        model_settings = {}
+    def compute_individual(self, individual, reals_pop, real_ind):
+        raise NotImplementedError
 
-        model_settings['parameters'] = self.model_parameters
-        model_settings['dimension'] = self.dimension
-        model_settings['type'] = self.model_name
-
-
-        dumped = json.dumps(model_settings, cls=NumpyEncoder)
-
-        with open(path, 'w') as f:
-            json.dump(dumped, f)
-        """
+    def compute_average(self, tensor_timepoints):
+        raise NotImplementedError
 
     def get_info_variables(self, data):
         raise NotImplementedError
@@ -87,7 +52,6 @@ class AbstractModel():
 
         print("Initialize realizations")
 
-
         # TODO Change here from get_info
         #reals_pop_name = self.reals_pop_name
         #reals_ind_name = self.reals_ind_name
@@ -95,8 +59,6 @@ class AbstractModel():
         infos_variables = self.get_info_variables()
         reals_ind_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
                           infos_variables[key]["type"] == "individual"]
-
-
 
         # Instanciate individual realizations
         reals_ind = dict.fromkeys(data.indices)
@@ -283,9 +245,6 @@ class AbstractModel():
         self.cache_variables['noise_inverse'] = 1 / self.model_parameters['noise_var']
         self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
 
-    def smart_initialization(self, data):
-        raise NotImplementedError
-
 
     def update_variable_info(self, key, reals_pop):
         """
@@ -294,3 +253,13 @@ class AbstractModel():
         :return:
         """
         pass
+
+    '''
+    def adapt_shapes(self):
+
+    shapes = self.get_pop_shapes()
+
+    for pop_var, pop_shape in shapes.items():
+        print(pop_var)
+        self.model_parameters[pop_var] = np.array(self.model_parameters[pop_var]).reshape(pop_shape)
+    '''

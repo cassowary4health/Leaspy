@@ -1,7 +1,7 @@
 import os
 from src.main import Leaspy
-from src.inputs.data_reader import DataReader
-from src.inputs.algo_settings import AlgoSettings
+from src.inputs.data.data_reader import DataReader
+from src.inputs.algorithm_settings import AlgorithmSettings
 import matplotlib.pyplot as plt
 from src.utils.output_manager import OutputManager
 import matplotlib.cm as cm
@@ -24,7 +24,7 @@ data = reader.read(data_path)
 
 # 1.2 Instanciate algosettings object from json file
 algosettings_path = os.path.join(univariate_example_path, "algorithm_settings.json")
-algosettings = AlgoSettings(algosettings_path)
+algosettings = AlgorithmSettings(algosettings_path)
 algosettings.output_path = output_path
 
 ## 2. Launch leaspy
@@ -51,7 +51,7 @@ leaspy = Leaspy.from_model_settings(os.path.join(output_path, "model.json"))
 
 # 2.1 Instanciate prediction settings object
 prediction_algosettings_path = os.path.join(univariate_example_path, "predict_algorithm_settings.json")
-prediction_settings = AlgoSettings(prediction_algosettings_path)
+prediction_settings = AlgorithmSettings(prediction_algosettings_path)
 
 # 2.2 Predict
 individual = data.subset([116])

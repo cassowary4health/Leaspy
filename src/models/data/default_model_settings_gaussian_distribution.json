@@ -1,5 +1,5 @@
 {
-  "type": "gaussian_distribution",
+  "name": "gaussian_distribution",
   "dimension":null,
   "source_dimension":null,
   "parameters": {

@@ -1,15 +1,12 @@
 import numpy as np
-import pandas as pd
-from src.main import Leaspy
 #from tests import test_data_dir
 from src.inputs.data import Data
-from src.inputs.individual_data import IndividualData
-import os
+from src.inputs.data.individual_data import IndividualData
 import torch
 
 #test_data_dir = os.path.join(os.path.dirname(__file__), "_data")
 #test_data_dir = "tests/_data/"
-#path_to_model_parameters = os.path.join(test_data_dir, '_generate_data', 'model_parameters.json')
+#path_to_model_parameters = os.path.join(test_data_dir, '_generate_data', 'model_settings_univariate.json')
 #leaspy = Leaspy.from_model_settings(path_to_model_parameters)
 
 def generate_data_from_model(model, n_patients = 10, seed=0):

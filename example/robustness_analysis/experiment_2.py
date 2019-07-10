@@ -4,7 +4,7 @@ import os
 from tests import test_data_dir
 from src.main import Leaspy
 from src.utils.data_generator import generate_data_from_model
-from src.inputs.algo_settings import AlgoSettings
+from src.inputs.algorithm_settings import AlgorithmSettings
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.pyplot import cm
@@ -37,7 +37,7 @@ if not os.path.exists(path_output):
 
 # Algorithm settings
 
-algo_settings = AlgoSettings(path_to_algo_parameters)
+algo_settings = AlgorithmSettings(path_to_algo_parameters)
 algo_settings.parameters['n_iter'] = n_iter
 
 # Create the data

@@ -4,7 +4,8 @@ from tests.inputs.model_settings import ModelSettingsTest
 from tests.inputs.algorithm_settings import AlgorithmSettingsTest
 from tests.inputs.data.individual_data import IndividualDataTest
 from tests.inputs.data.data import DataTest
-from tests.inputs.data.data_reader import DataReader
+from tests.inputs.data.data_reader import DataReaderTest
+from tests.inputs.data.dataset import DatasetTest
 
 from tests.models.abstract_model import AbstractModelTest
 #from tests.models.univariate_model import UnivariateModelTest

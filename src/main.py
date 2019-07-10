@@ -1,4 +1,6 @@
+from src.inputs.data.dataset import Dataset
 from src.inputs.model_settings import ModelSettings
+
 from src.models.model_factory import ModelFactory
 
 from src.algo.algo_factory import AlgoFactory
@@ -26,16 +28,11 @@ class Leaspy:
         self.model.save_parameters(path)
 
     def fit(self, data, algorithm_settings):
+
         algorithm = AlgoFactory.algo(algorithm_settings)
-        # 1. Get the good data format  : check if it is possible, given potential previous model parameters
-        # 2. (Optional) Smart initialization
-
-        # Initialize model
-        self.model.smart_initialization(data)
-
-
-        # Run algo
-        algo.run(data, self.model)
+        dataset = Dataset(data, algo=algorithm, model=self.model)
+        self.model.initialize_parameters(dataset, algorithm_settings.smart_initialization)
+        algorithm.run(dataset, self.model)
 
     def predict(self, individual, prediction_settings, seed=0, method="map"):
         #TODO Change, use specific algorithms
@@ -54,7 +51,6 @@ class Leaspy:
         # Chekc that in predict algo
         if prediction_settings.algo_type not in ['mcmc_predict']:
             raise ValueError("Optimization Algorithm is not adapted for predict")
-
 
         print("Load predict algorithm")
         predict_algo = AlgoFactory.algo(prediction_settings.algo_type)

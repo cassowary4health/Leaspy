@@ -8,6 +8,7 @@ class DataReader:
         self.individuals = {}
         self.iter_to_idx = {}
         self.headers = None
+        self.dimension = None
         self.n_individuals = 0
         self.n_visits = 0
         self.n_observations = 0
@@ -36,6 +37,11 @@ class DataReader:
         except ValueError:
             print('The observations of individual {} at time {} cannot be converted to float').format(idx, timepoint)
 
+    def _check_observation(self, observation):
+        if self.dimension is None:
+            self.dimension = len(observation)
+        assert len(observation) == self.dimension
+
     def _read(self, path):
         # Read csv
         with open(path, newline='') as f:
@@ -48,6 +54,7 @@ class DataReader:
                 idx = row[0]
                 timepoint = self._get_timepoint(idx, row[1])
                 observation = self._get_observation(idx, timepoint, row[2:])
+                self._check_observation(observation)
 
                 if idx not in self.individuals:
                     self.individuals[idx] = IndividualData(idx)

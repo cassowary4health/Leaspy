@@ -26,10 +26,10 @@ class MultivariateModel(AbstractModel):
     def load_parameters(self, model_parameters):
 
         for k, v in model_parameters.items():
-            if k in self.model_parameters.keys():
-                previous_v = self.model_parameters[k]
+            if k in self.parameters.keys():
+                previous_v = self.parameters[k]
                 print("Replacing {} parameter from value {} to value {}".format(k, previous_v, v))
-            self.model_parameters[k] = v
+            self.parameters[k] = v
 
     def load_hyperparameters(self, hyperparameters):
         self.dimension = hyperparameters['dimension']
@@ -153,9 +153,9 @@ class MultivariateModel(AbstractModel):
 
 
     def compute_average(self, tensor_timepoints):
-        p0 = torch.Tensor(self.model_parameters['p0'])
-        v0 = torch.Tensor(self.model_parameters['v0'])
-        reparametrized_time = v0*np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints-self.model_parameters['tau_mean'])
+        p0 = torch.Tensor(self.parameters['p0'])
+        v0 = torch.Tensor(self.parameters['v0'])
+        reparametrized_time = v0 * np.exp(self.parameters['xi_mean']) * (tensor_timepoints - self.parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
 
     def compute_sufficient_statistics(self, data, realizations):
@@ -230,32 +230,32 @@ class MultivariateModel(AbstractModel):
         m_tau = data.n_individuals / 20
         sigma2_tau_0 = 1
 
-        self.model_parameters['p0'] = sufficient_statistics['p0']
-        self.model_parameters['v0'] = sufficient_statistics['v0']
-        self.model_parameters['beta'] = sufficient_statistics['beta']
+        self.parameters['p0'] = sufficient_statistics['p0']
+        self.parameters['v0'] = sufficient_statistics['v0']
+        self.parameters['beta'] = sufficient_statistics['beta']
 
         # Tau
-        self.model_parameters['tau_mean'] = sufficient_statistics['tau_mean']
+        self.parameters['tau_mean'] = sufficient_statistics['tau_mean']
         tau_var_update = (1/(data.n_individuals+m_tau))*(data.n_individuals * sufficient_statistics['tau_var']+m_tau*sigma2_tau_0)
-        self.model_parameters['tau_var'] = tau_var_update
+        self.parameters['tau_var'] = tau_var_update
 
-        self.model_parameters['xi_mean'] = sufficient_statistics['xi_mean']
+        self.parameters['xi_mean'] = sufficient_statistics['xi_mean']
         tau_var_update = (1/(data.n_individuals+m_xi))*(data.n_individuals * sufficient_statistics['xi_var']+m_tau*sigma2_xi_0)
-        self.model_parameters['xi_var'] = tau_var_update
+        self.parameters['xi_var'] = tau_var_update
 
         # Sources
-        self.model_parameters['empirical_sources_var'] = sufficient_statistics['empirical_sources_var']
-        self.model_parameters['sources_var'] = 1.0
+        self.parameters['empirical_sources_var'] = sufficient_statistics['empirical_sources_var']
+        self.parameters['sources_var'] = 1.0
 
         # Noise
-        self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/(data.n_observations)
+        self.parameters['noise_var'] = sufficient_statistics['sum_squared'] / (data.n_observations)
 
         # Update the Random Variables
         self._update_random_variables()
 
         # Update Cached Variables
-        self.cache_variables['noise_inverse'] = 1/self.model_parameters['noise_var']
-        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
+        self.cache_variables['noise_inverse'] = 1/self.parameters['noise_var']
+        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.parameters['noise_var']))
 
         # Compute the a_matrix
         #self.update_a_matrix()
@@ -363,9 +363,9 @@ class MultivariateModel(AbstractModel):
         }
 
         # Initializes Parameters
-        for parameter_key in self.model_parameters.keys():
-            if self.model_parameters[parameter_key] is None:
-                self.model_parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
+        for parameter_key in self.parameters.keys():
+            if self.parameters[parameter_key] is None:
+                self.parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
 
 
 
@@ -381,7 +381,7 @@ class MultivariateModel(AbstractModel):
         #TODO check que c'est le bon format (IGOR)
         model_settings = {}
 
-        model_settings['parameters'] = self.model_parameters
+        model_settings['parameters'] = self.parameters
         model_settings['dimension'] = self.dimension
         model_settings['source_dimension'] = self.dimension
         model_settings['type'] = self.model_name

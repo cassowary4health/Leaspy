@@ -11,7 +11,7 @@ class AbstractModelTest(unittest.TestCase):
 
     def test_constructor(self):
         abstract_model = AbstractModel()
-        self.assertEqual(abstract_model.model_parameters, {})
+        self.assertEqual(abstract_model.parameters, {})
 
     """
     def test_load_parameters(self):

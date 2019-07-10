@@ -9,4 +9,5 @@ algo_settings = AlgorithmSettings(os.path.join(os.path.dirname(__file__), 'algor
 
 # Launch
 leaspy = Leaspy("multivariate_model")
+#leaspy = Leaspy.from_model_settings(path_to_parameters)
 leaspy.fit(data, algorithm_settings=algo_settings)

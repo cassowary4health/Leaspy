@@ -33,6 +33,9 @@ An exemple is given below :
 
 Lorem Ipsum
 
+### Internal dataset structure
+
+For optimization : n-dimensionnal array (numpy or pytorch)
 
 
 # Model Settings

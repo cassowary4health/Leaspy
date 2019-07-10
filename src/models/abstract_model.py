@@ -13,7 +13,13 @@ from src.utils.random_variable.random_variable_factory import RandomVariableFact
 
 class AbstractModel():
     def __init__(self):
-        self.model_parameters = {}
+        self.name = None
+        self.dimension = None
+        self.parameters = {}
+        self.priors = {}
+        self.population_random_effets = {}
+        self.individual_random_effets = {}
+
 
     def load_parameters(self, model_parameters):
         raise NotImplementedError
@@ -69,8 +75,8 @@ class AbstractModel():
             reals_ind[idx] = dict.fromkeys(reals_ind_name)
             # For all invididual random variables, initialize
             for ind_name in reals_ind_name:
-                reals_ind[idx][ind_name] = np.random.normal(loc=self.model_parameters['{0}_mean'.format(ind_name)],
-                                                        scale=np.sqrt(self.model_parameters['{0}_var'.format(ind_name)]),
+                reals_ind[idx][ind_name] = np.random.normal(loc=self.parameters['{0}_mean'.format(ind_name)],
+                                                            scale=np.sqrt(self.parameters['{0}_var'.format(ind_name)]),
                                                             size=(1, infos_variables[ind_name]["shape"][1]))
 
         # To Torch
@@ -93,7 +99,7 @@ class AbstractModel():
         reals_pop = dict.fromkeys(reals_pop_name)
         for pop_name in reals_pop_name:
             print(pop_name)
-            reals_pop[pop_name] = np.array(self.model_parameters[pop_name]).reshape(infos_variables[pop_name]["shape"])
+            reals_pop[pop_name] = np.array(self.parameters[pop_name]).reshape(infos_variables[pop_name]["shape"])
 
         # To Torch
         for key in reals_pop.keys():
@@ -125,7 +131,7 @@ class AbstractModel():
             # Initialize the random variable to parameters
             # /!\ We need a convention here for rv_parameters e.g. loc, var,
             # ie rv to parameters and parameters to rv, for now only text with append the parameter name
-            self.random_variables[name].initialize(self.model_parameters)
+            self.random_variables[name].initialize(self.parameters)
 
 
 
@@ -154,7 +160,7 @@ class AbstractModel():
     ###########################
 
     def get_parameters(self):
-        return self.model_parameters
+        return self.parameters
 
     def _update_random_variables(self):
         # TODO float for torch operations
@@ -168,18 +174,18 @@ class AbstractModel():
                           infos_variables[key]["type"] == "individual"]
 
         for real_pop_name in reals_pop_name:
-            self.random_variables[real_pop_name].mu = self.model_parameters[real_pop_name]
+            self.random_variables[real_pop_name].mu = self.parameters[real_pop_name]
 
         for real_ind_name in reals_ind_name:
-            self.random_variables[real_ind_name].mu = float(self.model_parameters["{0}_mean".format(real_ind_name)])
+            self.random_variables[real_ind_name].mu = float(self.parameters["{0}_mean".format(real_ind_name)])
             self.random_variables[real_ind_name].variance = float(
-                self.model_parameters["{0}_var".format(real_ind_name)])
+                self.parameters["{0}_var".format(real_ind_name)])
 
     def __str__(self):
         output = "=== MODEL ===\n"
 
-        for key in self.model_parameters.keys():
-            output += "{0} : {1}\n".format(key, self.model_parameters[key])
+        for key in self.parameters.keys():
+            output += "{0} : {1}\n".format(key, self.parameters[key])
 
         return output
 
@@ -207,10 +213,7 @@ class AbstractModel():
         sum_squared = self.compute_individual_sumsquared(individual, reals_pop, real_ind)
 
         fit = 0.5 * noise_inverse * sum_squared
-
         res = fit + constant_term
-
-
         return res
 
     # Regularity
@@ -242,8 +245,8 @@ class AbstractModel():
 
     def _initialize_cache_variables(self):
         self.cache_variables = {}
-        self.cache_variables['noise_inverse'] = 1 / self.model_parameters['noise_var']
-        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
+        self.cache_variables['noise_inverse'] = 1 / self.parameters['noise_var']
+        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.parameters['noise_var']))
 
 
     def update_variable_info(self, key, reals_pop):

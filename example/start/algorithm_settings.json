@@ -1,13 +1,8 @@
 {
-  "type": "fast_mcmc_saem",
+  "name": "start",
   "parameters": {
-    "n_iter": 501,
-    "annealing": {
-      "do_annealing": true,
-      "initial_temperature": 100,
-      "n_iter": 300,
-      "n_plateau": 10
-    }
+    "number_of_iterations": 20
   },
+  "smart_initialization": true,
   "output":{"path":null}
 }

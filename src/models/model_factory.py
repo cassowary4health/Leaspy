@@ -1,5 +1,6 @@
 from src.models.univariate_model import UnivariateModel
 from src.models.multivariate_model import MultivariateModel
+from src.models.multivariate_model_new import MultivariateModelNew
 from src.models.gaussian_distribution_model import GaussianDistributionModel
 
 
@@ -9,7 +10,11 @@ class ModelFactory():
     def model(model_type):
         if model_type.lower() == 'univariate':
             return UnivariateModel()
-        if model_type.lower() == 'multivariate':
+        elif model_type.lower() == 'multivariate':
             return MultivariateModel()
-        if model_type.lower() == 'gaussian_distribution':
+        elif model_type.lower() == 'multivariate_model':
+            return MultivariateModelNew()
+        elif model_type.lower() == 'gaussian_distribution':
             return GaussianDistributionModel()
+        else:
+            raise ValueError("The name of the model you are trying to create does not exist")

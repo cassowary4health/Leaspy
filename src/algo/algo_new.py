@@ -15,7 +15,7 @@ class AlgorithmNew:
             # Maximization
 
     def initialize(self, model, dataset):
-        model.initialize_random_effects(dataset)
+        model.initialize_MCMC_toolbox(dataset)
 
     def update(self):
         return 0

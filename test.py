@@ -8,6 +8,7 @@ from tests.inputs.data.data_reader import DataReaderTest
 from tests.inputs.data.dataset import DatasetTest
 
 from tests.models.abstract_model import AbstractModelTest
+from tests.models.utils.attributes import AttributesTest
 #from tests.models.univariate_model import UnivariateModelTest
 #from tests.models.multivariate_model import MultivariateModelTest
 #from tests.models.model_factory import ModelFactoryTest

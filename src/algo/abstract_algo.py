@@ -69,8 +69,9 @@ class AbstractAlgo:
 
     @staticmethod
     def _maximization_step(data, model, realizations):
-        sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
-        model.update_model(data, sufficient_statistics)
+        pass
+        #sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
+        #model.update_model(data, sufficient_statistics)
 
     def _initialize_likelihood(self, data, model, realizations):
         return 0

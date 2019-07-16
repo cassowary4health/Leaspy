@@ -25,7 +25,9 @@ class Dataset:
         x_len = [len(_.timepoints) for _ in data]
         channels = data.dimension
         values = np.zeros((batch_size, max(x_len), channels))
-        mask = np.zeros((batch_size, max(x_len), 1))
+        mask = np.zeros((batch_size, max(x_len), channels))
+
+        #TODO missing values in mask ???
 
         for i, d in enumerate(x_len):
             indiv_values = data[i].observations
@@ -35,8 +37,8 @@ class Dataset:
         self.n_individuals = batch_size
         self.max_observations = max(x_len)
         self.dimension = channels
-        self.values = values
-        self.mask = mask
+        self.values = torch.Tensor(values)
+        self.mask = torch.Tensor(mask)
 
     def _construct_timepoints(self, data):
         self.timepoints = torch.zeros([self.n_individuals, self.max_observations])

@@ -2,8 +2,9 @@ import numpy as np
 import torch
 from src.models.utils.attributes import Attributes
 from src.utils.realizations.collection_realization import CollectionRealization
+from src.models.abstract_model import AbstractModel
 
-class MultivariateModelNew:
+class MultivariateModelNew(AbstractModel):
     def __init__(self):
         self.dimension = None
         self.source_dimension = None
@@ -64,11 +65,12 @@ class MultivariateModelNew:
             #TODO TODO : Smart initialization
             self.dimension = dataset.dimension
             self.source_dimension = self.dimension - 1
-            self.parameters = {'g': 0., 'mean_tau': 70, 'sigma_tau': 2, 'mean_xi': -1., 'sigma_xi': 0.1,
+            self.parameters = {'g': 0.2, 'mean_tau': 70.0, 'sigma_tau': 2.0, 'mean_xi': -1., 'sigma_xi': 0.1,
                                'mean_sources': 0.0,
                                'sigma_sources': 1.0,
-                               'sigma_noise': 0.1, 'deltas': [0] * (self.dimension - 1),
-                               'mean_sources': [0]*self.source_dimension, 'sigma_sources': [1]*self.source_dimension,
+                               'sigma_noise': 0.1, 'deltas': [0.0] * (self.dimension - 1),
+                                                             'mean_sources': 0.0,
+                                   'sigma_sources': 1.0
                                }
         else:
             if self.is_initialized:
@@ -76,8 +78,8 @@ class MultivariateModelNew:
             else:
                 self.dimension = dataset.dimension
                 self.source_dimension = self.dimension - 1
-                self.parameters = {'g': 0., 'mean_tau': 70, 'sigma_tau': 2, 'mean_xi': -1., 'sigma_xi': 0.1,
-                               'sigma_noise': 0.1, 'deltas': [0] * (self.dimension - 1),
+                self.parameters = {'g': 0.2, 'mean_tau': 70.0, 'sigma_tau': 2.0, 'mean_xi': -1., 'sigma_xi': 0.1,
+                               'sigma_noise': 0.1, 'deltas': [0.0] * (self.dimension - 1),
                                 'mean_sources': 0.0,
                                    'sigma_sources': 1.0,
                                'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
@@ -151,18 +153,42 @@ class MultivariateModelNew:
 
     def compute_individual_attachment_tensorized(self, data, realizations):
 
-        print("coucou")
+        g = realizations['g'].tensor_realizations
+        timepoints = data.timepoints.reshape(data.timepoints.shape[0],data.timepoints.shape[1],1)
+        deltas = torch.cat([torch.Tensor([0.0]).reshape(1,1), realizations["deltas"].tensor_realizations], dim=1)
         a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
         wi = torch.nn.functional.linear(realizations['sources'].tensor_realizations, a_matrix, bias=None)
+        reparametrized_time = torch.exp(realizations['xi'].tensor_realizations) * (timepoints - realizations['tau'].tensor_realizations)
+        deltas_exp = torch.exp(-deltas)
 
-        reparametrized_time = torch.exp(realizations['xi'].tensor_realizations) * (data.timepoints - realizations['tau'].tensor_realizations)
+        b = wi*(g*deltas_exp+1)**2/(g*deltas_exp)
 
+        a = -reparametrized_time-deltas-b
+        a = 1+g*torch.exp(a)
+        model = 1/a
 
+        sum_squared = ((model*data.mask-data.values)**2).sum(dim=(1,2))
 
-        #wi = np.dot(, )
+        attachment = 0.5 * (1/self.parameters['sigma_noise']) * sum_squared
+        attachment += np.log(np.sqrt(2 * np.pi * self.parameters['sigma_noise']))
+
+        return attachment
+
 
     def compute_regularity_variable(self, realization):
-        return 0
+        # Instanciate torch distribution
+        if realization.variable_type == 'population':
+            distribution = torch.distributions.normal.Normal(loc=torch.Tensor([self.parameters[realization.name]]).reshape(realization.shape),
+                                                            scale=0.005)
+        elif realization.variable_type == 'individual':
+            distribution = torch.distributions.normal.Normal(loc=self.parameters["mean_{0}".format(realization.name)],
+                                                            scale=self.parameters["sigma_{0}".format(realization.name)])
+
+        else:
+            raise ValueError("Variable type not known")
+
+
+        return -distribution.log_prob(realization.tensor_realizations)
 
     def compute_loglikelihood(self, individual_parameters):
         ###
@@ -172,7 +198,7 @@ class MultivariateModelNew:
         # TODO : Change the name of this method
 
         ## Population variables
-        p0_infos = {
+        g_infos = {
             "name": "g",
             "shape": (1, 1),
             "type": "population",
@@ -217,7 +243,7 @@ class MultivariateModelNew:
         }
 
         variables_infos = {
-            "p0": p0_infos,
+            "g": g_infos,
             "deltas": deltas_infos,
             "betas": betas_infos,
             "tau": tau_infos,

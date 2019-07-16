@@ -80,7 +80,7 @@ class AbstractMCMC(AbstractAlgo):
         # Update the likelihood with the new noise_var
         # TODO likelihood is computed 2 times, remove this one, and update it in maximization step ?
         # TODO or ar the update of all sufficient statistics ???
-        self.likelihood.update_likelihood(data, model, realizations)
+        #self.likelihood.update_likelihood(data, model, realizations)
 
         # Annealing
         if self.algo_parameters['annealing']['do_annealing']:

@@ -10,7 +10,7 @@
     }
   },
   "output":{
-    "path": null
+    "path": "../output_leaspy/start/"
   },
   "smart_initialization": false
 }

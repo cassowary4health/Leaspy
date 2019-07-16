@@ -24,7 +24,7 @@ class AlgoFactory:
         elif name == 'mcmc_predict':
             algorithm = MCMCPredict()
         elif name == 'tensor_mcmc_saem':
-            return TensorMCMCSAEM(settings)
+            algorithm = TensorMCMCSAEM(settings)
         else:
             raise ValueError("The name of your algorithm is unknown")
 

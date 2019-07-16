@@ -1,5 +1,5 @@
 import numpy as np
-
+import torch
 
 ## TODO : Have a Abtract Attribute class
 class Attributes:
@@ -57,7 +57,7 @@ class Attributes:
             return 5
 
     def _compute_p0_and_deltas(self, values):
-        self.p0 = 1. / (1.+ np.exp(values['g']))
+        self.p0 = 1. / (1. + np.exp(values['g']))
         self.f_p0 = self.p0 * (1.-self.p0)
 
         self.deltas = np.insert(values['deltas'], 0, 0)
@@ -95,25 +95,12 @@ class Attributes:
         # TODO : Test that the columns of the matrix are orthogonal to v0
 
     @staticmethod
-    def _mixing_matrix_utils(matrix, linear_combination_values):
-
-        dimension, source_dimension = linear_combination_values.shape
-        dimension += 1
-
-        expanded_matrix = np.repeat(np.expand_dims(matrix, axis=1), source_dimension, axis=1)
-        print(expanded_matrix.shape, linear_combination_values.shape)
-        return np.tensordot(expanded_matrix, linear_combination_values, axes =([2],[0]))
-
-
-
+    def _mixing_matrix_utils(linear_combination_values, matrix):
+        return np.dot(matrix, linear_combination_values)
 
     def _compute_mixing_matrix(self, values):
-
         betas = np.array(values['betas'])
-        #a = np.repeat(np.expand_dims(self.orthonormal_basis, axis=1), self.source_dimension, axis=1)
-        #self.mixing_matrix = np.dot(a, betas)
-
-        self.mixing_matrix = self._mixing_matrix_utils(self.orthonormal_basis, betas)
+        self.mixing_matrix = torch.Tensor(self._mixing_matrix_utils(betas, self.orthonormal_basis))
 
 
 

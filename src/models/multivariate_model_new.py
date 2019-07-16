@@ -1,6 +1,7 @@
 import numpy as np
-
+import torch
 from src.models.utils.attributes import Attributes
+from src.utils.realizations.collection_realization import CollectionRealization
 
 class MultivariateModelNew:
     def __init__(self):
@@ -13,6 +14,8 @@ class MultivariateModelNew:
             "sigma_tau": None,
             "mean_xi": None,
             "sigma_xi": None,
+            "mean_sources": None,
+            "sigma_sources": None,
             "sigma_noise": None,
             "betas": None,
             "deltas": None
@@ -22,15 +25,19 @@ class MultivariateModelNew:
 
 
         ### MCMC related "parameters"
+        #TODO : With Raphaël, be sure that the random effects
+        #TODO : are not in the model but in the algorithm
         self.MCMC_toolbox = {
-            'population_random_effects': None,
-            'individual_random_effects': None,
             'attributes': None,
             'priors': {
-                'sigma_g': None, # tq p0 = 1 / (1+g)
+                'sigma_g': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
                 'sigma_deltas': None, # tq deltas = user_delta_in_years * v0 / (p0(1-p0))
                 'sigma_betas': None
             }
+        }
+
+        self.gradient_toolbox = {
+            'priors': {}
         }
 
 
@@ -58,8 +65,10 @@ class MultivariateModelNew:
             self.dimension = dataset.dimension
             self.source_dimension = self.dimension - 1
             self.parameters = {'g': 0., 'mean_tau': 70, 'sigma_tau': 2, 'mean_xi': -1., 'sigma_xi': 0.1,
+                               'mean_sources': 0.0,
+                               'sigma_sources': 1.0,
                                'sigma_noise': 0.1, 'deltas': [0] * (self.dimension - 1),
-                               'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
+                               'mean_sources': [0]*self.source_dimension, 'sigma_sources': [1]*self.source_dimension,
                                }
         else:
             if self.is_initialized:
@@ -69,6 +78,8 @@ class MultivariateModelNew:
                 self.source_dimension = self.dimension - 1
                 self.parameters = {'g': 0., 'mean_tau': 70, 'sigma_tau': 2, 'mean_xi': -1., 'sigma_xi': 0.1,
                                'sigma_noise': 0.1, 'deltas': [0] * (self.dimension - 1),
+                                'mean_sources': 0.0,
+                                   'sigma_sources': 1.0,
                                'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
                                }
 
@@ -86,6 +97,7 @@ class MultivariateModelNew:
             'sigma_betas': 0.01
         }
 
+
         self.MCMC_toolbox['population_random_effects'] = {
             'g': np.random.normal(self.parameters['g'], self.MCMC_toolbox['priors']['sigma_g']),
             'deltas': np.random.normal(self.parameters['deltas'],
@@ -93,7 +105,7 @@ class MultivariateModelNew:
                                        self.dimension-1),
             'betas': np.random.normal(self.parameters['betas'],
                                       self.MCMC_toolbox['priors']['sigma_betas'],
-                                      (self.dimension - 1, self.source_dimension, ))
+                                      (self.dimension - 1, self.source_dimension))
         }
 
 
@@ -137,6 +149,93 @@ class MultivariateModelNew:
         #p0 = Variable(self.parameters['p0'])
         return 0
 
+    def compute_individual_attachment_tensorized(self, data, realizations):
+
+        print("coucou")
+        a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
+        wi = torch.nn.functional.linear(realizations['sources'].tensor_realizations, a_matrix, bias=None)
+
+        reparametrized_time = torch.exp(realizations['xi'].tensor_realizations) * (data.timepoints - realizations['tau'].tensor_realizations)
+
+
+
+        #wi = np.dot(, )
+
+    def compute_regularity_variable(self, realization):
+        return 0
+
     def compute_loglikelihood(self, individual_parameters):
         ###
         return 0
+
+    def get_info_variables(self):
+        # TODO : Change the name of this method
+
+        ## Population variables
+        p0_infos = {
+            "name": "g",
+            "shape": (1, 1),
+            "type": "population",
+            "rv_type": "multigaussian"
+        }
+
+        deltas_infos = {
+            "name": "deltas",
+            "shape": (1, self.dimension-1),
+            "type": "population",
+            "rv_type": "multigaussian"
+        }
+
+
+        betas_infos = {
+            "name": "betas",
+            "shape": (self.dimension - 1, self.source_dimension),
+            "type": "population",
+            "rv_type": "multigaussian"
+        }
+
+        ## Individual variables
+        tau_infos = {
+            "name": "tau",
+            "shape": (1, 1),
+            "type": "individual",
+            "rv_type": "gaussian"
+        }
+
+        xi_infos = {
+            "name": "xi",
+            "shape": (1, 1),
+            "type": "individual",
+            "rv_type": "gaussian"
+        }
+
+        sources_infos = {
+            "name": "sources",
+            "shape": (1, self.source_dimension),
+            "type": "individual",
+            "rv_type": "gaussian"
+        }
+
+        variables_infos = {
+            "p0": p0_infos,
+            "deltas": deltas_infos,
+            "betas": betas_infos,
+            "tau": tau_infos,
+            "xi": xi_infos,
+            "sources": sources_infos
+        }
+
+        return variables_infos
+
+    def initialize_realizations(self, data):
+        ### TODO : Initialize or just simulate?
+
+        realizations = CollectionRealization(data, self)
+        return realizations
+
+
+    def update_model(self, data, sufficient_statistics):
+        raise NotImplementedError
+        ### TODO : Change the parameters theta of the model AND the MCMC_toolbox
+        ### TODO : according to the new sufficient statistics
+

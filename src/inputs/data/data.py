@@ -23,6 +23,7 @@ class Data:
 
     def __next__(self):
         if self.iter >= self.n_individuals:
+            self.iter = 0
             raise StopIteration
         else:
             self.iter += 1

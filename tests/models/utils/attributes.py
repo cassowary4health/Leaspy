@@ -18,17 +18,16 @@ class AttributesTest(unittest.TestCase):
 
     def test_mixing_matrix_utils(self):
 
-        A = [[1., 5., 0.],
-             [0., 2., 11.],
-             [30., 0., 3.],
-             [0., 0., 0.]]
-        B = [[1., -1., 4.],
-             [4., -10., 80.],
-             [100., -100., 400.]]
+        basis = [[1., 5., 3.],
+                 [0., 2., 1.],
+                 [30., 0., 1.],
+                 [0., 0., 2.]]
+        betas = [[1., -1.],
+                 [4., -10.],
+                 [100., -100.]]
 
-        A = np.array(A)
-        B = np.array(B)
+        basis = np.array(basis)
+        betas = np.array(betas)
 
-        result = Attributes._mixing_matrix_utils(A, B)
-        print(result.shape)
-        print(result)
+        result = Attributes._mixing_matrix_utils(betas, basis)
+

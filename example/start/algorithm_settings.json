@@ -1,8 +1,16 @@
 {
-  "name": "start",
+  "name": "tensor_mcmc_saem",
   "parameters": {
-    "number_of_iterations": 20
+    "n_iter": 400,
+    "annealing": {
+    "do_annealing": false,
+    "initial_temperature": 100,
+    "n_iter": null,
+    "n_plateau": 10
+    }
   },
-  "smart_initialization": true,
-  "output":{"path":null}
+  "output":{
+    "path": null
+  },
+  "smart_initialization": false
 }

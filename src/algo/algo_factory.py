@@ -3,6 +3,7 @@ from src.algo.mcmc_saem import MCMCSAEM
 from src.algo.fast_mcmcsaem import FastMCMCSAEM
 from src.algo.mcmc_predict import MCMCPredict
 from src.algo.algo_new import AlgorithmNew
+from src.algo.tensor_mcmcsaem import TensorMCMCSAEM
 from src.utils.output_manager import OutputManager
 
 
@@ -22,6 +23,8 @@ class AlgoFactory:
             algorithm = FastMCMCSAEM()
         elif name == 'mcmc_predict':
             algorithm = MCMCPredict()
+        elif name == 'tensor_mcmc_saem':
+            return TensorMCMCSAEM(settings)
         else:
             raise ValueError("The name of your algorithm is unknown")
 

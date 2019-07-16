@@ -48,13 +48,10 @@ class AbstractAlgo:
 
         # Initialize Model
         self._initialize_seed(seed)
+        # Initialize first the random variables
+        # TODO : Check if needed - model.initialize_random_variables(data)
+        # Then initialize the Realizations (from the random variables)
         realizations = model.initialize_realizations(data)
-        model.initialize_random_variables(data)
-
-        #TODO because of dimension problems, maybe not here
-        # First update of the model
-        #sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
-        #model.update_model(data, sufficient_statistics)
 
         # Initialize Algo
         self._initialize_algo(data, model, realizations)
@@ -76,6 +73,8 @@ class AbstractAlgo:
         model.update_model(data, sufficient_statistics)
 
     def _initialize_likelihood(self, data, model, realizations):
-        self.likelihood = Likelihood()
-        self.likelihood.initialize_likelihood(data, model, realizations)
+        return 0
+        # TODO later
+        #self.likelihood = Likelihood()
+        #self.likelihood.initialize_likelihood(data, model, realizations)
 

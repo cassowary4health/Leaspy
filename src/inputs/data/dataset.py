@@ -1,9 +1,10 @@
 import numpy as np
-
+import torch
 
 class Dataset:
     def __init__(self, data, model=None, algo=None):
-
+        # TODO : Change in Pytorch
+        self.timepoints = None
         self.values = None
         self.mask = None
         self.n_individuals = None
@@ -16,6 +17,7 @@ class Dataset:
             self._check_algo_compatibility(data, algo)
 
         self._construct_values(data)
+        self._construct_timepoints(data)
 
     def _construct_values(self, data):
 
@@ -35,6 +37,12 @@ class Dataset:
         self.dimension = channels
         self.values = values
         self.mask = mask
+
+    def _construct_timepoints(self, data):
+        self.timepoints = torch.zeros([self.n_individuals, self.max_observations])
+        x_len = [len(_.timepoints) for _ in data]
+        for i, d in enumerate(x_len):
+            self.timepoints[i, 0:d] = torch.Tensor(data[i].timepoints)
 
     def _check_model_compatibility(self, data, model):
         if model.dimension is None:

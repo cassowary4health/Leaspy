@@ -27,7 +27,7 @@ class FastMCMCSAEM(AbstractMCMC):
         #reals_ind = {k: v for k, v in reals_ind.items() if k in subset_indices}
 
 
-        info_variables = model.get_info_variables()
+        info_variables = model.random_variable_informations()
 
         for key in reals_pop.keys():
 
@@ -77,7 +77,7 @@ class FastMCMCSAEM(AbstractMCMC):
     # TODO Numba this
     def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
 
-        infos_variables = model.get_info_variables()
+        infos_variables = model.random_variable_informations()
         indices = reals_ind.keys()
         subset_indices = np.random.choice(list(indices), int((0.66*data.n_individuals)))
 

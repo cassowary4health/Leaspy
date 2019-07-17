@@ -55,7 +55,7 @@ class AbstractMCMC(AbstractAlgo):
         self.temperature_inv = 1/self.temperature
 
     def _initialize_samplers(self, model, data):
-        infos_variables = model.get_info_variables()
+        infos_variables = model.random_variable_informations()
         self.samplers = dict.fromkeys(infos_variables.keys())
         for variable, info in infos_variables.items():
             self.samplers[variable] = Sampler(info, data.n_individuals)

@@ -34,7 +34,7 @@ class GaussianDistributionModel(AbstractModel):
         return None
 
 
-    def get_info_variables(self):
+    def random_variable_informations(self):
 
 
             intercept_infos = {

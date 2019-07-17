@@ -48,7 +48,7 @@ class MultivariateModel(AbstractModel):
                 "beta": beta_shape}
 
 
-    def get_info_variables(self):
+    def random_variable_informations(self):
 
 
             ## Population variables

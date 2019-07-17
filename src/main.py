@@ -22,6 +22,7 @@ class Leaspy:
         leaspy = cls(reader.model_type)
         leaspy.model.load_parameters(reader.parameters)
         leaspy.model.load_hyperparameters(reader.hyperparameters)
+        leaspy.model.is_initialized = True
         return leaspy
 
     def save(self, path):

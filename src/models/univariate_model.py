@@ -34,7 +34,7 @@ class UnivariateModel(AbstractModel):
         p0_shape = (1, 1)
         return {"p0": p0_shape}
 
-    def get_info_variables(self):
+    def random_variable_informations(self):
 
             p0_infos = {
                 "name": "p0",

@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+
 class Dataset:
     def __init__(self, data, model=None, algo=None):
         # TODO : Change in Pytorch
@@ -8,8 +9,10 @@ class Dataset:
         self.values = None
         self.mask = None
         self.n_individuals = None
+        self.nb_observations_per_individuals = None
         self.max_observations = None
         self.dimension = None
+        self.n_visits = None
 
         if model is not None:
             self._check_model_compatibility(data, model)
@@ -27,7 +30,7 @@ class Dataset:
         values = np.zeros((batch_size, max(x_len), channels))
         mask = np.zeros((batch_size, max(x_len), channels))
 
-        #TODO missing values in mask ???
+        #TODO missing values in mask ?
 
         for i, d in enumerate(x_len):
             indiv_values = data[i].observations
@@ -36,9 +39,12 @@ class Dataset:
 
         self.n_individuals = batch_size
         self.max_observations = max(x_len)
+        self.nb_observations_per_individuals = x_len
         self.dimension = channels
         self.values = torch.Tensor(values)
         self.mask = torch.Tensor(mask)
+        self.n_visits = data.n_visits
+
 
     def _construct_timepoints(self, data):
         self.timepoints = torch.zeros([self.n_individuals, self.max_observations])
@@ -46,12 +52,13 @@ class Dataset:
         for i, d in enumerate(x_len):
             self.timepoints[i, 0:d] = torch.Tensor(data[i].timepoints)
 
-    def _check_model_compatibility(self, data, model):
+    @staticmethod
+    def _check_model_compatibility(data, model):
         if model.dimension is None:
             return
         if data.dimension != model.dimension:
             raise ValueError("The initialized model and the data do not have the same dimension")
 
-    def _check_algo_compatibility(self, data, algo):
-        #TODO
-        return 0
+    @staticmethod
+    def _check_algo_compatibility(data, algo):
+        return

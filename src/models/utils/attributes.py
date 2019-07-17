@@ -3,15 +3,15 @@ import torch
 
 ## TODO : Have a Abtract Attribute class
 class Attributes:
+    # TODO : Checker dès le début s'il est possible de conserver les attributes avec une méthode de gradient
     def __init__(self, dimension, source_dimension):
         # TODO : Supprimer dimension et source_dimension qui peuvent être déduits des values
         self.dimension = dimension
         self.source_dimension = source_dimension
-        self.p0 = None # p0 = 1 / (1+exp(g_realization))
-        self.f_p0 = None # f_p0 = p0 * (1-p0)
-        self.deltas = None # deltas = [0, delta_2_realization, ..., delta_n_realization]
+        self.g = None  # g = exp(realizations['g']) tel que p0 = 1 / (1+exp(g))
+        self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
         self.orthonormal_basis = None
-        self.mixing_matrix = None # Matrix A tq w_i = A * s_i
+        self.mixing_matrix = None  # Matrix A tq w_i = A * s_i
 
 
         ## TODO : Add some individual attributes -> Optimization on the w_i = A * s_i
@@ -25,9 +25,9 @@ class Attributes:
         self._check_names(names_of_changed_values)
         flag = self._flag_update(names_of_changed_values)
         if flag == 0:
-            self._compute_p0_and_deltas(values)
+            self._compute_g_and_deltas(values)
         elif flag == 1:
-            self._compute_p0(values)
+            self._compute_g(values)
         elif flag == 2:
             self._compute_deltas(values)
         elif flag == 3:
@@ -56,27 +56,23 @@ class Attributes:
         else:
             return 5
 
-    def _compute_p0_and_deltas(self, values):
-        self.p0 = 1. / (1. + np.exp(values['g']))
-        self.f_p0 = self.p0 * (1.-self.p0)
-
+    def _compute_g_and_deltas(self, values):
+        self.g = np.exp(values['g'])
         self.deltas = np.insert(values['deltas'], 0, 0)
         self._compute_orthonormal_basis(values)
 
-    def _compute_p0(self, values):
-        self.p0 = 1. / (1.+ np.exp(values['g']))
-        self.f_p0 = self.p0 * (1.-self.p0)
+    def _compute_g(self, values):
+        self.g = np.exp(values['g'])
         self._compute_orthonormal_basis(values)
 
     def _compute_deltas(self, values):
         self.deltas = np.insert(values['deltas'], 0, 0)
         self._compute_orthonormal_basis(values)
 
-
     def _compute_orthonormal_basis(self, values):
         # Compute s
         # TODO : CHECK, CHECK AND RECHECK
-        g = np.exp(values['g'])
+        g = self.g
         v0 = np.exp(values['mean_xi'])
         E = np.exp(-self.deltas)
         A_ = 1. + g * E

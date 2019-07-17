@@ -39,7 +39,7 @@ class AbstractModel():
     def compute_average(self, tensor_timepoints):
         raise NotImplementedError
 
-    def get_info_variables(self, data):
+    def random_variable_informations(self, data):
         raise NotImplementedError
 
     def initialize_realizations(self, data):
@@ -62,7 +62,7 @@ class AbstractModel():
         #reals_pop_name = self.reals_pop_name
         #reals_ind_name = self.reals_ind_name
 
-        infos_variables = self.get_info_variables()
+        infos_variables = self.random_variable_informations()
         reals_ind_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
                           infos_variables[key]["type"] == "individual"]
 
@@ -90,7 +90,7 @@ class AbstractModel():
 
 
     def initialize_population_realizations(self):
-        infos_variables = self.get_info_variables()
+        infos_variables = self.random_variable_informations()
 
         reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
                           infos_variables[key]["type"] == "population"]
@@ -120,7 +120,7 @@ class AbstractModel():
         random_variable_factory = RandomVariableFactory()
 
         # Get the info variables
-        info_variables = self.get_info_variables()
+        info_variables = self.random_variable_informations()
         self.random_variables = dict.fromkeys(info_variables.keys())
 
         for name, info in info_variables.items():
@@ -165,7 +165,7 @@ class AbstractModel():
     def _update_random_variables(self):
         # TODO float for torch operations
 
-        infos_variables = self.get_info_variables()
+        infos_variables = self.random_variable_informations()
 
         reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
                           infos_variables[key]["type"] == "population"]

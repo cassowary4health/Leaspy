@@ -1,10 +1,9 @@
 from src.algo.gradient_descent import GradientDescent
-from src.algo.mcmc_saem import MCMCSAEM
-from src.algo.fast_mcmcsaem import FastMCMCSAEM
-from src.algo.mcmc_predict import MCMCPredict
+from src.legacy.mcmc_saem import MCMCSAEM
+from src.legacy.fast_mcmcsaem import FastMCMCSAEM
+from src.legacy.mcmc_predict import MCMCPredict
 from src.algo.algo_new import AlgorithmNew
 from src.algo.tensor_mcmcsaem import TensorMCMCSAEM
-from src.utils.output_manager import OutputManager
 
 
 class AlgoFactory:

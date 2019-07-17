@@ -1,12 +1,10 @@
 
 #%%
 import os
-from tests import test_data_dir
 from src.main import Leaspy
-from src.utils.data_generator import generate_data_from_model
+from src.legacy.data_generator import generate_data_from_model
 from src.inputs.algorithm_settings import AlgorithmSettings
 import matplotlib.pyplot as plt
-import pandas as pd
 from matplotlib.pyplot import cm
 import numpy as np
 import torch

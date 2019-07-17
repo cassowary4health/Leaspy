@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from src.utils.likelihood import Likelihood
 from src.utils.output_manager import OutputManager
 
 
@@ -69,9 +68,13 @@ class AbstractAlgo:
 
     @staticmethod
     def _maximization_step(data, model, realizations):
-        pass
-        #sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
-        #model.update_model(data, sufficient_statistics)
+        burn_in_phase = True # The burn_in is true when the maximization step is memoryless
+        if burn_in_phase:
+            model.update_model_parameters(data, realizations, burn_in_phase)
+        else:
+            sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
+            ### TODO : Add Burn - in !
+            model.update_model_parameters(data, sufficient_statistics, burn_in_phase)
 
     def _initialize_likelihood(self, data, model, realizations):
         return 0

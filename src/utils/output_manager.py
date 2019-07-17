@@ -38,8 +38,8 @@ class OutputManager():
             self.path_plot_convergence_model_parameters_1 = os.path.join(path_output, "plot_model_parameters_convergence_1.pdf")
             self.path_plot_convergence_model_parameters_2 = os.path.join(path_output, "plot_model_parameters_convergence_2.pdf")
 
-            self.plot_periodicity = None
-            self.save_periodicity = None
+            self.plot_periodicity = 50
+            self.save_periodicity = 50
 
 
         # Options

@@ -5,7 +5,7 @@ class CollectionRealization:
 
         # Indices
         self.realizations = {}
-        infos = model.get_info_variables()
+        infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
             realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
             realization.initialize(data, model)

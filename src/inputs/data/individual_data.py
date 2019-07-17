@@ -15,7 +15,7 @@ class IndividualData:
             self.observations = []
 
         if timepoint in self.timepoints:
-            raise ValueError('You are trying to overwrite the observation of a subject')
+            raise ValueError('You are trying to overwrite the observation of the subject {}'.format(self.idx))
 
         index = bisect(self.timepoints, timepoint)
         self.timepoints.insert(index, timepoint)
@@ -26,38 +26,3 @@ class IndividualData:
 
     def add_cofactor(self, name, value):
         self.cofactors[name] = value
-
-    '''
-    def __init__(self, idx):
-        self.idx = idx
-        self.individual_parameters = None
-        self.timepoints = None
-        self.raw_observations = None
-        self.tensor_observations = None
-
-        # Metrics
-        self.n_visits = 0
-        self.n_observations = 0
-
-
-    def add_observation(self, timepoint, values):
-        if self.timepoints is None:
-            self.timepoints = []
-            self.raw_observations = []
-
-        if timepoint in self.timepoints:
-            raise ValueError('You are trying to overwrite the observation of a subject')
-
-        index = bisect(self.timepoints, timepoint)
-        self.timepoints.insert(index, timepoint)
-        self.raw_observations.insert(index, values)
-
-        # Torch
-        self.tensor_observations = torch.from_numpy(np.array(self.raw_observations)).float()
-        self.tensor_timepoints = torch.from_numpy(np.array(self.timepoints)).float().reshape(-1, 1)
-
-
-        # Update metrics
-        self.n_visits += 1
-        self.n_observations += np.array(values).shape[0]
-    '''

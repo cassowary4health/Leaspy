@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 # TODO Numba this
@@ -32,17 +33,25 @@ class Sampler:
         self.acceptation_temp = [0.0] * self.temp_length
         self.counter_acceptation = 0
 
+        # Torch distribution
+        self.distribution = torch.distributions.normal.Normal(loc=0.0, scale = self.std)
 
-    def sample(self):
-            return self.sample_withoutshape()
+    def set_std(self, std):
+        self.std = std
+        self.distribution = torch.distributions.normal.Normal(loc=0.0, scale=std)
+
+    def sample(self, shape=()):
+            return self.distribution.sample(sample_shape=shape)
 
 
 
     def sample_withoutshape(self):
-        return np.random.normal(loc=0, scale=self.std)
+        return self.distribution.sample()
+        #return np.random.normal(loc=0, scale=self.std)
 
     def sample_withshape(self):
-        return np.random.normal(loc=0, scale=self.std, size=self.shape)
+        return self.distribution.sample(shape=self.shape)
+        #return np.random.normal(loc=0, scale=self.std, size=self.shape)
 
     # TODO Numba this
     def acceptation(self, alpha):
@@ -88,17 +97,16 @@ class Sampler:
             # Update the std of sampling so that expected rate is reached
 
             if np.mean(self.acceptation_temp) < 0.2:
-                self.std = 0.9 * self.std
+                self.set_std(0.9 * self.std)
+                #self.std = 0.9 * self.std
                 #print("Decreased std of sampler-{0}".format(self.name))
             elif np.mean(self.acceptation_temp) > 0.4:
-                self.std = 1.1 * self.std
+                self.set_std(1.1 * self.std)
+                #self.std = 1.1 * self.std
                 #print("Increased std of sampler-{0}".format(self.name))
-
 
             # reset acceptation temp list
             self.counter_acceptation = 0
-
-
 
     def __str__(self):
         return "Sampler {0}, std:{1} , rate:{2}".format(self.name, self.std, np.mean(self.acceptation_temp))

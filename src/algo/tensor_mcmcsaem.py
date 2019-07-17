@@ -25,7 +25,7 @@ class TensorMCMCSAEM(AbstractMCMC):
                     realizations[key].set_tensor_realizations_element(realizations[key].tensor_realizations[dim_1, dim_2] + self.samplers[key].sample(), (dim_1, dim_2))
 
                     # Update intermediary model variables if necessary
-                    #model.update_variable_info(key, realizations)
+                    model.update_MCMC_toolbox(key, realizations)
 
                     # Compute the attachment and regularity
                     new_attachment = model.compute_individual_attachment_tensorized(data, realizations).sum()
@@ -44,8 +44,7 @@ class TensorMCMCSAEM(AbstractMCMC):
 
 
     def _sample_individual_realizations(self, data, model, realizations):
-        pass
-        """
+
 
         for key_ind in realizations.reals_ind_variable_names:
 
@@ -64,10 +63,10 @@ class TensorMCMCSAEM(AbstractMCMC):
 
             # Compute acceptation
             alpha = torch.exp(-((new_individual_attachment-previous_individual_attachment)+
-                        self.temperature_inv*(new_individual_regularity-previous_individual_regularity).sum(dim=2).reshape(data.n_individuals)))
-
+                        self.temperature_inv*(new_individual_regularity- previous_individual_regularity).sum(dim=2).reshape(data.n_individuals)))
+            #print(key_ind, 'Attachement {} vs {} Regularity'.format(torch.mean(pre)))
             for i, acceptation_patient in enumerate(alpha):
                 accepted = self.samplers[key_ind].acceptation(acceptation_patient.detach().numpy())
                 if not accepted:
                     # Update the realizations
-                    realizations[key_ind].tensor_realizations[i] = previous_array_ind[i]"""
+                    realizations[key_ind].tensor_realizations[i] = previous_array_ind[i]

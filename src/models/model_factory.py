@@ -1,6 +1,6 @@
 from src.models.univariate_model import UnivariateModel
 from src.models.multivariate_model import MultivariateModel
-from src.models.multivariate_model_new import MultivariateModelNew
+from src.models.multivariate_model_parallel import MultivariateModelParallel
 from src.models.gaussian_distribution_model import GaussianDistributionModel
 
 
@@ -12,8 +12,8 @@ class ModelFactory():
             return UnivariateModel()
         elif model_type.lower() == 'multivariate':
             return MultivariateModel()
-        elif model_type.lower() == 'multivariate_model':
-            return MultivariateModelNew()
+        elif model_type.lower() == 'multivariate_parallel':
+            return MultivariateModelParallel()
         elif model_type.lower() == 'gaussian_distribution':
             return GaussianDistributionModel()
         else:

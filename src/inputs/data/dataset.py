@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import pandas as pd
 
 
 class Dataset:
@@ -13,6 +14,7 @@ class Dataset:
         self.max_observations = None
         self.dimension = None
         self.n_visits = None
+        self.indices = list(data.individuals.keys())
 
         if model is not None:
             self._check_model_compatibility(data, model)
@@ -52,6 +54,13 @@ class Dataset:
         for i, d in enumerate(x_len):
             self.timepoints[i, 0:d] = torch.Tensor(data[i].timepoints)
 
+
+    def get_times_patient(self, i):
+        return self.timepoints[i,:self.nb_observations_per_individuals[i]]
+
+    def get_values_patient(self, i):
+        return self.values[i,:self.nb_observations_per_individuals[i],:]
+
     @staticmethod
     def _check_model_compatibility(data, model):
         if model.dimension is None:
@@ -62,3 +71,20 @@ class Dataset:
     @staticmethod
     def _check_algo_compatibility(data, algo):
         return
+
+    def to_pandas(self):
+        print("coucou")
+
+
+        df = pd.DataFrame()
+
+        for i, idx in enumerate(self.indices):
+            times = self.get_times_patient(i).numpy()
+            x = self.get_values_patient(i).numpy()
+            df_patient = pd.DataFrame(data=x, index=times.reshape(-1))
+            df_patient = df_patient.add_prefix('value_')
+            df_patient.index.name = 'TIMES'
+            df_patient['ID'] = idx
+            df = pd.concat([df, df_patient])
+
+        return df

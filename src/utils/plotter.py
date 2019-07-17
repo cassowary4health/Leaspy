@@ -33,8 +33,8 @@ class Plotter():
 
         # Make the plot 2
 
-        reals_pop_name = ['g','deltas','betas']
-        reals_ind_name = ['tau', 'xi','sources']
+        reals_pop_name = model.get_population_realization_names()
+        reals_ind_name = model.get_individual_realization_names()
 
         fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
 
@@ -105,7 +105,7 @@ class Plotter():
 
         fig, ax = plt.subplots(1, 1)
 
-        patient_values = model.compute_tensorized_fit(data, realizations)
+        patient_values = model.compute_individual_tensorized(data, realizations)
 
         for i in range(10):
             model_value = patient_values[i,0:data.nb_observations_per_individuals[i],:]

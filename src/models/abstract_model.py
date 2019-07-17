@@ -2,6 +2,7 @@ import json
 import torch
 import numpy as np
 import warnings
+from src.utils.realizations.collection_realization import CollectionRealization
 import os
 from torch.autograd import Variable
 from decimal import Decimal as D
@@ -39,79 +40,28 @@ class AbstractModel():
     def compute_average(self, tensor_timepoints):
         raise NotImplementedError
 
-    def random_variable_informations(self, data):
+    def random_variable_informations(self):
         raise NotImplementedError
 
     def initialize_realizations(self, data):
-        reals_pop = self.initialize_population_realizations()
-        reals_ind = self.initialize_individual_realizations(data)
-        return reals_pop, reals_ind
+        ### TODO : Initialize or just simulate?
 
-    def initialize_individual_realizations(self, data):
-        """
-        Initialize the realizations.
-        All individual parameters, and population parameters that need to be considered as realizations.
-        TODO : initialize settings + smart initialization
-        :param data:
-        :return:
-        """
+        realizations = CollectionRealization(data, self)
+        return realizations
 
-        print("Initialize realizations")
-
-        # TODO Change here from get_info
-        #reals_pop_name = self.reals_pop_name
-        #reals_ind_name = self.reals_ind_name
-
-        infos_variables = self.random_variable_informations()
-        reals_ind_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
-                          infos_variables[key]["type"] == "individual"]
-
-        # Instanciate individual realizations
-        reals_ind = dict.fromkeys(data.indices)
-
-        # For all patients
-        for idx in data.indices:
-            # Create dictionnary of individual random variables
-            reals_ind[idx] = dict.fromkeys(reals_ind_name)
-            # For all invididual random variables, initialize
-            for ind_name in reals_ind_name:
-                reals_ind[idx][ind_name] = np.random.normal(loc=self.parameters['{0}_mean'.format(ind_name)],
-                                                            scale=np.sqrt(self.parameters['{0}_var'.format(ind_name)]),
-                                                            size=(1, infos_variables[ind_name]["shape"][1]))
-
-        # To Torch
-        for idx in reals_ind.keys():
-            for key in reals_ind[idx]:
-                reals_ind[idx][key] = torch.tensor(reals_ind[idx][key]).float()
-                    #reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
+    def compute_sum_squared_tensorized(self, data, realizations):
+        # Compute model
+        res = self.compute_individual_tensorized(data, realizations)
+        # Compute the attachment
+        return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
 
-        return reals_ind
+    def get_population_realization_names(self):
+        return [name for name, value in self.random_variable_informations().items() if value['type'] == 'population']
 
+    def get_individual_realization_names(self):
+        return [name for name, value in self.random_variable_informations().items() if value['type'] == 'individual']
 
-    def initialize_population_realizations(self):
-        infos_variables = self.random_variable_informations()
-
-        reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
-                          infos_variables[key]["type"] == "population"]
-
-        # Population parameters
-        reals_pop = dict.fromkeys(reals_pop_name)
-        for pop_name in reals_pop_name:
-            print(pop_name)
-            reals_pop[pop_name] = np.array(self.parameters[pop_name]).reshape(infos_variables[pop_name]["shape"])
-
-        # To Torch
-        for key in reals_pop.keys():
-            reals_pop[key] = torch.tensor(reals_pop[key]).float()
-            #reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
-
-
-        # initialize intermediary variables
-        for key in reals_pop.keys():
-            self.update_variable_info(key, reals_pop)
-
-        return reals_pop
 
     def initialize_random_variables(self, data):
         print("Initialize random variables")
@@ -216,21 +166,7 @@ class AbstractModel():
         res = fit + constant_term
         return res
 
-    # Regularity
-    def compute_regularity(self, data, reals_pop, reals_ind):
-        #TODO only reg on reals_ind for now
-        regularity_ind = np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
-        #regularity_pop = self.compute_individual_regularity(reals_pop)
-        return regularity_ind#+regularity_pop
 
-    def compute_individual_regularity(self, real_ind):
-        return np.sum([self.compute_regularity_variable(real, key) for key, real in real_ind.items()])
-
-    def compute_regularity_variable(self, real, key):
-        return self.random_variables[key].compute_negativeloglikelihood(real)
-
-    def compute_regularity_arrayvariable(self, real, key, dim):
-        return self.random_variables[key].compute_negativeloglikelihood(real, dim)
 
 
     def simulate_individual_parameters(self):
@@ -257,6 +193,21 @@ class AbstractModel():
         """
         pass
 
+    def compute_regularity_variable(self, realization):
+        # Instanciate torch distribution
+        if realization.variable_type == 'population':
+            distribution = torch.distributions.normal.Normal(loc=torch.Tensor([self.parameters[realization.name]]).reshape(realization.shape),
+                                                            scale=self.MCMC_toolbox['priors']['sigma_{0}'.format(realization.name)])
+        elif realization.variable_type == 'individual':
+            distribution = torch.distributions.normal.Normal(loc=self.parameters["mean_{0}".format(realization.name)],
+                                                            scale=self.parameters["sigma_{0}".format(realization.name)])
+        else:
+            raise ValueError("Variable type not known")
+
+
+        return -distribution.log_prob(realization.tensor_realizations)
+
+
     '''
     def adapt_shapes(self):
 
@@ -265,4 +216,93 @@ class AbstractModel():
     for pop_var, pop_shape in shapes.items():
         print(pop_var)
         self.model_parameters[pop_var] = np.array(self.model_parameters[pop_var]).reshape(pop_shape)
+    
+    
+    
+    def initialize_realizations(self, data):
+        reals_pop = self.initialize_population_realizations()
+        reals_ind = self.initialize_individual_realizations(data)
+        return reals_pop, reals_ind
+
+    def initialize_individual_realizations(self, data):
+        """
+        Initialize the realizations.
+        All individual parameters, and population parameters that need to be considered as realizations.
+        TODO : initialize settings + smart initialization
+        :param data:
+        :return:
+        """
+
+        print("Initialize realizations")
+
+        # TODO Change here from get_info
+        #reals_pop_name = self.reals_pop_name
+        #reals_ind_name = self.reals_ind_name
+
+        infos_variables = self.random_variable_informations()
+        reals_ind_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
+                          infos_variables[key]["type"] == "individual"]
+
+        # Instanciate individual realizations
+        reals_ind = dict.fromkeys(data.indices)
+
+        # For all patients
+        for idx in data.indices:
+            # Create dictionnary of individual random variables
+            reals_ind[idx] = dict.fromkeys(reals_ind_name)
+            # For all invididual random variables, initialize
+            for ind_name in reals_ind_name:
+                reals_ind[idx][ind_name] = np.random.normal(loc=self.parameters['{0}_mean'.format(ind_name)],
+                                                            scale=np.sqrt(self.parameters['{0}_var'.format(ind_name)]),
+                                                            size=(1, infos_variables[ind_name]["shape"][1]))
+
+        # To Torch
+        for idx in reals_ind.keys():
+            for key in reals_ind[idx]:
+                reals_ind[idx][key] = torch.tensor(reals_ind[idx][key]).float()
+                    #reals_ind[idx][key] = Variable(torch.tensor(reals_ind[idx][key]).float(), requires_grad=True)
+
+
+        return reals_ind
+
+
+    def initialize_population_realizations(self):
+        infos_variables = self.random_variable_informations()
+
+        reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
+                          infos_variables[key]["type"] == "population"]
+
+        # Population parameters
+        reals_pop = dict.fromkeys(reals_pop_name)
+        for pop_name in reals_pop_name:
+            print(pop_name)
+            reals_pop[pop_name] = np.array(self.parameters[pop_name]).reshape(infos_variables[pop_name]["shape"])
+
+        # To Torch
+        for key in reals_pop.keys():
+            reals_pop[key] = torch.tensor(reals_pop[key]).float()
+            #reals_pop[key] = Variable(torch.tensor(reals_pop[key]).float(), requires_grad=True)
+
+
+        # initialize intermediary variables
+        for key in reals_pop.keys():
+            self.update_variable_info(key, reals_pop)
+
+        return reals_pop
+    # Regularity
+    def compute_regularity(self, data, reals_pop, reals_ind):
+        #TODO only reg on reals_ind for now
+        regularity_ind = np.sum([self.compute_individual_regularity(reals_ind[idx]) for idx in data.indices])
+        #regularity_pop = self.compute_individual_regularity(reals_pop)
+        return regularity_ind#+regularity_pop
+
+    def compute_individual_regularity(self, real_ind):
+        return np.sum([self.compute_regularity_variable(real, key) for key, real in real_ind.items()])
+
+    def compute_regularity_variable(self, real, key):
+        return self.random_variables[key].compute_negativeloglikelihood(real)
+
+    def compute_regularity_arrayvariable(self, real, key, dim):
+        return self.random_variables[key].compute_negativeloglikelihood(real, dim)
+    
     '''

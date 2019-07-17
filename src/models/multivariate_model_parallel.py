@@ -1,12 +1,13 @@
 import numpy as np
 import torch
-from src.models.utils.attributes import Attributes
-from src.utils.realizations.collection_realization import CollectionRealization
+from src.models.utils.attributes.attributes_multivariateparallel import Attributes_MultivariateParallel
+
 from src.models.abstract_model import AbstractModel
 
-class MultivariateModelNew(AbstractModel):
+class MultivariateModelParallel(AbstractModel):
     # TODO : Remove call to the Abstract Model
     def __init__(self):
+        self.model_name = 'Multivariate_Parallel'
         self.dimension = None
         self.source_dimension = None
         self.is_initialized = False
@@ -80,7 +81,7 @@ class MultivariateModelNew(AbstractModel):
 
         # TODO : check that the parameters have really been initialized and that they are all here!
         self.is_initialized = True
-        self.attributes = Attributes(self.dimension, self.source_dimension)
+        self.attributes = Attributes_MultivariateParallel(self.dimension, self.source_dimension)
 
     def initialize_MCMC_toolbox(self, dataset):
 
@@ -90,7 +91,7 @@ class MultivariateModelNew(AbstractModel):
             'sigma_betas': 0.01
         }
 
-        self.MCMC_toolbox['attributes'] = Attributes(self.dimension, self.source_dimension)
+        self.MCMC_toolbox['attributes'] = Attributes_MultivariateParallel(self.dimension, self.source_dimension)
 
         values = {
             'g': self.parameters['g'],
@@ -161,7 +162,7 @@ class MultivariateModelNew(AbstractModel):
 
 
 
-    def compute_tensorized_fit(self, data, realizations):
+    def compute_individual_tensorized(self, data, realizations):
         # TODO 1 : Check later if the usage of the attributes of the model improves the speed of the algorithm
         # TODO 1 : by being precalculated
         # TODO 2 : Maybe used nowhere except in the compute_individual_attachment
@@ -184,7 +185,7 @@ class MultivariateModelNew(AbstractModel):
         return model * data.mask
 
     def compute_individual_attachment_tensorized(self, data, realizations):
-        data_fit = self.compute_tensorized_fit(data, realizations)
+        data_fit = self.compute_individual_tensorized(data, realizations)
         sum_squared = ((data_fit - data.values) ** 2).sum(dim=(1, 2))
         attachment = 0.5 * (1/self.parameters['sigma_noise']**2) * sum_squared
         attachment += np.log(np.sqrt(2 * np.pi * self.parameters['sigma_noise']**2))
@@ -192,19 +193,6 @@ class MultivariateModelNew(AbstractModel):
         return attachment
 
 
-    def compute_regularity_variable(self, realization):
-        # Instanciate torch distribution
-        if realization.variable_type == 'population':
-            distribution = torch.distributions.normal.Normal(loc=torch.Tensor([self.parameters[realization.name]]).reshape(realization.shape),
-                                                            scale=self.MCMC_toolbox['priors']['sigma_{0}'.format(realization.name)])
-        elif realization.variable_type == 'individual':
-            distribution = torch.distributions.normal.Normal(loc=self.parameters["mean_{0}".format(realization.name)],
-                                                            scale=self.parameters["sigma_{0}".format(realization.name)])
-        else:
-            raise ValueError("Variable type not known")
-
-
-        return -distribution.log_prob(realization.tensor_realizations)
 
 
 
@@ -267,11 +255,7 @@ class MultivariateModelNew(AbstractModel):
 
         return variables_infos
 
-    def initialize_realizations(self, data):
-        ### TODO : Initialize or just simulate?
 
-        realizations = CollectionRealization(data, self)
-        return realizations
 
     def compute_sufficient_statistics(self, data, realizations):
         sufficient_statistics = {}
@@ -284,7 +268,7 @@ class MultivariateModelNew(AbstractModel):
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi_sqrd'].tensor_realizations, 2)
 
         ## TODO : To finish
-        data_reconstruction = self.compute_tensorized_fit(data, realizations)
+        data_reconstruction = self.compute_individual_tensorized(data, realizations)
         data_real = data.values
         norm_1 = data_real * data_reconstruction
         norm_2 = data_reconstruction * data_reconstruction
@@ -309,9 +293,10 @@ class MultivariateModelNew(AbstractModel):
             self.parameters['mean_tau'] = np.mean(tau)
             self.parameters['sigma_tau'] = np.std(tau)
 
-            data_fit = self.compute_tensorized_fit(data, sufficient_statistics)
-            norm_of_tensor = torch.norm(data.values - data_fit, p=2, dim=2).sum()
-            self.parameters['sigma_noise'] = np.sqrt(norm_of_tensor/(data.n_visits*data.dimension))
+            data_fit = self.compute_individual_tensorized(data, sufficient_statistics)
+            #norm_of_tensor = torch.norm(data.values - data_fit, p=2, dim=2).sum()
+            squared_diff = ((data_fit-data.values)**2).sum()
+            self.parameters['sigma_noise'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
 
         # Stochastic sufficient statistics used to update the parameters of the model
         else:

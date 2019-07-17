@@ -2,14 +2,12 @@ import numpy as np
 import torch
 
 ## TODO : Have a Abtract Attribute class
-class Attributes:
+class Attributes_Multivariate:
     # TODO : Checker dès le début s'il est possible de conserver les attributes avec une méthode de gradient
     def __init__(self, dimension, source_dimension):
         # TODO : Supprimer dimension et source_dimension qui peuvent être déduits des values
         self.dimension = dimension
         self.source_dimension = source_dimension
-        self.g = None  # g = exp(realizations['g']) tel que p0 = 1 / (1+exp(g))
-        self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
         self.orthonormal_basis = None
         self.mixing_matrix = None  # Matrix A tq w_i = A * s_i
 
@@ -24,60 +22,32 @@ class Attributes:
         """
         self._check_names(names_of_changed_values)
         flag = self._flag_update(names_of_changed_values)
-        if flag == 0:
-            self._compute_g_and_deltas(values)
-        elif flag == 1:
-            self._compute_g(values)
-        elif flag == 2:
-            self._compute_deltas(values)
-        elif flag == 3:
+        if flag == 3:
             self._compute_orthonormal_basis(values)
+            self._compute_mixing_matrix(values)
         elif flag == 4:
             self._compute_mixing_matrix(values)
 
     def _check_names(self, names_of_changed_values):
         for name in names_of_changed_values:
-            if name not in ['all', 'g', 'deltas', 'betas', 'mean_tau', 'mean_xi']:
+            if name not in ['all', 'p0', 'v0', 'betas']:
                 raise ValueError("The name {} is not in the attributes that are used to be updated".format(name))
 
     def _flag_update(self, names_of_changed_values):
         if 'all' in names_of_changed_values:
-            return 0
-        if all(x in names_of_changed_values for x in ['g', 'deltas']):
-            return 0
-        if 'g' in names_of_changed_values:
-            return 1
-        if 'deltas' in names_of_changed_values:
-            return 2
-        if any(x in names_of_changed_values for x in ['mean_tau', 'mean_xi']):
+            return 3
+        if 'v0' in names_of_changed_values:
             return 3
         if 'betas' in names_of_changed_values:
             return 4
         else:
             return 5
 
-    def _compute_g_and_deltas(self, values):
-        self.g = np.exp(values['g'])
-        self.deltas = np.insert(values['deltas'], 0, 0)
-        self._compute_orthonormal_basis(values)
-
-    def _compute_g(self, values):
-        self.g = np.exp(values['g'])
-        self._compute_orthonormal_basis(values)
-
-    def _compute_deltas(self, values):
-        self.deltas = np.insert(values['deltas'], 0, 0)
-        self._compute_orthonormal_basis(values)
 
     def _compute_orthonormal_basis(self, values):
-        # Compute s
-        # TODO : CHECK, CHECK AND RECHECK
-        g = self.g
-        v0 = np.exp(values['mean_xi'])
-        E = np.exp(-self.deltas)
-        A_ = 1. + g * E
-        B_ = 1. / g + 1
-        s = v0 * A_ * A_ * B_ * B_ / E
+
+        # TODO, not great, without shape adaptation of the model parameters at the first iteration
+        s = values['v0']
 
         # Compute Q
         e1 = np.repeat(0, self.dimension)

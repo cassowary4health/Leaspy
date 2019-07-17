@@ -57,6 +57,13 @@ class MultivariateModel(AbstractModel):
             'v0': self.parameters['v0'],
             'betas': self.parameters['betas']
         }
+
+        # Reshape the values !
+        infos = self.random_variable_informations()
+        for key in values.keys():
+            values[key] = np.array(values[key]).reshape(infos[key]["shape"])
+
+
         values['mean_tau'] = self.parameters['mean_tau']
         values['mean_xi'] = self.parameters['mean_xi']
         self.MCMC_toolbox['attributes'].update(['all'], values)
@@ -242,6 +249,9 @@ class MultivariateModel(AbstractModel):
 
     def compute_individual_tensorized(self, data, realizations):
 
+
+        a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
+
         # Load from dict
         v0 = realizations['v0'].tensor_realizations
         p0 = realizations['p0'].tensor_realizations
@@ -256,7 +266,7 @@ class MultivariateModel(AbstractModel):
                                         timepoints.shape[1],
                                         1)
 
-        a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
+
         wi = torch.nn.functional.linear(realizations['sources'].tensor_realizations, a_matrix, bias=None)
 
         # Time reparametrized

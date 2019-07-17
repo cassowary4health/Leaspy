@@ -40,6 +40,7 @@ class TensorMCMCSAEM(AbstractMCMC):
                         # Revert realizations
                         realizations[key].tensor_realizations = previous_reals_pop
                         # Update intermediary model variables if necessary
+                        model.update_MCMC_toolbox(key, realizations)
                         #model.update_variable_info(key, realizations)
 
 

@@ -32,7 +32,6 @@ class Attributes_MultivariateParallel:
             self._compute_deltas(values)
         elif flag == 3:
             self._compute_orthonormal_basis(values)
-            self._compute_mixing_matrix(values)
         elif flag == 4:
             self._compute_mixing_matrix(values)
 

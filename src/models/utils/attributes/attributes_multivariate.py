@@ -24,7 +24,6 @@ class Attributes_Multivariate:
         flag = self._flag_update(names_of_changed_values)
         if flag == 3:
             self._compute_orthonormal_basis(values)
-            self._compute_mixing_matrix(values)
         elif flag == 4:
             self._compute_mixing_matrix(values)
 
@@ -68,5 +67,8 @@ class Attributes_Multivariate:
         betas = np.array(values['betas'])
         self.mixing_matrix = torch.Tensor(self._mixing_matrix_utils(betas, self.orthonormal_basis))
 
+
+        if (torch.mm(torch.Tensor(values['v0']), self.mixing_matrix).sum()>1e-5):
+            print("coucou, bug ??? {}".format(torch.mm(torch.Tensor(values['v0']), self.mixing_matrix).sum()))
 
 

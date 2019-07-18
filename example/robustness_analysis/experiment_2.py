@@ -2,7 +2,7 @@
 #%%
 import os
 from src.main import Leaspy
-from src.legacy.data_generator import generate_data_from_model
+from src.legacy import generate_data_from_model
 from src.inputs.algorithm_settings import AlgorithmSettings
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import cm

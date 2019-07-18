@@ -19,7 +19,7 @@ class MCMCPredict(AbstractMCMC):
 
         # Initialize Model
         self._initialize_seed(seed)
-        realizations = model.initialize_realizations(data)
+        realizations = model.get_realization_object(data)
         model.initialize_random_variables(data)
 
         # Initialize Algo

@@ -33,7 +33,7 @@ def generate_data_from_model(model, n_patients = 10, seed=0):
         dummy_data.add_individual(individual)
 
     # Generate realizations for these patients
-    reals_pop, reals_ind = model.initialize_realizations(dummy_data)
+    reals_pop, reals_ind = model.get_realization_object(dummy_data)
 
     for idx in dummy_data.indices:
         # Compute model for these patients

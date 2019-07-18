@@ -54,7 +54,10 @@ class GradientDescent(AbstractAlgo):
         reals_pop, reals_ind = realizations
 
         # Update the intermediary variables (Q, A if needed)
-        model.update_variable_info('v0', reals_pop)
+        ### TODO : @ Raphael : J'ai enlevé cette fonction pour que tu te fasses un gradient_toolbox avec
+        ### TODO : initialize_gradient_toolbox() et update_gradient_toolbox() [Que tu utiliseras à la place de update_variable_info()
+        ### TODO : pour qu'on garde un truc un peu modulaire
+        #model.update_variable_info('v0', reals_pop)
 
         # Compute loss
         attachment = model.compute_attachment(data, reals_pop, reals_ind)

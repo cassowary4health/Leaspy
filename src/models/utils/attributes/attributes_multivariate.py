@@ -1,25 +1,20 @@
 import numpy as np
 import torch
 
-## TODO : Have a Abtract Attribute class
+# TODO : Have a Abtract Attribute class
+# TODO : Checker dès le début s'il est possible de conserver les attributes avec une méthode de gradient
+# TODO : Add some individual attributes -> Optimization on the w_i = A * s_i
 class Attributes_Multivariate:
-    # TODO : Checker dès le début s'il est possible de conserver les attributes avec une méthode de gradient
+
     def __init__(self, dimension, source_dimension):
-        # TODO : Supprimer dimension et source_dimension qui peuvent être déduits des values
+
         self.dimension = dimension
         self.source_dimension = source_dimension
         self.orthonormal_basis = None
         self.mixing_matrix = None  # Matrix A tq w_i = A * s_i
 
-
-        ## TODO : Add some individual attributes -> Optimization on the w_i = A * s_i
-
     def update(self, names_of_changed_values, values):
-        """
-        :param changed_parameters: list of variables that have been changed
-        :param values: dictionary of {name: [value]}
-        :return: None
-        """
+
         self._check_names(names_of_changed_values)
         flag = self._flag_update(names_of_changed_values)
         if flag == 3:
@@ -66,7 +61,6 @@ class Attributes_Multivariate:
     def _compute_mixing_matrix(self, values):
         betas = np.array(values['betas'])
         self.mixing_matrix = torch.Tensor(self._mixing_matrix_utils(betas, self.orthonormal_basis))
-
 
         if (torch.mm(torch.Tensor(values['v0']), self.mixing_matrix).sum()>1e-5):
             print("coucou, bug ??? {}".format(torch.mm(torch.Tensor(values['v0']), self.mixing_matrix).sum()))

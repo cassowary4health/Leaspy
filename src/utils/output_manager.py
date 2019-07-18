@@ -131,7 +131,7 @@ class OutputManager():
 
 
     def save_model_parameters_convergence(self, iteration, model):
-        model_parameters = model.get_parameters()
+        model_parameters = model.parameters
 
         # TODO maybe better way ???
         model_parameters_save = model_parameters.copy()

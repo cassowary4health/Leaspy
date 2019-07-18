@@ -1,7 +1,7 @@
 from src.models.univariate_model import UnivariateModel
 from src.models.multivariate_model import MultivariateModel
 from src.models.multivariate_model_parallel import MultivariateModelParallel
-from src.models.gaussian_distribution_model import GaussianDistributionModel
+from src._legacy.gaussian_distribution_model import GaussianDistributionModel
 
 
 class ModelFactory():

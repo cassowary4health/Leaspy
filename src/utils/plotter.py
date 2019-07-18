@@ -139,7 +139,7 @@ class Plotter():
         idx = individual.idx
         reals_pop, real_ind = realizations
 
-        model_value = model.compute_individual(individual, reals_pop, real_ind[idx])
+        #model_value = model.compute_individual(individual, reals_pop, real_ind[idx])
         score = individual.tensor_observations
         ax.plot(individual.tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=color)
         ax.plot(individual.tensor_timepoints.detach().numpy(), score.detach().numpy(), c=color, linestyle='--',
@@ -147,6 +147,6 @@ class Plotter():
 
         # Plot average model
         tensor_timepoints = torch.Tensor(np.linspace(-1.5, 1.5, 40).reshape(-1,1))
-        model_average = model.compute_average(tensor_timepoints)
+        #model_average = model.compute_average(tensor_timepoints)
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
 

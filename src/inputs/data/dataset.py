@@ -72,10 +72,10 @@ class Dataset:
     def _check_algo_compatibility(data, algo):
         return
 
+
     def to_pandas(self):
-        print("coucou")
-
-
+    #TODO : @Raphael : On est obligé de garder une dépendance pandas ? Je crois que c'est utilisé juste pour l'initialisation
+    # du modèle multivarié. On peut peut-être s'en passer?
         df = pd.DataFrame()
 
         for i, idx in enumerate(self.indices):

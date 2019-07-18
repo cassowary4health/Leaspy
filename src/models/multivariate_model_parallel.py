@@ -42,6 +42,7 @@ class MultivariateModelParallel(AbstractModel):
     def initialize(self, data):
         self.dimension = data.dimension
         self.source_dimension = int(data.dimension/2.)  # TODO : How to change it independently of the initialize?
+        # TODO : Faire une initialisation intelligente
         self.parameters = {
             'g': 0.5, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
@@ -51,116 +52,107 @@ class MultivariateModelParallel(AbstractModel):
         self.attributes = Attributes_MultivariateParallel(self.dimension, self.source_dimension)
         self.is_initialized = True
 
-    def initialize_MCMC_toolbox(self, dataset):
-
+    def initialize_MCMC_toolbox(self, data):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'deltas_std': 0.01, 'betas_std': 0.01 },
+            'priors': {'g_std': 1., 'deltas_std': 0.1, 'betas_std': 0.1 },
             'attributes': Attributes_MultivariateParallel(self.dimension, self.source_dimension)
         }
 
-        values = {
-            'g': self.parameters['g'],
-            'deltas': self.parameters['deltas'],
-            'betas': self.parameters['betas'],
-            'tau_mean': self.parameters['tau_mean'],
-            'xi_mean': self.parameters['xi_mean']
-        }
+        realizations = self.get_realization_object(data)
+        self.update_MCMC_toolbox('all', realizations)
 
-        self.MCMC_toolbox['attributes'].update(['all'], values)
 
     def update_MCMC_toolbox(self, name_of_the_variable_that_has_been_changed, realizations):
-
         ### TODO : Check if it is possible / usefull to have multiple variables sampled
-
-        # Updates the attributes of the MCMC_toolbox
-
-        ### TODO : Probably convert all the variables to torch tensors
         values = {
-            'g': realizations['g'].tensor_realizations.detach().numpy(),
-            'deltas': realizations['deltas'].tensor_realizations.detach().numpy(),
+            'g': realizations['g'].tensor_realizations,
+            'deltas': realizations['deltas'].tensor_realizations,
             'xi_mean': self.parameters['xi_mean'],
-            'betas': realizations['betas'].tensor_realizations.detach().numpy()
+            'betas': realizations['betas'].tensor_realizations
         }
-
-        self.MCMC_toolbox['attributes'].update([name_of_the_variable_that_has_been_changed],
-                                               values)
-
-
-
-    def compute_loglikelihood_MCMC(self, individual_parameters):
-        ### TODO Compute the likelihood during the MCMC phase
-        ### TODO It uses the realization of the random variables
-        return 0
-
-
-    def compute_parallel_curve(self, age, xi, tau, sources, attributes=False):
-        ### TODO IMPORTANT : There is a need - for the other important function such as leaspy.predict or leaspy.simulate
-        ### TODO : to have a fit(age, xi, tau, sources) function that internally uses the self.attributes parameters
-        ### TODO : as this need to be a UNIQUE function to do that everywhere
-        ### TODO HINT : there is probably a need for all the "attributes" that are in the realizations, parameters, RV, ...
-        ### TODO HINT : to be stored in the attributes object. This way, the function fit can have a default attribute value
-        ### TODO HINT : at False that uses the internal attibutes. Otherwise, it uses the attributes that are passed as
-        ### TODO HINT : parameters of the fit function.
-        ### TODO : This function should be vectorized so that it can be computed on a single individual or multiple individuals
-        if attributes == False:
-            attributes = self.attributes
-
-        g = attributes['g']
-        deltas = attributes['deltas']
-        mixing_matrix = attributes['mixing_matrix']
-
-        _unique_indiv = True
-        if _unique_indiv:
-            reparametrized_time = np.exp(xi)* (age - tau)
-            wi = np.dot(mixing_matrix, sources)
-            eta = - (g * np.exp(-deltas) + 1)**2 / (g*np.exp(-deltas))
-            eta = -eta * wi - deltas - reparametrized_time
-            eta = 1./(1. + g * np.exp(eta))
-        else:
-            ### TODO : Here goes the tensorized version
-            pass
-
-        return eta
-
-
+        self.MCMC_toolbox['attributes'].update([name_of_the_variable_that_has_been_changed], values)
 
     def compute_individual_tensorized(self, data, realizations):
-        # TODO 1 : Check later if the usage of the attributes of the model improves the speed of the algorithm
-        # TODO 1 : by being precalculated
-        # TODO 2 : Maybe used nowhere except in the compute_individual_attachment
-        g = torch.exp(realizations['g'].tensor_realizations)
-        timepoints = data.timepoints.reshape(data.timepoints.shape[0], data.timepoints.shape[1], 1)
-        deltas = torch.cat([torch.Tensor([0.0]).reshape(1, 1), realizations["deltas"].tensor_realizations], dim=1)
-        a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
-        wi = torch.nn.functional.linear(realizations['sources'].tensor_realizations, a_matrix, bias=None)
-        #print(realizations['xi']._tensor_realizations.shape, realizations['tau'].shape, timepoints.shape)
-        reparametrized_time = torch.exp(realizations['xi'].tensor_realizations) * (
-                    timepoints - realizations['tau'].tensor_realizations)
+        # Population parameters
+        g = self.MCMC_toolbox['attributes'].g
+        deltas = self.MCMC_toolbox['attributes'].deltas
         deltas_exp = torch.exp(-deltas)
+        a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
 
-        b = wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
+        # Individual parameters
+        xi = realizations['xi'].tensor_realizations
+        tau = realizations['tau'].tensor_realizations
+        wi = torch.nn.functional.linear(realizations['sources'].tensor_realizations, a_matrix, bias=None)
+        timepoints = data.timepoints.reshape(data.timepoints.shape[0], data.timepoints.shape[1], 1)
+        reparametrized_time = torch.exp(xi) * (timepoints - tau)
 
-        a = -reparametrized_time - deltas - b
-        a = 1 + g * torch.exp(a)
-        model = 1 / a
+        # Log likelihood computation
+        LL = wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
+        LL = -reparametrized_time - deltas - LL
+        model = 1. / (1. + g*torch.exp(LL))
 
         return model * data.mask
 
     def compute_individual_attachment_tensorized(self, data, realizations):
-        data_fit = self.compute_individual_tensorized(data, realizations)
-        sum_squared = ((data_fit - data.values) ** 2).sum(dim=(1, 2))
-        attachment = 0.5 * (1/self.parameters['noise_std']**2) * sum_squared
-        attachment += np.log(np.sqrt(2 * np.pi * self.parameters['noise_std']**2))
+        squared_sum = self.compute_sum_squared_tensorized(data, realizations)
+        noise_var = self.parameters['noise_std']**2
+        attachment = 0.5 * (1/noise_var) * squared_sum
+        attachment += np.log(np.sqrt(2 * np.pi * noise_var))
 
         return attachment
 
+    def compute_sufficient_statistics(self, data, realizations):
+        sufficient_statistics = {}
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach().numpy()
+        sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations.detach().numpy()
+        sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach().numpy()
+        sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
+        sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
+        sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
+        sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi_sqrd'].tensor_realizations, 2)
 
+        ## TODO : To finish
+        data_reconstruction = self.compute_individual_tensorized(data, realizations)
+        data_real = data.values
+        norm_1 = data_real * data_reconstruction
+        norm_2 = data_reconstruction * data_reconstruction
+        sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
+        sufficient_statistics['reconstruction_sqrd'] = torch.sum(norm_2, dim=2)
+
+        return sufficient_statistics
+
+    def update_model_parameters(self, data, sufficient_statistics, burn_in_phase=True):
+        # Memoryless part of the algorithm
+        if burn_in_phase:
+            self.parameters['g'] = sufficient_statistics['g'].tensor_realizations.detach().numpy()
+            self.parameters['deltas'] = sufficient_statistics['deltas'].tensor_realizations.detach().numpy()
+            self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
+            xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
+            self.parameters['xi_mean'] = np.mean(xi)
+            self.parameters['xi_std'] = np.std(xi)
+            tau = sufficient_statistics['tau'].tensor_realizations.detach().numpy()
+            self.parameters['tau_mean'] = np.mean(tau)
+            self.parameters['tau_std'] = np.std(tau)
+
+            data_fit = self.compute_individual_tensorized(data, sufficient_statistics)
+            squared_diff = ((data_fit-data.values)**2).sum()
+            self.parameters['noise_std'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
+
+        # Stochastic sufficient statistics used to update the parameters of the model
+        else:
+            ## TODO : To finish
+            self.parameters['g'] = sufficient_statistics['g']
+            self.parameters['deltas'] = sufficient_statistics['deltas']
+            self.parameters['betas']  = sufficient_statistics['betas']
+            self.parameters['xi_mean'] = np.mean(sufficient_statistics['xi'])
+            self.parameters['xi_std'] = np.sqrt(np.mean(sufficient_statistics['xi_sqrd']) - np.sum(sufficient_statistics['xi'])**2)
+            self.parameters['tau_mean'] = np.mean(sufficient_statistics['tau'])
+            self.parameters['tau_std'] = np.sqrt(np.mean(sufficient_statistics['tau_sqrd']) - np.sum(sufficient_statistics['tau'])**2)
+            self.parameters['noise_std'] = 0.01
 
 
 
     def random_variable_informations(self):
-        # TODO : Change the name of this method
-
         ## Population variables
         g_infos = {
             "name": "g",
@@ -168,15 +160,12 @@ class MultivariateModelParallel(AbstractModel):
             "type": "population",
             "rv_type": "multigaussian"
         }
-
         deltas_infos = {
             "name": "deltas",
             "shape": (1, self.dimension-1),
             "type": "population",
             "rv_type": "multigaussian"
         }
-
-
         betas_infos = {
             "name": "betas",
             "shape": (self.dimension - 1, self.source_dimension),
@@ -217,60 +206,31 @@ class MultivariateModelParallel(AbstractModel):
 
         return variables_infos
 
+    def compute_parallel_curve(self, age, xi, tau, sources, attributes=False):
+        ### TODO IMPORTANT : There is a need - for the other important function such as leaspy.predict or leaspy.simulate
+        ### TODO : to have a fit(age, xi, tau, sources) function that internally uses the self.attributes parameters
+        ### TODO : as this need to be a UNIQUE function to do that everywhere
+        ### TODO HINT : there is probably a need for all the "attributes" that are in the realizations, parameters, RV, ...
+        ### TODO HINT : to be stored in the attributes object. This way, the function fit can have a default attribute value
+        ### TODO HINT : at False that uses the internal attibutes. Otherwise, it uses the attributes that are passed as
+        ### TODO HINT : parameters of the fit function.
+        ### TODO : This function should be vectorized so that it can be computed on a single individual or multiple individuals
+        if attributes == False:
+            attributes = self.attributes
 
+        g = attributes['g']
+        deltas = attributes['deltas']
+        mixing_matrix = attributes['mixing_matrix']
 
-    def compute_sufficient_statistics(self, data, realizations):
-        sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach().numpy()
-        sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations.detach().numpy()
-        sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach().numpy()
-        sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
-        sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
-        sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
-        sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi_sqrd'].tensor_realizations, 2)
-
-        ## TODO : To finish
-        data_reconstruction = self.compute_individual_tensorized(data, realizations)
-        data_real = data.values
-        norm_1 = data_real * data_reconstruction
-        norm_2 = data_reconstruction * data_reconstruction
-        sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
-        sufficient_statistics['reconstruction_sqrd'] = torch.sum(norm_2, dim=2)
-
-        return sufficient_statistics
-
-    def update_model_parameters(self, data, sufficient_statistics, burn_in_phase=True):
-
-        ## Probably optimize some common parts
-
-        # Memoryless part of the algorithm
-        if burn_in_phase:
-            self.parameters['g'] = sufficient_statistics['g'].tensor_realizations.detach().numpy()
-            self.parameters['deltas'] = sufficient_statistics['deltas'].tensor_realizations.detach().numpy()
-            self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
-            xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
-            self.parameters['xi_mean'] = np.mean(xi)
-            self.parameters['xi_std'] = np.std(xi)
-            tau = sufficient_statistics['tau'].tensor_realizations.detach().numpy()
-            self.parameters['tau_mean'] = np.mean(tau)
-            self.parameters['tau_std'] = np.std(tau)
-
-            data_fit = self.compute_individual_tensorized(data, sufficient_statistics)
-            #norm_of_tensor = torch.norm(data.values - data_fit, p=2, dim=2).sum()
-            squared_diff = ((data_fit-data.values)**2).sum()
-            self.parameters['noise_std'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
-
-        # Stochastic sufficient statistics used to update the parameters of the model
+        _unique_indiv = True
+        if _unique_indiv:
+            reparametrized_time = np.exp(xi)* (age - tau)
+            wi = np.dot(mixing_matrix, sources)
+            eta = - (g * np.exp(-deltas) + 1)**2 / (g*np.exp(-deltas))
+            eta = -eta * wi - deltas - reparametrized_time
+            eta = 1./(1. + g * np.exp(eta))
         else:
-            ## TODO : To finish
-            self.parameters['g'] = sufficient_statistics['g']
-            self.parameters['deltas'] = sufficient_statistics['deltas']
-            self.parameters['betas']  = sufficient_statistics['betas']
-            self.parameters['xi_mean'] = np.mean(sufficient_statistics['xi'])
-            self.parameters['xi_std'] = np.sqrt(np.mean(sufficient_statistics['xi_sqrd']) - np.sum(sufficient_statistics['xi'])**2)
-            self.parameters['tau_mean'] = np.mean(sufficient_statistics['tau'])
-            self.parameters['tau_std'] = np.sqrt(np.mean(sufficient_statistics['tau_sqrd']) - np.sum(sufficient_statistics['tau'])**2)
-            self.parameters['noise_std'] = 0.01
+            ### TODO : Here goes the tensorized version
+            pass
 
-
-
+        return eta

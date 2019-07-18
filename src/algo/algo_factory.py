@@ -1,7 +1,8 @@
 from src.algo.gradient_descent import GradientDescent
-from src._legacy.mcmc_saem import MCMCSAEM
-from src._legacy.fast_mcmcsaem import FastMCMCSAEM
-from src._legacy.mcmc_predict import MCMCPredict
+from src.legacy.mcmc_saem import MCMCSAEM
+from src.legacy.fast_mcmcsaem import FastMCMCSAEM
+from src.legacy.mcmc_predict import MCMCPredict
+from src.algo.algo_new import AlgorithmNew
 from src.algo.tensor_mcmcsaem import TensorMCMCSAEM
 
 
@@ -15,6 +16,8 @@ class AlgoFactory:
             algorithm = GradientDescent()
         elif name == 'mcmc_saem':
             algorithm = MCMCSAEM()
+        elif name == 'start':
+            return AlgorithmNew(settings.parameters)
         elif name == 'fast_mcmc_saem':
             algorithm = FastMCMCSAEM()
         elif name == 'mcmc_predict':

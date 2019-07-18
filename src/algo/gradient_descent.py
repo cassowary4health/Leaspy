@@ -2,14 +2,14 @@ import torch
 from src.algo.abstract_algo import AbstractAlgo
 import os
 from src.inputs.algorithm_settings import AlgorithmSettings
-from src import data_dir
+from src import default_algo_dir
 import numpy as np
 from torch.autograd import Variable
 
 class GradientDescent(AbstractAlgo):
 
     def __init__(self):
-        data_dir = os.path.join(data_dir, 'algo', "default_gradient_descent_parameters.json")
+        data_dir = os.path.join(default_algo_dir, "default_gradient_descent_parameters.json")
         reader = AlgorithmSettings(data_dir)
 
         if reader.algo_type != 'gradient_descent':

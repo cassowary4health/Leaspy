@@ -1,0 +1,11 @@
+{
+  "name": "univariate",
+  "parameters": {
+    "p0": null,
+    "tau_mean": null,
+    "tau_var": null,
+    "xi_mean": null,
+    "xi_var": null,
+    "noise_var": null
+  }
+}

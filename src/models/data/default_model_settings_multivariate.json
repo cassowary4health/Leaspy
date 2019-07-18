@@ -1,0 +1,17 @@
+{
+  "name": "multivariate",
+  "dimension": null,
+  "source_dimension": null,
+  "parameters": {
+    "p0": null,
+    "v0": null,
+    "beta": null,
+    "tau_mean": null,
+    "tau_var": null,
+    "xi_mean": null,
+    "xi_var": null,
+    "sources_mean": null,
+    "sources_var": null,
+    "noise_var": null
+  }
+}

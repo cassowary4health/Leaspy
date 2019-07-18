@@ -2,7 +2,7 @@
   "name": "tensor_mcmc_saem",
   "seed": 0,
   "parameters": {
-    "n_iter": 51,
+    "n_iter": 2000,
     "annealing": {
     "do_annealing": false,
     "initial_temperature": 100,

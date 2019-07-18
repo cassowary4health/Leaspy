@@ -7,14 +7,15 @@ from src.models.gaussian_distribution_model import GaussianDistributionModel
 class ModelFactory():
 
     @staticmethod
-    def model(model_type):
-        if model_type.lower() == 'univariate':
+    def model(name):
+        name = name.lower()
+        if name == 'univariate':
             return UnivariateModel()
-        elif model_type.lower() == 'multivariate':
-            return MultivariateModel()
-        elif model_type.lower() == 'multivariate_parallel':
-            return MultivariateModelParallel()
-        elif model_type.lower() == 'gaussian_distribution':
+        elif name == 'multivariate':
+            return MultivariateModel(name)
+        elif name == 'multivariate_parallel':
+            return MultivariateModelParallel(name)
+        elif name == 'gaussian_distribution':
             return GaussianDistributionModel()
         else:
             raise ValueError("The name of the model you are trying to create does not exist")

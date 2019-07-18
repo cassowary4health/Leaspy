@@ -13,32 +13,33 @@ from src.utils.random_variable.random_variable_factory import RandomVariableFact
 
 
 class AbstractModel():
-    def __init__(self):
-        self.name = None
+    def __init__(self, name):
+        self.name = name
         self.dimension = None
+        self.parameters = None
+        self.is_initialized = False
+
+    def load_parameters(self, parameters):
         self.parameters = {}
-        self.priors = {}
-        self.population_random_effets = {}
-        self.individual_random_effets = {}
-
-
-    def load_parameters(self, model_parameters):
-        raise NotImplementedError
+        for k in parameters.keys():
+            self.parameters[k] = parameters[k]
 
     def load_hyperparameters(self, hyperparameters):
         raise NotImplementedError
 
-    def save_parameters(self, path):
+    def initialize(self, dataset):
         raise NotImplementedError
-
-    def smart_initialization(self, data):
-        warnings.warn("There is no smart initialization for your model")
 
     def compute_individual(self, individual, reals_pop, real_ind):
         raise NotImplementedError
 
     def compute_average(self, tensor_timepoints):
         raise NotImplementedError
+
+
+    def save_parameters(self, parameters):
+        #raise NotImplementedError
+        return 0
 
     def random_variable_informations(self):
         raise NotImplementedError

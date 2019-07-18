@@ -14,7 +14,6 @@ class AlgorithmSettings:
         self._get_parameters(settings)
         self._get_output(settings)
         self._get_seed(settings)
-        self._get_smart_initialization(settings)
 
     @staticmethod
     def _check_settings(settings):
@@ -48,37 +47,3 @@ class AlgorithmSettings:
                 print("The \'seed\' parameter you provided cannot be converted to int")
         else:
             self.seed = None
-
-    def _get_smart_initialization(self, settings):
-        if 'smart_initialization' in settings.keys() and settings['smart_initialization'] is True:
-            self.smart_initialization = True
-        else:
-            self.smart_initialization = False
-    '''
-        algo_type = parameters['type']
-
-        # Output path
-        if 'path' in parameters['output'].keys() and parameters['output']['path'] is not None:
-            algo_output_path = parameters['output']['path']
-        else:
-            algo_output_path = None
-
-        parameters = {k.lower(): v for k, v in parameters['parameters'].items()}
-
-        return algo_type, parameters, algo_output_path
-
-    def get_path_output(self):
-        return self.output_path
-
-
-    
-        # Annealing
-        #if 'annealing' in parameters.keys():
-        #    print("Annealing options given")
-        #    if "do_annealing" in parameters['annealing'].keys() and parameters['annealing']['do_annealing']:
-        #        print("Doing annealing")
-
-        # Annealing for some algo
-        #annealing_parameters = parameters['annealing']
-        #if annealing_parameters is not None:
-    '''

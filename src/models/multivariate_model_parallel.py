@@ -4,20 +4,18 @@ from src.models.utils.attributes.attributes_multivariateparallel import Attribut
 
 from src.models.abstract_model import AbstractModel
 
+
 class MultivariateModelParallel(AbstractModel):
-    # TODO : Remove call to the Abstract Model
-    def __init__(self):
-        self.model_name = 'Multivariate_Parallel'
-        self.dimension = None
+    def __init__(self, name):
+        super(MultivariateModelParallel, self).__init__(name)
+
         self.source_dimension = None
-        self.is_initialized = False
         self.parameters = {
             "g": None, "betas": None, "deltas": None,
             "tau_mean": None, "tau_std": None,
             "xi_mean": None,  "xi_std": None,
             "sources_mean": None, "sources_std": None,
             "noise_std": None
-
         }
         self.bayesian_priors = None
         self.attributes = None
@@ -32,81 +30,46 @@ class MultivariateModelParallel(AbstractModel):
             }
         }
 
-
-
     def load_parameters(self, parameters):
-        for k in self.parameters.keys():
-            if k != 'p0':
-                # TODO Check that everything is in it
-                self.parameters[k] = parameters[k]
-            else:
-                self.parameters['g'] = np.log(1/parameters['p0'] - 1)
+        super().load_parameters(parameters)
+        self.parameters['g'] = np.log(1/self.parameters['p0'] - 1)
+        self.parameters.pop('p0', None)
 
-    def save_parameters(self, parameters):
-        #TODO
-        return 0
+    def load_hyperparameters(self, hyperparameters):
+        self.dimension = hyperparameters['dimension']
+        self.source_dimension = hyperparameters['source_dimension']
 
-
-    def initialize_parameters(self, dataset, smart_initialization):
-        # TODO : have the else/if bifurcation in the mother class
-        # TODO : Load the values of the parameters from a default file
-        # TODO : The initialize parameters should not stay here
-        if smart_initialization:
-            if self.is_initialized:
-                print("Your parameters were already initialized - they have been overwriten")
-            #TODO TODO : Smart initialization
-            self.dimension = dataset.dimension
-            self.source_dimension = self.dimension - 1
-            self.parameters = {'g': 0.5, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
-                               'sources_mean': 0.0,
-                               'sources_std': 1.0,
-                               'noise_std': 0.1, 'deltas': [-3., -2., -2.],
-                               'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
-                               }
-        else:
-            if self.is_initialized:
-                pass
-            else:
-                self.dimension = dataset.dimension
-                self.source_dimension = self.dimension - 1
-                self.parameters = {'g': 0.5, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
-                               'sources_mean': 0.0,
-                               'sources_std': 1.0,
-                               'noise_std': 0.1, 'deltas': [-3., -2., -2.],
-                               'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
-                               }
-
-        # TODO self.attributes.update(self.parameters)name_of_changed_realizations
-
-        # TODO : check that the parameters have really been initialized and that they are all here!
-        self.is_initialized = True
+    def initialize(self, data):
+        self.dimension = data.dimension
+        self.source_dimension = int(data.dimension/2.)  # TODO : How to change it independently of the initialize?
+        self.parameters = {
+            'g': 0.5, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
+            'sources_mean': 0.0, 'sources_std': 1.0,
+            'noise_std': 0.1, 'deltas': [-3., -2., -2.],
+            'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
+        }
         self.attributes = Attributes_MultivariateParallel(self.dimension, self.source_dimension)
+        self.is_initialized = True
 
     def initialize_MCMC_toolbox(self, dataset):
 
-        self.MCMC_toolbox['priors'] = {
-            'g_std': 0.01,
-            'deltas_std': 0.01,
-            'betas_std': 0.01
+        self.MCMC_toolbox = {
+            'priors': {'g_std': 0.01, 'deltas_std': 0.01, 'betas_std': 0.01 },
+            'attributes': Attributes_MultivariateParallel(self.dimension, self.source_dimension)
         }
-
-        self.MCMC_toolbox['attributes'] = Attributes_MultivariateParallel(self.dimension, self.source_dimension)
 
         values = {
             'g': self.parameters['g'],
             'deltas': self.parameters['deltas'],
-            'betas': self.parameters['betas']
+            'betas': self.parameters['betas'],
+            'tau_mean': self.parameters['tau_mean'],
+            'xi_mean': self.parameters['xi_mean']
         }
-        values['tau_mean'] = self.parameters['tau_mean']
-        values['xi_mean'] = self.parameters['xi_mean']
+
         self.MCMC_toolbox['attributes'].update(['all'], values)
 
-
     def update_MCMC_toolbox(self, name_of_the_variable_that_has_been_changed, realizations):
-        """
-        :param new_realizations: {('name', position) : new_scalar_value}
-        :return:
-        """
+
         ### TODO : Check if it is possible / usefull to have multiple variables sampled
 
         # Updates the attributes of the MCMC_toolbox

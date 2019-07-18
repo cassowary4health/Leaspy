@@ -25,27 +25,19 @@ class Leaspy:
         leaspy.model.is_initialized = True
         return leaspy
 
-    def save(self, path):
-        self.model.save_parameters(path)
-
     def fit(self, data, algorithm_settings):
 
         algorithm = AlgoFactory.algo(algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
-        self.model.initialize_parameters(dataset, algorithm_settings.smart_initialization)
+        if not self.model.is_initialized:
+            self.model.initialize(dataset)
         algorithm.run(dataset, self.model)
 
+
+    def save(self, path):
+        self.model.save_parameters(path)
+
     def predict(self, individual, prediction_settings, seed=0, method="map"):
-        #TODO Change, use specific algorithms
-        """
-        Predict individual parameters of a patient, or an iterable of patients
-        :param data:
-        :param path_to_prediction_settings:
-        :param path output
-        :param seed
-        :param method : map or distribution
-        :return:
-        """
 
         # Instanciate optimization algorithm for predict
 

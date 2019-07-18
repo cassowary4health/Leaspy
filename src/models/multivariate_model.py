@@ -11,19 +11,16 @@ from scipy import stats
 from src.models.utils.attributes.attributes_multivariate import Attributes_Multivariate
 
 class MultivariateModel(AbstractModel):
-    def __init__(self):
+    def __init__(self, name):
+        super(MultivariateModel, self).__init__(name)
 
-        self.model_name = 'Multivariate'
-        self.dimension = None
         self.source_dimension = None
-        self.is_initialized = False
         self.parameters = {
             "g": None, "betas": None, "v0": None,
             "tau_mean": None, "tau_std": None,
             "xi_mean": None,  "xi_std": None,
             "sources_mean": None, "sources_std": None,
             "noise_std": None
-
         }
         self.bayesian_priors = None
         self.attributes = None
@@ -32,48 +29,76 @@ class MultivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'g_std': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
-                'v0_std': None, # tq deltas = user_delta_in_years * v0 / (p0(1-p0))
+                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                'v0_std': None,
                 'betas_std': None
             }
         }
 
-    ###########################
-    ## Initialization
-    ###########################
+    def load_hyperparameters(self, hyperparameters):
+        self.dimension = hyperparameters['dimension']
+        self.source_dimension = hyperparameters['source_dimension']
+
+    def initialize(self, data):
+
+        self.dimension = data.dimension
+        self.source_dimension = int(data.dimension/2.)  # TODO : How to change it independently of the initialize?
+
+        ### TODO : Have a better initialization with the new G and exp(v0) parameters
+        # Linear Regression on each feature
+        p0_array = [None] * self.dimension
+        v0_array = [None] * self.dimension
+        noise_array = [None] * self.dimension
+
+        df = data.to_pandas()
+        x = df.index.get_level_values('TIMES').values
+
+        for dim in range(self.dimension):
+            y = df.iloc[:, dim].values
+            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+            p0_array[dim], v0_array[dim] = intercept, slope
+            noise_array[dim] = np.mean((intercept+slope*x-y)**2)**2
+
+            # V0 array minimum value
+            v0_array[dim] = max(v0_array[dim], -3)
+
+        SMART_INITIALIZATION = {
+            'g': p0_array,
+            'v0' : v0_array,
+            'betas': np.zeros(shape=(self.dimension-1, self.source_dimension)),
+            'tau_mean': df.index.values.mean(), 'tau_std': 1.0,
+            'xi_mean': 0., 'xi_std': 0.5,
+            'sources_mean' : 0.0, 'sources_std' : 1.0,
+            'noise_std': 0.1
+        }
+
+        # Initializes Parameters
+        for parameter_key in self.parameters.keys():
+            if self.parameters[parameter_key] is None:
+                self.parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
+
+        self.attributes = Attributes_Multivariate(self.dimension, self.source_dimension)
+        self.is_initialized = True
 
     def initialize_MCMC_toolbox(self, dataset):
 
-        self.MCMC_toolbox['priors'] = {
-            'g_std': 0.01,
-            'v0_std': 0.01,
-            'betas_std': 0.01
+        self.MCMC_toolbox = {
+            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},
+            'attributes': Attributes_Multivariate(self.dimension, self.source_dimension)
         }
-
-        self.MCMC_toolbox['attributes'] = Attributes_Multivariate(self.dimension, self.source_dimension)
 
         values = {
-            'g': self.parameters['g'],
-            'v0': self.parameters['v0'],
-            'betas': self.parameters['betas']
+            'g': np.expand_dims(self.parameters['g'], 0),
+            'v0': np.expand_dims(self.parameters['v0'], 0),
+            'betas': self.parameters['betas'],
+            'tau_mean': self.parameters['tau_mean'],
+            'xi_mean': self.parameters['xi_mean']
         }
 
-        # Reshape the values !
-        infos = self.random_variable_informations()
-        for key in values.keys():
-            values[key] = np.array(values[key]).reshape(infos[key]["shape"])
-
-
-        values['tau_mean'] = self.parameters['tau_mean']
-        values['xi_mean'] = self.parameters['xi_mean']
         self.MCMC_toolbox['attributes'].update(['all'], values)
 
-
     def update_MCMC_toolbox(self, name_of_the_variable_that_has_been_changed, realizations):
-        """
-        :param new_realizations: {('name', position) : new_scalar_value}
-        :return:
-        """
+
         ### TODO : Check if it is possible / usefull to have multiple variables sampled
 
         # Updates the attributes of the MCMC_toolbox
@@ -91,53 +116,9 @@ class MultivariateModel(AbstractModel):
 
 
 
-    def load_parameters(self, parameters):
-        for k in self.parameters.keys():
-                self.parameters[k] = parameters[k]
 
 
-    def initialize_parameters(self, data, smart_initialization):
 
-        # Initializes Dimension
-        self.dimension = data.dimension
-
-        # TODO change it
-        self.source_dimension = 2
-
-        ## Linear Regression on each feature
-        g_array = [None] * self.dimension
-        v0_array = [None] * self.dimension
-        noise_array = [None] * self.dimension
-
-        df = data.to_pandas()
-        x = df.index.get_level_values('TIMES').values
-
-        for dim in range(self.dimension):
-            y = df.iloc[:, dim].values
-            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-            g_array[dim], v0_array[dim] = intercept, slope
-            noise_array[dim] = np.mean((intercept+slope*x-y)**2)**2
-
-            # V0 array minimum value
-            v0_array[dim] = max(v0_array[dim], -3)
-
-        SMART_INITIALIZATION = {
-            'g': g_array,
-            'v0' : v0_array,
-            'betas': np.zeros(shape=(self.dimension-1, self.source_dimension)),
-            'tau_mean': df.index.values.mean(), 'tau_std': 1.0,
-            'xi_mean': 0., 'xi_std': 0.5,
-            'sources_mean' : 0.0, 'sources_std' : 1.0,
-            'noise_std': 0.1
-        }
-
-        # Initializes Parameters
-        for parameter_key in self.parameters.keys():
-            if self.parameters[parameter_key] is None:
-                self.parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
-
-        self.is_initialized = True
-        self.attributes = Attributes_Multivariate(self.dimension, self.source_dimension)
 
 
 

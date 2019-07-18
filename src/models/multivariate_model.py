@@ -18,7 +18,7 @@ class MultivariateModel(AbstractModel):
         self.source_dimension = None
         self.is_initialized = False
         self.parameters = {
-            "p0": None, "betas": None, "v0": None,
+            "g": None, "betas": None, "v0": None,
             "mean_tau": None, "sigma_tau": None,
             "mean_xi": None,  "sigma_xi": None,
             "mean_sources": None, "sigma_sources": None,
@@ -32,7 +32,7 @@ class MultivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'sigma_p0': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                'sigma_g': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
                 'sigma_v0': None, # tq deltas = user_delta_in_years * v0 / (p0(1-p0))
                 'sigma_betas': None
             }
@@ -45,7 +45,7 @@ class MultivariateModel(AbstractModel):
     def initialize_MCMC_toolbox(self, dataset):
 
         self.MCMC_toolbox['priors'] = {
-            'sigma_p0': 0.01,
+            'sigma_g': 0.01,
             'sigma_v0': 0.01,
             'sigma_betas': 0.01
         }
@@ -53,7 +53,7 @@ class MultivariateModel(AbstractModel):
         self.MCMC_toolbox['attributes'] = Attributes_Multivariate(self.dimension, self.source_dimension)
 
         values = {
-            'p0': self.parameters['p0'],
+            'g': self.parameters['g'],
             'v0': self.parameters['v0'],
             'betas': self.parameters['betas']
         }
@@ -80,7 +80,7 @@ class MultivariateModel(AbstractModel):
 
         ### TODO : Probably convert all the variables to torch tensors
         values = {
-            'p0': realizations['p0'].tensor_realizations.detach().numpy(),
+            'g': realizations['g'].tensor_realizations.detach().numpy(),
             'v0': realizations['v0'].tensor_realizations.detach().numpy(),
             'betas': realizations['betas'].tensor_realizations.detach().numpy()
         }
@@ -105,7 +105,7 @@ class MultivariateModel(AbstractModel):
         self.source_dimension = 2
 
         ## Linear Regression on each feature
-        p0_array = [None] * self.dimension
+        g_array = [None] * self.dimension
         v0_array = [None] * self.dimension
         noise_array = [None] * self.dimension
 
@@ -115,14 +115,14 @@ class MultivariateModel(AbstractModel):
         for dim in range(self.dimension):
             y = df.iloc[:, dim].values
             slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-            p0_array[dim], v0_array[dim] = intercept, slope
+            g_array[dim], v0_array[dim] = intercept, slope
             noise_array[dim] = np.mean((intercept+slope*x-y)**2)**2
 
             # V0 array minimum value
-            v0_array[dim] = max(v0_array[dim], 0.05)
+            v0_array[dim] = max(v0_array[dim], -3)
 
         SMART_INITIALIZATION = {
-            'p0': p0_array,
+            'g': g_array,
             'v0' : v0_array,
             'betas': np.zeros(shape=(self.dimension-1, self.source_dimension)),
             'mean_tau': df.index.values.mean(), 'sigma_tau': 1.0,
@@ -146,11 +146,11 @@ class MultivariateModel(AbstractModel):
     ###########################
 
     def get_pop_shapes(self):
-        p0_shape = (1, self.dimension)
+        g_shape = (1, self.dimension)
         v0_shape = (1, self.dimension)
         beta_shape = (self.dimension-1, self.source_dimension)
 
-        return {"p0": p0_shape,
+        return {"g": g_shape,
                 "v0": v0_shape,
                 "beta": beta_shape}
 
@@ -158,8 +158,8 @@ class MultivariateModel(AbstractModel):
     def random_variable_informations(self):
 
             ## Population variables
-            p0_infos = {
-                "name": "p0",
+            g_infos = {
+                "name": "g",
                 "shape": (1, self.dimension),
                 "type": "population",
                 "rv_type": "multigaussian"
@@ -202,7 +202,7 @@ class MultivariateModel(AbstractModel):
             }
 
             variables_infos = {
-                "p0": p0_infos,
+                "g": g_infos,
                 "v0": v0_infos,
                 "betas": betas_infos,
                 "tau": tau_infos,
@@ -228,8 +228,12 @@ class MultivariateModel(AbstractModel):
 
     def compute_individual(self, individual, reals_pop, real_ind):
         # Load from dict
-        v0 = reals_pop['v0']
-        p0 = reals_pop['p0']
+        v0 = torch.exp(reals_pop['v0'])
+
+
+        # TODO : P0 HAS TO BE REMOVE
+        g__real = reals_pop['g']
+        p0 = 1./(1. + torch.exp(g__real))
 
         # TODO : cache these variables ???
         g = torch.pow(p0, -1) - 1
@@ -253,11 +257,13 @@ class MultivariateModel(AbstractModel):
         a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
 
         # Load from dict
-        v0 = realizations['v0'].tensor_realizations
-        p0 = realizations['p0'].tensor_realizations
+        v0 = torch.exp(realizations['v0'].tensor_realizations)
+        g__real = realizations['g'].tensor_realizations
 
         # TODO : cache these variables ???
+        p0 = 1. / (1. + torch.exp(g__real))
         g = torch.pow(p0, -1) - 1
+
         b = torch.pow(p0, 2) * g
 
         # TODO change timepoints dimension in data structure
@@ -305,7 +311,7 @@ class MultivariateModel(AbstractModel):
         m_tau = data.n_individuals/20
         sigma2_tau_0 = 1
 
-        self.model_parameters['p0'] = sufficient_statistics['p0']
+        self.model_parameters['g'] = sufficient_statistics['g']
         self.model_parameters['v0'] = sufficient_statistics['v0']
         self.model_parameters['beta'] = sufficient_statistics['beta']
 
@@ -340,7 +346,7 @@ class MultivariateModel(AbstractModel):
 
         # Memoryless part of the algorithm
         if burn_in_phase:
-            self.parameters['p0'] = sufficient_statistics['p0'].tensor_realizations.detach().numpy()
+            self.parameters['g'] = sufficient_statistics['g'].tensor_realizations.detach().numpy()
             self.parameters['v0'] = sufficient_statistics['v0'].tensor_realizations.detach().numpy()
             self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
             xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
@@ -373,8 +379,8 @@ class MultivariateModel(AbstractModel):
         model_settings['source_dimension'] = self.dimension
         model_settings['type'] = self.model_name
 
-        if type(model_settings['parameters']['p0']) not in [list]:
-            model_settings['parameters']['p0'] = model_settings['parameters']['p0'].tolist()
+        if type(model_settings['parameters']['g']) not in [list]:
+            model_settings['parameters']['g'] = model_settings['parameters']['g'].tolist()
 
         if type(model_settings['parameters']['v0']) not in [list]:
             model_settings['parameters']['v0'] = model_settings['parameters']['v0'].tolist()
@@ -434,14 +440,15 @@ class MultivariateModel(AbstractModel):
         return orthogonal_matrix
 
     def update_cache_variables(self, reals, keys):
-        # Update the p0
+        raise ValueError("Multivariate model > update_cache_variables")
         if 'p0' in keys:
-            self.cache_variables['g'] = torch.pow(reals['p0'], -1) - 1
+            self.cache_variables['g'] = torch.pow(reals['g'], -1) - 1
             self.cache_variables['b'] = torch.pow(reals['p0'], 2) * self.cache_variables['g']
 
 
     def compute_average(self, tensor_timepoints):
-        p0 = torch.Tensor(self.model_parameters['p0'])
+        g = torch.Tensor(self.model_parameters['g'])
+        p0 = 1./(1. + torch.exp(g))
         v0 = torch.Tensor(self.model_parameters['v0'])
         reparametrized_time = v0*np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints-self.model_parameters['tau_mean'])
         return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
@@ -462,7 +469,7 @@ class MultivariateModel(AbstractModel):
         sources_var = np.var(sources_array.detach().numpy()).tolist()
 
         # P0
-        p0 = realizations['p0'].tensor_realizations.detach().numpy()
+        g = realizations['g'].tensor_realizations.detach().numpy()
 
         # V0
         v0 = realizations['v0'].tensor_realizations.detach().numpy()
@@ -472,7 +479,7 @@ class MultivariateModel(AbstractModel):
 
         # Compute sufficient statistics
         sufficient_statistics = {}
-        sufficient_statistics['p0'] = p0
+        sufficient_statistics['g'] = g
         sufficient_statistics['v0'] = v0
         sufficient_statistics['beta'] = beta
         sufficient_statistics['tau_mean'] = tau_mean

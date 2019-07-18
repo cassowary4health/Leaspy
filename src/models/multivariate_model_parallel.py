@@ -60,9 +60,8 @@ class MultivariateModelParallel(AbstractModel):
             self.parameters = {'g': 0.5, 'mean_tau': 70.0, 'sigma_tau': 2.0, 'mean_xi': -3., 'sigma_xi': 0.1,
                                'mean_sources': 0.0,
                                'sigma_sources': 1.0,
-                               'sigma_noise': 0.1, 'deltas': [0.0] * (self.dimension - 1),
-                                                             'mean_sources': 0.0,
-                                   'sigma_sources': 1.0
+                               'sigma_noise': 0.1, 'deltas': [-3., -2., -2.],
+                               'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
                                }
         else:
             if self.is_initialized:

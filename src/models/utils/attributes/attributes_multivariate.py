@@ -29,7 +29,7 @@ class Attributes_Multivariate:
 
     def _check_names(self, names_of_changed_values):
         for name in names_of_changed_values:
-            if name not in ['all', 'p0', 'v0', 'betas']:
+            if name not in ['all', 'g', 'v0', 'betas']:
                 raise ValueError("The name {} is not in the attributes that are used to be updated".format(name))
 
     def _flag_update(self, names_of_changed_values):

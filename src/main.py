@@ -36,16 +36,6 @@ class Leaspy:
         algorithm.run(dataset, self.model)
 
     def predict(self, individual, prediction_settings, seed=0, method="map"):
-        #TODO Change, use specific algorithms
-        """
-        Predict individual parameters of a patient, or an iterable of patients
-        :param data:
-        :param path_to_prediction_settings:
-        :param path output
-        :param seed
-        :param method : map or distribution
-        :return:
-        """
 
         # Instanciate optimization algorithm for predict
 

@@ -11,19 +11,32 @@ from src.utils.numpy_encoder import NumpyEncoder
 from src.utils.random_variable.gaussian_random_variable import GaussianRandomVariable
 from src.utils.random_variable.random_variable_factory import RandomVariableFactory
 
+from src import data_dir
 
 class AbstractModel():
     def __init__(self):
         self.name = None
         self.dimension = None
-        self.parameters = {}
-        self.priors = {}
-        self.population_random_effets = {}
-        self.individual_random_effets = {}
+        self.is_initialized = False
+        self.parameters = None
+
+    def load_parameters(self, parameters):
+        ### Load the parameters
+        for k in self.parameters.keys():
+            self.parameters[k] = parameters[k]
+
+    def _check_parameters(self):
+        for k, v in self.parameters.items():
+            if v is None:
+                raise ValueError("The parameter {} has not been loaded as it is not in your json file".format(k) )
+
+    def _load_default_parameters(self):
+        with open(os.path.join(data_dir, 'models', self.name+'.json'), 'r') as file:
+            parameters = json.load(file)
+        self.load_parameters(parameters)
+        self._check_parameters()
 
 
-    def load_parameters(self, model_parameters):
-        raise NotImplementedError
 
     def load_hyperparameters(self, hyperparameters):
         raise NotImplementedError

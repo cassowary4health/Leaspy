@@ -5,12 +5,10 @@ from src.models.utils.attributes.attributes_multivariateparallel import Attribut
 from src.models.abstract_model import AbstractModel
 
 class MultivariateModelParallel(AbstractModel):
-    # TODO : Remove call to the Abstract Model
     def __init__(self):
-        self.model_name = 'Multivariate_Parallel'
-        self.dimension = None
+        super(MultivariateModelParallel, self).__init__()
+        self.model_name = 'multivariate_parallel'
         self.source_dimension = None
-        self.is_initialized = False
         self.parameters = {
             "g": None, "betas": None, "deltas": None,
             "mean_tau": None, "sigma_tau": None,
@@ -33,18 +31,11 @@ class MultivariateModelParallel(AbstractModel):
         }
 
 
-
     def load_parameters(self, parameters):
-        for k in self.parameters.keys():
-            if k != 'p0':
-                # TODO Check that everything is in it
-                self.parameters[k] = parameters[k]
-            else:
-                self.parameters['g'] = np.log(1/parameters['p0'] - 1)
-
-    def save_parameters(self, parameters):
-        #TODO
-        return 0
+        super().load_parameters(parameters)
+        self.parameters['g'] = np.log(1 / parameters['p0'] - 1)
+        self.parameters.pop('p0', None)
+        self._check_parameters()
 
 
     def initialize_parameters(self, dataset, smart_initialization):

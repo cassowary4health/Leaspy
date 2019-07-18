@@ -1,6 +1,6 @@
 import os
 
-from src import default_data_dir
+from src import data_dir
 from src.models.abstract_model import AbstractModel
 from src.inputs.model_settings import ModelSettings
 import torch
@@ -12,7 +12,7 @@ from scipy.optimize import minimize
 
 class UnivariateModel(AbstractModel):
     def __init__(self):
-        data_dir = os.path.join(default_data_dir, "default_model_settings_univariate.json")
+        data_dir = os.path.join(data_dir, "default_model_settings_univariate.json")
         reader = ModelSettings(data_dir)
         self.model_parameters = reader.parameters
 

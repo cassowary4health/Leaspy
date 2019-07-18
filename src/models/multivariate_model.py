@@ -1,6 +1,6 @@
 import os
 from src.utils.realizations.collection_realization import CollectionRealization
-from src import default_data_dir
+
 from src.models.abstract_model import AbstractModel
 from src.inputs.model_settings import ModelSettings
 import torch
@@ -12,11 +12,9 @@ from src.models.utils.attributes.attributes_multivariate import Attributes_Multi
 
 class MultivariateModel(AbstractModel):
     def __init__(self):
-
-        self.model_name = 'Multivariate'
-        self.dimension = None
+        super(MultivariateModel, self).__init__()
+        self.model_name = 'multivariate'
         self.source_dimension = None
-        self.is_initialized = False
         self.parameters = {
             "p0": None, "betas": None, "v0": None,
             "mean_tau": None, "sigma_tau": None,
@@ -37,10 +35,6 @@ class MultivariateModel(AbstractModel):
                 'sigma_betas': None
             }
         }
-
-    ###########################
-    ## Initialization
-    ###########################
 
     def initialize_MCMC_toolbox(self, dataset):
 
@@ -88,12 +82,6 @@ class MultivariateModel(AbstractModel):
         self.MCMC_toolbox['attributes'].update([name_of_the_variable_that_has_been_changed],
                                                values)
 
-
-
-
-    def load_parameters(self, parameters):
-        for k in self.parameters.keys():
-                self.parameters[k] = parameters[k]
 
 
     def initialize_parameters(self, data, smart_initialization):

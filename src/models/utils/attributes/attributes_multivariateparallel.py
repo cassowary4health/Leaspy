@@ -37,7 +37,7 @@ class Attributes_MultivariateParallel:
 
     def _check_names(self, names_of_changed_values):
         for name in names_of_changed_values:
-            if name not in ['all', 'g', 'deltas', 'betas', 'mean_tau', 'mean_xi']:
+            if name not in ['all', 'g', 'deltas', 'betas', 'tau_mean', 'xi_mean']:
                 raise ValueError("The name {} is not in the attributes that are used to be updated".format(name))
 
     def _flag_update(self, names_of_changed_values):
@@ -49,7 +49,7 @@ class Attributes_MultivariateParallel:
             return 1
         if 'deltas' in names_of_changed_values:
             return 2
-        if any(x in names_of_changed_values for x in ['mean_tau', 'mean_xi']):
+        if any(x in names_of_changed_values for x in ['tau_mean', 'xi_mean']):
             return 3
         if 'betas' in names_of_changed_values:
             return 4
@@ -73,7 +73,7 @@ class Attributes_MultivariateParallel:
         # Compute s
         # TODO : CHECK, CHECK AND RECHECK
         g = self.g
-        v0 = np.exp(values['mean_xi'])
+        v0 = np.exp(values['xi_mean'])
         E = np.exp(-self.deltas)
         A_ = 1. + g * E
         B_ = 1. / g + 1

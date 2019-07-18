@@ -39,12 +39,12 @@ class Plotter():
         fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
 
         # Noise var
-        import_path = os.path.join(path, 'sigma_noise' + ".csv")
+        import_path = os.path.join(path, 'noise_std' + ".csv")
         df_convergence = pd.read_csv(import_path, index_col=0, header=None)
         df_convergence.index.rename("iter", inplace=True)
         y_position = 0
         df_convergence.plot(ax=ax[y_position], legend=False)
-        ax[y_position].set_title('sigma_noise')
+        ax[y_position].set_title('noise_std')
         ax[y_position].set_yscale("log", nonposy='clip')
         plt.grid(True)
 
@@ -66,11 +66,11 @@ class Plotter():
                     ax[y_position].set_title(key)
 
         for i, key in enumerate(reals_ind_name):
-            import_path_mean = os.path.join(path, "mean_{}.csv".format(key))
+            import_path_mean = os.path.join(path, "{}_mean.csv".format(key))
             df_convergence_mean = pd.read_csv(import_path_mean, index_col=0, header=None)
             df_convergence_mean.index.rename("iter", inplace=True)
 
-            import_path_var = os.path.join(path, "sigma_{}.csv".format(key))
+            import_path_var = os.path.join(path, "{}_std.csv".format(key))
             df_convergence_var = pd.read_csv(import_path_var, index_col=0, header=None)
             df_convergence_var.index.rename("iter", inplace=True)
 

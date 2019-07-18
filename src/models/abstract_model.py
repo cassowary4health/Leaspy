@@ -197,10 +197,10 @@ class AbstractModel():
         # Instanciate torch distribution
         if realization.variable_type == 'population':
             distribution = torch.distributions.normal.Normal(loc=torch.Tensor([self.parameters[realization.name]]).reshape(realization.shape),
-                                                            scale=self.MCMC_toolbox['priors']['sigma_{0}'.format(realization.name)])
+                                                            scale=self.MCMC_toolbox['priors']['{0}_std'.format(realization.name)])
         elif realization.variable_type == 'individual':
-            distribution = torch.distributions.normal.Normal(loc=self.parameters["mean_{0}".format(realization.name)],
-                                                            scale=self.parameters["sigma_{0}".format(realization.name)])
+            distribution = torch.distributions.normal.Normal(loc=self.parameters["{0}_mean".format(realization.name)],
+                                                            scale=self.parameters["{0}_std".format(realization.name)])
         else:
             raise ValueError("Variable type not known")
 

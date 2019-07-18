@@ -14,8 +14,8 @@ class Realization:
 
         elif self.variable_type == 'individual':
 
-            distribution = torch.distributions.normal.Normal(loc=model.parameters["mean_{0}".format(self.name)],
-                                                             scale=model.parameters["sigma_{0}".format(self.name)])
+            distribution = torch.distributions.normal.Normal(loc=model.parameters["{0}_mean".format(self.name)],
+                                                             scale=model.parameters["{0}_std".format(self.name)])
             self._tensor_realizations = distribution.sample(sample_shape = (data.n_individuals, self.shape[0], self.shape[1]))
         else:
             raise ValueError("Variable Type Not Known")

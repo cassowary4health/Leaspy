@@ -13,10 +13,10 @@ class MultivariateModelParallel(AbstractModel):
         self.is_initialized = False
         self.parameters = {
             "g": None, "betas": None, "deltas": None,
-            "mean_tau": None, "sigma_tau": None,
-            "mean_xi": None,  "sigma_xi": None,
-            "mean_sources": None, "sigma_sources": None,
-            "sigma_noise": None
+            "tau_mean": None, "tau_std": None,
+            "xi_mean": None,  "xi_std": None,
+            "sources_mean": None, "sources_std": None,
+            "noise_std": None
 
         }
         self.bayesian_priors = None
@@ -26,9 +26,9 @@ class MultivariateModelParallel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'sigma_g': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
-                'sigma_deltas': None, # tq deltas = user_delta_in_years * v0 / (p0(1-p0))
-                'sigma_betas': None
+                'g_std': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                'deltas_std': None, # tq deltas = user_delta_in_years * v0 / (p0(1-p0))
+                'betas_std': None
             }
         }
 
@@ -57,10 +57,10 @@ class MultivariateModelParallel(AbstractModel):
             #TODO TODO : Smart initialization
             self.dimension = dataset.dimension
             self.source_dimension = self.dimension - 1
-            self.parameters = {'g': 0.5, 'mean_tau': 70.0, 'sigma_tau': 2.0, 'mean_xi': -3., 'sigma_xi': 0.1,
-                               'mean_sources': 0.0,
-                               'sigma_sources': 1.0,
-                               'sigma_noise': 0.1, 'deltas': [-3., -2., -2.],
+            self.parameters = {'g': 0.5, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
+                               'sources_mean': 0.0,
+                               'sources_std': 1.0,
+                               'noise_std': 0.1, 'deltas': [-3., -2., -2.],
                                'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
                                }
         else:
@@ -69,10 +69,10 @@ class MultivariateModelParallel(AbstractModel):
             else:
                 self.dimension = dataset.dimension
                 self.source_dimension = self.dimension - 1
-                self.parameters = {'g': 0.5, 'mean_tau': 70.0, 'sigma_tau': 2.0, 'mean_xi': -3., 'sigma_xi': 0.1,
-                               'sigma_noise': 0.1, 'deltas': [0.0] * (self.dimension - 1),
-                                'mean_sources': 0.0,
-                                   'sigma_sources': 1.0,
+                self.parameters = {'g': 0.5, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
+                               'sources_mean': 0.0,
+                               'sources_std': 1.0,
+                               'noise_std': 0.1, 'deltas': [-3., -2., -2.],
                                'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
                                }
 
@@ -85,9 +85,9 @@ class MultivariateModelParallel(AbstractModel):
     def initialize_MCMC_toolbox(self, dataset):
 
         self.MCMC_toolbox['priors'] = {
-            'sigma_g': 0.01,
-            'sigma_deltas': 0.01,
-            'sigma_betas': 0.01
+            'g_std': 0.01,
+            'deltas_std': 0.01,
+            'betas_std': 0.01
         }
 
         self.MCMC_toolbox['attributes'] = Attributes_MultivariateParallel(self.dimension, self.source_dimension)
@@ -97,8 +97,8 @@ class MultivariateModelParallel(AbstractModel):
             'deltas': self.parameters['deltas'],
             'betas': self.parameters['betas']
         }
-        values['mean_tau'] = self.parameters['mean_tau']
-        values['mean_xi'] = self.parameters['mean_xi']
+        values['tau_mean'] = self.parameters['tau_mean']
+        values['xi_mean'] = self.parameters['xi_mean']
         self.MCMC_toolbox['attributes'].update(['all'], values)
 
 
@@ -115,7 +115,7 @@ class MultivariateModelParallel(AbstractModel):
         values = {
             'g': realizations['g'].tensor_realizations.detach().numpy(),
             'deltas': realizations['deltas'].tensor_realizations.detach().numpy(),
-            'mean_xi': self.parameters['mean_xi'],
+            'xi_mean': self.parameters['xi_mean'],
             'betas': realizations['betas'].tensor_realizations.detach().numpy()
         }
 
@@ -186,8 +186,8 @@ class MultivariateModelParallel(AbstractModel):
     def compute_individual_attachment_tensorized(self, data, realizations):
         data_fit = self.compute_individual_tensorized(data, realizations)
         sum_squared = ((data_fit - data.values) ** 2).sum(dim=(1, 2))
-        attachment = 0.5 * (1/self.parameters['sigma_noise']**2) * sum_squared
-        attachment += np.log(np.sqrt(2 * np.pi * self.parameters['sigma_noise']**2))
+        attachment = 0.5 * (1/self.parameters['noise_std']**2) * sum_squared
+        attachment += np.log(np.sqrt(2 * np.pi * self.parameters['noise_std']**2))
 
         return attachment
 
@@ -286,16 +286,16 @@ class MultivariateModelParallel(AbstractModel):
             self.parameters['deltas'] = sufficient_statistics['deltas'].tensor_realizations.detach().numpy()
             self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
             xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
-            self.parameters['mean_xi'] = np.mean(xi)
-            self.parameters['sigma_xi'] = np.std(xi)
+            self.parameters['xi_mean'] = np.mean(xi)
+            self.parameters['xi_std'] = np.std(xi)
             tau = sufficient_statistics['tau'].tensor_realizations.detach().numpy()
-            self.parameters['mean_tau'] = np.mean(tau)
-            self.parameters['sigma_tau'] = np.std(tau)
+            self.parameters['tau_mean'] = np.mean(tau)
+            self.parameters['tau_std'] = np.std(tau)
 
             data_fit = self.compute_individual_tensorized(data, sufficient_statistics)
             #norm_of_tensor = torch.norm(data.values - data_fit, p=2, dim=2).sum()
             squared_diff = ((data_fit-data.values)**2).sum()
-            self.parameters['sigma_noise'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
+            self.parameters['noise_std'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
 
         # Stochastic sufficient statistics used to update the parameters of the model
         else:
@@ -303,11 +303,11 @@ class MultivariateModelParallel(AbstractModel):
             self.parameters['g'] = sufficient_statistics['g']
             self.parameters['deltas'] = sufficient_statistics['deltas']
             self.parameters['betas']  = sufficient_statistics['betas']
-            self.parameters['mean_xi'] = np.mean(sufficient_statistics['xi'])
-            self.parameters['sigma_xi'] = np.sqrt(np.mean(sufficient_statistics['xi_sqrd']) - np.sum(sufficient_statistics['xi'])**2)
-            self.parameters['mean_tau'] = np.mean(sufficient_statistics['tau'])
-            self.parameters['sigma_tau'] = np.sqrt(np.mean(sufficient_statistics['tau_sqrd']) - np.sum(sufficient_statistics['tau'])**2)
-            self.parameters['sigma_noise'] = 0.01
+            self.parameters['xi_mean'] = np.mean(sufficient_statistics['xi'])
+            self.parameters['xi_std'] = np.sqrt(np.mean(sufficient_statistics['xi_sqrd']) - np.sum(sufficient_statistics['xi'])**2)
+            self.parameters['tau_mean'] = np.mean(sufficient_statistics['tau'])
+            self.parameters['tau_std'] = np.sqrt(np.mean(sufficient_statistics['tau_sqrd']) - np.sum(sufficient_statistics['tau'])**2)
+            self.parameters['noise_std'] = 0.01
 
 
 

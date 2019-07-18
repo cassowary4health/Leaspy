@@ -19,10 +19,10 @@ class MultivariateModel(AbstractModel):
         self.is_initialized = False
         self.parameters = {
             "g": None, "betas": None, "v0": None,
-            "mean_tau": None, "sigma_tau": None,
-            "mean_xi": None,  "sigma_xi": None,
-            "mean_sources": None, "sigma_sources": None,
-            "sigma_noise": None
+            "tau_mean": None, "tau_std": None,
+            "xi_mean": None,  "xi_std": None,
+            "sources_mean": None, "sources_std": None,
+            "noise_std": None
 
         }
         self.bayesian_priors = None
@@ -32,9 +32,9 @@ class MultivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'sigma_g': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
-                'sigma_v0': None, # tq deltas = user_delta_in_years * v0 / (p0(1-p0))
-                'sigma_betas': None
+                'g_std': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                'v0_std': None, # tq deltas = user_delta_in_years * v0 / (p0(1-p0))
+                'betas_std': None
             }
         }
 
@@ -45,9 +45,9 @@ class MultivariateModel(AbstractModel):
     def initialize_MCMC_toolbox(self, dataset):
 
         self.MCMC_toolbox['priors'] = {
-            'sigma_g': 0.01,
-            'sigma_v0': 0.01,
-            'sigma_betas': 0.01
+            'g_std': 0.01,
+            'v0_std': 0.01,
+            'betas_std': 0.01
         }
 
         self.MCMC_toolbox['attributes'] = Attributes_Multivariate(self.dimension, self.source_dimension)
@@ -64,8 +64,8 @@ class MultivariateModel(AbstractModel):
             values[key] = np.array(values[key]).reshape(infos[key]["shape"])
 
 
-        values['mean_tau'] = self.parameters['mean_tau']
-        values['mean_xi'] = self.parameters['mean_xi']
+        values['tau_mean'] = self.parameters['tau_mean']
+        values['xi_mean'] = self.parameters['xi_mean']
         self.MCMC_toolbox['attributes'].update(['all'], values)
 
 
@@ -125,10 +125,10 @@ class MultivariateModel(AbstractModel):
             'g': g_array,
             'v0' : v0_array,
             'betas': np.zeros(shape=(self.dimension-1, self.source_dimension)),
-            'mean_tau': df.index.values.mean(), 'sigma_tau': 1.0,
-            'mean_xi': 0., 'sigma_xi': 0.5,
-            'mean_sources' : 0.0, 'sigma_sources' : 1.0,
-            'sigma_noise': 0.1
+            'tau_mean': df.index.values.mean(), 'tau_std': 1.0,
+            'xi_mean': 0., 'xi_std': 0.5,
+            'sources_mean' : 0.0, 'sources_std' : 1.0,
+            'noise_std': 0.1
         }
 
         # Initializes Parameters
@@ -292,7 +292,7 @@ class MultivariateModel(AbstractModel):
         squared_sum = self.compute_sum_squared_tensorized(data,
                                      realizations)
 
-        noise_variance = self.parameters['sigma_noise']**2
+        noise_variance = self.parameters['noise_std']**2
 
         individual_attachments = 0.5 * (1/noise_variance) * squared_sum
         individual_attachments += np.log(np.sqrt(2 * np.pi * noise_variance))
@@ -350,14 +350,14 @@ class MultivariateModel(AbstractModel):
             self.parameters['v0'] = sufficient_statistics['v0'].tensor_realizations.detach().numpy()
             self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
             xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
-            self.parameters['mean_xi'] = np.mean(xi)
-            self.parameters['sigma_xi'] = np.std(xi)
+            self.parameters['xi_mean'] = np.mean(xi)
+            self.parameters['xi_std'] = np.std(xi)
             tau = sufficient_statistics['tau'].tensor_realizations.detach().numpy()
-            self.parameters['mean_tau'] = np.mean(tau)
-            self.parameters['sigma_tau'] = np.std(tau)
+            self.parameters['tau_mean'] = np.mean(tau)
+            self.parameters['tau_std'] = np.std(tau)
 
             squared_diff = self.compute_sum_squared_tensorized(data, sufficient_statistics).sum().numpy()
-            self.parameters['sigma_noise'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
+            self.parameters['noise_std'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
 
 
 

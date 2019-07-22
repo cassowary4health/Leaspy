@@ -12,24 +12,22 @@ import numpy as np
 class AbstractMCMC(AbstractAlgo):
 
     def __init__(self, settings):
-        #data_dir = os.path.join(default_algo_dir, "default_mcmc_saem_parameters.json")
-        #reader = AlgorithmSettings(data_dir)
 
-        #if reader.algo_type != 'mcmc_saem':
-        #    raise ValueError("The default mcmc saem parameters are not of mcmc_saem type")
-
-
-        self.realizations = None
-        self.task = None
+        # Algorithm parameters
         self.algo_parameters = settings.parameters
 
+        # Realizations and utils
+        self.realizations = None
+        self.task = None
         self.samplers = None
 
-
-        self.current_iteration = 0
-
+        # Output
         self.path_output = "output/"
 
+        # iteration
+        self.current_iteration = 0
+
+        # Annealing
         self.temperature_inv = 1
         self.temperature = 1
 
@@ -111,12 +109,70 @@ class AbstractMCMC(AbstractAlgo):
         return accepted
 
 
+
     def _sample_population_realizations(self, data, model, realizations):
-        raise NotImplementedError
 
-    def _sample_individual_realizations(self, data, model, reals_pop, reals_ind):
-        raise NotImplementedError
+        for key in realizations.reals_pop_variable_names:
+            shape_current_variable = realizations[key].shape
 
+            # For all the dimensions
+            for dim_1 in range(shape_current_variable[0]):
+                for dim_2 in range(shape_current_variable[1]):
+
+                    # Compute the attachment and regularity
+                    previous_attachment = model.compute_individual_attachment_tensorized(data, realizations).sum()
+                    previous_regularity = model.compute_regularity_variable(realizations[key])
+
+                    # Keep previous realizations and sample new ones
+                    previous_reals_pop = realizations[key].tensor_realizations.clone()
+                    realizations[key].set_tensor_realizations_element(realizations[key].tensor_realizations[dim_1, dim_2] + self.samplers[key].sample(), (dim_1, dim_2))
+
+                    # Update intermediary model variables if necessary
+                    model.update_MCMC_toolbox([key], realizations)
+
+                    # Compute the attachment and regularity
+                    new_attachment = model.compute_individual_attachment_tensorized(data, realizations).sum()
+                    new_regularity = model.compute_regularity_variable(realizations[key])
+
+                    accepted = self._metropolisacceptation_step(new_regularity.sum(), previous_regularity.sum(),
+                                                new_attachment, previous_attachment,
+                                                key)
+
+                    # Revert if not accepted
+                    if not accepted:
+                        # Revert realizations
+                        realizations[key].tensor_realizations = previous_reals_pop
+                        # Update intermediary model variables if necessary
+                        model.update_MCMC_toolbox([key], realizations)
+
+
+    def _sample_individual_realizations(self, data, model, realizations):
+
+
+        for key_ind in realizations.reals_ind_variable_names:
+
+            # Compute the attachment and regularity
+            previous_individual_attachment = model.compute_individual_attachment_tensorized(data, realizations)
+            previous_individual_regularity = model.compute_regularity_variable(realizations[key_ind])
+
+            # Keep previous realizations and sample new ones
+            previous_array_ind = realizations[key_ind].tensor_realizations
+            realizations[key_ind].tensor_realizations = realizations[key_ind].tensor_realizations + self.samplers[key_ind].sample(
+                shape=realizations[key_ind].tensor_realizations.shape)
+
+            # Compute the attachment and regularity
+            new_individual_attachment = model.compute_individual_attachment_tensorized(data, realizations)
+            new_individual_regularity = model.compute_regularity_variable(realizations[key_ind])
+
+            # Compute acceptation
+            alpha = torch.exp(-((new_individual_attachment-previous_individual_attachment)+
+                        self.temperature_inv*(new_individual_regularity- previous_individual_regularity).sum(dim=2).reshape(data.n_individuals)))
+            #print(key_ind, 'Attachement {} vs {} Regularity'.format(torch.mean(pre)))
+            for i, acceptation_patient in enumerate(alpha):
+                accepted = self.samplers[key_ind].acceptation(acceptation_patient.detach().numpy())
+                if not accepted:
+                    # Update the realizations
+                    realizations[key_ind].tensor_realizations[i] = previous_array_ind[i]
 
     ###########################
     ## Output

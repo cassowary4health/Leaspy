@@ -1,5 +1,6 @@
 from src.algo.gradient_descent import GradientDescent
 from src._legacy.mcmc_predict import MCMCPredict
+from src.algo.gradient_mcmcsaem import GradientMCMCSAEM
 from src.algo.tensor_mcmcsaem import TensorMCMCSAEM
 
 
@@ -15,6 +16,8 @@ class AlgoFactory:
             algorithm = MCMCPredict()
         elif name == 'tensor_mcmc_saem':
             algorithm = TensorMCMCSAEM(settings)
+        elif name == 'mcmc_gradient_descent':
+            algorithm = GradientMCMCSAEM(settings)
         else:
             raise ValueError("The name of your algorithm is unknown")
 

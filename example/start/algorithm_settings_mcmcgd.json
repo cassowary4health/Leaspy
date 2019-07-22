@@ -1,0 +1,18 @@
+{
+  "name": "mcmc_gradient_descent",
+  "seed": 0,
+  "parameters": {
+    "n_iter": 501,
+    "learning_rate":0.005,
+    "annealing": {
+    "do_annealing": false,
+    "initial_temperature": 100,
+    "n_iter": 500,
+    "n_plateau": 10
+    }
+  },
+  "output":{
+    "path": "../output_leaspy/start/"
+  },
+  "smart_initialization": true
+}

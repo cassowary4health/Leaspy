@@ -32,3 +32,6 @@ class CollectionRealization:
                 reals_ind[idx][ind_var] = self.realizations[ind_var].tensor_realizations[i]
 
         return reals_pop, reals_ind
+
+    def keys(self):
+        return self.realizations.keys()

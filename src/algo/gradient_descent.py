@@ -8,16 +8,12 @@ from torch.autograd import Variable
 
 class GradientDescent(AbstractAlgo):
 
-    def __init__(self):
-        data_dir = os.path.join(default_algo_dir, "default_gradient_descent_parameters.json")
-        reader = AlgorithmSettings(data_dir)
+    def __init__(self, settings):
 
-        if reader.algo_type != 'gradient_descent':
-            raise ValueError("The default gradient descent parameters are not of gradient_descent type")
-
+        self.name = "Gradient Descent"
         self.realizations = None
         self.task = None
-        self.algo_parameters = reader.parameters
+        self.algo_parameters = settings.parameters
         self.current_iteration = 0
         self.path_output = 'output/'
 
@@ -26,24 +22,14 @@ class GradientDescent(AbstractAlgo):
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
-        self._initialize_likelihood(data, model, realizations)
+        # MCMC toolbox (cache variables for speed-ups + tricks)
+        model.initialize_MCMC_toolbox(data)
         realizations = self._initialize_torchvariables(realizations)
         return realizations
 
-
     def _initialize_torchvariables(self, realizations):
-
-        reals_pop, reals_ind = realizations
-
-        for key in reals_pop.keys():
-            reals_pop[key] = Variable(reals_pop[key].float(), requires_grad=True)
-
-        # To Torch
-        for idx in reals_ind.keys():
-            for key in reals_ind[idx]:
-                reals_ind[idx][key] = Variable(reals_ind[idx][key].float(), requires_grad=True)
-        return realizations
-
+        for name, realization in realizations.realizations.items():
+            realization.to_torch_Variable()
 
     ###########################
     ## Core
@@ -51,47 +37,36 @@ class GradientDescent(AbstractAlgo):
 
     def iteration(self, data, model, realizations):
 
-        reals_pop, reals_ind = realizations
-
-        # Update the intermediary variables (Q, A if needed)
-        ### TODO : @ Raphael : J'ai enlevé cette fonction pour que tu te fasses un gradient_toolbox avec
-        ### TODO : initialize_gradient_toolbox() et update_gradient_toolbox() [Que tu utiliseras à la place de update_variable_info()
-        ### TODO : pour qu'on garde un truc un peu modulaire
-        #model.update_variable_info('v0', reals_pop)
+        # Update intermediary model variables if necessary
+        model.update_MCMC_toolbox(["all"], realizations)
 
         # Compute loss
-        attachment = model.compute_attachment(data, reals_pop, reals_ind)
-        regularity = model.compute_regularity(data, reals_pop, reals_ind)
-        loss = attachment + regularity
+        previous_attachment = model.compute_individual_attachment_tensorized(data, realizations).sum()
+        previous_regularity = 0
+        for key in realizations.keys():
+            previous_regularity += model.compute_regularity_variable(realizations[key]).sum()
+        loss = previous_attachment + previous_regularity
 
         # Do backward and backprop on realizations
         loss.backward()
 
-        #if self.algo_parameters['estimate_population_parameters']:
-        self._gradient_update_pop(reals_pop, lr=self.algo_parameters['learning_rate']/data.n_individuals)
+        # Update pop
+        with torch.no_grad():
+            for key in realizations.reals_pop_variable_names:
+                eps =self.algo_parameters['learning_rate']/data.n_individuals
+                realizations[key].tensor_realizations -= eps*realizations[key].tensor_realizations.grad
+                realizations[key].tensor_realizations.grad.zero_()
 
-        #if self.algo_parameters['estimate_individual_parameters']:
-        if self.current_iteration > 100:
-            self._gradient_update_ind(reals_ind, lr=self.algo_parameters['learning_rate'])
+        # Update ind
+        with torch.no_grad():
+            for key in realizations.reals_ind_variable_names:
+                eps =self.algo_parameters['learning_rate']/data.n_individuals
+                realizations[key].tensor_realizations -= eps*realizations[key].tensor_realizations.grad
+                realizations[key].tensor_realizations.grad.zero_()
+
+
+
+
 
         # Update the sufficient statistics
         self._maximization_step(data, model, realizations)
-
-
-    def _gradient_update_pop(self, reals_pop, lr):
-        with torch.no_grad():
-            for key in reals_pop.keys():
-                reals_pop[key] -= lr * reals_pop[key].grad
-                reals_pop[key].grad.zero_()
-
-    def _gradient_update_ind(self, reals_ind, lr):
-        with torch.no_grad():
-            for key in reals_ind.keys():
-                for idx in reals_ind[key].keys():
-                    reals_ind[key][idx] -= lr * reals_ind[key][idx].grad
-                    reals_ind[key][idx].grad.zero_()
-
-
-
-
-

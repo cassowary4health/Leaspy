@@ -4,6 +4,7 @@ from src.utils.output_manager import OutputManager
 
 
 class AbstractAlgo:
+
     ###########################
     ## Initialization
     ###########################
@@ -25,13 +26,6 @@ class AbstractAlgo:
                 previous_v = self.algo_parameters[k]
                 print("Replacing {} parameter from value {} to value {}".format(k, previous_v, v))
             self.algo_parameters[k] = v
-
-
-    def __str__(self):
-        out = ""
-        out += "=== ALGO ===\n"
-        out += "Iteration {0}".format(self.current_iteration)
-        return out
 
     def set_output_manager(self, output_path):
         if output_path is not None:
@@ -80,9 +74,14 @@ class AbstractAlgo:
     def _is_burn_in(self):
         return self.current_iteration < self.algo_parameters['n_burn_in_iter']
 
-    def _initialize_likelihood(self, data, model, realizations):
-        return 0
-        # TODO later
-        #self.likelihood = Likelihood()
-        #self.likelihood.initialize_likelihood(data, model, realizations)
+    ###########################
+    ## Output
+    ###########################
+
+    def __str__(self):
+        out = ""
+        out += "=== ALGO ===\n"
+        out += "Iteration {0}".format(self.current_iteration)
+        return out
+
 

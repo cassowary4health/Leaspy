@@ -39,7 +39,7 @@ algo_settings = AlgorithmSettings(path_to_algo_parameters)
 algo_settings.parameters['n_iter'] = n_iter
 
 # Create the data
-leaspy_dummy = Leaspy.from_model_settings(path_to_true_model_parameters)
+leaspy_dummy = Leaspy.load(path_to_true_model_parameters)
 data = generate_data_from_model(leaspy_dummy.model, n_patients=n_patients)
 
 
@@ -57,7 +57,7 @@ def run_experiment_2(data, model_settings_path, algo_settings, seed):
     algo_settings.output_path = run_path
 
     # Load a leaspy
-    leaspy = Leaspy.from_model_settings(model_settings_path)
+    leaspy = Leaspy.load(model_settings_path)
 
     # Modify initialization
     leaspy.model.model_parameters['p0'] += np.random.normal(loc=0, scale=0.2)

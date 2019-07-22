@@ -50,7 +50,7 @@ fig, ax = plt.subplots(1,1)
 tensor_timepoints = torch.Tensor(np.linspace(-1, 1, 10)).reshape(-1, 1)
 
 ## Load leaspy object
-leaspy2 = Leaspy.from_model_settings("../../output_leaspy/usecase/model_usecase_1.json")
+leaspy2 = Leaspy.load("../../output_leaspy/usecase/model_usecase_1.json")
 
 ## Play
 print(leaspy2.model)

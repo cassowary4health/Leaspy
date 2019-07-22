@@ -143,7 +143,7 @@ class GaussianDistributionModel(AbstractModel):
 
 
 
-    def save_parameters(self, path):
+    def save(self, path):
 
 
         #TODO check que c'est le bon format (IGOR)

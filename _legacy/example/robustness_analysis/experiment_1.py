@@ -40,7 +40,7 @@ algo_settings = AlgorithmSettings(path_to_algo_parameters)
 algo_settings.parameters['n_iter'] = n_iter
 
 # Create the data
-leaspy_dummy = Leaspy.from_model_settings(path_to_true_model_parameters)
+leaspy_dummy = Leaspy.load(path_to_true_model_parameters)
 data = generate_data_from_model(leaspy_dummy.model, n_patients=n_patients)
 
 
@@ -58,7 +58,7 @@ def run_experiment_1(data, model_settings_path, algo_settings, seed):
     algo_settings.output_path = run_path
 
     # Load a leaspy
-    leaspy = Leaspy.from_model_settings(model_settings_path)
+    leaspy = Leaspy.load(model_settings_path)
 
     # Fit a Leaspy
     leaspy.fit(data, algo_settings, seed=seed)

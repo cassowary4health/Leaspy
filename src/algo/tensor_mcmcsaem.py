@@ -32,8 +32,7 @@ class TensorMCMCSAEM(AbstractMCMC):
                     new_regularity = model.compute_regularity_variable(realizations[key])
 
                     accepted = self._metropolisacceptation_step(new_regularity.sum(), previous_regularity.sum(),
-                                                new_attachment, previous_attachment,
-                                                key)
+                                                new_attachment, previous_attachment, key)
 
                     # Revert if not accepted
                     if not accepted:
@@ -44,7 +43,6 @@ class TensorMCMCSAEM(AbstractMCMC):
 
 
     def _sample_individual_realizations(self, data, model, realizations):
-
 
         for key_ind in realizations.reals_ind_variable_names:
 

@@ -1,4 +1,7 @@
 import json
+import warnings
+
+from src.inputs.outputs_reader import OutputsReader
 
 
 class AlgorithmSettings:
@@ -12,7 +15,7 @@ class AlgorithmSettings:
         AlgorithmSettings._check_settings(settings)
         self._get_type(settings)
         self._get_parameters(settings)
-        self._get_output(settings)
+        self._get_outputs(settings)
         self._get_seed(settings)
 
     @staticmethod
@@ -21,10 +24,6 @@ class AlgorithmSettings:
             raise ValueError('The \'name\' key is missing in the algorithm settings (JSON file) you are loading')
         if 'parameters' not in settings.keys():
             raise ValueError('The \'parameters\' key is missing in the algorithm settings (JSON file) you are loading')
-        if 'output' not in settings.keys():
-            raise ValueError('The \'output\' key is missing in the algorithm settings (JSON file) you are loading')
-        if 'path' not in settings['output'].keys():
-            print("Warning: The \'path\' key is missing in the output parameter")
 
     def _get_type(self, settings):
         self.name = settings['name'].lower()
@@ -32,12 +31,19 @@ class AlgorithmSettings:
     def _get_parameters(self, settings):
         self.parameters = settings['parameters']
 
-    def _get_output(self, settings):
-        self.output = settings['output']
-        if 'path' in self.output.keys():
-            self.output_path = self.output['path']
-        else:
-            self.output_path = None
+    def _get_outputs(self, settings):
+        # Check if the 'outputs' keys is in the settings ; otherwise no outputs
+        if 'outputs' not in settings.keys():
+            warnings.warn("You did not provide any output folder settings")
+            self.outputs = None
+            return
+
+        # Check if the 'exists' keys exists, and if false, then no outputs
+        if 'exists' in settings['outputs'] and settings['outputs']['exists'] is False:
+            self.outputs = None
+            return
+
+        self.outputs = OutputsReader(settings['outputs'])
 
     def _get_seed(self, settings):
         if 'seed' in settings.keys():

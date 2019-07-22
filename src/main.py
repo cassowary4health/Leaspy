@@ -13,17 +13,17 @@ class Leaspy:
         self.type = model_name
         self.model = ModelFactory.model(model_name)
 
-    def __str__(self):
-        return self.model.__str__()
-
     @classmethod
-    def from_model_settings(cls, path_to_model_parameters):
-        reader = ModelSettings(path_to_model_parameters)
-        leaspy = cls(reader.model_type)
+    def load(cls, path_to_model_settings):
+        reader = ModelSettings(path_to_model_settings)
+        leaspy = cls(reader.name)
         leaspy.model.load_parameters(reader.parameters)
         leaspy.model.load_hyperparameters(reader.hyperparameters)
         leaspy.model.is_initialized = True
         return leaspy
+
+    def save(self, path):
+        self.model.save(path)
 
     def fit(self, data, algorithm_settings):
 
@@ -33,14 +33,9 @@ class Leaspy:
             self.model.initialize(dataset)
         algorithm.run(dataset, self.model)
 
-    def save(self, path):
-        self.model.save_parameters(path)
+    def personalize(self, individual, prediction_settings, seed=0):
 
-    def personalize(self, individual, prediction_settings, seed=0, method="map"):
-
-        # Instanciate optimization algorithm for predict
-
-        # Chekc that in predict algo
+        # Check that in predict algo
         if prediction_settings.algo_type not in ['mcmc_predict']:
             raise ValueError("Optimization Algorithm is not adapted for predict")
 

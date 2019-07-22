@@ -66,15 +66,19 @@ class AbstractAlgo:
     def iteration(self, data, model, realizations):
         raise NotImplementedError
 
-    @staticmethod
-    def _maximization_step(data, model, realizations):
-        burn_in_phase = True # The burn_in is true when the maximization step is memoryless
+    def _maximization_step(self, data, model, realizations):
+        burn_in_phase = self._is_burn_in()  # The burn_in is true when the maximization step is memoryless
         if burn_in_phase:
             model.update_model_parameters(data, realizations, burn_in_phase)
         else:
             sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
-            ### TODO : Add Burn - in !
-            model.update_model_parameters(data, sufficient_statistics, burn_in_phase)
+            burn_in_step = 1. / (self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1)
+            self.sufficient_statistics = {k: v + burn_in_step * (sufficient_statistics[k] - v)
+                                          for k, v in self.sufficient_statistics.items()}
+            model.update_model_parameters(data, self.sufficient_statistics, burn_in_phase)
+
+    def _is_burn_in(self):
+        return self.current_iteration < self.algo_parameters['n_burn_in_iter']
 
     def _initialize_likelihood(self, data, model, realizations):
         return 0

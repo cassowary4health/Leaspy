@@ -24,8 +24,6 @@ class AbstractMCMC(AbstractAlgo):
         self.algo_parameters = settings.parameters
 
         self.samplers = None
-
-
         self.current_iteration = 0
 
         self.path_output = "output/"
@@ -41,6 +39,7 @@ class AbstractMCMC(AbstractAlgo):
         model.initialize_MCMC_toolbox(data)
         self._initialize_samplers(model, data)
         self._initialize_likelihood(data, model, realizations)
+        self._initialize_sufficient_statistics(data, model, realizations)
         if self.algo_parameters['annealing']['do_annealing']:
             self._initialize_annealing()
 
@@ -59,6 +58,10 @@ class AbstractMCMC(AbstractAlgo):
         self.samplers = dict.fromkeys(infos_variables.keys())
         for variable, info in infos_variables.items():
             self.samplers[variable] = Sampler(info, data.n_individuals)
+
+    def _initialize_sufficient_statistics(self, data, model, realizations):
+        suff_stats = model.compute_sufficient_statistics(data, realizations)
+        self.sufficient_statistics = {k: torch.zeros(v.shape) for k, v in suff_stats.items()}
 
     ###########################
     ## Getters / Setters

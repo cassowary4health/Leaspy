@@ -30,7 +30,7 @@ data = reader.read(data_path)
 
 
 # Leaspy instanciate
-leaspy = Leaspy.from_model_settings(path_to_model_parameters)
+leaspy = Leaspy.load(path_to_model_parameters)
 
 #%% Perform operations
 

@@ -20,7 +20,7 @@ class LeaspyTest(unittest.TestCase):
 
     def test_constructor_from_parameters(self):
         path_to_model_parameters = os.path.join(test_data_dir, 'model_settings_univariate.json')
-        leaspy = Leaspy.from_model_settings(path_to_model_parameters)
+        leaspy = Leaspy.load(path_to_model_parameters)
         self.assertEqual(leaspy.type, "univariate")
         self.assertEqual(leaspy.model.model_parameters['p0'], [0.3])
         self.assertEqual(leaspy.model.model_parameters['tau_mean'], 50)

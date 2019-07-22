@@ -19,10 +19,10 @@ class AbstractModel():
     def load_hyperparameters(self, hyperparameters):
         raise NotImplementedError
 
-    def save_parameters(self, parameters):
+    def save(self, path):
         raise NotImplementedError
 
-    def initialize(self, dataset):
+    def initialize(self, dataset, is_initialized):
         raise NotImplementedError
 
     def compute_sum_squared_tensorized(self, data, realizations):

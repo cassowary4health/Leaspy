@@ -1,65 +1,37 @@
-
 import numpy as np
-import torch
 import os
 import csv
-import pandas as pd
 import shutil
 import time
+
 from src.utils.plotter import Plotter
 
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+
 
 class OutputManager():
 
     # TODO: add a loading bar for a run
 
-    def __init__(self, path_output):
-
-
-
-        # print every
-        # plot every
-        # save every
-        self.print_periodicity = 50
-        self.plot_periodicity = None
-        self.save_periodicity = None
-
-        # Paths
-        self.path_output = path_output
-
-        #TODO clean
-        if path_output is not None:
-            self.path_save_model = os.path.join(path_output, "model", "model.json")
-            self.path_save_model_parameters_convergence = os.path.join(path_output, "model_parameters_convergence/")
-            self.path_plot = os.path.join(path_output, "plot/")
-            self.path_plot_patients = os.path.join(self.path_plot, 'patients')
-            self.path_plot_convergence_model_parameters_1 = os.path.join(path_output, "plot_model_parameters_convergence_1.pdf")
-            self.path_plot_convergence_model_parameters_2 = os.path.join(path_output, "plot_model_parameters_convergence_2.pdf")
-
-            self.plot_periodicity = 50
-            self.save_periodicity = 50
-
+    def __init__(self, outputs):
+        self.print_periodicity = outputs.console_print_periodicity
+        self.plot_periodicity = outputs.plot_periodicity
+        self.save_periodicity = outputs.save_periodicity
+        self.path_save_model_parameters_convergence = outputs.parameter_convergence_path
+        self.path_output = outputs.root_path
+        self.path_plot = outputs.plot_path
+        self.path_plot_patients = outputs.patients_plot_path
+        self.path_plot_convergence_model_parameters_1 = os.path.join(outputs.plot_path, "convergence_1.pdf")
+        self.path_plot_convergence_model_parameters_2 = os.path.join(outputs.plot_path, "convergence_2.pdf")
 
         # Options
+        # TODO : Maybe add to the outputs reader
         self.plot_options = {}
         self.plot_options['maximum_patient_number'] = 5
         self.plotter = Plotter()
 
-        self.initialize()
-
-    def initialize(self):
         self.time = time.time()
 
-        # #TODO clean
-        if self.path_output is not None:
-            self.clean_output_folder()
-
-
     def iteration(self, algo, data, model, realizations):
-
-        #print("Iteration : {0}, path_output: {1}".format(algo.iteration, self.path_output))
         iteration = algo.current_iteration
 
         if self.print_periodicity is not None:
@@ -74,7 +46,7 @@ class OutputManager():
         if self.save_periodicity is not None:
             if iteration % self.save_periodicity == 0:
                 self.save_model_parameters_convergence(iteration, model)
-                self.save_model(model)
+                #self.save_model(model)
 
         if self.plot_periodicity is not None:
             if iteration % self.plot_periodicity == 0:
@@ -91,8 +63,6 @@ class OutputManager():
         print("Duration since last print : {0}s".format(np.round(current_time-self.time), decimals=4))
         self.time = current_time
 
-
-
     def print_model_statistics(self, model):
         print(model)
 
@@ -102,32 +72,6 @@ class OutputManager():
     ########
     ## Saving methods
     ########
-
-
-    def clean_output_folder(self):
-        # Remove what exists
-        if os.path.exists(self.path_save_model_parameters_convergence):
-            shutil.rmtree(self.path_save_model_parameters_convergence)
-
-        if os.path.exists(self.path_plot):
-            shutil.rmtree(self.path_plot)
-
-        if os.path.exists(self.path_plot_convergence_model_parameters_1):
-            os.remove(self.path_plot_convergence_model_parameters_1)
-
-        if os.path.exists(self.path_plot_convergence_model_parameters_2):
-            os.remove(self.path_plot_convergence_model_parameters_2)
-
-        # Create if not exists
-        if not os.path.exists(self.path_save_model_parameters_convergence):
-            os.mkdir(self.path_save_model_parameters_convergence)
-
-        if not os.path.exists(self.path_plot):
-            os.mkdir(self.path_plot)
-
-        if not os.path.exists(self.path_plot_patients):
-            os.mkdir(self.path_plot_patients)
-
 
 
     def save_model_parameters_convergence(self, iteration, model):
@@ -164,14 +108,6 @@ class OutputManager():
                 writer = csv.writer(filename)
                 #writer.writerow([iteration]+list(model_parameters.values()))
                 writer.writerow([iteration]+list(value))
-
-    def save_model(self, model):
-        if not os.path.exists(os.path.join(self.path_output, "model")):
-            os.mkdir(os.path.join(self.path_output, "model"))
-
-        model.save_parameters(self.path_save_model)
-
-
 
     def save_realizations(self, realizations):
         raise NotImplementedError

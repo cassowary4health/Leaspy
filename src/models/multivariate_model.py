@@ -40,34 +40,13 @@ class MultivariateModel(AbstractModel):
         self.dimension = hyperparameters['dimension']
         self.source_dimension = hyperparameters['source_dimension']
 
-    def save_parameters(self, path):
-        # TODO later
-        return 0
-
-        # TODO, shouldnt be this be in the output manager ???
-        # TODO check que c'est le bon format (IGOR)
-        model_settings = {}
-
-        model_settings['parameters'] = self.parameters
-        model_settings['dimension'] = self.dimension
-        model_settings['source_dimension'] = self.dimension
-        model_settings['type'] = self.model_name
-
-        if type(model_settings['parameters']['g']) not in [list]:
-            model_settings['parameters']['g'] = model_settings['parameters']['g'].tolist()
-
-        if type(model_settings['parameters']['v0']) not in [list]:
-            model_settings['parameters']['v0'] = model_settings['parameters']['v0'].tolist()
-
-        if type(model_settings['parameters']['betas']) not in [list]:
-            model_settings['parameters']['betas'] = model_settings['parameters']['betas'].tolist()
-            # beta = model_settings['parameters']['beta']
-            # beta_n_columns = beta.shape[1]
-            # model_settings['parameters'].pop('beta')
-            # Save per column
-            # for beta_dim in range(beta_n_columns):
-            #    beta_column = beta[beta_dim].tolist()
-            #    model_settings['parameters']['beta_'+ str(beta_dim)] = beta_column
+    def save(self, path):
+        model_settings = {
+            'name': 'multivariate',
+            'dimension': self.dimension,
+            'source_dimension': self.source_dimension,
+            'parameters': self.parameters
+        }
 
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)
@@ -164,71 +143,65 @@ class MultivariateModel(AbstractModel):
         return attachment
 
     def compute_sufficient_statistics(self, data, realizations):
-        # Tau
-        tau_array = realizations['tau'].tensor_realizations
-        tau_mean = np.mean(tau_array.detach().numpy()).tolist()
-        tau_var = np.var(tau_array.detach().numpy()).tolist()
+        sufficient_statistics = {
+            'g': realizations['g'].tensor_realizations.detach(),
+            'v0': realizations['v0'].tensor_realizations.detach(),
+            'betas': realizations['betas'].tensor_realizations.detach(),
+            'tau': realizations['tau'].tensor_realizations,
+            'tau_sqrd': torch.pow(realizations['tau'].tensor_realizations, 2),
+            'xi': realizations['xi'].tensor_realizations,
+            'xi_sqrd': torch.pow(realizations['xi'].tensor_realizations, 2)
+        }
 
-        # Ksi
-        xi_array = realizations['xi'].tensor_realizations
-        xi_mean = np.mean(xi_array.detach().numpy()).tolist()
-        xi_var = np.var(xi_array.detach().numpy()).tolist()
-
-        # Sources
-        sources_array = realizations['sources'].tensor_realizations
-        sources_var = np.var(sources_array.detach().numpy()).tolist()
-
-        # P0
-        g = realizations['g'].tensor_realizations.detach().numpy()
-
-        # V0
-        v0 = realizations['v0'].tensor_realizations.detach().numpy()
-
-        # Beta
-        beta = realizations['beta'].tensor_realizations.detach().numpy()
-
-        # Compute sufficient statistics
-        sufficient_statistics = {}
-        sufficient_statistics['g'] = g
-        sufficient_statistics['v0'] = v0
-        sufficient_statistics['beta'] = beta
-        sufficient_statistics['tau_mean'] = tau_mean
-        sufficient_statistics['tau_var'] = tau_var
-        sufficient_statistics['xi_mean'] = xi_mean
-        sufficient_statistics['xi_var'] = xi_var
-        sufficient_statistics['sum_squared'] = float(
-            torch.sum(self.compute_sum_squared_tensorized(data, realizations).detach()).numpy())
-        sufficient_statistics['empirical_sources_var'] = sources_var
-
-        # TODO : non identifiable here with the xi, but how do we update each xi ?
-        sufficient_statistics['v0'][sufficient_statistics['v0'] < 0.01] = 0.01
-        self.model_parameters['v0'] = np.exp(sufficient_statistics['xi_mean']) * np.array(self.model_parameters['v0'])
-        realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - sufficient_statistics[
-            'xi_mean']
-        sufficient_statistics['xi_mean'] = sufficient_statistics['xi_mean']
+        # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
+        data_reconstruction = self.compute_individual_tensorized(data, realizations)
+        norm_0 = data.values * data.values * data.mask
+        norm_1 = data.values * data_reconstruction * data.mask
+        norm_2 = data_reconstruction * data_reconstruction * data.mask
+        sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
+        sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
+        sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
 
         return sufficient_statistics
 
-    def update_model_parameters(self, data, sufficient_statistics, burn_in_phase=True):
+    def update_model_parameters(self, data, suff_stats, burn_in_phase=True):
         # Memoryless part of the algorithm
         if burn_in_phase:
-            self.parameters['g'] = sufficient_statistics['g'].tensor_realizations.detach().numpy()
-            self.parameters['v0'] = sufficient_statistics['v0'].tensor_realizations.detach().numpy()
-            self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
-            xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
+            self.parameters['g'] = suff_stats['g'].tensor_realizations.detach().numpy()
+            self.parameters['v0'] = suff_stats['v0'].tensor_realizations.detach().numpy()
+            self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach().numpy()
+            xi = suff_stats['xi'].tensor_realizations.detach().numpy()
             self.parameters['xi_mean'] = np.mean(xi)
             self.parameters['xi_std'] = np.std(xi)
-            tau = sufficient_statistics['tau'].tensor_realizations.detach().numpy()
+            tau = suff_stats['tau'].tensor_realizations.detach().numpy()
             self.parameters['tau_mean'] = np.mean(tau)
             self.parameters['tau_std'] = np.std(tau)
 
-            squared_diff = self.compute_sum_squared_tensorized(data, sufficient_statistics).sum().numpy()
+            squared_diff = self.compute_sum_squared_tensorized(data, suff_stats).sum().numpy()
             self.parameters['noise_std'] = np.sqrt(squared_diff / (data.n_visits * data.dimension))
 
         # Stochastic sufficient statistics used to update the parameters of the model
         else:
-            # TODO : To finish
-            return
+            # TODO with Raphael : check the SS, especially the issue with mean(xi) and v_k
+            self.parameters['g'] = suff_stats['g'].tolist()[0]
+            self.parameters['v0'] = suff_stats['v0'].tolist()[0]
+            self.parameters['betas'] = suff_stats['betas'].tolist()
+
+            tau_mean = self.parameters['tau_mean']
+            tau_std_updt = tau_mean * tau_mean - tau_mean * torch.sum(suff_stats['tau'])
+            self.parameters['tau_std'] = ((tau_std_updt + torch.sum(suff_stats['tau_sqrd']))/data.n_individuals).tolist()
+            self.parameters['tau_mean'] = torch.mean(suff_stats['tau']).tolist()
+
+            xi_mean = self.parameters['xi_mean']
+            tau_std_updt = xi_mean * xi_mean - xi_mean * torch.sum(suff_stats['xi'])
+            self.parameters['xi_std'] = ((tau_std_updt + torch.sum(suff_stats['xi_sqrd']))/data.n_individuals).tolist()
+            self.parameters['xi_mean'] = torch.mean(suff_stats['xi']).tolist()
+
+            S1 = torch.sum(suff_stats['obs_x_obs'])
+            S2 = torch.sum(suff_stats['obs_x_reconstruction'])
+            S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
+
+            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits)).tolist()
 
     def random_variable_informations(self):
 

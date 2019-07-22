@@ -45,7 +45,7 @@ leaspy.save(os.path.join(output_path, "model.json"))
 ### Predict a new patient
 
 ## 1. Load a model
-leaspy = Leaspy.from_model_settings(os.path.join(output_path, "model.json"))
+leaspy = Leaspy.load(os.path.join(output_path, "model.json"))
 
 ## 2. Predict a new patient
 

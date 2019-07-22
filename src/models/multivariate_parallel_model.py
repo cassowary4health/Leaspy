@@ -1,8 +1,9 @@
 import numpy as np
 import torch
-from src.models.utils.attributes.attributes_multivariateparallel import Attributes_MultivariateParallel
+import json
 
 from src.models.abstract_model import AbstractModel
+from src.models.utils.attributes.attributes_multivariateparallel import Attributes_MultivariateParallel
 
 
 class MultivariateModelParallel(AbstractModel):
@@ -19,7 +20,7 @@ class MultivariateModelParallel(AbstractModel):
         self.bayesian_priors = None
         self.attributes = None
 
-        ### MCMC related "parameters"
+        # MCMC related "parameters"
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
@@ -29,18 +30,20 @@ class MultivariateModelParallel(AbstractModel):
             }
         }
 
-    def load_parameters(self, parameters):
-        super().load_parameters(parameters)
-        self.parameters['g'] = np.log(1/self.parameters['p0'] - 1)
-        self.parameters.pop('p0', None)
-
     def load_hyperparameters(self, hyperparameters):
         self.dimension = hyperparameters['dimension']
         self.source_dimension = hyperparameters['source_dimension']
 
-    def save_parameters(self, parameters):
-        #TODO TODO
-        return 0
+    def save(self, path):
+        model_settings = {
+            'name': 'multivariate_parallel',
+            'dimension': self.dimension,
+            'source_dimension': self.source_dimension,
+            'parameters': self.parameters
+        }
+
+        with open(path, 'w') as fp:
+            json.dump(model_settings, fp)
 
     def initialize(self, data):
         self.dimension = data.dimension
@@ -65,7 +68,6 @@ class MultivariateModelParallel(AbstractModel):
 
         realizations = self.get_realization_object(data)
         self.update_MCMC_toolbox(['all'], realizations)
-
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
@@ -112,53 +114,63 @@ class MultivariateModelParallel(AbstractModel):
 
     def compute_sufficient_statistics(self, data, realizations):
         sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach().numpy()
-        sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations.detach().numpy()
-        sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach().numpy()
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()
+        sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations.detach()
+        sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
         sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
-        sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi_sqrd'].tensor_realizations, 2)
+        sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
-        ## TODO : To finish
+        #TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         data_reconstruction = self.compute_individual_tensorized(data, realizations)
-        data_real = data.values
-        norm_1 = data_real * data_reconstruction
-        norm_2 = data_reconstruction * data_reconstruction
+        norm_0 = data.values * data.values * data.mask
+        norm_1 = data.values * data_reconstruction * data.mask
+        norm_2 = data_reconstruction * data_reconstruction * data.mask
+        sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
         sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
-        sufficient_statistics['reconstruction_sqrd'] = torch.sum(norm_2, dim=2)
+        sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
 
         return sufficient_statistics
 
-    def update_model_parameters(self, data, sufficient_statistics, burn_in_phase=True):
+    def update_model_parameters(self, data, suff_stats, burn_in_phase=True):
         # Memoryless part of the algorithm
         if burn_in_phase:
-            self.parameters['g'] = sufficient_statistics['g'].tensor_realizations.detach().numpy()
-            self.parameters['deltas'] = sufficient_statistics['deltas'].tensor_realizations.detach().numpy()
-            self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
-            xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
-            self.parameters['xi_mean'] = np.mean(xi)
-            self.parameters['xi_std'] = np.std(xi)
-            tau = sufficient_statistics['tau'].tensor_realizations.detach().numpy()
-            self.parameters['tau_mean'] = np.mean(tau)
-            self.parameters['tau_std'] = np.std(tau)
+            self.parameters['g'] = suff_stats['g'].tensor_realizations.detach().tolist()[0]
+            self.parameters['deltas'] = suff_stats['deltas'].tensor_realizations.detach().numpy()
+            self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach().numpy()
+            xi = suff_stats['xi'].tensor_realizations.detach()
+            self.parameters['xi_mean'] = torch.mean(xi).tolist()
+            self.parameters['xi_std'] = torch.std(xi).tolist()
+            tau = suff_stats['tau'].tensor_realizations.detach()
+            self.parameters['tau_mean'] = torch.mean(tau).tolist()
+            self.parameters['tau_std'] = torch.std(tau).tolist()
 
-            data_fit = self.compute_individual_tensorized(data, sufficient_statistics)
+            data_fit = self.compute_individual_tensorized(data, suff_stats)
             squared_diff = ((data_fit-data.values)**2).sum()
             self.parameters['noise_std'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
 
         # Stochastic sufficient statistics used to update the parameters of the model
         else:
-            ## TODO : To finish
-            self.parameters['g'] = sufficient_statistics['g']
-            self.parameters['deltas'] = sufficient_statistics['deltas']
-            self.parameters['betas']  = sufficient_statistics['betas']
-            self.parameters['xi_mean'] = np.mean(sufficient_statistics['xi'])
-            self.parameters['xi_std'] = np.sqrt(np.mean(sufficient_statistics['xi_sqrd']) - np.sum(sufficient_statistics['xi'])**2)
-            self.parameters['tau_mean'] = np.mean(sufficient_statistics['tau'])
-            self.parameters['tau_std'] = np.sqrt(np.mean(sufficient_statistics['tau_sqrd']) - np.sum(sufficient_statistics['tau'])**2)
-            self.parameters['noise_std'] = 0.01
+            self.parameters['g'] = suff_stats['g'].tolist()[0][0]
+            self.parameters['deltas'] = suff_stats['deltas'].tolist()[0]
+            self.parameters['betas'] = suff_stats['betas'].tolist()
 
+            tau_mean = self.parameters['tau_mean']
+            tau_std_updt = tau_mean * tau_mean - tau_mean * torch.sum(suff_stats['tau'])
+            self.parameters['tau_std'] = ((tau_std_updt + torch.sum(suff_stats['tau_sqrd']))/data.n_individuals).tolist()
+            self.parameters['tau_mean'] = torch.mean(suff_stats['tau']).tolist()
+
+            xi_mean = self.parameters['xi_mean']
+            tau_std_updt = xi_mean * xi_mean - xi_mean * torch.sum(suff_stats['xi'])
+            self.parameters['xi_std'] = ((tau_std_updt + torch.sum(suff_stats['xi_sqrd']))/data.n_individuals).tolist()
+            self.parameters['xi_mean'] = torch.mean(suff_stats['xi']).tolist()
+
+            S1 = torch.sum(suff_stats['obs_x_obs'])
+            S2 = torch.sum(suff_stats['obs_x_reconstruction'])
+            S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
+
+            self.parameters['noise_std'] = torch.sqrt((S1 - 2.*S2 + S3)/(data.dimension * data.n_visits)).tolist()
 
 
     def random_variable_informations(self):

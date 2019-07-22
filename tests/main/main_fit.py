@@ -33,7 +33,7 @@ class LeaspyFitTest(unittest.TestCase):
 
         #path_output = None
 
-        leaspy = Leaspy.from_model_settings(path_to_model_parameters)
+        leaspy = Leaspy.load(path_to_model_parameters)
 
         # Create the data
         data_path = os.path.join(test_data_dir, 'univariate_data.csv')
@@ -151,7 +151,7 @@ class LeaspyFitTest(unittest.TestCase):
             os.mkdir(path_output)
         algo_settings.output_path = None
 
-        leaspy = Leaspy.from_model_settings(path_to_model_parameters)
+        leaspy = Leaspy.load(path_to_model_parameters)
 
 
         # Create the data

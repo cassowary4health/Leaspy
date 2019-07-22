@@ -1,5 +1,5 @@
 from src.algo.gradient_descent import GradientDescent
-from src._legacy.mcmc_predict import MCMCPredict
+from _legacy.src.mcmc_predict import MCMCPredict
 from src.algo.tensor_mcmcsaem import TensorMCMCSAEM
 
 
@@ -19,5 +19,5 @@ class AlgoFactory:
             raise ValueError("The name of your algorithm is unknown")
 
         algorithm.load_parameters(settings.parameters)
-        algorithm.set_output_manager(settings.output_path)
+        algorithm.set_output_manager(settings.outputs)
         return algorithm

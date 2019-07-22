@@ -48,7 +48,7 @@ class Realization:
     def to_torch_Variable(self):
         if not self.is_autograd:
             self._tensor_realizations = torch.autograd.Variable(self._tensor_realizations, requires_grad=True)
-            self.is_autograd = False
+            self.is_autograd = True
         else:
             raise ValueError("Realizations are already variables")
 

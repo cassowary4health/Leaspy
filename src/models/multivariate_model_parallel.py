@@ -145,6 +145,7 @@ class MultivariateModelParallel(AbstractModel):
 
             data_fit = self.compute_individual_tensorized(data, sufficient_statistics)
             squared_diff = ((data_fit-data.values)**2).sum()
+            squared_diff = squared_diff.detach().numpy() # Remove the gradients
             self.parameters['noise_std'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
 
         # Stochastic sufficient statistics used to update the parameters of the model

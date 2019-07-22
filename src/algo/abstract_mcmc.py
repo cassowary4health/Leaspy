@@ -38,12 +38,13 @@ class AbstractMCMC(AbstractAlgo):
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
+        # MCMC toolbox (cache variables for speed-ups + tricks)
         model.initialize_MCMC_toolbox(data)
+        # Samplers
         self._initialize_samplers(model, data)
-        self._initialize_likelihood(data, model, realizations)
+        # Annealing
         if self.algo_parameters['annealing']['do_annealing']:
             self._initialize_annealing()
-
         return realizations
 
     def _initialize_annealing(self):
@@ -88,14 +89,16 @@ class AbstractMCMC(AbstractAlgo):
             self._update_temperature()
 
     def _update_temperature(self):
-
         if self.current_iteration <= self.algo_parameters['annealing']['n_iter']:
             # If we cross a plateau step
-            if self.current_iteration % int(self.algo_parameters['annealing']['n_iter']/self.algo_parameters['annealing']['n_plateau']) == 0:
+            if self.current_iteration % int(
+                    self.algo_parameters['annealing']['n_iter'] / self.algo_parameters['annealing'][
+                        'n_plateau']) == 0:
                 # Decrease temperature linearly
-                self.temperature -= self.algo_parameters['annealing']['initial_temperature']/self.algo_parameters['annealing']['n_plateau']
+                self.temperature -= self.algo_parameters['annealing']['initial_temperature'] / \
+                                    self.algo_parameters['annealing']['n_plateau']
                 self.temperature = max(self.temperature, 1)
-                self.temperature_inv = 1/self.temperature
+                self.temperature_inv = 1 / self.temperature
 
     def _metropolisacceptation_step(self, new_regularity, previous_regularity, new_attachment, previous_attachment, key):
 
@@ -122,6 +125,7 @@ class AbstractMCMC(AbstractAlgo):
     def __str__(self):
         out = ""
         out += "=== ALGO ===\n"
+        out += "Instance of {0} algo \n".format(self.name)
         out += "Iteration {0}\n".format(self.current_iteration)
         out += "=Samplers \n"
         for sampler_name, sampler in self.samplers.items():
@@ -133,3 +137,5 @@ class AbstractMCMC(AbstractAlgo):
             out += "Annealing \n"
             out += "Temperature : {0}".format(self.temperature)
         return out
+
+

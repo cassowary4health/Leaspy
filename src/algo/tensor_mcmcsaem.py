@@ -6,6 +6,7 @@ class TensorMCMCSAEM(AbstractMCMC):
 
     def __init__(self, settings):
         super().__init__(settings)
+        self.name = "MCMC_SAEM (tensor)"
 
     def _sample_population_realizations(self, data, model, realizations):
 

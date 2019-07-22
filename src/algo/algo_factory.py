@@ -10,7 +10,7 @@ class AlgoFactory:
         name = settings.name
 
         if name == 'gradient_descent':
-            algorithm = GradientDescent()
+            algorithm = GradientDescent(settings)
         elif name == 'mcmc_predict':
             algorithm = MCMCPredict()
         elif name == 'tensor_mcmc_saem':

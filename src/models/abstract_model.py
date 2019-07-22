@@ -19,23 +19,11 @@ class AbstractModel():
     def load_hyperparameters(self, hyperparameters):
         raise NotImplementedError
 
+    def save_parameters(self, parameters):
+        raise NotImplementedError
+
     def initialize(self, dataset):
         raise NotImplementedError
-
-    def compute_individual(self, individual, reals_pop, real_ind):
-        raise NotImplementedError
-
-    def save_parameters(self, parameters):
-        # raise NotImplementedError
-        return 0
-
-    def random_variable_informations(self):
-        raise NotImplementedError
-
-    def get_realization_object(self, data):
-        ### TODO : CollectionRealizations should probably get self.get_info_var rather than all self
-        realizations = CollectionRealization(data, self)
-        return realizations
 
     def compute_sum_squared_tensorized(self, data, realizations):
         res = self.compute_individual_tensorized(data, realizations)
@@ -53,8 +41,6 @@ class AbstractModel():
             output += "{0} : {1}\n".format(key, self.parameters[key])
         return output
 
-    def simulate_individual_parameters(self):
-        raise NotImplementedError
 
     def compute_regularity_variable(self, realization):
         # Instanciate torch distribution
@@ -70,11 +56,19 @@ class AbstractModel():
 
         return -distribution.log_prob(realization.tensor_realizations)
 
+    def get_realization_object(self, data):
+        ### TODO : CollectionRealizations should probably get self.get_info_var rather than all self
+        realizations = CollectionRealization(data, self)
+        return realizations
+
+    def random_variable_informations(self):
+        raise NotImplementedError
+
+
+    '''
     ###########################
     ## LEGACY
     ###########################
-
-    '''
     
     def _update_random_variables(self):
         # TODO float for torch operations

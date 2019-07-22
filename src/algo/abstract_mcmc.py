@@ -76,6 +76,7 @@ class AbstractMCMC(AbstractAlgo):
 
         # Maximization step
         self._maximization_step(data, model, realizations)
+        model.update_MCMC_toolbox(['all'], realizations)
 
         # Update the likelihood with the new noise_var
         # TODO likelihood is computed 2 times, remove this one, and update it in maximization step ?

@@ -8,7 +8,6 @@ from src.models.abstract_model import AbstractModel
 class MultivariateModelParallel(AbstractModel):
     def __init__(self, name):
         super(MultivariateModelParallel, self).__init__(name)
-
         self.source_dimension = None
         self.parameters = {
             "g": None, "betas": None, "deltas": None,
@@ -39,12 +38,18 @@ class MultivariateModelParallel(AbstractModel):
         self.dimension = hyperparameters['dimension']
         self.source_dimension = hyperparameters['source_dimension']
 
+    def save_parameters(self, parameters):
+        #TODO TODO
+        return 0
+
     def initialize(self, data):
         self.dimension = data.dimension
         self.source_dimension = int(data.dimension/2.)  # TODO : How to change it independently of the initialize?
-        # TODO : Faire une initialisation intelligente
+
+        # "Smart" initialization : may be improved
+        # TODO !
         self.parameters = {
-            'g': 0.5, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
+            'g': 1, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
             'noise_std': 0.1, 'deltas': [-3., -2., -2.],
             'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
@@ -59,18 +64,22 @@ class MultivariateModelParallel(AbstractModel):
         }
 
         realizations = self.get_realization_object(data)
-        self.update_MCMC_toolbox('all', realizations)
+        self.update_MCMC_toolbox(['all'], realizations)
 
 
-    def update_MCMC_toolbox(self, name_of_the_variable_that_has_been_changed, realizations):
-        ### TODO : Check if it is possible / usefull to have multiple variables sampled
-        values = {
-            'g': realizations['g'].tensor_realizations,
-            'deltas': realizations['deltas'].tensor_realizations,
-            'xi_mean': self.parameters['xi_mean'],
-            'betas': realizations['betas'].tensor_realizations
-        }
-        self.MCMC_toolbox['attributes'].update([name_of_the_variable_that_has_been_changed], values)
+    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+        L = name_of_the_variables_that_have_been_changed
+        values = {}
+        if any(c in L for c in ('g', 'all')):
+            values['g'] = realizations['g'].tensor_realizations
+        if any(c in L for c in ('deltas', 'all')):
+            values['deltas'] = realizations['deltas'].tensor_realizations
+        if any(c in L for c in ('betas', 'all')):
+            values['betas'] = realizations['betas'].tensor_realizations
+        if any(c in L for c in ('xi_mean', 'all')):
+            values['xi_mean'] = self.parameters['xi_mean']
+
+        self.MCMC_toolbox['attributes'].update(L, values)
 
     def compute_individual_tensorized(self, data, realizations):
         # Population parameters

@@ -33,11 +33,10 @@ class Leaspy:
             self.model.initialize(dataset)
         algorithm.run(dataset, self.model)
 
-
     def save(self, path):
         self.model.save_parameters(path)
 
-    def predict(self, individual, prediction_settings, seed=0, method="map"):
+    def personalize(self, individual, prediction_settings, seed=0, method="map"):
 
         # Instanciate optimization algorithm for predict
 

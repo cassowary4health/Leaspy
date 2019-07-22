@@ -40,6 +40,38 @@ class MultivariateModel(AbstractModel):
         self.dimension = hyperparameters['dimension']
         self.source_dimension = hyperparameters['source_dimension']
 
+    def save_parameters(self, path):
+        # TODO later
+        return 0
+
+        # TODO, shouldnt be this be in the output manager ???
+        # TODO check que c'est le bon format (IGOR)
+        model_settings = {}
+
+        model_settings['parameters'] = self.parameters
+        model_settings['dimension'] = self.dimension
+        model_settings['source_dimension'] = self.dimension
+        model_settings['type'] = self.model_name
+
+        if type(model_settings['parameters']['g']) not in [list]:
+            model_settings['parameters']['g'] = model_settings['parameters']['g'].tolist()
+
+        if type(model_settings['parameters']['v0']) not in [list]:
+            model_settings['parameters']['v0'] = model_settings['parameters']['v0'].tolist()
+
+        if type(model_settings['parameters']['betas']) not in [list]:
+            model_settings['parameters']['betas'] = model_settings['parameters']['betas'].tolist()
+            # beta = model_settings['parameters']['beta']
+            # beta_n_columns = beta.shape[1]
+            # model_settings['parameters'].pop('beta')
+            # Save per column
+            # for beta_dim in range(beta_n_columns):
+            #    beta_column = beta[beta_dim].tolist()
+            #    model_settings['parameters']['beta_'+ str(beta_dim)] = beta_column
+
+        with open(path, 'w') as fp:
+            json.dump(model_settings, fp)
+
     def initialize(self, data):
 
         self.dimension = data.dimension
@@ -87,23 +119,26 @@ class MultivariateModel(AbstractModel):
             'attributes': Attributes_Multivariate(self.dimension, self.source_dimension)
         }
         realizations = self.get_realization_object(data)
-        self.update_MCMC_toolbox('all', realizations)
+        self.update_MCMC_toolbox(['all'], realizations)
 
-    def update_MCMC_toolbox(self, name_of_the_variable_that_has_been_changed, realizations):
-        values = {
-            'g': realizations['g'].tensor_realizations.detach().numpy(),
-            'v0': realizations['v0'].tensor_realizations.detach().numpy(),
-            'betas': realizations['betas'].tensor_realizations.detach().numpy()
-        }
-        self.MCMC_toolbox['attributes'].update([name_of_the_variable_that_has_been_changed], values)
+    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+        L = name_of_the_variables_that_have_been_changed
+        values = {}
+        if any(c in L for c in ('g', 'all')):
+            values['g'] = realizations['g'].tensor_realizations
+        if any(c in L for c in ('v0', 'all')):
+            values['v0'] = realizations['v0'].tensor_realizations
+        if any(c in L for c in ('betas', 'all')):
+            values['betas'] = realizations['betas'].tensor_realizations
+
+        self.MCMC_toolbox['attributes'].update(name_of_the_variables_that_have_been_changed, values)
 
     def compute_individual_tensorized(self, data, realizations):
 
         # Population parameters
-        # TODO : Change the attributes!
         a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
-        v0 = torch.exp(realizations['v0'].tensor_realizations)
-        g = torch.exp(realizations['g'].tensor_realizations)
+        v0 = self.MCMC_toolbox['attributes'].v0
+        g = self.MCMC_toolbox['attributes'].g
         b = g / ((1.+g)*(1.+g))
 
         # Individual parameters
@@ -127,61 +162,6 @@ class MultivariateModel(AbstractModel):
         attachment += np.log(np.sqrt(2 * np.pi * noise_var))
 
         return attachment
-
-    def update_model_parameters(self, data, sufficient_statistics, burn_in_phase=True):
-        # Memoryless part of the algorithm
-        if burn_in_phase:
-            self.parameters['g'] = sufficient_statistics['g'].tensor_realizations.detach().numpy()
-            self.parameters['v0'] = sufficient_statistics['v0'].tensor_realizations.detach().numpy()
-            self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
-            xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
-            self.parameters['xi_mean'] = np.mean(xi)
-            self.parameters['xi_std'] = np.std(xi)
-            tau = sufficient_statistics['tau'].tensor_realizations.detach().numpy()
-            self.parameters['tau_mean'] = np.mean(tau)
-            self.parameters['tau_std'] = np.std(tau)
-
-            squared_diff = self.compute_sum_squared_tensorized(data, sufficient_statistics).sum().numpy()
-            self.parameters['noise_std'] = np.sqrt(squared_diff / (data.n_visits * data.dimension))
-
-        # Stochastic sufficient statistics used to update the parameters of the model
-        else:
-            # TODO : To finish
-            return
-
-
-    def save_parameters(self, path):
-        # TODO later
-        return 0
-
-        # TODO, shouldnt be this be in the output manager ???
-        # TODO check que c'est le bon format (IGOR)
-        model_settings = {}
-
-        model_settings['parameters'] = self.parameters
-        model_settings['dimension'] = self.dimension
-        model_settings['source_dimension'] = self.dimension
-        model_settings['type'] = self.model_name
-
-        if type(model_settings['parameters']['g']) not in [list]:
-            model_settings['parameters']['g'] = model_settings['parameters']['g'].tolist()
-
-        if type(model_settings['parameters']['v0']) not in [list]:
-            model_settings['parameters']['v0'] = model_settings['parameters']['v0'].tolist()
-
-        if type(model_settings['parameters']['betas']) not in [list]:
-            model_settings['parameters']['betas'] = model_settings['parameters']['betas'].tolist()
-            # beta = model_settings['parameters']['beta']
-            # beta_n_columns = beta.shape[1]
-            # model_settings['parameters'].pop('beta')
-            # Save per column
-            # for beta_dim in range(beta_n_columns):
-            #    beta_column = beta[beta_dim].tolist()
-            #    model_settings['parameters']['beta_'+ str(beta_dim)] = beta_column
-
-        with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
-
 
     def compute_sufficient_statistics(self, data, realizations):
         # Tau
@@ -228,6 +208,27 @@ class MultivariateModel(AbstractModel):
         sufficient_statistics['xi_mean'] = sufficient_statistics['xi_mean']
 
         return sufficient_statistics
+
+    def update_model_parameters(self, data, sufficient_statistics, burn_in_phase=True):
+        # Memoryless part of the algorithm
+        if burn_in_phase:
+            self.parameters['g'] = sufficient_statistics['g'].tensor_realizations.detach().numpy()
+            self.parameters['v0'] = sufficient_statistics['v0'].tensor_realizations.detach().numpy()
+            self.parameters['betas'] = sufficient_statistics['betas'].tensor_realizations.detach().numpy()
+            xi = sufficient_statistics['xi'].tensor_realizations.detach().numpy()
+            self.parameters['xi_mean'] = np.mean(xi)
+            self.parameters['xi_std'] = np.std(xi)
+            tau = sufficient_statistics['tau'].tensor_realizations.detach().numpy()
+            self.parameters['tau_mean'] = np.mean(tau)
+            self.parameters['tau_std'] = np.std(tau)
+
+            squared_diff = self.compute_sum_squared_tensorized(data, sufficient_statistics).sum().numpy()
+            self.parameters['noise_std'] = np.sqrt(squared_diff / (data.n_visits * data.dimension))
+
+        # Stochastic sufficient statistics used to update the parameters of the model
+        else:
+            # TODO : To finish
+            return
 
     def random_variable_informations(self):
 

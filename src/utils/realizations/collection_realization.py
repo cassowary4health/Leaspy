@@ -11,9 +11,6 @@ class CollectionRealization:
             realization.initialize(data, model)
             self.realizations[variable] = realization
 
-        # Keep the Ordering of the indices
-        #self.indices = data.indices
-
         # Name of variables per type
         self.reals_pop_variable_names = [name for name, info_variable in infos.items() if info_variable['type'] =='population']
         self.reals_ind_variable_names = [name for name, info_variable in infos.items() if info_variable['type'] =='individual']

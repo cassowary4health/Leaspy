@@ -25,7 +25,7 @@ class TensorMCMCSAEM(AbstractMCMC):
                     realizations[key].set_tensor_realizations_element(realizations[key].tensor_realizations[dim_1, dim_2] + self.samplers[key].sample(), (dim_1, dim_2))
 
                     # Update intermediary model variables if necessary
-                    model.update_MCMC_toolbox(key, realizations)
+                    model.update_MCMC_toolbox([key], realizations)
 
                     # Compute the attachment and regularity
                     new_attachment = model.compute_individual_attachment_tensorized(data, realizations).sum()
@@ -40,8 +40,7 @@ class TensorMCMCSAEM(AbstractMCMC):
                         # Revert realizations
                         realizations[key].tensor_realizations = previous_reals_pop
                         # Update intermediary model variables if necessary
-                        model.update_MCMC_toolbox(key, realizations)
-                        #model.update_variable_info(key, realizations)
+                        model.update_MCMC_toolbox([key], realizations)
 
 
     def _sample_individual_realizations(self, data, model, realizations):

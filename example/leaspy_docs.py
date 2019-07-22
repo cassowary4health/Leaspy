@@ -55,7 +55,7 @@ prediction_settings = AlgorithmSettings(prediction_algosettings_path)
 
 # 2.2 Predict
 individual = data.subset([116])
-individual_parameters = leaspy.predict(individual, prediction_settings, seed=3)
+individual_parameters = leaspy.personalize(individual, prediction_settings, seed=3)
 
 # 2.3 Plot the Prediction
 fig, ax = plt.subplots(1,1)
@@ -76,7 +76,7 @@ colors = cm.rainbow(np.linspace(0, 1, n_patients_to_plot+2))
 
 for i, idx in enumerate(indices_to_plot):
     individual = data.subset([idx])
-    individual_parameters = leaspy.predict(individual, prediction_settings, seed=0)
+    individual_parameters = leaspy.personalize(individual, prediction_settings, seed=0)
     output_manager.plot_model_patient_reconstruction(individual[idx], leaspy.model, individual_parameters,
                                                      color=colors[i], ax=ax)
 

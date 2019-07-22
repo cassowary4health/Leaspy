@@ -1,5 +1,5 @@
 # Package-related outputs in the examples
-./example/start/_outputs/
+example/start/_outputs/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

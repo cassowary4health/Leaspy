@@ -52,7 +52,8 @@ class AbstractAlgo:
         # Iterate
         for it in range(self.algo_parameters['n_iter']):
             self.iteration(data, model, realizations)
-            self.output_manager.iteration(self, data, model, realizations)
+            if self.output_manager is not None: # TODO better this, should work with nones
+                self.output_manager.iteration(self, data, model, realizations)
             self.current_iteration += 1
 
         return realizations

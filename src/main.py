@@ -33,20 +33,24 @@ class Leaspy:
             self.model.initialize(dataset)
         algorithm.run(dataset, self.model)
 
-    def personalize(self, individual, prediction_settings, seed=0):
-
-        # Check that in predict algo
-        if prediction_settings.algo_type not in ['mcmc_predict']:
-            raise ValueError("Optimization Algorithm is not adapted for predict")
+    def personalize(self, data, prediction_settings):
 
         print("Load predict algorithm")
-        predict_algo = AlgoFactory.algo(prediction_settings.algo_type)
-        predict_algo.load_parameters(prediction_settings.parameters)
+        algorithm = AlgoFactory.algo(prediction_settings)
+        dataset = Dataset(data, algo=algorithm, model=self.model)
 
         # Predict
         print("Launch predict algo")
-        res = predict_algo.run(individual, self.model, seed)
-        return res
+        realizations = algorithm.run(dataset, self.model)
+
+        # Individual attachment
+        noise = (self.model.compute_sum_squared_tensorized(dataset, realizations).sum()/(dataset.n_visits*dataset.dimension)).detach().numpy().tolist()
+        print("Noise : {0}".format(noise))
+
+        # Keep the individual variables
+        data.realizations = realizations
+
+        return data
 
     def simulate(self, path_to_simulation_settings, seed=0):
 

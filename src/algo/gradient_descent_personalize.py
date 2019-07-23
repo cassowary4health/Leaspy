@@ -22,14 +22,18 @@ class GradientDescentPersonalize(AbstractAlgo):
     ###########################
 
     def _initialize_algo(self, data, model, realizations):
+
         # MCMC toolbox (cache variables for speed-ups + tricks)
         model.initialize_MCMC_toolbox(data)
-        realizations = self._initialize_torchvariables(realizations)
+        self._initialize_torchvariables(realizations)
+
         return realizations
 
     def _initialize_torchvariables(self, realizations):
         for name, realization in realizations.realizations.items():
             realization.to_torch_Variable()
+
+
 
     ###########################
     ## Core

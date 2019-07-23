@@ -22,4 +22,4 @@ leaspy.save(path_to_saved_model)
 leaspy2 = Leaspy.load(path_to_saved_model)
 
 # Fit a second time
-#leaspy2.fit(data, algorithm_settings=algo_settings)
+leaspy2.fit(data, algorithm_settings=algo_settings)

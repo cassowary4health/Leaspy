@@ -1,5 +1,5 @@
 {
-  "name": "mcmc_gradient_descent",
+  "name": "tensor_mcmc_saem",
   "seed": 0,
   "parameters": {
     "n_iter": 501,
@@ -12,7 +12,10 @@
     }
   },
   "output":{
+    "exists": true,
+    "console_print_periodicity": 50,
+    "plot_periodicity": 50,
+    "save_periodicity": 50,
     "path": "../output_leaspy/start/"
-  },
-  "smart_initialization": true
+  }
 }

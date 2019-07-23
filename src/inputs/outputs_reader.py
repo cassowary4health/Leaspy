@@ -3,6 +3,7 @@ import warnings
 import shutil
 
 class OutputsReader:
+    #TODO mettre les variables par défaut à None
     def __init__(self, settings):
 
         self._get_console_print_periodicity(settings)
@@ -37,6 +38,8 @@ class OutputsReader:
             warnings.warn("You did not provide a path for your outputs. "
                           "They have been initialized in the working directory.")
             settings['path'] = os.path.join(os.getcwd(), '_outputs')
+
+        settings['path'] = os.path.join(os.getcwd(), settings['path'])
 
         parent_directory = os.path.abspath(os.path.join(settings['path'], '..'))
 

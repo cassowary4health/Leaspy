@@ -183,6 +183,8 @@ class MultivariateModel(AbstractModel):
         # Stochastic sufficient statistics used to update the parameters of the model
         else:
             # TODO with Raphael : check the SS, especially the issue with mean(xi) and v_k
+            # TODO : 1. Learn the mean of xi and v_k
+            # TODO : 2. Set the mean of xi to 0 and add it to the mean of V_k
             self.parameters['g'] = suff_stats['g'].tolist()[0]
             self.parameters['v0'] = suff_stats['v0'].tolist()[0]
             self.parameters['betas'] = suff_stats['betas'].tolist()

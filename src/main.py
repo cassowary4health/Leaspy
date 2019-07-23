@@ -48,7 +48,7 @@ class Leaspy:
         print("Noise : {0}".format(noise))
 
         # Keep the individual variables
-        data.realizations = realizations
+        data.personalize_output = algorithm.personalize_output
 
         return data
 

@@ -98,12 +98,16 @@ class Plotter():
 
 
     @staticmethod
-    def plot_patient_reconstructions(path, maximum_patient_number, data, model, realizations):
+    def plot_patient_reconstructions(path, maximum_patient_number, data, model, realizations, ax=None):
 
         colors = cm.rainbow(np.linspace(0, 1, maximum_patient_number+2))
 
 
-        fig, ax = plt.subplots(1, 1)
+        ax_provided = False
+        if ax is None:
+            ax_provided = True
+            fig, ax = plt.subplots(1, 1)
+
 
         patient_values = model.compute_individual_tensorized(data, realizations)
 
@@ -124,9 +128,11 @@ class Plotter():
         #model_average = model.compute_average(tensor_timepoints)
         #ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
 
-        plt.savefig(path)
-        plt.close()
+        if not ax_provided:
+            plt.savefig(path)
+            plt.close()
 
+        return ax
 
 
 

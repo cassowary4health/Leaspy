@@ -58,7 +58,8 @@ class AbstractModel():
 
     def get_realization_object(self, data):
         ### TODO : CollectionRealizations should probably get self.get_info_var rather than all self
-        realizations = CollectionRealization(data, self)
+        realizations = CollectionRealization()
+        realizations.initialize(data, self)
         return realizations
 
     def random_variable_informations(self):

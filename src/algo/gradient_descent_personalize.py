@@ -16,6 +16,7 @@ class GradientDescentPersonalize(AbstractAlgo):
         self.algo_parameters = settings.parameters
         self.current_iteration = 0
         self.path_output = 'output/'
+        self.personalize_output = {}
 
     ###########################
     ## Initialization
@@ -61,6 +62,8 @@ class GradientDescentPersonalize(AbstractAlgo):
                 eps =self.algo_parameters['learning_rate']
                 realizations[key].tensor_realizations -= eps*realizations[key].tensor_realizations.grad
                 realizations[key].tensor_realizations.grad.zero_()
+
+        self.personalize_output["map"] = realizations
 
 
         noise = (model.compute_sum_squared_tensorized(data, realizations).sum() / (

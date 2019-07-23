@@ -58,3 +58,9 @@ class Realization:
             self.is_autograd = False
         else:
             raise ValueError("Realizations are already tensors")
+
+    def copy(self):
+        new_realization = Realization(self.name, self.shape, self.variable_type)
+        new_realization.is_autograd = self.is_autograd
+        new_realization.tensor_realizations = self.tensor_realizations.clone()
+        return new_realization

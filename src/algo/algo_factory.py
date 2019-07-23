@@ -2,6 +2,7 @@ from src.algo.gradient_descent import GradientDescent
 from src.algo.gradient_mcmcsaem import GradientMCMCSAEM
 from src.algo.tensor_mcmcsaem import TensorMCMCSAEM
 from src.algo.gradient_descent_personalize import GradientDescentPersonalize
+from src.algo.mcmc_personalize import MCMCPersonalize
 
 
 class AlgoFactory:
@@ -20,6 +21,8 @@ class AlgoFactory:
         # Personalize Algorithm
         elif name == 'gradient_descent_personalize':
             algorithm = GradientDescentPersonalize(settings)
+        elif name == 'mcmc_personalize':
+            algorithm = MCMCPersonalize(settings)
         else:
             raise ValueError("The name of your algorithm is unknown")
 

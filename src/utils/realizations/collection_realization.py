@@ -1,10 +1,16 @@
 from src.utils.realizations.realization import Realization
+import copy
 
 class CollectionRealization:
-    def __init__(self, data, model):
+    def __init__(self):
+        self.realizations = {}
+
+        self.reals_pop_variable_names = []
+        self.reals_ind_variable_names = []
+
+    def initialize(self, data, model):
 
         # Indices
-        self.realizations = {}
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
             realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
@@ -35,3 +41,11 @@ class CollectionRealization:
 
     def keys(self):
         return self.realizations.keys()
+
+    def copy(self):
+        new_realizations = CollectionRealization()
+
+        for key in self.keys():
+            new_realizations.realizations[key] = self[key].copy()
+
+        return new_realizations

@@ -93,7 +93,9 @@ class OutputManager():
             # TODO, apriori only for beta
             elif type(value) in [np.ndarray]:
                 # Beta
-                if value.shape[0] > 1:
+                # TODO do something intelligent here
+                #if value.shape[0] > 1:
+                if key == "betas":
                     model_parameters_save.pop(key)
                     for column in range(value.shape[1]):
                         model_parameters_save["{0}_{1}".format(key, column)] = value[:, column]

@@ -35,7 +35,6 @@ class AbstractMCMC(AbstractAlgo):
         model.initialize_MCMC_toolbox(data)
         # Samplers
         self._initialize_samplers(model, data)
-        self._initialize_likelihood(data, model, realizations)
         self._initialize_sufficient_statistics(data, model, realizations)
         if self.algo_parameters['annealing']['do_annealing']:
             self._initialize_annealing()

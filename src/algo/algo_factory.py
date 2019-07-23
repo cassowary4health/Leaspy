@@ -1,5 +1,5 @@
 from src.algo.gradient_descent import GradientDescent
-from src._legacy.mcmc_predict import MCMCPredict
+from _legacy.src.mcmc_predict import MCMCPredict
 from src.algo.gradient_mcmcsaem import GradientMCMCSAEM
 from src.algo.tensor_mcmcsaem import TensorMCMCSAEM
 

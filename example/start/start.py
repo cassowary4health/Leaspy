@@ -8,8 +8,8 @@ data = Data(os.path.join(os.path.dirname(__file__), '_inputs', 'data_tiny.csv'))
 algo_settings = AlgorithmSettings(os.path.join(os.path.dirname(__file__), '_inputs', 'algorithm_settings.json'))
 
 # Initialize
-#leaspy = Leaspy("multivariate_parallel")
-leaspy = Leaspy("multivariate")
+leaspy = Leaspy("multivariate_parallel")
+#leaspy = Leaspy("multivariate")
 
 # Fit the model on the data
 leaspy.fit(data, algorithm_settings=algo_settings)

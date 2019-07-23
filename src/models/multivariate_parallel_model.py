@@ -54,7 +54,7 @@ class MultivariateModelParallel(AbstractModel):
         self.parameters = {
             'g': 1, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': 0.1, 'deltas': [-3., -2., -2.],
+            'noise_std': 0.1, 'deltas': [0.0]*(self.dimension-1),
             'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
         }
         self.attributes = Attributes_MultivariateParallel(self.dimension, self.source_dimension)

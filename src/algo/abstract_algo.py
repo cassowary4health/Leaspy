@@ -44,7 +44,7 @@ class AbstractAlgo:
         # Initialize first the random variables
         # TODO : Check if needed - model.initialize_random_variables(data)
         # Then initialize the Realizations (from the random variables)
-        realizations = model.get_realization_object(data)
+        realizations = model.get_realization_object(data.n_individuals)
 
         # Initialize Algo
         self._initialize_algo(data, model, realizations)

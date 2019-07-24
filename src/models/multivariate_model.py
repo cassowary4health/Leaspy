@@ -97,7 +97,7 @@ class MultivariateModel(AbstractModel):
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},
             'attributes': Attributes_Multivariate(self.dimension, self.source_dimension)
         }
-        realizations = self.get_realization_object(data)
+        realizations = self.get_realization_object(data.n_individuals)
         self.update_MCMC_toolbox(['all'], realizations)
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):

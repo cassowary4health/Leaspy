@@ -8,13 +8,13 @@ class CollectionRealization:
         self.reals_pop_variable_names = []
         self.reals_ind_variable_names = []
 
-    def initialize(self, data, model):
+    def initialize(self, n_individuals, model):
 
         # Indices
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
             realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
-            realization.initialize(data, model)
+            realization.initialize(n_individuals, model, scale_individual=0.01)
             self.realizations[variable] = realization
 
         # Name of variables per type

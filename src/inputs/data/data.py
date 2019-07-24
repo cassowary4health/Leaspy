@@ -1,18 +1,16 @@
 from src.inputs.data.data_reader import DataReader
-
+from src.inputs.data.individual_data import IndividualData
 
 class Data:
-    def __init__(self, path):
-        reader = DataReader(path)
+    def __init__(self):
 
-        self.individuals = reader.individuals
-        self.iter_to_idx = reader.iter_to_idx
-        self.headers = reader.headers
-        self.dimension = reader.dimension
-        self.n_individuals = reader.n_individuals
-        self.n_visits = reader.n_visits
-        self.n_observations = reader.n_observations
-
+        self.individuals = {}
+        self.iter_to_idx = {}
+        self.headers = None
+        self.dimension = None
+        self.n_individuals = 0
+        self.n_visits = 0
+        self.n_observations = 0
         self.iter = 0
 
     def __getitem__(self, idx):
@@ -28,3 +26,70 @@ class Data:
         else:
             self.iter += 1
             return self.__getitem__(self.iter-1)
+
+
+
+    @staticmethod
+    def from_csv_file(path):
+        reader = DataReader(path)
+
+        data = Data()
+
+        data.individuals = reader.individuals
+        data.iter_to_idx = reader.iter_to_idx
+        data.headers = reader.headers
+        data.dimension = reader.dimension
+        data.n_individuals = reader.n_individuals
+        data.n_visits = reader.n_visits
+        data.n_observations = reader.n_observations
+
+        return data
+
+
+
+    @staticmethod
+    def from_individuals(indices, timepoints, values, headers):
+        """
+        :param indices: list of indices
+        :param timepoints: list of timepoints (nd array)
+        :param values: list of values (nd array
+        :return:
+        """
+
+        data = Data()
+        data.dimension = values[0].shape[1]
+        data.headers = headers
+
+        for i, idx in enumerate(indices):
+
+            # Create individual
+            data.individuals[idx] = IndividualData(idx)
+            data.iter_to_idx[data.n_individuals] = idx
+            data.n_individuals += 1
+
+            # Add observations / timepoints
+            for patient_timepoint_obs, patient_value_obs in zip(timepoints[i], values[i]):
+                data.individuals[idx].add_observation(patient_timepoint_obs, patient_value_obs.T.tolist())
+
+            # Update Data metrics
+            data.n_visits += len(timepoints)
+            data.n_observations += len(timepoints)*data.dimension
+
+        return data
+
+
+
+"""
+
+    def __init__(self, path):
+        reader = DataReader(path)
+
+        self.individuals = reader.individuals
+        self.iter_to_idx = reader.iter_to_idx
+        self.headers = reader.headers
+        self.dimension = reader.dimension
+        self.n_individuals = reader.n_individuals
+        self.n_visits = reader.n_visits
+        self.n_observations = reader.n_observations
+        self.iter = 0
+"""

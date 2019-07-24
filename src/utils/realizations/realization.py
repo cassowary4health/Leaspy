@@ -8,7 +8,7 @@ class Realization:
         self._tensor_realizations = None
         self.is_autograd = None
 
-    def initialize(self, data, model):
+    def initialize(self, n_individuals, model, scale_individual=1.0):
         print("Initialize realizations of {0}".format(self.name))
         if self.variable_type == "population":
             self._tensor_realizations = torch.Tensor([model.parameters[self.name]]).reshape(self.shape)
@@ -18,8 +18,8 @@ class Realization:
         elif self.variable_type == 'individual':
 
             distribution = torch.distributions.normal.Normal(loc=model.parameters["{0}_mean".format(self.name)],
-                                                             scale=0.01* model.parameters["{0}_std".format(self.name)]) # TODO change later, to have low variance when initialized
-            self._tensor_realizations = distribution.sample(sample_shape = (data.n_individuals, self.shape[0], self.shape[1]))
+                                                             scale=scale_individual * model.parameters["{0}_std".format(self.name)]) # TODO change later, to have low variance when initialized
+            self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, self.shape[0], self.shape[1]))
 
             self.is_autograd = False
         else:

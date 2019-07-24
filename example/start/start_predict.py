@@ -27,7 +27,7 @@ def plot_patient_reconstructions_predict(maximum_patient_number, data, model, re
 
 
 # Inputs
-data = Data(os.path.join(os.path.dirname(__file__), '_inputs', 'data_tiny.csv'))
+data = Data.from_csv_file(os.path.join(os.path.dirname(__file__), '_inputs', 'data_tiny.csv'))
 algo_settings = AlgorithmSettings(os.path.join(os.path.dirname(__file__), '_inputs', 'algorithm_settings.json'))
 
 # Initialize
@@ -42,10 +42,11 @@ path_to_saved_model = os.path.join(os.path.dirname(__file__), '_outputs', 'fitte
 leaspy.save(path_to_saved_model)
 
 # Personalize
+
+"""
 prediction_settings = AlgorithmSettings(os.path.join(os.path.dirname(__file__), '_inputs', 'prediction_settings_mcmc.json'))
 data_res = leaspy.personalize(data, prediction_settings=prediction_settings)
 
-from src.utils.plotter import Plotter
 algorithm = AlgoFactory.algo(prediction_settings)
 dataset = Dataset(data, algo=algorithm, model=leaspy.model)
 import matplotlib.pyplot as plt
@@ -53,7 +54,8 @@ fig, ax = plt.subplots(1,1,figsize=(20,10))
 for i in range(50):
     plot_patient_reconstructions_predict(5 ,dataset, leaspy.model, data_res.personalize_output["distribution"][i], ax=ax)
 plt.savefig("predict.pdf")
-plt.show()
+plt.show()"""
 
 
-
+# Simulate
+data_synthetic = leaspy.simulate(data, n_individuals=10)

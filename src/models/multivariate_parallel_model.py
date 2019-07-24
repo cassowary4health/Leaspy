@@ -66,7 +66,7 @@ class MultivariateModelParallel(AbstractModel):
             'attributes': Attributes_MultivariateParallel(self.dimension, self.source_dimension)
         }
 
-        realizations = self.get_realization_object(data)
+        realizations = self.get_realization_object(data.n_individuals)
         self.update_MCMC_toolbox(['all'], realizations)
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):

@@ -1,6 +1,4 @@
-
 import torch
-
 from src.utils.realizations.collection_realization import CollectionRealization
 
 
@@ -56,10 +54,10 @@ class AbstractModel():
 
         return -distribution.log_prob(realization.tensor_realizations)
 
-    def get_realization_object(self, data):
+    def get_realization_object(self, n_individuals):
         ### TODO : CollectionRealizations should probably get self.get_info_var rather than all self
         realizations = CollectionRealization()
-        realizations.initialize(data, self)
+        realizations.initialize(n_individuals, self)
         return realizations
 
     def random_variable_informations(self):

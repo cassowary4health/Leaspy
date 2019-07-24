@@ -64,8 +64,6 @@ class Leaspy:
         print("WARNING : simulate is yet to be improved")
 
         # Get metrics from Data
-        pass
-        print("coucou")
         patient_timepoint_number = []
         patient_baseline_age = []
         duration_between_visits = []
@@ -127,21 +125,29 @@ class Leaspy:
         dummy_dataset = DummyDataset(timepoints_tensor, mask_tensor)
 
         # Compute model
-        model = self.model.compute_individual_tensorized(dummy_dataset, realizations)
+        model_values = self.model.compute_individual_tensorized(dummy_dataset, realizations)
+
+        # Add the noise + constraints (if sigmoid then limited between 0-1 for example)
+        normal_distr = torch.distributions.normal.Normal(loc=0, scale=self.model.parameters['noise_std'])
+        model_values = model_values + normal_distr.sample(sample_shape=model_values.shape)
+        # TODO add constraints
 
         # Create synthetic Dataset
         indices = list(range(n_individuals))
         timepoints = [new_dataset_infos[i]['timepoints'] for i in range(n_individuals)]
-        values = [model[i][:new_dataset_infos[i]["n_visits"],:].detach().numpy() for i in range(n_individuals)]
+        values = [model_values[i][:new_dataset_infos[i]["n_visits"],:].detach().numpy() for i in range(n_individuals)]
         simulated_data = Data.from_individuals(indices, timepoints, values, data.headers)
 
-        # Add the noise + constraints (if sigmoid then limited between 0-1 for example)
+
 
         # Add the individual parameters
         for i, idx in enumerate(indices):
             for key, value in self.model.random_variable_informations().items():
                 if value["type"] == "individual":
                     simulated_data.individuals[idx].add_individual_parameters(key, realizations[key].tensor_realizations[i].detach().numpy())
+
+        # TODO pas ouf
+        simulated_data.realizations = realizations
 
         return simulated_data
 

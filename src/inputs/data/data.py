@@ -1,6 +1,9 @@
 from src.inputs.data.data_reader import DataReader
 from src.inputs.data.individual_data import IndividualData
 
+#TODO : object data as output ??? or a result object ? Because there could be ambiguetes here
+# TODO or find a good way to say thet there are individual parameters here ???
+
 class Data:
     def __init__(self):
 
@@ -26,6 +29,7 @@ class Data:
         else:
             self.iter += 1
             return self.__getitem__(self.iter-1)
+
 
 
 
@@ -79,17 +83,3 @@ class Data:
 
 
 
-"""
-
-    def __init__(self, path):
-        reader = DataReader(path)
-
-        self.individuals = reader.individuals
-        self.iter_to_idx = reader.iter_to_idx
-        self.headers = reader.headers
-        self.dimension = reader.dimension
-        self.n_individuals = reader.n_individuals
-        self.n_visits = reader.n_visits
-        self.n_observations = reader.n_observations
-        self.iter = 0
-"""

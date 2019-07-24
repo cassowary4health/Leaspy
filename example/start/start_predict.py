@@ -59,3 +59,11 @@ plt.show()"""
 
 # Simulate
 data_synthetic = leaspy.simulate(data, n_individuals=10)
+
+# plot
+from src.visualization.visualization_toolbox import VisualizationToolbox
+visualization_toolbox = VisualizationToolbox()
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots(1,1,figsize=(20,10))
+visualization_toolbox.plot_patients(leaspy.model, data_synthetic, indices=[5,6,7], ax=ax)
+plt.show()

@@ -127,7 +127,8 @@ class Leaspy:
         dummy_dataset = DummyDataset(timepoints_tensor, mask_tensor)
 
         # Compute model
-        model_values = self.model.compute_individual_tensorized(dummy_dataset, realizations)
+        model_values = self.model.compute_individual_tensorized(dummy_dataset.timepoints, realizations)
+        model_values *= dummy_dataset.mask
 
         # Add the noise + constraints (if sigmoid then limited between 0-1 for example)
         normal_distr = torch.distributions.normal.Normal(loc=0, scale=self.model.parameters['noise_std'])

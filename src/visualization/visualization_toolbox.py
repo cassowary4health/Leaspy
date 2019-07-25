@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import torch
 from src.inputs.data.dataset import Dataset
+from src.utils.realizations.realization import Realization
 
 class VisualizationToolbox():
 
@@ -13,8 +14,34 @@ class VisualizationToolbox():
         pass
 
     # Plot model directly
-    def plot_mean(self, model):
-        NotImplementedError
+    def plot_mean(self, model, ax=None):
+
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+
+        n_individuals = 1
+        realizations = model.get_realization_object(n_individuals=n_individuals)
+
+        for key, value in model.random_variable_informations().items():
+            if value["type"] == "individual":
+                realizations.reals_ind_variable_names.append(key)
+                realizations.realizations[key] = Realization(key, value["shape"], value["type"])
+                realizations.realizations[key].initialize(n_individuals, model, scale_individual=0.0)
+
+
+
+        timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
+                                 model.parameters['tau_mean'] + 2 * np.sqrt(model.parameters['tau_std']),
+                                 100)
+        timepoints = torch.Tensor(timepoints).reshape(1,-1,1)
+
+
+        patient_values = model.compute_individual_tensorized(timepoints, realizations)
+
+        model_value = patient_values
+        ax.plot(timepoints[0,:,:].detach().numpy(), model_value[0,:,:].detach().numpy(), c='black', alpha=0.4, linewidth=5)
+
+        return 0
 
     def plot_patients(self, model, data, indices, ax=None):
 
@@ -25,8 +52,9 @@ class VisualizationToolbox():
         realizations = data.realizations
 
         colors = cm.rainbow(np.linspace(0, 1, len(indices)+2))
-        fig, ax = plt.subplots(1, 1)
 
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
 
         patient_values = model.compute_individual_tensorized(dataset.timepoints, realizations)
 

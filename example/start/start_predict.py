@@ -33,6 +33,7 @@ data_predict = leaspy.personalize(data, prediction_settings=prediction_settings)
 
 fig, ax = plt.subplots(1,1,figsize=(20,10))
 visualization_toolbox.plot_patients(leaspy.model, data_predict, indices=list(data_predict.individuals.keys())[:5], ax=ax)
+visualization_toolbox.plot_mean(leaspy.model, ax=ax)
 plt.show()
 
 
@@ -41,4 +42,5 @@ data_synthetic = leaspy.simulate(data, n_individuals=10)
 
 fig, ax = plt.subplots(1,1,figsize=(20,10))
 visualization_toolbox.plot_patients(leaspy.model, data_synthetic, indices=[5,6,7], ax=ax)
+visualization_toolbox.plot_mean(leaspy.model, ax=ax)
 plt.show()

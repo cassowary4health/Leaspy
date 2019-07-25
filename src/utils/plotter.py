@@ -109,7 +109,7 @@ class Plotter():
             fig, ax = plt.subplots(1, 1)
 
 
-        patient_values = model.compute_individual_tensorized(data, realizations)
+        patient_values = model.compute_individual_tensorized(data.timepoints, realizations)
 
         for i in range(10):
             model_value = patient_values[i,0:data.nb_observations_per_individuals[i],:]
@@ -123,14 +123,8 @@ class Plotter():
             if i > maximum_patient_number:
                 break
 
-        # Plot average model
-        #tensor_timepoints = torch.Tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1,1))
-        #model_average = model.compute_average(tensor_timepoints)
-        #ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
-
-        if not ax_provided:
-            plt.savefig(path)
-            plt.close()
+        plt.savefig(path)
+        plt.close()
 
         return ax
 

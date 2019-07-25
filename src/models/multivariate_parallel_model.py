@@ -83,7 +83,7 @@ class MultivariateModelParallel(AbstractModel):
 
         self.MCMC_toolbox['attributes'].update(L, values)
 
-    def compute_individual_tensorized(self, data, realizations):
+    def compute_individual_tensorized(self, timepoints, realizations):
         # Population parameters
         g = self.MCMC_toolbox['attributes'].g
         deltas = self.MCMC_toolbox['attributes'].deltas
@@ -94,7 +94,7 @@ class MultivariateModelParallel(AbstractModel):
         xi = realizations['xi'].tensor_realizations
         tau = realizations['tau'].tensor_realizations
         wi = torch.nn.functional.linear(realizations['sources'].tensor_realizations, a_matrix, bias=None)
-        timepoints = data.timepoints.reshape(data.timepoints.shape[0], data.timepoints.shape[1], 1)
+        timepoints = timepoints.reshape(timepoints.shape[0], timepoints.shape[1], 1)
         reparametrized_time = torch.exp(xi) * (timepoints - tau)
 
         # Log likelihood computation
@@ -102,7 +102,7 @@ class MultivariateModelParallel(AbstractModel):
         LL = -reparametrized_time - deltas - LL
         model = 1. / (1. + g*torch.exp(LL))
 
-        return model * data.mask
+        return model
 
     def compute_individual_attachment_tensorized(self, data, realizations):
         squared_sum = self.compute_sum_squared_tensorized(data, realizations)
@@ -123,7 +123,8 @@ class MultivariateModelParallel(AbstractModel):
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
         #TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        data_reconstruction = self.compute_individual_tensorized(data, realizations)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, realizations)
+        data_reconstruction *= data.mask
         norm_0 = data.values * data.values * data.mask
         norm_1 = data.values * data_reconstruction * data.mask
         norm_2 = data_reconstruction * data_reconstruction * data.mask
@@ -146,7 +147,8 @@ class MultivariateModelParallel(AbstractModel):
             self.parameters['tau_mean'] = torch.mean(tau).tolist()
             self.parameters['tau_std'] = torch.std(tau).tolist()
 
-            data_fit = self.compute_individual_tensorized(data, suff_stats)
+            data_fit = self.compute_individual_tensorized(data.timepoints, suff_stats)
+            data_fit *= data.mask
             squared_diff = ((data_fit-data.values)**2).sum()
             squared_diff = squared_diff.detach().numpy() # Remove the gradients
             self.parameters['noise_std'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))

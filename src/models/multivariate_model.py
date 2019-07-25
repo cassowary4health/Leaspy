@@ -112,7 +112,7 @@ class MultivariateModel(AbstractModel):
 
         self.MCMC_toolbox['attributes'].update(name_of_the_variables_that_have_been_changed, values)
 
-    def compute_individual_tensorized(self, data, realizations):
+    def compute_individual_tensorized(self, timepoints, realizations):
 
         # Population parameters
         a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
@@ -124,7 +124,7 @@ class MultivariateModel(AbstractModel):
         xi = realizations['xi'].tensor_realizations
         tau = realizations['tau'].tensor_realizations
         wi = torch.nn.functional.linear(realizations['sources'].tensor_realizations, a_matrix, bias=None)
-        timepoints = data.timepoints.reshape(data.timepoints.shape[0], data.timepoints.shape[1], 1)  # TODO change timepoints dimension in data structure
+        timepoints = timepoints.reshape(timepoints.shape[0], timepoints.shape[1], 1)  # TODO change timepoints dimension in data structure
         reparametrized_time = torch.exp(xi) * (timepoints - tau)
 
         # Log likelihood computation
@@ -132,7 +132,7 @@ class MultivariateModel(AbstractModel):
         LL = 1. + g * torch.exp(-LL / b)
         model = 1. / LL
 
-        return model * data.mask
+        return model
 
     def compute_individual_attachment_tensorized(self, data, realizations):
         squared_sum = self.compute_sum_squared_tensorized(data, realizations)
@@ -154,7 +154,7 @@ class MultivariateModel(AbstractModel):
         }
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        data_reconstruction = self.compute_individual_tensorized(data, realizations)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, realizations)
         norm_0 = data.values * data.values * data.mask
         norm_1 = data.values * data_reconstruction * data.mask
         norm_2 = data_reconstruction * data_reconstruction * data.mask

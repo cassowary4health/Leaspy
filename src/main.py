@@ -52,8 +52,10 @@ class Leaspy:
         noise = (self.model.compute_sum_squared_tensorized(dataset, realizations).sum()/(dataset.n_visits*dataset.dimension)).detach().numpy().tolist()
         print("Noise : {0}".format(noise))
 
+        #TODO and algorithm.personalize output, with the distributions ???
+
         # Keep the individual variables
-        data.personalize_output = algorithm.personalize_output
+        data.realizations = realizations
 
         return data
 

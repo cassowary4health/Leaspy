@@ -28,7 +28,7 @@ class VisualizationToolbox():
         fig, ax = plt.subplots(1, 1)
 
 
-        patient_values = model.compute_individual_tensorized(dataset, realizations)
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, realizations)
 
         # TODO only the 10 first, change that to specified indices
 

@@ -29,6 +29,8 @@ class MCMCPersonalize(AbstractMCMC):
         if iter_history >= 0:
             self.personalize_output["distribution"][iter_history] = realizations.copy()
 
+        """
+
         noise = (model.compute_sum_squared_tensorized(data, realizations).sum() / (
                     data.n_visits * data.dimension)).detach().numpy().tolist()
-        print(noise)
+        print(noise)"""

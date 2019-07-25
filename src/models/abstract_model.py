@@ -24,7 +24,8 @@ class AbstractModel():
         raise NotImplementedError
 
     def compute_sum_squared_tensorized(self, data, realizations):
-        res = self.compute_individual_tensorized(data, realizations)
+        res = self.compute_individual_tensorized(data.timepoints, realizations)
+        res *= data.mask
         return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
     def get_population_realization_names(self):

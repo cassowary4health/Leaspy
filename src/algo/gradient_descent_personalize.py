@@ -65,7 +65,7 @@ class GradientDescentPersonalize(AbstractAlgo):
 
         self.personalize_output["map"] = realizations
 
-
+        """
         noise = (model.compute_sum_squared_tensorized(data, realizations).sum() / (
                     data.n_visits * data.dimension)).detach().numpy().tolist()
-        print(noise)
+        print(noise)"""

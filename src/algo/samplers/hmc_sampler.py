@@ -65,7 +65,7 @@ class HMCSampler(AbstractSampler):
 
     def _compute_U(self, realizations, data, model,temperature_inv):
         U = torch.sum(model.compute_individual_attachment_tensorized_mcmc(data, realizations))
-        U += torch.sum(model.compute_regularity_variable(realizations[self.name]))*temperature_inv
+        U += torch.sum(model.compute_regularity_realization(realizations[self.name])) * temperature_inv
         return U
 
     def _update_p(self,p,realizations):
@@ -98,7 +98,7 @@ class HMCSampler(AbstractSampler):
 
     def _compute_ind_hamiltonian(self,model,data,p,realizations,temperature_inv):
         H = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
-        reg = model.compute_regularity_variable(realizations[self.name])
+        reg = model.compute_regularity_realization(realizations[self.name])
         H += torch.sum(reg.reshape(reg.shape[0], -1), dim=1)*temperature_inv
         momentum = p**2
         H += 0.5 * torch.sum(momentum.reshape(momentum.shape[0], -1), dim=1)
@@ -106,7 +106,7 @@ class HMCSampler(AbstractSampler):
 
     def _compute_pop_hamiltonian(self,model,data,p,realizations,temperature_inv):
         H = torch.sum(model.compute_individual_attachment_tensorized_mcmc(data, realizations))
-        reg = model.compute_regularity_variable(realizations[self.name])
+        reg = model.compute_regularity_realization(realizations[self.name])
         H += torch.sum(reg)*temperature_inv
         momentum = p**2
         H += 0.5 * torch.sum(momentum)

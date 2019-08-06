@@ -54,10 +54,13 @@ class Attributes_Multivariate:
         self.v0 = torch.exp(values['v0'])
 
     def _compute_betas(self, values):
+        if self.source_dimension == 0:
+            return
         self.betas = torch.Tensor(values['betas'])
 
     def _compute_orthonormal_basis(self):
-        #TODO : Use the dot product induced by the metric, not the scalar / euclidean dot product
+        if self.source_dimension == 0:
+            return
         p = 1/(1+self.g)
         G_p = 1/(p*(1-p))**2
         s = G_p*self.v0
@@ -78,6 +81,8 @@ class Attributes_Multivariate:
         return torch.mm(matrix, linear_combination_values)
 
     def _compute_mixing_matrix(self, values):
+        if self.source_dimension == 0:
+            return
         self.mixing_matrix = torch.Tensor(self._mixing_matrix_utils(self.betas, self.orthonormal_basis))
 
         #if (torch.mm(torch.Tensor(values['v0']), self.mixing_matrix).sum()>1e-5):

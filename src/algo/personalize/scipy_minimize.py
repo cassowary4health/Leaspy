@@ -21,12 +21,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             realizations['xi'].tensor_realizations = torch.tensor(x[0],dtype=torch.float32)
             realizations['tau'].tensor_realizations = torch.tensor(x[1],dtype=torch.float32)
             realizations['sources'].tensor_realizations = torch.tensor(x[2:],dtype=torch.float32)
-            xi,tau,sources = realizations['xi'].tensor_realizations,realizations['tau'].tensor_realizations,realizations['sources'].tensor_realizations
+            xi,tau,sources = torch.tensor(x[0],dtype=torch.float32),torch.tensor(x[1],dtype=torch.float32),torch.tensor(x[2:],dtype=torch.float32)
             err = model.compute_individual_tensorized(times, (xi,tau,sources))-values
             attachement = torch.sum(err**2)
             regularity = 0
-            for key in ['xi','tau','sources']:
-                regularity += torch.sum(model.compute_regularity_variable(realizations[key]))
+            for key,value in zip(['xi','tau','sources'],(xi,tau,sources)):
+                mean = model.parameters["{0}_mean".format(key)]
+                std = model.parameters["{0}_std".format(key)]
+                regularity += torch.sum(model.compute_regularity_variable(value,mean,std))
             return (regularity + attachement).detach().numpy()
 
         res = minimize(obj,

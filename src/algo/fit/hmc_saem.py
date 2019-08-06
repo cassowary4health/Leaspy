@@ -51,7 +51,7 @@ class HMC_SAEM(AbstractFitMCMC):
         U = torch.sum(model.compute_individual_attachment_tensorized_mcmc(data, realizations))
         if not self._is_burn_in():
             for key in realizations.reals_ind_variable_names:
-                U += torch.sum(model.compute_regularity_variable(realizations[key]))
+                U += torch.sum(model.compute_regularity_realization(realizations[key]))
         return U
 
     def _leapfrog_step(self, p, realizations, model, data):
@@ -101,7 +101,7 @@ class HMC_SAEM(AbstractFitMCMC):
         H = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
         for key in p.keys():
             if not self._is_burn_in():
-                H += torch.sum(model.compute_regularity_variable(realizations[key]),dim=2).squeeze(1)
+                H += torch.sum(model.compute_regularity_realization(realizations[key]), dim=2).squeeze(1)
             if key == 'tau':
                 H += 0.5*torch.sum(p[key]**2,(1,2))*(10**2)
             else:
@@ -153,7 +153,7 @@ class HMC_SAEM(AbstractFitMCMC):
 
                     # Compute the attachment and regularity
                     previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
-                    previous_regularity = model.compute_regularity_variable(realizations[key])
+                    previous_regularity = model.compute_regularity_realization(realizations[key])
 
                     # Keep previous realizations and sample new ones
                     previous_reals_pop = realizations[key].tensor_realizations.clone()
@@ -164,7 +164,7 @@ class HMC_SAEM(AbstractFitMCMC):
 
                     # Compute the attachment and regularity
                     new_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
-                    new_regularity = model.compute_regularity_variable(realizations[key])
+                    new_regularity = model.compute_regularity_realization(realizations[key])
 
                     accepted = self._metropolisacceptation_step(new_regularity.sum(), previous_regularity.sum(),
                                                 new_attachment, previous_attachment,

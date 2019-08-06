@@ -42,7 +42,7 @@ class GradientMCMCSAEM(AbstractFitMCMC):
         previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
         previous_regularity = 0
         for key in realizations.keys():
-            previous_regularity += model.compute_regularity_variable(realizations[key]).sum()
+            previous_regularity += model.compute_regularity_realization(realizations[key]).sum()
         loss = previous_attachment + previous_regularity
 
         # Do backward and backprop on realizations

@@ -161,19 +161,19 @@ class MultivariateModelParallel(AbstractModel):
             self.update_model_parameters_normal(data, suff_stats)
         self.attributes.update(['all'],self.parameters)
 
-    def update_model_parameters_burn_in(self, data, suff_stats):
-        self.parameters['g'] = suff_stats['g'].tensor_realizations.detach()[0]
-        self.parameters['deltas'] = suff_stats['deltas'].tensor_realizations.detach()
+    def update_model_parameters_burn_in(self, data, realizations):
+        self.parameters['g'] = realizations['g'].tensor_realizations.detach()[0]
+        self.parameters['deltas'] = realizations['deltas'].tensor_realizations.detach()
         if self.source_dimension != 0:
-            self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach()
-        xi = suff_stats['xi'].tensor_realizations.detach()
+            self.parameters['betas'] = realizations['betas'].tensor_realizations.detach()
+        xi = realizations['xi'].tensor_realizations.detach()
         self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
-        tau = suff_stats['tau'].tensor_realizations.detach()
+        tau = realizations['tau'].tensor_realizations.detach()
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
-        param_ind = self.get_param_from_real(suff_stats)
+        param_ind = self.get_param_from_real(realizations)
         data_fit = self.compute_individual_tensorized(data.timepoints, param_ind, MCMC=True)
         data_fit *= data.mask
         squared_diff = ((data_fit - data.values) ** 2).sum()

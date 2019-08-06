@@ -58,7 +58,7 @@ class GibbsSampler(AbstractSampler):
         for idx in index:
             # Compute the attachment and regularity
             previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
-            previous_regularity = model.compute_regularity_variable(realizations[self.name])
+            previous_regularity = model.compute_regularity_realization(realizations[self.name])
 
             # Keep previous realizations and sample new ones
             previous_reals_pop = realizations[self.name].tensor_realizations.clone()
@@ -70,7 +70,7 @@ class GibbsSampler(AbstractSampler):
 
             # Compute the attachment and regularity
             new_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
-            new_regularity = model.compute_regularity_variable(realizations[self.name])
+            new_regularity = model.compute_regularity_realization(realizations[self.name])
             alpha = torch.exp(-((new_regularity.sum() - previous_regularity.sum()) * temperature_inv +
                                 (new_attachment - previous_attachment)))
 
@@ -90,7 +90,7 @@ class GibbsSampler(AbstractSampler):
         # Compute the attachment and regularity
 
         previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
-        previous_regularity = model.compute_regularity_variable(realizations[self.name]).sum(dim=1).reshape(data.n_individuals)
+        previous_regularity = model.compute_regularity_realization(realizations[self.name]).sum(dim=1).reshape(data.n_individuals)
 
         # Keep previous realizations and sample new ones
         previous_reals= realizations[self.name].tensor_realizations.clone()
@@ -98,7 +98,7 @@ class GibbsSampler(AbstractSampler):
         # Compute the attachment and regularity
 
         new_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
-        new_regularity = model.compute_regularity_variable(realizations[self.name]).sum(dim=1).reshape(data.n_individuals)
+        new_regularity = model.compute_regularity_realization(realizations[self.name]).sum(dim=1).reshape(data.n_individuals)
 
         alpha = torch.exp(-((new_regularity - previous_regularity) * temperature_inv +
                     (new_attachment - previous_attachment)))

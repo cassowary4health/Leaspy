@@ -1,0 +1,11 @@
+{
+  "type": "gradient_descent",
+  "parameters": {
+    "n_iter": 100,
+    "learning_rate": 0.00001
+  },
+    "output":{
+    "path": null
+  }
+}
+

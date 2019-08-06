@@ -1,0 +1,11 @@
+{
+  "type": "univariate",
+  "dimension": 1,
+  "parameters": {
+    "P0": [0.3],
+    "tau_mean": 0.0,
+    "tau_var": 1.0,
+    "xi_mean": -1,
+    "xi_var": 0.1
+  }
+}

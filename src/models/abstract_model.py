@@ -49,6 +49,9 @@ class AbstractModel():
         attachment += np.log(np.sqrt(2 * np.pi * noise_var))
         return attachment
 
+    def update_model_parameters_burn_in(self, data, realizations):
+        raise NotImplementedError
+
     def get_population_realization_names(self):
         return [name for name, value in self.random_variable_informations().items() if value['type'] == 'population']
 

@@ -80,7 +80,7 @@ class MultivariateModel(AbstractModel):
             'v0': torch.tensor(v0_array),
             'betas': torch.zeros((self.dimension - 1, self.source_dimension)),
             'tau_mean': df.index.values.mean(), 'tau_std': 1.0,
-            'xi_mean': -3., 'xi_std': 0.05,
+            'xi_mean': .0, 'xi_std': 0.05,
             'sources_mean': 0.0, 'sources_std': 1.0,
             'noise_std': 0.1
         }
@@ -112,6 +112,15 @@ class MultivariateModel(AbstractModel):
             values['betas'] = realizations['betas'].tensor_realizations
 
         self.MCMC_toolbox['attributes'].update(name_of_the_variables_that_have_been_changed, values)
+
+    def _center_xi_realizations(self, realizations):
+        mean_xi = torch.mean(realizations['xi'].tensor_realizations)
+        realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
+        realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
+
+        self.update_MCMC_toolbox(['all'], realizations)
+
+        return realizations
 
     def _get_attributes(self,MCMC):
         if MCMC:
@@ -152,6 +161,8 @@ class MultivariateModel(AbstractModel):
 
 
     def compute_sufficient_statistics(self, data, realizations):
+        realizations = self._center_xi_realizations(realizations)
+
         sufficient_statistics = {
             'g': realizations['g'].tensor_realizations.detach(),
             'v0': realizations['v0'].tensor_realizations.detach(),
@@ -183,19 +194,22 @@ class MultivariateModel(AbstractModel):
             self.update_model_parameters_normal(data, suff_stats)
         self.attributes.update(['all'],self.parameters)
 
-    def update_model_parameters_burn_in(self, data, suff_stats):
+    def update_model_parameters_burn_in(self, data, realizations):
+
+        realizations = self._center_xi_realizations(realizations)
+
         # Memoryless part of the algorithm
-        self.parameters['g'] = suff_stats['g'].tensor_realizations.detach()
-        self.parameters['v0'] = suff_stats['v0'].tensor_realizations.detach()
-        self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach()
-        xi = suff_stats['xi'].tensor_realizations.detach()
-        self.parameters['xi_mean'] = torch.mean(xi)
+        self.parameters['g'] = realizations['g'].tensor_realizations.detach()
+        self.parameters['v0'] = realizations['v0'].tensor_realizations.detach()
+        self.parameters['betas'] = realizations['betas'].tensor_realizations.detach()
+        xi = realizations['xi'].tensor_realizations.detach()
+        #self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
-        tau = suff_stats['tau'].tensor_realizations.detach()
+        tau = realizations['tau'].tensor_realizations.detach()
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
-        param_ind = self.get_param_from_real(suff_stats)
+        param_ind = self.get_param_from_real(realizations)
         squared_diff = self.compute_sum_squared_tensorized(data, param_ind,MCMC=True).sum()
         self.parameters['noise_std'] = np.sqrt(squared_diff / (data.n_visits * data.dimension))
 
@@ -216,7 +230,7 @@ class MultivariateModel(AbstractModel):
         xi_mean = self.parameters['xi_mean']
         xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
-        self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
+        #self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
         S1 = torch.sum(suff_stats['obs_x_obs'])
         S2 = torch.sum(suff_stats['obs_x_reconstruction'])

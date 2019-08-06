@@ -31,8 +31,10 @@ class MultivariateModelParallel(AbstractModel):
         }
 
     def load_hyperparameters(self, hyperparameters):
-        self.dimension = hyperparameters['dimension']
-        self.source_dimension = hyperparameters['source_dimension']
+        if 'dimension' in hyperparameters.keys():
+            self.dimension = hyperparameters['dimens:on']
+        if 'source_dimension' in hyperparameters.keys():
+            self.source_dimension = hyperparameters['source_dimension']
 
     def save(self, path):
         model_parameters_save = self.parameters.copy()
@@ -51,7 +53,8 @@ class MultivariateModelParallel(AbstractModel):
 
     def initialize(self, data):
         self.dimension = data.dimension
-        self.source_dimension = int(data.dimension/2.)  # TODO : How to change it independently of the initialize?
+        if self.source_dimension is None:
+            self.source_dimension = int(data.dimension/2.)
 
         # "Smart" initialization : may be improved
         # TODO !
@@ -87,7 +90,7 @@ class MultivariateModelParallel(AbstractModel):
             values['g'] = realizations['g'].tensor_realizations
         if any(c in L for c in ('deltas', 'all')):
             values['deltas'] = realizations['deltas'].tensor_realizations
-        if any(c in L for c in ('betas', 'all')):
+        if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
         if any(c in L for c in ('xi_mean', 'all')):
             values['xi_mean'] = self.parameters['xi_mean']
@@ -112,12 +115,13 @@ class MultivariateModelParallel(AbstractModel):
 
         # Individual parameters
         xi, tau, sources = ind_parameters
-        wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
         reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
 
         # Log likelihood computation
-        LL = wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
-        LL+=deltas
+        LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
+        if self.source_dimension != 0:
+            wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
+            LL += wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
         LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)
         model = 1. / (1. + g*torch.exp(LL))
 
@@ -128,7 +132,8 @@ class MultivariateModelParallel(AbstractModel):
         sufficient_statistics = {}
         sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()[0]
         sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations.detach()
-        sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
+        if self.source_dimension != 0:
+            sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
         sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
@@ -159,7 +164,8 @@ class MultivariateModelParallel(AbstractModel):
     def update_model_parameters_burn_in(self, data, suff_stats):
         self.parameters['g'] = suff_stats['g'].tensor_realizations.detach()[0]
         self.parameters['deltas'] = suff_stats['deltas'].tensor_realizations.detach()
-        self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach()
+        if self.source_dimension != 0:
+            self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach()
         xi = suff_stats['xi'].tensor_realizations.detach()
         self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
@@ -178,7 +184,8 @@ class MultivariateModelParallel(AbstractModel):
 
         self.parameters['g'] = suff_stats['g']
         self.parameters['deltas'] = suff_stats['deltas']
-        self.parameters['betas'] = suff_stats['betas']
+        if self.source_dimension != 0:
+            self.parameters['betas'] = suff_stats['betas']
 
         tau_mean = self.parameters['tau_mean']
         tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
@@ -244,11 +251,13 @@ class MultivariateModelParallel(AbstractModel):
         variables_infos = {
             "g": g_infos,
             "deltas": deltas_infos,
-            "betas": betas_infos,
             "tau": tau_infos,
             "xi": xi_infos,
-            "sources": sources_infos
         }
+
+        if self.source_dimension != 0:
+            variables_infos['sources'] = sources_infos
+            variables_infos['betas'] = betas_infos
 
         return variables_infos
 

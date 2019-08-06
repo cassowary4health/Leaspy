@@ -11,10 +11,12 @@ algo_settings = AlgorithmSettings(os.path.join(os.path.dirname(__file__), '_inpu
 
 # Initialize
 #leaspy = Leaspy("multivariate_parallel")
-leaspy = Leaspy("multivariate")
+leaspy = Leaspy("multivariate_parallel")
+leaspy.model.load_hyperparameters({'source_dimension': 0})
 
 # Fit the model on the data
 leaspy.fit(data, algorithm_settings=algo_settings)
+
 
 # Save the model
 path_to_saved_model = os.path.join(os.path.dirname(__file__), '_outputs', 'fitted_multivariate_model.json')

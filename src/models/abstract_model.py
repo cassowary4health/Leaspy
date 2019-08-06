@@ -26,7 +26,10 @@ class AbstractModel():
     def get_param_from_real(self,realizations):
         xi = realizations['xi'].tensor_realizations
         tau = realizations['tau'].tensor_realizations
-        sources = realizations['sources'].tensor_realizations
+        if self.source_dimension == 0:
+            sources = None
+        else:
+            sources = realizations['sources'].tensor_realizations
         return (xi,tau,sources)
 
     def time_reparametrization(self,timepoints,xi,tau):

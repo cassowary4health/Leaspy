@@ -63,9 +63,14 @@ class Attributes_MultivariateParallel:
         self.deltas = torch.cat((torch.Tensor([0]), values['deltas']))
 
     def _compute_betas(self, values):
+        if self.source_dimension == 0:
+            return
         self.betas = torch.Tensor(values['betas'])
 
     def _compute_orthonormal_basis(self):
+        if self.source_dimension == 0:
+            return
+
         # Compute s
         # TODO : CHECK, CHECK AND RECHECK
         # TODO : Test that the columns of the matrix are orthogonal to v0
@@ -96,6 +101,9 @@ class Attributes_MultivariateParallel:
         return torch.mm(matrix, linear_combination_values)
 
     def _compute_mixing_matrix(self):
+        if self.source_dimension == 0:
+            return
+
         self.mixing_matrix = torch.Tensor(self._mixing_matrix_utils(self.betas, self.orthonormal_basis))
 
 

@@ -129,7 +129,7 @@ class MultivariateModel(AbstractModel):
         res *= data.mask
         return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
-    def compute_individual_tensorized(self, timepoints, ind_parameters,MCMC=False):
+    def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
         # Population parameters
         g, v0, a_matrix = self._get_attributes(MCMC)
         b = g / ((1.+g)*(1.+g))

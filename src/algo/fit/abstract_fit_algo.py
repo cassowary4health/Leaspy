@@ -38,9 +38,6 @@ class AbstractFitAlgo(AbstractAlgo):
         else:
             sufficient_statistics = model.compute_sufficient_statistics(data, realizations)
             burn_in_step = 1. / (self.current_iteration - self.algo_parameters['n_burn_in_iter']+1)
-            print(burn_in_step)
-            for k, v in self.sufficient_statistics.items():
-                print(k,sufficient_statistics[k] - v)
             self.sufficient_statistics = {k: v + burn_in_step * (sufficient_statistics[k] - v)
                                           for k, v in self.sufficient_statistics.items()}
             model.update_model_parameters(data, self.sufficient_statistics, burn_in_phase)

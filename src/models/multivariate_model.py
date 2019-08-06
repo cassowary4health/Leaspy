@@ -139,8 +139,6 @@ class MultivariateModel(AbstractModel):
         wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
         # TODO change timepoints dimension in data structure
         reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
-        #print('reparametrized time',reparametrized_time.unsqueeze(-1).shape)
-        #print('v0',v0.unsqueeze(0).repeat(reparametrized_time.shape[-1],1).shape)
         # Log likelihood computation
         a = tuple([1]*reparametrized_time.ndimension())
         v0 = v0.unsqueeze(0).repeat(*tuple(reparametrized_time.shape),1)
@@ -211,13 +209,13 @@ class MultivariateModel(AbstractModel):
         self.parameters['betas'] = suff_stats['betas']
 
         tau_mean = self.parameters['tau_mean']
-        tau_std_updt = tau_mean * tau_mean - 0.5*tau_mean * torch.sum(suff_stats['tau'])
-        self.parameters['tau_std'] = ((tau_std_updt + torch.sum(suff_stats['tau_sqrd']))/data.n_individuals)
-        self.parameters['tau_mean'] = torch.mean(suff_stats['tau']).tolist()
+        tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
+        self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
+        self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
         xi_mean = self.parameters['xi_mean']
-        xi_std_updt = xi_mean * xi_mean - 0.5*xi_mean * torch.sum(suff_stats['xi'])
-        self.parameters['xi_std'] = ((xi_std_updt + torch.sum(suff_stats['xi_sqrd']))/data.n_individuals)
+        xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
+        self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
         S1 = torch.sum(suff_stats['obs_x_obs'])

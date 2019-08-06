@@ -175,18 +175,19 @@ class MultivariateModelParallel(AbstractModel):
         self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
 
     def update_model_parameters_normal(self, data, suff_stats):
+
         self.parameters['g'] = suff_stats['g']
         self.parameters['deltas'] = suff_stats['deltas']
         self.parameters['betas'] = suff_stats['betas']
 
         tau_mean = self.parameters['tau_mean']
-        tau_std_updt = tau_mean * tau_mean - 0.5*tau_mean * torch.sum(suff_stats['tau'])
-        self.parameters['tau_std'] = ((tau_std_updt + torch.sum(suff_stats['tau_sqrd'])) / data.n_individuals)
+        tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
+        self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
         self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
         xi_mean = self.parameters['xi_mean']
-        xi_std_updt = xi_mean * xi_mean - 0.5*xi_mean * torch.sum(suff_stats['xi'])
-        self.parameters['xi_std'] = ((xi_std_updt + torch.sum(suff_stats['xi_sqrd'])) / data.n_individuals)
+        xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
+        self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
         S1 = torch.sum(suff_stats['obs_x_obs'])
@@ -194,6 +195,7 @@ class MultivariateModelParallel(AbstractModel):
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 
         self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
+
 
 
     def random_variable_informations(self):

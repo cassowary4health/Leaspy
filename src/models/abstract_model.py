@@ -62,18 +62,23 @@ class AbstractModel():
         return output
 
 
-    def compute_regularity_variable(self, realization):
+    def compute_regularity_realization(self, realization):
         # Instanciate torch distribution
         if realization.variable_type == 'population':
-            distribution = torch.distributions.normal.Normal(loc=self.parameters[realization.name],
-                                                            scale=self.MCMC_toolbox['priors']['{0}_std'.format(realization.name)])
+            mean = self.parameters[realization.name]
+            std = self.MCMC_toolbox['priors']['{0}_std'.format(realization.name)]
         elif realization.variable_type == 'individual':
-            distribution = torch.distributions.normal.Normal(loc=self.parameters["{0}_mean".format(realization.name)],
-                                                            scale=self.parameters["{0}_std".format(realization.name)])
+            mean = self.parameters["{0}_mean".format(realization.name)]
+            std = self.parameters["{0}_std".format(realization.name)]
         else:
             raise ValueError("Variable type not known")
 
-        return -distribution.log_prob(realization.tensor_realizations)
+        return self.compute_regularity_variable(realization.tensor_realizations,mean,std)
+
+    def compute_regularity_variable(self,value,mean,std):
+        # Instanciate torch distribution
+        distribution = torch.distributions.normal.Normal(loc=mean,scale=std)
+        return -distribution.log_prob(value)
 
     def get_realization_object(self, n_individuals):
         ### TODO : CollectionRealizations should probably get self.get_info_var rather than all self

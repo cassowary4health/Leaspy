@@ -34,8 +34,10 @@ class MultivariateModel(AbstractModel):
         }
 
     def load_hyperparameters(self, hyperparameters):
-        self.dimension = hyperparameters['dimension']
-        self.source_dimension = hyperparameters['source_dimension']
+        if 'dimension' in hyperparameters.keys():
+            self.dimension = hyperparameters['dimens:on']
+        if 'source_dimension' in hyperparameters.keys():
+            self.source_dimension = hyperparameters['source_dimension']
 
     def save(self, path):
         model_parameters_save = self.parameters.copy()
@@ -55,7 +57,8 @@ class MultivariateModel(AbstractModel):
     def initialize(self, data):
 
         self.dimension = data.dimension
-        self.source_dimension = int(data.dimension / 2.)  # TODO : How to change it independently of the initialize?
+        if self.source_dimension is None:
+            self.source_dimension = int(data.dimension/2.)
 
         ### TODO : Have a better initialization with the new G and exp(v0) parameters
         # Linear Regression on each feature
@@ -108,7 +111,7 @@ class MultivariateModel(AbstractModel):
             values['g'] = realizations['g'].tensor_realizations
         if any(c in L for c in ('v0', 'all')):
             values['v0'] = realizations['v0'].tensor_realizations
-        if any(c in L for c in ('betas', 'all')):
+        if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
 
         self.MCMC_toolbox['attributes'].update(name_of_the_variables_that_have_been_changed, values)
@@ -136,15 +139,15 @@ class MultivariateModel(AbstractModel):
 
         # Individual parameters
         xi,tau,sources = ind_parameters
-        wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
-        # TODO change timepoints dimension in data structure
         reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
         # Log likelihood computation
         a = tuple([1]*reparametrized_time.ndimension())
         v0 = v0.unsqueeze(0).repeat(*tuple(reparametrized_time.shape),1)
         reparametrized_time = reparametrized_time.unsqueeze(-1).repeat(*a,v0.shape[-1])
-
-        LL = v0* reparametrized_time + wi.unsqueeze(-2)
+        LL = v0 * reparametrized_time
+        if self.source_dimension != 0:
+            wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
+            LL+=reparametrized_time + wi.unsqueeze(-2)
         LL = 1. + g * torch.exp(-LL / b)
         model = 1. / LL
 
@@ -155,12 +158,13 @@ class MultivariateModel(AbstractModel):
         sufficient_statistics = {
             'g': realizations['g'].tensor_realizations.detach(),
             'v0': realizations['v0'].tensor_realizations.detach(),
-            'betas': realizations['betas'].tensor_realizations.detach(),
             'tau': realizations['tau'].tensor_realizations,
             'tau_sqrd': torch.pow(realizations['tau'].tensor_realizations, 2),
             'xi': realizations['xi'].tensor_realizations,
             'xi_sqrd': torch.pow(realizations['xi'].tensor_realizations, 2)
         }
+        if self.source_dimension != 0:
+            sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         xi, tau, sources = self.get_param_from_real(realizations)
@@ -187,7 +191,8 @@ class MultivariateModel(AbstractModel):
         # Memoryless part of the algorithm
         self.parameters['g'] = suff_stats['g'].tensor_realizations.detach()
         self.parameters['v0'] = suff_stats['v0'].tensor_realizations.detach()
-        self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach()
+        if self.source_dimension != 0:
+            self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach()
         xi = suff_stats['xi'].tensor_realizations.detach()
         self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
@@ -206,7 +211,8 @@ class MultivariateModel(AbstractModel):
         # TODO : 2. Set the mean of xi to 0 and add it to the mean of V_k
         self.parameters['g'] = suff_stats['g']
         self.parameters['v0'] = suff_stats['v0']
-        self.parameters['betas'] = suff_stats['betas']
+        if self.source_dimension != 0:
+            self.parameters['betas'] = suff_stats['betas']
 
         tau_mean = self.parameters['tau_mean']
         tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
@@ -273,11 +279,14 @@ class MultivariateModel(AbstractModel):
         variables_infos = {
             "g": g_infos,
             "v0": v0_infos,
-            "betas": betas_infos,
             "tau": tau_infos,
             "xi": xi_infos,
-            "sources": sources_infos
         }
+
+        if self.source_dimension != 0:
+            variables_infos['sources'] = sources_infos
+            variables_infos['betas'] = betas_infos
+
 
         return variables_infos
 

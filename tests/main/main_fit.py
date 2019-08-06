@@ -4,7 +4,7 @@ from src.main import Leaspy
 from src.inputs.data.data_reader import DataReader
 import unittest
 
-from src.inputs.algorithm_settings import AlgorithmSettings
+from src.inputs.settings.algorithm_settings import AlgorithmSettings
 
 
 class LeaspyFitTest(unittest.TestCase):

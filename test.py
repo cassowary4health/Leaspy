@@ -13,8 +13,8 @@ from tests.models.utils.attributes import AttributesTest
 #from tests.models.multivariate_model import MultivariateModelTest
 #from tests.models.model_factory import ModelFactoryTest
 
-#from tests.utils.sampler import SamplerTest
-#from tests.utils.random_variable.gaussian_random_variable import GaussianRandomVariableTest
+#from tests.samplers.sampler import SamplerTest
+#from tests.samplers.random_variable.gaussian_random_variable import GaussianRandomVariableTest
 
 #from tests.main.main import LeaspyTest
 #from tests.main.main_fit import LeaspyFitTest

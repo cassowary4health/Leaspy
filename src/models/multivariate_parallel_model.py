@@ -2,8 +2,8 @@ import numpy as np
 import torch
 import json
 
-from src.models.abstract_model import AbstractModel
-from src.models.utils.attributes.attributes_multivariateparallel import Attributes_MultivariateParallel
+from .abstract_model import AbstractModel
+from .utils.attributes.attributes_multivariateparallel import Attributes_MultivariateParallel
 
 
 class MultivariateModelParallel(AbstractModel):
@@ -35,11 +35,15 @@ class MultivariateModelParallel(AbstractModel):
         self.source_dimension = hyperparameters['source_dimension']
 
     def save(self, path):
+        model_parameters_save = self.parameters.copy()
+        for key, value in model_parameters_save.items():
+            if type(value) in [torch.Tensor]:
+                model_parameters_save[key] = value.tolist()
         model_settings = {
             'name': 'multivariate_parallel',
             'dimension': self.dimension,
             'source_dimension': self.source_dimension,
-            'parameters': self.parameters
+            'parameters': model_parameters_save
         }
 
         with open(path, 'w') as fp:
@@ -52,13 +56,20 @@ class MultivariateModelParallel(AbstractModel):
         # "Smart" initialization : may be improved
         # TODO !
         self.parameters = {
-            'g': 1, 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
+            'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': 0.1, 'deltas': [0.0]*(self.dimension-1),
-            'betas': np.zeros((self.dimension - 1, self.source_dimension)).tolist()
+            'noise_std': 0.1, 'deltas': torch.tensor([0.0]*(self.dimension-1)),
+            'betas': torch.zeros((self.dimension - 1, self.source_dimension))
         }
         self.attributes = Attributes_MultivariateParallel(self.dimension, self.source_dimension)
         self.is_initialized = True
+
+    def load_parameters(self, parameters):
+        self.parameters = {}
+        for k in parameters.keys():
+            self.parameters[k] = torch.tensor(parameters[k])
+        self.attributes = Attributes_MultivariateParallel(self.dimension, self.source_dimension)
+        self.attributes.update(['all'],self.parameters)
 
     def initialize_MCMC_toolbox(self, data):
         self.MCMC_toolbox = {
@@ -83,38 +94,39 @@ class MultivariateModelParallel(AbstractModel):
 
         self.MCMC_toolbox['attributes'].update(L, values)
 
-    def compute_individual_tensorized(self, timepoints, realizations):
+    def _get_attributes(self,MCMC):
+        if MCMC:
+            g = self.MCMC_toolbox['attributes'].g
+            deltas = self.MCMC_toolbox['attributes'].deltas
+            a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
+        else:
+            g = self.attributes.g
+            deltas = self.attributes.deltas
+            a_matrix = self.attributes.mixing_matrix
+        return g, deltas, a_matrix
+
+    def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
         # Population parameters
-        g = self.MCMC_toolbox['attributes'].g
-        deltas = self.MCMC_toolbox['attributes'].deltas
+        g, deltas, a_matrix = self._get_attributes(MCMC)
         deltas_exp = torch.exp(-deltas)
-        a_matrix = self.MCMC_toolbox['attributes'].mixing_matrix
 
         # Individual parameters
-        xi = realizations['xi'].tensor_realizations
-        tau = realizations['tau'].tensor_realizations
-        wi = torch.nn.functional.linear(realizations['sources'].tensor_realizations, a_matrix, bias=None)
-        timepoints = timepoints.reshape(timepoints.shape[0], timepoints.shape[1], 1)
-        reparametrized_time = torch.exp(xi) * (timepoints - tau)
+        xi, tau, sources = ind_parameters
+        wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
+        reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
 
         # Log likelihood computation
         LL = wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
-        LL = -reparametrized_time - deltas - LL
+        LL+=deltas
+        LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)
         model = 1. / (1. + g*torch.exp(LL))
 
         return model
 
-    def compute_individual_attachment_tensorized(self, data, realizations):
-        squared_sum = self.compute_sum_squared_tensorized(data, realizations)
-        noise_var = self.parameters['noise_std']**2
-        attachment = 0.5 * (1/noise_var) * squared_sum
-        attachment += np.log(np.sqrt(2 * np.pi * noise_var))
-
-        return attachment
 
     def compute_sufficient_statistics(self, data, realizations):
         sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()[0]
         sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations.detach()
         sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
@@ -123,7 +135,8 @@ class MultivariateModelParallel(AbstractModel):
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
         #TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, realizations)
+        xi, tau, sources = self.get_param_from_real(realizations)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, (xi,tau,sources),MCMC=True)
         data_reconstruction *= data.mask
         norm_0 = data.values * data.values * data.mask
         norm_1 = data.values * data_reconstruction * data.mask
@@ -137,62 +150,69 @@ class MultivariateModelParallel(AbstractModel):
     def update_model_parameters(self, data, suff_stats, burn_in_phase=True):
         # Memoryless part of the algorithm
         if burn_in_phase:
-            self.parameters['g'] = suff_stats['g'].tensor_realizations.detach().tolist()[0]
-            self.parameters['deltas'] = suff_stats['deltas'].tensor_realizations.detach().numpy()
-            self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach().numpy()
-            xi = suff_stats['xi'].tensor_realizations.detach()
-            self.parameters['xi_mean'] = torch.mean(xi).tolist()
-            self.parameters['xi_std'] = torch.std(xi).tolist()
-            tau = suff_stats['tau'].tensor_realizations.detach()
-            self.parameters['tau_mean'] = torch.mean(tau).tolist()
-            self.parameters['tau_std'] = torch.std(tau).tolist()
-
-            data_fit = self.compute_individual_tensorized(data.timepoints, suff_stats)
-            data_fit *= data.mask
-            squared_diff = ((data_fit-data.values)**2).sum()
-            squared_diff = squared_diff.detach().numpy() # Remove the gradients
-            self.parameters['noise_std'] = np.sqrt(squared_diff/(data.n_visits*data.dimension))
-
+            self.update_model_parameters_burn_in(data, suff_stats)
         # Stochastic sufficient statistics used to update the parameters of the model
         else:
-            self.parameters['g'] = suff_stats['g'].tolist()[0][0]
-            self.parameters['deltas'] = suff_stats['deltas'].tolist()[0]
-            self.parameters['betas'] = suff_stats['betas'].tolist()
+            self.update_model_parameters_normal(data, suff_stats)
+        self.attributes.update(['all'],self.parameters)
 
-            tau_mean = self.parameters['tau_mean']
-            tau_std_updt = tau_mean * tau_mean - tau_mean * torch.sum(suff_stats['tau'])
-            self.parameters['tau_std'] = ((tau_std_updt + torch.sum(suff_stats['tau_sqrd']))/data.n_individuals).tolist()
-            self.parameters['tau_mean'] = torch.mean(suff_stats['tau']).tolist()
+    def update_model_parameters_burn_in(self, data, suff_stats):
+        self.parameters['g'] = suff_stats['g'].tensor_realizations.detach()[0]
+        self.parameters['deltas'] = suff_stats['deltas'].tensor_realizations.detach()
+        self.parameters['betas'] = suff_stats['betas'].tensor_realizations.detach()
+        xi = suff_stats['xi'].tensor_realizations.detach()
+        self.parameters['xi_mean'] = torch.mean(xi)
+        self.parameters['xi_std'] = torch.std(xi)
+        tau = suff_stats['tau'].tensor_realizations.detach()
+        self.parameters['tau_mean'] = torch.mean(tau)
+        self.parameters['tau_std'] = torch.std(tau)
 
-            xi_mean = self.parameters['xi_mean']
-            tau_std_updt = xi_mean * xi_mean - xi_mean * torch.sum(suff_stats['xi'])
-            self.parameters['xi_std'] = ((tau_std_updt + torch.sum(suff_stats['xi_sqrd']))/data.n_individuals).tolist()
-            self.parameters['xi_mean'] = torch.mean(suff_stats['xi']).tolist()
+        param_ind = self.get_param_from_real(suff_stats)
+        data_fit = self.compute_individual_tensorized(data.timepoints, param_ind, MCMC=True)
+        data_fit *= data.mask
+        squared_diff = ((data_fit - data.values) ** 2).sum()
+        squared_diff = squared_diff.detach()  # Remove the gradients
+        self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
 
-            S1 = torch.sum(suff_stats['obs_x_obs'])
-            S2 = torch.sum(suff_stats['obs_x_reconstruction'])
-            S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
+    def update_model_parameters_normal(self, data, suff_stats):
+        self.parameters['g'] = suff_stats['g']
+        self.parameters['deltas'] = suff_stats['deltas']
+        self.parameters['betas'] = suff_stats['betas']
 
-            self.parameters['noise_std'] = torch.sqrt((S1 - 2.*S2 + S3)/(data.dimension * data.n_visits)).tolist()
+        tau_mean = self.parameters['tau_mean']
+        tau_std_updt = tau_mean * tau_mean - 0.5*tau_mean * torch.sum(suff_stats['tau'])
+        self.parameters['tau_std'] = ((tau_std_updt + torch.sum(suff_stats['tau_sqrd'])) / data.n_individuals)
+        self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
+
+        xi_mean = self.parameters['xi_mean']
+        xi_std_updt = xi_mean * xi_mean - 0.5*xi_mean * torch.sum(suff_stats['xi'])
+        self.parameters['xi_std'] = ((xi_std_updt + torch.sum(suff_stats['xi_sqrd'])) / data.n_individuals)
+        self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
+
+        S1 = torch.sum(suff_stats['obs_x_obs'])
+        S2 = torch.sum(suff_stats['obs_x_reconstruction'])
+        S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
+
+        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
 
 
     def random_variable_informations(self):
         ## Population variables
         g_infos = {
             "name": "g",
-            "shape": (1, 1),
+            "shape": torch.Size([1]),
             "type": "population",
             "rv_type": "multigaussian"
         }
         deltas_infos = {
             "name": "deltas",
-            "shape": (1, self.dimension-1),
+            "shape": torch.Size([self.dimension-1]),
             "type": "population",
             "rv_type": "multigaussian"
         }
         betas_infos = {
             "name": "betas",
-            "shape": (self.dimension - 1, self.source_dimension),
+            "shape": torch.Size([self.dimension - 1, self.source_dimension]),
             "type": "population",
             "rv_type": "multigaussian"
         }
@@ -200,21 +220,21 @@ class MultivariateModelParallel(AbstractModel):
         ## Individual variables
         tau_infos = {
             "name": "tau",
-            "shape": (1, 1),
+            "shape": torch.Size([1]),
             "type": "individual",
             "rv_type": "gaussian"
         }
 
         xi_infos = {
             "name": "xi",
-            "shape": (1, 1),
+            "shape": torch.Size([1]),
             "type": "individual",
             "rv_type": "gaussian"
         }
 
         sources_infos = {
             "name": "sources",
-            "shape": (1, self.source_dimension),
+            "shape": torch.Size([self.source_dimension]),
             "type": "individual",
             "rv_type": "gaussian"
         }
@@ -229,6 +249,10 @@ class MultivariateModelParallel(AbstractModel):
         }
 
         return variables_infos
+
+
+
+######### NOT USED YET
 
     def compute_parallel_curve(self, age, xi, tau, sources, attributes=False):
         ### TODO IMPORTANT : There is a need - for the other important function such as leaspy.predict or leaspy.simulate

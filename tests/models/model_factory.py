@@ -2,7 +2,7 @@ import unittest
 
 from src.models.model_factory import ModelFactory
 from src.models.univariate_model import UnivariateModel
-from _legacy import GaussianDistributionModel
+from src._legacy import GaussianDistributionModel
 
 
 class ModelFactoryTest(unittest.TestCase):

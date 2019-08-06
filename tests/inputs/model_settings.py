@@ -2,7 +2,7 @@ import os
 import unittest
 
 from tests import test_data_dir
-from src.inputs.model_settings import ModelSettings
+from src.inputs.settings.model_settings import ModelSettings
 
 
 class ModelSettingsTest(unittest.TestCase):

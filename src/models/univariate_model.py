@@ -1,13 +1,12 @@
 import os
 
-from src import default_data_dir
-from src.models.abstract_model import AbstractModel
-from src.inputs.model_settings import ModelSettings
+from .. import default_data_dir
+from .abstract_model import AbstractModel
+from src.inputs.settings.model_settings import ModelSettings
 import torch
-from torch.autograd import Variable
 import numpy as np
 import json
-from scipy.optimize import minimize
+
 
 
 class UnivariateModel(AbstractModel):

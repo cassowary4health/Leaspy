@@ -1,9 +1,5 @@
-import os
 import unittest
 
-from tests import test_data_dir
-from tests import default_data_dir
-from src.inputs.model_settings import ModelSettings
 from src.models.abstract_model import AbstractModel
 
 

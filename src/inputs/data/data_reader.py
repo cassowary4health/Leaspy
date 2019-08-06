@@ -1,5 +1,4 @@
 import csv
-
 from src.inputs.data.individual_data import IndividualData
 
 
@@ -31,11 +30,12 @@ class DataReader:
         except ValueError:
             print('The timepoint {} of individual {} cannot be converted to float'.format(timepoint, idx))
 
+
     def _get_observation(self, idx, timepoint, observation):
         try:
             return [float(_) for _ in observation]
         except ValueError:
-            print('The observations of individual {} at time {} cannot be converted to float').format(idx, timepoint)
+            print('The observations of individual '+str(idx)+' at time '+str(timepoint)+' cannot be converted to float')
 
     def _check_observation(self, observation):
         if self.dimension is None:
@@ -54,13 +54,14 @@ class DataReader:
                 idx = row[0]
                 timepoint = self._get_timepoint(idx, row[1])
                 observation = self._get_observation(idx, timepoint, row[2:])
-                self._check_observation(observation)
+                if not observation is None:
+                    self._check_observation(observation)
 
-                if idx not in self.individuals:
-                    self.individuals[idx] = IndividualData(idx)
-                    self.iter_to_idx[self.n_individuals] = idx
-                    self.n_individuals += 1
+                    if idx not in self.individuals:
+                        self.individuals[idx] = IndividualData(idx)
+                        self.iter_to_idx[self.n_individuals] = idx
+                        self.n_individuals += 1
 
-                self.individuals[idx].add_observation(timepoint, observation)
-                self.n_visits += 1
-                self.n_observations += len(observation)
+                    self.individuals[idx].add_observation(timepoint, observation)
+                    self.n_visits += 1
+                    self.n_observations += len(observation)

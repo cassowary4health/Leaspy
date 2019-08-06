@@ -1,7 +1,4 @@
-from src.models.univariate_model import UnivariateModel
-from src.models.multivariate_model import MultivariateModel
-from src.models.multivariate_parallel_model import MultivariateModelParallel
-from _legacy.src.gaussian_distribution_model import GaussianDistributionModel
+from . import UnivariateModel, MultivariateModel, MultivariateModelParallel
 
 
 class ModelFactory():
@@ -15,7 +12,5 @@ class ModelFactory():
             return MultivariateModel(name)
         elif name == 'multivariate_parallel':
             return MultivariateModelParallel(name)
-        elif name == 'gaussian_distribution':
-            return GaussianDistributionModel()
         else:
             raise ValueError("The name of the model you are trying to create does not exist")

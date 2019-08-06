@@ -1,5 +1,5 @@
 from src.utils.realizations.realization import Realization
-import copy
+
 
 class CollectionRealization:
     def __init__(self):
@@ -14,7 +14,7 @@ class CollectionRealization:
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
             realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
-            realization.initialize(n_individuals, model, scale_individual=0.01)
+            realization.initialize(n_individuals, model, scale_individual=1.) ## TODO Check with Raphael
             self.realizations[variable] = realization
 
         # Name of variables per type
@@ -49,3 +49,16 @@ class CollectionRealization:
             new_realizations.realizations[key] = self[key].copy()
 
         return new_realizations
+
+    def initialize_from_values(self, n_individuals, model):
+
+        # Indices
+        infos = model.random_variable_informations()
+        for variable, info_variable in infos.items():
+            realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
+            realization.initialize(n_individuals, model, scale_individual=0.01)
+            self.realizations[variable] = realization
+
+        # Name of variables per type
+        self.reals_pop_variable_names = [name for name, info_variable in infos.items() if info_variable['type'] =='population']
+        self.reals_ind_variable_names = [name for name, info_variable in infos.items() if info_variable['type'] =='individual']

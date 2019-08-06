@@ -58,7 +58,9 @@ class Attributes_Multivariate:
 
     def _compute_orthonormal_basis(self):
         #TODO : Use the dot product induced by the metric, not the scalar / euclidean dot product
-        s = self.v0
+        p = 1/(1+self.g)
+        G_p = 1/(p*(1-p))**2
+        s = G_p*self.v0
 
         # Compute Q
         e1 = torch.zeros(self.dimension)

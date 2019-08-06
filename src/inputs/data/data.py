@@ -1,6 +1,6 @@
 from src.inputs.data.data_reader import DataReader
 from src.inputs.data.individual_data import IndividualData
-
+import os
 #TODO : object data as output ??? or a result object ? Because there could be ambiguetes here
 # TODO or find a good way to say thet there are individual parameters here ???
 
@@ -80,6 +80,3 @@ class Data:
             data.n_observations += len(timepoints)*data.dimension
 
         return data
-
-
-

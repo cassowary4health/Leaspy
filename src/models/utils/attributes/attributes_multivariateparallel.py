@@ -60,7 +60,7 @@ class Attributes_MultivariateParallel:
         self.g = torch.exp(values['g'])
 
     def _compute_deltas(self, values):
-        self.deltas = torch.cat((torch.Tensor([[0]]), values['deltas']), dim=1)
+        self.deltas = torch.cat((torch.Tensor([0]), values['deltas']))
 
     def _compute_betas(self, values):
         self.betas = torch.Tensor(values['betas'])

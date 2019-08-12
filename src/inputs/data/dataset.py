@@ -9,6 +9,7 @@ class Dataset:
         self.timepoints = None
         self.values = None
         self.mask = None
+        self.headers = data.headers
         self.n_individuals = None
         self.nb_observations_per_individuals = None
         self.max_observations = None

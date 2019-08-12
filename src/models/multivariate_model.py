@@ -1,4 +1,4 @@
-from .abstract_model import AbstractModel
+from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_multivariate import Attributes_Multivariate
 
 import torch
@@ -8,51 +8,22 @@ from scipy import stats
 
 
 
-class MultivariateModel(AbstractModel):
+class MultivariateModel(AbstractMultivariateModel):
+    ###############
+    #INITITALISATION
+    ###############
     def __init__(self, name):
         super(MultivariateModel, self).__init__(name)
+        self.parameters["v0"] = None
+        self.MCMC_toolbox['priors']['v0_std'] = None
 
-        self.source_dimension = None
-        self.parameters = {
-            "g": None, "betas": None, "v0": None,
-            "tau_mean": None, "tau_std": None,
-            "xi_mean": None, "xi_std": None,
-            "sources_mean": None, "sources_std": None,
-            "noise_std": None
-        }
-        self.bayesian_priors = None
-        self.attributes = None
+    def load_parameters(self, parameters):
+        self.parameters = {}
+        for k in parameters.keys():
+            self.parameters[k] = torch.tensor(parameters[k])
+        self.attributes = Attributes_Multivariate(self.dimension, self.source_dimension)
+        self.attributes.update(['all'],self.parameters)
 
-        ### MCMC related "parameters"
-        self.MCMC_toolbox = {
-            'attributes': None,
-            'priors': {
-                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
-                'v0_std': None,
-                'betas_std': None
-            }
-        }
-
-    def load_hyperparameters(self, hyperparameters):
-        if 'dimension' in hyperparameters.keys():
-            self.dimension = hyperparameters['dimens:on']
-        if 'source_dimension' in hyperparameters.keys():
-            self.source_dimension = hyperparameters['source_dimension']
-
-    def save(self, path):
-        model_parameters_save = self.parameters.copy()
-        for key, value in model_parameters_save.items():
-            if type(value) in [torch.Tensor]:
-                model_parameters_save[key] = value.tolist()
-        model_settings = {
-            'name': 'multivariate_parallel',
-            'dimension': self.dimension,
-            'source_dimension': self.source_dimension,
-            'parameters': model_parameters_save
-        }
-
-        with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
 
     def initialize(self, data):
 
@@ -94,6 +65,7 @@ class MultivariateModel(AbstractModel):
                 self.parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
 
         self.attributes = Attributes_Multivariate(self.dimension, self.source_dimension)
+        self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
 
     def initialize_MCMC_toolbox(self, data):
@@ -104,6 +76,11 @@ class MultivariateModel(AbstractModel):
         realizations = self.get_realization_object(data.n_individuals)
         self.update_MCMC_toolbox(['all'], realizations)
 
+
+
+    ############
+    #CORE
+    ############
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
         values = {}
@@ -136,10 +113,6 @@ class MultivariateModel(AbstractModel):
             a_matrix = self.attributes.mixing_matrix
         return g, v0, a_matrix
 
-    def compute_sum_squared_tensorized(self,data,param_ind,MCMC):
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, MCMC)
-        res *= data.mask
-        return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
         # Population parameters
@@ -189,14 +162,6 @@ class MultivariateModel(AbstractModel):
 
         return sufficient_statistics
 
-    def update_model_parameters(self, data, suff_stats, burn_in_phase=True):
-        # Memoryless part of the algorithm
-        if burn_in_phase:
-            self.update_model_parameters_burn_in(data, suff_stats)
-        # Stochastic sufficient statistics used to update the parameters of the model
-        else:
-            self.update_model_parameters_normal(data, suff_stats)
-        self.attributes.update(['all'],self.parameters)
 
     def update_model_parameters_burn_in(self, data, realizations):
 
@@ -243,6 +208,7 @@ class MultivariateModel(AbstractModel):
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 
         self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
+
 
     def random_variable_informations(self):
 

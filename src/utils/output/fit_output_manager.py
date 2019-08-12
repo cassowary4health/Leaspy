@@ -136,12 +136,6 @@ class FitOutputManager():
         self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind,self.plot_options['maximum_patient_number'],MCMC=True)
 
 
-    # TODO better this, difference between from model and realspop ???
-    def plot_model_patient_reconstruction(self, data, model, real_ind, color="blue", ax=None):
-        reals_pop = model.initialize_population_realizations()
-        realizations = (reals_pop, real_ind)
-        self.plotter.plot_patient_reconstruction(data, model, realizations, color=color, ax=ax)
-
 
         """
         colors = cm.rainbow(np.linspace(0, 1, self.plot_options['maximum_patient_number']+2))

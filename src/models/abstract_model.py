@@ -1,11 +1,12 @@
 import torch
 from src.utils.realizations.collection_realization import CollectionRealization
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.backends.backend_pdf
 
 class AbstractModel():
     def __init__(self, name):
         self.name = name
-        self.dimension = None
         self.parameters = None
         self.is_initialized = False
 
@@ -23,17 +24,35 @@ class AbstractModel():
     def initialize(self, dataset, is_initialized):
         raise NotImplementedError
 
-    def get_param_from_real(self,realizations):
-        xi = realizations['xi'].tensor_realizations
-        tau = realizations['tau'].tensor_realizations
-        if self.source_dimension == 0:
-            sources = None
-        else:
-            sources = realizations['sources'].tensor_realizations
-        return (xi,tau,sources)
+    def get_xi_tau(self,param_ind):
+        xi,tau,sources = param_ind
+        return xi,tau
+
+    def plot_param_ind(self,path,param_ind):
+        pdf = matplotlib.backends.backend_pdf.PdfPages(path)
+        fig, ax = plt.subplots(1, 1)
+        xi,tau,sources = param_ind
+        ax.plot(xi.squeeze(1).detach().numpy(),tau.squeeze(1).detach().numpy(),'x')
+        plt.xlabel('xi')
+        plt.ylabel('tau')
+        pdf.savefig(fig)
+        plt.close()
+        for i in range(self.source_dimension):
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(sources[:,i].detach().numpy(),'x')
+            plt.title("sources "+str(i))
+            pdf.savefig(fig)
+            plt.close()
+        pdf.close()
+
 
     def time_reparametrization(self,timepoints,xi,tau):
         return torch.exp(xi)* (timepoints - tau)
+
+    def compute_sum_squared_tensorized(self, data, param_ind, MCMC):
+        res = self.compute_individual_tensorized(data.timepoints, param_ind, MCMC)
+        res *= data.mask
+        return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         param_ind = self.get_param_from_real(realizations)
@@ -48,6 +67,15 @@ class AbstractModel():
         attachment = 0.5 * (1 / noise_var) * squared_sum
         attachment += np.log(np.sqrt(2 * np.pi * noise_var))
         return attachment
+
+    def update_model_parameters(self, data, suff_stats, burn_in_phase=True):
+        # Memoryless part of the algorithm
+        if burn_in_phase:
+            self.update_model_parameters_burn_in(data, suff_stats)
+        # Stochastic sufficient statistics used to update the parameters of the model
+        else:
+            self.update_model_parameters_normal(data, suff_stats)
+        self.attributes.update(['all'],self.parameters)
 
     def update_model_parameters_burn_in(self, data, realizations):
         raise NotImplementedError

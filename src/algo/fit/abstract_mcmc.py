@@ -53,9 +53,15 @@ class AbstractFitMCMC(AbstractFitAlgo):
         self.samplers = dict.fromkeys(infos_variables.keys())
         for variable, info in infos_variables.items():
             if info["type"] == "individual":
-                self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                if self.algo_parameters['sampler_ind']=='Gibbs':
+                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                else:
+                    self.samplers[variable] = HMCSampler(info, data.n_individuals,self.algo_parameters['eps'])
             else:
-                self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                if self.algo_parameters['sampler_pop']=='Gibbs':
+                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                else:
+                    self.samplers[variable] = HMCSampler(info, data.n_individuals,self.algo_parameters['eps'])
 
     def _initialize_sufficient_statistics(self, data, model, realizations):
         suff_stats = model.compute_sufficient_statistics(data, realizations)

@@ -6,244 +6,238 @@ from src.inputs.settings.model_settings import ModelSettings
 import torch
 import numpy as np
 import json
-
+from .utils.attributes.attributes_univariate import Attributes_Univariate
+import matplotlib.backends.backend_pdf
+import matplotlib.pyplot as plt
 
 
 class UnivariateModel(AbstractModel):
-    def __init__(self):
-        data_dir = os.path.join(default_data_dir, "default_model_settings_univariate.json")
-        reader = ModelSettings(data_dir)
-        self.model_parameters = reader.parameters
-
-        if reader.type != 'univariate':
-            raise ValueError("The default univariate parameters are not of univariate type")
-
-
-        self.reals_pop_name = ['p0']
-        self.reals_ind_name = ['xi','tau']
-
-
-        self.model_name = 'univariate'
-
-        ###########################
-        ## Initialization
-        ###########################
-
-    def get_pop_shapes(self):
-        p0_shape = (1, 1)
-        return {"p0": p0_shape}
-
-    def random_variable_informations(self):
-
-            p0_infos = {
-                "name": "p0",
-                "shape": (1, 1),
-                "type": "population",
-                "rv_type": "multigaussian"
-            }
-
-            tau_infos = {
-                "name": "tau",
-                "shape": (1, 1),
-                "type": "individual",
-                "rv_type": "gaussian"
-            }
-
-            xi_infos = {
-                "name": "xi",
-                "shape": (1, 1),
-                "type": "individual",
-                "rv_type": "gaussian"
-            }
-
-            variables_infos = {
-                "p0" : p0_infos,
-                "tau" : tau_infos,
-                "xi" : xi_infos
-            }
-
-            return variables_infos
-
-
     ###########################
-    ## Core
+    ## Initialization
     ###########################
+    def __init__(self,name):
+
+        super(UnivariateModel, self).__init__(name)
+        self.parameters = {
+            "g": None,
+            "tau_mean": None, "tau_std": None,
+            "xi_mean": None,  "xi_std": None,
+            "noise_std": None
+        }
+        self.bayesian_priors = None
+        self.attributes = None
+
+        # MCMC related "parameters"
+        self.MCMC_toolbox = {
+            'attributes': None,
+            'priors': {
+                'g_std': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+            }
+        }
+
+    def save(self, path):
+        model_parameters_save = self.parameters.copy()
+        for key, value in model_parameters_save.items():
+            if type(value) in [torch.Tensor]:
+                model_parameters_save[key] = value.tolist()
+        model_settings = {
+            'name': 'univariate',
+            'parameters': model_parameters_save
+        }
+        with open(path, 'w') as fp:
+            json.dump(model_settings, fp)
 
 
-    def compute_individual(self, individual, reals_pop, real_ind):
-        p0 = reals_pop['p0']
-        reparametrized_time = torch.exp(real_ind['xi'])*(individual.tensor_timepoints-real_ind['tau'])
-        return torch.pow(1+(1/p0-1)*torch.exp(-reparametrized_time/(p0*(1-p0))), -1)
-        #return compute_individual_torch(individual.tensor_timepoints,
-        #                                    reals_pop['p0'],
-        #                                     real_ind['xi'],
-        #                                     real_ind['tau'])
+    def load_hyperparameters(self, hyperparameters):
+        return
 
 
+    def initialize(self, data):
+
+        # "Smart" initialization : may be improved
+        # TODO !
+        self.parameters = {
+            'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
+            'noise_std': 0.1,         }
+        self.attributes = Attributes_Univariate()
+        self.is_initialized = True
+
+    def load_parameters(self, parameters):
+        self.parameters = {}
+        for k in parameters.keys():
+            self.parameters[k] = torch.tensor(parameters[k])
+        self.attributes = Attributes_Univariate()
+        self.attributes.update(['all'],self.parameters)
+
+    def initialize_MCMC_toolbox(self, data):
+        self.MCMC_toolbox = {
+            'priors': {'g_std': 1.},
+            'attributes': Attributes_Univariate()
+        }
+
+        realizations = self.get_realization_object(data.n_individuals)
+        self.update_MCMC_toolbox(['all'], realizations)
+
+    ##########
+    # CORE
+    ##########
+    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+        L = name_of_the_variables_that_have_been_changed
+        values = {}
+        if any(c in L for c in ('g', 'all')):
+            values['g'] = realizations['g'].tensor_realizations
+        if any(c in L for c in ('xi_mean', 'all')):
+            values['xi_mean'] = self.parameters['xi_mean']
+
+        self.MCMC_toolbox['attributes'].update(L, values)
+
+    def _get_attributes(self, MCMC):
+        if MCMC:
+            g = self.MCMC_toolbox['attributes'].g
+        else:
+            g = self.attributes.g
+        return g
+
+    def compute_sum_squared_tensorized(self, data, param_ind, MCMC):
+        res = self.compute_individual_tensorized(data.timepoints, param_ind, MCMC)
+        res *= data.mask
+        return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
+
+    def compute_mean_traj(self, timepoints):
+        xi = self.parameters['xi_mean']
+        tau = self.parameters['tau_mean']
+        return self.compute_individual_tensorized(timepoints, (xi, tau))
+
+    def plot_param_ind(self,path,param_ind):
+        pdf = matplotlib.backends.backend_pdf.PdfPages(path)
+        fig, ax = plt.subplots(1, 1)
+        xi,tau = param_ind
+        ax.plot(xi.squeeze(1).detach().numpy(),tau.squeeze(1).detach().numpy(),'x')
+        plt.xlabel('xi')
+        plt.ylabel('tau')
+        pdf.savefig(fig)
+        plt.close()
+        pdf.close()
 
 
-    def compute_average(self, tensor_timepoints):
-        p0 = torch.Tensor(self.model_parameters['p0'])
-        # TODO better
-        #p0 = p0[0][0]
-        reparametrized_time = np.exp(self.model_parameters['xi_mean'])*(tensor_timepoints.reshape(-1,1)-self.model_parameters['tau_mean'])
-        return torch.pow(1 + (1 / p0 - 1) * torch.exp(-reparametrized_time / (p0 * (1 - p0))), -1)
-        #return compute_individual_torch(tensor_timepoints,
-        #                         torch.tensor(self.model_parameters['p0']),
-        #                         torch.tensor([0]),
-        #                         torch.tensor([0]))
+    def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
+        # Population parameters
+        g= self._get_attributes(MCMC)
+        # Individual parameters
+        xi, tau = ind_parameters
+        reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
+
+        LL = -reparametrized_time.unsqueeze(-1)
+        model = 1. / (1. + g*torch.exp(LL))
+
+        return model
 
     def compute_sufficient_statistics(self, data, realizations):
-
-        reals_pop, reals_ind = realizations
-
-        # Tau
-        tau_array = []
-        for idx in reals_ind.keys():
-            tau_array.append(reals_ind[idx]['tau'])
-        tau_array = torch.Tensor(tau_array)
-
-        tau_mean = np.mean(tau_array.detach().numpy()).tolist()
-        tau_var = np.var(tau_array.detach().numpy()).tolist()
-
-        # Ksi
-        xi_array = []
-        for idx in reals_ind.keys():
-            xi_array.append(reals_ind[idx]['xi'])
-        xi_array = torch.Tensor(xi_array)
-
-        xi_mean = np.mean(xi_array.detach().numpy()).tolist()
-        xi_var = np.var(xi_array.detach().numpy()).tolist()
-
-        # P0
-        p0 = reals_pop['p0'].detach().numpy()
-
         sufficient_statistics = {}
-        sufficient_statistics['p0'] = p0
-        sufficient_statistics['tau_mean'] = tau_mean
-        sufficient_statistics['tau_var'] = tau_var
-        sufficient_statistics['xi_mean'] = xi_mean
-        sufficient_statistics['xi_var'] = xi_var
-        sufficient_statistics['sum_squared'] = float(self.compute_sumsquared(data, reals_pop, reals_ind).detach().numpy())
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()[0]
+        sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
+        sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
+        sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
+        sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
+
+        #TODO : Optimize to compute the matrix multiplication only once for the reconstruction
+        xi, tau = self.get_param_from_real(realizations)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, (xi,tau),MCMC=True)
+        data_reconstruction *= data.mask
+        norm_0 = data.values * data.values * data.mask
+        norm_1 = data.values * data_reconstruction * data.mask
+        norm_2 = data_reconstruction * data_reconstruction * data.mask
+        sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
+        sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
+        sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
 
         return sufficient_statistics
 
+    def update_model_parameters_burn_in(self, data, realizations):
 
+        # Memoryless part of the algorithm
+        self.parameters['g'] = realizations['g'].tensor_realizations.detach()
+        xi = realizations['xi'].tensor_realizations.detach()
+        self.parameters['xi_mean'] = torch.mean(xi)
+        self.parameters['xi_std'] = torch.std(xi)
+        tau = realizations['tau'].tensor_realizations.detach()
+        self.parameters['tau_mean'] = torch.mean(tau)
+        self.parameters['tau_std'] = torch.std(tau)
 
-    def update_model(self, data, sufficient_statistics):
+        param_ind = self.get_param_from_real(realizations)
+        squared_diff = self.compute_sum_squared_tensorized(data, param_ind, MCMC=True).sum()
+        self.parameters['noise_std'] = np.sqrt(squared_diff / (data.n_visits * data.dimension))
 
-        #TODO parameters, automatic initialization of these parameters
-        m_xi = data.n_individuals / 20
-        sigma2_xi_0 = 1.0
+        # Stochastic sufficient statistics used to update the parameters of the model
 
-        m_tau = data.n_individuals / 20
-        sigma2_tau_0 = 1.0
+    def update_model_parameters_normal(self, data, suff_stats):
+        self.parameters['g'] = suff_stats['g']
 
+        tau_mean = self.parameters['tau_mean']
+        tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
+        self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
+        self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
-        self.model_parameters['p0'] = sufficient_statistics['p0']
+        xi_mean = self.parameters['xi_mean']
+        xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
+        self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
+        self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        # Tau
-        self.model_parameters['tau_mean'] = sufficient_statistics['tau_mean']
-        tau_var_update = (1/(data.n_individuals+m_tau))*(data.n_individuals * sufficient_statistics['tau_var']+m_tau*sigma2_tau_0)
-        self.model_parameters['tau_var'] = tau_var_update
+        S1 = torch.sum(suff_stats['obs_x_obs'])
+        S2 = torch.sum(suff_stats['obs_x_reconstruction'])
+        S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 
-        # Xi
-        self.model_parameters['xi_mean'] = sufficient_statistics['xi_mean']
-        tau_var_update = (1/(data.n_individuals+m_xi))*(data.n_individuals * sufficient_statistics['xi_var']+m_tau*sigma2_xi_0)
-        self.model_parameters['xi_var'] = tau_var_update
+        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
 
-        # Noise
-        self.model_parameters['noise_var'] = sufficient_statistics['sum_squared']/data.n_observations
+    def get_param_from_real(self,realizations):
+        xi = realizations['xi'].tensor_realizations
+        tau = realizations['tau'].tensor_realizations
+        return (xi,tau)
 
-        # Update the Random Variables
-        self._update_random_variables()
+    def param_ind_from_dict(self, individual_parameters):
+        xi, tau = [], []
+        for key, item in individual_parameters.items():
+            xi.append(item['xi'])
+            tau.append(item['tau'])
+        xi = torch.tensor(xi).unsqueeze(1)
+        tau = torch.tensor(tau).unsqueeze(1)
+        return (xi, tau)
 
-        # Update Cached Variables
-        self.cache_variables['noise_inverse'] = 1/self.model_parameters['noise_var']
-        self.cache_variables['constant_fit_variable'] = np.log(np.sqrt(2 * np.pi * self.model_parameters['noise_var']))
+    def get_xi_tau(self,param_ind):
+        xi,tau = param_ind
+        return xi,tau
 
+    def random_variable_informations(self):
 
-    def smart_initialization(self, data):
-        """
-        Assigns dimension + model_parameters
-
-        model parameters from the data
-        :param data:
-        :return:
-        """
-
-        # Initializes Dimension
-        self.dimension = data.dimension
-
-        # Find a P0
-        p0 = 0
-        for indices in data.indices:
-            p0 += data[indices].tensor_observations.mean()
-        p0 /= data.n_individuals
-        p0 = p0.detach().numpy()
-
-        """
-
-        # Optimize for alpha/tau
-        # TODO Torch/float/numpy
-        def cost_function(x, *args):
-            xi, tau = x
-            individual, p0 = args
-            reals_pop_dummy = {'p0': p0}
-            real_ind_dummy = {'xi': torch.Tensor([xi]), 'tau':tau}
-            squared_diff = torch.sum((self.compute_individual(individual, reals_pop_dummy, real_ind_dummy)-individual.tensor_timepoints)**2)
-            squared_diff = float(squared_diff.detach().numpy())
-
-            return squared_diff
-
-        results = []
-
-        for idx in data.indices:
-            res = minimize(cost_function, x0=(-2.0, 0.0),
-                           args = (data[idx], p0),
-                           method='Powell',
-                           options={'xtol': 1e-15, 'disp': True})
-
-            if res.success and res.x[0] > -4 and res.x[0] < 4:
-                results.append(res.x)
-            else:
-                print(res.x, data[idx].tensor_observations)
-
-        xi_mean, tau_mean = np.mean(results, axis=0)
-        xi_var, tau_var = np.var(results, axis=0)/10"""
-
-        # Pre-Initialize from dimension
-        SMART_INITIALIZATION = {
-            'p0': p0.reshape(1,1), 'tau_mean': 0.0, 'tau_var': 1.0,
-            'xi_mean': -1.0, 'xi_var': 0.1, 'noise_var': 0.5
+        ## Population variables
+        g_infos = {
+            "name": "g",
+            "shape": torch.Size([1]),
+            "type": "population",
+            "rv_type": "multigaussian"
         }
 
-        # Initializes Parameters
-        for parameter_key in self.model_parameters.keys():
-            if self.model_parameters[parameter_key] is None:
-                print("Changing value of {0} from {1} to {2}".format(parameter_key, "None", SMART_INITIALIZATION[parameter_key]))
-                self.model_parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
 
-        # Initialize Cache
-        #self._initialize_cache_variables()
+        ## Individual variables
+        tau_infos = {
+            "name": "tau",
+            "shape": torch.Size([1]),
+            "type": "individual",
+            "rv_type": "gaussian"
+        }
 
-
-
-
-    def save(self, path):
-
-
-        #TODO check que c'est le bon format (IGOR)
-        model_settings = {}
-
-        model_settings['parameters'] = self.model_parameters
-        model_settings['dimension'] = self.dimension
-        model_settings['source_dimension'] = self.dimension
-        model_settings['type'] = self.model_name
-
-        if type(model_settings['parameters']['p0']) not in [list]:
-            model_settings['parameters']['p0'] = model_settings['parameters']['p0'].tolist()
+        xi_infos = {
+            "name": "xi",
+            "shape": torch.Size([1]),
+            "type": "individual",
+            "rv_type": "gaussian"
+        }
 
 
-        with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+        variables_infos = {
+            "g": g_infos,
+            "tau": tau_infos,
+            "xi": xi_infos,
+        }
+
+        return variables_infos

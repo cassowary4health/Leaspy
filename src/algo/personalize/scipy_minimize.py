@@ -17,23 +17,29 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         def obj(x, *args):
             ### Parameters
             model, times,values = args
-            realizations = model.get_realization_object(1)
-            realizations['xi'].tensor_realizations = torch.tensor(x[0],dtype=torch.float32)
-            realizations['tau'].tensor_realizations = torch.tensor(x[1],dtype=torch.float32)
-            realizations['sources'].tensor_realizations = torch.tensor(x[2:],dtype=torch.float32)
             xi,tau,sources = torch.tensor(x[0],dtype=torch.float32),torch.tensor(x[1],dtype=torch.float32),torch.tensor(x[2:],dtype=torch.float32)
-            err = model.compute_individual_tensorized(times, (xi,tau,sources))-values
+            if model.name == 'univariate':
+                err = model.compute_individual_tensorized(times, (xi, tau)) - values
+                iterates = zip(['xi','tau'],(xi,tau))
+            else:
+                err = model.compute_individual_tensorized(times, (xi,tau,sources))-values
+                iterates = zip(['xi','tau','sources'],(xi,tau,sources))
             attachement = torch.sum(err**2)
             regularity = 0
-            for key,value in zip(['xi','tau','sources'],(xi,tau,sources)):
+            for key,value in iterates:
                 mean = model.parameters["{0}_mean".format(key)]
                 std = model.parameters["{0}_std".format(key)]
                 regularity += torch.sum(model.compute_regularity_variable(value,mean,std))
             return (regularity + attachement).detach().numpy()
 
+        if model.name=="univariate":
+            x=np.array([model.parameters["xi_mean"], model.parameters["tau_mean"]] + [])
+        else:
+            x = np.array([model.parameters["xi_mean"], model.parameters["tau_mean"]] + [0 for _ in range(
+                           model.source_dimension)])
+
         res = minimize(obj,
-                       x0=np.array([model.parameters["xi_mean"], model.parameters["tau_mean"]] + [0 for _ in range(
-                           model.source_dimension)]),
+                       x0=x,
                        args=(model,timepoints,values),
                        method="Powell"
                        )

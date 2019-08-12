@@ -4,22 +4,29 @@ from .abstract_sampler import AbstractSampler
 
 class HMCSampler(AbstractSampler):
 
-    def __init__(self,info,n_patients):
+    def __init__(self,info,n_patients,eps):
         super().__init__(info,n_patients)
+        self.L = 10
         if self.name =='tau':
-            self.eps = 0.05
+            self.eps = eps*10
         elif self.type =='pop':
-            self.eps = 0.0005
+            if self.name == 'betas':
+                self.eps = eps * 0.01
+                self.L = 15
+            else:
+                self.eps = eps*0.1
         else:
-            self.eps = 0.01
-        self.L =10
+            self.eps = eps
         self.std = 0.1
 
     def sample(self, data, model, realizations, temperature_inv):
         if self.type=='ind':
-            self._sample_individual_realizations(data, model, realizations, temperature_inv)
+            if self.name =='sources':
+                self._sample_individual_realizations(data, model, realizations, 1.)
+            else:
+                self._sample_individual_realizations(data, model, realizations, temperature_inv)
         else:
-            self._sample_pop_realizations(data, model, realizations, temperature_inv)
+            self._sample_pop_realizations(data, model, realizations, 1.)
 
     def _proposal(self, p, realizations, model, data,temperature_inv):
         for l in range(self.L+np.random.randint(-5,5)):
@@ -71,16 +78,25 @@ class HMCSampler(AbstractSampler):
     def _update_p(self,p,realizations):
         a = realizations[self.name].tensor_realizations.grad
         if ((a != a).byte().any()):
-            realizations[self.name].tensor_realizations.grad.zero_()
-            return False
+            #realizations[self.name].tensor_realizations.grad.zero_()
+            #return False
+            a = torch.zeros(realizations[self.name].tensor_realizations.shape)
         p = p - self.eps / 2 * a
         realizations[self.name].tensor_realizations.grad.zero_()
+        #print(self.name,'gardient is ok')
         return True
 
     def _leapfrog_step(self, p, realizations, model, data,temperature_inv):
         U = self._compute_U(realizations, data, model,temperature_inv)
         U.backward()
         if not self._update_p(p,realizations):
+            self.eps = 0.1*self.eps
+            print(temperature_inv)
+            print(self.eps)
+            a = realizations[self.name].tensor_realizations.grad
+            print((a != a).byte().any())
+            print(np.mean(self.acceptation_temp))
+            print(self.name,' nan in grad')
             return
         with torch.no_grad():
             realizations[self.name].tensor_realizations.data = realizations[self.name].tensor_realizations.data+self.eps * p

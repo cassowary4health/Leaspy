@@ -1,10 +1,13 @@
-
+from ....inputs.data.dataset import Dataset
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os
 import pandas as pd
 import numpy as np
 import torch
+import matplotlib.backends.backend_pdf
+import seaborn as sns
+
 
 class Plotter():
 
@@ -94,7 +97,9 @@ class Plotter():
         plt.close()
 
 
-
+    @staticmethod
+    def plot_param_ind(path,model,param_ind):
+        model.plot_param_ind(path,param_ind)
 
 
     @staticmethod
@@ -107,7 +112,7 @@ class Plotter():
             ax_provided = True
             fig, ax = plt.subplots(1, 1)
 
-        patient_values = model.compute_individual_tensorized(data.timepoints, param_ind,MCMC)
+        patient_values = model.compute_individual_tensorized(data.timepoints,param_ind,MCMC)
 
         if type(max_patient_number) == int:
             patients_list = range(max_patient_number)
@@ -132,55 +137,85 @@ class Plotter():
         return ax
 
 
-
     @staticmethod
-    def plot_patient_reconstruction(individual, model, realizations, color="blue", ax=None):
-
-        if ax is None:
-            fig, ax = plt.subplots(1,1)
-
-        idx = individual.idx
-        reals_pop, real_ind = realizations
-
-        #model_value = model.compute_individual(individual, reals_pop, real_ind[idx])
-        score = individual.tensor_observations
-        ax.plot(individual.tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=color)
-        ax.plot(individual.tensor_timepoints.detach().numpy(), score.detach().numpy(), c=color, linestyle='--',
-                marker='o')
-
-        # Plot average model
-        tensor_timepoints = torch.Tensor(np.linspace(-1.5, 1.5, 40).reshape(-1,1))
-        #model_average = model.compute_average(tensor_timepoints)
-        ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
-
-    def plot_mean(self, model, ax=None):
+    def plot_mean(path,model, ax=None,colors=None,labels=None):
 
         if ax is None:
             fig, ax = plt.subplots(1, 1)
 
-        n_individuals = 1
-        realizations = model.get_realization_object(n_individuals=n_individuals)
-
-        for key, value in model.random_variable_informations().items():
-            if value["type"] == "individual":
-                realizations.reals_ind_variable_names.append(key)
-                realizations.realizations[key] = Realization(key, value["shape"], value["type"])
-                realizations.realizations[key].initialize(n_individuals, model, scale_individual=0.0)
-
-
-
         timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
-                                 model.parameters['tau_mean'] + 2 * np.sqrt(model.parameters['tau_std']),
+                                 model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
                                  100)
-        timepoints = torch.Tensor(timepoints).reshape(1,-1,1)
+        timepoints = torch.Tensor([timepoints])
 
-        xi = realizations['xi'].tensor_realizations
-        tau = realizations['tau'].tensor_realizations
-        sources = realizations['sources'].tensor_realizations
-        patient_values = model.compute_individual_tensorized(timepoints, (xi,tau,sources))
-
-        model_value = patient_values
-        ax.plot(timepoints[0,:,:].detach().numpy(), model_value[0,:,:].detach().numpy(), c='black', alpha=0.4, linewidth=5)
-
+        patient_values = model.compute_mean_traj(timepoints)
+        if colors is None:
+            colors = cm.rainbow(np.linspace(0, 1, patient_values.shape[-1]))
+        for i in range(patient_values.shape[-1]):
+            ax.plot(timepoints[0,:].detach().numpy(), patient_values[0,:,i].detach().numpy(), c=colors[i])
+        plt.savefig(path)
+        plt.close()
         return 0
+
+    @staticmethod
+    def plot_within_mean_traj(path, dataset, model, param_ind, max_patient_number=25,colors =None,labels=None):
+        xi,tau = model.get_xi_tau(param_ind)
+
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, MCMC=False)
+        timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
+                                 model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
+                                 100)
+        timepoints = torch.Tensor([timepoints])
+        mean_values = model.compute_mean_traj(timepoints)
+        if colors is None:
+            colors = cm.rainbow(np.linspace(0, 1, patient_values.shape[-1]))
+        if labels is None:
+            labels = np.arange(patient_values.shape[-1])
+            labels = [str(k) for k in labels]
+
+        reparametrized_time = model.time_reparametrization(dataset.timepoints,xi,tau)/torch.exp(model.parameters['xi_mean'])+model.parameters['tau_mean']
+
+        pdf = matplotlib.backends.backend_pdf.PdfPages(path)
+        for i in range(dataset.values.shape[-1]):
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
+            for idx in range(max_patient_number):
+                ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
+                        dataset.values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(),'x', c=colors[i])
+                ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
+                        patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(), c=colors[i],alpha=0.3)
+            plt.title(labels[i])
+            pdf.savefig(fig)
+        pdf.close()
+        return 0
+
+    @staticmethod
+    def plot_error(path, dataset, model, param_ind,colors =None,labels=None):
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, MCMC=False)
+
+        if colors is None:
+            colors = cm.rainbow(np.linspace(0, 1, patient_values.shape[-1]))
+        if labels is None:
+            labels = np.arange(patient_values.shape[-1])
+            labels = [str(k) for k in labels]
+
+        err = {}
+        for i in range(dataset.values.shape[-1]):
+            err[i]=[]
+            for idx in range(patient_values.shape[0]):
+                err[i].extend(dataset.values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy()-
+                              patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy())
+            err[i] = np.array(err[i])
+
+        pdf = matplotlib.backends.backend_pdf.PdfPages(path)
+        for i in range(dataset.values.shape[-1]):
+            fig, ax = plt.subplots(1, 1)
+            sns.distplot(err[i], color='blue')
+            plt.title(labels[i]+' sqrt mean square error: '+str(np.sqrt(np.mean(err[i] ** 2))))
+            pdf.savefig(fig)
+            plt.close()
+        pdf.close()
+        return 0
+
+
 

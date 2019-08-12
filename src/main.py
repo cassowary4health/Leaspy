@@ -4,7 +4,12 @@ from .inputs.data.data import Data
 from .models.model_factory import ModelFactory
 from src.algo.algo_factory import AlgoFactory
 from src.utils.realizations.realization import Realization
+from src.utils.output.visualization.plotter import Plotter
+import scipy.stats as st
+from torch.distributions import normal
 
+
+import pandas as pd
 import json
 import torch
 import numpy as np
@@ -13,6 +18,7 @@ class Leaspy:
     def __init__(self, model_name):
         self.type = model_name
         self.model = ModelFactory.model(model_name)
+        self.plotter = Plotter()
 
     @classmethod
     def load(cls, path_to_model_settings):
@@ -41,6 +47,9 @@ class Leaspy:
 
         return individual_parameters
 
+    def to_dataset(self,data):
+        dataset = Dataset(data,model=self.model)
+        return dataset
 
 
     def fit(self, data, algorithm_settings):
@@ -67,98 +76,48 @@ class Leaspy:
 
 
 
-    def simulate(self, data, n_individuals):
 
-        print("WARNING : simulate is yet to be improved")
+
+    def simulate(self,dataset,param_ind,N_indiv,noise_scale=1.,ref_age=79,interval=1.):
+        # simulate according to same distrib as param_ind
+        param = []
+        for a in param_ind:
+            for i in range(a.shape[1]):
+                param.append(a[:, i].detach().numpy())
+        param = np.array(param)
+
+        kernel = st.gaussian_kde(param)
 
         # Get metrics from Data
-        patient_timepoint_number = []
-        patient_baseline_age = []
-        duration_between_visits = []
+        n_points = np.mean(dataset.nb_observations_per_individuals)
+        data_sim = pd.DataFrame(columns=['ID','TIME']+dataset.headers)
+        indiv_param = {}
 
-        # Get metrics from real dataset
-        for key, individual in data.individuals.items():
-            patient_timepoint_number.append(len(individual.timepoints))
-            patient_baseline_age.append(np.min(individual.timepoints))
-            duration_between_visits.append(np.mean(np.diff(individual.timepoints)).tolist())
+        noise = normal.Normal(0, noise_scale*self.model.parameters['noise_std'])
+        t0 = self.model.parameters['tau_mean'].detach().numpy()
+        for idx in range(N_indiv):
+            this_indiv_param ={}
+            this_indiv_param[idx] ={}
+            sim = kernel.resample(1)[:,0]
+            this_indiv_param[idx]['xi'] = sim[0]
+            this_indiv_param[idx]['tau'] = sim[1]
+            if model.name!="univariate":
+                this_indiv_param[idx]['sources'] = sim[2:]
+            indiv_param.update(this_indiv_param)
 
-        # Generate timepoints patients
-        new_dataset_infos = {}
-
-        for i in range(n_individuals):
-            # Instanciate the patient in the dictionnary
-            new_dataset_infos[i] = {"id":i,
-                                    "timepoints":[],
-                                    "n_visits": None}
+            age_baseline = (ref_age - t0) / np.exp(sim[1]) + t0 + sim[0]
             # Draw the number of visits
-            n_visits = np.random.choice(patient_timepoint_number, 1)
-            new_dataset_infos[i]["n_visits"] = int(n_visits[0])
-            # Draw a beseline age
-            current_age = np.random.choice(patient_baseline_age, 1)
-            # For all visits
-            for visit_num in range(int(n_visits)):
-                # Draw a duration to next visit and update the current age
-                new_dataset_infos[i]['timepoints'].append(float(current_age))
-                duration = float(np.random.choice(duration_between_visits, 1))
-                current_age += duration
+            n_visits = np.random.randint(min(2,n_points-3),dataset.max_observations)
+            timepoints = np.linspace(age_baseline,age_baseline+n_visits*interval,n_visits)
+            timepoints = torch.tensor(timepoints,dtype=torch.float32).unsqueeze(0)
 
-        # Compute tensor of timepoints and mask
-        max_observations = max([new_dataset_infos[i]["n_visits"] for i in range(n_individuals)])
-        timepoints_tensor = torch.zeros([n_individuals, max_observations])
+            values = self.model.compute_individual_tensorized(timepoints,self.model.param_ind_from_dict(this_indiv_param))
+            values = values + noise_scale*noise.sample(values.shape)
+            values = torch.clamp(values,0,1).squeeze(0)
 
-        mask_tensor = torch.zeros([n_individuals, max_observations, self.model.dimension])
+            ten_idx = torch.tensor([idx] * (n_visits),dtype = torch.float32)
+            val = torch.cat([ten_idx.unsqueeze(1), timepoints.squeeze(0).unsqueeze(1), values], dim=1)
+            truc = pd.DataFrame(val.detach().numpy(), columns=['ID','TIME']+dataset.headers)
+            data_sim = data_sim.append(truc)
 
-        for i, infos in new_dataset_infos.items():
-            timepoints_tensor[i, 0:infos["n_visits"]] = torch.Tensor(infos['timepoints'])
-
-            mask_tensor[i, 0:infos["n_visits"],:] = 1.0
-
-
-        ## Compute models from the realizations + model parameters
-        # Instanciate realizations
-        realizations = self.model.get_realization_object(n_individuals)
-        # TODO, draw better realizations than these ones
-        for key, value in self.model.random_variable_informations().items():
-            if value["type"] == "individual":
-                realizations.reals_ind_variable_names.append(key)
-                realizations.realizations[key] = Realization(key, value["shape"], value["type"])
-                realizations.realizations[key].initialize(n_individuals, self.model, scale_individual=1.0)
-
-        # Create dummy Data object : timepoints but no values (ar at nans ?)
-        class DummyDataset():
-            def __init__(self, timepoints, mask):
-                self.timepoints = timepoints
-                self.mask = mask
-
-        dummy_dataset = DummyDataset(timepoints_tensor, mask_tensor)
-
-        # Compute model
-        xi = realizations['xi'].tensor_realizations
-        tau = realizations['tau'].tensor_realizations
-        sources = realizations['sources'].tensor_realizations
-        model_values = self.model.compute_individual_tensorized(dummy_dataset.timepoints, (xi,tau,sources),MCMC=False)
-        model_values *= dummy_dataset.mask
-
-        # Add the noise + constraints (if sigmoid then limited between 0-1 for example)
-        normal_distr = torch.distributions.normal.Normal(loc=0, scale=self.model.parameters['noise_std'])
-        model_values = model_values + normal_distr.sample(sample_shape=model_values.shape)
-        # TODO add constraints
-
-        # Create synthetic Dataset
-        indices = list(range(n_individuals))
-        timepoints = [new_dataset_infos[i]['timepoints'] for i in range(n_individuals)]
-        values = [model_values[i][:new_dataset_infos[i]["n_visits"],:].detach().numpy() for i in range(n_individuals)]
-        simulated_data = Data.from_individuals(indices, timepoints, values, data.headers)
-
-
-
-        # Add the individual parameters
-        for i, idx in enumerate(indices):
-            for key, value in self.model.random_variable_informations().items():
-                if value["type"] == "individual":
-                    simulated_data.individuals[idx].add_individual_parameters(key, realizations[key].tensor_realizations[i].detach().numpy())
-
-        # TODO pas ouf
-        simulated_data.realizations = realizations
-
-        return simulated_data
+        return data_sim, indiv_param

@@ -7,7 +7,7 @@ class ModelFactory():
     def model(name):
         name = name.lower()
         if name == 'univariate':
-            return UnivariateModel()
+            return UnivariateModel(name)
         elif name == 'multivariate':
             return MultivariateModel(name)
         elif name == 'multivariate_parallel':

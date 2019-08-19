@@ -78,7 +78,7 @@ class Leaspy:
 
 
 
-    def simulate(self,dataset,param_ind,N_indiv,noise_scale=1.,ref_age=79,interval=1.):
+    def simulate(self,dataset,model,param_ind,N_indiv,noise_scale=1.,ref_age=79,interval=1.):
         # simulate according to same distrib as param_ind
         param = []
         for a in param_ind:
@@ -95,6 +95,7 @@ class Leaspy:
 
         noise = normal.Normal(0, noise_scale*self.model.parameters['noise_std'])
         t0 = self.model.parameters['tau_mean'].detach().numpy()
+        v0 = self.model.parameters['xi_mean'].detach().numpy()
         for idx in range(N_indiv):
             this_indiv_param ={}
             this_indiv_param[idx] ={}
@@ -104,11 +105,10 @@ class Leaspy:
             if model.name!="univariate":
                 this_indiv_param[idx]['sources'] = sim[2:]
             indiv_param.update(this_indiv_param)
-
-            age_baseline = (ref_age - t0) / np.exp(sim[1]) + t0 + sim[0]
+            age_diag = (ref_age - t0) *np.exp(v0)/ np.exp(sim[0]) + sim[1]
             # Draw the number of visits
-            n_visits = np.random.randint(min(2,n_points-3),dataset.max_observations)
-            timepoints = np.linspace(age_baseline,age_baseline+n_visits*interval,n_visits)
+            n_visits = np.random.randint(max(2,n_points-3),dataset.max_observations)
+            timepoints = np.linspace(age_diag-n_visits*interval/2,age_diag+n_visits*interval/2,n_visits)
             timepoints = torch.tensor(timepoints,dtype=torch.float32).unsqueeze(0)
 
             values = self.model.compute_individual_tensorized(timepoints,self.model.param_ind_from_dict(this_indiv_param))

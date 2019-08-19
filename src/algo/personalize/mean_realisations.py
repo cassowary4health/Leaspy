@@ -2,50 +2,42 @@ from .abstract_personalize_algo import AbstractPersonalizeAlgo
 from scipy.optimize import minimize
 import numpy as np
 import torch
+import csv
+import pandas as pd
+import os
 
-class ScipyMinimize(AbstractPersonalizeAlgo):
+class MeanReal(AbstractPersonalizeAlgo):
 
+    def __init__(self, settings):
 
-    def _get_individual_parameters(self,model,times,values):
+        # Algorithm parameters
+        super().__init__(settings)
 
-        timepoints = times.reshape(1,-1,1)
+    def run(self,model,data):
+        print(self.algo_parameters)
+        path_to_parameters_convergence = os.path.join(self.outputs_path,"parameter_convergence/")
+        df_xi = pd.read_csv(path_to_parameters_convergence + "xi.csv", header=None, index_col=0)
+        xi_mean = df_xi.mean()
+        df_tau = pd.read_csv(path_to_parameters_convergence + "tau.csv", header=None, index_col=0)
+        tau_mean = df_tau.mean()
+        individual_parameters = {}
+        for idx in range(len(xi_mean)):
+            sources_id = []
+            for i in range(model.source_dimension):
+                sources_temp = []
+                with open(path_to_parameters_convergence + 'sources'+str(i)+'.csv') as csvDataFile:
+                    csvReader = csv.reader(csvDataFile)
+                    for row in csvReader:
+                        sources_temp.append(float(row[idx+1]))
+                sources_id.append(np.mean(sources_temp))
 
-        def obj(x, *args):
-            ### Parameters
-            model, times,values = args
-            xi,tau,sources = torch.tensor(x[0],dtype=torch.float32),torch.tensor(x[1],dtype=torch.float32),torch.tensor(x[2:],dtype=torch.float32)
-            if model.name == 'univariate':
-                err = model.compute_individual_tensorized(times, (xi, tau)) - values
-                iterates = zip(['xi','tau'],(xi,tau))
-            else:
-                err = model.compute_individual_tensorized(times, (xi,tau,sources))-values
-                iterates = zip(['xi','tau','sources'],(xi,tau,sources))
-            attachement = torch.sum(err**2)
-            regularity = 0
-            for key,value in iterates:
-                mean = model.parameters["{0}_mean".format(key)]
-                std = model.parameters["{0}_std".format(key)]
-                regularity += torch.sum(model.compute_regularity_variable(value,mean,std))
-            return (regularity + attachement).detach().numpy()
+            individual_parameters[data.indices[idx]] = {
+                'xi': xi_mean[idx+1],
+                'tau': tau_mean[idx+1],
+                'sources': sources_id
+            }
 
-        if model.name=="univariate":
-            x=np.array([model.parameters["xi_mean"], model.parameters["tau_mean"]] + [])
-        else:
-            x = np.array([model.parameters["xi_mean"], model.parameters["tau_mean"]] + [0 for _ in range(
-                           model.source_dimension)])
-
-        res = minimize(obj,
-                       x0=x,
-                       args=(model,timepoints,values),
-                       method="Powell"
-                       )
-
-        if res.success != True:
-            print(res.success, res)
-
-        xi, tau, sources = res.x[0], res.x[1], res.x[2:]
-
-        return xi, tau, sources
+        return individual_parameters
 
 
 

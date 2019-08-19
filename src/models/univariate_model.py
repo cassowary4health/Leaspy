@@ -18,6 +18,8 @@ class UnivariateModel(AbstractModel):
     def __init__(self,name):
 
         super(UnivariateModel, self).__init__(name)
+        self.dimension=1
+        self.source_dimension=0
         self.parameters = {
             "g": None,
             "tau_mean": None, "tau_std": None,

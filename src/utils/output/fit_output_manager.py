@@ -52,6 +52,9 @@ class FitOutputManager():
                 self.plot_patient_reconstructions(iteration, data, model, realizations)
                 self.plot_convergence_model_parameters(model)
 
+        if (algo.algo_parameters['n_iter']-iteration)<100:
+            self.save_realizations(iteration,realizations)
+
 
     ########
     ## Printing methods
@@ -113,8 +116,24 @@ class FitOutputManager():
                 #writer.writerow([iteration]+list(model_parameters.values()))
                 writer.writerow([iteration]+list(value))
 
-    def save_realizations(self, realizations):
-        raise NotImplementedError
+    def save_realizations(self, iteration,realizations):
+        for name in ['xi','tau']:
+            value = realizations[name].tensor_realizations.squeeze(1).detach().numpy()
+            path = os.path.join(self.path_save_model_parameters_convergence, name + ".csv")
+            with open(path, 'a', newline='') as filename:
+                writer = csv.writer(filename)
+                # writer.writerow([iteration]+list(model_parameters.values()))
+                writer.writerow([iteration] + list(value))
+        if "sources" in realizations.reals_ind_variable_names:
+            for i in range(realizations['sources'].tensor_realizations.shape[1]):
+                value = realizations['sources'].tensor_realizations[:,i].detach().numpy()
+                path = os.path.join(self.path_save_model_parameters_convergence, 'sources'+str(i) + ".csv")
+                with open(path, 'a', newline='') as filename:
+                    writer = csv.writer(filename)
+                    # writer.writerow([iteration]+list(model_parameters.values()))
+                    writer.writerow([iteration] + list(value))
+
+
 
     ########
     ## Plotting methods

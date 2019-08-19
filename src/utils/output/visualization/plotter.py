@@ -200,13 +200,15 @@ class Plotter():
             labels = [str(k) for k in labels]
 
         err = {}
+        err['all'] = []
         for i in range(dataset.values.shape[-1]):
             err[i]=[]
             for idx in range(patient_values.shape[0]):
                 err[i].extend(dataset.values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy()-
                               patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy())
+            err['all'].extend(err[i])
             err[i] = np.array(err[i])
-
+        err['all'] = np.array(err['all'])
         pdf = matplotlib.backends.backend_pdf.PdfPages(path)
         for i in range(dataset.values.shape[-1]):
             fig, ax = plt.subplots(1, 1)
@@ -214,6 +216,11 @@ class Plotter():
             plt.title(labels[i]+' sqrt mean square error: '+str(np.sqrt(np.mean(err[i] ** 2))))
             pdf.savefig(fig)
             plt.close()
+        fig, ax = plt.subplots(1, 1)
+        sns.distplot(err['all'], color='blue')
+        plt.title('global sqrt mean square error: ' + str(np.sqrt(np.mean(err['all'] ** 2))))
+        pdf.savefig(fig)
+        plt.close()
         pdf.close()
         return 0
 

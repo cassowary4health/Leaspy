@@ -3,6 +3,12 @@ import numpy as np
 
 class AbstractPersonalizeAlgo(AbstractAlgo):
 
+    def __init__(self, settings):
+
+        # Algorithm parameters
+        self.algo_parameters = settings.parameters
+        self.outputs_path = settings.outputs_path
+
     def run(self,model,data):
         individual_parameters = {}
 
@@ -13,7 +19,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
             xi, tau, sources = self._get_individual_parameters(model,times,values)
 
-            individual_parameters[idx] = {
+            individual_parameters[data.indices[idx]] = {
                 'xi': xi,
                 'tau': tau,
                 'sources': sources

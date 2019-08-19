@@ -16,6 +16,7 @@ class AlgorithmSettings:
         self._get_type(settings)
         self._get_parameters(settings)
         self._get_outputs(settings)
+        self._get_outputs_path(settings)
         self._get_seed(settings)
 
     @staticmethod
@@ -30,6 +31,9 @@ class AlgorithmSettings:
 
     def _get_parameters(self, settings):
         self.parameters = settings['parameters']
+
+    def _get_outputs_path(self, settings):
+        self.outputs_path = settings['outputs']['path']
 
     def _get_outputs(self, settings):
         # Check if the 'outputs' keys is in the settings ; otherwise no outputs

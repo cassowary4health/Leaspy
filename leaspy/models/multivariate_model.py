@@ -116,7 +116,9 @@ class MultivariateModel(AbstractMultivariateModel):
         b = g / ((1.+g)*(1.+g))
 
         # Individual parameters
-        xi,tau,sources = ind_parameters
+        xi, tau, sources = ind_parameters
+        #print(xi.shape, tau.shape, sources.shape)
+        #print(timepoints.shape)
         reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
 
         # Log likelihood computation
@@ -130,6 +132,7 @@ class MultivariateModel(AbstractMultivariateModel):
         LL = 1. + g * torch.exp(-LL / b)
         model = 1. / LL
 
+        #print(model.shape)
         return model
 
 

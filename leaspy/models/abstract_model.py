@@ -28,24 +28,6 @@ class AbstractModel():
         xi,tau,sources = param_ind
         return xi,tau
 
-    def plot_param_ind(self,path,param_ind):
-        pdf = matplotlib.backends.backend_pdf.PdfPages(path)
-        fig, ax = plt.subplots(1, 1)
-        xi,tau,sources = param_ind
-        ax.plot(xi.squeeze(1).detach().numpy(),tau.squeeze(1).detach().numpy(),'x')
-        plt.xlabel('xi')
-        plt.ylabel('tau')
-        pdf.savefig(fig)
-        plt.close()
-        for i in range(self.source_dimension):
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(sources[:,i].detach().numpy(),'x')
-            plt.title("sources "+str(i))
-            pdf.savefig(fig)
-            plt.close()
-        pdf.close()
-
-
     def time_reparametrization(self,timepoints,xi,tau):
         return torch.exp(xi)* (timepoints - tau)
 

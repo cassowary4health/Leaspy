@@ -32,6 +32,8 @@ class Data:
 
 
 
+    def get_indices(self):
+        return list(self.iter_to_idx.values())
 
     @staticmethod
     def from_csv_file(path):
@@ -41,6 +43,7 @@ class Data:
 
         data.individuals = reader.individuals
         data.iter_to_idx = reader.iter_to_idx
+        data.idx_to_iter = {v:k for k, v in data.iter_to_idx.items()}
         data.headers = reader.headers
         data.dimension = reader.dimension
         data.n_individuals = reader.n_individuals
@@ -69,6 +72,7 @@ class Data:
             # Create individual
             data.individuals[idx] = IndividualData(idx)
             data.iter_to_idx[data.n_individuals] = idx
+            data.idx_to_iter[idx] = data.n_individuals
             data.n_individuals += 1
 
             # Add observations / timepoints
@@ -78,5 +82,6 @@ class Data:
             # Update Data metrics
             data.n_visits += len(timepoints)
             data.n_observations += len(timepoints)*data.dimension
+
 
         return data

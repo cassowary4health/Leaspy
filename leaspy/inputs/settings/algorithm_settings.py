@@ -10,7 +10,7 @@ class AlgorithmSettings:
     Read a algo_parameters json file and create the corresponding algo
     """
 
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         self.name = name
         self.parameters = None
         self.seed = None
@@ -20,6 +20,12 @@ class AlgorithmSettings:
             self.load_json(os.path.join(default_data_dir, 'default_' + name + '.json'))
         else:
             raise ValueError('The algorithm name {} you provided does not exist'.format(name))
+
+        for k, v in kwargs.items():
+            if k in self.parameters.keys():
+                self.parameters[k] = v
+            else:
+                warnings.warn("The parameter key you provided is unknown")
 
 
     @classmethod

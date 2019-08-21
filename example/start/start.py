@@ -28,3 +28,9 @@ result = leaspy.personalize(data, settings=algo_personalize_settings)
 path_to_individual_parameters = os.path.join(os.path.dirname(__file__), '_outputs', 'individual_parameters.json')
 leaspy.save_individual_parameters(path_to_individual_parameters, result.individual_parameters)
 
+# Add covariables
+import numpy as np
+covariables = {idx: np.random.uniform(0,1) for idx in data.individuals}
+result.set_covariables(covariables)
+
+

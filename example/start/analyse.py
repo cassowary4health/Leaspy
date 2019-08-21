@@ -1,7 +1,6 @@
 import os
-from src.main import Leaspy
-from src.inputs.data.data import Data
-from src.utils.output.visualization.plotter import Plotter
+from leaspy.main import Leaspy
+from leaspy.inputs.data.data import Data
 
 data = Data.from_csv_file(os.path.join(os.path.dirname(__file__), '_inputs', 'data_tiny.csv'))
 

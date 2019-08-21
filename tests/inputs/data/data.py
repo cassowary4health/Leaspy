@@ -2,7 +2,7 @@ import os
 import unittest
 
 from tests import test_data_dir
-from src.inputs.data.data import Data
+from leaspy.inputs.data.data import Data
 
 
 class DataTest(unittest.TestCase):

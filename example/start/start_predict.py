@@ -1,7 +1,7 @@
 import os
-from src.main import Leaspy
-from src.inputs.data.data import Data
-from src.inputs.settings.algorithm_settings import AlgorithmSettings
+from leaspy.main import Leaspy
+from leaspy.inputs.data.data import Data
+from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
 
 
 
@@ -22,7 +22,7 @@ leaspy.save(path_to_saved_model)
 
 # Plot
 # plot
-from src.utils.output.visualization.visualization_toolbox import VisualizationToolbox
+from leaspy.utils.output.visualization.visualization_toolbox import VisualizationToolbox
 import matplotlib.pyplot as plt
 
 visualization_toolbox = VisualizationToolbox()

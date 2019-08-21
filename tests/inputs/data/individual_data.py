@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import torch
 
-from src.inputs.data.individual_data import IndividualData
+from leaspy.inputs.data.individual_data import IndividualData
 
 
 class IndividualDataTest(unittest.TestCase):

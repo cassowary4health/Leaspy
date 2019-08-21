@@ -1,8 +1,8 @@
 import os
 
-from src import default_data_dir
-from src.models.abstract_model import AbstractModel
-from src.inputs.model_settings import ModelSettings
+from leaspy import default_data_dir
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.inputs.model_settings import ModelSettings
 
 import torch
 from torch.autograd import Variable

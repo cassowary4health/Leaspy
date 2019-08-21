@@ -1,6 +1,6 @@
 import unittest
 
-from src.models.univariate_model import UnivariateModel
+from leaspy.models.univariate_model import UnivariateModel
 
 
 class UnivariateModelTest(unittest.TestCase):

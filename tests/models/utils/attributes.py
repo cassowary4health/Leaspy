@@ -2,7 +2,7 @@ import os
 import numpy as np
 import unittest
 
-from src.models.utils.attributes import Attributes
+from leaspy.models.utils.attributes import Attributes
 
 
 class AttributesTest(unittest.TestCase):

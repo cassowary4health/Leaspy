@@ -4,8 +4,8 @@ import numpy as np
 import torch
 
 from tests import test_data_dir
-from src.inputs.data.data import Data
-from src.inputs.data.dataset import Dataset
+from leaspy.inputs.data.data import Data
+from leaspy.inputs.data.dataset import Dataset
 
 
 class DatasetTest(unittest.TestCase):

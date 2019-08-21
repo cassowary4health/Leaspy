@@ -1,8 +1,8 @@
 import unittest
 
-from src.models.model_factory import ModelFactory
-from src.models.univariate_model import UnivariateModel
-from src._legacy import GaussianDistributionModel
+from leaspy.models.model_factory import ModelFactory
+from leaspy.models.univariate_model import UnivariateModel
+from leaspy._legacy import GaussianDistributionModel
 
 
 class ModelFactoryTest(unittest.TestCase):

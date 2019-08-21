@@ -2,7 +2,7 @@ import os
 import unittest
 
 from tests import test_data_dir
-from src.inputs.data.data_reader import DataReader
+from leaspy.inputs.data.data_reader import DataReader
 
 
 class DataReaderTest(unittest.TestCase):

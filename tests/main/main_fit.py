@@ -1,10 +1,10 @@
 import os
 from tests import test_data_dir
-from src.main import Leaspy
-from src.inputs.data.data_reader import DataReader
+from leaspy.main import Leaspy
+from leaspy.inputs.data.data_reader import DataReader
 import unittest
 
-from src.inputs.settings.algorithm_settings import AlgorithmSettings
+from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
 
 
 class LeaspyFitTest(unittest.TestCase):

@@ -1,9 +1,9 @@
 import os
-from src.main import Leaspy
-from src.inputs.data.data_reader import DataReader
-from src.inputs.algorithm_settings import AlgorithmSettings
+from leaspy.main import Leaspy
+from leaspy.inputs.data.data_reader import DataReader
+from leaspy.inputs.algorithm_settings import AlgorithmSettings
 import matplotlib.pyplot as plt
-from src.utils.output_manager import OutputManager
+from leaspy.utils.output_manager import OutputManager
 import matplotlib.cm as cm
 import numpy as np
 

@@ -18,6 +18,6 @@
     "console_print_periodicity": 50,
     "plot_periodicity": 100,
     "save_periodicity": 50,
-    "path": "example/start/_outputs"
+    "path": "_outputs"
   }
 }

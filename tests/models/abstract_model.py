@@ -1,6 +1,6 @@
 import unittest
 
-from src.models.abstract_model import AbstractModel
+from leaspy.models.abstract_model import AbstractModel
 
 
 class AbstractModelTest(unittest.TestCase):

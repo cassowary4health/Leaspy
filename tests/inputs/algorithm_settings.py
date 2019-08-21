@@ -2,7 +2,7 @@ import os
 import unittest
 
 from tests import test_data_dir
-from src.inputs.settings.algorithm_settings import AlgorithmSettings
+from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
 
 
 class AlgorithmSettingsTest(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 
-from src.utils.sampler import Sampler
+from leaspy.utils.sampler import Sampler
 import numpy as np
 
 

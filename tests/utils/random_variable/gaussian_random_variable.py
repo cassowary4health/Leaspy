@@ -1,6 +1,6 @@
 import unittest
 import torch
-from src.utils.random_variable.gaussian_random_variable import GaussianRandomVariable
+from leaspy.utils.random_variable.gaussian_random_variable import GaussianRandomVariable
 import numpy as np
 
 

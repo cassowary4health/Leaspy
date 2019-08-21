@@ -1,7 +1,7 @@
 import numpy as np
 #from tests import test_data_dir
-from src.inputs.data import Data
-from src.inputs.data.individual_data import IndividualData
+from leaspy.inputs.data import Data
+from leaspy.inputs.data.individual_data import IndividualData
 import torch
 
 #test_data_dir = os.path.join(os.path.dirname(__file__), "_data")

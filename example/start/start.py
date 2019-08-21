@@ -1,8 +1,7 @@
 import os
-from src.main import Leaspy
-from src.inputs.data.data import Data
-from src.inputs.settings.algorithm_settings import AlgorithmSettings
-import json
+from leaspy.main import Leaspy
+from leaspy.inputs.data.data import Data
+from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
 import sys
 
 

@@ -1,5 +1,5 @@
 
-from src.algo.abstract_mcmc import AbstractMCMC
+from leaspy.algo.abstract_mcmc import AbstractMCMC
 
 
 class MCMCPredict(AbstractMCMC):

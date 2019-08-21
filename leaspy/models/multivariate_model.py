@@ -3,10 +3,7 @@ from .utils.attributes.attributes_multivariate import Attributes_Multivariate
 
 import torch
 import numpy as np
-import json
 from scipy import stats
-
-
 
 class MultivariateModel(AbstractMultivariateModel):
     ###############
@@ -113,7 +110,6 @@ class MultivariateModel(AbstractMultivariateModel):
             a_matrix = self.attributes.mixing_matrix
         return g, v0, a_matrix
 
-
     def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
         # Population parameters
         g, v0, a_matrix = self._get_attributes(MCMC)
@@ -122,6 +118,7 @@ class MultivariateModel(AbstractMultivariateModel):
         # Individual parameters
         xi,tau,sources = ind_parameters
         reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
+
         # Log likelihood computation
         a = tuple([1]*reparametrized_time.ndimension())
         v0 = v0.unsqueeze(0).repeat(*tuple(reparametrized_time.shape),1)

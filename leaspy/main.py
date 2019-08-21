@@ -9,14 +9,12 @@ from leaspy.inputs.data.dataset import Dataset
 from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
 from leaspy.algo.algo_factory import AlgoFactory
-from leaspy.utils.output.visualization.plotter import Plotter
 
 
 class Leaspy:
     def __init__(self, model_name):
         self.type = model_name
         self.model = ModelFactory.model(model_name)
-        self.plotter = Plotter()
 
     @classmethod
     def load(cls, path_to_model_settings):
@@ -32,9 +30,9 @@ class Leaspy:
 
     def save_individual_parameters(self, path,individual_parameters):
         for key1 in individual_parameters.keys():
-            for key2 in   individual_parameters[key1]:
+            for key2 in individual_parameters[key1]:
                 if type(individual_parameters[key1][key2]) not in [list]:
-                    individual_parameters[key1][key2]= individual_parameters[key1][key2].tolist()
+                    individual_parameters[key1][key2] = individual_parameters[key1][key2].tolist()
 
         with open(path, 'w') as fp:
             json.dump(individual_parameters, fp)
@@ -44,11 +42,6 @@ class Leaspy:
             individual_parameters = json.load(f)
 
         return individual_parameters
-
-    def to_dataset(self,data):
-        dataset = Dataset(data,model=self.model)
-        return dataset
-
 
     def fit(self, data, algorithm_settings):
 
@@ -60,15 +53,9 @@ class Leaspy:
 
     def personalize(self, data, settings):
 
-        print("Load personalize algorithm")
         algorithm = AlgoFactory.algo(settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
-
-        # Predict
-        print("Launch predict algo")
         individual_parameters = algorithm.run(self.model,dataset)
-
-        #TODO and algorithm.personalize output, with the distributions ???
 
         return individual_parameters
 

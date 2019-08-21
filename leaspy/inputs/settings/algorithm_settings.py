@@ -1,23 +1,68 @@
+import os
 import json
 import warnings
 
 from leaspy.inputs.settings.outputs_settings import OutputsSettings
-
+from leaspy.inputs.settings import default_data_dir
 
 class AlgorithmSettings:
     """
     Read a algo_parameters json file and create the corresponding algo
     """
-    def __init__(self, path_to_algorithm_settings):
+
+    def __init__(self, name):
+        self.name = name
+        self.parameters = None
+        self.seed = None
+        self.logs = None
+
+        if name in ['mcmc_saem', 'scipy_minimize']:
+            self.load_json(os.path.join(default_data_dir, 'default_' + name + '.json'))
+        else:
+            raise ValueError('The algorithm name {} you provided does not exist'.format(name))
+
+
+    @classmethod
+    def load(cls, path_to_algorithm_settings):
+        with open(path_to_algorithm_settings) as fp:
+            settings = json.load(fp)
+
+        algorithm_settings = cls(settings['name'])
+        if 'name' in settings.keys():
+            algorithm_settings.name = cls._get_name(settings)
+
+        if 'parameters' in settings.keys():
+            algorithm_settings.parameters = cls._get_name(settings)
+
+        if 'seed' in settings.keys():
+            algorithm_settings.seed = cls._get_seed(settings)
+
+
+    def load_json(self, path_to_algorithm_settings):
         with open(path_to_algorithm_settings) as fp:
             settings = json.load(fp)
 
         AlgorithmSettings._check_settings(settings)
-        self._get_type(settings)
-        self._get_parameters(settings)
-        self._get_outputs(settings)
-        self._get_outputs_path(settings)
-        self._get_seed(settings)
+        self.name = self._get_name(settings)
+        self.parameters = self._get_parameters(settings)
+        self.seed = self._get_seed(settings)
+
+    def set_logs(self, path, **kwargs):
+        settings = {
+            'path': path,
+            'console_print_periodicity': 50,
+            'plot_periodicity': 100,
+            'save_periodicity': 50
+        }
+
+        for k, v in kwargs.items():
+            if k in ['console_print_periodicity', 'plot_periodicity', 'save_periodicity']:
+                # Todo : Ca devrait planter si v n'est pas un int!!
+                settings[k] = v
+            else:
+                warnings.warn("The kwargs {} you provided is not correct".format(v))
+
+        self.logs = OutputsSettings(settings)
 
     @staticmethod
     def _check_settings(settings):
@@ -26,34 +71,22 @@ class AlgorithmSettings:
         if 'parameters' not in settings.keys():
             raise ValueError('The \'parameters\' key is missing in the algorithm settings (JSON file) you are loading')
 
-    def _get_type(self, settings):
-        self.name = settings['name'].lower()
+    @staticmethod
+    def _get_name(settings):
+        return settings['name'].lower()
 
-    def _get_parameters(self, settings):
-        self.parameters = settings['parameters']
+    @staticmethod
+    def _get_parameters(settings):
+        return settings['parameters']
 
-    def _get_outputs_path(self, settings):
-        self.outputs_path = settings['outputs']['path']
-
-    def _get_outputs(self, settings):
-        # Check if the 'outputs' keys is in the settings ; otherwise no outputs
-        if 'outputs' not in settings.keys():
-            warnings.warn("You did not provide any output folder settings")
-            self.outputs = None
-            return
-
-        # Check if the 'exists' keys exists, and if false, then no outputs
-        if 'exists' in settings['outputs'] and settings['outputs']['exists'] is False:
-            self.outputs = None
-            return
-
-        self.outputs = OutputsSettings(settings['outputs'])
-
-    def _get_seed(self, settings):
+    @staticmethod
+    def _get_seed(settings):
         if 'seed' in settings.keys():
             try:
-                self.seed = int(settings['seed'])
+                return int(settings['seed'])
             except ValueError:
                 print("The \'seed\' parameter you provided cannot be converted to int")
         else:
-            self.seed = None
+            return None
+
+

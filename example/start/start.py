@@ -22,11 +22,9 @@ leaspy.save(path_to_saved_model)
 
 # Compute individual parameters
 algo_personalize_settings = AlgorithmSettings('scipy_minimize')
-individual_parameters = leaspy.personalize(data, settings=algo_personalize_settings)
+result = leaspy.personalize(data, settings=algo_personalize_settings)
 
 # Save the individual parameters
 path_to_individual_parameters = os.path.join(os.path.dirname(__file__), '_outputs', 'individual_parameters.json')
-leaspy.save_individual_parameters(path_to_individual_parameters,individual_parameters)
+leaspy.save_individual_parameters(path_to_individual_parameters, result.individual_parameters)
 
-# Plot
-## Todo

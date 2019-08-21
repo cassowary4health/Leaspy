@@ -10,6 +10,7 @@ from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
 from leaspy.algo.algo_factory import AlgoFactory
 
+from leaspy.inputs.data.result import Result
 
 class Leaspy:
     def __init__(self, model_name):
@@ -55,9 +56,11 @@ class Leaspy:
 
         algorithm = AlgoFactory.algo(settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
-        individual_parameters = algorithm.run(self.model,dataset)
+        individual_parameters = algorithm.run(self.model, dataset)
 
-        return individual_parameters
+        result = Result(data, individual_parameters)
+
+        return result
 
 
 

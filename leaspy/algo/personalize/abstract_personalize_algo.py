@@ -7,7 +7,6 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         # Algorithm parameters
         self.algo_parameters = settings.parameters
-        self.outputs_path = settings.outputs_path
 
     def run(self,model,data):
         individual_parameters = {}

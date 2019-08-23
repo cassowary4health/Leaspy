@@ -2,7 +2,7 @@
 
 import os
 from leaspy.main import Leaspy
-from leaspy.inputs.data.data_reader import DataReader
+from leaspy.inputs.data.csv_data_reader import CSVDataReader
 from leaspy.inputs.algorithm_settings import AlgorithmSettings
 import torch
 import numpy as np
@@ -25,7 +25,7 @@ algo_settings.output_path = path_output
 
 # Data
 data_path = os.path.join(data_dir, 'data2_tiny.csv')
-reader = DataReader()
+reader = CSVDataReader()
 data = reader.read(data_path)
 
 

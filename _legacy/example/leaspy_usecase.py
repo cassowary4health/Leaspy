@@ -1,6 +1,6 @@
 import os
 from leaspy.main import Leaspy
-from leaspy.inputs.data.data_reader import DataReader
+from leaspy.inputs.data.csv_data_reader import CSVDataReader
 from leaspy.inputs.algorithm_settings import AlgorithmSettings
 import torch
 import matplotlib.pyplot as plt
@@ -16,7 +16,7 @@ test_data_dir = os.path.join("../tests", "_data")
 
 # Load Data
 data_path = os.path.join(test_data_dir, 'univariate_data.csv')
-reader = DataReader()
+reader = CSVDataReader()
 data = reader.read(data_path)
 
 # Path algo

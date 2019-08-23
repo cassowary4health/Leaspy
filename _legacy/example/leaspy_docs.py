@@ -1,6 +1,6 @@
 import os
 from leaspy.main import Leaspy
-from leaspy.inputs.data.data_reader import DataReader
+from leaspy.inputs.data.csv_data_reader import CSVDataReader
 from leaspy.inputs.algorithm_settings import AlgorithmSettings
 import matplotlib.pyplot as plt
 from leaspy.utils.output_manager import OutputManager
@@ -19,7 +19,7 @@ output_path = os.path.join(leaspy_path, "..", "output_leaspy", "fit")
 
 # 1.1 Instanciate Data object from csv file
 data_path = os.path.join(univariate_example_path, "data.csv")
-reader = DataReader()
+reader = CSVDataReader()
 data = reader.read(data_path)
 
 # 1.2 Instanciate algosettings object from json file

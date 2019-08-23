@@ -1,6 +1,11 @@
-from leaspy.inputs.data.data_reader import DataReader
+import numpy as np
+
+from leaspy.inputs.data.dataframe_data_reader import DataframeDataReader
+from leaspy.inputs.data.csv_data_reader import CSVDataReader
 from leaspy.inputs.data.individual_data import IndividualData
-import os
+
+
+
 #TODO : object data as output ??? or a result object ? Because there could be ambiguetes here
 # TODO or find a good way to say thet there are individual parameters here ???
 
@@ -16,8 +21,11 @@ class Data:
         self.n_observations = 0
         self.iter = 0
 
-    def __getitem__(self, idx):
-        return self.individuals[self.iter_to_idx[idx]]
+    def get_by_idx(self, idx):
+        return self.individuals[idx]
+
+    def __getitem__(self, iter):
+        return self.individuals[self.iter_to_idx[iter]]
 
     def __iter__(self):
         return self
@@ -31,19 +39,38 @@ class Data:
             return self.__getitem__(self.iter-1)
 
 
+    def load_cofactors(self, df, cofactors):
 
-    def get_indices(self):
-        return list(self.iter_to_idx.values())
+        for iter, idx in self.iter_to_idx.items():
+
+            # Get the cofactors and check that it is unique
+            cof = df.loc[idx][cofactors].to_dict(orient='list')
+
+            for c in cofactors:
+                v = np.unique(cof[c])
+                if len(v) != 1:
+                    raise ValueError("Multiples values of the cofactor {} for patient {} : {}".format(c, idx, v))
+                cof[c] = v[0]
+
+            # Add these cofactor to the individual
+            self.individuals[idx].add_cofactors(cof)
 
     @staticmethod
     def from_csv_file(path):
-        reader = DataReader(path)
+        reader = CSVDataReader(path)
+        return Data._from_reader(reader)
 
+    @staticmethod
+    def from_dataframe(df):
+        reader = DataframeDataReader(df)
+        return Data._from_reader(reader)
+
+    @staticmethod
+    def _from_reader(reader):
         data = Data()
 
         data.individuals = reader.individuals
         data.iter_to_idx = reader.iter_to_idx
-        data.idx_to_iter = {v:k for k, v in data.iter_to_idx.items()}
         data.headers = reader.headers
         data.dimension = reader.dimension
         data.n_individuals = reader.n_individuals
@@ -51,8 +78,6 @@ class Data:
         data.n_observations = reader.n_observations
 
         return data
-
-
 
     @staticmethod
     def from_individuals(indices, timepoints, values, headers):
@@ -72,7 +97,6 @@ class Data:
             # Create individual
             data.individuals[idx] = IndividualData(idx)
             data.iter_to_idx[data.n_individuals] = idx
-            data.idx_to_iter[idx] = data.n_individuals
             data.n_individuals += 1
 
             # Add observations / timepoints

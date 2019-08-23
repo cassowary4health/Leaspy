@@ -24,5 +24,11 @@ class IndividualData:
     def add_individual_parameters(self, name, value):
         self.individual_parameters[name] = value
 
+    def add_cofactors(self, dict):
+        for k, v in dict.items():
+            if k in self.cofactors.keys() and v != self.cofactors[k]:
+                raise ValueError("The cofactor {} is already present for patient {} ".format(k, self.idx))
+            self.cofactors[k] = v
+
     def add_cofactor(self, name, value):
         self.cofactors[name] = value

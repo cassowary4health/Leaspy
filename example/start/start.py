@@ -10,7 +10,7 @@ algo_settings = AlgorithmSettings('mcmc_saem', n_iter=200)
 algo_settings.set_logs('_outputs/logs/fit')
 
 # Initialize
-leaspy = Leaspy("multivariate")
+leaspy = Leaspy("logistic_parallel")
 leaspy.model.load_hyperparameters({'source_dimension': 2})
 
 # Fit the model on the data
@@ -28,9 +28,5 @@ result = leaspy.personalize(data, settings=algo_personalize_settings)
 path_to_individual_parameters = os.path.join(os.path.dirname(__file__), '_outputs', 'individual_parameters.json')
 leaspy.save_individual_parameters(path_to_individual_parameters, result.individual_parameters)
 
-# Add covariables
-import numpy as np
-covariables = {idx: np.random.uniform(0,1) for idx in data.individuals}
-result.set_covariables(covariables)
 
 

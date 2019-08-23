@@ -1,7 +1,7 @@
 import os
 from tests import test_data_dir
 from leaspy.main import Leaspy
-from leaspy.inputs.data.data_reader import DataReader
+from leaspy.inputs.data.csv_data_reader import CSVDataReader
 import unittest
 
 from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
@@ -37,7 +37,7 @@ class LeaspyFitTest(unittest.TestCase):
 
         # Create the data
         data_path = os.path.join(test_data_dir, 'univariate_data.csv')
-        reader = DataReader()
+        reader = CSVDataReader()
         data = reader.read(data_path)
 
         leaspy.fit(data, algo_settings, seed=1)
@@ -156,7 +156,7 @@ class LeaspyFitTest(unittest.TestCase):
 
         # Create the data
         data_path = os.path.join(test_data_dir, 'univariate_data.csv')
-        reader = DataReader()
+        reader = CSVDataReader()
         data = reader.read(data_path)
 
         leaspy.fit(data, algo_settings, seed=0)

@@ -26,7 +26,10 @@ class AbstractFitAlgo(AbstractAlgo):
                 self.output_manager.iteration(self, data, model, realizations)
             self.current_iteration += 1
 
+        print("\n The final standard deviation of the noise is {:.4f}".format(model.parameters['noise_std']))
         return realizations
+
+
 
     def iteration(self, data, model, realizations):
         raise NotImplementedError

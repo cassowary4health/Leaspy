@@ -1,4 +1,4 @@
-from ....inputs.data.dataset import Dataset
+
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os
@@ -8,18 +8,21 @@ import torch
 import matplotlib.backends.backend_pdf
 import seaborn as sns
 
+from leaspy.inputs.data.dataset import Dataset
+
 
 class Plotter:
 
     def __init__(self, output_path=None):
         # TODO : Do all the check up if the path exists, and if yes, if removing or not
+        if output_path is None:
+            output_path = os.getcwd()
         self.output_path = output_path
 
     def plot_mean_trajectory(self, model, **kwargs):
-
-        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.rainbow(np.linspace(0, 1, model.dimension))
+        #colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
-        fig, ax = plt.subplots(1, 1)
+        fig, ax = plt.subplots(1, 1, figsize=(11, 6))
         plt.ylim(0, 1)
 
         timepoints = np.linspace(model.parameters['tau_mean'] - 3 * np.sqrt(model.parameters['tau_std']),
@@ -28,34 +31,31 @@ class Plotter:
         timepoints = torch.Tensor([timepoints])
         mean_trajectory = model.compute_mean_traj(timepoints).detach().numpy()
 
+
         for i in range(mean_trajectory.shape[-1]):
-            ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], c=colors[i], label=labels[i])
+            ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i], linewidth=4)#, c=colors[i])
         plt.legend()
-        plt.show()
+
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
-            plt.close()
 
+        plt.show()
 
+    def plot_patient_trajectory(self, model, results, indices, **kwargs):
 
-
-
-    @staticmethod
-    def plot_patient_trajectory(model, results, indices, **kwargs):
-
-        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.rainbow(np.linspace(0, 1, model.dimension))
+        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.hot(np.linspace(0, 1, model.dimension))
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
-        fig, ax = plt.subplots(1, 1)
+        fig, ax = plt.subplots(1, 1, figsize=(11, 6))
         plt.ylim(0, 1)
 
         if type(indices) is not list:
             indices = [indices]
 
         for idx in indices:
-            iter_idx = results.data.idx_to_iter[idx]
-            timepoints = results.data[iter_idx].timepoints
-            observations = np.array(results.data[iter_idx].observations)
+            indiv = results.data.get_by_idx(idx)
+            timepoints = indiv.timepoints
+            observations = np.array(indiv.observations)
             t = torch.Tensor(timepoints).unsqueeze(0)
             p = results.individual_parameters[idx]
             p = (torch.Tensor([p['xi']]).unsqueeze(0),
@@ -68,7 +68,75 @@ class Plotter:
                 ax.plot(timepoints, observations[:, dim], c=colors[dim])
         plt.show()
 
+        if 'save_as' in kwargs.keys():
+            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
+            plt.close()
 
+    def plot_distribution(self, results, parameter, cofactor=None, **kwargs):
+        fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+        distribution = results.get_parameter_distribution(parameter, cofactor)
+
+        if cofactor is None:
+            ax.hist(distribution)
+        else:
+
+            for k, v in distribution.items():
+                ax.hist(v, label=k, alpha=0.7)
+            plt.legend()
+        plt.show()
+
+        if 'save_as' in kwargs.keys():
+            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
+            plt.close()
+
+    def plot_correlation(self, results, parameter_1, parameter_2, cofactor=None, **kwargs):
+        fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+
+        d1 = results.get_parameter_distribution(parameter_1, cofactor)
+        d2 = results.get_parameter_distribution(parameter_2, cofactor)
+
+        if cofactor is None:
+            ax.scatter(d1, d2)
+
+        else:
+            for possibility in d1.keys():
+                ax.scatter(d1[possibility], d2[possibility], label=possibility)
+
+        plt.legend()
+        plt.show()
+
+        if 'save_as' in kwargs.keys():
+            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
+            plt.close()
+
+    def plot_patients_mapped_on_mean_trajectory(self, model, results):
+        dataset = Dataset(results.data, model)
+        individual_parameters = []
+        xi = torch.Tensor([results.individual_parameters[_.idx]['xi'] for _ in results.data]).unsqueeze(1)
+        tau = torch.Tensor([results.individual_parameters[_.idx]['tau'] for _ in results.data]).unsqueeze(1)
+        sources = torch.Tensor([results.individual_parameters[_.idx]['sources'] for _ in results.data])
+
+        individual_parameters = (xi, tau, sources)
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, individual_parameters)
+        timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
+                                 model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
+                                 100)
+        timepoints = torch.Tensor([timepoints])
+
+        reparametrized_time = model.time_reparametrization(dataset.timepoints, xi, tau) / torch.exp(
+            model.parameters['xi_mean']) + model.parameters['tau_mean']
+
+        for i in range(dataset.values.shape[-1]):
+            fig, ax = plt.subplots(1, 1)
+            #ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
+            for idx in range(50):
+                ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
+                        dataset.values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(),'x', )
+                ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
+                        patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(), alpha=0.8)
+            plt.ylim(0, 1)
+
+    ### TODO TODO : Check what the following function is
 
     @staticmethod
     def plot_within_mean_traj(path, dataset, model, param_ind, max_patient_number=25,colors =None,labels=None):

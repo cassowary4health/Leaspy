@@ -1,6 +1,6 @@
 import os
 from leaspy.main import Leaspy
-from leaspy.inputs.data.data_reader import DataReader
+from leaspy.inputs.data.csv_data_reader import CSVDataReader
 from leaspy.inputs.algorithm_settings import AlgorithmSettings
 
 # Settings
@@ -30,7 +30,7 @@ leaspy = Leaspy('multivariate')
 # Load the data
 data_path = os.path.join(data_dir, 'data2.csv')
 #data_path = os.path.join(data_dir, 'data2.csv')
-reader = DataReader()
+reader = CSVDataReader()
 data = reader.read(data_path)
 
 #%%

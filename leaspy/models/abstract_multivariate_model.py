@@ -43,7 +43,6 @@ class AbstractMultivariateModel(AbstractModel):
             'source_dimension': self.source_dimension,
             'parameters': model_parameters_save
         }
-        print('in save multivariate parallel')
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)
 

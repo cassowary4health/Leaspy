@@ -23,9 +23,15 @@ class AlgorithmSettings:
 
         for k, v in kwargs.items():
             if k in self.parameters.keys():
+
                 self.parameters[k] = v
             else:
                 warnings.warn("The parameter key you provided is unknown")
+
+        # Todo : Make it better
+        if name == 'mcmc_saem':
+            if 'n_iter' in kwargs.keys() and 'n_burn_in_iter' not in kwargs.keys():
+                self.parameters['n_burn_in_iter'] = int(0.9 * kwargs['n_iter'])
 
 
     @classmethod

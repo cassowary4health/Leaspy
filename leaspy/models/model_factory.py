@@ -1,4 +1,4 @@
-from . import UnivariateModel, MultivariateModel, MultivariateModelParallel
+from . import UnivariateModel, LogisticModel, LogisticParallelModel
 
 
 class ModelFactory():
@@ -8,9 +8,10 @@ class ModelFactory():
         name = name.lower()
         if name == 'univariate':
             return UnivariateModel(name)
-        elif name == 'multivariate':
-            return MultivariateModel(name)
-        elif name == 'multivariate_parallel':
-            return MultivariateModelParallel(name)
+        elif name == 'logistic':
+            return LogisticModel(name)
+        elif name == 'logistic_parallel':
+            return LogisticParallelModel(name)
         else:
-            raise ValueError("The name of the model you are trying to create does not exist")
+            raise ValueError("The name of the model you are trying to create does not exist"
+                             "It should be \`logistic\` or \`logistic_parallel\`")

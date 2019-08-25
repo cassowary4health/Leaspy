@@ -79,6 +79,7 @@ class AbstractModel():
         # Instanciate torch distribution
         if realization.variable_type == 'population':
             mean = self.parameters[realization.name]
+            # TODO : Sure it is only MCMC_toolbox?
             std = self.MCMC_toolbox['priors']['{0}_std'.format(realization.name)]
         elif realization.variable_type == 'individual':
             mean = self.parameters["{0}_mean".format(realization.name)]
@@ -88,7 +89,7 @@ class AbstractModel():
 
         return self.compute_regularity_variable(realization.tensor_realizations,mean,std)
 
-    def compute_regularity_variable(self,value,mean,std):
+    def compute_regularity_variable(self, value, mean, std):
         # Instanciate torch distribution
         distribution = torch.distributions.normal.Normal(loc=mean,scale=std)
         return -distribution.log_prob(value)

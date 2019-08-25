@@ -42,6 +42,5 @@ class AlgoFactory:
         else:
             raise ValueError("The name of your algorithm is unknown")
 
-        algorithm.load_parameters(settings.parameters)
         algorithm.set_output_manager(settings.logs)
         return algorithm

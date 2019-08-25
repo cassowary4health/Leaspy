@@ -3,49 +3,57 @@ from scipy.optimize import minimize
 import numpy as np
 import torch
 
+
 class ScipyMinimize(AbstractPersonalizeAlgo):
 
+    def _get_model_name(self, name):
+        self.model_name = name
 
-    def _get_individual_parameters(self,model,times,values):
+    def _get_individual_parameters(self, model, times, values):
 
-        timepoints = times.reshape(1,-1,1)
+        timepoints = times.reshape(1, -1)
+        self._get_model_name(model.name)
 
         def obj(x, *args):
-            ### Parameters
-            model, times,values = args
-            xi,tau,sources = torch.tensor(x[0],dtype=torch.float32),torch.tensor(x[1],dtype=torch.float32),torch.tensor(x[2:],dtype=torch.float32)
-            if model.name == 'univariate':
-                err = model.compute_individual_tensorized(times, (xi, tau)) - values
-                iterates = zip(['xi','tau'],(xi,tau))
+            # Parameters
+            model, times, values = args
+
+            # Attachement
+            xi = torch.tensor([x[0]], dtype=torch.float32).unsqueeze(0)
+            tau = torch.tensor([x[1]], dtype=torch.float32).unsqueeze(0)
+
+            if self.model_name == 'univariate':
+                attachement = model.compute_individual_tensorized(times, (xi, tau)) - values
+                iterates = zip(['xi', 'tau'], (xi, tau))
             else:
-                err = model.compute_individual_tensorized(times, (xi,tau,sources))-values
-                iterates = zip(['xi','tau','sources'],(xi,tau,sources))
-            attachement = torch.sum(err**2)
+                sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
+                attachement = model.compute_individual_tensorized(times, (xi, tau, sources)) - values
+                iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
+
+            attachement = torch.sum(attachement**2) / (2. * model.parameters['noise_std']**2)
+
+            # Regularity
             regularity = 0
-            for key,value in iterates:
+            for key, value in iterates:
                 mean = model.parameters["{0}_mean".format(key)]
                 std = model.parameters["{0}_std".format(key)]
-                regularity += torch.sum(model.compute_regularity_variable(value,mean,std))
+                regularity += torch.sum(model.compute_regularity_variable(value, mean, std))
+
             return (regularity + attachement).detach().numpy()
 
-        if model.name=="univariate":
-            x=np.array([model.parameters["xi_mean"], model.parameters["tau_mean"]] + [])
-        else:
-            x = np.array([model.parameters["xi_mean"], model.parameters["tau_mean"]] + [0 for _ in range(
-                           model.source_dimension)])
-
+        initial_value = self._initialize_parameters(model)
         res = minimize(obj,
-                       x0=x,
-                       args=(model,timepoints,values),
+                       x0=initial_value,
+                       args=(model, timepoints, values),
                        method="Powell"
                        )
 
-        if res.success != True:
+        if res.success is not True:
             print(res.success, res)
 
-        xi, tau, sources = res.x[0], res.x[1], res.x[2:]
-
-        return xi, tau, sources
+        xi_f, tau_f, sources_f = res.x[0], res.x[1], res.x[2:]
+        err_f = self._get_attachement(model, times.unsqueeze(0), values, res.x)
+        return xi_f, tau_f, sources_f, err_f
 
 
 

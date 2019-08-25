@@ -19,7 +19,7 @@ class Result:
             return [_[parameter] for _ in self.individual_parameters.values()]
 
         # If the distribution as asked for different cofactor values
-        possibilities = np.unique([_.cofactors[cofactor] for _ in self.data])
+        possibilities = np.unique([_.cofactors[cofactor] for _ in self.data if _.cofactors[cofactor] is not None])
         distributions = {}
         for p in possibilities:
             if p not in distributions.keys():

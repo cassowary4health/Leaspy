@@ -14,11 +14,9 @@ class SimulationAlgorithm():
         self.interval = settings.interval
 
     def run(self, model, results):
-        raise NotImplementedError("The simulation algorithm is not implemented on this branch of the code."
-                                  "Please wait until soon release")
 
-        # TODO : There is no reason for it to work : it is a copy paste
-        # simulate according to same distrib as param_ind
+
+
         param = []
         for a in param_ind:
             for i in range(a.shape[1]):

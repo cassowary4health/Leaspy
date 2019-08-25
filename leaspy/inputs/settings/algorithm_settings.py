@@ -94,6 +94,8 @@ class AlgorithmSettings:
     @staticmethod
     def _get_seed(settings):
         if 'seed' in settings.keys():
+            if settings['seed'] is None:
+                return None
             try:
                 return int(settings['seed'])
             except ValueError:

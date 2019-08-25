@@ -44,7 +44,7 @@ class Plotter:
 
     def plot_patient_trajectory(self, model, results, indices, **kwargs):
 
-        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.hot(np.linspace(0, 1, model.dimension))
+        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
         plt.ylim(0, 1)

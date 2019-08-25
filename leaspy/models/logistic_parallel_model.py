@@ -87,8 +87,7 @@ class LogisticParallelModel(AbstractMultivariateModel):
 
         # Individual parameters
         xi, tau, sources = ind_parameters
-
-        reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
         LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)

@@ -53,10 +53,10 @@ class Leaspy:
 
         algorithm = AlgoFactory.algo(settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
-        individual_parameters = algorithm.run(self.model, dataset)
+        individual_parameters, DEBUG = algorithm.run(self.model, dataset)
         result = Result(data, individual_parameters)
 
-        return result
+        return result, DEBUG
 
     def simulate(self, results, settings):
 

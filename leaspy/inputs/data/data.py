@@ -44,13 +44,17 @@ class Data:
         for iter, idx in self.iter_to_idx.items():
 
             # Get the cofactors and check that it is unique
-            cof = df.loc[idx][cofactors].to_dict(orient='list')
+            cof = df.loc[[idx]][cofactors].to_dict(orient='list')
 
             for c in cofactors:
                 v = np.unique(cof[c])
-                if len(v) != 1:
+                v = [_ for _ in v if _ == _]
+                if len(v) > 1:
                     raise ValueError("Multiples values of the cofactor {} for patient {} : {}".format(c, idx, v))
-                cof[c] = v[0]
+                elif len(v) == 0:
+                    cof[c] = None
+                else:
+                    cof[c] = v[0]
 
             # Add these cofactor to the individual
             self.individuals[idx].add_cofactors(cof)
@@ -59,6 +63,9 @@ class Data:
     def from_csv_file(path):
         reader = CSVDataReader(path)
         return Data._from_reader(reader)
+
+    def to_dataframe(self):
+        0
 
     @staticmethod
     def from_dataframe(df):

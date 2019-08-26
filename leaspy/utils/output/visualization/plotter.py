@@ -234,6 +234,20 @@ class Plotter:
             if i > max_patient_number:
                 break
 
+
+        # Plot the mean also
+        min_time, max_time = torch.min(data.timepoints[data.timepoints>0.0]), torch.max(data.timepoints)
+
+        timepoints = np.linspace(min_time,
+                                 max_time,
+                                 100)
+        timepoints = torch.Tensor([timepoints])
+        patient_values = model.compute_mean_traj(timepoints)
+        for i in range(patient_values.shape[-1]):
+            ax.plot(timepoints[0, :].detach().numpy(), patient_values[0, :, i].detach().numpy(),
+                    c="black", linewidth=3, alpha=0.3)
+
+
         plt.savefig(path)
         plt.close()
 

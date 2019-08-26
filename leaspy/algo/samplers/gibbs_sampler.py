@@ -5,34 +5,39 @@ import itertools
 
 class GibbsSampler(AbstractSampler):
 
-    def __init__(self, info,n_patients):
-        super().__init__(info,n_patients)
+    def __init__(self, info, n_patients):
+        super().__init__(info, n_patients)
         #AbstractSampler.__init__(self,info,n_patients)
 
         self.std = None
 
         if info["type"] == "population":
-            self.std = 0.005
+            # Proposition variance is adapted independantly on each dimension of the population variable
+            self.std = 0.005 * torch.ones(size=self.shape)
         elif info["type"] == "individual":
-            self.std = 0.1
+            # Proposition variance is adapted independantly on each patient, but is the same for multiple dimensions
+            # TODO : gérer les shapes
+            self.std = torch.Tensor([0.1]*n_patients).reshape(n_patients, 1)
 
         # Acceptation rate
         self.counter_acceptation = 0
+
         # Torch distribution
-        self.distribution = torch.distributions.normal.Normal(loc=0.0, scale = self.std)
+        self.distribution = torch.distributions.normal.Normal(loc=0.0, scale=self.std)
 
     def sample(self, data, model, realizations,temperature_inv):
         if self.type == 'pop':
-            self._sample_population_realizations(data, model, realizations,temperature_inv)
+            self._sample_population_realizations(data, model, realizations, temperature_inv)
         else:
-            self._sample_individual_realizations(data, model, realizations,temperature_inv)
+            self._sample_individual_realizations(data, model, realizations, temperature_inv)
 
-    def _proposal(self,val):
-        return val+self.distribution.sample(sample_shape=val.shape)
+    def _proposal(self, val):
+        #return val+self.distribution.sample(sample_shape=val.shape)
+        return val + self.distribution.sample()
 
 
-    def _update_std(self,accepted):
-        self.counter_acceptation += len(accepted)
+    def _update_std(self, accepted):
+        """
 
         if self.counter_acceptation == self.temp_length:
             # Update the std of sampling so that expected rate is reached
@@ -46,7 +51,23 @@ class GibbsSampler(AbstractSampler):
                 #print("Increased std of sampler-{0}".format(self.name))
 
             # reset acceptation temp list
+            self.counter_acceptation = 0"""
+
+        self.counter_acceptation += 1
+
+        if self.counter_acceptation == self.temp_length:
+
+            mean_acceptation = self.acceptation_temp.mean(0)
+
+            idx_toolow = mean_acceptation < 0.2
+            idx_toohigh = mean_acceptation > 0.4
+
+            self.std[idx_toolow] *= 0.9
+            self.std[idx_toohigh] *= 1.1
+
+            # reset acceptation temp list
             self.counter_acceptation = 0
+
 
     def _set_std(self, std):
         self.std = std
@@ -55,6 +76,9 @@ class GibbsSampler(AbstractSampler):
     def _sample_population_realizations(self, data, model, realizations,temperature_inv):
         shape_current_variable = realizations[self.name].shape
         index = [e for e in itertools.product(*[range(s) for s in shape_current_variable])]
+
+        accepted_array = []
+
         for idx in index:
             # Compute the attachment and regularity
             previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
@@ -62,7 +86,7 @@ class GibbsSampler(AbstractSampler):
 
             # Keep previous realizations and sample new ones
             previous_reals_pop = realizations[self.name].tensor_realizations.clone()
-            new_val = self._proposal(realizations[self.name].tensor_realizations[idx])
+            new_val = self._proposal(realizations[self.name].tensor_realizations[idx])[idx]
             realizations[self.name].set_tensor_realizations_element(new_val,idx)
 
             # Update intermediary model variables if necessary
@@ -75,8 +99,7 @@ class GibbsSampler(AbstractSampler):
                                 (new_attachment - previous_attachment)))
 
             accepted = self._metropolis_step(alpha)
-            self._update_acceptation_rate([accepted])
-            self._update_std([accepted])
+            accepted_array.append(accepted)
 
             # Revert if not accepted
             if not accepted:
@@ -84,6 +107,9 @@ class GibbsSampler(AbstractSampler):
                 realizations[self.name].tensor_realizations = previous_reals_pop
                 # Update intermediary model variables if necessary
                 model.update_MCMC_toolbox([self.name], realizations)
+
+        self._update_acceptation_rate([accepted_array])
+        self._update_std([accepted_array])
 
 
     def _sample_individual_realizations(self, data, model, realizations,temperature_inv):
@@ -95,8 +121,8 @@ class GibbsSampler(AbstractSampler):
         # Keep previous realizations and sample new ones
         previous_reals= realizations[self.name].tensor_realizations.clone()
         realizations[self.name].tensor_realizations = self._proposal(realizations[self.name].tensor_realizations)
-        # Compute the attachment and regularity
 
+        # Compute the attachment and regularity
         new_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
         new_regularity = model.compute_regularity_realization(realizations[self.name]).sum(dim=1).reshape(data.n_individuals)
 

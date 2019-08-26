@@ -119,9 +119,9 @@ class AbstractFitMCMC(AbstractFitAlgo):
         out += "Iteration {0}\n".format(self.current_iteration)
         out += "=Samplers \n"
         for sampler_name, sampler in self.samplers.items():
-            acceptation_rate = np.mean(sampler.acceptation_temp)
+            acceptation_rate = np.mean(sampler.acceptation_temp.detach().numpy())
             out += "    {0} rate : {1}%, std: {2}\n".format(sampler_name, 100*acceptation_rate,
-                                                            sampler.std)
+                                                            sampler.std.mean())
 
         if self.algo_parameters['annealing']['do_annealing']:
             out += "Annealing \n"

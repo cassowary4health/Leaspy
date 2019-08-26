@@ -16,7 +16,7 @@ class AlgorithmSettings:
         self.seed = None
         self.logs = None
 
-        if name in ['mcmc_saem', 'scipy_minimize']:
+        if name in ['mcmc_saem', 'scipy_minimize', 'simulation']:
             self.load_json(os.path.join(default_data_dir, 'default_' + name + '.json'))
         else:
             raise ValueError('The algorithm name {} you provided does not exist'.format(name))

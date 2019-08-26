@@ -15,11 +15,17 @@ class IndividualData:
             self.observations = []
 
         if timepoint in self.timepoints:
-            raise ValueError('You are trying to overwrite the observation of the subject {}'.format(self.idx))
+            raise ValueError('You are trying to overwrite the observation at time {} of the subject {}'.format(timepoint, self.idx))
 
         index = bisect(self.timepoints, timepoint)
         self.timepoints.insert(index, timepoint)
         self.observations.insert(index, observation)
+
+    def add_observations(self, timepoints, observations):
+
+        for i, timepoint in enumerate(timepoints):
+            self.add_observation(timepoint, observations[i])
+
 
     def add_individual_parameters(self, name, value):
         self.individual_parameters[name] = value

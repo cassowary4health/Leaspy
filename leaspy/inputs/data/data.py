@@ -1,8 +1,10 @@
 import numpy as np
+import pandas as pd
 
 from leaspy.inputs.data.dataframe_data_reader import DataframeDataReader
 from leaspy.inputs.data.csv_data_reader import CSVDataReader
 from leaspy.inputs.data.individual_data import IndividualData
+from leaspy.inputs.data.dataset import Dataset
 
 
 
@@ -65,7 +67,36 @@ class Data:
         return Data._from_reader(reader)
 
     def to_dataframe(self):
-        0
+
+        indices = []
+        timepoints = np.zeros((self.n_visits, 1))
+        arr = np.zeros((self.n_visits, self.dimension))
+
+        iteration = 0
+        for i, indiv in enumerate(self.individuals.values()):
+            ages = indiv.timepoints
+            for j, age in enumerate(ages):
+                indices.append(indiv.idx)
+                timepoints[iteration] = age
+                arr[iteration] = indiv.observations[j]
+
+                iteration += 1
+
+        arr = np.concatenate((timepoints, arr), axis=1)
+
+        df = pd.DataFrame(data=arr, index=indices, columns=['TIME']+self.headers)
+        df.index.name = 'ID'
+        return df.reset_index()
+
+
+        #dataset = Dataset(self)
+        #indices = [[dataset.indices[i], age] for i, ages in enumerate(dataset.timepoints.detach().numpy()) for j, age in
+        #           enumerate(ages)]
+        #values = dataset.values.view(self.n_visits, self.dimension).detach().numpy()
+        #arr = np.concatenate((indices, values), axis=1)
+
+        #df = pd.DataFrame(data=arr, columns=['ID', 'TIME']+self.headers)
+        #return df
 
     @staticmethod
     def from_dataframe(df):
@@ -96,7 +127,7 @@ class Data:
         """
 
         data = Data()
-        data.dimension = values[0].shape[1]
+        data.dimension = len(values[0][0])
         data.headers = headers
 
         for i, idx in enumerate(indices):
@@ -107,12 +138,10 @@ class Data:
             data.n_individuals += 1
 
             # Add observations / timepoints
-            for patient_timepoint_obs, patient_value_obs in zip(timepoints[i], values[i]):
-                data.individuals[idx].add_observation(patient_timepoint_obs, patient_value_obs.T.tolist())
+            data.individuals[idx].add_observations(timepoints[i], values[i])
 
             # Update Data metrics
-            data.n_visits += len(timepoints)
+            data.n_visits += len(timepoints[i])
             data.n_observations += len(timepoints)*data.dimension
-
 
         return data

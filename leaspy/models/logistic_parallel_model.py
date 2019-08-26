@@ -81,6 +81,9 @@ class LogisticParallelModel(AbstractMultivariateModel):
 
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
+
+
+
         # Population parameters
         g, deltas, a_matrix = self._get_attributes(MCMC)
         deltas_exp = torch.exp(-deltas)
@@ -88,6 +91,8 @@ class LogisticParallelModel(AbstractMultivariateModel):
         # Individual parameters
         xi, tau, sources = ind_parameters
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        #print(xi.shape, tau.shape, sources.shape, timepoints.shape)
 
         # Log likelihood computation
         LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
@@ -97,6 +102,7 @@ class LogisticParallelModel(AbstractMultivariateModel):
         LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)
         model = 1. / (1. + g*torch.exp(LL))
 
+        #print(model.shape)
         return model
 
 

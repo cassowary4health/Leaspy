@@ -2,20 +2,106 @@ import numpy as np
 import pandas as pd
 import scipy
 import torch
+from scipy import stats
+from sklearn.preprocessing import StandardScaler
+
+from leaspy.algo.abstract_algo import AbstractAlgo
+from leaspy.inputs.data.data import Data
 
 
-class SimulationAlgorithm():
+class SimulationAlgorithm(AbstractAlgo):
 
     def __init__(self, settings):
 
-        self.noise_scale = settings.noise_scale
-        self.number_of_subjects = settings.number_of_subjects
-        self.number_of_follow_up_visits = settings.number_of_follow_up_visits
-        self.interval = settings.interval
+        self.number_of_subjects = settings.parameters['number_of_subjects']
+        self.bandwidth_method = settings.parameters['bandwidth_method']
+        self.noise = settings.parameters['noise']
+        self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
+        self.std_number_of_visits = settings.parameters['std_number_of_visits']
+
+
+    def _sample_sources(self, df_mean, df_cov, xi, tau, bl, source_dimension):
+        ind_1 = [0, 1, 2]
+        ind_2 = list(range(3, source_dimension + 3))
+        x_1 = np.vstack((xi, tau, bl))
+
+        mu_1 = df_mean[ind_1][:, np.newaxis]
+        mu_2 = df_mean[ind_2][:, np.newaxis]
+        sigma_11 = df_cov[np.ix_(ind_1, ind_1)]
+        sigma_22 = df_cov[np.ix_(ind_2, ind_2)]
+        sigma_12 = df_cov[np.ix_(ind_1, ind_2)]
+
+        mean_cond = (mu_2 + np.dot(np.transpose(sigma_12), np.dot(np.linalg.inv(sigma_11), x_1 - mu_1))).ravel()
+        cov_cond = sigma_22 - np.dot(np.dot(np.transpose(sigma_12), np.linalg.inv(sigma_11)), sigma_12)
+
+        return np.random.multivariate_normal(mean_cond, cov_cond)
+
+    def _get_number_of_visits(self, xi, tau, bl, sources):
+        number_of_visits = int(self.mean_number_of_visits)
+
+        if self.mean_number_of_visits != 0:
+            number_of_visits += int(np.random.normal(0, self.std_number_of_visits))
+
+        return number_of_visits
+
 
     def run(self, model, results):
 
+        xi, tau, bl, sources = [], [], [], []
+        for k, v in results.individual_parameters.items():
+            xi.append(v['xi'])
+            tau.append(v['tau'])
+            sources.append(v['sources'])
+            ages = results.data.get_by_idx(k).timepoints
+            bl.append(min(ages))
 
+        distribution = np.array([xi, tau, bl]).T
+        SS = StandardScaler()
+        rescaled_distribution = SS.fit_transform(distribution)
+        kernel = stats.gaussian_kde(rescaled_distribution.T, bw_method=self.bandwidth_method)
+
+        df = np.concatenate((np.array([xi, tau, bl]), np.array(sources).T), axis=0).T
+        df = pd.DataFrame(data=df)
+
+        df_mean = df.mean().values
+        df_cov = df.cov().values
+
+        samples = np.transpose(kernel.resample(self.number_of_subjects))
+        samples = SS.inverse_transform(samples)
+
+        indices, timepoints, values = [], [], []
+
+        for idx, s in enumerate(samples):
+            xi, tau, bl = s
+            bl = bl - 1
+            sources = self._sample_sources(df_mean, df_cov, xi, tau, bl, model.source_dimension)
+            number_of_visits = self._get_number_of_visits(xi, tau, bl, sources)
+            if number_of_visits == 1:
+                ages = [bl]
+            elif number_of_visits == 2:
+                ages = [bl, bl + 0.5]
+            else:
+                ages = [bl, bl + 0.5] + [bl + i for i in range(1, number_of_visits - 1)]
+
+            indiv_param = torch.Tensor([xi]).unsqueeze(0), torch.Tensor([tau]).unsqueeze(0), torch.Tensor(sources).unsqueeze(0)
+            observations = model.compute_individual_tensorized(torch.Tensor(ages).unsqueeze(0), indiv_param)
+
+            if self.noise:
+                noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(observations.shape)
+                observations += noise
+                observations = observations.clamp(0, 1)
+
+            indices.append(idx)
+            timepoints.append(ages)
+            values.append(observations.squeeze(0).detach().numpy().tolist())
+
+        simulated_data = Data.from_individuals(indices, timepoints, values, results.data.headers)
+        return simulated_data
+
+
+
+        # TODO : Check with Raphaël if he needs the following
+        '''    
 
         param = []
         for a in param_ind:
@@ -59,3 +145,5 @@ class SimulationAlgorithm():
             data_sim = data_sim.append(truc)
 
         return data_sim
+        
+        '''

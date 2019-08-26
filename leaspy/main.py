@@ -1,4 +1,5 @@
 import json
+import copy
 
 from leaspy.inputs.data.dataset import Dataset
 from leaspy.inputs.settings.model_settings import ModelSettings
@@ -24,23 +25,6 @@ class Leaspy:
     def save(self, path):
         self.model.save(path)
 
-    @staticmethod
-    def save_individual_parameters(path, individual_parameters):
-        for key1 in individual_parameters.keys():
-            for key2 in individual_parameters[key1]:
-                if type(individual_parameters[key1][key2]) not in [list]:
-                    individual_parameters[key1][key2] = individual_parameters[key1][key2].tolist()
-
-        with open(path, 'w') as fp:
-            json.dump(individual_parameters, fp)
-
-    @staticmethod
-    def load_individual_parameters(path):
-        with open(path, 'r') as f:
-            individual_parameters = json.load(f)
-
-        return individual_parameters
-
     def fit(self, data, algorithm_settings):
 
         algorithm = AlgoFactory.algo(algorithm_settings)
@@ -53,13 +37,32 @@ class Leaspy:
 
         algorithm = AlgoFactory.algo(settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
-        individual_parameters, DEBUG = algorithm.run(self.model, dataset)
+        individual_parameters = algorithm.run(self.model, dataset)
         result = Result(data, individual_parameters)
 
-        return result, DEBUG
+        return result
 
     def simulate(self, results, settings):
 
         algorithm = AlgoFactory.algo(settings)
         simulated_data = algorithm.run(self.model, results)
         return simulated_data
+
+    @staticmethod
+    def save_individual_parameters(path, individual_parameters):
+        dump = copy.deepcopy(individual_parameters)
+
+        for key1 in dump.keys():
+            for key2 in dump[key1]:
+                if type(dump[key1][key2]) not in [list]:
+                    dump[key1][key2] = dump[key1][key2].tolist()
+
+        with open(path, 'w') as fp:
+            json.dump(dump, fp)
+
+    @staticmethod
+    def load_individual_parameters(path):
+        with open(path, 'r') as f:
+            individual_parameters = json.load(f)
+
+        return individual_parameters

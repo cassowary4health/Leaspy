@@ -9,6 +9,39 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
     def _get_model_name(self, name):
         self.model_name = name
 
+    def _initialize_parameters(self, model):
+        x = [model.parameters["xi_mean"], model.parameters["tau_mean"]]
+        if self.model_name != "univariate":
+            x += [0 for _ in range(model.source_dimension)]
+        return np.array(x)
+
+    def _get_attachement(self, model, times, values, x):
+        xi = torch.tensor([x[0]], dtype=torch.float32).unsqueeze(0)
+        tau = torch.tensor([x[1]], dtype=torch.float32).unsqueeze(0)
+
+        if self.model_name == 'univariate':
+            err = model.compute_individual_tensorized(times, (xi, tau)) - values
+        else:
+            sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
+            err = model.compute_individual_tensorized(times, (xi, tau, sources)) - values
+        return err
+
+    def _get_regularity(self, model, x):
+        xi = torch.tensor(x[0], dtype=torch.float32)
+        tau = torch.tensor(x[1], dtype=torch.float32)
+        if self.model_name == 'univariate':
+            iterates = zip(['xi', 'tau'], (xi, tau))
+        else:
+            sources = torch.tensor(x[2:], dtype=torch.float32)
+            iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
+
+        regularity = 0
+        for key, value in iterates:
+            mean = model.parameters["{0}_mean".format(key)]
+            std = model.parameters["{0}_std".format(key)]
+            regularity += torch.sum(model.compute_regularity_variable(value, mean, std))
+        return regularity
+
     def _get_individual_parameters(self, model, times, values):
 
         timepoints = times.reshape(1, -1)

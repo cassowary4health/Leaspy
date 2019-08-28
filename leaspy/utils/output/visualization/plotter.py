@@ -41,6 +41,8 @@ class Plotter:
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
         plt.show()
+        plt.close()
+
 
     def plot_patient_trajectory(self, model, results, indices, **kwargs):
 
@@ -66,11 +68,13 @@ class Plotter:
             for dim in range(model.dimension):
                 ax.plot(timepoints, trajectory.detach().numpy()[:, dim], c=colors[dim])
                 ax.plot(timepoints, observations[:, dim], c=colors[dim])
-        plt.show()
+
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
-            plt.close()
+
+        plt.show()
+        plt.close()
 
     def plot_distribution(self, results, parameter, cofactor=None, **kwargs):
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
@@ -83,11 +87,12 @@ class Plotter:
             for k, v in distribution.items():
                 ax.hist(v, label=k, alpha=0.7)
             plt.legend()
-        plt.show()
-
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
-            plt.close()
+
+        plt.show()
+        plt.close()
+
 
     def plot_correlation(self, results, parameter_1, parameter_2, cofactor=None, **kwargs):
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
@@ -103,11 +108,11 @@ class Plotter:
                 ax.scatter(d1[possibility], d2[possibility], label=possibility)
 
         plt.legend()
-        plt.show()
-
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
-            plt.close()
+
+        plt.show()
+        plt.close()
 
     def plot_patients_mapped_on_mean_trajectory(self, model, results):
         dataset = Dataset(results.data, model)

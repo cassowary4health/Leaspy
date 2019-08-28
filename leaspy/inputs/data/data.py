@@ -43,6 +43,9 @@ class Data:
 
     def load_cofactors(self, df, cofactors):
 
+        df = df.copy(deep=True)
+        df = df.set_index(['ID','TIME'])
+
         for iter, idx in self.iter_to_idx.items():
 
             # Get the cofactors and check that it is unique

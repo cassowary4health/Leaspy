@@ -45,7 +45,7 @@ class OutputsSettings:
 
         # Check if the parent directory exists
         if not os.path.exists(parent_directory):
-            raise ValueError("Parent directory of the output path you provided does not exist")
+            raise ValueError("Parent directory : \n {0} \n of the output path you provided does not exist".format(parent_directory))
 
         # Check if the folder does not exist : if not, create
         existence_cdt = os.path.exists(settings['path'])

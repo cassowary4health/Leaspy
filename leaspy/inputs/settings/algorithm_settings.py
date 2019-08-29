@@ -32,6 +32,8 @@ class AlgorithmSettings:
         if name == 'mcmc_saem':
             if 'n_iter' in kwargs.keys() and 'n_burn_in_iter' not in kwargs.keys():
                 self.parameters['n_burn_in_iter'] = int(0.9 * kwargs['n_iter'])
+            if 'n_iter' in kwargs.keys() and 'annealing' not in kwargs.keys():
+                self.parameters['annealing']["n_iter"] = int(0.5 * kwargs['n_iter'])
 
 
     @classmethod

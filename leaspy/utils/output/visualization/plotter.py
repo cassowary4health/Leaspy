@@ -241,7 +241,9 @@ class Plotter:
 
 
         # Plot the mean also
-        min_time, max_time = torch.min(data.timepoints[data.timepoints>0.0]), torch.max(data.timepoints)
+        #min_time, max_time = torch.min(data.timepoints[data.timepoints>0.0]), torch.max(data.timepoints)
+
+        min_time, max_time = np.percentile(data.timepoints[data.timepoints>0.0].detach().numpy(), [10,90])
 
         timepoints = np.linspace(min_time,
                                  max_time,

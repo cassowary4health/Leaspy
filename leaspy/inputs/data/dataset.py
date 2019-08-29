@@ -89,4 +89,6 @@ class Dataset:
             df_patient['ID'] = idx
             df = pd.concat([df, df_patient])
 
+        df.reset_index(inplace=True)
+
         return df

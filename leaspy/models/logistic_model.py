@@ -12,7 +12,7 @@ class LogisticModel(AbstractMultivariateModel):
     def __init__(self, name):
         super(LogisticModel, self).__init__(name)
         self.parameters["v0"] = None
-        self.MCMC_toolbox['priors']['v0_std'] = None
+        self.MCMC_toolbox['priors']['v0_std'] = None # Value, Coef
 
     def load_parameters(self, parameters):
         self.parameters = {}
@@ -24,33 +24,76 @@ class LogisticModel(AbstractMultivariateModel):
 
     def initialize(self, data):
 
+        # Dimension if not given
         self.dimension = data.dimension
         if self.source_dimension is None:
-            self.source_dimension = int(data.dimension/2.)
+            self.source_dimension = int(np.sqrt(data.dimension))
 
-        ### TODO : Have a better initialization with the new G and exp(v0) parameters
-        # Linear Regression on each feature
+        tau_mean = None
+        tau_std = None
+        xi_mean = None
+        xi_std = None
+        sources_mean = None
+        sources_std = None
         p0_array = [None] * self.dimension
         v0_array = [None] * self.dimension
         noise_array = [None] * self.dimension
+        betas = torch.Tensor(np.nan * np.empty((self.dimension - 1, self.source_dimension)))
+        noise_std = 0.1
 
+        ### TODO : initialize also the xi / tau ??? So that the model does not put v0 too low at the beginning
+
+        # Linear Regression on each feature to get slopes
         df = data.to_pandas()
-        x = df.index.get_level_values('TIMES').values
+        df.set_index(["ID"], inplace=True)
+
+        slopes = []
 
         for dim in range(self.dimension):
+
+            slope_dim_patients=[]
+            count = 0
+
+            for idx in data.indices:
+
+                df_patient = df.loc[idx].reset_index().set_index(['ID','TIMES'])
+
+                x = df_patient.index.get_level_values('TIMES').values
+                y = df_patient.iloc[:, dim].values
+
+                slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+
+                slope_dim_patients.append(slope)
+
+                count += 1
+
+                if count >50:
+                    break
+
+            slopes.append(np.mean(slope_dim_patients))
+
+            t0 = df['TIMES'].mean()
+            v0_array = np.log((np.array(slopes)))
+            p0_array = df.drop(['TIMES'], axis=1).mean()
+            g_array = np.exp(1/(1+p0_array))
+
+
+
+
+            """
+            x = df.index.get_level_values('TIMES').values
             y = df.iloc[:, dim].values
             slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
             p0_array[dim], v0_array[dim] = intercept, slope
             noise_array[dim] = np.mean((intercept + slope * x - y) ** 2) ** 2
-
             # V0 array minimum value
-            v0_array[dim] = max(v0_array[dim], -3)
+            v0_array[dim] = max(v0_array[dim], -3)"""
 
         SMART_INITIALIZATION = {
-            'g': torch.tensor(p0_array),
-            'v0': torch.tensor(v0_array),
+            'g': torch.Tensor(g_array),
+            'v0': torch.Tensor(v0_array),
             'betas': torch.zeros((self.dimension - 1, self.source_dimension)),
-            'tau_mean': df.index.values.mean(), 'tau_std': 1.0,
+            'tau_mean': t0, 'tau_std': 1.0,
             'xi_mean': .0, 'xi_std': 0.05,
             'sources_mean': 0.0, 'sources_std': 1.0,
             'noise_std': 0.1
@@ -72,6 +115,11 @@ class LogisticModel(AbstractMultivariateModel):
         }
         realizations = self.get_realization_object(data.n_individuals)
         self.update_MCMC_toolbox(['all'], realizations)
+
+        # TODO maybe not here
+        # Initialize priors
+        self.MCMC_toolbox['priors']['v0_mean'] = torch.tensor(self.parameters['v0'])
+        self.MCMC_toolbox['priors']['s_v0'] = 0.1
 
 
 
@@ -166,7 +214,17 @@ class LogisticModel(AbstractMultivariateModel):
 
         # Memoryless part of the algorithm
         self.parameters['g'] = realizations['g'].tensor_realizations.detach()
-        self.parameters['v0'] = realizations['v0'].tensor_realizations.detach()
+
+
+        if self.MCMC_toolbox['priors']['v0_mean'] is not None:
+            v0_mean = self.MCMC_toolbox['priors']['v0_mean']
+            v0_emp = realizations['v0'].tensor_realizations.detach()
+            s_v0 = self.MCMC_toolbox['priors']['s_v0']
+            sigma_v0 = self.MCMC_toolbox['priors']['v0_std']
+            self.parameters['v0'] = (1/(1/(s_v0**2)+1/(sigma_v0**2)))*(v0_emp/(sigma_v0**2)+v0_mean/(s_v0**2))
+        else:
+            self.parameters['v0'] = realizations['v0'].tensor_realizations.detach()
+
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations.detach()
         xi = realizations['xi'].tensor_realizations.detach()

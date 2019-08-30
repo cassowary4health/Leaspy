@@ -8,6 +8,8 @@ import torch
 import matplotlib.backends.backend_pdf
 import seaborn as sns
 
+from leaspy.utils.output.visualization import color_palette
+
 from leaspy.inputs.data.dataset import Dataset
 
 
@@ -25,16 +27,43 @@ class Plotter:
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
         plt.ylim(0, 1)
 
-        timepoints = np.linspace(model.parameters['tau_mean'] - 3 * np.sqrt(model.parameters['tau_std']),
-                                 model.parameters['tau_mean'] + 6 * np.sqrt(model.parameters['tau_std']),
-                                 100)
-        timepoints = torch.Tensor([timepoints])
-        mean_trajectory = model.compute_mean_traj(timepoints).detach().numpy()
+        colors = color_palette(range(8))
 
 
-        for i in range(mean_trajectory.shape[-1]):
-            ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i], linewidth=4)#, c=colors[i])
-        plt.legend()
+
+        try:
+            iterator = iter(model)
+        except TypeError:
+            # not iterable
+
+            timepoints = np.linspace(model.parameters['tau_mean'] - 3 * np.sqrt(model.parameters['tau_std']),
+                                     model.parameters['tau_mean'] + 6 * np.sqrt(model.parameters['tau_std']),
+                                     100)
+            timepoints = torch.Tensor([timepoints])
+
+            mean_trajectory = model.compute_mean_traj(timepoints).detach().numpy()
+
+            for i in range(mean_trajectory.shape[-1]):
+                ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
+                        linewidth=4, alpha=0.5, c=colors[i])  # , c=colors[i])
+
+        else:
+            # iterable
+
+            timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
+                                     model[0].parameters['tau_mean'] + 6 * np.sqrt(model[0].parameters['tau_std']),
+                                     100)
+            timepoints = torch.Tensor([timepoints])
+
+            for j, el in enumerate(model):
+                mean_trajectory = el.compute_mean_traj(timepoints).detach().numpy()
+
+                for i in range(mean_trajectory.shape[-1]):
+                    ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
+                            linewidth=4, alpha=0.5, c=colors[i])  # , )
+
+                if j==0:
+                    plt.legend()
 
 
         if 'save_as' in kwargs.keys():

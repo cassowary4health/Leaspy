@@ -1,6 +1,5 @@
 {
   "name": "scipy_minimize",
-  "seed": null,
   "parameters": {
     "n_burn_in_iter": 200,
     "n_iter": 701,

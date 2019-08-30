@@ -19,14 +19,14 @@ class AlgorithmSettings:
         if name in ['mcmc_saem', 'scipy_minimize', 'simulation']:
             self.load_json(os.path.join(default_data_dir, 'default_' + name + '.json'))
         else:
-            raise ValueError('The algorithm name {} you provided does not exist'.format(name))
+            raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
 
         for k, v in kwargs.items():
             if k in self.parameters.keys():
-
                 self.parameters[k] = v
             else:
-                warnings.warn("The parameter key you provided is unknown")
+                warning_message = "The parameter key : >>>{0}<<< you provided is unknown".format(k)
+                warnings.warn(warning_message)
 
         # Todo : Make it better
         if name == 'mcmc_saem':

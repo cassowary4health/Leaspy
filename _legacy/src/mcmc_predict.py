@@ -15,10 +15,10 @@ class MCMCPredict(AbstractMCMC):
         self._sample_individual_realizations(data, model, reals_pop, reals_ind)
 
 
-    def run(self, data, model, seed=None):
+    def run(self, data, model):
 
         # Initialize Model
-        self._initialize_seed(seed)
+        self._initialize_seed(model.parameters["seed"])
         realizations = model.get_realization_object(data)
         model.initialize_random_variables(data)
 

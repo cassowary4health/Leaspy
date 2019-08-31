@@ -20,16 +20,19 @@ class SimulationAlgorithm(AbstractAlgo):
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
 
 
-    def _sample_sources(self, df_mean, df_cov, xi, tau, bl, source_dimension):
+    def _initialize_kernel(self, results):
+        return 0
+
+    def _sample_sources(self, xi, tau, bl, source_dimension):
         ind_1 = [0, 1, 2]
         ind_2 = list(range(3, source_dimension + 3))
         x_1 = np.vstack((xi, tau, bl))
 
-        mu_1 = df_mean[ind_1][:, np.newaxis]
-        mu_2 = df_mean[ind_2][:, np.newaxis]
-        sigma_11 = df_cov[np.ix_(ind_1, ind_1)]
-        sigma_22 = df_cov[np.ix_(ind_2, ind_2)]
-        sigma_12 = df_cov[np.ix_(ind_1, ind_2)]
+        mu_1 = self.df_mean[ind_1][:, np.newaxis]
+        mu_2 = self.df_mean[ind_2][:, np.newaxis]
+        sigma_11 = self.df_cov[np.ix_(ind_1, ind_1)]
+        sigma_22 = self.df_cov[np.ix_(ind_2, ind_2)]
+        sigma_12 = self.df_cov[np.ix_(ind_1, ind_2)]
 
         mean_cond = (mu_2 + np.dot(np.transpose(sigma_12), np.dot(np.linalg.inv(sigma_11), x_1 - mu_1))).ravel()
         cov_cond = sigma_22 - np.dot(np.dot(np.transpose(sigma_12), np.linalg.inv(sigma_11)), sigma_12)
@@ -43,7 +46,6 @@ class SimulationAlgorithm(AbstractAlgo):
             number_of_visits += int(np.random.normal(0, self.std_number_of_visits))
 
         return number_of_visits
-
 
     def run(self, model, results):
 
@@ -63,8 +65,8 @@ class SimulationAlgorithm(AbstractAlgo):
         df = np.concatenate((np.array([xi, tau, bl]), np.array(sources).T), axis=0).T
         df = pd.DataFrame(data=df)
 
-        df_mean = df.mean().values
-        df_cov = df.cov().values
+        self.df_mean = df.mean().values
+        self.df_cov = df.cov().values
 
         samples = np.transpose(kernel.resample(self.number_of_subjects))
         samples = SS.inverse_transform(samples)
@@ -74,7 +76,7 @@ class SimulationAlgorithm(AbstractAlgo):
         for idx, s in enumerate(samples):
             xi, tau, bl = s
             bl = bl - 1
-            sources = self._sample_sources(df_mean, df_cov, xi, tau, bl, model.source_dimension)
+            sources = self._sample_sources(xi, tau, bl, model.source_dimension)
             number_of_visits = self._get_number_of_visits(xi, tau, bl, sources)
             if number_of_visits == 1:
                 ages = [bl]

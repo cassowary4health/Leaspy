@@ -56,9 +56,9 @@ class LogisticModel(AbstractMultivariateModel):
 
             for idx in data.indices:
 
-                df_patient = df.loc[idx].reset_index().set_index(['ID','TIMES'])
+                df_patient = df.loc[idx].reset_index().set_index(['ID','TIME']) # TODO : Qu'est ce que ça doit faire?
 
-                x = df_patient.index.get_level_values('TIMES').values
+                x = df_patient.index.get_level_values('TIME').values
                 y = df_patient.iloc[:, dim].values
 
                 slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
@@ -76,8 +76,6 @@ class LogisticModel(AbstractMultivariateModel):
             v0_array = np.log((np.array(slopes)))
             p0_array = df.drop(['TIMES'], axis=1).mean()
             g_array = np.exp(1/(1+p0_array))
-
-
 
 
             """

@@ -77,18 +77,19 @@ class Dataset:
 
     def to_pandas(self):
     #TODO : @Raphael : On est obligé de garder une dépendance pandas ? Je crois que c'est utilisé juste pour l'initialisation
+    #TODO : Si fait comme ça, il faut préallouer la mémoire du dataframe à l'avance!
     # du modèle multivarié. On peut peut-être s'en passer?
         df = pd.DataFrame()
 
         for i, idx in enumerate(self.indices):
             times = self.get_times_patient(i).numpy()
             x = self.get_values_patient(i).numpy()
-            df_patient = pd.DataFrame(data=x, index=times.reshape(-1))
-            df_patient = df_patient.add_prefix('value_')
-            df_patient.index.name = 'TIMES'
+            df_patient = pd.DataFrame(data=x, index=times.reshape(-1), columns=self.headers)
+            df_patient.index.name = 'TIME'
             df_patient['ID'] = idx
             df = pd.concat([df, df_patient])
 
+        #df.columns = ['ID', 'TIME'] + self.headers
         df.reset_index(inplace=True)
 
         return df

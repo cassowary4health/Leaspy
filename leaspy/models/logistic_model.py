@@ -45,7 +45,7 @@ class LogisticModel(AbstractMultivariateModel):
 
         # Linear Regression on each feature to get slopes
         df = data.to_pandas()
-        df.set_index(["ID"], inplace=True)
+        df.set_index(["ID", "TIME"], inplace=True)
 
         slopes = []
 
@@ -55,8 +55,7 @@ class LogisticModel(AbstractMultivariateModel):
             count = 0
 
             for idx in data.indices:
-
-                df_patient = df.loc[idx].reset_index().set_index(['ID','TIME']) # TODO : Qu'est ce que ça doit faire?
+                df_patient = df.loc[idx]#.reset_index().set_index(['ID', 'TIME']) # TODO : Qu'est ce que ça doit faire?
 
                 x = df_patient.index.get_level_values('TIME').values
                 y = df_patient.iloc[:, dim].values
@@ -67,25 +66,26 @@ class LogisticModel(AbstractMultivariateModel):
 
                 count += 1
 
-                if count >50:
+                if count > 50:
                     break
 
             slopes.append(np.mean(slope_dim_patients))
 
-            t0 = df['TIMES'].mean()
-            v0_array = np.log((np.array(slopes)))
-            p0_array = df.drop(['TIMES'], axis=1).mean()
-            g_array = np.exp(1/(1+p0_array))
+        t0 = np.mean(df.index.get_level_values('TIME'))
+        v0_array = np.log((np.array(slopes)))
+        p0_array = df.mean().values
+        print(p0_array)
+        g_array = np.exp(1/(1+p0_array))
 
 
-            """
-            x = df.index.get_level_values('TIMES').values
-            y = df.iloc[:, dim].values
-            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-            p0_array[dim], v0_array[dim] = intercept, slope
-            noise_array[dim] = np.mean((intercept + slope * x - y) ** 2) ** 2
-            # V0 array minimum value
-            v0_array[dim] = max(v0_array[dim], -3)"""
+        """
+        x = df.index.get_level_values('TIMES').values
+        y = df.iloc[:, dim].values
+        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+        p0_array[dim], v0_array[dim] = intercept, slope
+        noise_array[dim] = np.mean((intercept + slope * x - y) ** 2) ** 2
+        # V0 array minimum value
+        v0_array[dim] = max(v0_array[dim], -3)"""
 
         SMART_INITIALIZATION = {
             'g': torch.Tensor(g_array),

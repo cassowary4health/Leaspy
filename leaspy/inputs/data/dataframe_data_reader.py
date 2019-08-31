@@ -30,6 +30,7 @@ class DataframeDataReader:
         columns = df.columns.values
         self._check_headers(columns)
         df.set_index(['ID', 'TIME'], inplace=True)
+        self.headers = df.columns.values.tolist()
 
         for k, v in df.iterrows():
             idx = k[0]

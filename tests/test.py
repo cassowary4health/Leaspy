@@ -18,5 +18,6 @@ from tests.models.utils.attributes import AttributesTest
 
 #from tests.main.main import LeaspyTest
 from tests.main.main_fit import LeaspyFitTest
+from tests.main.main_personalize import LeaspyPersonalizeTest
 
 unittest.main()

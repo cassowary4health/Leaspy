@@ -60,6 +60,9 @@ class LogisticModel(AbstractMultivariateModel):
                 x = df_patient.index.get_level_values('TIME').values
                 y = df_patient.iloc[:, dim].values
 
+                if len(x) < 2:
+                    continue
+
                 slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
 
                 slope_dim_patients.append(slope)
@@ -74,7 +77,6 @@ class LogisticModel(AbstractMultivariateModel):
         t0 = np.mean(df.index.get_level_values('TIME'))
         v0_array = np.log((np.array(slopes)))
         p0_array = df.mean().values
-        print(p0_array)
         g_array = np.exp(1/(1+p0_array))
 
 
@@ -116,7 +118,7 @@ class LogisticModel(AbstractMultivariateModel):
 
         # TODO maybe not here
         # Initialize priors
-        self.MCMC_toolbox['priors']['v0_mean'] = torch.tensor(self.parameters['v0'])
+        self.MCMC_toolbox['priors']['v0_mean'] = torch.tensor(self.parameters['v0']).clone().detach()
         self.MCMC_toolbox['priors']['s_v0'] = 0.1
 
 

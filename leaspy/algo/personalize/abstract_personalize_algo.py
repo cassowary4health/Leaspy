@@ -29,7 +29,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
             total_error.append(err.squeeze(0).detach().numpy())
 
-        print("\nThe standard deviation of the error is of {:.4f}".format(np.std(np.vstack(total_error))))
+        print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(np.std(np.vstack(total_error))))
 
         return individual_parameters
 """

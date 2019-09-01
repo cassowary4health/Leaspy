@@ -26,7 +26,7 @@ class AbstractFitAlgo(AbstractAlgo):
                 self.output_manager.iteration(self, data, model, realizations)
             self.current_iteration += 1
 
-        print("\nThe final standard deviation of the noise is {:.4f}".format(model.parameters['noise_std']))
+        print("The standard deviation of the noise at the end of the calibration is {:.4f}".format(model.parameters['noise_std']))
         return realizations
 
 

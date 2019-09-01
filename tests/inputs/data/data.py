@@ -9,7 +9,7 @@ class DataTest(unittest.TestCase):
 
     def test_constructor_univariate(self):
         path_to_data = os.path.join(test_data_dir, 'inputs', 'univariate_data.csv')
-        data = Data(path_to_data)
+        data = Data.from_csv_file(path_to_data)
         individual = data[2]
 
         self.assertEqual(data.iter_to_idx[0], '100_S_0006')
@@ -26,7 +26,7 @@ class DataTest(unittest.TestCase):
 
     def test_constructor_multivariate(self):
         path_to_data = os.path.join(test_data_dir, 'inputs', 'multivariate_data.csv')
-        data = Data(path_to_data)
+        data = Data.from_csv_file(path_to_data)
         individual = data[3]
 
         self.assertEqual(data.iter_to_idx[0], '007_S_0041')

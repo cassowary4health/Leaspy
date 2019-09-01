@@ -5,14 +5,16 @@ from leaspy.models.abstract_model import AbstractModel
 
 class AbstractModelTest(unittest.TestCase):
 
+    #TODO
+
     def test_constructor(self):
-        abstract_model = AbstractModel()
-        self.assertEqual(abstract_model.parameters, {})
+        abstract_model = AbstractModel("dummy_abstractmodel")
+        self.assertEqual(abstract_model.parameters, None)
 
     """
     def test_load_parameters(self):
         abstract_model = AbstractModel()
-        path_to_model_parameters = os.path.join(default_data_dir, 'default_model_settings_univariate.json')
+        path_to_model_parameters = os.path.join(default_data_dir, 'model_settings_univariate.json')
         reader = ModelSettings(path_to_model_parameters)
 
         abstract_model.load_parameters(reader.parameters)

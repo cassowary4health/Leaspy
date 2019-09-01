@@ -118,7 +118,7 @@ class LogisticModel(AbstractMultivariateModel):
 
         # TODO maybe not here
         # Initialize priors
-        self.MCMC_toolbox['priors']['v0_mean'] = torch.tensor(self.parameters['v0']).clone().detach()
+        self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
         self.MCMC_toolbox['priors']['s_v0'] = 0.1
 
 

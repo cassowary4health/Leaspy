@@ -23,16 +23,16 @@ class AlgoFactory:
             algorithm = GradientMCMCSAEM(settings)
 
         # Personalize Algorithm
-        elif name == 'gradient_descent_personalize':
-            algorithm = GradientDescentPersonalize(settings)
-        elif name == 'mcmc_personalize':
-            algorithm = MCMCPersonalize(settings)
+        #elif name == 'gradient_descent_personalize':
+        #    algorithm = GradientDescentPersonalize(settings)
+        #elif name == 'mcmc_personalize':
+        #    algorithm = MCMCPersonalize(settings)
         elif name == 'scipy_minimize':
             algorithm = ScipyMinimize(settings)
         elif name == 'mean_real':
             algorithm = MeanReal(settings)
-        elif name == 'hmc_saem':
-            algorithm = HMC_SAEM(settings)
+        #elif name == 'hmc_saem':
+        #    algorithm = HMC_SAEM(settings)
 
         # Simulation agorithm
         elif name == 'simulation':

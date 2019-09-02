@@ -8,11 +8,14 @@ class MCMCPersonalize(AbstractPersonalizeAlgo):
 
         self.personalize_output = {"distribution":{}}
 
-        if self.algo_parameters['history_length']>self.algo_parameters['n_iter']:
+        if self.algo_parameters['history_length'] > self.algo_parameters['n_iter']:
             raise ValueError("History length of ind variables to save is greater than maximum number of iterations")
 
 
-    def iteration(self, data, model, realizations):
+    def run(self, data, model, realizations):
+
+        # Initialize Model
+        self._initialize_seed(self.algo_parameters["seed"])
 
         # Sample step
         self._sample_individual_realizations(data, model, realizations)

@@ -1,0 +1,10 @@
+{
+  "name": "mean_real",
+  "parameters": {
+    "n_iter": 100,
+    "eps": 0.005,
+    "L": 10,
+    "sampler_ind": "Gibbs",
+    "sampler_pop": "Gibbs"
+  }
+}

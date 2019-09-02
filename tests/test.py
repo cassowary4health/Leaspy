@@ -17,6 +17,7 @@ from tests.models.utils.attributes import AttributesTest
 #from tests.samplers.random_variable.gaussian_random_variable import GaussianRandomVariableTest
 
 #from tests.main.main import LeaspyTest
-#from tests.main.main_fit import LeaspyFitTest
+from tests.main.main_fit import LeaspyFitTest
+from tests.main.main_personalize import LeaspyPersonalizeTest
 
 unittest.main()

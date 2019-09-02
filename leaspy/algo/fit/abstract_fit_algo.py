@@ -16,6 +16,9 @@ class AbstractFitAlgo(AbstractAlgo):
         # Then initialize the Realizations (from the random variables)
         realizations = model.get_realization_object(data.n_individuals)
 
+        # Smart init the realizations
+        realizations = model.smart_initialization_realizations(data, realizations)
+
         # Initialize Algo
         self._initialize_algo(data, model, realizations)
 

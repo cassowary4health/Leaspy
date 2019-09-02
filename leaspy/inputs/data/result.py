@@ -5,10 +5,10 @@ class Result:
     """
     Used as output from personalize
     """
-    def __init__(self, data, individual_parameters):
+    def __init__(self, data, individual_parameters, noise_std):
         self.data = data
         self.individual_parameters = individual_parameters
-        #self.covariables = None
+        self.noise_std = noise_std
 
     #def load_covariables(self, covariables, csv):
     #   self.covariables = covariables

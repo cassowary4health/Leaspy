@@ -37,8 +37,8 @@ class Leaspy:
 
         algorithm = AlgoFactory.algo(settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
-        individual_parameters = algorithm.run(self.model, dataset)
-        result = Result(data, individual_parameters)
+        individual_parameters, noise_std = algorithm.run(self.model, dataset)
+        result = Result(data, individual_parameters, noise_std)
 
         return result
 

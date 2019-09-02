@@ -19,6 +19,7 @@ class Leaspy:
         leaspy = cls(reader.name)
         leaspy.model.load_hyperparameters(reader.hyperparameters)
         leaspy.model.load_parameters(reader.parameters)
+        leaspy.model.initialize_MCMC_toolbox()
         leaspy.model.is_initialized = True
         return leaspy
 

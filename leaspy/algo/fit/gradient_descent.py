@@ -19,7 +19,7 @@ class GradientDescent(AbstractFitAlgo):
 
     def _initialize_algo(self, data, model, realizations):
         # MCMC toolbox (cache variables for speed-ups + tricks)
-        model.initialize_MCMC_toolbox(data)
+        model.initialize_MCMC_toolbox()
         self._initialize_torchvariables(realizations)
         return realizations
 

@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import json
 
+from leaspy.utils.realizations.realization import Realization
+
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_logistic_parallel import Attributes_LogisticParallel
 
@@ -40,14 +42,23 @@ class LogisticParallelModel(AbstractMultivariateModel):
         self.attributes = Attributes_LogisticParallel(self.dimension, self.source_dimension)
         self.is_initialized = True
 
-    def initialize_MCMC_toolbox(self, data):
+    def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 1., 'deltas_std': 0.1, 'betas_std': 0.1 },
             'attributes': Attributes_LogisticParallel(self.dimension, self.source_dimension)
         }
 
-        realizations = self.get_realization_object(data.n_individuals)
-        self.update_MCMC_toolbox(['all'], realizations)
+        # TODO we created an ad-hoc dictionnary
+        pop_dictionnary = {}
+        for name_variable, info_variable in self.random_variable_informations().items():
+            if info_variable['type'] == "population":
+                pop_dictionnary[name_variable] = Realization.from_tensor(name_variable,
+                                                                         info_variable['shape'],
+                                                                         info_variable['type'],
+                                                                         self.parameters[name_variable])
+
+        self.update_MCMC_toolbox(["all"], pop_dictionnary)
+
 
     ############
     #CORE

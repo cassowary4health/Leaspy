@@ -8,6 +8,22 @@ class Realization:
         self._tensor_realizations = None
         self.is_autograd = None
 
+    @classmethod
+    def from_tensor(cls, name, shape, variable_type, tensor_realization):
+        """
+        Create realization from variable infos and torch tensor object
+        :param name:
+        :param shape:
+        :param variable_type:
+        :param tensor_realization:
+        :return:
+        """
+        # TODO : a check of shapes
+        realization = cls(name, shape, variable_type)
+        realization._tensor_realizations = tensor_realization.clone().detach()
+        realization.is_autograd = False
+        return realization
+
     def initialize(self, n_individuals, model, scale_individual=1.0):
         #print("Initialize realizations of {0}".format(self.name))
         if self.variable_type == "population":

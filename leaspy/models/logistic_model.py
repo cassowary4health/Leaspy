@@ -5,6 +5,8 @@ import torch
 import numpy as np
 from scipy import stats
 
+from leaspy.utils.realizations.realization import Realization
+
 class LogisticModel(AbstractMultivariateModel):
     ###############
     #INITITALISATION
@@ -108,13 +110,23 @@ class LogisticModel(AbstractMultivariateModel):
         self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
 
-    def initialize_MCMC_toolbox(self, data):
+    def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},
             'attributes': Attributes_Logistic(self.dimension, self.source_dimension)
         }
-        realizations = self.get_realization_object(data.n_individuals)
-        self.update_MCMC_toolbox(['all'], realizations)
+        #realizations = self.get_realization_object(data.n_individuals)
+        #self.update_MCMC_toolbox(['all'], realizations)
+
+        # TODO we created an ad-hoc dictionnary, factorize with parallel
+        pop_dictionnary = {}
+        for name_variable, info_variable in self.random_variable_informations().items():
+            if info_variable['type'] == "population":
+                pop_dictionnary[name_variable] = Realization.from_tensor(name_variable,
+                                                                         info_variable['shape'],
+                                                                         info_variable['type'],
+                                                                         self.parameters[name_variable])
+        self.update_MCMC_toolbox(["all"], pop_dictionnary)
 
         # TODO maybe not here
         # Initialize priors

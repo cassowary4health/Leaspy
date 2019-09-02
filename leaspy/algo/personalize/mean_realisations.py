@@ -3,12 +3,14 @@ from ..samplers.hmc_sampler import HMCSampler
 from ..samplers.gibbs_sampler import GibbsSampler
 
 import torch
+import time
 
 class MeanReal(AbstractPersonalizeAlgo):
 
     def __init__(self, settings):
         # Algorithm parameters
         super().__init__(settings)
+
 
 
     # TODO cloned --> factorize
@@ -29,6 +31,7 @@ class MeanReal(AbstractPersonalizeAlgo):
 
 
     def run(self, model, data):
+        time_beginning = time.time()
 
         # Initialize realizations storage object
         realizations_history = []
@@ -50,10 +53,9 @@ class MeanReal(AbstractPersonalizeAlgo):
 
 
         for name_variable, info_variable in model.random_variable_informations().items():
-            print(name_variable, info_variable['type'])
+
             if info_variable['type'] == 'individual':
-                print(name_variable, "ok")
-                mean_variable = torch.stack([realizations[name_variable].tensor_realizations for realizations in realizations_history]).mean(dim=0).clone().detach().numpy()
+                mean_variable = torch.stack([realizations[name_variable].tensor_realizations for realizations in realizations_history]).mean(dim=0).clone().detach()
 
                 mean_output[name_variable] = mean_variable
 
@@ -62,11 +64,26 @@ class MeanReal(AbstractPersonalizeAlgo):
 
         for j, idx in enumerate(data.indices):
             mean_output_patients[idx] = {}
-            mean_output_patients[idx]['xi'] =  mean_output['xi'][j]
-            mean_output_patients[idx]['tau'] = mean_output['tau'][j]
-            mean_output_patients[idx]['sources'] = mean_output['sources'][j]
+            mean_output_patients[idx]['xi'] = mean_output['xi'][j].numpy()
+            mean_output_patients[idx]['tau'] = mean_output['tau'][j].numpy()
+            mean_output_patients[idx]['sources'] = mean_output['sources'][j].numpy()
 
-        return mean_output_patients, 0.14
+
+        # Compute the attachment
+        realizations = model.get_realization_object(data.n_individuals)
+        for key, value in mean_output.items():
+            realizations[key].tensor_realizations = value
+
+        param_ind = model.get_param_from_real(realizations)
+        squared_diff = model.compute_sum_squared_tensorized(data, param_ind, MCMC=True).sum()
+        err_std = float(squared_diff.detach().numpy())/data.n_visits
+
+        time_end = time.time()
+        diff_time = (time_end - time_beginning) / 1000
+        print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(err_std))
+        print("Personalization {1} took : {0}s".format(diff_time, self.name))
+
+        return mean_output_patients, err_std
 
 
 

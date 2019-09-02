@@ -45,4 +45,4 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         algo_personalize_settings = AlgorithmSettings('mean_real')
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
-        self.assertAlmostEqual(result.noise_std,  0.14, delta=0.01)
+        self.assertAlmostEqual(result.noise_std,  0.1529, delta=0.01)

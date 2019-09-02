@@ -55,5 +55,5 @@ class DatasetTest(unittest.TestCase):
 
         self.assertEqual(np.array_equal(dataset.values, values), True)
         #self.assertEqual(np.array_equal(dataset.mask, mask), True) #TODO check this
-        print(dataset.timepoints)
+        #print(dataset.timepoints)
         self.assertAlmostEqual((dataset.timepoints - timepoints).sum(), 0, delta=10e-5)

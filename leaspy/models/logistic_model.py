@@ -3,7 +3,9 @@ from .utils.attributes.attributes_logistic import Attributes_Logistic
 
 import torch
 import numpy as np
-from scipy import stats
+
+from .utils.initialization.initialization_logistic import initialize_logistic
+
 
 from leaspy.utils.realizations.realization import Realization
 
@@ -23,92 +25,6 @@ class LogisticModel(AbstractMultivariateModel):
         self.attributes = Attributes_Logistic(self.dimension, self.source_dimension)
         self.attributes.update(['all'],self.parameters)
 
-
-    def initialize(self, data):
-
-        # Dimension if not given
-        self.dimension = data.dimension
-        if self.source_dimension is None:
-            self.source_dimension = int(np.sqrt(data.dimension))
-
-        tau_mean = None
-        tau_std = None
-        xi_mean = None
-        xi_std = None
-        sources_mean = None
-        sources_std = None
-        p0_array = [None] * self.dimension
-        v0_array = [None] * self.dimension
-        noise_array = [None] * self.dimension
-        betas = torch.Tensor(np.nan * np.empty((self.dimension - 1, self.source_dimension)))
-        noise_std = 0.1
-
-        ### TODO : initialize also the xi / tau ??? So that the model does not put v0 too low at the beginning
-
-        # Linear Regression on each feature to get slopes
-        df = data.to_pandas()
-        df.set_index(["ID", "TIME"], inplace=True)
-
-        slopes = []
-
-        for dim in range(self.dimension):
-
-            slope_dim_patients=[]
-            count = 0
-
-            for idx in data.indices:
-                df_patient = df.loc[idx]#.reset_index().set_index(['ID', 'TIME']) # TODO : Qu'est ce que ça doit faire?
-
-                x = df_patient.index.get_level_values('TIME').values
-                y = df_patient.iloc[:, dim].values
-
-                if len(x) < 2:
-                    continue
-
-                slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-
-                slope_dim_patients.append(slope)
-
-                count += 1
-
-                if count > 50:
-                    break
-
-            slopes.append(np.mean(slope_dim_patients))
-
-        t0 = np.mean(df.index.get_level_values('TIME'))
-        v0_array = np.log((np.array(slopes)))
-        p0_array = df.mean().values
-        g_array = np.exp(1/(1+p0_array))
-
-
-        """
-        x = df.index.get_level_values('TIMES').values
-        y = df.iloc[:, dim].values
-        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-        p0_array[dim], v0_array[dim] = intercept, slope
-        noise_array[dim] = np.mean((intercept + slope * x - y) ** 2) ** 2
-        # V0 array minimum value
-        v0_array[dim] = max(v0_array[dim], -3)"""
-
-        SMART_INITIALIZATION = {
-            'g': torch.Tensor(g_array),
-            'v0': torch.Tensor(v0_array),
-            'betas': torch.zeros((self.dimension - 1, self.source_dimension)),
-            'tau_mean': t0, 'tau_std': 1.0,
-            'xi_mean': .0, 'xi_std': 0.05,
-            'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': 0.1
-        }
-
-        # Initializes Parameters
-        for parameter_key in self.parameters.keys():
-            if self.parameters[parameter_key] is None:
-                self.parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
-
-        self.attributes = Attributes_Logistic(self.dimension, self.source_dimension)
-        self.attributes.update(['all'], self.parameters)
-        self.is_initialized = True
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
@@ -133,7 +49,8 @@ class LogisticModel(AbstractMultivariateModel):
         self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
         self.MCMC_toolbox['priors']['s_v0'] = 0.1
 
-
+    def initialize(self, dataset, method="default"):
+        self = initialize_logistic(self, dataset, method=method)
 
     ############
     #CORE

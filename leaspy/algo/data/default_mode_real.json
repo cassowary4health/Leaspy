@@ -1,8 +1,8 @@
 {
-  "name": "mean_real",
+  "name": "mode_real",
   "parameters": {
-    "n_burn_in_iter": 100,
     "n_iter": 200,
+    "n_burn_in_iter":100,
     "eps": 0.005,
     "L": 10,
     "sampler_ind": "Gibbs",

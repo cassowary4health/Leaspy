@@ -16,22 +16,22 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         """
         # Name
         self.name = settings.name
+
         # Algorithm parameters
         self.algo_parameters = settings.parameters
 
     def _get_individual_parameters(self, model, data):
         """
-        Abstract
+        Estimate individual parameters from a data using a model.
         :param model:
-        :param times:
-        :param values:
-        :return:
+        :param data:
+        :return: tuple of tensors of indvidual variables
         """
         raise NotImplementedError('This algorithm does not present a personalization procedure')
 
     def run(self, model, data):
         """
-        Main estimation function
+        Main personalize function, wraps the _get_individual_parameters
         :param model:
         :param data:
         :return:
@@ -54,41 +54,12 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(noise_std))
         print("Personalization {1} took : {0}s".format(diff_time, self.name))
 
-        return individual_parameters, noise_std
+        # Transform individual parameters to dictinnary ID / variable_ind
+        indices = data.indices
+        new_individual_parameters = dict.fromkeys(indices)
+        for i, idx in enumerate(indices):
+            new_individual_parameters[idx] = {}
+            for j, variable_ind_name in enumerate(model.get_individual_variable_name()):
+                new_individual_parameters[idx][variable_ind_name] = individual_parameters[j][i].detach().numpy()
 
-
-
-    """
-
-    def run(self, model, data):
- 
-
-        print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
-
-        time_beginning = time.time()
-
-        individual_parameters = {}
-        total_error = []
-
-        for idx in range(data.n_individuals):
-            times = data.get_times_patient(idx)
-            values = data.get_values_patient(idx)
-
-            xi, tau, sources, err = self._get_individual_parameters(model, times, values)
-
-            individual_parameters[data.indices[idx]] = {
-                'xi': xi,
-                'tau': tau,
-                'sources': sources
-            }
-
-            total_error.append(err.squeeze(0).detach().numpy())
-
-        noise_std = np.std(np.vstack(total_error))
-
-        time_end = time.time()
-        diff_time = (time_end-time_beginning)/1000
-        print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(noise_std))
-        print("Personalization {1} took : {0}s".format(diff_time, self.name))
-
-        return individual_parameters, noise_std"""
+        return new_individual_parameters, noise_std

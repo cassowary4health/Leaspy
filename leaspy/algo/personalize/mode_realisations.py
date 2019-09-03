@@ -1,11 +1,11 @@
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 from ..samplers.hmc_sampler import HMCSampler
 from ..samplers.gibbs_sampler import GibbsSampler
-
+from leaspy.utils.realizations.realization import Realization
 import torch
 import time
 
-class MeanReal(AbstractPersonalizeAlgo):
+class ModeReal(AbstractPersonalizeAlgo):
 
     def __init__(self, settings):
 
@@ -45,11 +45,38 @@ class MeanReal(AbstractPersonalizeAlgo):
                 self.samplers[key].sample(data, model, realizations, 1.0)
 
             # Append current realizations if burn in is finished
-            if i>self.algo_parameters['n_burn_in_iter']:
+            if i > self.algo_parameters['n_burn_in_iter']:
                 realizations_history.append(realizations.copy())
 
-        # Compute mean of n_iter realizations for each individual variable
-        mean_output = dict.fromkeys(model.get_individual_variable_name())
+        # Get for each patient the realization that best fit
+        attachments = torch.stack([model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), True) for realizations in realizations_history])
+
+        # Indices min
+        indices_min = torch.min(attachments, dim=0)
+
+        # Compute mode of n_iter realizations for each individual variable
+        mode_output = {}
+
+        ind_var_names = model.get_individual_variable_name()
+        infos = model.random_variable_informations()
+
+        for ind_var_name in ind_var_names:
+            mode_output[ind_var_name] = Realization.from_tensor(
+                ind_var_name,
+                infos[ind_var_name]["shape"],
+                "individual",
+                torch.stack([realizations_history[indices_min[1][i]][ind_var_name].tensor_realizations[i].clone() for i, idx in enumerate(data.indices)]))
+
+
+        ind_parameters = model.get_param_from_real(mode_output) # TODO ordering between the ind variables, should not be the case
+
+        return ind_parameters
+
+
+
+        """
+
+
         for name_variable, info_variable in model.random_variable_informations().items():
             if info_variable['type'] == 'individual':
                 mean_variable = torch.stack(
@@ -66,7 +93,7 @@ class MeanReal(AbstractPersonalizeAlgo):
         param_ind = model.get_param_from_real(realizations)
 
         return param_ind
-
+"""
 
 
 

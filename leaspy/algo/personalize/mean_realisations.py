@@ -30,6 +30,57 @@ class MeanReal(AbstractPersonalizeAlgo):
                     self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
 
 
+
+    def _get_individual_parameters(self, model, data):
+
+        # Initialize realizations storage object
+        realizations_history = []
+
+        # Initialize samplers
+        self._initialize_samplers(model, data)
+
+        # initialize realizations
+        realizations = model.get_realization_object(data.n_individuals)
+
+        for i in range(self.algo_parameters['n_iter']):
+            for key in realizations.reals_ind_variable_names:
+                self.samplers[key].sample(data, model, realizations, 1.0)
+
+            realizations_history.append(realizations)
+
+        # Adapt realizations output
+        mean_output = dict.fromkeys(['xi', 'tau', 'sources'])
+
+        for name_variable, info_variable in model.random_variable_informations().items():
+
+            if info_variable['type'] == 'individual':
+                mean_variable = torch.stack(
+                    [realizations[name_variable].tensor_realizations for realizations in realizations_history]).mean(
+                    dim=0).clone().detach()
+
+                mean_output[name_variable] = mean_variable
+
+        # Change data type
+        mean_output_patients = dict.fromkeys(data.indices)
+
+        for j, idx in enumerate(data.indices):
+            mean_output_patients[idx] = {}
+            mean_output_patients[idx]['xi'] = mean_output['xi'][j].numpy()
+            mean_output_patients[idx]['tau'] = mean_output['tau'][j].numpy()
+            mean_output_patients[idx]['sources'] = mean_output['sources'][j].numpy()
+
+        # Compute the attachment
+        realizations = model.get_realization_object(data.n_individuals)
+        for key, value in mean_output.items():
+            realizations[key].tensor_realizations = value
+
+        param_ind = model.get_param_from_real(realizations)
+
+        return param_ind
+
+    """
+
+
     def run(self, model, data):
         time_beginning = time.time()
 
@@ -84,7 +135,7 @@ class MeanReal(AbstractPersonalizeAlgo):
         print("Personalization {1} took : {0}s".format(diff_time, self.name))
 
         return mean_output_patients, err_std
-
+"""
 
 
 

@@ -14,13 +14,12 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         Initialize from settings object
         :param settings:
         """
+        # Name
+        self.name = settings.name
         # Algorithm parameters
         self.algo_parameters = settings.parameters
 
-        # Name
-        self.name = settings.name
-
-    def _get_individual_parameters(self, model, times, values):
+    def _get_individual_parameters(self, model, data):
         """
         Abstract
         :param model:
@@ -37,6 +36,32 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         :param data:
         :return:
         """
+
+        # Init the run
+        print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
+        time_beginning = time.time()
+
+        # Estimate individual parametersabstr
+        individual_parameters = self._get_individual_parameters(model, data)
+
+        # Compute the noise with the estimated individual paraeters
+        squared_diff = model.compute_sum_squared_tensorized(data, individual_parameters, MCMC=True).sum()
+        noise_std = np.sqrt(float(squared_diff.detach().numpy()) / (data.n_visits*data.dimension))
+
+        # Print run infos
+        time_end = time.time()
+        diff_time = (time_end-time_beginning)/1000
+        print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(noise_std))
+        print("Personalization {1} took : {0}s".format(diff_time, self.name))
+
+        return individual_parameters, noise_std
+
+
+
+    """
+
+    def run(self, model, data):
+ 
 
         print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
 
@@ -66,4 +91,4 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(noise_std))
         print("Personalization {1} took : {0}s".format(diff_time, self.name))
 
-        return individual_parameters, noise_std
+        return individual_parameters, noise_std"""

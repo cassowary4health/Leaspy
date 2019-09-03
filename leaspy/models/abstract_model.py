@@ -28,6 +28,22 @@ class AbstractModel():
         xi,tau,sources = param_ind
         return xi,tau
 
+    def get_individual_variable_name(self):
+        """
+        Return list of names of the individual variables from the model
+        :return:
+        """
+
+        individual_variable_name = []
+
+        infos = self.random_variable_informations()
+        for name, info in infos.items():
+            if info['type'] == 'individual':
+                individual_variable_name.append(name)
+
+        return individual_variable_name
+
+
     def time_reparametrization(self,timepoints,xi,tau):
         return torch.exp(xi)* (timepoints - tau)
 

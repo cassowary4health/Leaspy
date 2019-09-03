@@ -42,7 +42,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             regularity += torch.sum(model.compute_regularity_variable(value, mean, std))
         return regularity
 
-    def _get_individual_parameters(self, model, times, values):
+    def _get_individual_parameters_patient(self, model, times, values):
 
         timepoints = times.reshape(1, -1)
         self._get_model_name(model.name)
@@ -86,77 +86,44 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         xi_f, tau_f, sources_f = res.x[0], res.x[1], res.x[2:]
         err_f = self._get_attachement(model, times.unsqueeze(0), values, res.x)
-        return xi_f, tau_f, sources_f, err_f
+        return (xi_f, tau_f, sources_f), err_f
 
 
+    def _get_individual_parameters(self, model, data):
+
+        individual_parameters = {}
+        for j, name_variable in enumerate(model.get_individual_variable_name()):
+            individual_parameters[name_variable] = []
+
+        total_error = []
+
+        for idx in range(data.n_individuals):
+            times = data.get_times_patient(idx)
+            values = data.get_values_patient(idx)
+
+            ind_patient, err = self._get_individual_parameters_patient(model, times, values)
+
+            for j, name_variable in enumerate(model.get_individual_variable_name()):
+                individual_parameters[name_variable].append(torch.Tensor([ind_patient[j]]))
+
+            #individual_parameters[data.indices[idx]] = {
+            #    'xi': xi,
+            #    'tau': tau,
+            #    'sources': sources
+            #}
+
+            individual_parameters
+
+            total_error.append(err.squeeze(0).detach().numpy())
+
+        noise_std = np.std(np.vstack(total_error))
+        print(noise_std)
+
+        infos = model.random_variable_informations()
+        ## TODO change for cleaner shape update
+
+        out = [torch.stack(individual_parameters[variable_ind]).reshape(shape=(data.n_individuals, infos[variable_ind]['shape'][0])) for variable_ind in model.get_individual_variable_name()]
+
+        return out
 
 
-"""
-def personalize(ages, values, population_parameters):
-    sqeuclidean = lambda x: np.inner(x, x)
-
-    def obj(x, *args):
-        ### Parameters
-        xi, tau, sources = x[0], x[1], x[2:]
-        ages, values, pop = args
-
-        ### Likelihood : Attachment part
-        noise = pop['noise']
-        parallel_curve = [fit(a, np.exp(xi), tau, sources, pop) for a in ages]
-        attachement = 0
-        attachement = np.sum([sqeuclidean(p - values[i]) for i, p in enumerate(parallel_curve)])
-        attachement /= (2.*noise)
-
-        ### Regularity : Regularity part
-        xi_mean, tau_mean = pop['xi_mean'], pop['tau_mean']
-        xi_variance, tau_variance = pop['xi_variance'], pop['tau_variance']
-
-        regularity = 0
-        regularity += (tau)**2 / (2.*tau_variance)
-        regularity += (xi)**2 / (2.*xi_variance)
-        for i, s in enumerate(sources):
-            var_source = pop['source#'+str(i)+'_variance']
-            regularity += s**2 / (2.*var_source)
-
-        return regularity + attachement
-
-    res = minimize(obj,
-                  x0=[population_parameters["xi_mean"], population_parameters["tau_mean"]] + [0 for _ in range(population_parameters["number_of_sources"])],
-                  args=(ages, values, population_parameters),
-                  method="Powell"
-                  )
-
-    if res.success != True:
-        print(res.success, res)
-
-    xi, tau, sources = res.x[0], res.x[1], res.x[2:]
-
-    return xi, tau, sources
-
-def get_individual_parameters(data, population_parameters):
-    individual_parameters = {}
-
-    for idx in np.unique(data.index.get_level_values(0)):
-        #print(idx)
-        indiv_df = data.loc[idx]
-        indiv_df.dropna(inplace=True)
-        ages = indiv_df.index.values
-        observations = indiv_df.values
-
-        xi, tau, sources = personalize(ages, observations, population_parameters)
-
-        individual_parameters[idx] = {
-            'xi': xi,
-            'tau': tau,
-            'sources': sources
-        }
-
-    return individual_parameters
-
-def get_group_average_values(ages, population_parameters):
-
-    sources = [0 for _ in range(population_parameters['number_of_sources'])]
-    Y = [fit(a, 1, 0, sources, population_parameters) for a in ages]
-
-    return ages, np.array(Y).T
-"""

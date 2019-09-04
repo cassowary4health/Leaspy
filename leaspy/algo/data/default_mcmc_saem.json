@@ -13,7 +13,8 @@
     "n_plateau": 10,
       "n_iter": 200
     },
-    "seed": null
+    "seed": null,
+    "initialization_method": "default"
   },
   "outputs":{
     "exists": true,

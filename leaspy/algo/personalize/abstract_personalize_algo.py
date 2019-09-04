@@ -37,6 +37,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         :return:
         """
 
+        # Set seed
+        self._initialize_seed(self.algo_parameters["seed"])
+
         # Init the run
         print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
         time_beginning = time.time()

@@ -6,7 +6,7 @@ from leaspy.utils.realizations.realization import Realization
 
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_logistic_parallel import Attributes_LogisticParallel
-
+from .utils.initialization.initialization_logistic import initialize_logistic_parallel
 
 class LogisticParallelModel(AbstractMultivariateModel):
     ###############
@@ -26,7 +26,12 @@ class LogisticParallelModel(AbstractMultivariateModel):
         self.attributes.update(['all'],self.parameters)
 
 
+
     def initialize(self, data):
+        # TODO check why yhis changes tests in personalize ? seed ? or other ?
+        self = initialize_logistic_parallel(self, data)
+
+        """
         self.dimension = data.dimension
         if self.source_dimension is None:
             self.source_dimension = int(data.dimension/2.)
@@ -40,7 +45,7 @@ class LogisticParallelModel(AbstractMultivariateModel):
             'betas': torch.zeros((self.dimension - 1, self.source_dimension))
         }
         self.attributes = Attributes_LogisticParallel(self.dimension, self.source_dimension)
-        self.is_initialized = True
+        self.is_initialized = True"""
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {

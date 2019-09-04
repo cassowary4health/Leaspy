@@ -2,7 +2,30 @@ import numpy as np
 import torch
 from scipy import stats
 from ..attributes.attributes_logistic import Attributes_Logistic
+from ..attributes.attributes_logistic_parallel import Attributes_LogisticParallel
 
+
+
+def initialize_logistic_parallel(model, data, method="default"):
+
+    # Dimension if not given
+    model.dimension = data.dimension
+    if model.source_dimension is None:
+        model.source_dimension = int(data.dimension/2.)
+
+    model.parameters = {
+        'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
+        'sources_mean': 0.0, 'sources_std': 1.0,
+        'noise_std': 0.1, 'deltas': torch.tensor([0.0] * (model.dimension - 1)),
+        'betas': torch.zeros((model.dimension - 1, model.source_dimension))
+    }
+
+    # Initialize the attribute
+    model.attributes = Attributes_LogisticParallel(model.dimension, model.source_dimension)
+    model.attributes.update(['all'], model.parameters) # TODO : why is this not needed ???
+    model.is_initialized = True
+
+    return model
 
 
 def initialize_logistic(model, data, method="default"):

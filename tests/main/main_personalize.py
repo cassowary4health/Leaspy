@@ -30,7 +30,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         algo_personalize_settings = AlgorithmSettings('mean_real', seed=0)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
-        self.assertAlmostEqual(result.noise_std,  0.1688, delta=0.01)
+        self.assertAlmostEqual(result.noise_std,  0.1441, delta=0.01)
 
 
     def test_personalize_scipy(self):
@@ -81,4 +81,4 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         algo_personalize_settings = AlgorithmSettings('mode_real', seed=0)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
-        self.assertAlmostEqual(result.noise_std,  0.1476, delta=0.01)
+        self.assertAlmostEqual(result.noise_std,  0.1203, delta=0.01)

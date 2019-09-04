@@ -38,6 +38,7 @@ class MeanReal(AbstractPersonalizeAlgo):
 
         # initialize realizations
         realizations = model.get_realization_object(data.n_individuals)
+        realizations.initialize_from_values(data.n_individuals, model)
 
         # Gibbs sample n_iter times
         for i in range(self.algo_parameters['n_iter']):

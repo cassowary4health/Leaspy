@@ -52,10 +52,13 @@ class AbstractMultivariateModel(AbstractModel):
             json.dump(model_settings, fp)
 
     def compute_mean_traj(self,timepoints):
-        xi = torch.Tensor([self.parameters['xi_mean']])
-        tau = torch.Tensor([self.parameters['tau_mean']])
-        sources = torch.zeros(self.source_dimension)
-        return self.compute_individual_tensorized(timepoints, (xi, tau, sources))
+        individual_parameters = {
+            'xi': torch.Tensor([self.parameters['xi_mean']]),
+            'tau': torch.Tensor([self.parameters['tau_mean']]),
+            'sources' : torch.zeros(self.source_dimension)
+        }
+
+        return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     def param_ind_from_dict(self,individual_parameters):
         xi, tau, sources = [], [], []

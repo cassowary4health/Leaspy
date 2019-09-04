@@ -87,6 +87,8 @@ class LogisticModel(AbstractMultivariateModel):
             a_matrix = self.attributes.mixing_matrix
         return g, v0, a_matrix
 
+
+
     def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
         # Population parameters
         g, v0, a_matrix = self._get_attributes(MCMC)

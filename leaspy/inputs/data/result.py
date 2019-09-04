@@ -15,8 +15,15 @@ class Result:
 
     def get_parameter_distribution(self, parameter, cofactor=None):
         # If there is no cofactor to take into account
+        parameter_distribution = self.individual_parameters[parameter].detach().numpy().tolist()
+        # TODO : parameter_distribution is of size (N_subjects, N_dimension_of_parameter)
+        # TODO : This leads to a problem in term of shape, so the quick fix is the np.ravel.
+        # TODO : This will create an unexpected behavior for sources
+        parameter_distribution = np.ravel(parameter_distribution)
+
+
         if cofactor is None:
-            return [_[parameter] for _ in self.individual_parameters.values()]
+            return parameter_distribution
 
         # If the distribution as asked for different cofactor values
         possibilities = np.unique([_.cofactors[cofactor] for _ in self.data if _.cofactors[cofactor] is not None])
@@ -25,9 +32,9 @@ class Result:
             if p not in distributions.keys():
                 distributions[p] = []
 
-            for k, v in self.individual_parameters.items():
-                if self.data.get_by_idx(k).cofactors[cofactor] == p:
-                    distributions[p].append(v[parameter])
+            for i, v in enumerate(parameter_distribution):
+                if self.data[i].cofactors[cofactor] == p:
+                    distributions[p].append(v)
         return distributions
 
 

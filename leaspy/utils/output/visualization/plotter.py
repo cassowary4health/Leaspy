@@ -88,12 +88,9 @@ class Plotter:
             timepoints = indiv.timepoints
             observations = np.array(indiv.observations)
             t = torch.Tensor(timepoints).unsqueeze(0)
-            p = results.individual_parameters[idx]
-            p = (torch.Tensor([p['xi']]).unsqueeze(0),
-                 torch.Tensor([p['tau']]).unsqueeze(0),
-                 torch.Tensor(p['sources']).unsqueeze(0))
+            indiv_parameters = results.get_patient_individual_parameters(idx)
 
-            trajectory = model.compute_individual_tensorized(t, p).squeeze(0)
+            trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
             for dim in range(model.dimension):
                 ax.plot(timepoints, trajectory.detach().numpy()[:, dim], c=colors[dim])
                 ax.plot(timepoints, observations[:, dim], c=colors[dim])
@@ -145,17 +142,14 @@ class Plotter:
 
     def plot_patients_mapped_on_mean_trajectory(self, model, results):
         dataset = Dataset(results.data, model)
-        individual_parameters = []
-        xi = torch.Tensor([results.individual_parameters[_.idx]['xi'] for _ in results.data]).unsqueeze(1)
-        tau = torch.Tensor([results.individual_parameters[_.idx]['tau'] for _ in results.data]).unsqueeze(1)
-        sources = torch.Tensor([results.individual_parameters[_.idx]['sources'] for _ in results.data])
 
-        individual_parameters = (xi, tau, sources)
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, individual_parameters)
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, results.individual_parameters)
         timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
                                  model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
                                  100)
         timepoints = torch.Tensor([timepoints])
+        xi = results.individual_parameters['xi']
+        tau = results.individual_parameters['tau']
 
         reparametrized_time = model.time_reparametrization(dataset.timepoints, xi, tau) / torch.exp(
             model.parameters['xi_mean']) + model.parameters['tau_mean']

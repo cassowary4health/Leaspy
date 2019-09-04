@@ -27,9 +27,9 @@ class LogisticParallelModel(AbstractMultivariateModel):
 
 
 
-    def initialize(self, data):
+    def initialize(self, data, method="default"):
         # TODO check why yhis changes tests in personalize ? seed ? or other ?
-        self = initialize_logistic_parallel(self, data)
+        self = initialize_logistic_parallel(self, data, method)
 
         """
         self.dimension = data.dimension

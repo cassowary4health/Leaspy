@@ -42,7 +42,9 @@ def initialize_logistic_parallel(model, data, method="default"):
         g_array = torch.Tensor(np.exp(1 / (1 + values)))
 
         model.parameters = {
-            'g': torch.mean(g_array), 'tau_mean': t0, 'tau_std': 2.0, 'xi_mean': torch.mean(v0_array), 'xi_std': 0.1,
+            'g': torch.tensor([torch.mean(g_array)]),
+            'tau_mean': t0, 'tau_std': 2.0,
+            'xi_mean': float(torch.mean(v0_array).detach().numpy()),'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
             'noise_std': 0.1, 'deltas': torch.tensor([0.0] * (model.dimension - 1)),
             'betas': torch.zeros((model.dimension - 1, model.source_dimension))

@@ -58,11 +58,11 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         print("Personalization {1} took : {0}s".format(diff_time, self.name))
 
         # Transform individual parameters to dictinnary ID / variable_ind
-        indices = data.indices
-        new_individual_parameters = dict.fromkeys(indices)
-        for i, idx in enumerate(indices):
-            new_individual_parameters[idx] = {}
-            for j, variable_ind_name in enumerate(model.get_individual_variable_name()):
-                new_individual_parameters[idx][variable_ind_name] = individual_parameters[j][i].detach().numpy()
+        #indices = data.indices
+        #new_individual_parameters = dict.fromkeys(indices)
+        #for i, idx in enumerate(indices):
+        #    new_individual_parameters[idx] = {}
+        #    for j, variable_ind_name in enumerate(model.get_individual_variable_name()):
+        #        new_individual_parameters[idx][variable_ind_name] = individual_parameters[j][i].detach().numpy()
 
-        return new_individual_parameters, noise_std
+        return individual_parameters, noise_std

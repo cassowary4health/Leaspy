@@ -20,10 +20,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         tau = torch.tensor([x[1]], dtype=torch.float32).unsqueeze(0)
 
         if self.model_name == 'univariate':
-            err = model.compute_individual_tensorized(times, (xi, tau)) - values
+            individual_parameters = {'xi': xi, 'tau': tau}
+            err = model.compute_individual_tensorized(times, individual_parameters) - values
         else:
             sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
-            err = model.compute_individual_tensorized(times, (xi, tau, sources)) - values
+            individual_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
+            err = model.compute_individual_tensorized(times, individual_parameters) - values
         return err
 
     def _get_regularity(self, model, x):
@@ -56,11 +58,13 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             tau = torch.tensor([x[1]], dtype=torch.float32).unsqueeze(0)
 
             if self.model_name == 'univariate':
-                attachement = model.compute_individual_tensorized(times, (xi, tau)) - values
+                individual_parameters = {'xi':xi, 'tau':tau}
+                attachement = model.compute_individual_tensorized(times, individual_parameters) - values
                 iterates = zip(['xi', 'tau'], (xi, tau))
             else:
                 sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
-                attachement = model.compute_individual_tensorized(times, (xi, tau, sources)) - values
+                individual_parameters = {'xi':xi, 'tau':tau, 'sources':sources}
+                attachement = model.compute_individual_tensorized(times, individual_parameters) - values
                 iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
 
             attachement = torch.sum(attachement**2) / (2. * model.parameters['noise_std']**2)
@@ -86,7 +90,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         xi_f, tau_f, sources_f = res.x[0], res.x[1], res.x[2:]
         err_f = self._get_attachement(model, times.unsqueeze(0), values, res.x)
-        return (xi_f, tau_f, sources_f), err_f
+        return (tau_f, xi_f, sources_f), err_f # TODO depends on the order
 
 
     def _get_individual_parameters(self, model, data):
@@ -122,7 +126,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         infos = model.random_variable_informations()
         ## TODO change for cleaner shape update
 
-        out = [torch.stack(individual_parameters[variable_ind]).reshape(shape=(data.n_individuals, infos[variable_ind]['shape'][0])) for variable_ind in model.get_individual_variable_name()]
+        out = dict.fromkeys(model.get_individual_variable_name())
+        for variable_ind in model.get_individual_variable_name():
+            out[variable_ind] = torch.stack(individual_parameters[variable_ind]).reshape(shape=(data.n_individuals, infos[variable_ind]['shape'][0]))
 
         return out
 

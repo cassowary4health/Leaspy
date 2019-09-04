@@ -98,14 +98,12 @@ class LogisticParallelModel(AbstractMultivariateModel):
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
 
-
-
         # Population parameters
         g, deltas, a_matrix = self._get_attributes(MCMC)
         deltas_exp = torch.exp(-deltas)
 
         # Individual parameters
-        xi, tau, sources = ind_parameters
+        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         #print(xi.shape, tau.shape, sources.shape, timepoints.shape)
@@ -134,8 +132,7 @@ class LogisticParallelModel(AbstractMultivariateModel):
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
         #TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        xi, tau, sources = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, (xi,tau,sources),MCMC=True)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, self.get_param_from_real(realizations),MCMC=True)
         data_reconstruction *= data.mask
         norm_0 = data.values * data.values * data.mask
         norm_1 = data.values * data_reconstruction * data.mask

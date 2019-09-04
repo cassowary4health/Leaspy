@@ -93,7 +93,7 @@ class LogisticModel(AbstractMultivariateModel):
         b = g / ((1.+g)*(1.+g))
 
         # Individual parameters
-        xi, tau, sources = ind_parameters
+        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
         reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
 
         # Log likelihood computation
@@ -125,8 +125,7 @@ class LogisticModel(AbstractMultivariateModel):
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        xi, tau, sources = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, (xi,tau,sources),MCMC=True)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, self.get_param_from_real(realizations), MCMC=True)
         norm_0 = data.values * data.values * data.mask
         norm_1 = data.values * data_reconstruction * data.mask
         norm_2 = data_reconstruction * data_reconstruction * data.mask

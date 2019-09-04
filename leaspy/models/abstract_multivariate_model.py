@@ -68,14 +68,23 @@ class AbstractMultivariateModel(AbstractModel):
         sources = torch.tensor(sources,dtype=torch.float32)
         return (xi,tau,sources)
 
-    def get_param_from_real(self,realizations):
-        xi = realizations['xi'].tensor_realizations
-        tau = realizations['tau'].tensor_realizations
-        if self.source_dimension == 0:
-            sources = None
-        else:
-            sources = realizations['sources'].tensor_realizations
-        return (xi,tau,sources)
+    def get_param_from_real(self, realizations):
+        #xi = realizations['xi'].tensor_realizations
+        #tau = realizations['tau'].tensor_realizations
+        #if self.source_dimension == 0:
+        #    sources = None
+        #else:
+        #    sources = realizations['sources'].tensor_realizations
+
+        individual_parameters = dict.fromkeys(self.get_individual_variable_name())
+
+        for variable_ind in self.get_individual_variable_name():
+            if variable_ind == "sources" and self.source_dimension == 0:
+                individual_parameters[variable_ind] = None
+            else:
+                individual_parameters[variable_ind] = realizations[variable_ind].tensor_realizations
+
+        return individual_parameters
 
     def get_xi_tau(self,param_ind):
         xi,tau,sources = param_ind

@@ -25,6 +25,7 @@ class AbstractModel():
         raise NotImplementedError
 
     def get_xi_tau(self,param_ind):
+        # TODO remove this dependancy toward model
         xi,tau,sources = param_ind
         return xi,tau
 

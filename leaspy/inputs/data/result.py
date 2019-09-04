@@ -5,7 +5,7 @@ class Result:
     """
     Used as output from personalize
     """
-    def __init__(self, data, individual_parameters, noise_std):
+    def __init__(self, data, individual_parameters, noise_std=None):
         self.data = data
         self.individual_parameters = individual_parameters
         self.noise_std = noise_std

@@ -3,6 +3,9 @@ from leaspy.main import Leaspy
 from leaspy.inputs.data.data import Data
 from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
 
+# Create the output dir
+if not os.path.isdir('_outputs/logs/fit'):
+    os.makedirs('_outputs/logs/fit')
 
 # Inputs
 data = Data.from_csv_file(os.path.join(os.path.dirname(__file__), '_inputs', 'data.csv'))

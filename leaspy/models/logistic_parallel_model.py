@@ -6,7 +6,7 @@ from leaspy.utils.realizations.realization import Realization
 
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_logistic_parallel import Attributes_LogisticParallel
-from .utils.initialization.initialization_logistic import initialize_logistic_parallel
+from .utils.initialization.model_initialization import initialize_logistic_parallel
 
 class LogisticParallelModel(AbstractMultivariateModel):
     ###############

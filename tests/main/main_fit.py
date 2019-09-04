@@ -10,8 +10,6 @@ from tests import example_data_path
 
 class LeaspyFitTest(unittest.TestCase):
 
-    """
-
     ## Test MCMC-SAEM
     def test_fit_logistic(self):
 
@@ -60,5 +58,5 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.parameters['g'], 1.0130, delta=0.001)
 
         diff_deltas = leaspy.model.parameters['deltas'] - torch.Tensor([0.0034, -0.0055, 0.0174])
-        self.assertAlmostEqual(torch.sum(diff_deltas ** 2), 0.0, delta=0.01)"""
+        self.assertAlmostEqual(torch.sum(diff_deltas ** 2), 0.0, delta=0.01)
 

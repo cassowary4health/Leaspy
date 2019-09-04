@@ -4,7 +4,7 @@ from .utils.attributes.attributes_logistic import Attributes_Logistic
 import torch
 import numpy as np
 
-from .utils.initialization.initialization_logistic import initialize_logistic
+from .utils.initialization.model_initialization import initialize_logistic
 
 
 from leaspy.utils.realizations.realization import Realization

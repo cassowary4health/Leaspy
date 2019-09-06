@@ -1,5 +1,6 @@
 # Package-related outputs in the examples
 example/start/_outputs/*
+example/estimation_stability/_outputs/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

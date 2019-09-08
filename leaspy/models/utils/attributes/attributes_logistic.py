@@ -58,23 +58,30 @@ class Attributes_Logistic:
             return
         self.betas = torch.Tensor(values['betas'])
 
+
     def _compute_orthonormal_basis(self):
         if self.source_dimension == 0:
             return
-        p = 1/(1+self.g)
-        G_p = 1/(p*(1-p))**2
-        s = G_p*self.v0
+
+        # Compute regularizer to work in the euclidean space
+        metric_normalization = self.g.pow(2) / (1+self.g).pow(2)
+        dgamma_t0 = self.v0 * metric_normalization
+
+        #p = 1/(1+self.g)
+        #G_p = 1/(p*(1-p))**2
+        #s = G_p*self.v0
 
         # Compute Q
         e1 = torch.zeros(self.dimension)
         e1[0] = 1
-        a = (s+torch.sign(s[0])*torch.norm(s)*e1).reshape(1, -1)
+        alpha = torch.sign(dgamma_t0[0]) * torch.norm(dgamma_t0)
+        u_vector = dgamma_t0 - alpha * e1
+        v_vector = u_vector / torch.norm(u_vector)
+        v_vector = v_vector.reshape(1, -1)
 
-        q_matrix = -2 * a.transpose(0, 1) * a
-        q_matrix = q_matrix / torch.mm(a, a.transpose(0, 1))
-        q_matrix = q_matrix + torch.eye(self.dimension)
-
+        q_matrix = torch.eye(self.dimension) - 2 * v_vector.permute(1, 0) * v_vector
         self.orthonormal_basis = q_matrix[:, 1:]
+
 
     @staticmethod
     def _mixing_matrix_utils(linear_combination_values, matrix):

@@ -10,7 +10,7 @@ class Attributes_LogisticParallel:
         self.source_dimension = source_dimension
         self.g = None  # g = exp(realizations['g']) tel que p0 = 1 / (1+exp(g))
         self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
-        self.v0 = None  # v0 is a scalar value, which corresponds to the the first dimension of the velocity vector
+        self.xi_mean = None  # v0 is a scalar value, which corresponds to the the first dimension of the velocity vector
         self.betas = None
         self.orthonormal_basis = None
         self.mixing_matrix = None  # Matrix A tq w_i = A * s_i
@@ -40,7 +40,7 @@ class Attributes_LogisticParallel:
 
         if compute_g: self._compute_g(values)
         if compute_deltas: self._compute_deltas(values)
-        if compute_v0: self._compute_v0(values)
+        if compute_v0: self._compute_xi_men(values)
         if compute_betas: self._compute_betas(values)
 
         if compute_g or compute_deltas or compute_v0:
@@ -53,8 +53,8 @@ class Attributes_LogisticParallel:
             if name not in ['g', 'deltas', 'betas', 'xi_mean', 'all']:
                 raise ValueError("The name {} is not in the attributes that are used to be updated".format(name))
 
-    def _compute_v0(self, values):
-        self.v0 = torch.exp(torch.Tensor([values['xi_mean']]))
+    def _compute_xi_men(self, values):
+        self.xi_mean = torch.exp(torch.Tensor([values['xi_mean']]))
 
     def _compute_g(self, values):
         self.g = torch.exp(values['g'])
@@ -67,34 +67,39 @@ class Attributes_LogisticParallel:
             return
         self.betas = torch.Tensor(values['betas'])
 
+    def _compute_dgamma_t0(self):
+        # Computes the derivative of gamma_0 at time t0
+        exp_d = torch.exp(-self.deltas)
+        sub = 1. + self.g * exp_d
+        dgamma_t0 = self.xi_mean * self.g * exp_d / (sub * sub)
+        return dgamma_t0
+
     def _compute_orthonormal_basis(self):
+        # Compute the basis orthogonal to v0 for the inner product implied by the metric
+        # It is equivalent to be a base orthogonal to v0 / (p0^2 (1-p0)^2 for the euclidean norm
         if self.source_dimension == 0:
             return
 
-        # Compute s
-        # TODO : CHECK, CHECK AND RECHECK
-        # TODO : Test that the columns of the matrix are orthogonal to v0
-        g = self.g
-        v0 = self.v0
-        E = torch.exp(-self.deltas)
-        A_ = 1. + g * E
-        B_ = 1. / g + 1
-        s = v0 * A_ * A_ * B_ * B_ / E
+        # Compute the derivative of gamma_0 at t0
+        dgamma_t0 = self._compute_dgamma_t0()
+
+        # Compute regularizer to work in the euclidean space
+        gamma_t0 = 1. / (1 + self.g * torch.exp(-self.deltas))
+        metric_normalization = gamma_t0.pow(2) * (1 - gamma_t0).pow(2)
+        dgamma_t0 = dgamma_t0 / metric_normalization
 
         # Compute Q
-        e1 = torch.zeros((self.dimension))
+        e1 = torch.zeros(self.dimension)
         e1[0] = 1
-        a = torch.sign(s[0]) * torch.norm(s)
-        a = a * e1
-        a = s + a
-        a = a.reshape(1, -1)
-        #a = (s+np.sign(s[0])*torch.norm(s)*e1).reshape(1, -1)
+        alpha = torch.sign(dgamma_t0[0]) * torch.norm(dgamma_t0)
+        u_vector = dgamma_t0 - alpha * e1
+        v_vector = u_vector / torch.norm(u_vector)
+        v_vector = v_vector.reshape(1, -1)
 
-        q_matrix = -2 * a.transpose(0, 1) * a
-        q_matrix = q_matrix / torch.mm(a, a.transpose(0, 1))
-        q_matrix = q_matrix + torch.eye(self.dimension)
-        #q_matrix = np.identity(self.dimension)-2*a.transpose(0, 1).dot(a)/(a.dot(a.transpose(0, 1)))
+
+        q_matrix = torch.eye(self.dimension) - 2 * v_vector.permute(1, 0) * v_vector
         self.orthonormal_basis = q_matrix[:, 1:]
+
 
     @staticmethod
     def _mixing_matrix_utils(linear_combination_values, matrix):
@@ -105,6 +110,3 @@ class Attributes_LogisticParallel:
             return
 
         self.mixing_matrix = torch.Tensor(self._mixing_matrix_utils(self.betas, self.orthonormal_basis))
-
-
-

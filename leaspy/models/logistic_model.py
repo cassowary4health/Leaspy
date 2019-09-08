@@ -21,6 +21,8 @@ class LogisticModel(AbstractMultivariateModel):
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
+            if k in ['mixing_matrix']:
+                continue
             self.parameters[k] = torch.tensor(parameters[k])
         self.attributes = Attributes_Logistic(self.dimension, self.source_dimension)
         self.attributes.update(['all'],self.parameters)
@@ -92,11 +94,11 @@ class LogisticModel(AbstractMultivariateModel):
     def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
         # Population parameters
         g, v0, a_matrix = self._get_attributes(MCMC)
-        b = g / ((1.+g)*(1.+g))
+        b = (1.+g) * (1.+g) / g
 
         # Individual parameters
         xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
-        reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
         a = tuple([1]*reparametrized_time.ndimension())
@@ -106,7 +108,7 @@ class LogisticModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
             LL+= wi.unsqueeze(-2)
-        LL = 1. + g * torch.exp(-LL / b)
+        LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
 
         return model

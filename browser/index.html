@@ -15,14 +15,10 @@
     <div class="row text-center">
       <div class="col-md-12">
         <h1>Model of disease progression</h1>
-      </div>
-    </div>
-    <br><br>
-    <div class="row text-center">
-      <div class="col-md-12">
         <h2>Here are some examples of patients you can check out</h2>
       </div>
     </div>
+
     <hr>
 
 
@@ -38,34 +34,34 @@
 
 
     <div class="row text-center">
-      <div class="col-md-12">
-        <div id="PlotlyTest" style="width: 80%; height: 600px;">
+      <div class="col-md-8">
+        <div class="responsive-plot" id="PlotlyTest"></div>
+      </div>
+
+      <div class="col-md-2 text-center">
+        <div class="col-md-12">
+          <p id="acc_title"> Acceleration factor</p>
+          <form>
+            <input type="range" id="rangeAlpha" min="0" max="2" step="0.01" value="1" oninput="adjustValue()">
+          </form>
+        </div>
+
+        <div class="col-md-12">
+          <p id="time_title">Time shift</p>
+          <form>
+            <input type="range" id="rangeTau" min="-5" max="5" step="0.1" value="0" oninput="adjustValue()">
+          </form>
+        </div>
+
+        <div class="col-md-12" id="geometric_parameters">
+
+        </div>
+
       </div>
     </div>
-
-
-    <div class="row text-center">
-      <div class="col-md-6">
-        <p> Adjust Alpha</p>
-        <form oninput="amount.value=rangeInput.value">
-          <input type="range" id="rangeAlpha" name="rangeInput" min="0" max="2" step="0.01" value="1" oninput="adjustValue()">
-          <output name="amount" for="rangeInput"></output>
-        </form>
-      </div>
-
-      <div class="col-md-6">
-        <p> Adjust Tau</p>
-        <form oninput="amount.value=rangeInput.value">
-          <input type="range" id="rangeTau" name="rangeInput" min="-5" max="5" step="0.5" value="0 " oninput="adjustValue()">
-          <output name="amount" for="rangeInput"></output>
-        </form>
-      </div>
-    </div>
-
-
-
-
+  </div>
 </body>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.2.1/math.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="js/models.js"></script>

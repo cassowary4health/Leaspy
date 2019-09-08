@@ -1,5 +1,5 @@
 {
-  "name": "tensor_mcmc_saem",
+  "name": "mcmc_saem",
   "parameters": {
     "n_burn_in_iter": null,
     "n_iter": 10000,

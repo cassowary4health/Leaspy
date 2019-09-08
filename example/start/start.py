@@ -9,7 +9,7 @@ if not os.path.isdir('_outputs/logs/fit'):
 
 # Inputs
 data = Data.from_csv_file(os.path.join(os.path.dirname(__file__), '_inputs', 'data.csv'))
-algo_settings = AlgorithmSettings('mcmc_saem', n_iter=200)
+algo_settings = AlgorithmSettings('mcmc_saem', n_iter=3000)
 algo_settings.set_logs('_outputs/logs/fit')
 
 # Initialize

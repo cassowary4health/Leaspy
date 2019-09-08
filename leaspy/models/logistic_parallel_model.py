@@ -21,6 +21,8 @@ class LogisticParallelModel(AbstractMultivariateModel):
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
+            if k in ['mixing_matrix']:
+                continue
             self.parameters[k] = torch.tensor(parameters[k])
         self.attributes = Attributes_LogisticParallel(self.dimension, self.source_dimension)
         self.attributes.update(['all'],self.parameters)
@@ -83,7 +85,7 @@ class LogisticParallelModel(AbstractMultivariateModel):
 
         self.MCMC_toolbox['attributes'].update(L, values)
 
-    def _get_attributes(self,MCMC):
+    def _get_attributes(self, MCMC):
         if MCMC:
             g = self.MCMC_toolbox['attributes'].g
             deltas = self.MCMC_toolbox['attributes'].deltas
@@ -145,6 +147,7 @@ class LogisticParallelModel(AbstractMultivariateModel):
 
 
     def update_model_parameters_burn_in(self, data, realizations):
+
         self.parameters['g'] = realizations['g'].tensor_realizations.detach()[0]
         self.parameters['deltas'] = realizations['deltas'].tensor_realizations.detach()
         if self.source_dimension != 0:

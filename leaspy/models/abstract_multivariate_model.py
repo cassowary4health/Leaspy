@@ -39,6 +39,7 @@ class AbstractMultivariateModel(AbstractModel):
 
     def save(self, path):
         model_parameters_save = self.parameters.copy()
+        model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()

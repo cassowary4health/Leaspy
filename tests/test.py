@@ -8,16 +8,16 @@ from tests.inputs.data.data_reader import DataReaderTest
 from tests.inputs.data.dataset import DatasetTest
 
 from tests.models.abstract_model import AbstractModelTest
-from tests.models.utils.attributes import AttributesTest
+from tests.models.utils.attributes_logistic_parallel import AttributesLogisticParallelTest
+from tests.models.utils.attributes_logistic import AttributesLogisticTest
 #from tests.models.univariate_model import UnivariateModelTest
-#from tests.models.multivariate_model import MultivariateModelTest
 #from tests.models.model_factory import ModelFactoryTest
 
 #from tests.samplers.sampler import SamplerTest
 #from tests.samplers.random_variable.gaussian_random_variable import GaussianRandomVariableTest
 
 #from tests.main.main import LeaspyTest
-from tests.main.main_fit import LeaspyFitTest
-from tests.main.main_personalize import LeaspyPersonalizeTest
+#from tests.main.main_fit import LeaspyFitTest
+#from tests.main.main_personalize import LeaspyPersonalizeTest
 
 unittest.main()

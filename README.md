@@ -1,5 +1,7 @@
 # Leaspy - LEArning Spatiotemporal Patterns in Python
 
+>  DISCLAIMER : This version is intended for beta-testing yet. There might remain bugs, therefore, use it precautiously, especially the results that you obtain.
+
 
 ## Description
 Leasp is a software package for the statistical analysis of longitudinal data, particularly medical data that comes in a form of repeated observations of patients at different time-points. 

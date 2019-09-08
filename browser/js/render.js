@@ -13,6 +13,8 @@ load_plot = (e) => {
 
   create_source_trigger(parameters);
 
+
+  /*
   var sources = [];
   for(var i=0; i<parameters['source_dimension']; ++i) {
     var source = document.getElementById('rangeSource'+i);
@@ -22,11 +24,13 @@ load_plot = (e) => {
 
   data_new = compute_values(ages, parameters, individual_parameters);
   data_new = convert_data_to_plot(ages, data_new)
-
+  */
+  data = initialize_data(ages, parameters);
   var layout = {
     yaxis: {range: [-0.01, 1.01]}
   };
-  Plotly.newPlot('PlotlyTest', data_new, layout, {responsive: true});
+  Plotly.newPlot('PlotlyTest', data, layout, {responsive: true});
+  adjustValue();
 }
 
 document.getElementById("file_").onchange = function() {
@@ -42,11 +46,20 @@ document.getElementById("file_").onchange = function() {
 }
 
 create_source_trigger = (parameters) => {
+  // First remove all the existing element if any
+  var col = document.getElementById('geometric_parameters');
+  //e.firstElementChild can be used.
+  var child = col.lastElementChild;
+  while (child) {
+    col.removeChild(child);
+    child = col.lastElementChild;
+  }
+
   if(!('source_dimension' in parameters)) {
     return
   }
   var number_of_sources = parameters['source_dimension'];
-  var col = document.getElementById('geometric_parameters');
+
 
   var title = document.createElement('p');
   title.innerText = 'Geometric parameters';
@@ -72,12 +85,13 @@ create_source_trigger = (parameters) => {
 
 
 
-convert_data_to_plot = (ages, values) => {
-  var data = []
-  for(var i=0; i<values.length; i++) {
+initialize_data = (ages, parameters) => {
+  var data = [];
+  var dimension = parameters['dimension'];
+  for(var i=0; i<dimension; i++) {
     var y_ = []
     for(var j=0; j<ages.length; ++j) {
-      y_.push(values[i][j])
+      y_.push(0)
     }
     var trace = {
       x: ages,
@@ -88,6 +102,8 @@ convert_data_to_plot = (ages, values) => {
   }
   return data
 }
+
+
 
 adjustValue = () => {
 

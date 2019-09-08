@@ -1,11 +1,12 @@
 {
   "name": "simulation",
+  "seed": null,
+  "initialization_method": null,
   "parameters": {
     "number_of_subjects": 100,
     "bandwidth_method": 0.2,
     "noise": true,
     "mean_number_of_visits": 6,
-    "std_number_of_visits": 3,
-    "seed": null
+    "std_number_of_visits": 3
   }
 }

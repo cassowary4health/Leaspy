@@ -1,12 +1,13 @@
 {
   "name": "mode_real",
+  "seed": null,
+  "initialization_method": null,
   "parameters": {
     "n_iter": 200,
     "n_burn_in_iter":100,
     "eps": 0.005,
     "L": 10,
     "sampler_ind": "Gibbs",
-    "sampler_pop": "Gibbs",
-    "seed":null
+    "sampler_pop": "Gibbs"
   }
 }

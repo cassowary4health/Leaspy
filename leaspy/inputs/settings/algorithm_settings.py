@@ -14,27 +14,14 @@ class AlgorithmSettings:
         self.name = name
         self.parameters = None
         self.seed = None
+        self.initialization_method = None
         self.logs = None
 
         if name in ['mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real']:
-            self.load_json(os.path.join(default_data_dir, 'default_' + name + '.json'))
+            self._load_default_values(os.path.join(default_data_dir, 'default_' + name + '.json'))
         else:
             raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
-
-        for k, v in kwargs.items():
-            if k in self.parameters.keys():
-                self.parameters[k] = v
-            else:
-                warning_message = "The parameter key : >>>{0}<<< you provided is unknown".format(k)
-                warnings.warn(warning_message)
-
-        # Todo : Make it better
-        if name == 'mcmc_saem':
-            if 'n_iter' in kwargs.keys() and ('n_burn_in_iter' is None or 'n_burn_in_iter' not in kwargs.keys()):
-                self.parameters['n_burn_in_iter'] = int(0.9 * kwargs['n_iter'])
-
-            if 'n_iter' in kwargs.keys() and 'annealing' not in kwargs.keys():
-                self.parameters['annealing']["n_iter"] = int(0.5 * kwargs['n_iter'])
+        self._manage_kwargs(kwargs)
 
 
     @classmethod
@@ -42,22 +29,54 @@ class AlgorithmSettings:
         with open(path_to_algorithm_settings) as fp:
             settings = json.load(fp)
 
+        if 'name' not in settings.keys():
+            raise ValueError("Your json file must contain a \'name\' ")
         algorithm_settings = cls(settings['name'])
-        if 'name' in settings.keys():
-            algorithm_settings.name = cls._get_name(settings)
 
         if 'parameters' in settings.keys():
-            algorithm_settings.parameters = cls._get_name(settings)
+            print("You overwritten the algorithm default parameters")
+            algorithm_settings.parameters = cls._get_parameters(settings)
 
         if 'seed' in settings.keys():
+            print("You overwritten the algorithm default seed")
             algorithm_settings.seed = cls._get_seed(settings)
 
+        if 'initialization_method' in settings.keys():
+            print("You overwritten the algorithm default initialization method")
+            algorithm_settings.initialization_method = cls._get_initialization_method(settings)
 
-    def load_json(self, path_to_algorithm_settings):
+        return algorithm_settings
+
+    def _manage_kwargs(self, kwargs):
+        if 'seed' in kwargs.keys():
+            self.seed = self._get_seed(kwargs)
+        if 'initialization_method' in kwargs.keys():
+            self.initialization_method = self._get_initialization_method(kwargs)
+
+        for k, v in kwargs.items():
+            if k in ['seed', 'initialization_method']:
+                continue
+
+            if k in self.parameters.keys():
+                self.parameters[k] = v
+            else:
+                warning_message = "The parameter key : >>>{0}<<< you provided is unknown".format(k)
+                warnings.warn(warning_message)
+
+        if self.name == 'mcmc_saem':
+            if 'n_iter' in kwargs.keys() and ('n_burn_in_iter' is None or 'n_burn_in_iter' not in kwargs.keys()):
+                self.parameters['n_burn_in_iter'] = int(0.9 * kwargs['n_iter'])
+
+            # TODO : For Raphael : what does it mean? Because there are already default value.
+            # TODO : Thus, either default value for annealing/iter in the json, either here. Not both.
+            #if 'n_iter' in kwargs.keys() and 'annealing' not in kwargs.keys():
+            #    self.parameters['annealing']["n_iter"] = int(0.5 * kwargs['n_iter'])
+
+    def _load_default_values(self, path_to_algorithm_settings):
         with open(path_to_algorithm_settings) as fp:
             settings = json.load(fp)
 
-        AlgorithmSettings._check_settings(settings)
+        AlgorithmSettings._check_default_settings(settings)
         self.name = self._get_name(settings)
         self.parameters = self._get_parameters(settings)
         self.seed = self._get_seed(settings)
@@ -80,11 +99,15 @@ class AlgorithmSettings:
         self.logs = OutputsSettings(settings)
 
     @staticmethod
-    def _check_settings(settings):
+    def _check_default_settings(settings):
         if 'name' not in settings.keys():
             raise ValueError('The \'name\' key is missing in the algorithm settings (JSON file) you are loading')
+        if 'seed' not in settings.keys():
+            raise ValueError('The \'settings\' key is missing in the algorithm settings (JSON file) you are loading')
         if 'parameters' not in settings.keys():
             raise ValueError('The \'parameters\' key is missing in the algorithm settings (JSON file) you are loading')
+        if 'initialization_method' not in settings.keys():
+            raise ValueError('The \'initialization_method\' key is missing in the algorithm settings (JSON file) you are loading')
 
     @staticmethod
     def _get_name(settings):
@@ -96,14 +119,19 @@ class AlgorithmSettings:
 
     @staticmethod
     def _get_seed(settings):
-        if 'seed' in settings.keys():
-            if settings['seed'] is None:
-                return None
-            try:
-                return int(settings['seed'])
-            except ValueError:
-                print("The \'seed\' parameter you provided cannot be converted to int")
-        else:
+        if settings['seed'] is None:
             return None
+        try:
+            return int(settings['seed'])
+        except ValueError:
+            print("The \'seed\' parameter you provided cannot be converted to int")
+
+    @staticmethod
+    def _get_initialization_method(settings):
+        if settings['initialization_method'] is None:
+            return None
+        # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
+        return settings['initialization_method']
+
 
 

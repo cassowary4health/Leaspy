@@ -1,8 +1,9 @@
 {
   "name": "gradient_descent_personalize",
+  "seed": null,
+  "initialization_method": null,
   "parameters": {
     "n_iter": 100,
-    "learning_rate": 0.0001,
-    "seed": null
+    "learning_rate": 0.0001
   }
 }

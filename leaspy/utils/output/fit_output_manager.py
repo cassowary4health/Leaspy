@@ -152,7 +152,7 @@ class FitOutputManager():
     def plot_patient_reconstructions(self, iteration, data, model, realizations):
         path_iteration = os.path.join(self.path_plot_patients,'plot_patients_{0}.pdf'.format(iteration))
         param_ind = model.get_param_from_real(realizations)
-        self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind,self.plot_options['maximum_patient_number'],MCMC=True)
+        self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind, self.plot_options['maximum_patient_number'])
 
 
 

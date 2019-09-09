@@ -15,6 +15,9 @@ class Attributes_LogisticParallel:
         self.orthonormal_basis = None
         self.mixing_matrix = None  # Matrix A tq w_i = A * s_i
 
+    def get_attributes(self):
+        return self.g, self.deltas, self.mixing_matrix
+
     def update(self, names_of_changed_values, values):
         self._check_names(names_of_changed_values)
 
@@ -96,10 +99,8 @@ class Attributes_LogisticParallel:
         v_vector = u_vector / torch.norm(u_vector)
         v_vector = v_vector.reshape(1, -1)
 
-
         q_matrix = torch.eye(self.dimension) - 2 * v_vector.permute(1, 0) * v_vector
         self.orthonormal_basis = q_matrix[:, 1:]
-
 
     @staticmethod
     def _mixing_matrix_utils(linear_combination_values, matrix):

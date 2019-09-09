@@ -6,7 +6,6 @@ import matplotlib.backends.backend_pdf
 
 class AbstractModel():
     def __init__(self, name):
-        self.name = name
         self.parameters = None
         self.is_initialized = False
 
@@ -24,11 +23,6 @@ class AbstractModel():
     def initialize(self, dataset, is_initialized):
         raise NotImplementedError
 
-    def get_xi_tau(self,param_ind):
-        # TODO remove this dependancy toward model
-        xi,tau,sources = param_ind
-        return xi,tau
-
     def get_individual_variable_name(self):
         """
         Return list of names of the individual variables from the model
@@ -44,22 +38,18 @@ class AbstractModel():
 
         return individual_variable_name
 
-
-    def time_reparametrization(self,timepoints,xi,tau):
-        return torch.exp(xi)* (timepoints - tau)
-
-    def compute_sum_squared_tensorized(self, data, param_ind, MCMC):
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, MCMC)
+    def compute_sum_squared_tensorized(self, data, param_ind, attribute_type=None):
+        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         res *= data.mask
         return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         param_ind = self.get_param_from_real(realizations)
-        attachment = self.compute_individual_attachment_tensorized(data, param_ind,MCMC=True)
+        attachment = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC')
         return attachment
 
-    def compute_individual_attachment_tensorized(self,data,param_ind,MCMC):
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, MCMC)
+    def compute_individual_attachment_tensorized(self, data, param_ind, attribute_type):
+        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         res *= data.mask
         squared_sum = torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
         noise_var = self.parameters['noise_std'] ** 2
@@ -119,60 +109,3 @@ class AbstractModel():
 
     def random_variable_informations(self):
         raise NotImplementedError
-
-
-    '''
-    ###########################
-    ## LEGACY
-    ###########################
-    
-    def _update_random_variables(self):
-        # TODO float for torch operations
-
-        infos_variables = self.random_variable_informations()
-
-        reals_pop_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
-                          infos_variables[key]["type"] == "population"]
-
-        reals_ind_name = [infos_variables[key]["name"] for key in infos_variables.keys() if
-                          infos_variables[key]["type"] == "individual"]
-
-        for real_pop_name in reals_pop_name:
-            self.random_variables[real_pop_name].mu = self.parameters[real_pop_name]
-
-        for real_ind_name in reals_ind_name:
-            self.random_variables[real_ind_name].mu = float(self.parameters["{0}_mean".format(real_ind_name)])
-            self.random_variables[real_ind_name].variance = float(
-                self.parameters["{0}_var".format(real_ind_name)])
-    
-    # Attachment
-    def compute_attachment(self, data, reals_pop, reals_ind):
-        return torch.stack([self.compute_individual_attachment(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices]).sum()
-
-    def compute_sumsquared(self, data, reals_pop, reals_ind):
-        return torch.stack([self.compute_individual_sumsquared(data[idx], reals_pop, reals_ind[idx]) for idx in data.indices]).sum()
-
-    def compute_individual_sumsquared(self, individual, reals_pop, real_ind):
-         return torch.sum((self.compute_individual(individual, reals_pop, real_ind)-individual.tensor_observations)**2)
-
-    def compute_individual_attachment(self, individual, reals_pop, real_ind):
-        #return self.compute_individual_sumsquared(individual, reals_pop, real_ind)*np.power(2*self.model_parameters['noise_var'], -1) + np.log(np.sqrt(2*np.pi*self.model_parameters['noise_var']))
-
-        #TODO Remove constant terms ???
-        constant_term = self.cache_variables['constant_fit_variable']
-        noise_inverse = self.cache_variables['noise_inverse']
-
-        sum_squared = self.compute_individual_sumsquared(individual, reals_pop, real_ind)
-
-        fit = 0.5 * noise_inverse * sum_squared
-        res = fit + constant_term
-        return res
-
-    def update_variable_info(self, key, reals_pop):
-        """
-        Check according to the key, if some intermediary parameters need to be re-computed.
-        :param key:
-        :return:
-        """
-        pass
-    '''

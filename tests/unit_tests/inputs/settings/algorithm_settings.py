@@ -34,6 +34,7 @@ class AlgorithmSettingsTest(unittest.TestCase):
         settings = AlgorithmSettings(name, n_iter=2100, seed=10)
         json_data['parameters']['n_iter'] = 2100
         json_data['parameters']['n_burn_in_iter'] = int(0.9*2100)
+        json_data['parameters']['annealing']['n_iter'] = int(0.5*2100)
         self.assertEqual(settings.name, name)
         self.assertEqual(settings.parameters, json_data['parameters'])
         self.assertEqual(settings.seed, 10)

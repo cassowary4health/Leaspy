@@ -59,7 +59,7 @@ class UnivariateModel(AbstractModel):
         # TODO !
         self.parameters = {
             'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
-            'noise_std': 0.1,         }
+            'noise_std': 0.1,}
         self.attributes = Attributes_Univariate()
         self.is_initialized = True
 
@@ -99,8 +99,8 @@ class UnivariateModel(AbstractModel):
             g = self.attributes.g
         return g
 
-    def compute_sum_squared_tensorized(self, data, param_ind, MCMC):
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, MCMC)
+    def compute_sum_squared_tensorized(self, data, param_ind, attribute_type):
+        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         res *= data.mask
         return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
@@ -123,7 +123,7 @@ class UnivariateModel(AbstractModel):
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
         # Population parameters
-        g= self._get_attributes(MCMC)
+        g = self._get_attributes(MCMC)
         # Individual parameters
         xi, tau = ind_parameters
         reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
@@ -166,7 +166,7 @@ class UnivariateModel(AbstractModel):
         self.parameters['tau_std'] = torch.std(tau)
 
         param_ind = self.get_param_from_real(realizations)
-        squared_diff = self.compute_sum_squared_tensorized(data, param_ind, MCMC=True).sum()
+        squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type=True).sum()
         self.parameters['noise_std'] = np.sqrt(squared_diff / (data.n_visits * data.dimension))
 
         # Stochastic sufficient statistics used to update the parameters of the model

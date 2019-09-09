@@ -4,7 +4,7 @@ from scipy import stats
 from ..attributes.attributes_logistic import Attributes_Logistic
 from ..attributes.attributes_logistic_parallel import Attributes_LogisticParallel
 
-
+#def initialize_parameters()
 
 def initialize_logistic_parallel(model, data, method="default"):
 
@@ -52,8 +52,6 @@ def initialize_logistic_parallel(model, data, method="default"):
 
     else:
         raise ValueError("Initialization method not known")
-
-
 
     # Initialize the attribute
     model.attributes = Attributes_LogisticParallel(model.dimension, model.source_dimension)
@@ -112,6 +110,8 @@ def initialize_logistic(model, data, method="default"):
     for parameter_key in model.parameters.keys():
         if model.parameters[parameter_key] is None:
             model.parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
+        else:
+            print('ok')
 
     # Initialize the attribute
     model.attributes = Attributes_Logistic(model.dimension, model.source_dimension)

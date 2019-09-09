@@ -9,6 +9,8 @@ class Attributes_Univariate:
         self.g = None  # g is a vector such that p0 = 1 / (1+exp(g)) where p0 is the position vector
         self.v0 = None  # v0 is the vector of velocities
 
+    def get_attributes(self):
+        return self.g
 
     def update(self, names_of_changed_values, values):
         self._check_names(names_of_changed_values)

@@ -17,6 +17,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Name
         self.name = settings.name
 
+        # Seed
+        self.seed = settings.seed
+
         # Algorithm parameters
         self.algo_parameters = settings.parameters
 
@@ -38,7 +41,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         """
 
         # Set seed
-        self._initialize_seed(self.algo_parameters["seed"])
+        self._initialize_seed(self.seed)
 
         # Init the run
         print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
@@ -48,7 +51,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         individual_parameters = self._get_individual_parameters(model, data)
 
         # Compute the noise with the estimated individual paraeters
-        squared_diff = model.compute_sum_squared_tensorized(data, individual_parameters, MCMC=True).sum()
+        squared_diff = model.compute_sum_squared_tensorized(data, individual_parameters).sum()
         noise_std = np.sqrt(float(squared_diff.detach().numpy()) / (data.n_visits*data.dimension))
 
         # Print run infos

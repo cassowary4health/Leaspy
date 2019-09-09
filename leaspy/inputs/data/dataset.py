@@ -17,6 +17,7 @@ class Dataset:
         self.n_visits = None
         self.individual_parameters = None
         self.indices = list(data.individuals.keys())
+        self.L2_norm = None
 
         if model is not None:
             self._check_model_compatibility(data, model)
@@ -25,6 +26,7 @@ class Dataset:
 
         self._construct_values(data)
         self._construct_timepoints(data)
+        self._compute_L2_norm()
 
     def _construct_values(self, data):
 
@@ -56,6 +58,8 @@ class Dataset:
         for i, d in enumerate(x_len):
             self.timepoints[i, 0:d] = torch.Tensor(data[i].timepoints)
 
+    def _compute_L2_norm(self):
+        self.L2_norm = torch.sum(torch.sum(self.values * self.values * self.mask, dim=2))
 
     def get_times_patient(self, i):
         return self.timepoints[i,:self.nb_observations_per_individuals[i]]

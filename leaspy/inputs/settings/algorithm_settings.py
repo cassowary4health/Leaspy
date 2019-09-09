@@ -69,8 +69,8 @@ class AlgorithmSettings:
 
             # TODO : For Raphael : what does it mean? Because there are already default value.
             # TODO : Thus, either default value for annealing/iter in the json, either here. Not both.
-            #if 'n_iter' in kwargs.keys() and 'annealing' not in kwargs.keys():
-            #    self.parameters['annealing']["n_iter"] = int(0.5 * kwargs['n_iter'])
+            if 'n_iter' in kwargs.keys() and 'annealing' not in kwargs.keys():
+                self.parameters['annealing']["n_iter"] = int(0.5 * kwargs['n_iter'])
 
     def _load_default_values(self, path_to_algorithm_settings):
         with open(path_to_algorithm_settings) as fp:

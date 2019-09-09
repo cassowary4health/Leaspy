@@ -164,46 +164,12 @@ class Plotter:
                         patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(), alpha=0.8)
             plt.ylim(0, 1)
 
-    ### TODO TODO : Check what the following function is
-
-    @staticmethod
-    def plot_within_mean_traj(path, dataset, model, param_ind, max_patient_number=25,colors =None,labels=None):
-        xi,tau = model.get_xi_tau(param_ind)
-
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, MCMC=False)
-        timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
-                                 model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
-                                 100)
-        timepoints = torch.Tensor([timepoints])
-        mean_values = model.compute_mean_traj(timepoints)
-        if colors is None:
-            colors = cm.rainbow(np.linspace(0, 1, patient_values.shape[-1]))
-        if labels is None:
-            labels = np.arange(patient_values.shape[-1])
-            labels = [str(k) for k in labels]
-
-        reparametrized_time = model.time_reparametrization(dataset.timepoints,xi,tau)/torch.exp(model.parameters['xi_mean'])+model.parameters['tau_mean']
-
-        pdf = matplotlib.backends.backend_pdf.PdfPages(path)
-        for i in range(dataset.values.shape[-1]):
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
-            for idx in range(max_patient_number):
-                ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
-                        dataset.values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(),'x', c=colors[i])
-                ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
-                        patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(), c=colors[i],alpha=0.3)
-            plt.title(labels[i])
-            pdf.savefig(fig)
-        pdf.close()
-        return 0
-
 
     ############## TODO : The next functions are related to the plots during the fit. Disentangle them properly
 
     @staticmethod
     def plot_error(path, dataset, model, param_ind,colors =None,labels=None):
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, MCMC=False)
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=False)
 
         if colors is None:
             colors = cm.rainbow(np.linspace(0, 1, patient_values.shape[-1]))
@@ -237,13 +203,13 @@ class Plotter:
         return 0
 
     @staticmethod
-    def plot_patient_reconstructions(path, data, model, param_ind, max_patient_number=10, MCMC=False):
+    def plot_patient_reconstructions(path, data, model, param_ind, max_patient_number=10, attribute_type=None):
 
         colors = cm.rainbow(np.linspace(0, 1, max_patient_number + 2))
 
         fig, ax = plt.subplots(1, 1)
 
-        patient_values = model.compute_individual_tensorized(data.timepoints, param_ind, MCMC)
+        patient_values = model.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
 
         if type(max_patient_number) == int:
             patients_list = range(max_patient_number)

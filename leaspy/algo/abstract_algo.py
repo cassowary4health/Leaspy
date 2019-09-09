@@ -25,6 +25,7 @@ class AbstractAlgo():
                 print("Replacing {} parameter from value {} to value {}".format(k, previous_v, v))
             self.algo_parameters[k] = v
 
+
     def set_output_manager(self, output_path):
         if output_path is not None:
             self.output_manager = FitOutputManager(output_path)

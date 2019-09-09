@@ -1,23 +1,33 @@
 import unittest
 
-from tests.inputs.model_settings import ModelSettingsTest
-from tests.inputs.algorithm_settings import AlgorithmSettingsTest
-from tests.inputs.data.individual_data import IndividualDataTest
-from tests.inputs.data.data import DataTest
-from tests.inputs.data.data_reader import DataReaderTest
-from tests.inputs.data.dataset import DatasetTest
+### Unit tests ###
 
-from tests.models.abstract_model import AbstractModelTest
-from tests.models.utils.attributes_logistic_parallel import AttributesLogisticParallelTest
-from tests.models.utils.attributes_logistic import AttributesLogisticTest
-#from tests.models.univariate_model import UnivariateModelTest
-#from tests.models.model_factory import ModelFactoryTest
+# Inputs
+from tests.unit_tests.inputs.data.data import DataTest
+from tests.unit_tests.inputs.data.dataframe_data_reader import DataframeDataReaderTest
+from tests.unit_tests.inputs.data.csv_data_reader import CSVDataReaderTest
+from tests.unit_tests.inputs.data.individual_data import IndividualDataTest
+from tests.unit_tests.inputs.data.dataset import DatasetTest
+from tests.unit_tests.inputs.data.result import ResultTest
 
-#from tests.samplers.sampler import SamplerTest
-#from tests.samplers.random_variable.gaussian_random_variable import GaussianRandomVariableTest
+from tests.unit_tests.inputs.settings.algorithm_settings import AlgorithmSettingsTest
+from tests.unit_tests.inputs.settings.model_settings import ModelSettingsTest
+from tests.unit_tests.inputs.settings.outputs_settings import OutputSettingsTest
 
-#from tests.main.main import LeaspyTest
-#from tests.main.main_fit import LeaspyFitTest
-#from tests.main.main_personalize import LeaspyPersonalizeTest
+# Models
+from tests.unit_tests.models.abstract_model import AbstractModelTest
+from tests.unit_tests.models.model_factory import ModelFactoryTest
 
+# Algorithms
+
+# Utils
+
+
+
+
+### Functional tests ###
+
+
+
+### Run ###
 unittest.main()

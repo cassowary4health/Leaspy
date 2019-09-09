@@ -1,7 +1,8 @@
 {
   "name": "scipy_minimize",
+  "seed": null,
+  "initialization_method": null,
   "parameters": {
-    "n_iter": 100,
-    "seed": null
+    "n_iter": 100
   }
 }

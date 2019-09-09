@@ -91,14 +91,6 @@ class Data:
         return df.reset_index()
 
 
-        #dataset = Dataset(self)
-        #indices = [[dataset.indices[i], age] for i, ages in enumerate(dataset.timepoints.detach().numpy()) for j, age in
-        #           enumerate(ages)]
-        #values = dataset.values.view(self.n_visits, self.dimension).detach().numpy()
-        #arr = np.concatenate((indices, values), axis=1)
-
-        #df = pd.DataFrame(data=arr, columns=['ID', 'TIME']+self.headers)
-        #return df
 
     @staticmethod
     def from_dataframe(df):

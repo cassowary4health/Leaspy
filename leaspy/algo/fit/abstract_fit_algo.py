@@ -10,7 +10,7 @@ class AbstractFitAlgo(AbstractAlgo):
     def run(self, data, model):
 
         # Initialize Model
-        self._initialize_seed(self.algo_parameters["seed"])
+        self._initialize_seed(self.seed)
         # Initialize first the random variables
         # TODO : Check if needed - model.initialize_random_variables(data)
         # Then initialize the Realizations (from the random variables)

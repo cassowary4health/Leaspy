@@ -15,6 +15,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
         # Algorithm parameters
         self.algo_parameters = settings.parameters
+        self.seed = settings.seed
 
         # Realizations and samplers
         self.realizations = None

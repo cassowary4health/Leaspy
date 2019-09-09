@@ -1,6 +1,6 @@
 var ages = [];
 var incr_=0.5;
-for(var i=50; i<90; i=i+incr_) {
+for(var i=35; i<110; i=i+incr_) {
   ages.push(i);
 }
 var parameters = '';
@@ -12,21 +12,9 @@ load_plot = (e) => {
   var tau = document.getElementById('rangeTau').value;
 
   create_source_trigger(parameters);
-
-
-  /*
-  var sources = [];
-  for(var i=0; i<parameters['source_dimension']; ++i) {
-    var source = document.getElementById('rangeSource'+i);
-    sources.push(source.value);
-  };
-  individual_parameters = {'alpha': alpha, 'tau': tau, 'sources': sources}
-
-  data_new = compute_values(ages, parameters, individual_parameters);
-  data_new = convert_data_to_plot(ages, data_new)
-  */
   data = initialize_data(ages, parameters);
   var layout = {
+    xaxis: {range:[50, 90]},
     yaxis: {range: [-0.01, 1.01]}
   };
   Plotly.newPlot('PlotlyTest', data, layout, {responsive: true});

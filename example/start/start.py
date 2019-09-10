@@ -13,7 +13,7 @@ algo_settings = AlgorithmSettings('mcmc_saem', n_iter=1000, n_burn_in_iter=800)
 algo_settings.set_logs('_outputs/logs/fit')
 
 # Initialize
-leaspy = Leaspy("linear")
+leaspy = Leaspy("logistic_parallel")
 leaspy.model.load_hyperparameters({'source_dimension': 2})
 
 # Fit the model on the data

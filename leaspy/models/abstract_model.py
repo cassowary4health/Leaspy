@@ -76,7 +76,11 @@ class AbstractModel():
     def __str__(self):
         output = "=== MODEL ===\n"
         for key in self.parameters.keys():
-            output += "{0} : {1}\n".format(key, self.parameters[key])
+
+            #if type(self.parameters[key]) == float:
+            #    output += "{} : {:.5f}\n".format(key, self.parameters[key])
+            #else:
+            output += "{} : {}\n".format(key, self.parameters[key])
         return output
 
 

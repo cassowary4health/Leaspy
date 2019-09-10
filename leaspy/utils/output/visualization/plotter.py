@@ -36,9 +36,12 @@ class Plotter:
         except TypeError:
             # not iterable
 
+
+            std_time = max(model.parameters['tau_std'], 4)
             timepoints = np.linspace(model.parameters['tau_mean'] - 3 * np.sqrt(model.parameters['tau_std']),
                                      model.parameters['tau_mean'] + 6 * np.sqrt(model.parameters['tau_std']),
                                      100)
+
             timepoints = torch.Tensor([timepoints])
 
             mean_trajectory = model.compute_mean_traj(timepoints).detach().numpy()

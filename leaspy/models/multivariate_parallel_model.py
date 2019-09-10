@@ -5,9 +5,9 @@ from .utils.attributes.attributes_logistic_parallel import Attributes_LogisticPa
 from .utils.initialization.model_initialization import initialize_logistic_parallel
 
 
-class LogisticParallelModel(AbstractMultivariateModel):
+class MultivariateParallelModel(AbstractMultivariateModel):
     def __init__(self, name):
-        super(LogisticParallelModel, self).__init__(name)
+        super(MultivariateParallelModel, self).__init__(name)
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None
 
@@ -78,7 +78,7 @@ class LogisticParallelModel(AbstractMultivariateModel):
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, self.get_param_from_real(realizations))
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, self.get_param_from_real(realizations), attribute_type='MCMC')
         data_reconstruction *= data.mask
         norm_1 = data.values * data_reconstruction * data.mask
         norm_2 = data_reconstruction * data_reconstruction * data.mask
@@ -101,7 +101,7 @@ class LogisticParallelModel(AbstractMultivariateModel):
         self.parameters['tau_std'] = torch.std(tau)
 
         param_ind = self.get_param_from_real(realizations)
-        data_fit = self.compute_individual_tensorized(data.timepoints, param_ind)
+        data_fit = self.compute_individual_tensorized(data.timepoints, param_ind,  attribute_type='MCMC')
         data_fit *= data.mask
         squared_diff = ((data_fit - data.values) ** 2).sum()
         squared_diff = squared_diff.detach()  # Remove the gradients

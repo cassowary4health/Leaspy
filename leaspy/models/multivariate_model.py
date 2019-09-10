@@ -1,13 +1,12 @@
 import torch
 
 from .abstract_multivariate_model import AbstractMultivariateModel
-from .utils.attributes.attributes_logistic import Attributes_Logistic
-from .utils.initialization.model_initialization import initialize_logistic
+from .utils.attributes.attributes_factory import AttributesFactory
 
 
-class LogisticModel(AbstractMultivariateModel):
+class MultivariateModel(AbstractMultivariateModel):
     def __init__(self, name):
-        super(LogisticModel, self).__init__(name)
+        super(MultivariateModel, self).__init__(name)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None # Value, Coef
 
@@ -17,8 +16,8 @@ class LogisticModel(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k])
-        self.attributes = Attributes_Logistic(self.dimension, self.source_dimension)
-        self.attributes.update(['all'],self.parameters)
+        self.attributes = AttributesFactory(self.name, self.dimension, self.source_dimension)
+        self.attributes.update(['all'], self.parameters)
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         if self.name == 'logistic':
@@ -33,7 +32,6 @@ class LogisticModel(AbstractMultivariateModel):
         xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-
         # Reshaping
         a = tuple([1] * reparametrized_time.ndimension())
         velocities = velocities.unsqueeze(0).repeat(*tuple(reparametrized_time.shape), 1)
@@ -41,7 +39,7 @@ class LogisticModel(AbstractMultivariateModel):
         reparametrized_time = reparametrized_time.unsqueeze(-1).repeat(*a, velocities.shape[-1])
 
         # Computation
-        LL = velocities * reparametrized_time #+ positions
+        LL = velocities * reparametrized_time + positions
         if self.source_dimension != 0:
             wi = torch.nn.functional.linear(sources, mixing_matrix, bias=None)
             LL += wi.unsqueeze(-2)
@@ -76,7 +74,7 @@ class LogisticModel(AbstractMultivariateModel):
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},
-            'attributes': Attributes_Logistic(self.dimension, self.source_dimension)
+            'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()
@@ -109,7 +107,8 @@ class LogisticModel(AbstractMultivariateModel):
         return realizations
 
     def compute_sufficient_statistics(self, data, realizations):
-        realizations = self._center_xi_realizations(realizations)
+        if self.name == 'logistic':
+            realizations = self._center_xi_realizations(realizations)
 
         sufficient_statistics = {
             'g': realizations['g'].tensor_realizations.detach(),
@@ -122,7 +121,7 @@ class LogisticModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
 
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, self.get_param_from_real(realizations))
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, self.get_param_from_real(realizations), attribute_type='MCMC')
 
         # TODO : Remove norm_0 to directly get data.L2_norm in update_model_parameters
         norm_0 = data.values * data.values * data.mask
@@ -136,8 +135,8 @@ class LogisticModel(AbstractMultivariateModel):
 
 
     def update_model_parameters_burn_in(self, data, realizations):
-
-        realizations = self._center_xi_realizations(realizations)
+        if self.name == 'logistic':
+            realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm
         self.parameters['g'] = realizations['g'].tensor_realizations.detach()
@@ -161,8 +160,21 @@ class LogisticModel(AbstractMultivariateModel):
         self.parameters['tau_std'] = torch.std(tau)
 
         param_ind = self.get_param_from_real(realizations)
+        # TODO : Why is it MCMC-SAEM? SHouldn't it be computed with the parameters?
         squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type='MCMC').sum()
         self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
+
+        # TODO : This is just for debugging of linear
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, self.get_param_from_real(realizations),  attribute_type='MCMC')
+        norm_0 = data.values * data.values * data.mask
+        norm_1 = data.values * data_reconstruction * data.mask
+        norm_2 = data_reconstruction * data_reconstruction * data.mask
+        S1 = torch.sum(torch.sum(norm_0, dim=2))
+        S2 = torch.sum(torch.sum(norm_1, dim=2))
+        S3 = torch.sum(torch.sum(norm_2, dim=2))
+
+        #print("During burn-in : ", torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits)), torch.sqrt(squared_diff / (data.n_visits * data.dimension)))
+
 
         # Stochastic sufficient statistics used to update the parameters of the model
     def update_model_parameters_normal(self, data, suff_stats):
@@ -189,6 +201,8 @@ class LogisticModel(AbstractMultivariateModel):
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 
         self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
+
+        #print("After burn-in : ", torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits)))
 
     ###################################
     ### Random Variable Information ###

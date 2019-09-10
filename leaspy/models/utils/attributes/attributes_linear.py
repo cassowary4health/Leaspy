@@ -35,7 +35,7 @@ class Attributes_Linear():
         if compute_velocities: self._compute_velocities(values)
         if compute_betas: self._compute_betas(values)
 
-        #TODO : Check if thec condition is enough
+        #TODO : Check if the condition is enough
         if compute_velocities:
             self._compute_orthonormal_basis()
         if compute_velocities or compute_betas:
@@ -49,13 +49,13 @@ class Attributes_Linear():
 
 
     def _compute_positions(self, values):
-        self.positions = values['g']
+        self.positions = torch.Tensor(values['g']).clone()
 
     def _compute_velocities(self, values):
-        self.velocities = values['v0']
+        self.velocities = torch.Tensor(values['v0']).clone()
 
     def _compute_betas(self, values):
-        self.betas = torch.Tensor(values['betas'])
+        self.betas = torch.Tensor(values['betas']).clone()
 
     def _compute_orthonormal_basis(self):
         dgamma_t0 = self.velocities

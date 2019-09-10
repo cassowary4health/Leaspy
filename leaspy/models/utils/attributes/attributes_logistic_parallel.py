@@ -68,7 +68,7 @@ class Attributes_LogisticParallel:
     def _compute_betas(self, values):
         if self.source_dimension == 0:
             return
-        self.betas = torch.Tensor(values['betas'])
+        self.betas = torch.Tensor(values['betas']).clone()
 
     def _compute_dgamma_t0(self):
         # Computes the derivative of gamma_0 at time t0

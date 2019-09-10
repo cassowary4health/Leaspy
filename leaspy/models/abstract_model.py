@@ -61,7 +61,8 @@ class AbstractModel():
         # Stochastic sufficient statistics used to update the parameters of the model
         else:
             self.update_model_parameters_normal(data, suff_stats)
-        self.attributes.update(['all'],self.parameters)
+        self.attributes.update(['all'], self.parameters)
+
 
     def update_model_parameters_burn_in(self, data, realizations):
         raise NotImplementedError

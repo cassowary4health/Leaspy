@@ -25,11 +25,11 @@ class Plotter:
         #colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
-        plt.ylim(0, 1)
+
+        if model.name in ['logistic', 'logistic_parallel']:
+            plt.ylim(0, 1)
 
         colors = color_palette(range(8))
-
-
 
         try:
             iterator = iter(model)
@@ -46,6 +46,7 @@ class Plotter:
             for i in range(mean_trajectory.shape[-1]):
                 ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
                         linewidth=4, alpha=0.9, c=colors[i])  # , c=colors[i])
+            plt.legend()
 
         else:
             # iterable
@@ -78,7 +79,8 @@ class Plotter:
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
-        plt.ylim(0, 1)
+        if model.name in ['logistic', 'logistic_parallel']:
+            plt.ylim(0, 1)
 
         if type(indices) is not list:
             indices = [indices]
@@ -162,7 +164,8 @@ class Plotter:
                         dataset.values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(),'x', )
                 ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
                         patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(), alpha=0.8)
-            plt.ylim(0, 1)
+            if model.name in ['logistic', 'logistic_parallel']:
+                plt.ylim(0, 1)
 
 
     ############## TODO : The next functions are related to the plots during the fit. Disentangle them properly

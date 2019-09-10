@@ -27,8 +27,8 @@ class AbstractSampler():
         return
 
     def _group_metropolis_step(self, alpha):
-        accepted = torch.tensor(1. * (torch.rand(alpha.size(0)) < alpha), dtype=torch.float32)
-        return accepted
+        accepted = (1. * (torch.rand(alpha.size(0)) < alpha)).float()
+        return accepted.detach().clone()
 
     def _metropolis_step(self, alpha):
         accepted = 0

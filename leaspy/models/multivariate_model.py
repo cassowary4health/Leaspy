@@ -107,8 +107,8 @@ class MultivariateModel(AbstractMultivariateModel):
         return realizations
 
     def compute_sufficient_statistics(self, data, realizations):
-        if self.name == 'logistic':
-            realizations = self._center_xi_realizations(realizations)
+        #if self.name == 'logistic':
+        realizations = self._center_xi_realizations(realizations)
 
         sufficient_statistics = {
             'g': realizations['g'].tensor_realizations.detach(),
@@ -135,8 +135,8 @@ class MultivariateModel(AbstractMultivariateModel):
 
 
     def update_model_parameters_burn_in(self, data, realizations):
-        if self.name == 'logistic':
-            realizations = self._center_xi_realizations(realizations)
+        #if self.name == 'logistic':
+        realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm
         self.parameters['g'] = realizations['g'].tensor_realizations.detach()
@@ -186,12 +186,12 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = suff_stats['betas']
 
-        tau_mean = self.parameters['tau_mean']
+        tau_mean = self.parameters['tau_mean'].detach().clone()
         tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
         self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
         self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
-        xi_mean = self.parameters['xi_mean']
+        xi_mean = torch.tensor(self.parameters['xi_mean'])
         xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         #self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])

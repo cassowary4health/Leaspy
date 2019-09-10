@@ -93,8 +93,8 @@ def initialize_logistic_parallel(model, dataset, method):
 
         parameters = {
             'g': torch.tensor([torch.mean(g_array)]),
-            'tau_mean': t0, 'tau_std': 2.0,
-            'xi_mean': float(torch.mean(v0_array).detach().numpy()), 'xi_std': 0.1,
+            'tau_mean': t0, 'tau_std': torch.tensor(2.0),
+            'xi_mean': torch.mean(v0_array).detach().item(), 'xi_std': torch.tensor(0.1),
             'sources_mean': 0.0, 'sources_std': 1.0,
             'noise_std': 0.1, 'deltas': torch.tensor([0.0] * (model.dimension - 1)),
             'betas': torch.zeros((model.dimension - 1, model.source_dimension))
@@ -134,8 +134,8 @@ def initialize_linear(model, dataset, method):
         'g': torch.Tensor(np.mean(positions, 0)),
         'v0': torch.Tensor(np.mean(velocities, 0)),
         'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-        'tau_mean': t0, 'tau_std': 1.0,
-        'xi_mean': .0, 'xi_std': 0.05,
+        'tau_mean': t0, 'tau_std': torch.tensor(1.0),
+        'xi_mean': torch.tensor(.0), 'xi_std': torch.tensor(0.05),
         'sources_mean': 0.0, 'sources_std': 1.0,
         'noise_std': 0.1
     }

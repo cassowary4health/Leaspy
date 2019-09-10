@@ -45,7 +45,7 @@ class Plotter:
 
             for i in range(mean_trajectory.shape[-1]):
                 ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
-                        linewidth=4, alpha=0.5, c=colors[i])  # , c=colors[i])
+                        linewidth=4, alpha=0.9, c=colors[i])  # , c=colors[i])
 
         else:
             # iterable

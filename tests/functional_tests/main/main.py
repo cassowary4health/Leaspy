@@ -2,7 +2,7 @@ import os
 import unittest
 
 from tests import test_data_dir
-from leaspy.main import Leaspy
+from leaspy import Leaspy
 from leaspy.models.univariate_model import UnivariateModel
 
 

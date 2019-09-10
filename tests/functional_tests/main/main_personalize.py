@@ -1,10 +1,5 @@
-import torch
-from leaspy.main import Leaspy
-
 import unittest
-from leaspy.inputs.data.data import Data
-
-from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
+from leaspy import Leaspy, Data, AlgorithmSettings
 
 from tests import example_logisticmodel_path
 from tests import example_data_path

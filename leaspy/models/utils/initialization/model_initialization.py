@@ -120,6 +120,9 @@ def initialize_linear(model, dataset, method):
         ages = indiv_df.index.values
         features = indiv_df.values
 
+        if len(ages) == 1:
+            continue
+
         slopes, values = [], []
         for dim in range(model.dimension):
             slope, intercept, _, _, _ = stats.linregress(ages, features[:, dim])
@@ -130,9 +133,14 @@ def initialize_linear(model, dataset, method):
         velocities.append(slopes)
         positions.append(values)
 
+    positions = torch.Tensor(np.mean(positions, 0))
+    velocities = torch.Tensor(np.mean(velocities, 0))
+
+
+
     parameters = {
-        'g': torch.Tensor(np.mean(positions, 0)),
-        'v0': torch.Tensor(np.mean(velocities, 0)),
+        'g': positions,
+        'v0': velocities,
         'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
         'tau_mean': t0, 'tau_std': torch.tensor(1.0),
         'xi_mean': torch.tensor(.0), 'xi_std': torch.tensor(0.05),

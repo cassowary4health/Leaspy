@@ -8,7 +8,7 @@ class ModelFactory():
         name = name.lower()
         if name == 'univariate':
             return UnivariateModel(name)
-        elif name == 'logistic':
+        elif name == 'logistic' or name == 'linear':
             return LogisticModel(name)
         elif name == 'logistic_parallel':
             return LogisticParallelModel(name)

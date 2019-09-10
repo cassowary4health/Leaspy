@@ -20,9 +20,6 @@ class AbstractModel():
     def save(self, path):
         raise NotImplementedError
 
-    def initialize(self, dataset, is_initialized):
-        raise NotImplementedError
-
     def get_individual_variable_name(self):
         """
         Return list of names of the individual variables from the model

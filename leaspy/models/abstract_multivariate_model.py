@@ -1,9 +1,11 @@
 import json
 import torch
+import numpy as np
 
 from .abstract_model import AbstractModel
 from leaspy.utils.realizations.realization import Realization
-
+from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
+from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 
 class AbstractMultivariateModel(AbstractModel):
     def __init__(self, name):
@@ -36,6 +38,18 @@ class AbstractMultivariateModel(AbstractModel):
         #means_time = torch.Tensor([torch.mean(data.get_times_patient(i)) for i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
         #realizations['tau'].tensor_realizations = means_time
         return realizations
+
+    def initialize(self, dataset, method="default"):
+        self.dimension = dataset.dimension
+
+        if self.source_dimension is None:
+            self.source_dimension = int(np.sqrt(dataset.dimension))
+
+        self.parameters = initialize_parameters(self, dataset, method)
+
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
+        self.attributes.update(['all'], self.parameters)
+        self.is_initialized = True
 
     def load_hyperparameters(self, hyperparameters):
         if 'dimension' in hyperparameters.keys():

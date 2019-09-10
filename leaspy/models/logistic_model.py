@@ -20,10 +20,34 @@ class LogisticModel(AbstractMultivariateModel):
         self.attributes = Attributes_Logistic(self.dimension, self.source_dimension)
         self.attributes.update(['all'],self.parameters)
 
-    def initialize(self, dataset, method="default"):
-        self = initialize_logistic(self, dataset, method=method)
-
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+        if self.name == 'logistic':
+            return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
+        elif self.name == 'linear':
+            return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
+        else:
+            raise ValueError("Mutivariate model > Compute individual tensorized")
+
+    def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
+        positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
+        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+
+        # Reshaping
+        a = tuple([1] * reparametrized_time.ndimension())
+        velocities = velocities.unsqueeze(0).repeat(*tuple(reparametrized_time.shape), 1)
+        positions = positions.unsqueeze(0).repeat(*tuple(reparametrized_time.shape), 1)
+        reparametrized_time = reparametrized_time.unsqueeze(-1).repeat(*a, velocities.shape[-1])
+
+        # Computation
+        LL = velocities * reparametrized_time #+ positions
+        if self.source_dimension != 0:
+            wi = torch.nn.functional.linear(sources, mixing_matrix, bias=None)
+            LL += wi.unsqueeze(-2)
+        return LL
+
+    def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
         b = (1.+g) * (1.+g) / g
@@ -36,13 +60,13 @@ class LogisticModel(AbstractMultivariateModel):
         a = tuple([1]*reparametrized_time.ndimension())
         v0 = v0.unsqueeze(0).repeat(*tuple(reparametrized_time.shape),1)
         reparametrized_time = reparametrized_time.unsqueeze(-1).repeat(*a,v0.shape[-1])
+
         LL = v0 * reparametrized_time
         if self.source_dimension != 0:
             wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
             LL+= wi.unsqueeze(-2)
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
-
         return model
 
     ##############################
@@ -99,8 +123,12 @@ class LogisticModel(AbstractMultivariateModel):
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
 
         data_reconstruction = self.compute_individual_tensorized(data.timepoints, self.get_param_from_real(realizations))
+
+        # TODO : Remove norm_0 to directly get data.L2_norm in update_model_parameters
+        norm_0 = data.values * data.values * data.mask
         norm_1 = data.values * data_reconstruction * data.mask
         norm_2 = data_reconstruction * data_reconstruction * data.mask
+        sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
         sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
         sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
 
@@ -156,7 +184,7 @@ class LogisticModel(AbstractMultivariateModel):
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         #self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        S1 = data.L2_norm
+        S1 = torch.sum(suff_stats['obs_x_obs'])
         S2 = torch.sum(suff_stats['obs_x_reconstruction'])
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 

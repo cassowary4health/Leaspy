@@ -20,9 +20,6 @@ class LogisticParallelModel(AbstractMultivariateModel):
         self.attributes = Attributes_LogisticParallel(self.dimension, self.source_dimension)
         self.attributes.update(['all'],self.parameters)
 
-    def initialize(self, data, method="default"):
-        # TODO check why yhis changes tests in personalize ? seed ? or other ?
-        self = initialize_logistic_parallel(self, data, method)
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         # Population parameters

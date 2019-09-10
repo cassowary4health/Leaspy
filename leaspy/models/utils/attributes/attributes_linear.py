@@ -10,7 +10,7 @@ class Attributes_Linear():
         self.mixing_matrix = None
 
     def get_attributes(self):
-        return self.position, self.velocity, self.mixing_matrix
+        return self.positions, self.velocities, self.mixing_matrix
 
     def update(self, names_of_changed_values, values):
         self._check_names(names_of_changed_values)
@@ -57,7 +57,7 @@ class Attributes_Linear():
     def _compute_betas(self, values):
         self.betas = torch.Tensor(values['betas'])
 
-    def _compute_orthonormal_basis(self, values):
+    def _compute_orthonormal_basis(self):
         dgamma_t0 = self.velocities
 
         e1 = torch.zeros(self.dimension)

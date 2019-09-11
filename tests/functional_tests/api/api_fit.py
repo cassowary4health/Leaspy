@@ -55,5 +55,8 @@ class LeaspyFitTest(unittest.TestCase):
         diff_deltas = leaspy.model.parameters['deltas'] - torch.Tensor([-0.0087, 0.0033, 0.0113])
         self.assertAlmostEqual(torch.sum(diff_deltas ** 2), 0.0, delta=0.01)
 
+    # TODO Univariate Model ???
+    # TODO HMC, Gradient Descent
+
 
 

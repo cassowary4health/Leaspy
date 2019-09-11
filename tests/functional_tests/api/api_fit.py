@@ -1,8 +1,6 @@
 import torch
-
 import unittest
 from leaspy import Leaspy, Data, AlgorithmSettings
-
 from tests import example_data_path
 
 class LeaspyFitTest(unittest.TestCase):

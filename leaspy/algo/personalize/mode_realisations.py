@@ -50,7 +50,7 @@ class ModeReal(AbstractPersonalizeAlgo):
                 realizations_history.append(realizations.copy())
 
         # Get for each patient the realization that best fit
-        attachments = torch.stack([model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), True) for realizations in realizations_history])
+        attachments = torch.stack([model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), "MCMC") for realizations in realizations_history])
 
         # Indices min
         indices_min = torch.min(attachments, dim=0)

@@ -27,7 +27,7 @@ from tests.unit_tests.models.model_factory import ModelFactoryTest
 
 ### Functional tests ###
 from tests.functional_tests.api.api_fit import LeaspyFitTest
-#from tests.functional_tests.api.api_personalize import LeaspyPersonalizeTest
+from tests.functional_tests.api.api_personalize import LeaspyPersonalizeTest
 
 
 ### Run ###

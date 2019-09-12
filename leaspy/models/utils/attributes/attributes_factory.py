@@ -4,7 +4,11 @@ class AttributesFactory():
 
     @staticmethod
     def attributes(name, dimension, source_dimension):
-        name = name.lower()
+        if type(name) == str:
+            name = name.lower()
+        else:
+            raise AttributeError("The `name` argument must be a string!")
+            
         if name == 'univariate':
             return Attributes_Univariate()
         elif name == 'logistic':

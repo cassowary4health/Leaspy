@@ -45,14 +45,18 @@ def initialize_logistic(model, dataset, method):
 
     # Do transformations
     t0 = torch.Tensor(time)
+    slopes = np.mean(slopes)*np.ones_like(slopes)
     v0_array = torch.Tensor(np.log((np.array(slopes))))
     g_array = torch.Tensor(np.exp(1 / (1 + values)))
+    betas = torch.zeros((model.dimension - 1, model.source_dimension))
+    normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
+    #betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 
     # Create smart initialization dictionnary
     parameters = {
         'g': g_array,
         'v0': v0_array,
-        'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
+        'betas': betas,
         'tau_mean': t0, 'tau_std': 1.0,
         'xi_mean': .0, 'xi_std': 0.05,
         'sources_mean': 0.0, 'sources_std': 1.0,
@@ -64,11 +68,17 @@ def initialize_logistic(model, dataset, method):
 
 def initialize_logistic_parallel(model, dataset, method):
     if method == "default":
+
+        normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
+        #betas =normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
+        betas =  torch.zeros((model.dimension - 1, model.source_dimension))
+
+
         parameters = {
             'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
             'noise_std': 0.1, 'deltas': torch.tensor([0.0] * (model.dimension - 1)),
-            'betas': torch.zeros((model.dimension - 1, model.source_dimension))
+            'betas': betas
         }
     elif method == "random":
         # Get the slopes / values / times mu and sigma
@@ -80,6 +90,7 @@ def initialize_logistic_parallel(model, dataset, method):
         slopes = np.random.normal(loc=slopes_mu, scale=slopes_sigma)
         values = np.random.normal(loc=values_mu, scale=values_sigma)
         time = np.array(np.random.normal(loc=time_mu, scale=time_sigma))
+        betas = torch.zeros((model.dimension - 1, model.source_dimension))
 
         # Check that slopes are >0, values between 0 and 1
         slopes[slopes < 0] = 0.01
@@ -90,6 +101,7 @@ def initialize_logistic_parallel(model, dataset, method):
         t0 = torch.Tensor(time)
         v0_array = torch.Tensor(np.log((np.array(slopes))))
         g_array = torch.Tensor(np.exp(1 / (1 + values)))
+        betas = torch.distributions.normal.Normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 
         parameters = {
             'g': torch.tensor([torch.mean(g_array)]),
@@ -97,7 +109,7 @@ def initialize_logistic_parallel(model, dataset, method):
             'xi_mean': torch.mean(v0_array).detach().item(), 'xi_std': torch.tensor(0.1),
             'sources_mean': 0.0, 'sources_std': 1.0,
             'noise_std': 0.1, 'deltas': torch.tensor([0.0] * (model.dimension - 1)),
-            'betas': torch.zeros((model.dimension - 1, model.source_dimension))
+            'betas': betas
         }
 
     else:

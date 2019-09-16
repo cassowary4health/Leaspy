@@ -12,6 +12,15 @@ class MeanReal(AbstractPersonalizeAlgo):
         # Algorithm parameters
         super().__init__(settings)
 
+
+    def _initialize_annealing(self):
+        if self.algo_parameters['annealing']['do_annealing']:
+            if self.algo_parameters['annealing']['n_iter'] is None:
+                self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['n_iter']/2)
+
+        self.temperature = self.algo_parameters['annealing']['initial_temperature']
+        self.temperature_inv = 1/self.temperature
+
     # TODO cloned --> factorize in a utils ???
     def _initialize_samplers(self, model, data):
         infos_variables = model.random_variable_informations()
@@ -36,6 +45,9 @@ class MeanReal(AbstractPersonalizeAlgo):
         # Initialize samplers
         self._initialize_samplers(model, data)
 
+        # Initialize Annealing
+        self._initialize_annealing()
+
         # initialize realizations
         realizations = model.get_realization_object(data.n_individuals)
         realizations.initialize_from_values(data.n_individuals, model)
@@ -43,7 +55,7 @@ class MeanReal(AbstractPersonalizeAlgo):
         # Gibbs sample n_iter times
         for i in range(self.algo_parameters['n_iter']):
             for key in realizations.reals_ind_variable_names:
-                self.samplers[key].sample(data, model, realizations, 1.0)
+                self.samplers[key].sample(data, model, realizations, self.temperature_inv)
 
             # Append current realizations if burn in is finished
             if i>self.algo_parameters['n_burn_in_iter']:

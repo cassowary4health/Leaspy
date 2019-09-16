@@ -28,6 +28,15 @@ class ModeReal(AbstractPersonalizeAlgo):
                 else:
                     self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
 
+    def _initialize_annealing(self):
+        if self.algo_parameters['annealing']['do_annealing']:
+            if self.algo_parameters['annealing']['n_iter'] is None:
+                self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['n_iter']/2)
+
+        self.temperature = self.algo_parameters['annealing']['initial_temperature']
+        self.temperature_inv = 1/self.temperature
+
+
     def _get_individual_parameters(self, model, data):
 
         # Initialize realizations storage object
@@ -36,6 +45,9 @@ class ModeReal(AbstractPersonalizeAlgo):
         # Initialize samplers
         self._initialize_samplers(model, data)
 
+        # Initialize annealing
+        self._initialize_annealing()
+
         # initialize realizations
         realizations = model.get_realization_object(data.n_individuals)
         realizations.initialize_from_values(data.n_individuals, model)
@@ -43,14 +55,14 @@ class ModeReal(AbstractPersonalizeAlgo):
         # Gibbs sample n_iter times
         for i in range(self.algo_parameters['n_iter']):
             for key in realizations.reals_ind_variable_names:
-                self.samplers[key].sample(data, model, realizations, 1.0)
+                self.samplers[key].sample(data, model, realizations, self.temperature_inv)
 
             # Append current realizations if burn in is finished
             if i > self.algo_parameters['n_burn_in_iter']:
                 realizations_history.append(realizations.copy())
 
         # Get for each patient the realization that best fit
-        attachments = torch.stack([model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), True) for realizations in realizations_history])
+        attachments = torch.stack([model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), "MCMC") for realizations in realizations_history])
 
         # Indices min
         indices_min = torch.min(attachments, dim=0)

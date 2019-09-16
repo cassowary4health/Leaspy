@@ -26,8 +26,6 @@ class Plotter:
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
-        if model.name in ['logistic', 'logistic_parallel']:
-            plt.ylim(0, 1)
 
         colors = color_palette(range(8))
 
@@ -35,6 +33,8 @@ class Plotter:
             iterator = iter(model)
         except TypeError:
             # not iterable
+            if model.name in ['logistic', 'logistic_parallel']:
+                plt.ylim(0, 1)
 
             mean_time = model.parameters['tau_mean']
             std_time = max(model.parameters['tau_std'], 4)
@@ -50,6 +50,8 @@ class Plotter:
 
         else:
             # iterable
+            if model[0].name in ['logistic', 'logistic_parallel']:
+                plt.ylim(0, 1)
 
             timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
                                      model[0].parameters['tau_mean'] + 6 * np.sqrt(model[0].parameters['tau_std']),

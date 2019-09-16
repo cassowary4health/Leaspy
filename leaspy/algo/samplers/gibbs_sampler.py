@@ -16,8 +16,8 @@ class GibbsSampler(AbstractSampler):
             self.std = 0.005 * torch.ones(size=self.shape)
         elif info["type"] == "individual":
             # Proposition variance is adapted independantly on each patient, but is the same for multiple dimensions
-            # TODO : gérer les shapes
-            self.std = torch.Tensor([0.1]*n_patients).reshape(n_patients, 1)
+            # TODO : gérer les shapes !!! Necessary for sources
+            self.std = torch.Tensor([0.1]*n_patients*int(self.shape[0])).reshape(n_patients, int(self.shape[0]))
 
         # Acceptation rate
         self.counter_acceptation = 0
@@ -110,6 +110,7 @@ class GibbsSampler(AbstractSampler):
 
         self._update_acceptation_rate([accepted_array])
         self._update_std([accepted_array])
+
 
 
     def _sample_individual_realizations(self, data, model, realizations,temperature_inv):

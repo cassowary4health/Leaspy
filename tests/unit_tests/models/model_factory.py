@@ -12,7 +12,7 @@ class ModelFactoryTest(unittest.TestCase):
 
     def test_model_factory_constructor(self, name=None):
         """
-        Test attribute's initialization of leaspy univariate model
+        Test attribute's initialization of leaspy model
         :param name: string - name of the model
         :return: exit code
         """

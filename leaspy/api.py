@@ -1,10 +1,14 @@
-import json
 import copy
+import json
+import os
+from pickle import UnpicklingError
 
-from leaspy.inputs.data.dataset import Dataset
-from leaspy.inputs.settings.model_settings import ModelSettings
-from leaspy.models.model_factory import ModelFactory
+from torch import load, save, tensor
+
 from leaspy.algo.algo_factory import AlgoFactory
+from leaspy.inputs.data.dataset import Dataset
+from leaspy.models.model_factory import ModelFactory
+from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.inputs.data.result import Result
 
 
@@ -88,8 +92,28 @@ class Leaspy:
             save(dump, path)  # save function from torch
 
     @staticmethod
-    def load_individual_parameters(path):
-        with open(path, 'r') as f:
-            individual_parameters = json.load(f)
+    def load_individual_parameters(path, verbose=True):
+        """
+        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor
 
+        :param path: string - file's path
+        :param verbose: boolean = True by default
+            Precise if the loaded file can be read as a torch file or need conversion
+        :return: dictionary of torch.tensor - individual parameters
+        """
+        # Test if file is a torch file
+        try:
+            individual_parameters = load(path)  # load function from torch
+            if verbose: print("Load from torch file")
+        except UnpicklingError:
+            # Else if it is a json file
+            with open(path, 'r') as f:
+                individual_parameters = json.load(f)
+                if verbose: print("Load from json file ... conversion to torch file")
+                for key in individual_parameters.keys():
+                    # Convert every list in torch.tensor
+                    individual_parameters[key] = tensor(individual_parameters[key])
+                    # If tensor is 1-dimensional tensor([1, 2, 3]) => reshape it in tensor([[1], [2], [3]])
+                    if individual_parameters[key].dim() == 1:
+                        individual_parameters[key] = individual_parameters[key].view(-1, 1)
         return individual_parameters

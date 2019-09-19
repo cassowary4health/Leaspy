@@ -10,7 +10,7 @@ class AbstractModelTest(unittest.TestCase):
         Test initialization of abstract model class object
         :return: exit code
         """
-        print("Unit-test AbstractModel")
+        print("Unit-test constructor AbstractModel")
 
         model = AbstractModel("dummy_abstractmodel")
         self.assertEqual(model.parameters, None)

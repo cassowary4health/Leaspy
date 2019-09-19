@@ -10,7 +10,7 @@ class UnivariateModelTest(AbstractModelTest):
         Test attribute's initialization of leaspy univariate model
         :return: exit code
         """
-        print('Unit-test UnivariateModel')
+        print('Unit-test constructor UnivariateModel')
 
         if model is None:
             model = UnivariateModel('univariate')

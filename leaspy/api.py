@@ -65,10 +65,11 @@ class Leaspy:
             If set to False - save a torch object (which cannot be read from a text editor)
         :return: None
         """
-        # Test path's folder existence
-        if not os.path.isdir(os.path.dirname(path)):
-            raise FileNotFoundError('Cannot save individual parameter at path %s - The folder does not exist!' % path)
-            # Question : add 'make_dir = True' parameter to create the folder if it does not exist?
+        # Test path's folder existence (if path contain a folder)
+        if os.path.dirname(path) != '':
+            if not os.path.isdir(os.path.dirname(path)):
+                raise FileNotFoundError('Cannot save individual parameter at path %s - The folder does not exist!' % path)
+                # Question : add 'make_dir = True' parameter to create the folder if it does not exist?
 
         dump = copy.deepcopy(individual_parameters)
         # Ex: individual_parameters = {'param1': torch.tensor([[1], [2], [3]]), ...}

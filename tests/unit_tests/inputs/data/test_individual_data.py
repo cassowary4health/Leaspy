@@ -1,6 +1,4 @@
 import unittest
-import numpy as np
-import torch
 
 from leaspy.inputs.data.individual_data import IndividualData
 
@@ -22,7 +20,7 @@ class IndividualDataTest(unittest.TestCase):
         self.assertEqual(data_string.idx, 'test')
 
     def test_add_observation(self):
-        ### Add first observation
+        # Add first observation
         data = IndividualData('test')
         data.add_observation(70, [30])
 
@@ -32,21 +30,20 @@ class IndividualDataTest(unittest.TestCase):
         self.assertEqual(data.timepoints, [70])
         self.assertEqual(data.observations, [[30]])
 
-
-        ### Add second observation
+        # Add second observation
         data.add_observation(80, [40])
         self.assertEqual(data.timepoints, [70, 80])
         self.assertEqual(data.observations, [[30], [40]])
 
-        ### Add third observation
+        # Add third observation
         data.add_observation(75, [35])
         self.assertEqual(data.timepoints, [70, 75, 80])
         self.assertEqual(data.observations, [[30], [35], [40]])
 
-        ### Add individual parameter
+        # Add individual parameter
         data.add_individual_parameters("xi", 0.02)
         self.assertEqual(data.individual_parameters, {'xi': 0.02})
 
-        ### Add cofactors
+        # Add cofactors
         data.add_cofactor('gender', 'male')
         self.assertEqual(data.cofactors, {'gender': 'male'})

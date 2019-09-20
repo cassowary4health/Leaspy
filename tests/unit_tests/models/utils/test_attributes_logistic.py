@@ -3,6 +3,7 @@ import unittest
 
 from leaspy.models.utils.attributes.attributes_logistic import Attributes_Logistic
 
+
 class AttributesLogisticTest(unittest.TestCase):
 
     def test_constructor(self):
@@ -22,14 +23,13 @@ class AttributesLogisticTest(unittest.TestCase):
         attributes = Attributes_Logistic(4, 2)
         attributes.update(names, values)
 
-        ### Test the orthogonality condition
+        # Test the orthogonality condition
         metric_normalization = attributes.g.pow(2) / (1 + attributes.g).pow(2)
 
         orthonormal_basis = attributes.orthonormal_basis
         for orthonormal_vector in orthonormal_basis.permute(1, 0):
             self.assertAlmostEqual(torch.norm(orthonormal_vector).data.numpy().tolist(), 1, delta=0.000001)
             self.assertAlmostEqual(torch.dot(orthonormal_vector, attributes.v0 * metric_normalization), 0, delta=10**-6)
-
 
     def test_mixing_matrix_utils(self):
         names = ['all']

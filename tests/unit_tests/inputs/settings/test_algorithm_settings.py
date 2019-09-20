@@ -8,7 +8,6 @@ from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
 
 class AlgorithmSettingsTest(unittest.TestCase):
 
-
     def test_default_constructor(self):
 
         # Default constructor

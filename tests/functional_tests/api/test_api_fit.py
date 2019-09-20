@@ -3,6 +3,7 @@ import unittest
 from leaspy import Leaspy, Data, AlgorithmSettings
 from tests import example_data_path
 
+
 class LeaspyFitTest(unittest.TestCase):
 
     ## Test MCMC-SAEM
@@ -30,7 +31,6 @@ class LeaspyFitTest(unittest.TestCase):
 
         self.assertAlmostEqual(torch.sum(diff_g**2), 0.0, delta=0.01)
         self.assertAlmostEqual(torch.sum(diff_v**2), 0.0, delta=0.01)
-
 
     def test_fit_logisticparallel(self):
         # Inputs

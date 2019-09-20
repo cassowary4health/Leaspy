@@ -4,7 +4,6 @@ from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.attributes.attributes_logistic import Attributes_Logistic
 
 
-
 class AttributesLinearTest(unittest.TestCase):
 
     def test_attributes(self):

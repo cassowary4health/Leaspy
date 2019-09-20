@@ -1,10 +1,14 @@
-import json
 import copy
+import json
+import os
+from pickle import UnpicklingError
 
-from leaspy.inputs.data.dataset import Dataset
-from leaspy.inputs.settings.model_settings import ModelSettings
-from leaspy.models.model_factory import ModelFactory
+from torch import load, save, tensor
+
 from leaspy.algo.algo_factory import AlgoFactory
+from leaspy.inputs.data.dataset import Dataset
+from leaspy.models.model_factory import ModelFactory
+from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.inputs.data.result import Result
 
 
@@ -50,20 +54,67 @@ class Leaspy:
         return simulated_data
 
     @staticmethod
-    def save_individual_parameters(path, individual_parameters):
+    def save_individual_parameters(path, individual_parameters, human_readable=True):
+        """
+        Save individual parameters coming from leaspy Result class object
+
+        :param path: string - output path
+        :param individual_parameters: dictionary of 2-dimensional torch.tensor (use result.individual_parameters)
+        :param human_readable: boolean = True by default
+            If set to True - save a json object
+            If set to False - save a torch object (which cannot be read from a text editor)
+        :return: None
+        """
+        # Test path's folder existence (if path contain a folder)
+        if os.path.dirname(path) != '':
+            if not os.path.isdir(os.path.dirname(path)):
+                raise FileNotFoundError('Cannot save individual parameter at path %s - The folder does not exist!' % path)
+                # Question : add 'make_dir = True' parameter to create the folder if it does not exist?
+
         dump = copy.deepcopy(individual_parameters)
+        # Ex: individual_parameters = {'param1': torch.tensor([[1], [2], [3]]), ...}
 
-        for key1 in dump.keys():
-            for key2 in dump[key1]:
-                if type(dump[key1][key2]) not in [list]:
-                    dump[key1][key2] = dump[key1][key2].tolist()
-
-        with open(path, 'w') as fp:
-            json.dump(dump, fp)
+        # Create a human readable file with json
+        if human_readable:
+            for key in dump.keys():
+                if type(dump[key]) not in [list]:
+                    # For multivariate parameter - like sources
+                    # convert tensor([[1, 2], [2, 3]]) into [[1, 2], [2, 3]]
+                    if dump[key].shape[1] == 2:
+                        dump[key] = dump[key].tolist()
+                    # for univariate parameters - like xi & tau
+                    # convert tensor([[1], [2], [3]]) into [1, 2, 3] => use torch.tensor.view(-1)
+                    elif dump[key].shape[1] == 1:
+                        dump[key] = dump[key].view(-1).tolist()
+            with open(path, 'w') as fp:
+                json.dump(dump, fp)
+        # Create a torch file
+        else:
+            save(dump, path)  # save function from torch
 
     @staticmethod
-    def load_individual_parameters(path):
-        with open(path, 'r') as f:
-            individual_parameters = json.load(f)
+    def load_individual_parameters(path, verbose=True):
+        """
+        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor
 
+        :param path: string - file's path
+        :param verbose: boolean = True by default
+            Precise if the loaded file can be read as a torch file or need conversion
+        :return: dictionary of torch.tensor - individual parameters
+        """
+        # Test if file is a torch file
+        try:
+            individual_parameters = load(path)  # load function from torch
+            if verbose: print("Load from torch file")
+        except UnpicklingError:
+            # Else if it is a json file
+            with open(path, 'r') as f:
+                individual_parameters = json.load(f)
+                if verbose: print("Load from json file ... conversion to torch file")
+                for key in individual_parameters.keys():
+                    # Convert every list in torch.tensor
+                    individual_parameters[key] = tensor(individual_parameters[key])
+                    # If tensor is 1-dimensional tensor([1, 2, 3]) => reshape it in tensor([[1], [2], [3]])
+                    if individual_parameters[key].dim() == 1:
+                        individual_parameters[key] = individual_parameters[key].view(-1, 1)
         return individual_parameters

@@ -4,11 +4,12 @@ import numpy as np
 
 from leaspy.utils.realizations.realization import Realization
 
+
 class AbstractModel():
     def __init__(self, name):
-        self.parameters = None
         self.is_initialized = False
         self.name = name
+        self.parameters = None
 
     def load_parameters(self, parameters):
         self.parameters = {}

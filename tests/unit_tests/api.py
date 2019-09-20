@@ -37,7 +37,7 @@ class LeaspyTest(unittest.TestCase):
         """
         if path is None:
             data_path_torch = os.path.join(test_data_dir,
-                                           'individual_parameters/individual_parameters-unit_tests-torch-Copy.pt')
+                                           'individual_parameters/individual_parameters-unit_tests-torch.pt')
             data_path_json = os.path.join(test_data_dir,
                                           'individual_parameters/individual_parameters-unit_tests-json.json')
             self.test_load_individual_parameters(data_path_torch)
@@ -50,7 +50,7 @@ class LeaspyTest(unittest.TestCase):
                              tensor([[1, 2], [2, 3], [3, 4]])).min().item() == 1)
 
     def test_save_individual_parameters(self):
-        individual_parameters = {'xi': tensor([[2], [2], [3]]),
+        individual_parameters = {'xi': tensor([[1], [2], [3]]),
                                  'tau': tensor([[2], [3], [4]]),
                                  'sources': tensor([[1, 2], [2, 3], [3, 4]])}
 

@@ -22,15 +22,16 @@ class LeaspyTest(unittest.TestCase):
         leaspy.model.load_hyperparameters({'source_dimension': 2})
         leaspy.fit(data, algorithm_settings=algo_settings)
 
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2596, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 77.9872, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 1.0339, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2842, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 77.9887, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 1.0315, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], 0.0, delta=0.001)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1707, delta=0.001)
-        diff_g = leaspy.model.parameters['g'] - torch.Tensor([1.9883, 2.5703, 2.5591, 2.2219])
-        diff_v = leaspy.model.parameters['v0'] - torch.Tensor([-3.3347, -3.9911, -4.1306, -3.2095])
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1439, delta=0.001)
+        diff_g = leaspy.model.parameters['g'] - torch.Tensor([1.9557, 2.5899, 2.5184, 2.2369])
+        diff_v = leaspy.model.parameters['v0'] - torch.Tensor([-3.5714, -3.5820, -3.5811, -3.5886])
         self.assertAlmostEqual(torch.sum(diff_g ** 2), 0.0, delta=0.01)
         self.assertAlmostEqual(torch.sum(diff_v ** 2), 0.0, delta=0.01)
+
 
         # Save parameters and reload
         path_to_saved_model = os.path.join(os.path.dirname(__file__), '../../_data',
@@ -39,13 +40,13 @@ class LeaspyTest(unittest.TestCase):
         leaspy.save(path_to_saved_model)
         leaspy = Leaspy.load(path_to_saved_model)
 
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2596, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 77.9872, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 1.0339, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2842, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 77.9887, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 1.0315, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], 0.0, delta=0.001)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1707, delta=0.001)
-        diff_g = leaspy.model.parameters['g'] - torch.Tensor([1.9883, 2.5703, 2.5591, 2.2219])
-        diff_v = leaspy.model.parameters['v0'] - torch.Tensor([-3.3347, -3.9911, -4.1306, -3.2095])
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1439, delta=0.001)
+        diff_g = leaspy.model.parameters['g'] - torch.Tensor([1.9557, 2.5899, 2.5184, 2.2369])
+        diff_v = leaspy.model.parameters['v0'] - torch.Tensor([-3.5714, -3.5820, -3.5811, -3.5886])
         self.assertAlmostEqual(torch.sum(diff_g ** 2), 0.0, delta=0.01)
         self.assertAlmostEqual(torch.sum(diff_v ** 2), 0.0, delta=0.01)
 
@@ -53,14 +54,14 @@ class LeaspyTest(unittest.TestCase):
         algo_personalize_settings = AlgorithmSettings('mode_real', seed=0)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
-        self.assertAlmostEqual(result.noise_std, 0.2145, delta=0.01)
+        self.assertAlmostEqual(result.noise_std, 0.0923, delta=0.01)
 
         # Plot
         path_output = os.path.join(os.path.dirname(__file__), '../../_data',
                                            "_outputs")
         plotter = Plotter(path_output)
-        plotter.plot_mean_trajectory(leaspy.model,
-                                     save_as="mean_trajectory_plot")
+        #plotter.plot_mean_trajectory(leaspy.model,
+        #                             save_as="mean_trajectory_plot")
         plt.close()
 
 

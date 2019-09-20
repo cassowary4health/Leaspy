@@ -8,8 +8,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
 
     ## Test MCMC-SAEM
 
-
-
     def test_personalize_meanrealization(self):
         """
         Load logistic model from file, and personalize it to data from ...
@@ -45,21 +43,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
 
         self.assertAlmostEqual(result.noise_std,  0.1169, delta=0.01)
 
-    # TODO : problem with nans
-    """
-    def test_personalize_gradientdescent(self):
-        # Inputs
-        data = Data.from_csv_file(example_data_path)
-
-        # Initialize
-        leaspy = Leaspy.load(example_logisticmodel_path)
-
-        # Launch algorithm
-        algo_personalize_settings = AlgorithmSettings('gradient_descent_personalize', seed=2) 
-        result = leaspy.personalize(data, settings=algo_personalize_settings)
-
-        self.assertAlmostEqual(result.noise_std,  0.17925, delta=0.01)"""
-
 
     def test_personalize_modereal(self):
         """
@@ -77,3 +60,19 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
         self.assertAlmostEqual(result.noise_std,  0.1203, delta=0.01)
+
+
+    # TODO : problem with nans
+    """
+    def test_personalize_gradientdescent(self):
+        # Inputs
+        data = Data.from_csv_file(example_data_path)
+
+        # Initialize
+        leaspy = Leaspy.load(example_logisticmodel_path)
+
+        # Launch algorithm
+        algo_personalize_settings = AlgorithmSettings('gradient_descent_personalize', seed=2) 
+        result = leaspy.personalize(data, settings=algo_personalize_settings)
+
+        self.assertAlmostEqual(result.noise_std,  0.17925, delta=0.01)"""

@@ -34,15 +34,15 @@ class AlgorithmSettings:
         algorithm_settings = cls(settings['name'])
 
         if 'parameters' in settings.keys():
-            print("You overwritten the algorithm default parameters")
+            print("You overwrote the algorithm default parameters")
             algorithm_settings.parameters = cls._get_parameters(settings)
 
         if 'seed' in settings.keys():
-            print("You overwritten the algorithm default seed")
+            print("You overwrote the algorithm default seed")
             algorithm_settings.seed = cls._get_seed(settings)
 
         if 'initialization_method' in settings.keys():
-            print("You overwritten the algorithm default initialization method")
+            print("You overwrote the algorithm default initialization method")
             algorithm_settings.initialization_method = cls._get_initialization_method(settings)
 
         return algorithm_settings

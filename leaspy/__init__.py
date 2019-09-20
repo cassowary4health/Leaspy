@@ -1,3 +1,6 @@
+
+__version__ = '0.1.0rc1'
+
 # API
 from .api import Leaspy
 

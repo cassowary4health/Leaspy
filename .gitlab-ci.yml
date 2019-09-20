@@ -9,7 +9,7 @@ test:mac:
   script:
     - pwd
     - source activate leaspy
-    - python test.py
+    - python -m unittest discover tests
     - source deactivate
 
 test:linux:
@@ -19,5 +19,5 @@ test:linux:
   script:
     - pwd
     - source activate leaspy
-    - python test.py
+    - python -m unittest discover tests
     - source deactivate

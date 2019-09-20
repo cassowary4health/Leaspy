@@ -4,10 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
 
+
 class AbstractModel():
     def __init__(self, name):
-        self.parameters = None
+        self.name = name
         self.is_initialized = False
+        self.parameters = None
 
     def load_parameters(self, parameters):
         self.parameters = {}

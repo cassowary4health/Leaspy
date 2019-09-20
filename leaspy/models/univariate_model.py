@@ -15,10 +15,9 @@ class UnivariateModel(AbstractModel):
     ## Initialization
     ###########################
     def __init__(self,name):
-
         super(UnivariateModel, self).__init__(name)
         self.dimension=1
-        self.source_dimension=0
+        self.source_dimension=0 # TODO, None ???
         self.parameters = {
             "g": None,
             "tau_mean": None, "tau_std": None,
@@ -70,14 +69,14 @@ class UnivariateModel(AbstractModel):
         self.attributes = Attributes_Univariate()
         self.attributes.update(['all'],self.parameters)
 
-    def initialize_MCMC_toolbox(self, data):
+    def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 1.},
             'attributes': Attributes_Univariate()
         }
 
-        realizations = self.get_realization_object(data.n_individuals)
-        self.update_MCMC_toolbox(['all'], realizations)
+        population_dictionary = self._create_dictionary_of_population_realizations()
+        self.update_MCMC_toolbox(["all"], population_dictionary)
 
     ##########
     # CORE
@@ -99,15 +98,20 @@ class UnivariateModel(AbstractModel):
             g = self.attributes.g
         return g
 
-    def compute_sum_squared_tensorized(self, data, param_ind, attribute_type):
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-        res *= data.mask
-        return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
+    #def compute_sum_squared_tensorized(self, data, param_ind, attribute_type):
+    #    res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+    #    res *= data.mask
+    #    return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
-    def compute_mean_traj(self, timepoints):
-        xi = self.parameters['xi_mean']
-        tau = self.parameters['tau_mean']
-        return self.compute_individual_tensorized(timepoints, (xi, tau))
+
+    # TODO generalize in abstract
+    def compute_mean_traj(self,timepoints):
+        individual_parameters = {
+            'xi': torch.Tensor([self.parameters['xi_mean']]),
+            'tau': torch.Tensor([self.parameters['tau_mean']]),
+        }
+
+        return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     def plot_param_ind(self,path,param_ind):
         pdf = matplotlib.backends.backend_pdf.PdfPages(path)
@@ -125,7 +129,7 @@ class UnivariateModel(AbstractModel):
         # Population parameters
         g = self._get_attributes(MCMC)
         # Individual parameters
-        xi, tau = ind_parameters
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
 
         LL = -reparametrized_time.unsqueeze(-1)
@@ -142,8 +146,8 @@ class UnivariateModel(AbstractModel):
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
         #TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        xi, tau = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, (xi,tau),MCMC=True)
+        ind_parameters = self.get_param_from_real(realizations)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, ind_parameters,MCMC=True)
         data_reconstruction *= data.mask
         norm_0 = data.values * data.values * data.mask
         norm_1 = data.values * data_reconstruction * data.mask
@@ -190,10 +194,10 @@ class UnivariateModel(AbstractModel):
 
         self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
 
-    def get_param_from_real(self,realizations):
-        xi = realizations['xi'].tensor_realizations
-        tau = realizations['tau'].tensor_realizations
-        return (xi,tau)
+    #def get_param_from_real(self,realizations):
+    #    xi = realizations['xi'].tensor_realizations
+    #    tau = realizations['tau'].tensor_realizations
+    #    return (xi,tau)
 
     def param_ind_from_dict(self, individual_parameters):
         xi, tau = [], []

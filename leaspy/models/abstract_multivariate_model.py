@@ -10,7 +10,6 @@ from leaspy.models.utils.initialization.model_initialization import initialize_p
 class AbstractMultivariateModel(AbstractModel):
     def __init__(self, name):
         super(AbstractMultivariateModel, self).__init__(name)
-        self.name = name
         self.source_dimension = None
         self.dimension = None
         self.parameters = {
@@ -72,8 +71,7 @@ class AbstractMultivariateModel(AbstractModel):
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)
 
-    def time_reparametrization(self, timepoints, xi, tau):
-        return torch.exp(xi) * (timepoints - tau)
+
 
     def compute_mean_traj(self,timepoints):
         individual_parameters = {
@@ -84,15 +82,7 @@ class AbstractMultivariateModel(AbstractModel):
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
-    def _create_dictionary_of_population_realizations(self):
-        pop_dictionary = {}
-        for name_var, info_var in self.random_variable_informations().items():
-            if info_var['type'] != "population":
-                continue
-            real = Realization.from_tensor(name_var, info_var['shape'], info_var['type'], self.parameters[name_var])
-            pop_dictionary[name_var] = real
 
-        return pop_dictionary
 
     def _get_attributes(self, attribute_type):
         if attribute_type is None:
@@ -102,14 +92,3 @@ class AbstractMultivariateModel(AbstractModel):
         else:
             raise ValueError("The specified attribute type does not exist : {}".format(attribute_type))
 
-    def get_param_from_real(self, realizations):
-
-        individual_parameters = dict.fromkeys(self.get_individual_variable_name())
-
-        for variable_ind in self.get_individual_variable_name():
-            if variable_ind == "sources" and self.source_dimension == 0:
-                individual_parameters[variable_ind] = None
-            else:
-                individual_parameters[variable_ind] = realizations[variable_ind].tensor_realizations
-
-        return individual_parameters

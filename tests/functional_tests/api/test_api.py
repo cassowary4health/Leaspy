@@ -13,6 +13,16 @@ class LeaspyTest(unittest.TestCase):
 
 
     def test_usecase(self):
+        """
+        Fonctional test of a basic analysis using leaspy package
+        1 - Data loading
+        2 - Fit logistic model with MCMC algorithm
+        3 - Save paramaters & reload (remove created files to keep the repo clean)
+        4 - Personalize model with 'mode_real' algorithm
+        5 - Plot results
+        6 - Simulate new patients (TODO)
+        :return: exit code
+        """
 
         data = Data.from_csv_file(example_data_path)
 
@@ -34,11 +44,12 @@ class LeaspyTest(unittest.TestCase):
 
 
         # Save parameters and reload
-        path_to_saved_model = os.path.join(os.path.dirname(__file__), '../../_data',
+        path_to_saved_model = os.path.join(test_data_dir,
                                            "model_parameters",
-                                           'fitted_multivariate_model_testusecase.json')
+                                           'fitted_multivariate_model_testusecase-copy.json')
         leaspy.save(path_to_saved_model)
         leaspy = Leaspy.load(path_to_saved_model)
+        os.remove(path_to_saved_model)
 
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2842, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 77.9887, delta=0.01)

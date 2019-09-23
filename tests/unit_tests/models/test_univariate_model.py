@@ -1,6 +1,6 @@
 from leaspy.models.univariate_model import UnivariateModel
 
-from .abstract_model import AbstractModelTest
+from .test_abstract_model import AbstractModelTest
 
 
 class UnivariateModelTest(AbstractModelTest):

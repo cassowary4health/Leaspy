@@ -47,13 +47,13 @@ class DatasetTest(unittest.TestCase):
                         [[1.], [1.], [0.], [0.]],
                         [[1.], [1.], [1.], [1.]]])
 
-        timepoints = torch.Tensor([
+        timepoints = torch.tensor([
             [1., 2., 3., 0.],
             [1., 2., 0., 0.],
             [1., 2., 4., 5.]
         ])
 
         self.assertEqual(np.array_equal(dataset.values, values), True)
-        #self.assertEqual(np.array_equal(dataset.mask, mask), True) #TODO check this
-        #print(dataset.timepoints)
+        # self.assertEqual(np.array_equal(dataset.mask, mask), True) #TODO check this
+        # print(dataset.timepoints)
         self.assertAlmostEqual((dataset.timepoints - timepoints).sum(), 0, delta=10e-5)

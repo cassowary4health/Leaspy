@@ -1,5 +1,5 @@
-from .abstract_model import AbstractModelTest
-from .univariate_model import UnivariateModelTest
+from .test_abstract_model import AbstractModelTest
+from .test_univariate_model import UnivariateModelTest
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 

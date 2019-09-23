@@ -4,6 +4,9 @@ from leaspy import Leaspy, Data, AlgorithmSettings
 from tests import example_logisticmodel_path
 from tests import example_data_path
 
+import os
+
+
 class LeaspyPersonalizeTest(unittest.TestCase):
 
     ## Test MCMC-SAEM
@@ -20,10 +23,11 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         leaspy = Leaspy.load(example_logisticmodel_path)
 
         # Launch algorithm
-        algo_personalize_settings = AlgorithmSettings('mean_real', seed=0)
+        path_settings = os.path.join(os.path.dirname(__file__), "data/settings_mean_real.json")
+        algo_personalize_settings = AlgorithmSettings.load(path_settings)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
-        self.assertAlmostEqual(result.noise_std,  0.1441, delta=0.01)
+        self.assertAlmostEqual(result.noise_std,  0.108, delta=0.01)
 
 
     def test_personalize_scipy(self):
@@ -56,10 +60,11 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         leaspy = Leaspy.load(example_logisticmodel_path)
 
         # Launch algorithm
-        algo_personalize_settings = AlgorithmSettings('mode_real', seed=0)
+        path_settings = os.path.join(os.path.dirname(__file__), "data/settings_mode_real.json")
+        algo_personalize_settings = AlgorithmSettings.load(path_settings)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
-        self.assertAlmostEqual(result.noise_std,  0.1203, delta=0.01)
+        self.assertAlmostEqual(result.noise_std,   0.10314258, delta=0.01)
 
 
     # TODO : problem with nans

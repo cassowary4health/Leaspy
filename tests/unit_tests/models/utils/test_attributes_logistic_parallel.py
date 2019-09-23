@@ -1,4 +1,3 @@
-import os
 import torch
 import unittest
 
@@ -6,8 +5,6 @@ from leaspy.models.utils.attributes.attributes_logistic_parallel import Attribut
 
 
 class AttributesLogisticParallelTest(unittest.TestCase):
-
-
 
     def test_constructor(self):
         attributes = Attributes_LogisticParallel(6, 2)
@@ -28,7 +25,7 @@ class AttributesLogisticParallelTest(unittest.TestCase):
         attributes = Attributes_LogisticParallel(4, 2)
         attributes.update(names, values)
 
-        ### Test the first value of the derivative of gamma at t0
+        # Test the first value of the derivative of gamma at t0
         p0 = 1. / (1. + torch.exp(values['g']))
         standard_v0 = torch.exp(values['xi_mean']) * p0 * (1 - p0)
 
@@ -36,7 +33,7 @@ class AttributesLogisticParallelTest(unittest.TestCase):
         self.assertEqual(dgamma_t0[0], standard_v0)
         self.assertEqual(dgamma_t0[2], standard_v0)
 
-        ### Test the orthogonality condition
+        # Test the orthogonality condition
         gamma_t0 = 1. / (1 + attributes.g*torch.exp(-attributes.deltas))
         metric_normalization = gamma_t0.pow(2) * (1 - gamma_t0).pow(2)
 
@@ -44,7 +41,6 @@ class AttributesLogisticParallelTest(unittest.TestCase):
         for orthonormal_vector in orthonormal_basis.permute(1, 0):
             self.assertAlmostEqual(torch.norm(orthonormal_vector).data.numpy().tolist(), 1, delta=0.000001)
             self.assertAlmostEqual(torch.dot(orthonormal_vector, dgamma_t0 / metric_normalization), 0, delta=10**-6)
-
 
     def test_mixing_matrix_utils(self):
 

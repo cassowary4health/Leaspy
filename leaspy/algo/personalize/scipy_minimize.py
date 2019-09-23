@@ -116,7 +116,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             #    'sources': sources
             #}
 
-            individual_parameters
+            # individual_parameters
 
             total_error.append(err.squeeze(0).detach().numpy())
 

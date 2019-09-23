@@ -1,5 +1,9 @@
 # Leaspy - LEArning Spatiotemporal Patterns in Python
 
+
+[![pipeline status](https://gitlab.com/icm-institute/aramislab/leaspy/badges/master/pipeline.svg)](https://gitlab.com/icm-institute/aramislab/leaspy/commits/master)
+
+
 >  DISCLAIMER : This version is intended for beta-testing yet. There might remain bugs, therefore, use it precautiously, especially the results that you obtain.
 
 

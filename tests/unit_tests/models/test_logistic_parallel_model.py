@@ -1,4 +1,4 @@
-from .abstract_multivariate_model import AbstractMultivariateModelTest
+from .test_abstract_multivariate_model import AbstractMultivariateModelTest
 
 from leaspy.models.multivariate_parallel_model import MultivariateParallelModel
 

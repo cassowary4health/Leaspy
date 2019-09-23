@@ -26,8 +26,9 @@ class AbstractModelTest(unittest.TestCase):
 
         for attribute in main_methods:
             self.assertTrue(attribute in present_attributes)
+        # TODO: use python's hasattr and issubclass
 
-    #TODO
+    # TODO
     """
     def test_load_parameters(self):
         abstract_model = AbstractModel()

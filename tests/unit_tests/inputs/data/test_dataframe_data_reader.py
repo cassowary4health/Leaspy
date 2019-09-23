@@ -1,14 +1,18 @@
 import os
 import unittest
+import pandas as pd
 
 from tests import test_data_dir
-from leaspy.inputs.data.csv_data_reader import CSVDataReader
+from leaspy.inputs.data.dataframe_data_reader import DataframeDataReader
 
-class CSVDataReaderTest(unittest.TestCase):
+
+class DataframeDataReaderTest(unittest.TestCase):
 
     def test_constructor_univariate(self):
         path = os.path.join(test_data_dir, 'inputs', 'univariate_data.csv')
-        reader = CSVDataReader(path)
+        df = pd.read_csv(path)
+
+        reader = DataframeDataReader(df)
 
         iter_to_idx = {
             0: '100_S_0006', 1: '018_S_0103', 2: '027_S_0179', 3: '035_S_0204',
@@ -22,10 +26,11 @@ class CSVDataReaderTest(unittest.TestCase):
         self.assertEqual(reader.n_visits, 33)
         self.assertEqual(reader.n_observations, 33)
 
-
     def test_constructor_multivariate(self):
         path = os.path.join(test_data_dir, 'inputs', 'multivariate_data.csv')
-        reader = CSVDataReader(path)
+        df = pd.read_csv(path)
+
+        reader = DataframeDataReader(df)
 
         iter_to_idx = {
             0: '007_S_0041', 1: '100_S_0069', 2: '007_S_0101', 3: '130_S_0102', 4: '128_S_0138'

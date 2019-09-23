@@ -5,6 +5,7 @@ import numpy as np
 from leaspy.utils.realizations.realization import Realization
 
 
+
 class AbstractModel():
     def __init__(self, name):
         self.is_initialized = False

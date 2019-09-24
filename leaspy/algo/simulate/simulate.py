@@ -1,29 +1,46 @@
 import numpy as np
 import pandas as pd
-import scipy
+# import scipy
 import torch
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.inputs.data.data import Data
+from leaspy.inputs.data.result import Result
 
 
 class SimulationAlgorithm(AbstractAlgo):
+    """
+    SimulationAlgorithm object class.
+    This algorithm simulate new data given existing one by learning the individual parameters joined distribution
+    """
 
     def __init__(self, settings):
+        """
+        Process initializer function that is called by Leaspy.simulate
 
+        :param settings: an leaspy.inputs.algorithm_settings class object
+        """
         self.number_of_subjects = settings.parameters['number_of_subjects']
         self.bandwidth_method = settings.parameters['bandwidth_method']
         self.noise = settings.parameters['noise']
         self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
 
-
-    def _initialize_kernel(self, results):
+    def _initialize_kernel(self, results=None):
         return 0
 
     def _sample_sources(self, xi, tau, bl, source_dimension):
+        """
+        Simulate individual sources given log-acceleration xi, time-shift tau, baseline time bl & sources dimension
+
+        :param xi: float - log-acceleration
+        :param tau: float - time-shift
+        :param bl: float - baseline tyme
+        :param source_dimension: int - sources dimension
+        :return: numpy.array - sources
+        """
         ind_1 = [0, 1, 2]
         ind_2 = list(range(3, source_dimension + 3))
         x_1 = np.vstack((xi, tau, bl))
@@ -39,68 +56,93 @@ class SimulationAlgorithm(AbstractAlgo):
 
         return np.random.multivariate_normal(mean_cond, cov_cond)
 
-    def _get_number_of_visits(self, xi, tau, bl, sources):
-        number_of_visits = int(self.mean_number_of_visits)
+    def _get_number_of_visits(self):  # ,xi, tau, bl, sources):
+        """
+        Simulate number of visits for a new simulated patient
 
+        :return: int - number of visits
+        """
+        # Generate a number of visit around the mean_number_of_visits
+        number_of_visits = int(self.mean_number_of_visits)
         if self.mean_number_of_visits != 0:
             number_of_visits += int(np.random.normal(0, self.std_number_of_visits))
-
         return number_of_visits
 
     def run(self, model, results):
+        """
+        Run simulation - learn joined distribution of patients' individual parameters and return a results object
+        containing the simulated individual data and parameters.
 
-        xi, tau, bl, sources = [], [], [], []
-        for k, v in results.individual_parameters.items():
-            xi.append(v['xi'])
-            tau.append(v['tau'])
-            sources.append(v['sources'])
-            ages = results.data.get_by_idx(k).timepoints
+        :param model: leaspy model class object
+        :param results: leaspy result class object
+        :return: leaspy result object - contain the simulated individual data and parameters
+        """
+        # Get individual parameters - for joined density estimation
+        xi = results.get_parameter_distribution('xi')
+        tau = results.get_parameter_distribution('tau')
+        sources = results.get_parameter_distribution('sources')
+        sources = np.array([sources[key] for key in sources.keys()])
+        bl = []
+        for idx in results.data.individuals.keys():
+            ages = results.data.get_by_idx(idx).timepoints
             bl.append(min(ages))
 
+        # Get joined density estimation (sources are not learn in this fashion)
         distribution = np.array([xi, tau, bl]).T
         SS = StandardScaler()
         rescaled_distribution = SS.fit_transform(distribution)
         kernel = stats.gaussian_kde(rescaled_distribution.T, bw_method=self.bandwidth_method)
 
-        df = np.concatenate((np.array([xi, tau, bl]), np.array(sources).T), axis=0).T
+        # Get mean by variable & covariance matrix
+        df = np.concatenate((np.array([xi, tau, bl]), sources), axis=0).T
         df = pd.DataFrame(data=df)
-
         self.df_mean = df.mean().values
         self.df_cov = df.cov().values
 
+        # Generate individual parameters (except sources)
         samples = np.transpose(kernel.resample(self.number_of_subjects))
         samples = SS.inverse_transform(samples)
 
+        # Initialize simulated scores
         indices, timepoints, values = [], [], []
+        # Simulated parameters
+        xi, tau, bl = samples.T
+        sources = []
 
-        for idx, s in enumerate(samples):
-            xi, tau, bl = s
-            bl = bl - 1
-            sources = self._sample_sources(xi, tau, bl, model.source_dimension)
-            number_of_visits = self._get_number_of_visits(xi, tau, bl, sources)
+        # Generate individual sources, scores, indices & time-points
+        for i in range(self.number_of_subjects):
+            # Generate sources
+            sources.append(self._sample_sources(xi[i], tau[i], bl[i] - 1, model.source_dimension))
+            # Generate time-points
+            number_of_visits = self._get_number_of_visits()  # xi[i], tau[i], bl[i] - 1, sources[-1])
             if number_of_visits == 1:
-                ages = [bl]
+                ages = [bl[i] - 1]
             elif number_of_visits == 2:
-                ages = [bl, bl + 0.5]
+                ages = [bl[i] - 1, bl[i] - 1 + 0.5]
             else:
-                ages = [bl, bl + 0.5] + [bl + i for i in range(1, number_of_visits - 1)]
-
-            indiv_param = torch.Tensor([xi]).unsqueeze(0), torch.Tensor([tau]).unsqueeze(0), torch.Tensor(sources).unsqueeze(0)
+                ages = [bl[i] - 1, bl[i] - 1 + 0.5] + [bl[i] - 1 + i for i in range(1, number_of_visits - 1)]
+            timepoints.append(ages)
+            # Generate scores
+            indiv_param = {'xi': torch.Tensor([xi[i]]).unsqueeze(0),
+                           'tau': torch.Tensor([tau[i]]).unsqueeze(0),
+                           'sources': torch.Tensor(sources[-1]).unsqueeze(0)}
             observations = model.compute_individual_tensorized(torch.Tensor(ages).unsqueeze(0), indiv_param)
-
+            # Add the desired noise
             if self.noise:
-                noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(observations.shape)
+                noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
+                    observations.shape)
                 observations += noise
                 observations = observations.clamp(0, 1)
-
-            indices.append(idx)
-            timepoints.append(ages)
             values.append(observations.squeeze(0).detach().numpy().tolist())
+            # Generate indices
+            indices.append(i)
 
-        simulated_data = Data.from_individuals(indices, timepoints, values, results.data.headers)
-        return simulated_data
-
-
+        # Return the leaspy.inputs.data.results object
+        simulated_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
+        simulated_scores = Data.from_individuals(indices, timepoints, values, results.data.headers)
+        return Result(data=simulated_scores,
+                      individual_parameters=simulated_parameters,
+                      noise_std=self.noise)
 
         # TODO : Check with Raphaël if he needs the following
         '''    
@@ -147,5 +189,5 @@ class SimulationAlgorithm(AbstractAlgo):
             data_sim = data_sim.append(truc)
 
         return data_sim
-        
+
         '''

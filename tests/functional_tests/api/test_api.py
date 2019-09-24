@@ -1,16 +1,17 @@
 import os
 import unittest
 
+import matplotlib.pyplot as plt
 import torch
+from pandas import DataFrame
+
 from tests import test_data_dir
 from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
 from tests import example_data_path
 from leaspy.models.univariate_model import UnivariateModel
-import matplotlib.pyplot as plt
 
 
 class LeaspyTest(unittest.TestCase):
-
 
     def test_usecase(self):
         """
@@ -42,7 +43,6 @@ class LeaspyTest(unittest.TestCase):
         self.assertAlmostEqual(torch.sum(diff_g ** 2), 0.0, delta=0.01)
         self.assertAlmostEqual(torch.sum(diff_v ** 2), 0.0, delta=0.01)
 
-
         # Save parameters and reload
         path_to_saved_model = os.path.join(test_data_dir,
                                            "model_parameters",
@@ -67,18 +67,22 @@ class LeaspyTest(unittest.TestCase):
 
         self.assertAlmostEqual(result.noise_std, 0.0923, delta=0.01)
 
-        # Plot
-        path_output = os.path.join(os.path.dirname(__file__), '../../_data',
-                                           "_outputs")
+        # Plot TODO
+        path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")
         plotter = Plotter(path_output)
-        #plotter.plot_mean_trajectory(leaspy.model,
-        #                             save_as="mean_trajectory_plot")
+        # plotter.plot_mean_trajectory(leaspy.model, save_as="mean_trajectory_plot")
         plt.close()
 
-
-        # Simulate TODO
-        #simulation_settings = AlgorithmSettings('simulation')
-        #easpy.simulate(result, simulation_settings)
+        # Simulate
+        simulation_settings = AlgorithmSettings('simulation')
+        simulation_results = leaspy.simulate(result, simulation_settings)
+        self.assertTrue(type(simulation_results.data.to_dataframe()) == DataFrame)
+        self.assertTrue(simulation_results.data.headers == data.headers)
+        n = simulation_settings.parameters['number_of_subjects']
+        self.assertEqual(simulation_results.data.n_individuals, n)
+        self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
+        self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
+        self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
 
 
 

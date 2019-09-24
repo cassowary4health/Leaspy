@@ -112,15 +112,15 @@ class SimulationAlgorithm(AbstractAlgo):
         # Generate individual sources, scores, indices & time-points
         for i in range(self.number_of_subjects):
             # Generate sources
-            sources.append(self._sample_sources(xi[i], tau[i], bl[i] - 1, model.source_dimension))
+            sources.append(self._sample_sources(xi[i], tau[i], bl[i] - 1, model.source_dimension).tolist())
             # Generate time-points
             number_of_visits = self._get_number_of_visits()  # xi[i], tau[i], bl[i] - 1, sources[-1])
             if number_of_visits == 1:
-                ages = [bl[i] - 1]
+                ages = [bl[i]]
             elif number_of_visits == 2:
-                ages = [bl[i] - 1, bl[i] - 1 + 0.5]
+                ages = [bl[i], bl[i] + 0.5]
             else:
-                ages = [bl[i] - 1, bl[i] - 1 + 0.5] + [bl[i] - 1 + i for i in range(1, number_of_visits - 1)]
+                ages = [bl[i], bl[i] + 0.5] + [bl[i] + i for i in range(1, number_of_visits - 1)]
             timepoints.append(ages)
             # Generate scores
             indiv_param = {'xi': torch.Tensor([xi[i]]).unsqueeze(0),
@@ -138,7 +138,9 @@ class SimulationAlgorithm(AbstractAlgo):
             indices.append(i)
 
         # Return the leaspy.inputs.data.results object
-        simulated_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
+        simulated_parameters = {'xi': torch.Tensor(xi).view(-1, 1),
+                                'tau': torch.Tensor(tau).view(-1, 1),
+                                'sources': torch.Tensor(sources)}
         simulated_scores = Data.from_individuals(indices, timepoints, values, results.data.headers)
         return Result(data=simulated_scores,
                       individual_parameters=simulated_parameters,

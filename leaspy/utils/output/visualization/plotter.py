@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import torch
 import matplotlib.backends.backend_pdf
-import seaborn as sns
+#import seaborn as sns
 
 from leaspy.utils.output.visualization import color_palette
 
@@ -200,12 +200,12 @@ class Plotter:
         pdf = matplotlib.backends.backend_pdf.PdfPages(path)
         for i in range(dataset.values.shape[-1]):
             fig, ax = plt.subplots(1, 1)
-            sns.distplot(err[i], color='blue')
+            #sns.distplot(err[i], color='blue')
             plt.title(labels[i]+' sqrt mean square error: '+str(np.sqrt(np.mean(err[i] ** 2))))
             pdf.savefig(fig)
             plt.close()
         fig, ax = plt.subplots(1, 1)
-        sns.distplot(err['all'], color='blue')
+        #sns.distplot(err['all'], color='blue')
         plt.title('global sqrt mean square error: ' + str(np.sqrt(np.mean(err['all'] ** 2))))
         pdf.savefig(fig)
         plt.close()

@@ -11,6 +11,7 @@ from leaspy.models.model_factory import ModelFactory
 from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.inputs.data.result import Result
 
+from leaspy.algo import compatibility_algorithms
 
 class Leaspy:
     def __init__(self, model_name):
@@ -28,9 +29,15 @@ class Leaspy:
         return leaspy
 
     def save(self, path):
+
+        self.check_if_initialized()
+
         self.model.save(path)
 
     def fit(self, data, algorithm_settings):
+
+        # Check algorithm compatibility
+        Leaspy.check_if_algo_is_compatible(algorithm_settings, "fit")
 
         algorithm = AlgoFactory.algo(algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
@@ -40,6 +47,12 @@ class Leaspy:
 
     def personalize(self, data, settings):
 
+        # Check algorithm compatibility
+        Leaspy.check_if_algo_is_compatible(settings, "personalize")
+
+        # Check if model has been initialized
+        self.check_if_initialized()
+
         algorithm = AlgoFactory.algo(settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         individual_parameters, noise_std = algorithm.run(self.model, dataset)
@@ -48,6 +61,12 @@ class Leaspy:
         return result
 
     def simulate(self, results, settings):
+
+        # Check algorithm compatibility
+        Leaspy.check_if_algo_is_compatible(settings, "simulate")
+
+        # Check if model has been initialized
+        self.check_if_initialized()
 
         algorithm = AlgoFactory.algo(settings)
         simulated_data = algorithm.run(self.model, results)
@@ -118,3 +137,15 @@ class Leaspy:
                     if individual_parameters[key].dim() == 1:
                         individual_parameters[key] = individual_parameters[key].view(-1, 1)
         return individual_parameters
+
+
+    def check_if_initialized(self):
+        if not self.model.is_initialized:
+            raise ValueError("Model has not been initialized")
+
+    @staticmethod
+    def check_if_algo_is_compatible(settings, name):
+        if settings.name not in compatibility_algorithms[name]:
+            raise ValueError("Chosen algorithm is not compatible with method : {0} \n"
+                             "please choose one in the following method list : {1}".format(name, compatibility_algorithms[name]))
+

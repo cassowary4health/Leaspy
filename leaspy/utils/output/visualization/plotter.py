@@ -23,9 +23,13 @@ class Plotter:
 
     def plot_mean_trajectory(self, model, **kwargs):
         #colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
+
+        # Break if model is not initialized
+        if not model.is_initialized:
+            raise ValueError("Please initialize the model before plotting")
+
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
-
 
         colors = color_palette(range(8))
 
@@ -78,7 +82,8 @@ class Plotter:
 
     def plot_patient_trajectory(self, model, results, indices, **kwargs):
 
-        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
+
+        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
         if model.name in ['logistic', 'logistic_parallel']:
@@ -97,7 +102,7 @@ class Plotter:
             trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
             for dim in range(model.dimension):
                 ax.plot(timepoints, trajectory.detach().numpy()[:, dim], c=colors[dim])
-                ax.plot(timepoints, observations[:, dim], c=colors[dim])
+                ax.plot(timepoints, observations[:, dim], c=colors[dim],  linestyle='--')
 
 
         if 'save_as' in kwargs.keys():
@@ -210,7 +215,7 @@ class Plotter:
     @staticmethod
     def plot_patient_reconstructions(path, data, model, param_ind, max_patient_number=10, attribute_type=None):
 
-        colors = cm.rainbow(np.linspace(0, 1, max_patient_number + 2))
+        colors = cm.Dark2(np.linspace(0, 1, max_patient_number + 2))
 
         fig, ax = plt.subplots(1, 1)
 

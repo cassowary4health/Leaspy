@@ -15,12 +15,12 @@ class AlgoFactory:
         name = settings.name
 
         # Fit Algorithm
-        if name == 'gradient_descent':
-            algorithm = GradientDescent(settings)
-        elif name == 'mcmc_saem':
+        if name == 'mcmc_saem':
             algorithm = TensorMCMCSAEM(settings)
-        elif name == 'mcmc_gradient_descent':
-            algorithm = GradientMCMCSAEM(settings)
+        #elif name == 'mcmc_gradient_descent':
+        #    algorithm = GradientMCMCSAEM(settings)
+        #elif name == 'gradient_descent':
+        #    algorithm = GradientDescent(settings)
 
         # Personalize Algorithm
         elif name == 'gradient_descent_personalize':

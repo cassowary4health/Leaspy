@@ -27,6 +27,8 @@ class SimulationAlgorithm(AbstractAlgo):
         self.noise = settings.parameters['noise']
         self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
+        self.cofactor = settings.parameters['cofactor']
+        self.cofactor_state = settings.parameters['cofactor_state']
 
     def _initialize_kernel(self, results=None):
         return 0
@@ -68,6 +70,33 @@ class SimulationAlgorithm(AbstractAlgo):
             number_of_visits += int(np.random.normal(0, self.std_number_of_visits))
         return number_of_visits
 
+    def _get_xi_tau_sources_bl(self, results):
+        """
+        Get individual parameters
+
+        :param results: leaspy result class object
+        :return: xi list[float], tau list[float], sources numpy.ndarray - shape = Number_of_sources x Number_of_subjects,
+        bl list[float]
+        """
+        xi = results.get_parameter_distribution('xi', self.cofactor)
+        tau = results.get_parameter_distribution('tau', self.cofactor)
+        sources = results.get_parameter_distribution('sources', self.cofactor)
+        bl = []
+        for idx in results.data.individuals.keys():
+            ages = results.data.get_by_idx(idx).timepoints
+            bl.append(min(ages))
+
+        if self.cofactor is not None:
+            # transform {'state1': xi_list1, 'state2': xi_list2, ...} to xi_list
+            xi = xi[self.cofactor_state]
+            tau = tau[self.cofactor_state]
+            sources = sources[self.cofactor_state]
+            bl = [bl[i] for i, state in enumerate(results.get_cofactor_distribution(self.cofactor))
+                  if state == self.cofactor_state]
+
+        sources = np.array([sources[key] for key in sources.keys()])
+        return xi, tau, sources, bl
+
     def run(self, model, results):
         """
         Run simulation - learn joined distribution of patients' individual parameters and return a results object
@@ -78,14 +107,7 @@ class SimulationAlgorithm(AbstractAlgo):
         :return: leaspy result object - contain the simulated individual data and parameters
         """
         # Get individual parameters - for joined density estimation
-        xi = results.get_parameter_distribution('xi')
-        tau = results.get_parameter_distribution('tau')
-        sources = results.get_parameter_distribution('sources')
-        sources = np.array([sources[key] for key in sources.keys()])
-        bl = []
-        for idx in results.data.individuals.keys():
-            ages = results.data.get_by_idx(idx).timepoints
-            bl.append(min(ages))
+        xi, tau, sources, bl = self._get_xi_tau_sources_bl(results)
 
         # Get joined density estimation (sources are not learn in this fashion)
         distribution = np.array([xi, tau, bl]).T
@@ -112,7 +134,7 @@ class SimulationAlgorithm(AbstractAlgo):
         # Generate individual sources, scores, indices & time-points
         for i in range(self.number_of_subjects):
             # Generate sources
-            sources.append(self._sample_sources(xi[i], tau[i], bl[i] - 1, model.source_dimension).tolist())
+            sources.append(self._sample_sources(xi[i], tau[i], bl[i], model.source_dimension).tolist())
             # Generate time-points
             number_of_visits = self._get_number_of_visits()  # xi[i], tau[i], bl[i] - 1, sources[-1])
             if number_of_visits == 1:

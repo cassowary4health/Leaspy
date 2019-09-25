@@ -8,6 +8,7 @@ from pandas import DataFrame
 from tests import test_data_dir
 from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
 from tests import example_data_path
+from leaspy.inputs.data.result import Result
 from leaspy.models.univariate_model import UnivariateModel
 
 
@@ -76,6 +77,7 @@ class LeaspyTest(unittest.TestCase):
         # Simulate
         simulation_settings = AlgorithmSettings('simulation')
         simulation_results = leaspy.simulate(result, simulation_settings)
+        self.assertTrue(type(simulation_results) == Result)
         self.assertTrue(type(simulation_results.data.to_dataframe()) == DataFrame)
         self.assertTrue(simulation_results.data.headers == data.headers)
         n = simulation_settings.parameters['number_of_subjects']

@@ -11,7 +11,7 @@ from tests import test_data_dir
 
 class ResultTest(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self, get=False):
         # Inputs
         data = Data.from_csv_file(example_data_path)
 
@@ -28,6 +28,8 @@ class ResultTest(unittest.TestCase):
         individual_parameters = Leaspy.load_individual_parameters(load_individual_parameters_path)
 
         self.results = Result(data, individual_parameters)
+        if get:
+            return self.results
 
     def test_constructor(self):
         self.assertTrue(type(self.results.data) == Data)

@@ -27,9 +27,10 @@ class GibbsSampler(AbstractSampler):
         # Torch distribution
         self.distribution = torch.distributions.normal.Normal(loc=0.0, scale=self.std)
 
-    def sample(self, data, model, realizations, temperature_inv):
+    def sample(self, data, model, realizations, temperature_inv): #TODO is data / model / realizations supposed to be in sampler ????
         """
         Sample either as population or individual.
+        Modifies the realizations object.
         :param data:
         :param model:
         :param realizations:

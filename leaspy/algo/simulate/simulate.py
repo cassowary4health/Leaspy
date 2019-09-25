@@ -147,10 +147,10 @@ class SimulationAlgorithm(AbstractAlgo):
                 ages = [bl[i], bl[i] + 0.5] + [bl[i] + i for i in range(1, number_of_visits - 1)]
             timepoints.append(ages)
             # Generate scores
-            indiv_param = {'xi': torch.Tensor([xi[i]]).unsqueeze(0),
-                           'tau': torch.Tensor([tau[i]]).unsqueeze(0),
-                           'sources': torch.Tensor(sources[-1]).unsqueeze(0)}
-            observations = model.compute_individual_tensorized(torch.Tensor(ages, dtype=torch.float32).unsqueeze(0), indiv_param)
+            indiv_param = {'xi': torch.tensor([xi[i]], dtype=torch.float32).unsqueeze(0),
+                           'tau': torch.tensor([tau[i]], dtype=torch.float32).unsqueeze(0),
+                           'sources': torch.tensor(sources[-1], dtype=torch.float32).unsqueeze(0)}
+            observations = model.compute_individual_tensorized(torch.tensor(ages, dtype=torch.float32).unsqueeze(0), indiv_param)
             # Add the desired noise
             if self.noise:
                 noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
@@ -162,9 +162,9 @@ class SimulationAlgorithm(AbstractAlgo):
             indices.append(i)
 
         # Return the leaspy.inputs.data.results object
-        simulated_parameters = {'xi': torch.Tensor(xi).view(-1, 1),
-                                'tau': torch.Tensor(tau).view(-1, 1),
-                                'sources': torch.Tensor(sources)}
+        simulated_parameters = {'xi': torch.tensor(xi, dtype=torch.float32).view(-1, 1),
+                                'tau': torch.tensor(tau, dtype=torch.float32).view(-1, 1),
+                                'sources': torch.tensor(sources, dtype=torch.float32)}
         simulated_scores = Data.from_individuals(indices, timepoints, values, results.data.headers)
         return Result(data=simulated_scores,
                       individual_parameters=simulated_parameters,

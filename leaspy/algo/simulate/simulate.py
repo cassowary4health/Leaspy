@@ -13,12 +13,13 @@ class SimulationAlgorithm(AbstractAlgo):
 
     def __init__(self, settings):
 
+        super().__init__()
+
         self.number_of_subjects = settings.parameters['number_of_subjects']
         self.bandwidth_method = settings.parameters['bandwidth_method']
         self.noise = settings.parameters['noise']
         self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
-
 
     def _initialize_kernel(self, results):
         return 0
@@ -58,8 +59,8 @@ class SimulationAlgorithm(AbstractAlgo):
             bl.append(min(ages))
 
         distribution = np.array([xi, tau, bl]).T
-        SS = StandardScaler()
-        rescaled_distribution = SS.fit_transform(distribution)
+        ss = StandardScaler()
+        rescaled_distribution = ss.fit_transform(distribution)
         kernel = stats.gaussian_kde(rescaled_distribution.T, bw_method=self.bandwidth_method)
 
         df = np.concatenate((np.array([xi, tau, bl]), np.array(sources).T), axis=0).T
@@ -69,7 +70,7 @@ class SimulationAlgorithm(AbstractAlgo):
         self.df_cov = df.cov().values
 
         samples = np.transpose(kernel.resample(self.number_of_subjects))
-        samples = SS.inverse_transform(samples)
+        samples = ss.inverse_transform(samples)
 
         indices, timepoints, values = [], [], []
 
@@ -85,11 +86,16 @@ class SimulationAlgorithm(AbstractAlgo):
             else:
                 ages = [bl, bl + 0.5] + [bl + i for i in range(1, number_of_visits - 1)]
 
-            indiv_param = torch.Tensor([xi]).unsqueeze(0), torch.Tensor([tau]).unsqueeze(0), torch.Tensor(sources).unsqueeze(0)
-            observations = model.compute_individual_tensorized(torch.Tensor(ages).unsqueeze(0), indiv_param)
+            indiv_param = torch.tensor([xi], dtype=torch.float32).unsqueeze(0), \
+                          torch.tensor([tau], dtype=torch.float32).unsqueeze(0), \
+                          torch.tensor(sources, dtype=torch.float32).unsqueeze(0)
+
+            observations = model.compute_individual_tensorized(
+                torch.tensor(ages, dtype=torch.float32).unsqueeze(0), indiv_param)
 
             if self.noise:
-                noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(observations.shape)
+                noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
+                    observations.shape)
                 observations += noise
                 observations = observations.clamp(0, 1)
 
@@ -99,8 +105,6 @@ class SimulationAlgorithm(AbstractAlgo):
 
         simulated_data = Data.from_individuals(indices, timepoints, values, results.data.headers)
         return simulated_data
-
-
 
         # TODO : Check with Raphaël if he needs the following
         '''    

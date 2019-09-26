@@ -49,10 +49,15 @@ class AbstractModel():
 
     def compute_individual_attachment_tensorized(self, data, param_ind, attribute_type):
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-        res *= data.mask
-        squared_sum = torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
-        noise_var = self.parameters['noise_std'] ** 2
+        # res *= data.mask
+
+        r1 = res * data.mask - data.values
+        squared_sum = torch.sum(r1 * r1, dim=(1, 2))
+
+        # noise_var = self.parameters['noise_std'] ** 2
+        noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
         attachment = 0.5 * (1 / noise_var) * squared_sum
+
         attachment += np.log(np.sqrt(2 * np.pi * noise_var))
         return attachment
 

@@ -48,20 +48,20 @@ class MultivariateModel(AbstractMultivariateModel):
     def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
-        b = (1. + g) * (1. + g) / g
+        g_plus_1 = 1. + g
+        b = g_plus_1 * g_plus_1 / g
 
         # Individual parameters
         xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
-        a = tuple([1] * reparametrized_time.ndimension())
-        v0 = v0.unsqueeze(0).repeat(*tuple(reparametrized_time.shape), 1)
-        reparametrized_time = reparametrized_time.unsqueeze(-1).repeat(*a, v0.shape[-1])
+        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
+        v0 = v0.reshape(1, 1, -1)
 
         LL = v0 * reparametrized_time
         if self.source_dimension != 0:
-            wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
+            wi = sources.matmul(a_matrix.t())
             LL += wi.unsqueeze(-2)
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL

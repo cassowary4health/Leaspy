@@ -136,7 +136,7 @@ class GibbsSampler(AbstractSampler):
                 self.previous_attachment = new_attachment
                 self.previous_regularity = new_regularity
 
-        self._update_acceptation_rate([accepted_array])
+        self._update_acceptation_rate(torch.Tensor([accepted_array]))
         self._update_std()
 
     def _sample_individual_realizations(self, data, model, realizations, temperature_inv):
@@ -169,7 +169,7 @@ class GibbsSampler(AbstractSampler):
                             (new_attachment - previous_attachment)))
 
         accepted = self._group_metropolis_step(alpha)
-        self._update_acceptation_rate(list(accepted.detach().numpy()))
+        self._update_acceptation_rate(accepted)
         self._update_std()
         ##### PEUT ETRE PB DE SHAPE
         accepted = accepted.unsqueeze(1)

@@ -18,10 +18,14 @@ def test_fit_logistic_small():
 
 
 def test_fit_logistic_big_setup(n_patients, n_visits_per_patient, n_modalities):
-    from leaspy import Data
+    from leaspy import Data, AlgorithmSettings, Leaspy
+    from algo.algo_factory import AlgoFactory
+    from inputs.data.dataset import Dataset
     import pandas as pd
     import numpy as np
     import time
+
+    global algorithm, dataset, leaspy
 
     start = time.time()
 
@@ -43,14 +47,7 @@ def test_fit_logistic_big_setup(n_patients, n_visits_per_patient, n_modalities):
 
     df = df[["ID", "TIME"] + [str(i) for i in range(n_modalities)]]
 
-    global data
     data = Data.from_dataframe(df)
-
-    print("test_fit_logistic_big_setup execution time: %.2f s" % (time.time() - start))
-
-
-def test_fit_logistic_big():
-    from leaspy import Leaspy, AlgorithmSettings
 
     algo_settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
 
@@ -59,11 +56,36 @@ def test_fit_logistic_big():
     leaspy.model.load_hyperparameters({'source_dimension': 2})
 
     # Fit the model on the data
-    leaspy.fit(data, algorithm_settings=algo_settings)
+    # leaspy.fit(data, algorithm_settings=algo_settings)
+
+    # Check algorithm compatibility
+    Leaspy.check_if_algo_is_compatible(algo_settings, "fit")
+    algorithm = AlgoFactory.algo(algo_settings)
+    dataset = Dataset(data, algo=algorithm, model=leaspy.model)
+    if not leaspy.model.is_initialized:
+        leaspy.model.initialize(dataset)
+
+    print("test_fit_logistic_big_setup execution time: %.2f s" % (time.time() - start))
+
+
+def test_fit_logistic_big():
+    algorithm.run(dataset, leaspy.model)
 
 
 if __name__ == '__main__':
     import numpy as np
+    import torch
+
+    # import os
+    # os.environ['OMP_NUM_THREADS'] = '36'
+    # torch.set_num_threads(36)
+
+    seed = 42
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    # torch.set_default_tensor_type('torch.FloatTensor')
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
     print("start")
 
@@ -74,7 +96,7 @@ if __name__ == '__main__':
     # print(t/it)
 
     t = timeit.repeat(test_fit_logistic_big,
-                      setup=lambda: test_fit_logistic_big_setup(n_patients=200, n_visits_per_patient=10, n_modalities=8),
+                      setup=lambda: test_fit_logistic_big_setup(n_patients=1000, n_visits_per_patient=10, n_modalities=8),
                       number=it, repeat=3)
 
     print([i / it for i in t])

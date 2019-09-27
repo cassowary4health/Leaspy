@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import unittest
 
@@ -65,8 +66,21 @@ class LeaspyTest(unittest.TestCase):
         # Personalize
         algo_personalize_settings = AlgorithmSettings('mode_real', seed=0)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
-
         self.assertAlmostEqual(result.noise_std, 0.0923, delta=0.01)
+
+        # Get error distribution
+        error_distribution = result.get_error_distribution(leaspy.model)
+        self.assertTrue(list(error_distribution.keys()), list(data.individuals.keys()))
+        self.assertTrue(np.array(error_distribution['116']).shape,
+                        np.array(data.individuals['116'].observations).shape)
+        error_distribution = result.get_error_distribution(leaspy.model, aggregate_subscores=True)
+        self.assertTrue(len(error_distribution['116']),
+                        np.array(data.individuals['116'].observations).shape[0])
+        error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True)
+        self.assertTrue(len(error_distribution['116']),
+                        np.array(data.individuals['116'].observations).shape[1])
+        error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True, aggregate_subscores=True)
+        self.assertTrue(type(error_distribution['116']) == float)
 
         # Plot TODO
         path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")

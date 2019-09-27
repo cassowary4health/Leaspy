@@ -126,7 +126,7 @@ class Result:
 
         return patient_dict
 
-    def get_error_distribution_cofactor(self, model, cofactor=None, aggregate_subscores=False, aggregate_visits=False):
+    def get_error_distribution(self, model, cofactor=None, aggregate_subscores=False, aggregate_visits=False):
         """
         Get error distribution per patient. By default, return one error value per patient & per subscore & per visit.
         Use 'aggregate_subscores' to get one error value per patient & per visit.
@@ -149,16 +149,16 @@ class Result:
             if aggregate_subscores:
                 if aggregate_visits: # One value per patient
                     error_distribution[key] = torch.sum(model.compute_individual_tensorized(
-                        torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations))
+                        torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations)).tolist()
                 else: # One value per patient & per subscore
                     error_distribution[key] = torch.sum(model.compute_individual_tensorized(
-                        torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations), 0)
+                        torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations), 0).tolist()
             elif aggregate_visits: # One value per patient & per visit
                 error_distribution[key] = torch.sum(model.compute_individual_tensorized(
-                    torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations), 1)
+                    torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations), 1).tolist()
             else: # One value per patient & per subscore & per visit
-                error_distribution[key] = model.compute_individual_tensorized(
-                    torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations)
+                error_distribution[key] = (model.compute_individual_tensorized(
+                    torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations)).tolist()
 
         if cofactor:
             cofactors = self.get_cofactor_distribution(cofactor)
@@ -166,6 +166,6 @@ class Result:
             for key in result.keys():
                 result[key] = {patient: error_distribution[patient] for i, patient in enumerate(error_distribution.keys())
                                if cofactors[i] == key}
-            return result
+            return result # return {'cofactor1': {'patient1': error1, ...}, ...}
         else:
-            return error_distribution
+            return error_distribution # return {'patient1': error1, ...}

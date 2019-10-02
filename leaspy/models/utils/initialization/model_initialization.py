@@ -15,6 +15,8 @@ def initialize_parameters(model, dataset, method="default"):
         parameters = initialize_linear(model, dataset, method)
     elif name == 'univarite':
         parameters = initialize_univariate(dataset, method)
+    elif name == 'mixed_linear-logistic':
+        parameters = initialize_logistic(model, dataset, method)
     else:
         raise ValueError("There is no initialization method for the parameter of the model {}".format(name))
 

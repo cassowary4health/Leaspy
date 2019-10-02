@@ -23,9 +23,7 @@ class Plotter:
     def plot_mean_trajectory(self, model, **kwargs):
         # colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
 
-        # Break if model is not initialized
-        if not model.is_initialized:
-            raise ValueError("Please initialize the model before plotting")
+
 
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_' + str(i) for i in range(model.dimension)]
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
@@ -35,6 +33,11 @@ class Plotter:
         try:
             iterator = iter(model)
         except TypeError:
+
+            # Break if model is not initialized
+            if not model.is_initialized:
+                raise ValueError("Please initialize the model before plotting")
+
             # not iterable
             if model.name in ['logistic', 'logistic_parallel']:
                 plt.ylim(0, 1)
@@ -52,6 +55,11 @@ class Plotter:
             plt.legend()
 
         else:
+
+            # Break if model is not initialized
+            if not model[0].is_initialized:
+                raise ValueError("Please initialize the model before plotting")
+
             # iterable
             if model[0].name in ['logistic', 'logistic_parallel']:
                 plt.ylim(0, 1)
@@ -70,6 +78,10 @@ class Plotter:
 
                 if j == 0:
                     plt.legend()
+
+        title = kwargs['title'] if 'title' in kwargs.keys() else None
+        if title is not None:
+            ax.set_title(title)
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))

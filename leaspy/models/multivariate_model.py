@@ -24,6 +24,8 @@ class MultivariateModel(AbstractMultivariateModel):
             return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
         elif self.name == 'linear':
             return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
+        elif self.name == 'mixed_linear-logistic':
+            return self.compute_individual_tensorized_mixed(timepoints, ind_parameters, attribute_type)
         else:
             raise ValueError("Mutivariate model > Compute individual tensorized")
 
@@ -65,6 +67,44 @@ class MultivariateModel(AbstractMultivariateModel):
             LL += wi.unsqueeze(-2)
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
+        return model
+
+
+    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
+
+        # Hyperparameters : split # TODO
+        split = 2
+        idx_linear = list(range(split))
+        idx_logistic = list(range(split, self.dimension))
+
+        # Population parameters
+        g, v0, a_matrix = self._get_attributes(attribute_type)
+        g_plus_1 = 1. + g
+        b = g_plus_1 * g_plus_1 / g
+
+        # Individual parameters
+        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        # Log likelihood computation
+        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
+        v0 = v0.reshape(1, 1, -1)
+
+        LL = v0 * reparametrized_time
+        if self.source_dimension != 0:
+            wi = sources.matmul(a_matrix.t())
+            LL += wi.unsqueeze(-2)
+
+        # Logistic Part
+        LL_log = 1. + g * torch.exp(-LL * b)
+        model_logistic = (1. / LL_log)[:,:,idx_logistic]
+
+        # Linear Part
+        model_linear = LL[:,:,idx_linear]
+
+        # Concat
+        model = torch.cat([model_linear, model_logistic], dim=2)
+
         return model
 
     ##############################

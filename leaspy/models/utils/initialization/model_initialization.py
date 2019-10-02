@@ -193,8 +193,9 @@ def compute_patient_slopes_distribution(data):
         for idx in data.indices:
             # Select patient dataframe
             df_patient = df.loc[idx]
-            x = df_patient.index.get_level_values('TIME').values
-            y = df_patient.iloc[:, dim].values
+            df_patient_dim = df_patient.iloc[:, dim].dropna()
+            x = df_patient_dim.index.get_level_values('TIME').values
+            y = df_patient_dim.values
 
             # Delete if less than 2 visits
             if len(x) < 2:

@@ -80,9 +80,9 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         data_reconstruction = self.compute_individual_tensorized(data.timepoints,
                                                                  self.get_param_from_real(realizations),
                                                                  attribute_type='MCMC')
-        data_reconstruction *= data.mask
-        norm_1 = data.values * data_reconstruction * data.mask
-        norm_2 = data_reconstruction * data_reconstruction * data.mask
+        data_reconstruction *= data.mask.float()
+        norm_1 = data.values * data_reconstruction * data.mask.float()
+        norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
         sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
         sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
 
@@ -103,10 +103,10 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         param_ind = self.get_param_from_real(realizations)
         data_fit = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type='MCMC')
-        data_fit *= data.mask
+        data_fit *= data.mask.float()
         squared_diff = ((data_fit - data.values) ** 2).sum()
         squared_diff = squared_diff.detach()  # Remove the gradients
-        self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
+        self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
 
     def update_model_parameters_normal(self, data, suff_stats):
 
@@ -129,7 +129,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         S2 = torch.sum(suff_stats['obs_x_reconstruction'])
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 
-        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
+        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
 
     ###################################
     ### Random Variable Information ###

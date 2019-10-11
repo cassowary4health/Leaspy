@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 
@@ -12,7 +11,7 @@ class Result:
         """
         Process the initializer function - called by Leaspy.personalize & Leaspy.simulate
 
-        :param data: leaspy.inputs.data.data object
+        :param data: leaspy.inputs.data.data class object
         :param individual_parameters: dictionary of torch.tensor (or list of float) - containing log-acceleration 'xi', time-shifts 'tau' & 'sources'
         :param noise_std: float - desired noise standard deviation level
         """
@@ -22,6 +21,20 @@ class Result:
 
     # def load_covariables(self, covariables, csv):
     #    self.covariables = covariables
+
+    @staticmethod
+    def _get_cofactor_states(cofactors):
+        """
+        Given a list of string return the list of unique elements
+
+        :param cofactors: list of strings
+        :return: list of strings
+        """
+        result = []
+        for state in cofactors:
+            if state not in result:
+                result.append(state)
+        return result
 
     def get_parameter_distribution(self, parameter, cofactor=None):
         """
@@ -38,46 +51,48 @@ class Result:
             If a cofactor is given & the parameter is multivariate => return a dictionary =
                 {'cofactor1': {'parameter1': ..., 'parameter2': ...}, 'cofactor2': { ...}, ...}
         """
-        # parameter_distribution = self.individual_parameters[parameter].detach().numpy().tolist() ? Why detach ?
-        try:
-            parameter_distribution = self.individual_parameters[parameter].numpy()
-        except AttributeError:
-            parameter_distribution = self.individual_parameters[parameter]
+        parameter_distribution = self.individual_parameters[parameter]  # torch.tensor class object
         # parameter_distribution is of size (N_subjects, N_dimension_of_parameter)
 
         # Check the tensor's dimension is <= 2
-        if parameter_distribution.ndim > 2:
+        if parameter_distribution.ndimension() > 2:
             raise ValueError('The chosen parameter %s is a tensor of dimension %d - it must be 1 or 2 dimensional!' %
-                             (parameter, parameter_distribution.ndim))
+                             (parameter, parameter_distribution.ndimension()))
         ##############################################
         # If there is no cofactor to take into account
         ##############################################
         if cofactor is None:
-            # If parameter is 1-dimensional => use numpy.ravel
+            # If parameter is 1-dimensional
             if parameter_distribution.shape[1] == 1:
                 # return a list of length = N_subjects
-                parameter_distribution = parameter_distribution.ravel().tolist()
+                parameter_distribution = parameter_distribution.view(-1).tolist()
             # Else transpose it and split it in a dictionary
             else:
                 # return {'parameter1': distribution of parameter variable 1, 'parameter2': ... }
                 parameter_distribution = {parameter + str(i): val for i, val in
-                                          enumerate(parameter_distribution.T.tolist())}
+                                          enumerate(parameter_distribution.transpose(0, 1).tolist())}
             return parameter_distribution
 
         ############################################################
         # If the distribution as asked for different cofactor values
         ############################################################
+        # Check if the cofactor exist
+        if cofactor not in self.data[0].cofactors.keys():
+            raise ValueError("The cofactor '%s' do not exist. Here are the available cofactors: %s" %
+                             (cofactor, list(self.data[0].cofactors.keys())))
         # Get possible covariate stats
-        cofactor_state = np.unique([_.cofactors[cofactor] for _ in self.data if _.cofactors[cofactor] is not None])
+        # cofactors = [_.cofactors[cofactor] for _ in self.data if _.cofactors[cofactor] is not None]
+        cofactors = self.get_cofactor_distribution(cofactor)
+        cofactor_states = self._get_cofactor_states(cofactors)
 
         # Initialize the result
         distributions = {}
 
-        # If parameter 1-dimensional => use numpy.ravel
+        # If parameter 1-dimensional
         if parameter_distribution.shape[1] == 1:
-            parameter_distribution = parameter_distribution.ravel() # ex: [1, 2, 3]
+            parameter_distribution = parameter_distribution.view(-1).tolist()  # ex: [1, 2, 3]
             # Create one entry per cofactor state
-            for p in cofactor_state:
+            for p in cofactor_states:
                 if p not in distributions.keys():
                     distributions[p] = []
                 # For each covariate state, get parameter distribution
@@ -87,12 +102,12 @@ class Result:
                         # return {'cofactor1': ..., 'cofactor2': ...}
         else:
             # Create one dictionary per cofactor state
-            for p in cofactor_state:
+            for p in cofactor_states:
                 if p not in distributions.keys():
                     # Create one dictionary per parameter dimension
                     distributions[p] = {parameter + str(i): [] for i in range(parameter_distribution.shape[1])}
                 # Fill these entries by the corresponding values of the corresponding subject
-                for i, v in enumerate(parameter_distribution):
+                for i, v in enumerate(parameter_distribution.tolist()):
                     if self.data[i].cofactors[cofactor] == p:
                         for j, key in enumerate(distributions[p].keys()):
                             distributions[p][key].append(v[j])
@@ -115,9 +130,10 @@ class Result:
         :param idx: string - id of the wanted patient
         :return: dictionary of torch.tensor - patient's individual parameters
         """
-        indices = list(self.data.individuals.keys())
-        idx_number = int(
-            np.where(np.array(indices) == idx)[0])  # TODO save somewhere the correspondance : in data probably ???
+        # indices = list(self.data.individuals.keys())
+        # idx_number = int(
+        #     np.where(np.array(indices) == idx)[0])  # TODO save somewhere the correspondance : in data probably ???
+        idx_number = [idx_nbr for idx_nbr, idxx in self.data.iter_to_idx.items() if idxx == idx][0]
 
         patient_dict = dict.fromkeys(self.individual_parameters.keys())
 
@@ -147,25 +163,25 @@ class Result:
                          'xi': self.individual_parameters['tau'][i],
                          'sources': self.individual_parameters['sources'][i]}
             if aggregate_subscores:
-                if aggregate_visits: # One value per patient
+                if aggregate_visits:  # One value per patient
                     error_distribution[key] = torch.sum(model.compute_individual_tensorized(
                         torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations)).tolist()
-                else: # One value per patient & per subscore
+                else:  # One value per patient & per subscore
                     error_distribution[key] = torch.sum(model.compute_individual_tensorized(
                         torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations), 0).tolist()
-            elif aggregate_visits: # One value per patient & per visit
+            elif aggregate_visits:  # One value per patient & per visit
                 error_distribution[key] = torch.sum(model.compute_individual_tensorized(
                     torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations), 1).tolist()
-            else: # One value per patient & per subscore & per visit
+            else:  # One value per patient & per subscore & per visit
                 error_distribution[key] = (model.compute_individual_tensorized(
                     torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations)).tolist()
 
         if cofactor:
             cofactors = self.get_cofactor_distribution(cofactor)
-            result = {state: {} for state in np.unique(cofactors)}
+            result = {state: {} for state in self._get_cofactor_states(cofactors)}
             for key in result.keys():
                 result[key] = {patient: error_distribution[patient] for i, patient in enumerate(error_distribution.keys())
                                if cofactors[i] == key}
-            return result # return {'cofactor1': {'patient1': error1, ...}, ...}
+            return result  # return {'cofactor1': {'patient1': error1, ...}, ...}
         else:
-            return error_distribution # return {'patient1': error1, ...}
+            return error_distribution  # return {'patient1': error1, ...}

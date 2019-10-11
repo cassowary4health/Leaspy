@@ -1,14 +1,14 @@
 from numpy.random import get_state, random_integers
-from os import path
-from subprocess import Popen
+# from os import path
+# from subprocess import Popen
 import unittest
 
 from torch.random import initial_seed
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
-from leaspy.utils.output.fit_output_manager import FitOutputManager
-from tests import test_data_dir
+# from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
+# from leaspy.utils.output.fit_output_manager import FitOutputManager
+# from tests import test_data_dir
 
 
 class Test(unittest.TestCase):

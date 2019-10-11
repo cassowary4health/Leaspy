@@ -1,8 +1,7 @@
-import numpy as np
 import torch
 from scipy import stats
-from ..attributes.attributes_logistic import Attributes_Logistic
-from ..attributes.attributes_logistic_parallel import Attributes_LogisticParallel
+# from ..attributes.attributes_logistic import Attributes_Logistic
+# from ..attributes.attributes_logistic_parallel import Attributes_LogisticParallel
 
 
 def initialize_parameters(model, dataset, method="default"):
@@ -29,13 +28,13 @@ def initialize_logistic(model, dataset, method):
 
     # Method
     if method == "default":
-        slopes = np.array(slopes_mu)
-        values = np.array(values_mu)
-        time = np.array(time_mu)
+        slopes = torch.tensor(slopes_mu)
+        values = torch.tensor(values_mu)
+        time = torch.tensor(time_mu)
     elif method == "random":
-        slopes = np.random.normal(loc=slopes_mu, scale=slopes_sigma)
-        values = np.random.normal(loc=values_mu, scale=values_sigma)
-        time = np.array(np.random.normal(loc=time_mu, scale=time_sigma))
+        slopes = torch.normal(torch.tensor(slopes_mu), torch.tensor(slopes_sigma))
+        values = torch.normal(torch.tensor(values_mu), torch.tensor(values_sigma))
+        time = torch.normal(torch.tensor(time_mu), torch.tensor(time_sigma))
     else:
         raise ValueError("Initialization method not known")
 
@@ -45,12 +44,12 @@ def initialize_logistic(model, dataset, method):
     values[values > 1] = 0.99
 
     # Do transformations
-    t0 = torch.tensor(time, dtype=torch.float32)
-    slopes = np.mean(slopes) * np.ones_like(slopes)
-    v0_array = torch.tensor(np.log((np.array(slopes))), dtype=torch.float32)
-    g_array = torch.tensor(np.exp(1 / (1 + values)), dtype=torch.float32)
+    t0 = time.clone()
+    slopes = slopes.mean() * torch.ones_like(slopes)
+    v0_array = slopes.log()
+    g_array = torch.exp(1 / (1 + values))
     betas = torch.zeros((model.dimension - 1, model.source_dimension))
-    normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
+    # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 
     # Create smart initialization dictionnary
@@ -70,7 +69,7 @@ def initialize_logistic(model, dataset, method):
 def initialize_logistic_parallel(model, dataset, method):
     if method == "default":
 
-        normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
+        # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
         # betas =normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
         betas = torch.zeros((model.dimension - 1, model.source_dimension))
 
@@ -93,10 +92,10 @@ def initialize_logistic_parallel(model, dataset, method):
         time_mu, time_sigma = compute_patient_time_distribution(dataset)
 
         # Get random variations
-        slopes = np.random.normal(loc=slopes_mu, scale=slopes_sigma)
-        values = np.random.normal(loc=values_mu, scale=values_sigma)
-        time = np.array(np.random.normal(loc=time_mu, scale=time_sigma))
-        betas = torch.zeros((model.dimension - 1, model.source_dimension))
+        slopes = torch.normal(torch.tensor(slopes_mu), torch.tensor(slopes_sigma))
+        values = torch.normal(torch.tensor(values_mu), torch.tensor(values_sigma))
+        time = torch.normal(torch.tensor(time_mu), torch.tensor(time_sigma))
+        # betas = torch.zeros((model.dimension - 1, model.source_dimension))
 
         # Check that slopes are >0, values between 0 and 1
         slopes[slopes < 0] = 0.01
@@ -104,9 +103,9 @@ def initialize_logistic_parallel(model, dataset, method):
         values[values > 1] = 0.99
 
         # Do transformations
-        t0 = torch.tensor(time, dtype=torch.float32)
-        v0_array = torch.tensor(np.log((np.array(slopes))), dtype=torch.float32)
-        g_array = torch.tensor(np.exp(1 / (1 + values)), dtype=torch.float32)
+        t0 = time.clone()
+        v0_array = slopes.log()
+        g_array = torch.exp(1 / (1 + values))
         betas = torch.distributions.normal.Normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 
         parameters = {
@@ -124,7 +123,7 @@ def initialize_logistic_parallel(model, dataset, method):
     return parameters
 
 
-def initialize_linear(model, dataset, method):
+def initialize_linear(model, dataset):  # , method):
     sum_ages = torch.sum(dataset.timepoints).item()
     nb_nonzeros = (dataset.timepoints != 0).sum()
     t0 = float(sum_ages) / float(nb_nonzeros)
@@ -152,8 +151,8 @@ def initialize_linear(model, dataset, method):
         velocities.append(slopes)
         positions.append(values)
 
-    positions = torch.tensor(np.mean(positions, 0), dtype=torch.float32)
-    velocities = torch.tensor(np.mean(velocities, 0), dtype=torch.float32)
+    positions = torch.mean(torch.tensor(positions, dtype=torch.float32), 0)
+    velocities = torch.mean(torch.tensor(velocities, dtype=torch.float32), 0)
 
     parameters = {
         'g': positions,
@@ -175,8 +174,9 @@ def initialize_univariate(dataset, method):
 def compute_patient_slopes_distribution(data):
     """
     Linear Regression on each feature to get slopes
-    :param data:
-    :return:
+
+    :param data: leaspy.inputs.data.dataset class object
+    :return: slopes_mu : list of floats, slopes_sigma : list of floats
     """
 
     # To Pandas
@@ -209,8 +209,8 @@ def compute_patient_slopes_distribution(data):
             if count > 50:
                 break
 
-        slopes_mu.append(np.mean(slope_dim_patients))
-        slopes_sigma.append(np.std(slope_dim_patients))
+        slopes_mu.append(torch.mean(torch.tensor(slope_dim_patients)).tolist())
+        slopes_sigma.append(torch.mean(torch.tensor(slope_dim_patients)).tolist())
 
     return slopes_mu, slopes_sigma
 
@@ -234,7 +234,8 @@ def compute_patient_time_distribution(data):
     """
     df = data.to_pandas()
     df.set_index(["ID", "TIME"], inplace=True)
-    return np.mean(df.index.get_level_values('TIME')), np.std(df.index.get_level_values('TIME'))
+    return torch.mean(torch.tensor(df.index.get_level_values('TIME'))).tolist(), \
+           torch.std(torch.tensor(df.index.get_level_values('TIME'))).tolist()
 
 
 '''

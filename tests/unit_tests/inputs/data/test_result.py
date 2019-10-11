@@ -55,13 +55,13 @@ class ResultTest(unittest.TestCase):
 
     def test_get_parameter_distribution(self):
         self.assertEqual(self.results.get_parameter_distribution('xi'),
-                         self.results.individual_parameters['xi'].numpy().ravel().tolist())
+                         self.results.individual_parameters['xi'].view(-1).tolist())
         self.assertEqual(self.results.get_parameter_distribution('tau'),
-                         self.results.individual_parameters['tau'].numpy().ravel().tolist())
+                         self.results.individual_parameters['tau'].view(-1).tolist())
         self.assertEqual(self.results.get_parameter_distribution('sources'),
                          {'sources' + str(i): val
                           for i, val in
-                          enumerate(self.results.individual_parameters['sources'].numpy().T.tolist())})
+                          enumerate(self.results.individual_parameters['sources'].transpose(1, 0).tolist())})
 
         xi_treatment_param = self.results.get_parameter_distribution('xi', 'Treatments')
         self.assertEqual(list(xi_treatment_param.keys()), ["Treatment_A", "Treatment_B"])

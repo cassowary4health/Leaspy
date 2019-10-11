@@ -23,7 +23,7 @@ class Result:
     #    self.covariables = covariables
 
     @staticmethod
-    def _get_cofactor_states(cofactors):
+    def get_cofactor_states(cofactors):
         """
         Given a list of string return the list of unique elements
 
@@ -34,6 +34,7 @@ class Result:
         for state in cofactors:
             if state not in result:
                 result.append(state)
+        result.sort()
         return result
 
     def get_parameter_distribution(self, parameter, cofactor=None):
@@ -83,7 +84,7 @@ class Result:
         # Get possible covariate stats
         # cofactors = [_.cofactors[cofactor] for _ in self.data if _.cofactors[cofactor] is not None]
         cofactors = self.get_cofactor_distribution(cofactor)
-        cofactor_states = self._get_cofactor_states(cofactors)
+        cofactor_states = self.get_cofactor_states(cofactors)
 
         # Initialize the result
         distributions = {}

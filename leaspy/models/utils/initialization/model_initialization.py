@@ -1,3 +1,5 @@
+import statistics
+
 import torch
 from scipy import stats
 # from ..attributes.attributes_logistic import Attributes_Logistic
@@ -209,8 +211,8 @@ def compute_patient_slopes_distribution(data):
             if count > 50:
                 break
 
-        slopes_mu.append(torch.mean(torch.tensor(slope_dim_patients)).tolist())
-        slopes_sigma.append(torch.mean(torch.tensor(slope_dim_patients)).tolist())
+        slopes_mu.append(statistics.mean(slope_dim_patients))
+        slopes_sigma.append(statistics.mean(slope_dim_patients))
 
     return slopes_mu, slopes_sigma
 
@@ -234,8 +236,7 @@ def compute_patient_time_distribution(data):
     """
     df = data.to_pandas()
     df.set_index(["ID", "TIME"], inplace=True)
-    return torch.mean(torch.tensor(df.index.get_level_values('TIME'))).tolist(), \
-           torch.std(torch.tensor(df.index.get_level_values('TIME'))).tolist()
+    return statistics.mean(df.index.get_level_values('TIME')), statistics.stdev(df.index.get_level_values('TIME'))
 
 
 '''

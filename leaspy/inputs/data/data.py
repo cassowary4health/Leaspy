@@ -85,7 +85,7 @@ class Data:
             for j, age in enumerate(ages):
                 indices.append(indiv.idx)
                 timepoints[iteration] = age
-                arr[iteration] = indiv.observations[j]
+                arr[iteration] = torch.tensor(indiv.observations[j])
 
                 iteration += 1
 

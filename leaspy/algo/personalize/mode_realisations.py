@@ -3,7 +3,7 @@ from ..samplers.hmc_sampler import HMCSampler
 from ..samplers.gibbs_sampler import GibbsSampler
 from leaspy.utils.realizations.realization import Realization
 import torch
-import time
+# import time
 
 
 class ModeReal(AbstractPersonalizeAlgo):

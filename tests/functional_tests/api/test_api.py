@@ -17,7 +17,7 @@ class LeaspyTest(unittest.TestCase):
 
     def test_usecase(self):
         """
-        Fonctional test of a basic analysis using leaspy package
+        Functional test of a basic analysis using leaspy package
 
         1 - Data loading
         2 - Fit logistic model with MCMC algorithm

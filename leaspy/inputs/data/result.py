@@ -159,23 +159,30 @@ class Result:
             if cofactor is not None => return a dictionary dictionary of torch tensor {'cofactor1': {'patient1': error1, ...}, ...}
         """
         error_distribution = {}
+        get_sources = (model.name != "univariate")
         for i, (key, patient) in enumerate(self.data.individuals.items()):
             param_ind = {'tau': self.individual_parameters['tau'][i],
-                         'xi': self.individual_parameters['tau'][i],
-                         'sources': self.individual_parameters['sources'][i]}
+                         'xi': self.individual_parameters['tau'][i]}
+            if get_sources:
+                param_ind['sources'] = self.individual_parameters['sources'][i]
+
             if aggregate_subscores:
                 if aggregate_visits:  # One value per patient
                     error_distribution[key] = torch.sum(model.compute_individual_tensorized(
-                        torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations)).tolist()
+                        torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations,
+                                                                                    dtype=torch.float32)).tolist()
                 else:  # One value per patient & per subscore
                     error_distribution[key] = torch.sum(model.compute_individual_tensorized(
-                        torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations), 0).tolist()
+                        torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations,
+                                                                                    dtype=torch.float32), 0).tolist()
             elif aggregate_visits:  # One value per patient & per visit
                 error_distribution[key] = torch.sum(model.compute_individual_tensorized(
-                    torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations), 1).tolist()
+                    torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations,
+                                                                                dtype=torch.float32), 1).tolist()
             else:  # One value per patient & per subscore & per visit
                 error_distribution[key] = (model.compute_individual_tensorized(
-                    torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations)).tolist()
+                    torch.tensor(patient.timepoints), param_ind) - torch.tensor(patient.observations,
+                                                                                dtype=torch.float32)).tolist()
 
         if cofactor:
             cofactors = self.get_cofactor_distribution(cofactor)

@@ -3,17 +3,44 @@ import torch
 
 class Result:
     """
-    Result object class
-    Used as output from personalize & simulate
+    Result object class.
+    Used as output by personalize algorithm & simulation algorithm
+
+    Attributes
+    ----------
+    data: leaspy.inputs.data.data.Data class object
+        Object containing the idx, time-points and observations of the patients
+    individual_parameters: dictionary of torch.tensor
+        Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
+    noise_std: float
+        Desired noise standard deviation level
+
+    Methods
+    -------
+    get_cofactor_distribution(cofactor)
+        Get the list of the cofactor's distribution
+    get_cofactor_states(cofactors)
+        Given a list of string return the list of unique elements
+    get_parameter_distribution(parameter, cofactor=None)
+        Return the wanted parameter distribution (one distribution per covariate state)
+    get_patient_individual_parameters(idx):
+        Get the dictionary of the wanted patient's individual parameters
+    get_error_distribution(model, cofactor=None, aggregate_subscores=False, aggregate_visits=False):
+        Get error distribution per patient. By default, return one error value per patient & per subscore & per visit
     """
 
     def __init__(self, data, individual_parameters, noise_std=None):
         """
-        Process the initializer function - called by Leaspy.personalize & Leaspy.simulate
+        Process the initializer function - called by Leaspy.inputs.data.result.Result
 
-        :param data: leaspy.inputs.data.data class object
-        :param individual_parameters: dictionary of torch.tensor (or list of float) - containing log-acceleration 'xi', time-shifts 'tau' & 'sources'
-        :param noise_std: float - desired noise standard deviation level
+        Parameters
+        ----------
+        data: leaspy.inputs.data.data class object
+            Object containing the idx, time-points and observations of the patients
+        individual_parameters: dictionary of torch.tensor
+            Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
+        noise_std: float
+            Desired noise standard deviation level
         """
         self.data = data
         self.individual_parameters = individual_parameters
@@ -27,8 +54,15 @@ class Result:
         """
         Given a list of string return the list of unique elements
 
-        :param cofactors: list of strings
-        :return: list of strings
+        Parameters
+        ----------
+        cofactors: list
+            Distribution list of the cofactors
+
+        Returns
+        -------
+        list of strings
+            Uniques occurrence of the input vector
         """
         result = []
         for state in cofactors:
@@ -41,9 +75,16 @@ class Result:
         """
         Return the wanted parameter distribution (one distribution per covariate state)
 
-        :param parameter: string - corresponding to the wanted parameter's name (ex: 'xi', 'tau' ...)
-        :param cofactor: string - corresponding the wanted cofactor's name
-        :return: list of floats or dictionary or list of float
+        Parameters
+        ----------
+        parameter: string
+            The wanted parameter's name (ex: 'xi', 'tau' ...)
+        cofactor: string
+            The wanted cofactor's name
+
+        Returns
+        -------
+        list of floats, dict of list of float
             If no cofactor is given & the parameter is univariate => return a list the parameter's distribution
             If no cofactor is given & the parameter is multivariate => return a dictionary =
                 {'parameter1': distribution of parameter variable 1, 'parameter2': ...}
@@ -119,8 +160,15 @@ class Result:
         """
         Get the list of the cofactor's distribution
 
-        :param cofactor: string - cofactor's name
-        :return: list of float - cofactor's distribution
+        Parameters
+        ----------
+        cofactor: string
+            Cofactor's name
+
+        Returns
+        -------
+        list of float
+            Cofactor's distribution
         """
         return [d.cofactors[cofactor] for d in self.data]
 
@@ -128,8 +176,15 @@ class Result:
         """
         Get the dictionary of the wanted patient's individual parameters
 
-        :param idx: string - id of the wanted patient
-        :return: dictionary of torch.tensor - patient's individual parameters
+        Parameters
+        ----------
+        idx: string
+            ID of the wanted patient
+
+        Returns
+        -------
+        dict of torch.tensor
+            Patient's individual parameters
         """
         # indices = list(self.data.individuals.keys())
         # idx_number = int(
@@ -146,17 +201,26 @@ class Result:
     def get_error_distribution(self, model, cofactor=None, aggregate_subscores=False, aggregate_visits=False):
         """
         Get error distribution per patient. By default, return one error value per patient & per subscore & per visit.
-        Use 'aggregate_subscores' to get one error value per patient & per visit.
-        Use 'aggregate_visits' to get one error value per patient & per subscore.
+        Use 'aggregate_subscores' to average error values among subscores.
+        Use 'aggregate_visits' to average error values among visits.
         Use both to have one error value per patient.
         Use `cofactor' to cluster the patients by their corresponding cofactor's state.
 
-        :param model: leaspy model class object
-        :param cofactor: string
-        :param aggregate_subscores: boolean = False by default  =>  1 error per subscore
-        :param aggregate_visits: boolean = False by default  =>  1 error per visit
-        :return: if cofactor is None => return a dictionary of torch tensor {'patient1': error1, ...}
-            if cofactor is not None => return a dictionary dictionary of torch tensor {'cofactor1': {'patient1': error1, ...}, ...}
+        Parameters
+        ----------
+        model: leaspy model class object
+        cofactor: string
+        aggregate_subscores: boolean (default = False)
+            Use 'aggregate_subscores' to average error values among subscores.
+        aggregate_visits: boolean (default = False)
+            Use 'aggregate_visits' to average error values among visits.
+
+        Returns
+        -------
+        dict
+            If cofactor is None => return a dictionary of torch tensor {'patient1': error1, ...}
+            If cofactor is not None => return a dictionary dictionary of torch tensor
+            {'cofactor1': {'patient1': error1, ...}, ...}
         """
         error_distribution = {}
         get_sources = (model.name != "univariate")
@@ -167,30 +231,29 @@ class Result:
                 param_ind['sources'] = self.individual_parameters['sources'][i]
 
             computed_minus_observations = model.compute_individual_tensorized(
-                            torch.tensor(patient.timepoints,
-                                         dtype=torch.float32).unsqueeze(0), param_ind).squeeze(0)
+                            torch.tensor(patient.timepoints, dtype=torch.float32).unsqueeze(0), param_ind).squeeze(0)
             computed_minus_observations -= torch.tensor(patient.observations, dtype=torch.float32)
 
             if aggregate_subscores:
                 if aggregate_visits:
                     # One value per patient
-                    error_distribution[key] = torch.sum(computed_minus_observations).tolist()
+                    error_distribution[key] = torch.mean(computed_minus_observations).tolist()
                 else:
                     # One value per patient & per subscore
-                    error_distribution[key] = torch.sum(computed_minus_observations, 1).tolist()
+                    error_distribution[key] = torch.mean(computed_minus_observations, 1).tolist()
             elif aggregate_visits:
                 # One value per patient & per visit
-                error_distribution[key] = torch.sum(computed_minus_observations, 0).tolist()
+                error_distribution[key] = torch.mean(computed_minus_observations, 0).tolist()
             else:
                 # One value per patient & per subscore & per visit
                 error_distribution[key] = computed_minus_observations.tolist()
 
         if cofactor:
             cofactors = self.get_cofactor_distribution(cofactor)
-            result = {state: {} for state in self._get_cofactor_states(cofactors)}
+            result = {state: {} for state in self.get_cofactor_states(cofactors)}
             for key in result.keys():
-                result[key] = {patient: error_distribution[patient] for i, patient in enumerate(error_distribution.keys())
-                               if cofactors[i] == key}
+                result[key] = {patient: error_distribution[patient] for i, patient in
+                               enumerate(error_distribution.keys()) if cofactors[i] == key}
             return result  # return {'cofactor1': {'patient1': error1, ...}, ...}
         else:
             return error_distribution  # return {'patient1': error1, ...}

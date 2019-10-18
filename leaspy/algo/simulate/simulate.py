@@ -1,6 +1,3 @@
-# import numpy as np
-import pandas as pd
-# import scipy
 import torch
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
@@ -36,7 +33,7 @@ class SimulationAlgorithm(AbstractAlgo):
     number_of_subjects: int
         Number of subject to simulate
     std_number_of_visits: float
-        Standart deviation used into the generation of the number of visits per simulated patient
+        Standard deviation used into the generation of the number of visits per simulated patient
 
     Methods
     -------
@@ -152,13 +149,14 @@ class SimulationAlgorithm(AbstractAlgo):
         results: leaspy.inputs.data.result class object
             Object obtained at the personalization step in order to compute individual parameters
         get_sources: bool
-            Needed in order to differentiate univariate models from other - if univariate, don't look for 'sources'
+            Needed in order to differentiate univariate models from other - if univariate, ignores 'sources'
 
         Returns
         -------
         tuple(list[float], list[float], list(list(float)), list[float])
             Tuple containing (in this order) the log-acceleration xi, the time-shift tau, the sources
-            (of shape = Number_of_sources x Number_of_subjects) & the baseline age of the patients
+            (of shape = Number_of_sources x Number_of_subjects) & the baseline age of the patients. The sources are not
+            returned if the model is univariate.
         """
 
         xi = results.get_parameter_distribution('xi', self.cofactor) # list of float

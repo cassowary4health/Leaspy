@@ -1,0 +1,29 @@
+<h1 id="user-documentation">User documentation</h1>
+
+<h2 id="model">Model</h2>
+
+<p>Let’s consider a model</p>
+
+<script type="math/tex; mode=display">y=f_{\theta}(z, x)</script>
+
+<p>where</p>
+
+<ul>
+  <li>$y$ corresponds to the output data</li>
+  <li>$x$ corresponds to the input data</li>
+  <li>$z$ corresponds to the hidden variables</li>
+  <li>$f$ corresponds to the model</li>
+  <li>$\theta$ corresponds to the model parameters</li>
+</ul>
+
+<p>The model is able to do the following actions :</p>
+
+<ul>
+  <li><code class="highlighter-rouge">leaspy()</code> : defines $f$ with $\theta:= \theta_0$</li>
+  <li><code class="highlighter-rouge">leaspy.from_model_settings(model_settings)</code> : defines $f$ with $\theta:= \theta_{\text{model_settings}}$</li>
+  <li><code class="highlighter-rouge">leaspy.save(path)</code> : saves $\theta$ in the <code class="highlighter-rouge">path</code> directory</li>
+  <li><code class="highlighter-rouge">leaspy.fit(data, algo_settings)</code> : launches the model so that $\theta_{\text{init}} \xrightarrow{converge} \theta$ thanks to the data and settings</li>
+  <li><code class="highlighter-rouge">leaspy.predict(data, prediction_settings)</code> : returns the best hidden variable $z$ such that it minimizes $y^{\text{pred}} - f_{\theta}(x, z)$</li>
+  <li><code class="highlighter-rouge">leaspy.simulate(simulation_settings)</code> : generates collections of $(z, x)$ and therefore $(f_{\theta}(z, x))_{(z, x)}$
+##</li>
+</ul>

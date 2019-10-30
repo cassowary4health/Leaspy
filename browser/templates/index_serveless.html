@@ -1,0 +1,86 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Disease model</title>
+  <!--<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">-->
+  <link rel="stylesheet" type="text/css" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/handsontable/7.1.1/handsontable.full.css">
+</head>
+
+
+<body>
+  <div class="container">
+    <div class="row text-center">
+      <div class="col-md-12">
+        <h1>Model of disease progression</h1>
+        <h2>Here are some examples of patients you can check out</h2>
+      </div>
+    </div>
+
+    <hr>
+
+    <hr>
+
+
+
+    <div class="row text-center">
+      <div class="col-md-12">
+        <form id="form">
+            <input type="file" id="file_">
+        </form>
+      </div>
+    </div>
+
+    <hr>
+
+
+    <div class="row text-center">
+      <div class="col-md-8">
+        <div class="responsive-plot" id="PlotlyTest"></div>
+      </div>
+
+      <div class="col-md-2 text-center">
+
+
+        <div class="col-md-12" id="shift_parameter"></div>
+        <div class="col-md-12" id="acceleration_parameter"></div>
+        <div class="col-md-12" id="geometric_parameters"></div>
+
+      </div>
+    </div>
+
+    <div class="row text-center">
+      <div class="col-md-10 offset-md-1">
+        <button type="button" class="btn btn-info btn-sm" onclick="addRow()">Add row</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeRow()">Delete last row</button>
+        <hr>
+        Birthday : <input type="date" id="start" name="trip-start"
+                          value="1960-07-22"
+                          min="1900-01-01"
+                          max="2050-12-31">
+
+        <div id="hot"></div>
+        <hr>
+        <button type="button" class="btn btn-success btn-sm" onclick="personalize()">Personalize</button>
+      </div>
+    </div>
+
+  </div>
+</body>
+<script src="{{ url_for('static', filename='js/jquery-3.3.1.min.js') }}"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.2.1/math.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.js"></script>
+<script src="{{ url_for('static', filename='js/models.js') }}"></script>
+<script src="{{ url_for('static', filename='js/render.js') }}"></script>
+<script src="{{ url_for('static', filename='js/patient.js') }}"></script>
+
+<script>
+
+</script>
+</html>

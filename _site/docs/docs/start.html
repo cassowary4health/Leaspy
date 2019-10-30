@@ -1,0 +1,107 @@
+<h1 id="fit-a-longitudinal-cohort">FIT a longitudinal cohort</h1>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">src.inputs.data_reader</span> <span class="kn">import</span> <span class="n">DataReader</span>
+<span class="kn">from</span> <span class="nn">src.inputs.algo_settings</span> <span class="kn">import</span> <span class="n">AlgoSettings</span>
+<span class="kn">from</span> <span class="nn">src.main</span> <span class="kn">import</span> <span class="n">Leaspy</span>
+
+<span class="c1">## 1. Initialize Data / Paramaters
+</span>
+<span class="n">leaspy_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+<span class="n">univariate_example_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">leaspy_path</span><span class="p">,</span> <span class="s">"example"</span><span class="p">,</span> <span class="s">"data"</span><span class="p">,</span> <span class="s">"univariate"</span><span class="p">)</span>
+<span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">leaspy_path</span><span class="p">,</span> <span class="s">".."</span><span class="p">,</span> <span class="s">"output_leaspy"</span><span class="p">,</span> <span class="s">"fit"</span><span class="p">)</span>
+
+<span class="c1"># 1.1 Instanciate Data object from csv file
+</span>
+<span class="n">data_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">univariate_example_path</span><span class="p">,</span> <span class="s">"data.csv"</span><span class="p">)</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">DataReader</span><span class="p">()</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">data_path</span><span class="p">)</span>
+
+<span class="c1"># 1.2 Instanciate algosettings object from json file
+</span><span class="n">algosettings_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">univariate_example_path</span><span class="p">,</span> <span class="s">"algorithm_settings.json"</span><span class="p">)</span>
+<span class="n">algosettings</span> <span class="o">=</span> <span class="n">AlgoSettings</span><span class="p">(</span><span class="n">algosettings_path</span><span class="p">)</span>
+<span class="n">algosettings</span><span class="o">.</span><span class="n">output_path</span> <span class="o">=</span> <span class="n">output_path</span>
+
+<span class="c1">## 2. Launch leaspy
+</span>
+<span class="c1"># 2.1 Instanciate leaspy object
+</span><span class="n">leaspy</span> <span class="o">=</span> <span class="n">Leaspy</span><span class="p">(</span><span class="s">"univariate"</span><span class="p">)</span>
+
+<span class="c1"># 2.2 Fit
+</span><span class="n">leaspy</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">algosettings</span><span class="p">)</span>
+
+<span class="c1"># 2.3 See and save results
+</span><span class="k">print</span><span class="p">(</span><span class="n">leaspy</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
+<span class="n">leaspy</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s">"model.json"</span><span class="p">))</span>
+</code></pre></div></div>
+
+<h1 id="predict-a-new-patient">Predict a new patient</h1>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">src.main</span> <span class="kn">import</span> <span class="n">Leaspy</span>
+<span class="kn">from</span> <span class="nn">src.inputs.algo_settings</span> <span class="kn">import</span> <span class="n">AlgoSettings</span>
+<span class="kn">from</span> <span class="nn">src.utils.output_manager</span> <span class="kn">import</span> <span class="n">OutputManager</span>
+<span class="kn">from</span> <span class="nn">src.inputs.data_reader</span> <span class="kn">import</span> <span class="n">DataReader</span>
+<span class="kn">import</span> <span class="nn">matplotlib.cm</span> <span class="k">as</span> <span class="n">cm</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="n">np</span>
+
+<span class="c1">## 1. Initialize Data / Paramaters
+</span>
+<span class="n">leaspy_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+<span class="n">univariate_example_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">leaspy_path</span><span class="p">,</span> <span class="s">"example"</span><span class="p">,</span> <span class="s">"data"</span><span class="p">,</span> <span class="s">"univariate"</span><span class="p">)</span>
+<span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">leaspy_path</span><span class="p">,</span> <span class="s">".."</span><span class="p">,</span> <span class="s">"output_leaspy"</span><span class="p">,</span> <span class="s">"fit"</span><span class="p">)</span>
+
+<span class="c1"># 1.1 Instanciate Data object from csv file
+</span>
+<span class="n">data_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">univariate_example_path</span><span class="p">,</span> <span class="s">"data.csv"</span><span class="p">)</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">DataReader</span><span class="p">()</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">data_path</span><span class="p">)</span>
+
+<span class="c1">## 2. Load leaspy from parameters
+</span><span class="n">leaspy</span> <span class="o">=</span> <span class="n">Leaspy</span><span class="o">.</span><span class="n">from_model_settings</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s">"model.json"</span><span class="p">))</span>
+
+
+
+<span class="c1">## 3. PREDICT a new patient
+</span>
+<span class="c1"># 2.1 Instanciate prediction settings object
+</span><span class="n">prediction_algosettings_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">univariate_example_path</span><span class="p">,</span> <span class="s">"predict_algorithm_settings.json"</span><span class="p">)</span>
+<span class="n">prediction_settings</span> <span class="o">=</span> <span class="n">AlgoSettings</span><span class="p">(</span><span class="n">prediction_algosettings_path</span><span class="p">)</span>
+
+<span class="c1"># 2.2 Predict
+</span><span class="n">individual</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">subset</span><span class="p">([</span><span class="mi">116</span><span class="p">])</span>
+<span class="n">individual_parameters</span> <span class="o">=</span> <span class="n">leaspy</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">individual</span><span class="p">,</span> <span class="n">prediction_settings</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+<span class="c1"># 2.3 Plot the Prediction
+</span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">output_manager</span> <span class="o">=</span> <span class="n">OutputManager</span><span class="p">(</span><span class="n">path_output</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+<span class="n">output_manager</span><span class="o">.</span><span class="n">plot_model_patient_reconstruction</span><span class="p">(</span><span class="n">individual</span><span class="p">[</span><span class="mi">116</span><span class="p">],</span> <span class="n">leaspy</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">individual_parameters</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># 2.4 Repeat for multiple patients
+</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">output_manager</span> <span class="o">=</span> <span class="n">OutputManager</span><span class="p">(</span><span class="n">path_output</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+<span class="n">n_patients_to_plot</span> <span class="o">=</span> <span class="mi">5</span>
+
+<span class="n">indices_to_plot</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">indices</span><span class="p">[:</span><span class="n">n_patients_to_plot</span><span class="p">]</span>
+
+<span class="n">colors</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">rainbow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_patients_to_plot</span><span class="o">+</span><span class="mi">2</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">indices_to_plot</span><span class="p">):</span>
+    <span class="n">individual</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">subset</span><span class="p">([</span><span class="n">idx</span><span class="p">])</span>
+    <span class="n">individual_parameters</span> <span class="o">=</span> <span class="n">leaspy</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">individual</span><span class="p">,</span> <span class="n">prediction_settings</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">output_manager</span><span class="o">.</span><span class="n">plot_model_patient_reconstruction</span><span class="p">(</span><span class="n">individual</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">leaspy</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">individual_parameters</span><span class="p">,</span>
+                                                     <span class="n">color</span> <span class="o">=</span> <span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">,</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</code></pre></div></div>
+
+<h2 id="simulate-new-parameters">Simulate new parameters</h2>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">leaspy</span> <span class="k">as</span> <span class="n">lp</span>
+
+<span class="n">simulation_settings</span> <span class="o">=</span> <span class="n">read_prediction_settings</span><span class="p">(</span><span class="n">simulation_settings_path</span><span class="p">)</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">lp</span><span class="o">.</span><span class="n">from_model_settings</span><span class="p">(</span><span class="n">path_to_parameters</span><span class="p">)</span>
+<span class="n">new_individuals</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">simulation_settings</span><span class="p">)</span>
+</code></pre></div></div>

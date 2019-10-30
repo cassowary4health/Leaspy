@@ -1,0 +1,154 @@
+<h1 id="data">Data</h1>
+
+<p>The format of the input data is key to use Leaspy.</p>
+
+<h3 id="data-csv">Data csv</h3>
+
+<p>The user is required to provided a specific data structure to the data object.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>TIME</th>
+      <th>name_of_feature_1</th>
+      <th>…</th>
+      <th>name_of_feature_m</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>id_of_the_subject</td>
+      <td>age_of_the_subject</td>
+      <td>value_of_feature_1</td>
+      <td>…</td>
+      <td>value_of_feature_m</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>An exemple is given below :</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>TIME</th>
+      <th>bio_1</th>
+      <th>…</th>
+      <th>bio_q</th>
+      <th> </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>id_1</td>
+      <td>75.1</td>
+      <td>1.2</td>
+      <td>…</td>
+      <td>40.1</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>id_1</td>
+      <td>77.3</td>
+      <td>-0.8</td>
+      <td>…</td>
+      <td>48.1</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>id_1</td>
+      <td>79.7</td>
+      <td>1.5</td>
+      <td>…</td>
+      <td>49.</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>id_2</td>
+      <td>60.</td>
+      <td>.2</td>
+      <td>…</td>
+      <td>25.7</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>id_2</td>
+      <td>62.1</td>
+      <td>1.8</td>
+      <td>…</td>
+      <td>29.5</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>id_3</td>
+      <td>69.1</td>
+      <td>1.7</td>
+      <td>…</td>
+      <td>15.3</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>…</td>
+      <td>…</td>
+      <td>…</td>
+      <td>…</td>
+      <td>… </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>id_n</td>
+      <td>80.1</td>
+      <td>2.4</td>
+      <td>…</td>
+      <td>39.8</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>id_n</td>
+      <td>83.5</td>
+      <td>2.3</td>
+      <td>…</td>
+      <td>39.7</td>
+      <td> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="data-object">Data object</h3>
+
+<p>Lorem Ipsum</p>
+
+<h3 id="internal-dataset-structure">Internal dataset structure</h3>
+
+<p>For optimization : n-dimensionnal array (numpy or pytorch)</p>
+
+<h1 id="model-settings">Model Settings</h1>
+
+<p>The model settings corresponds to all the variables needed by the model either to be instantiated or to be loaded from a previous state that has been saved in json.</p>
+
+<h3 id="model_settingsjson">model_settings.json</h3>
+
+<p>A model can either be instantiated randomly given a set of variables, or from a <code class="highlighter-rouge">json</code> file that fully describes a model.
+This <code class="highlighter-rouge">json</code> file has essentially three keys :</p>
+
+<ul>
+  <li>the <code class="highlighter-rouge">type</code> of the model (univariate, multivariate, …)</li>
+  <li>the <code class="highlighter-rouge">parameters</code> of the model, i.e. a dictionary of the parameters $\theta$ that best describes the model</li>
+  <li>the <code class="highlighter-rouge">hyperparameters</code> of the model that are essentially all the other variables needed to initialized the model</li>
+</ul>
+
+<h3 id="model_settings-object">model_settings object</h3>
+
+<p>The <code class="highlighter-rouge">model_settings</code> object is used to read the <code class="highlighter-rouge">json</code> file.</p>
+
+<h1 id="algorithm-settings">Algorithm Settings</h1>
+
+<h3 id="algorithm_settingsjson">algorithm_settings.json</h3>
+
+<p>Lorem Ipsum</p>
+
+<h3 id="algorithm_settings-object">algorithm_settings object</h3>
+
+<p>Lorem Ipsum</p>

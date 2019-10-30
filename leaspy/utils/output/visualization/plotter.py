@@ -77,6 +77,25 @@ class Plotter:
         plt.show()
         plt.close()
 
+
+    def plot_mean_validity(self, model, results, **kwargs):
+        t0 = model.parameters['tau_mean'].numpy()
+        hist = []
+
+        for i, individual in enumerate(results.data):
+            ages = individual.timepoints
+            xi = results.individual_parameters['xi'][i].numpy()
+            tau = results.individual_parameters['tau'][i].numpy()
+            reparametrized = np.exp(xi) * (ages - tau) + t0
+            hist.append(reparametrized)
+
+        hist = [_ for l in hist for _ in l]
+        plt.hist(hist)
+
+        if 'save_as' in kwargs.keys():
+            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
+        plt.show()
+
     def plot_patient_trajectory(self, model, results, indices, **kwargs):
 
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
@@ -105,6 +124,24 @@ class Plotter:
 
         plt.show()
         plt.close()
+
+    def plot_from_individual_parameters(self, model, indiv_parameters, timepoints, **kwargs):
+        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
+        labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_' + str(i) for i in range(model.dimension)]
+        fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+
+        t = torch.Tensor(timepoints).unsqueeze(0)
+        trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
+        for dim in range(model.dimension):
+            ax.plot(timepoints, trajectory.detach().numpy()[:, dim], c=colors[dim], label=labels[dim])
+
+        if 'save_as' in kwargs.keys():
+            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
+
+        plt.legend()
+        plt.show()
+        plt.close()
+
 
     def plot_distribution(self, results, parameter, cofactor=None, **kwargs):
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))

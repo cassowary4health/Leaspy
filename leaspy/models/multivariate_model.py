@@ -24,6 +24,8 @@ class MultivariateModel(AbstractMultivariateModel):
             return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
         elif self.name == 'linear':
             return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
+        elif self.name == 'mixed_linear-logistic':
+            return self.compute_individual_tensorized_mixed(timepoints, ind_parameters, attribute_type)
         else:
             raise ValueError("Mutivariate model > Compute individual tensorized")
 
@@ -66,6 +68,50 @@ class MultivariateModel(AbstractMultivariateModel):
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
         return model
+
+    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
+        raise NotImplementedError()
+
+    """
+    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
+
+
+        raise ValueError("Do not use !!!")
+
+        # Hyperparameters : split # TODO
+        split = 1
+        idx_linear = list(range(split))
+        idx_logistic = list(range(split, self.dimension))
+
+        # Population parameters
+        g, v0, a_matrix = self._get_attributes(attribute_type)
+        g_plus_1 = 1. + g
+        b = g_plus_1 * g_plus_1 / g
+
+        # Individual parameters
+        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        # Log likelihood computation
+        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
+        v0 = v0.reshape(1, 1, -1)
+
+        LL = v0 * reparametrized_time
+        if self.source_dimension != 0:
+            wi = sources.matmul(a_matrix.t())
+            LL += wi.unsqueeze(-2)
+
+        # Logistic Part
+        LL_log = 1. + g * torch.exp(-LL * b)
+        model_logistic = (1. / LL_log)[:,:,idx_logistic]
+
+        # Linear Part
+        model_linear = (LL + torch.log(g))[:,:,idx_linear]
+
+        # Concat
+        model = torch.cat([model_linear, model_logistic], dim=2)
+
+        return model"""
 
     ##############################
     ### MCMC-related functions ###
@@ -125,9 +171,9 @@ class MultivariateModel(AbstractMultivariateModel):
                                                                  attribute_type='MCMC')
 
         # TODO : Remove norm_0 to directly get data.L2_norm in update_model_parameters
-        norm_0 = data.values * data.values * data.mask
-        norm_1 = data.values * data_reconstruction * data.mask
-        norm_2 = data_reconstruction * data_reconstruction * data.mask
+        norm_0 = data.values * data.values * data.mask.float()
+        norm_1 = data.values * data_reconstruction * data.mask.float()
+        norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
         sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
         sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
         sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
@@ -163,15 +209,15 @@ class MultivariateModel(AbstractMultivariateModel):
         param_ind = self.get_param_from_real(realizations)
         # TODO : Why is it MCMC-SAEM? SHouldn't it be computed with the parameters?
         squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type='MCMC').sum()
-        self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
+        self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
 
         # TODO : This is just for debugging of linear
         data_reconstruction = self.compute_individual_tensorized(data.timepoints,
                                                                  self.get_param_from_real(realizations),
                                                                  attribute_type='MCMC')
-        norm_0 = data.values * data.values * data.mask
-        norm_1 = data.values * data_reconstruction * data.mask
-        norm_2 = data_reconstruction * data_reconstruction * data.mask
+        norm_0 = data.values * data.values * data.mask.float()
+        norm_1 = data.values * data_reconstruction * data.mask.float()
+        norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
         S1 = torch.sum(torch.sum(norm_0, dim=2))
         S2 = torch.sum(torch.sum(norm_1, dim=2))
         S3 = torch.sum(torch.sum(norm_2, dim=2))
@@ -203,7 +249,7 @@ class MultivariateModel(AbstractMultivariateModel):
         S2 = torch.sum(suff_stats['obs_x_reconstruction'])
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 
-        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
+        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
 
         # print("After burn-in : ", torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits)))
 

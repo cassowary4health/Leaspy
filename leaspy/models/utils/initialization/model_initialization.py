@@ -15,6 +15,8 @@ def initialize_parameters(model, dataset, method="default"):
         parameters = initialize_linear(model, dataset, method)
     elif name == 'univarite':
         parameters = initialize_univariate(dataset, method)
+    elif name == 'mixed_linear-logistic':
+        parameters = initialize_logistic(model, dataset, method)
     else:
         raise ValueError("There is no initialization method for the parameter of the model {}".format(name))
 
@@ -191,8 +193,9 @@ def compute_patient_slopes_distribution(data):
         for idx in data.indices:
             # Select patient dataframe
             df_patient = df.loc[idx]
-            x = df_patient.index.get_level_values('TIME').values
-            y = df_patient.iloc[:, dim].values
+            df_patient_dim = df_patient.iloc[:, dim].dropna()
+            x = df_patient_dim.index.get_level_values('TIME').values
+            y = df_patient_dim.values
 
             # Delete if less than 2 visits
             if len(x) < 2:

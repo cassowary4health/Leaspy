@@ -66,8 +66,18 @@ class ModeReal(AbstractPersonalizeAlgo):
             [model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), "MCMC") for
              realizations in realizations_history])
 
+        # Regularity
+        regularity = []
+        for realizations in realizations_history:
+            regularity_ind = 0
+            for var_ind in model.get_individual_variable_name():
+                regularity_ind += model.compute_regularity_realization(realizations[var_ind]).sum(dim=1)
+            regularity.append(regularity_ind)
+        regularity = torch.stack(regularity)
+
+
         # Indices min
-        indices_min = torch.min(attachments, dim=0)
+        indices_min = torch.min(attachments+regularity, dim=0)
 
         # Compute mode of n_iter realizations for each individual variable
         mode_output = {}

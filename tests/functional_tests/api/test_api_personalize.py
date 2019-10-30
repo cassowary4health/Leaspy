@@ -64,7 +64,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         algo_personalize_settings = AlgorithmSettings.load(path_settings)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
-        self.assertAlmostEqual(result.noise_std,   0.10314258, delta=0.01)
+        self.assertAlmostEqual(result.noise_std,   0.12152, delta=0.01)
 
 
     # TODO : problem with nans

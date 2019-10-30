@@ -69,11 +69,17 @@ class MultivariateModel(AbstractMultivariateModel):
         model = 1. / LL
         return model
 
+    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
+        raise NotImplementedError()
 
+    """
     def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
 
+
+        raise ValueError("Do not use !!!")
+
         # Hyperparameters : split # TODO
-        split = 2
+        split = 1
         idx_linear = list(range(split))
         idx_logistic = list(range(split, self.dimension))
 
@@ -100,12 +106,12 @@ class MultivariateModel(AbstractMultivariateModel):
         model_logistic = (1. / LL_log)[:,:,idx_logistic]
 
         # Linear Part
-        model_linear = LL[:,:,idx_linear]
+        model_linear = (LL + torch.log(g))[:,:,idx_linear]
 
         # Concat
         model = torch.cat([model_linear, model_logistic], dim=2)
 
-        return model
+        return model"""
 
     ##############################
     ### MCMC-related functions ###

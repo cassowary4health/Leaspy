@@ -66,7 +66,7 @@ class LeaspyTest(unittest.TestCase):
         # Personalize
         algo_personalize_settings = AlgorithmSettings('mode_real', seed=0)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
-        self.assertAlmostEqual(result.noise_std, 0.0923, delta=0.01)
+        self.assertAlmostEqual(result.noise_std,  0.172812, delta=0.01)
 
         # Get error distribution
         error_distribution = result.get_error_distribution(leaspy.model)

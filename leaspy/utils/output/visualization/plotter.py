@@ -23,9 +23,7 @@ class Plotter:
     def plot_mean_trajectory(self, model, **kwargs):
         # colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
 
-        # Break if model is not initialized
-        if not model.is_initialized:
-            raise ValueError("Please initialize the model before plotting")
+
 
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_' + str(i) for i in range(model.dimension)]
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
@@ -35,6 +33,11 @@ class Plotter:
         try:
             iterator = iter(model)
         except TypeError:
+
+            # Break if model is not initialized
+            if not model.is_initialized:
+                raise ValueError("Please initialize the model before plotting")
+
             # not iterable
             if model.name in ['logistic', 'logistic_parallel']:
                 plt.ylim(0, 1)
@@ -52,6 +55,11 @@ class Plotter:
             plt.legend()
 
         else:
+
+            # Break if model is not initialized
+            if not model[0].is_initialized:
+                raise ValueError("Please initialize the model before plotting")
+
             # iterable
             if model[0].name in ['logistic', 'logistic_parallel']:
                 plt.ylim(0, 1)
@@ -70,6 +78,10 @@ class Plotter:
 
                 if j == 0:
                     plt.legend()
+
+        title = kwargs['title'] if 'title' in kwargs.keys() else None
+        if title is not None:
+            ax.set_title(title)
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
@@ -100,7 +112,11 @@ class Plotter:
 
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
         labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_' + str(i) for i in range(model.dimension)]
-        fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+        if 'ax' in kwargs.keys():
+            ax = kwargs['ax']
+        else:
+            (fig, ax) = plt.subplots(1, 1, figsize=(8, 8))
+
         if model.name in ['logistic', 'logistic_parallel']:
             plt.ylim(0, 1)
 
@@ -116,14 +132,24 @@ class Plotter:
 
             trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
             for dim in range(model.dimension):
-                ax.plot(timepoints, trajectory.detach().numpy()[:, dim], c=colors[dim])
-                ax.plot(timepoints, observations[:, dim], c=colors[dim], linestyle='--')
+                not_nans_idx = np.array(1-np.isnan(observations[:, dim]),dtype=bool)
+                ax.plot(np.array(timepoints), trajectory.detach().numpy()[:, dim], c=colors[dim])
+                ax.plot(np.array(timepoints)[not_nans_idx], observations[:, dim][not_nans_idx], c=colors[dim], linestyle='--')
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
-        plt.show()
-        plt.close()
+        if 'title' in kwargs.keys():
+            plt.title(kwargs['title'])
+
+        from matplotlib.lines import Line2D
+        custom_lines = [Line2D([0], [0], color=colors[i%8], lw=4) for i in range((model.dimension))]
+        print(custom_lines)
+        ax.legend(custom_lines, labels, loc='upper right')
+
+        if 'ax' not in kwargs.keys():
+            plt.show()
+            plt.close()
 
     def plot_from_individual_parameters(self, model, indiv_parameters, timepoints, **kwargs):
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))

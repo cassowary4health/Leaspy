@@ -18,7 +18,7 @@ class ModelFactory():
 
         if name == 'univariate':
             return UnivariateModel(name)
-        elif name == 'logistic' or name == 'linear':
+        elif name == 'logistic' or name == 'linear' or name == 'mixed_linear-logistic':
             return MultivariateModel(name)
         elif name == 'logistic_parallel':
             return MultivariateParallelModel(name)

@@ -1,7 +1,6 @@
 import unittest
 
 from leaspy.algo.samplers.gibbs_sampler import GibbsSampler
-from . import dummy_ind_variable_infos
 
 from leaspy import Leaspy, Data
 from leaspy.inputs.data.dataset import Dataset

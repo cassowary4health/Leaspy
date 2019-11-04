@@ -53,6 +53,13 @@ class SimulationAlgorithm(AbstractAlgo):
 
         super().__init__()
 
+        # TODO: put it in abstract_algo + add settings=None in AbstractAlgo __init__ method
+        self.algo_parameters = settings.parameters
+        self.name = settings.name
+        self.seed = settings.seed
+
+        self._initialize_seed(self.seed)
+
         self.bandwidth_method = settings.parameters['bandwidth_method']
         self.cofactor = settings.parameters['cofactor']
         self.cofactor_state = settings.parameters['cofactor_state']
@@ -133,6 +140,7 @@ class SimulationAlgorithm(AbstractAlgo):
         int
             number of visits
         """
+
         # Generate a number of visit around the mean_number_of_visits
         number_of_visits = int(self.mean_number_of_visits)
         if self.mean_number_of_visits != 0:

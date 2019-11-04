@@ -205,6 +205,10 @@ class SimulationAlgorithm(AbstractAlgo):
         # Get individual parameters - for joined density estimation
         if get_sources:
             xi, tau, sources, bl = self._get_xi_tau_sources_bl(results, get_sources)
+            # Get mean by variable & covariance matrix
+            df = torch.tensor([xi, tau, bl] + sources, dtype=torch.float32)  # Concat in a single object
+            df_mean = df.mean(dim=1)
+            df_cov = self._get_covariance_matrix(df)
         else:
             xi, tau, bl = self._get_xi_tau_sources_bl(results, get_sources)
 
@@ -225,10 +229,6 @@ class SimulationAlgorithm(AbstractAlgo):
         xi, tau, bl = samples.T.tolist()  # Come back to list objects
 
         if get_sources:
-            # Get mean by variable & covariance matrix
-            df = torch.tensor([xi, tau, bl] + sources, dtype=torch.float32)  # Concat in a single object
-            df_mean = df.mean(dim=1)
-            df_cov = self._get_covariance_matrix(df)
             sources = []
 
         # Generate individual sources, scores, indices & time-points
@@ -243,7 +243,7 @@ class SimulationAlgorithm(AbstractAlgo):
             elif number_of_visits == 2:
                 ages = [bl[i], bl[i] + 0.5]
             else:
-                ages = [bl[i], bl[i] + 0.5] + [bl[i] + i for i in range(1, number_of_visits - 1)]
+                ages = [bl[i], bl[i] + 0.5] + [bl[i] + j for j in range(1, number_of_visits - 1)]
             timepoints.append(ages)
 
             # Generate scores

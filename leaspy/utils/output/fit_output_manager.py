@@ -60,7 +60,7 @@ class FitOutputManager():
 
     def print_time(self):
         current_time = time.time()
-        print("Duration since last print : {0}s".format(np.round(current_time - self.time), decimals=4))
+        print("Duration since last print : {0}s".format(round(current_time - self.time), 4))
         self.time = current_time
 
     def print_model_statistics(self, model):
@@ -171,4 +171,5 @@ class FitOutputManager():
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
 
         plt.savefig(os.path.join(self.path_plot_patients,'plot_patients_{0}.pdf'.format(iteration)))
-        plt.close()"""
+        plt.close()
+        """

@@ -1,6 +1,10 @@
+import torch
 import unittest
 
 from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.multivariate_model import MultivariateModel
+from leaspy import Leaspy
+from tests import example_logisticmodel_path
 
 
 class AbstractModelTest(unittest.TestCase):
@@ -8,12 +12,18 @@ class AbstractModelTest(unittest.TestCase):
     def test_abstract_model_constructor(self):
         """
         Test initialization of abstract model class object
-        :return: exit code
+
+        Returns
+        -------
+        Exit code
         """
         print("Unit-test constructor AbstractModel")
 
         model = AbstractModel("dummy_abstractmodel")
+        self.assertFalse(model.is_initialized)
+        self.assertEqual(model.name, "dummy_abstractmodel")
         self.assertEqual(model.parameters, None)
+        self.assertEqual(type(model.distribution), torch.distributions.normal.Normal)
 
         # Test the presence of all these essential methods
         main_methods = ['load_parameters', 'get_individual_variable_name', 'compute_sum_squared_tensorized',
@@ -28,16 +38,34 @@ class AbstractModelTest(unittest.TestCase):
             self.assertTrue(attribute in present_attributes)
         # TODO: use python's hasattr and issubclass
 
-    # TODO
-    """
     def test_load_parameters(self):
-        abstract_model = AbstractModel()
-        path_to_model_parameters = os.path.join(default_data_dir, 'model_settings_univariate.json')
-        reader = ModelSettings(path_to_model_parameters)
+        """
+        Test the method load_parameters
 
-        abstract_model.load_parameters(reader.parameters)
-        self.assertEqual(abstract_model.model_parameters['p0'], [0.5])
-        self.assertEqual(abstract_model.model_parameters['tau_mean'], 0)
-        self.assertEqual(abstract_model.model_parameters['tau_var'], 1)
-        self.assertEqual(abstract_model.model_parameters['xi_mean'], 0)
-        self.assertEqual(abstract_model.model_parameters['xi_var'], 1)"""
+        Returns
+        -------
+        Exit code
+        """
+        leaspy_object = Leaspy.load(example_logisticmodel_path)
+
+        abstract_model = AbstractModel("dummy_model")
+
+        abstract_model.load_parameters(leaspy_object.model.parameters)
+
+        self.assertTrue(torch.equal(abstract_model.parameters['g'],
+                                    torch.tensor([1.8669992685317993, 2.4921786785125732,
+                                                  2.471605062484741, 2.1240732669830322])))
+        self.assertTrue(torch.equal(abstract_model.parameters['v0'],
+                                    torch.tensor([-2.8300716876983643, -3.3241398334503174,
+                                                  -3.4701175689697266, -2.6136295795440674])))
+        self.assertTrue(torch.equal(abstract_model.parameters['betas'],
+                                    torch.tensor([[0.011530596762895584, 0.06039918214082718],
+                                                  [0.008324957452714443, 0.048168670386075974],
+                                                  [0.01144738681614399, 0.0822334811091423]])))
+        self.assertTrue(torch.equal(abstract_model.parameters['tau_mean'], torch.tensor(75.30111694335938)))
+        self.assertTrue(torch.equal(abstract_model.parameters['tau_std'], torch.tensor(7.103002071380615)))
+        self.assertTrue(torch.equal(abstract_model.parameters['xi_mean'], torch.tensor(0.0)))
+        self.assertTrue(torch.equal(abstract_model.parameters['xi_std'], torch.tensor(0.2835913300514221)))
+        self.assertTrue(torch.equal(abstract_model.parameters['sources_mean'], torch.tensor(0.0)))
+        self.assertTrue(torch.equal(abstract_model.parameters['sources_std'], torch.tensor(1.0)))
+        self.assertTrue(torch.equal(abstract_model.parameters['noise_std'], torch.tensor(0.1988248974084854)))

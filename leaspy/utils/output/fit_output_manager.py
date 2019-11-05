@@ -1,15 +1,14 @@
-import numpy as np
-import os
 import csv
+import os
 import time
-import torch
+
 from leaspy.utils.output.visualization.plotter import Plotter
 
 
 class FitOutputManager():
     """
     FitOutputManager class object
-
+    Class used by AbstractAlgo class to display plots and statistics and to save
 
     Attributes
     ----------
@@ -45,6 +44,10 @@ class FitOutputManager():
     iteration(algo, data, model, realizations)
         Call methods to save state of the running computation, display statistics & plots if the current iteration
         is a multiple of periodicity_print, periodicity_plot or periodicity_save
+    plot_convergence_model_parameters(model)
+        Plot the convergence of the model parameters (calling the Plotter class object)
+    plot_patient_reconstructions(iteration, data, model, realizations)
+        Plot on the same graph for several patients their real longitudinal values and their reconstructions by the model
     print_algo_statistics(algo)
         Print algorithm's statistics
     print_model_statistics(model)
@@ -57,10 +60,6 @@ class FitOutputManager():
     save_realizations(iteration, realizations)
         Save the current realizations.
         The path is given by the attribute path_save_model_parameters_convergence
-    plot_convergence_model_parameters(model)
-        Plot the convergence of the model parameters (calling the Plotter class object)
-    plot_patient_reconstructions(iteration, data, model, realizations)
-        Plot on the same graph for several patients their real longitudinal values and their reconstructions by the model
     """
 
     # TODO: add a loading bar for a run
@@ -190,35 +189,25 @@ class FitOutputManager():
 
         # Transform the types
         for key, value in model_parameters.items():
-            if type(value) in [torch.Tensor]:
-                value = value.numpy()
-                model_parameters_save[key] = value
-            if type(value) in [float]:
-                model_parameters_save[key] = [value]
-            elif type(value) in [list]:
-                model_parameters_save[key] = np.array(value)
-            elif value.shape == ():
-                model_parameters_save[key] = [float(value)]
-            # TODO, apriori only for beta
-            elif type(value) in [np.ndarray]:
-                # Beta
-                # TODO do something intelligent here
-                # if value.shape[0] > 1:
+            if value.ndim > 1:
                 if key == "betas":
                     model_parameters_save.pop(key)
                     for column in range(value.shape[1]):
-                        model_parameters_save["{0}_{1}".format(key, column)] = value[:, column]
+                        model_parameters_save["{0}_{1}".format(key, column)] = value[:, column].tolist()
                 # P0, V0
                 elif value.shape[0] == 1 and len(value.shape) > 1:
-                    model_parameters_save[key] = value[0]
+                    model_parameters_save[key] = value[0].tolist()
+            elif value.ndim == 1:
+                model_parameters_save[key] = value.tolist()
+            else:  # ndim == 0
+                model_parameters_save[key] = [value.tolist()]
 
         # Save the dictionnary
         for key, value in model_parameters_save.items():
-            path = os.path.join(self.path_save_model_parameters_convergence, key + ".csv")
+            path = os.path.join(self.path_save_model_parameters_convergence, key + ".cbsv")
             with open(path, 'a', newline='') as filename:
                 writer = csv.writer(filename)
-                # writer.writerow([iteration]+list(model_parameters.values()))
-                writer.writerow([iteration] + list(value))
+                writer.writerow([iteration] + value)
 
     def save_realizations(self, iteration, realizations):
         """
@@ -232,20 +221,20 @@ class FitOutputManager():
             Current state of the realizations
         """
         for name in ['xi', 'tau']:
-            value = realizations[name].tensor_realizations.squeeze(1).detach().numpy()
+            value = realizations[name].tensor_realizations.squeeze(1).detach().tolist()
             path = os.path.join(self.path_save_model_parameters_convergence, name + ".csv")
             with open(path, 'a', newline='') as filename:
                 writer = csv.writer(filename)
                 # writer.writerow([iteration]+list(model_parameters.values()))
-                writer.writerow([iteration] + list(value))
+                writer.writerow([iteration] + value)
         if "sources" in realizations.reals_ind_variable_names:
             for i in range(realizations['sources'].tensor_realizations.shape[1]):
-                value = realizations['sources'].tensor_realizations[:, i].detach().numpy()
+                value = realizations['sources'].tensor_realizations[:, i].detach().tolist()
                 path = os.path.join(self.path_save_model_parameters_convergence, 'sources' + str(i) + ".csv")
                 with open(path, 'a', newline='') as filename:
                     writer = csv.writer(filename)
                     # writer.writerow([iteration]+list(model_parameters.values()))
-                    writer.writerow([iteration] + list(value))
+                    writer.writerow([iteration] + value)
 
     ########
     ## Plotting methods

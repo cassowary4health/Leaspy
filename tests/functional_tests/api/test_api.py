@@ -1,16 +1,14 @@
-import numpy as np
 import os
 import unittest
 
+import pandas as pd
 import matplotlib.pyplot as plt
 import torch
-from pandas import DataFrame
 
 from tests import test_data_dir
 from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
 from tests import example_data_path
 from leaspy.inputs.data.result import Result
-# from leaspy.models.univariate_model import UnivariateModel
 
 
 class LeaspyTest(unittest.TestCase):
@@ -57,6 +55,8 @@ class LeaspyTest(unittest.TestCase):
         leaspy = Leaspy.load(path_to_saved_model)
         os.remove(path_to_saved_model)
 
+        self.assertTrue(leaspy.model.is_initialized)
+        self.assertEqual(leaspy.model.name, "logistic")
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2842, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.0069, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 1.0315, delta=0.01)
@@ -74,15 +74,16 @@ class LeaspyTest(unittest.TestCase):
 
         # Get error distribution
         error_distribution = result.get_error_distribution(leaspy.model)
+        # print("\nerror distribution", error_distribution)
         self.assertTrue(list(error_distribution.keys()), list(data.individuals.keys()))
-        self.assertTrue(np.array(error_distribution['116']).shape,
-                        np.array(data.individuals['116'].observations).shape)
+        self.assertTrue(torch.tensor(error_distribution['116']).shape,
+                        torch.tensor(data.individuals['116'].observations).shape)
         error_distribution = result.get_error_distribution(leaspy.model, aggregate_subscores=True)
         self.assertTrue(len(error_distribution['116']),
-                        np.array(data.individuals['116'].observations).shape[0])
+                        torch.tensor(data.individuals['116'].observations).shape[0])
         error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True)
         self.assertTrue(len(error_distribution['116']),
-                        np.array(data.individuals['116'].observations).shape[1])
+                        torch.tensor(data.individuals['116'].observations).shape[1])
         error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True, aggregate_subscores=True)
         self.assertTrue(type(error_distribution['116']) == float)
 
@@ -93,16 +94,21 @@ class LeaspyTest(unittest.TestCase):
         plt.close()
 
         # Simulate
-        simulation_settings = AlgorithmSettings('simulation')
+        simulation_settings = AlgorithmSettings('simulation', seed=0)
         simulation_results = leaspy.simulate(result, simulation_settings)
         self.assertTrue(type(simulation_results) == Result)
-        self.assertTrue(type(simulation_results.data.to_dataframe()) == DataFrame)
         self.assertTrue(simulation_results.data.headers == data.headers)
         n = simulation_settings.parameters['number_of_subjects']
         self.assertEqual(simulation_results.data.n_individuals, n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
+        # Test the reproducibility of simulate
+        # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
+        simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df.csv"))
+        simulation_df = simulation_df.apply(lambda x: round(x, 12))
+        self.assertTrue(simulation_df.equals(simulation_results.data.to_dataframe().apply(lambda x: round(x, 12))))
+
 
 
 

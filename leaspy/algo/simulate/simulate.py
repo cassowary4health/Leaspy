@@ -83,6 +83,7 @@ class SimulationAlgorithm(AbstractAlgo):
         torch tensor
             covariance matrix
         """
+
         m_exp = torch.mean(m, dim=1)
         x = m - m_exp[:, None]
         cov = 1 / (x.size(1) - 1) * x.mm(x.t())

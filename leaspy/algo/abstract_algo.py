@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from leaspy.utils.output.fit_output_manager import FitOutputManager
 
@@ -42,7 +43,10 @@ class AbstractAlgo():
     def _initialize_seed(seed):
         """
         @staticmethod
-        Set torch seeds and display it.
+        Set numpy and torch seeds and display it.
+
+        Notes - numpy seed is needed for reproducibility for the simulation algorithm which use the scipy kernel
+        density estimation function. Indeed, scipy use numpy random seed.
 
         Parameters
         ----------
@@ -50,6 +54,7 @@ class AbstractAlgo():
             The wanted seed
         """
         if seed is not None:
+            np.random.seed(seed)
             torch.manual_seed(seed)
             print(" ==> Setting seed to {0}".format(seed))
 

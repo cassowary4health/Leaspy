@@ -8,7 +8,7 @@ from leaspy.utils.output.visualization.plotter import Plotter
 class FitOutputManager():
     """
     FitOutputManager class object
-    Class used by AbstractAlgo class to display plots and statistics and to save
+    Class used by AbstractAlgo (and its child classes) to display plots and statistics and to save
 
     Attributes
     ----------
@@ -79,9 +79,9 @@ class FitOutputManager():
         self.path_plot_convergence_model_parameters_1 = os.path.join(outputs.plot_path, "convergence_1.pdf")
         self.path_plot_convergence_model_parameters_2 = os.path.join(outputs.plot_path, "convergence_2.pdf")
         self.path_save_model_parameters_convergence = outputs.parameter_convergence_path
-        self.periodicity_plot = outputs.periodicity_plot
-        self.periodicity_print = outputs.console_periodicity_print
-        self.periodicity_save = outputs.periodicity_save
+        self.periodicity_plot = outputs.plot_periodicity
+        self.periodicity_print = outputs.console_print_periodicity
+        self.periodicity_save = outputs.save_periodicity
 
         # Options
         # TODO : Maybe add to the outputs reader

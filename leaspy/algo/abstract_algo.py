@@ -1,13 +1,38 @@
 import torch
 from leaspy.utils.output.fit_output_manager import FitOutputManager
-import numpy as np
 
 
 class AbstractAlgo():
+    """
+    AbstractAlgo class object
+    Abstract class containing common method for all algorithm classes. These classes are child classes of AbstractAlgo.
+
+    Attributes
+    ----------
+    algo_parameters: dict
+        Contains the algoritm's parameters. These ones are set by a leaspy.intputs.settings.algorithm_settings.AlgorithmSettings
+        class object
+    name: str
+        Name of the algorithm
+    seed: int
+        Seed used by torch.random
+
+    Methods
+    -------
+    load_parameters(parameters)
+        Update the algorithm's parameters by the ones in the given dictionary. The keys in the inputs which does not
+        belong to the algorithm's parameters keys are ignored.
+    set_output_manager(output_settings)
+        Set a FitOutputManager class object for the run of the algorithm
+    """
 
     def __init__(self):
+        """
+        Process initializer function that is called by class FitOutputManager
+        """
         self.algo_parameters = None
         self.name = None
+        self.output_manager = None
         self.seed = None
 
     ###########################
@@ -16,13 +41,16 @@ class AbstractAlgo():
     @staticmethod
     def _initialize_seed(seed):
         """
-        Set both numpy and torch seeds.
-        :param seed:
-        :return:
+        @staticmethod
+        Set torch seeds and display it.
+
+        Parameters
+        ----------
+        seed: int
+            The wanted seed
         """
-        if seed is not None: # TODO is numpy seed needed ?
+        if seed is not None:
             torch.manual_seed(seed)
-            np.random.seed(seed)
             print(" ==> Setting seed to {0}".format(seed))
 
     ###########################
@@ -30,6 +58,44 @@ class AbstractAlgo():
     ###########################
 
     def load_parameters(self, parameters):
+        """
+        Update the algorithm's parameters by the ones in the given dictionary. The keys in the inputs which does not
+        belong to the algorithm's parameters keys are ignored.
+
+        Parameters
+        ----------
+        parameters: dict
+            Contains the pairs (key, value) of the wanted parameters
+
+        Examples
+        --------
+        >>> settings = leaspy.inputs.settings.algorithm_settings.AlgorithmSettings("mcmc_saem")
+        >>> my_algo = leaspy.algo.fit.tensor_mcmcsaem.TensorMCMCSAEM(settings)
+        >>> my_algo.algo_parameters
+        {'n_iter': 10000,
+         'n_burn_in_iter': 9000,
+         'eps': 0.001,
+         'L': 10,
+         'sampler_ind': 'Gibbs',
+         'sampler_pop': 'Gibbs',
+         'annealing': {'do_annealing': False,
+          'initial_temperature': 10,
+          'n_plateau': 10,
+          'n_iter': 200}}
+        >>> parameters = {'n_iter': 5000, 'n_burn_in_iter': 4000}
+        >>> my_algo.load_parameters(parameters)
+        >>> my_algo.algo_parameters
+        {'n_iter': 5000,
+         'n_burn_in_iter': 4000,
+         'eps': 0.001,
+         'L': 10,
+         'sampler_ind': 'Gibbs',
+         'sampler_pop': 'Gibbs',
+         'annealing': {'do_annealing': False,
+          'initial_temperature': 10,
+          'n_plateau': 10,
+          'n_iter': 200}}
+        """
         for k, v in parameters.items():
             if k in self.algo_parameters.keys():
                 previous_v = self.algo_parameters[k]
@@ -37,26 +103,32 @@ class AbstractAlgo():
             self.algo_parameters[k] = v
 
     def set_output_manager(self, output_settings):
+        """
+        Set a FitOutputManager class object for the run of the algorithm
+
+        Parameters
+        ----------
+        output_settings: a leaspy.inputs.settings.outputs_settings.OutputsSettings class object
+            Contains the output settings for the computation run (console print periodicity, plot periodicity ...)
+
+        Examples
+        --------
+        >>> from leaspy import AlgorithmSettings
+        >>> from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
+        >>> algo_settings = AlgorithmSettings("mcmc_saem")
+        >>> my_algo = TensorMCMCSAEM(algo_settings)
+        >>> settings = {'path': 'brouillons',
+                        'console_print_periodicity': 50,
+                        'plot_periodicity': 100,
+                        'save_periodicity': 50
+                        }
+        >>> my_algo.set_output_manager(OutputsSettings(settings))
+        """
         if output_settings is not None:
             self.output_manager = FitOutputManager(output_settings)
-        else:
-            self.output_manager = None
 
     def run(self, data, model):
-        """
-        Initialize algorithm and loop for n_iter iterations on algorithm iter method.
-        :param data:
-        :param model:
-        :return: realizations
-        """
         raise NotImplementedError
 
     def iteration(self, data, model, realizations):
-        """
-        Iteration of given algorithm
-        :param data:
-        :param model:
-        :param realizations:
-        :return:
-        """
         raise NotImplementedError

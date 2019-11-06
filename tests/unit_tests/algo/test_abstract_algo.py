@@ -1,9 +1,8 @@
-from numpy.random import get_state, random_integers
 # from os import path
 # from subprocess import Popen
 import unittest
 
-from torch.random import initial_seed
+import torch.random
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 # from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
@@ -15,10 +14,9 @@ class Test(unittest.TestCase):
 
     def test_initialize_seed(self):
         algo = AbstractAlgo()
-        seed = random_integers(10000)
+        seed = torch.randint(10000, (1,)).item()
         algo._initialize_seed(seed)
-        self.assertEqual(seed, get_state()[1][0])
-        self.assertEqual(seed, initial_seed())
+        self.assertEqual(seed, torch.random.initial_seed())
 
     def test_load_parameters(self):
         algo = AbstractAlgo()

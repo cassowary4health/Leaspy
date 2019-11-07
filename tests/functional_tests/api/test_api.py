@@ -106,8 +106,8 @@ class LeaspyTest(unittest.TestCase):
         # Test the reproducibility of simulate
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
         simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df.csv"))
-        simulation_df = simulation_df.apply(lambda x: round(x, 12))
-        self.assertTrue(simulation_df.equals(simulation_results.data.to_dataframe().apply(lambda x: round(x, 12))))
+        simulation_df = simulation_df.apply(lambda x: round(x, 10))
+        self.assertTrue(simulation_df.equals(simulation_results.data.to_dataframe().apply(lambda x: round(x, 10))))
 
 
 

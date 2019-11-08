@@ -105,9 +105,12 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
         # Test the reproducibility of simulate
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
+        # BUT ON DIFFERENT MACHINE I CAN SEE ERROR OF MAGNITUDE 1e-5 !!!
+        # TODO: Can we improve this??
         simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df.csv"))
-        simulation_df = simulation_df.apply(lambda x: round(x, 10))
-        self.assertTrue(simulation_df.equals(simulation_results.data.to_dataframe().apply(lambda x: round(x, 10))))
+        round_decimal = 4
+        simulation_df = simulation_df.apply(lambda x: round(x, round_decimal))
+        self.assertTrue(simulation_df.equals(simulation_results.data.to_dataframe().apply(lambda x: round(x, round_decimal))))
 
 
 

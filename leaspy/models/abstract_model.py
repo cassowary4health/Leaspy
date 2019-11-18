@@ -42,8 +42,8 @@ class AbstractModel():
 
     def compute_sum_squared_tensorized(self, data, param_ind, attribute_type=None):
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-        res *= data.mask
-        return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
+        res *= data.mask.float()
+        return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         param_ind = self.get_param_from_real(realizations)
@@ -54,7 +54,8 @@ class AbstractModel():
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         # res *= data.mask
 
-        r1 = res * data.mask - data.values
+        r1 = res * data.mask.float() - data.values
+        #r1[1-data.mask] = 0.0 # Set nans to 0
         squared_sum = torch.sum(r1 * r1, dim=(1, 2))
 
         # noise_var = self.parameters['noise_std'] ** 2

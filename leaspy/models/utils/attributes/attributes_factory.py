@@ -18,6 +18,8 @@ class AttributesFactory():
             return Attributes_LogisticParallel(dimension, source_dimension)
         elif name == 'linear':
             return Attributes_Linear(dimension, source_dimension)
+        elif name == 'mixed_linear-logistic':
+            return Attributes_Logistic(dimension, source_dimension) # TODO mixed check
         else:
             raise ValueError(
                 "The name {} you provided for the attributes is not related to an attribute class".format(name))

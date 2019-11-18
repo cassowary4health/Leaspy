@@ -97,6 +97,7 @@ class GibbsSampler(AbstractSampler):
 
         accepted_array = []
 
+
         for idx in index:
             # Compute the attachment and regularity
             # previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
@@ -138,6 +139,9 @@ class GibbsSampler(AbstractSampler):
 
         self._update_acceptation_rate(torch.Tensor([accepted_array]))
         self._update_std()
+
+        # Reset previous attachment and regularity !!!
+        self.previous_attachment = self.previous_regularity = None
 
     def _sample_individual_realizations(self, data, model, realizations, temperature_inv):
         """

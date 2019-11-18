@@ -34,14 +34,19 @@ class Dataset:
         x_len = [len(_.timepoints) for _ in data]
         channels = data.dimension
         values = np.zeros((batch_size, max(x_len), channels))
-        mask = np.zeros((batch_size, max(x_len), channels))
+        padding_mask = np.zeros((batch_size, max(x_len), channels))
 
         # TODO missing values in mask ?
 
         for i, d in enumerate(x_len):
             indiv_values = data[i].observations
             values[i, 0:d, :] = indiv_values
-            mask[i, 0:d, :] = 1
+            padding_mask[i, 0:d, :] = 1
+
+        mask_missingvalues = 1 - np.isnan(values) * 1
+        mask = padding_mask * mask_missingvalues
+
+        values[np.array(1 - mask_missingvalues, dtype=bool)] = 0 # Set values of missing values to 0.0
 
         self.n_individuals = batch_size
         self.max_observations = max(x_len)
@@ -50,6 +55,7 @@ class Dataset:
         self.values = torch.tensor(values, dtype=torch.float32)
         self.mask = torch.tensor(mask, dtype=torch.float32)
         self.n_visits = data.n_visits
+        self.n_observations = int(np.sum(mask))
 
     def _construct_timepoints(self, data):
         self.timepoints = torch.zeros([self.n_individuals, self.max_observations])
@@ -58,13 +64,17 @@ class Dataset:
             self.timepoints[i, 0:d] = torch.tensor(data[i].timepoints, dtype=torch.float32)
 
     def _compute_L2_norm(self):
-        self.L2_norm = torch.sum(torch.sum(self.values * self.values * self.mask, dim=2))
+        self.L2_norm = torch.sum(torch.sum(self.values * self.values * self.mask.float(), dim=2))
 
     def get_times_patient(self, i):
         return self.timepoints[i, :self.nb_observations_per_individuals[i]]
 
     def get_values_patient(self, i):
-        return self.values[i, :self.nb_observations_per_individuals[i], :]
+        values = self.values[i, :self.nb_observations_per_individuals[i], :]
+        mask = self.mask[i].clone().cpu().detach().numpy()[:values.shape[0],:]
+        mask[mask==0] = np.nan
+        values_with_na = values*torch.tensor(mask,dtype=torch.float32)
+        return values_with_na
 
     @staticmethod
     def _check_model_compatibility(data, model):

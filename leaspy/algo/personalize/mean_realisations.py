@@ -3,7 +3,7 @@ from ..samplers.hmc_sampler import HMCSampler
 from ..samplers.gibbs_sampler import GibbsSampler
 
 import torch
-import time
+# import time
 
 
 class MeanReal(AbstractPersonalizeAlgo):

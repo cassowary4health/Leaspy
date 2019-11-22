@@ -1,9 +1,9 @@
 import json
+import math
 import torch
-import numpy as np
 
 from .abstract_model import AbstractModel
-from leaspy.utils.realizations.realization import Realization
+# from leaspy.utils.realizations.realization import Realization
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 
@@ -43,7 +43,7 @@ class AbstractMultivariateModel(AbstractModel):
         self.dimension = dataset.dimension
 
         if self.source_dimension is None:
-            self.source_dimension = int(np.sqrt(dataset.dimension))
+            self.source_dimension = int(math.sqrt(dataset.dimension))
 
         self.parameters = initialize_parameters(self, dataset, method)
 

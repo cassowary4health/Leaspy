@@ -43,7 +43,7 @@ class AttributesLinearTest(unittest.TestCase):
 
         for orthonormal_vector in orthonormal_basis.permute(1, 0):
             # Test normality
-            self.assertAlmostEqual(torch.norm(orthonormal_vector).data.numpy().tolist(),
+            self.assertAlmostEqual(torch.norm(orthonormal_vector).data.tolist(),
                                    1, delta=1e-6)
             # Test orthogonality
             self.assertAlmostEqual(torch.dot(orthonormal_vector, dgamma_t0),

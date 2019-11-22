@@ -1,6 +1,5 @@
 import os
 import unittest
-import numpy as np
 import torch
 
 from tests import test_data_dir
@@ -19,16 +18,16 @@ class DatasetTest(unittest.TestCase):
         self.assertEqual(dataset.max_observations, 4)
         self.assertEqual(data.dimension, 1)
 
-        values = np.array([[[1.], [5.], [2.], [0.]],
+        values = torch.tensor([[[1.], [5.], [2.], [0.]],
                            [[1.], [5.], [0.], [0.]],
                            [[1.], [8.], [1.], [3.]]])
 
-        mask = np.array([[[1.], [1.], [1.], [0.]],
+        mask = torch.tensor([[[1.], [1.], [1.], [0.]],
                         [[1.], [1.], [0.], [0.]],
                         [[1.], [1.], [1.], [1.]]])
 
-        self.assertEqual(np.array_equal(dataset.values, values), True)
-        self.assertEqual(np.array_equal(dataset.mask, mask), True)
+        self.assertTrue(torch.equal(dataset.values, values))
+        self.assertTrue(torch.equal(dataset.mask, mask))
 
     def test_constructor_multivariate(self):
         path_to_data = os.path.join(test_data_dir, 'inputs', 'multivariate_data_for_dataset.csv')
@@ -39,11 +38,11 @@ class DatasetTest(unittest.TestCase):
         self.assertEqual(dataset.max_observations, 4)
         self.assertEqual(data.dimension, 2)
 
-        values = np.array([[[1., 1.], [5., 2.], [2., 3.], [0., 0.]],
+        values = torch.tensor([[[1., 1.], [5., 2.], [2., 3.], [0., 0.]],
                            [[1., 1.], [5., 8.], [0., 0.], [0., 0.]],
                            [[1., 4.], [8., 1.], [1., 1.], [3., 2.]]])
 
-        mask = np.array([[[1.], [1.], [1.], [0.]],
+        mask = torch.tensor([[[1.], [1.], [1.], [0.]],
                         [[1.], [1.], [0.], [0.]],
                         [[1.], [1.], [1.], [1.]]])
 
@@ -53,7 +52,9 @@ class DatasetTest(unittest.TestCase):
             [1., 2., 4., 5.]
         ])
 
-        self.assertEqual(np.array_equal(dataset.values, values), True)
-        # self.assertEqual(np.array_equal(dataset.mask, mask), True) #TODO check this
+        self.assertTrue(torch.equal(dataset.values, values))
+        # print(dataset.mask)
+        # print(mask)
+        # self.assertTrue(torch.equal(dataset.mask, mask)) #TODO check this
         # print(dataset.timepoints)
         self.assertAlmostEqual((dataset.timepoints - timepoints).sum(), 0, delta=10e-5)

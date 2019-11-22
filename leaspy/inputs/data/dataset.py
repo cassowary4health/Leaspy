@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import pandas as pd
 
@@ -33,13 +32,13 @@ class Dataset:
         batch_size = data.n_individuals
         x_len = [len(_.timepoints) for _ in data]
         channels = data.dimension
-        values = np.zeros((batch_size, max(x_len), channels))
-        padding_mask = np.zeros((batch_size, max(x_len), channels))
+        values = torch.zeros((batch_size, max(x_len), channels), dtype=torch.float32)
+        mask = torch.zeros((batch_size, max(x_len), channels), dtype=torch.float32)
 
         # TODO missing values in mask ?
 
         for i, d in enumerate(x_len):
-            indiv_values = data[i].observations
+            indiv_values = torch.tensor(data[i].observations)
             values[i, 0:d, :] = indiv_values
             padding_mask[i, 0:d, :] = 1
 
@@ -52,8 +51,8 @@ class Dataset:
         self.max_observations = max(x_len)
         self.nb_observations_per_individuals = x_len
         self.dimension = channels
-        self.values = torch.tensor(values, dtype=torch.float32)
-        self.mask = torch.tensor(mask, dtype=torch.float32)
+        self.values = values
+        self.mask = mask
         self.n_visits = data.n_visits
         self.n_observations = int(np.sum(mask))
 

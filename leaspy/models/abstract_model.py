@@ -111,8 +111,10 @@ class AbstractModel():
         # Instanciate torch distribution
         # distribution = torch.distributions.normal.Normal(loc=mean, scale=std)
 
+
         self.distribution.loc = mean
         self.distribution.scale = std
+
         return -self.distribution.log_prob(value)
 
     def get_realization_object(self, n_individuals):

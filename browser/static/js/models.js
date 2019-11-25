@@ -68,6 +68,7 @@ compute_logistic = (ages, parameters, individual_parameters) => {
 
 
 compute_logistic_parallel = (ages, parameters, individual_parameters) => {
+
   // Model parameters
   var g = Math.exp(parameters['g'])
   var t0 = parameters['tau_mean']

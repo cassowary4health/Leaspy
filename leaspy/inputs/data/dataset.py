@@ -93,9 +93,9 @@ class Dataset:
         return
 
     def to_pandas(self):
-        # TODO : @Raphael : On est obligé de garder une dépendance pandas ? Je crois que c'est utilisé juste pour l'initialisation
-        # TODO : Si fait comme ça, il faut préallouer la mémoire du dataframe à l'avance!
-        # du modèle multivarié. On peut peut-être s'en passer?
+        # TODO : @Raphael : On est oblige de garder une dependance pandas ? Je crois que c'est utilise juste pour l'initialisation
+        # TODO : Si fait comme ca, il faut preallouer la memoire du dataframe a l'avance!
+        # du modele multivarie. On peut peut-etre s'en passer?
         df = pd.DataFrame()
 
         for i, idx in enumerate(self.indices):

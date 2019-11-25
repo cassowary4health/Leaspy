@@ -15,17 +15,65 @@ from leaspy.algo import compatibility_algorithms
 
 
 class Leaspy:
+    """
+    Leaspy object class.
+    This is the main class of the Leaspy package. It is used to instantiate a Leaspy class object, fit models,
+    run algorithms and simulations.
+
+    Attributes
+    ----------
+    model: a leaspy model class object
+        The model used for the computation. The available models are:
+            'logistic' - suppose that every modality follow a logistic curves accross time. This model performs a
+                dimensionality reduction of the modalities.
+            'logistic_parallel' - idem & suppose also that every modality have the same slope at inflexion point
+            'univariate' - a 'logistic' model for a single modality => do not perform a dimensionality reduction.
+    type: str
+        Name of the model - must be one of the three listed above.
+
+    Methods
+    -------
+    load(path_to_model_settings)
+        Instantiate a Leaspy object from json model parameter file.
+    run(model, results)
+        Run the simulation of new patients for some given leaspy object result & model.
+    """
+
     def __init__(self, model_name):
-        self.type = model_name
+        """
+        Instantiate a Leaspy class object.
+
+        Parameters
+        ----------
+        model_name: str
+            Model's name
+        """
+
         self.model = ModelFactory.model(model_name)
+        self.type = model_name
 
     @classmethod
     def load(cls, path_to_model_settings):
         """
-        Instanciate a Leaspy object from json model parameter file.
-        :param path_to_model_settings:
-        :return:
+        Instantiate a Leaspy object from json model parameter file.
+        This function can be used to load a pre-trained model.
+
+        Parameters
+        ----------
+        path_to_model_settings: str
+            Path of the model's settings
+
+        Returns
+        -------
+        a Leaspy class object
+
+        Examples
+        --------
+        Load a pre-trained model
+        >>> from leaspy import Leaspy
+        >>> leaspy_univariate_seed0 = Leaspy.load('outputs/leaspy-univariate_model-seed0.json')
         """
+
         reader = ModelSettings(path_to_model_settings)
         leaspy = cls(reader.name)
         leaspy.model.load_hyperparameters(reader.hyperparameters)
@@ -37,21 +85,61 @@ class Leaspy:
     def save(self, path):
         """
         Save Leaspy object as json model parameter file.
-        :param path:
-        :return:
+
+        Parameters
+         ---------
+        path: str
+            Path to store the model's parameters
+
+        Examples
+        --------
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy
+        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
+        >>> settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> leaspy_logistic_seed0.fit(data, settings)
+        The standard deviation of the noise at the end of the calibration is ...
+        >>> leaspy_logistic_seed0.save('outputs/leaspy-logistic_model-seed0.json')
         """
 
         self.check_if_initialized()
-
         self.model.save(path)
 
     def fit(self, data, algorithm_settings):
         """
-        Estimate model parameters for a given dataset.
-        These model parameters correspond to the fixed-effects of the mixed effect model
-        :param data:
-        :param algorithm_settings:
-        :return:
+        Estimate the model's parameters for a given dataset, a given mdel and a given algorithm.
+        These model's parameters correspond to the fixed-effects of the mixed effect model.
+
+        Parameters
+        ----------
+        data: a leaspy Data class object
+            Contains the informations of the individuals
+        algorithm_settings: a leaspy AlgorithmSettings class object
+            Contains the algorithm's settings
+
+        Examples
+        -------
+        Fit a logistic model on a longitudinal dataset, display the group parameters and plot the group average trajectory
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy, Plotter
+        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
+        >>> settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> leaspy_logistic_seed0.fit(data, settings)
+        >>> print(leaspy_logistic_seed0.model.parameters)
+        {'g': tensor([-0.4441,  1.9722,  1.6657,  0.1368,  0.8728]),
+         'v0': tensor([-3.2442, -3.2942, -3.3763, -2.4901, -3.0032]),
+         'betas': tensor([[ 0.0196,  0.0910],
+                 [ 0.0559,  0.0291],
+                 [-0.0038, -0.1261],
+                 [ 0.0988,  0.0767]]),
+         'tau_mean': tensor(80.5250),
+         'tau_std': tensor(8.1284),
+         'xi_mean': 0.0,
+         'xi_std': tensor(0.6834),
+         'sources_mean': 0.0,
+         'sources_std': 1.0,
+         'noise_std': tensor(0.0972)}
+         >>> Plotter().plot_mean_trajectory(leaspy_logistic_seed0.model)
         """
 
         # Check algorithm compatibility
@@ -67,9 +155,34 @@ class Leaspy:
         """
         From a model, estimate individual parameters for each ID of a given dataset.
         These individual parameters correspond to the random-effects of the mixed effect model.
-        :param data:
-        :param settings:
-        :return: result object, aggregating individual parameters and input data
+
+        Parameters
+        ----------
+        data: a leaspy Data class object
+            Contains the informations of the individuals
+        settings: a leaspy AlgorithmSettings class object
+            Contains the algorithm's settings
+
+        Returns
+        -------
+        A leaspy.inputs.data.result.Result class object
+            Aggregates computed individual parameters and input data
+
+        Examples
+        --------
+        Compute the individual parameters for a given longitudinal dataset & display the histogram of the log-acceleration.
+
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy, Plotter
+        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
+        >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
+        >>> leaspy_logistic_seed0.fit(data, model_settings)
+        >>> individual_results = leaspy_logistic_seed0.personalize(data, model_settings)
+        The standard deviation of the noise at the end of the personalization is of 0.0929
+        >>> print(results.individual_parameters.keys())
+        dict_keys(['tau', 'xi', 'sources'])
+        >>> Plotter().plot_distribution(individual_results, 'xi')
         """
 
         # Check algorithm compatibility
@@ -87,10 +200,33 @@ class Leaspy:
 
     def simulate(self, results, settings):
         """
-        Generate synthetic patients data from a model.
-        :param results:
-        :param settings:
-        :return: simulated_data: Data object generated via the population parameters.
+        Generate longitudinal synthetic patients data from a model, .
+
+        Parameters
+        ----------
+        results: a leaspy.inputs.data.result.Result class object
+            Aggregates individual parameters and input data
+        settings: a leaspy AlgorithmSettings class object
+            Contains the algorithm settings
+
+        Returns
+        -------
+        simulated_data: a leaspy.inputs.data.result.Result class object
+            Contains the generated individal parameters & the corresponding generated scores
+
+        Examples
+        --------
+        Simulate new individual from a given longitudinal, a given model a given algorithms
+
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy, Plotter
+        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
+        >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
+        >>> leaspy_logistic_seed0.fit(data, model_settings)
+        >>> individual_results_seed0 = leaspy_logistic_seed0.personalize(data, model_settings)
+        >>> simulated_data_seed0 = leaspy_logistic_seed0.simulate(individual_results,
+                                                                  AlgorithmSettings('simulation', seed=0))
         """
 
         # Check algorithm compatibility
@@ -108,13 +244,30 @@ class Leaspy:
         """
         Save individual parameters coming from leaspy Result class object
 
-        :param path: string - output path
-        :param individual_parameters: dictionary of 2-dimensional torch.tensor (use result.individual_parameters)
-        :param human_readable: boolean = True by default
-            If set to True - save a json object
-            If set to False - save a torch object (which cannot be read from a text editor)
-        :return: None
+        Parameters
+        ----------
+        path: str
+         The output's path
+        individual_parameters: dict
+            Contain 2-dimensional torch.tensor (use result.individual_parameters)
+        human_readable: boolean (default True)
+            If set to True => save a json object
+            If set to False => save a torch object (which cannot be read from a text editor)
+
+        Examples
+        --------
+        Save individual parameters
+
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy
+        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
+        >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
+        >>> leaspy_logistic_seed0.fit(data, model_settings)
+        >>> individual_results_seed0 = leaspy_logistic_seed0.personalize(data, model_settings)
+        >>> Leaspy.save_individual_parameters('outputs/logistic_seed0-mode_real_seed0-individual_parameter.json')
         """
+
         # Test path's folder existence (if path contain a folder)
         if os.path.dirname(path) != '':
             if not os.path.isdir(os.path.dirname(path)):
@@ -139,6 +292,7 @@ class Leaspy:
                         dump[key] = dump[key].view(-1).tolist()
             with open(path, 'w') as fp:
                 json.dump(dump, fp)
+
         # Create a torch file
         else:
             save(dump, path)  # save function from torch
@@ -147,11 +301,30 @@ class Leaspy:
     def load_individual_parameters(path, verbose=True):
         """
         Load individual parameters from a json file or a torch file as a dictionary of torch.tensor
-        :param path: string - file's path
-        :param verbose: boolean = True by default
+
+        Parameters
+        ----------
+        path: str
+            The file's path
+        verbose: boolean (default True)
             Precise if the loaded file can be read as a torch file or need conversion
-        :return: dictionary of torch.tensor - individual parameters
+
+        Returns
+        -------
+        dict
+            A dictionary of torch.tensor which contains the individual parameters
+
+        Examples
+        --------
+        Recreate a leaspy.inputs.data.result.Result object from saved files
+
+        >>> from leaspy import Data, Leaspy
+        >>> from leaspy.inputs.data.result import Result
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
+        >>> individual_parameters = Leaspy.load_individual_parameters('outputs/logistic_seed0-mode_real_seed0-individual_parameter.json')
+        >>> individual_results_seed0 = Result(data, individual_parameters)
         """
+
         # Test if file is a torch file
         try:
             individual_parameters = load(path)  # load function from torch
@@ -172,8 +345,13 @@ class Leaspy:
     def check_if_initialized(self):
         """
         Check if model is initialized.
-        :return:
+
+        Raises
+        ------
+        ValueError
+            Raise an error if the model has not been initialized
         """
+
         if not self.model.is_initialized:
             raise ValueError("Model has not been initialized")
 
@@ -181,10 +359,24 @@ class Leaspy:
     def check_if_algo_is_compatible(settings, name):
         """
         Check compatibility of algorithms and API methods.
-        :param settings:
-        :param name:
-        :return:
+
+        Parameters
+        ----------
+        settings: a leaspy AlgorithmSettings class object
+            Contains the algorithm's settings, including its name
+        name: str
+            Must be one of the following api's name:
+                'fit' - compatible with 'mcm_saem'
+                'personalize' - compatible with "mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"
+                'simulate' - compatible with "simulation"
+
+        Raises
+        ------
+        ValueError
+            Raise an error if the settings' name does not belong to the wanted api methods & display the possible
+            methods for that api.
         """
+
         if settings.name not in compatibility_algorithms[name]:
             raise ValueError("Chosen algorithm is not compatible with method : {0} \n"
                              "please choose one in the following method list : {1}".format(name,

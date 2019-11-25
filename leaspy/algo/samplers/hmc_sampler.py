@@ -240,8 +240,7 @@ class HMCSampler(AbstractSampler):
             print(self.eps)
             a = realizations[self.name].tensor_realizations.grad
             print((a != a).byte().any())
-            # import statistics
-            # print(statistics.mean(self.acceptation_temp))
+            # print(torch.mean(torch.tensor(self.acceptation_temp)).item())
             # print(np.mean(self.acceptation_temp))
             print(self.name, ' nan in grad')
             return

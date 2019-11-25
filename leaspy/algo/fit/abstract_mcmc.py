@@ -1,6 +1,5 @@
-import statistics
-
 import torch
+
 from .abstract_fit_algo import AbstractFitAlgo
 from ..samplers.hmc_sampler import HMCSampler
 from ..samplers.gibbs_sampler import GibbsSampler
@@ -149,7 +148,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         out += "Iteration {0}\n".format(self.current_iteration)
         out += "=Samplers \n"
         for sampler_name, sampler in self.samplers.items():
-            acceptation_rate = statistics.mean(sampler.acceptation_temp.detach().tolist())
+            acceptation_rate = torch.mean(sampler.acceptation_temp.detach()).item()
             out += "    {} rate : {:.2f}%, std: {:.5f}\n".format(sampler_name, 100 * acceptation_rate,
                                                                  sampler.std.mean())
 

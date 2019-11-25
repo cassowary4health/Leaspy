@@ -30,9 +30,6 @@ def convert_data(data):
 
 def get_individual_parameters(data):
     # Data
-    birthday = data['birthday']
-    table = data['scores']
-
     leaspy_data = convert_data(data)
 
     # Algorithm

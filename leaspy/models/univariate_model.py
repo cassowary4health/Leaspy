@@ -1,12 +1,10 @@
-import os
-
-from .abstract_model import AbstractModel
-import torch
-import numpy as np
 import json
-from .utils.attributes.attributes_univariate import Attributes_Univariate
 import matplotlib.backends.backend_pdf
 import matplotlib.pyplot as plt
+import torch
+
+from .abstract_model import AbstractModel
+from .utils.attributes.attributes_univariate import Attributes_Univariate
 
 
 class UnivariateModel(AbstractModel):
@@ -113,7 +111,7 @@ class UnivariateModel(AbstractModel):
         pdf = matplotlib.backends.backend_pdf.PdfPages(path)
         fig, ax = plt.subplots(1, 1)
         xi, tau = param_ind
-        ax.plot(xi.squeeze(1).detach().numpy(), tau.squeeze(1).detach().numpy(), 'x')
+        ax.plot(xi.squeeze(1).detach().tolist(), tau.squeeze(1).detach().tolist(), 'x')
         plt.xlabel('xi')
         plt.ylabel('tau')
         pdf.savefig(fig)
@@ -166,7 +164,7 @@ class UnivariateModel(AbstractModel):
 
         param_ind = self.get_param_from_real(realizations)
         squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type=True).sum()
-        self.parameters['noise_std'] = np.sqrt(squared_diff / (data.n_visits * data.dimension))
+        self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
 
         # Stochastic sufficient statistics used to update the parameters of the model
 

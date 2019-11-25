@@ -1,6 +1,3 @@
-import numpy as np
-import pandas as pd
-# import scipy
 import torch
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
@@ -13,76 +10,169 @@ from leaspy.inputs.data.result import Result
 class SimulationAlgorithm(AbstractAlgo):
     """
     SimulationAlgorithm object class.
-    This algorithm simulate new data given existing one by learning the individual parameters joined distribution
+    This algorithm simulate new data given existing one by learning the individual parameters joined distribution.
+
+    You can choose to only learn the distribution of a group of patient. To do so, choose the cofactor and the cofactor
+    state of the wanted patient in the settings. Exemple - For Alzheimer patient, you can load a genetic cofactor
+    informative of the APOE4 carriers. Choose cofactor 'genetic' and cofactor_state 'APOE4' to simulate only
+    APOE4 carriers.
+
+    Attributes
+    ----------
+    bandwidth_method = float, str, callable, optionnal
+        Bandwith argument used in scipy.stats.gaussian_kde in order to learn the patients' distribution
+    cofactor: str (default = None)
+        The cofactor used to select the wanted group of patients (ex - 'genes')
+    cofactor_state: str - TODO: check that the loaded cofactors are converted into strings!
+        The cofactor state used to select the  wanted group of patients (ex - 'APOE4')
+    mean_number_of_visits: int
+        Average number of visits of the simulated patients (ex - choose 5 => in average, a simulated patient will have 5 visits)
+    noise: float
+        Wanted level of noise in the generated scores - noise of zero will lead to patients having "perfect progression"
+        of their scores, i.e. following exactly a logistic curve
+    number_of_subjects: int
+        Number of subject to simulate
+    std_number_of_visits: float
+        Standard deviation used into the generation of the number of visits per simulated patient
+
+    Methods
+    -------
+    run(model, results)
+        Run the simulation of new patients for some given leaspy object result & model.
     """
 
     def __init__(self, settings):
         """
         Process initializer function that is called by Leaspy.simulate
-        :param settings: an leaspy.inputs.algorithm_settings class object
+
+        Parameters
+        ----------
+        settings: leaspy.inputs.algorithm_settings class object
+            Set the class attributes
         """
 
         super().__init__()
 
-        self.number_of_subjects = settings.parameters['number_of_subjects']
+        # TODO: put it in abstract_algo + add settings=None in AbstractAlgo __init__ method
+        self.algo_parameters = settings.parameters
+        self.name = settings.name
+        self.seed = settings.seed
+
+        self._initialize_seed(self.seed)
+
         self.bandwidth_method = settings.parameters['bandwidth_method']
-        self.noise = settings.parameters['noise']
-        self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
-        self.std_number_of_visits = settings.parameters['std_number_of_visits']
         self.cofactor = settings.parameters['cofactor']
         self.cofactor_state = settings.parameters['cofactor_state']
+        self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
+        self.noise = settings.parameters['noise']
+        self.number_of_subjects = settings.parameters['number_of_subjects']
+        self.std_number_of_visits = settings.parameters['std_number_of_visits']
+
+    @staticmethod
+    def _get_covariance_matrix(m):
+        """
+        Compute the empirical covariance matrix of the input
+
+        Parameters
+        ----------
+        m: torch tensor
+            Input matrix - one row per individual parameter distribution (xi, tau etc.)
+
+        Returns
+        -------
+        torch tensor
+            covariance matrix
+        """
+
+        m_exp = torch.mean(m, dim=1)
+        x = m - m_exp[:, None]
+        cov = 1 / (x.size(1) - 1) * x.mm(x.t())
+        return cov
 
     def _initialize_kernel(self, results=None):
         return 0
 
-    def _sample_sources(self, xi, tau, bl, source_dimension):
+    def _sample_sources(self, xi, tau, bl, source_dimension, df_mean, df_cov):
         """
         Simulate individual sources given log-acceleration xi, time-shift tau, baseline time bl & sources dimension
 
-        :param xi: float - log-acceleration
-        :param tau: float - time-shift
-        :param bl: float - baseline tyme
-        :param source_dimension: int - sources dimension
-        :return: numpy.array - sources
+        Parameters
+        ----------
+        xi: float
+            Log-acceleration of the simulated patient
+        tau: float
+            Time-shift of the simulated patient
+        bl: float
+            Baseline age of the simulated patient
+        source_dimension: int
+            Sources' dimension of the simulated patient
+        df_mean: 1D torch tensor
+            Mean values per individual parameter type (xi_mean, tau_mean, etc.)
+        df_cov: 2D torch tensor
+            Empirical covariance matrix of the individual parameters
+
+        Returns
+        -------
+        1D torch tensor
+            sources of the simulated patient
         """
-        ind_1 = [0, 1, 2]
-        ind_2 = list(range(3, source_dimension + 3))
-        x_1 = np.vstack((xi, tau, bl))
 
-        mu_1 = self.df_mean[ind_1][:, np.newaxis]
-        mu_2 = self.df_mean[ind_2][:, np.newaxis]
-        sigma_11 = self.df_cov[np.ix_(ind_1, ind_1)]
-        sigma_22 = self.df_cov[np.ix_(ind_2, ind_2)]
-        sigma_12 = self.df_cov[np.ix_(ind_1, ind_2)]
+        x_1 = torch.tensor([xi, tau, bl], dtype=torch.float32)
 
-        mean_cond = (mu_2 + np.dot(np.transpose(sigma_12), np.dot(np.linalg.inv(sigma_11), x_1 - mu_1))).ravel()
-        cov_cond = sigma_22 - np.dot(np.dot(np.transpose(sigma_12), np.linalg.inv(sigma_11)), sigma_12)
+        mu_1 = df_mean[:3].clone()
+        mu_2 = df_mean[3:].clone()
 
-        return np.random.multivariate_normal(mean_cond, cov_cond)
+        sigma_11 = df_cov.narrow(0, 0, 3).narrow(1, 0, 3).clone()
+        sigma_22 = df_cov.narrow(0, 3, source_dimension).narrow(1, 3, source_dimension).clone()
+        sigma_12 = df_cov.narrow(0, 3, source_dimension).narrow(1, 0, 3).clone()
 
-    def _get_number_of_visits(self):  # ,xi, tau, bl, sources):
+        mean_cond = mu_2 + torch.matmul(sigma_12, torch.matmul(sigma_11.inverse(), x_1 - mu_1))
+        cov_cond = sigma_22 - torch.matmul(sigma_12.matmul(sigma_11.inverse()), sigma_12.transpose(0, -1))
+
+        return torch.distributions.multivariate_normal.MultivariateNormal(mean_cond, cov_cond).sample()
+
+    def _get_number_of_visits(self):
         """
-        Simulate number of visits for a new simulated patient
+        Simulate number of visits for a new simulated patient based of attributes `mean_number_of_visits' &
+        'std_number_of_visits'
 
-        :return: int - number of visits
+        Returns
+        -------
+        int
+            number of visits
         """
+
         # Generate a number of visit around the mean_number_of_visits
         number_of_visits = int(self.mean_number_of_visits)
         if self.mean_number_of_visits != 0:
-            number_of_visits += int(np.random.normal(0, self.std_number_of_visits))
+            number_of_visits += int(torch.normal(torch.tensor(0, dtype=torch.float32),
+                                                 torch.tensor(self.std_number_of_visits, dtype=torch.float32)).item())
         return number_of_visits
 
-    def _get_xi_tau_sources_bl(self, results):
+    def _get_xi_tau_sources_bl(self, results, get_sources):
         """
         Get individual parameters
 
-        :param results: leaspy result class object
-        :return: xi list[float], tau list[float], sources numpy.ndarray - shape = Number_of_sources x Number_of_subjects,
-        bl list[float]
+        Parameters
+        ----------
+        results: leaspy.inputs.data.result class object
+            Object obtained at the personalization step in order to compute individual parameters
+        get_sources: bool
+            Needed in order to differentiate univariate models from other - if univariate, ignores 'sources'
+
+        Returns
+        -------
+        tuple(list[float], list[float], list(list(float)), list[float])
+            Tuple containing (in this order) the log-acceleration xi, the time-shift tau, the sources
+            (of shape = Number_of_sources x Number_of_subjects) & the baseline age of the patients. The sources are not
+            returned if the model is univariate.
         """
-        xi = results.get_parameter_distribution('xi', self.cofactor)
-        tau = results.get_parameter_distribution('tau', self.cofactor)
-        sources = results.get_parameter_distribution('sources', self.cofactor)
+
+        xi = results.get_parameter_distribution('xi', self.cofactor) # list of float
+        tau = results.get_parameter_distribution('tau', self.cofactor) # list of float
+        if get_sources:
+            sources = results.get_parameter_distribution('sources', self.cofactor)
+            # {'source1': list of float, 'source2': ..., ...}
         bl = []
         for idx in results.data.individuals.keys():
             ages = results.data.get_by_idx(idx).timepoints
@@ -92,51 +182,69 @@ class SimulationAlgorithm(AbstractAlgo):
             # transform {'state1': xi_list1, 'state2': xi_list2, ...} to xi_list
             xi = xi[self.cofactor_state]
             tau = tau[self.cofactor_state]
-            sources = sources[self.cofactor_state]
+            if get_sources:
+                sources = sources[self.cofactor_state]
             bl = [bl[i] for i, state in enumerate(results.get_cofactor_distribution(self.cofactor))
                   if state == self.cofactor_state]
-
-        sources = np.array([sources[key] for key in sources.keys()])
-        return xi, tau, sources, bl
+        if get_sources:
+            sources = [sources[key] for key in sources.keys()]  # [[ float ], [ float ], ... ]
+            return xi, tau, sources, bl
+        else:
+            return xi, tau, bl
 
     def run(self, model, results):
         """
         Run simulation - learn joined distribution of patients' individual parameters and return a results object
         containing the simulated individual data and parameters.
 
-        :param model: leaspy model class object
-        :param results: leaspy result class object
-        :return: leaspy result object - contain the simulated individual data and parameters
+        Parameters
+        ----------
+        model: leaspy.model class object
+            Model used to compute the population parameters
+        results: leaspy.inputs.data.result class object
+            Object containing the computed individual parameters
+
+        Returns
+        -------
+        leaspy.inputs.data.result class object
+            Contains the simulated individual data and parameters
         """
+
+        get_sources = (model.name != 'univariate')
         # Get individual parameters - for joined density estimation
-        xi, tau, sources, bl = self._get_xi_tau_sources_bl(results)
+        if get_sources:
+            xi, tau, sources, bl = self._get_xi_tau_sources_bl(results, get_sources)
+            # Get mean by variable & covariance matrix
+            df = torch.tensor([xi, tau, bl] + sources, dtype=torch.float32)  # Concat in a single object
+            df_mean = df.mean(dim=1)
+            df_cov = self._get_covariance_matrix(df)
+        else:
+            xi, tau, bl = self._get_xi_tau_sources_bl(results, get_sources)
 
         # Get joined density estimation (sources are not learn in this fashion)
-        distribution = np.array([xi, tau, bl]).T
+        distribution = [xi, tau, bl]
+        distribution = [list(i) for i in zip(*distribution)]  # Transpose it
         ss = StandardScaler()
-        rescaled_distribution = ss.fit_transform(distribution)
-        kernel = stats.gaussian_kde(rescaled_distribution.T, bw_method=self.bandwidth_method)
-
-        # Get mean by variable & covariance matrix
-        df = np.concatenate((np.array([xi, tau, bl]), sources), axis=0).T
-        df = pd.DataFrame(data=df)
-        self.df_mean = df.mean().values
-        self.df_cov = df.cov().values
+        kernel = stats.gaussian_kde(ss.fit_transform(distribution).T,  # fit_transform return a numpy array
+                                    bw_method=self.bandwidth_method)
 
         # Generate individual parameters (except sources)
-        samples = np.transpose(kernel.resample(self.number_of_subjects))
+        samples = kernel.resample(self.number_of_subjects).T  # Resample return a numpy.ndarray
         samples = ss.inverse_transform(samples)
 
         # Initialize simulated scores
         indices, timepoints, values = [], [], []
         # Simulated parameters
-        xi, tau, bl = samples.T
-        sources = []
+        xi, tau, bl = samples.T.tolist()  # Come back to list objects
+
+        if get_sources:
+            sources = []
 
         # Generate individual sources, scores, indices & time-points
         for i in range(self.number_of_subjects):
-            # Generate sources
-            sources.append(self._sample_sources(xi[i], tau[i], bl[i], model.source_dimension).tolist())
+            if get_sources:
+                # Generate sources
+                sources.append(self._sample_sources(xi[i], tau[i], bl[i], model.source_dimension, df_mean, df_cov).tolist())
             # Generate time-points
             number_of_visits = self._get_number_of_visits()  # xi[i], tau[i], bl[i] - 1, sources[-1])
             if number_of_visits == 1:
@@ -144,27 +252,32 @@ class SimulationAlgorithm(AbstractAlgo):
             elif number_of_visits == 2:
                 ages = [bl[i], bl[i] + 0.5]
             else:
-                ages = [bl[i], bl[i] + 0.5] + [bl[i] + i for i in range(1, number_of_visits - 1)]
+                ages = [bl[i], bl[i] + 0.5] + [bl[i] + j for j in range(1, number_of_visits - 1)]
             timepoints.append(ages)
+
             # Generate scores
             indiv_param = {'xi': torch.tensor([xi[i]], dtype=torch.float32).unsqueeze(0),
-                           'tau': torch.tensor([tau[i]], dtype=torch.float32).unsqueeze(0),
-                           'sources': torch.tensor(sources[-1], dtype=torch.float32).unsqueeze(0)}
-            observations = model.compute_individual_tensorized(torch.tensor(ages, dtype=torch.float32).unsqueeze(0), indiv_param)
+                           'tau': torch.tensor([tau[i]], dtype=torch.float32).unsqueeze(0)}
+            if get_sources:
+                indiv_param['sources'] = torch.tensor(sources[-1], dtype=torch.float32).unsqueeze(0)
+
+            observations = model.compute_individual_tensorized(torch.tensor(ages, dtype=torch.float32).unsqueeze(0),
+                                                               indiv_param)
             # Add the desired noise
             if self.noise:
                 noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
                     observations.shape)
                 observations += noise
                 observations = observations.clamp(0, 1)
-            values.append(observations.squeeze(0).detach().numpy().tolist())
+            values.append(observations.squeeze(0).detach().tolist())
             # Generate indices
             indices.append(i)
 
         # Return the leaspy.inputs.data.results object
         simulated_parameters = {'xi': torch.tensor(xi, dtype=torch.float32).view(-1, 1),
-                                'tau': torch.tensor(tau, dtype=torch.float32).view(-1, 1),
-                                'sources': torch.tensor(sources, dtype=torch.float32)}
+                                'tau': torch.tensor(tau, dtype=torch.float32).view(-1, 1)}
+        if get_sources:
+            simulated_parameters['sources'] = torch.tensor(sources, dtype=torch.float32)
         simulated_scores = Data.from_individuals(indices, timepoints, values, results.data.headers)
         return Result(data=simulated_scores,
                       individual_parameters=simulated_parameters,

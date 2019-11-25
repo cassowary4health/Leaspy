@@ -20,17 +20,17 @@ class LeaspyFitTest(unittest.TestCase):
         # Fit the model on the data
         leaspy.fit(data, algorithm_settings=algo_settings)
 
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'],  0.2842, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'],  77.9872, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'],  1.0339, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['noise_std'],  0.2986, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'],  78.0270, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_std'],  0.9494, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], 0.0, delta=0.001)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1439, delta=0.001)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1317, delta=0.001)
 
         diff_g = leaspy.model.parameters['g'] - torch.Tensor([1.9557, 2.5899, 2.5184, 2.2369])
         diff_v = leaspy.model.parameters['v0'] - torch.Tensor([-3.5714, -3.5820, -3.5811, -3.5886])
 
         self.assertAlmostEqual(torch.sum(diff_g**2), 0.0, delta=0.01)
-        self.assertAlmostEqual(torch.sum(diff_v**2), 0.0, delta=0.01)
+        self.assertAlmostEqual(torch.sum(diff_v**2), 0.0, delta=0.02)
 
 
     def test_fit_logisticparallel(self):
@@ -46,18 +46,15 @@ class LeaspyFitTest(unittest.TestCase):
         leaspy.fit(data, algorithm_settings=algo_settings)
 
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'],0.2641, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 70.4267, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 2.0727, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.1555, delta=0.001)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.0945, delta=0.001)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 70.4093, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 2.2325, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.1897, delta=0.001)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1542, delta=0.001)
 
-        self.assertAlmostEqual(leaspy.model.parameters['g'], 1.0165, delta=0.001)
+        self.assertAlmostEqual(leaspy.model.parameters['g'], 1.0160, delta=0.001)
 
         diff_deltas = leaspy.model.parameters['deltas'] - torch.Tensor([-0.0099, -0.0239, -0.0100])
         self.assertAlmostEqual(torch.sum(diff_deltas ** 2), 0.0, delta=0.01)
 
     # TODO Univariate Model ???
     # TODO HMC, Gradient Descent
-
-
-

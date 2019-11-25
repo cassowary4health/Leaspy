@@ -1,14 +1,15 @@
+import os
 import unittest
 
-from leaspy.algo.samplers.gibbs_sampler import GibbsSampler
-
-from leaspy import Leaspy, Data
-from leaspy.inputs.data.dataset import Dataset
 import torch
+
+from leaspy import Data, Leaspy
+from leaspy.inputs.data.dataset import Dataset
+from leaspy.algo.samplers.gibbs_sampler import GibbsSampler
+# from . import dummy_ind_variable_infos
 
 from tests import test_data_dir
 
-import os
 
 class SamplerTest(unittest.TestCase):
 
@@ -59,21 +60,17 @@ class SamplerTest(unittest.TestCase):
         self.assertAlmostEqual(stack_random_draws_mean.mean(), 4.2792e-05, delta=0.05)
         self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0045, delta=0.05)
 
-
-
-
-
     def test_acceptation(self):
         n_patients = 17
         n_draw = 200
-        temperature_inv = 1.0
+        # temperature_inv = 1.0
 
         path_model_sampler = os.path.join(test_data_dir, "model_parameters", "multivariate_model_sampler.json")
         path_data = os.path.join(test_data_dir, "inputs", "data_tiny.csv")
 
-        data = Dataset(Data.from_csv_file(path_data))
+        # data = Dataset(Data.from_csv_file(path_data))
         leaspy = Leaspy.load(path_model_sampler)
-        realizations = leaspy.model.get_realization_object(n_patients)
+        # realizations = leaspy.model.get_realization_object(n_patients)
 
         # Test with taus
         var_name = 'tau'
@@ -84,19 +81,17 @@ class SamplerTest(unittest.TestCase):
 
         self.assertAlmostEqual(gsampler.acceptation_temp.mean(), 10/17, delta=0.05)
 
-
-
     def test_adaptative_proposition_variance(self):
         n_patients = 17
         n_draw = 200
-        temperature_inv = 1.0
+        # temperature_inv = 1.0
 
         path_model_sampler = os.path.join(test_data_dir, "model_parameters", "multivariate_model_sampler.json")
         path_data = os.path.join(test_data_dir, "inputs", "data_tiny.csv")
 
-        data = Dataset(Data.from_csv_file(path_data))
+        # data = Dataset(Data.from_csv_file(path_data))
         leaspy = Leaspy.load(path_model_sampler)
-        realizations = leaspy.model.get_realization_object(n_patients)
+        # realizations = leaspy.model.get_realization_object(n_patients)
 
         # Test with taus
         var_name = 'tau'
@@ -110,7 +105,6 @@ class SamplerTest(unittest.TestCase):
 
         self.assertAlmostEqual(gsampler.std[:10].mean(), 4.52, delta=0.05)
         self.assertAlmostEqual(gsampler.std[10:].mean(), 0.0015, delta=0.05)
-
 
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([0.0]*10+[1.0]*7, dtype=torch.float32))

@@ -109,34 +109,39 @@ class LeaspyTest(unittest.TestCase):
         # TODO: Can we improve this??
         # simulation_results.data.to_dataframe().to_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"), index=False)
         simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
+
+        # print("\n", simulation_results.data.to_dataframe().loc[simulation_df['ID'] == 14], "\n")
+        # print("\n", simulation_df[simulation_df['ID'] == 14], "\n")
+
         round_decimal = 6
         simulation_df = simulation_df.apply(lambda x: round(x, round_decimal))
         simulation_is_reproducible = simulation_df.equals(simulation_results.data.to_dataframe().apply(lambda x: round(x, round_decimal)))
         # If reproducibility error > 1e-6 => display it
         if not simulation_is_reproducible:
-            simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df.csv"))
+            # simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df.csv"))
             max_diff = 0.
             value_v1 = 0.
             value_v2 = 0.
             count = 0
             tol = 10 ** (-round_decimal)
-            for arrondi in range(round_decimal):
-                for v1, v2 in zip(simulation_df.values.tolist(),
-                                  simulation_results.data.to_dataframe().values.tolist()):
-                    v1 = [round(v, arrondi) for v in v1]
-                    v2 = [round(v, arrondi) for v in v2]
-                    diff = [val1 - val2 for val1, val2 in zip(v1, v2)]
-                    if max(diff) > tol:
-                        count += 1
-                    if max(diff) > max_diff:
-                        value_v1 = v1[[i for i, val in enumerate(diff) if val == max(diff)][0]]
-                        value_v2 = v2[[i for i, val in enumerate(diff) if val == max(diff)][0]]
-                        max_diff = max(diff)
+            for v1, v2 in zip(simulation_df.values.tolist(),
+                              simulation_results.data.to_dataframe().values.tolist()):
+                diff = [val1 - val2 for val1, val2 in zip(v1, v2)]
+                if max(diff) > tol:
+                    count += 1
+                if max(diff) > max_diff:
+                    # value_v1 = v1[[i for i, val in enumerate(diff) if val == max(diff)][0]]
+                    value_v1 = v1
+                    # value_v2 = v2[[i for i, val in enumerate(diff) if val == max(diff)][0]]
+                    value_v2 = v2
+                    max_diff = max(diff)
             print('\nTolerance error = %.1e' % tol)
             print('Maximum error = %.3e' % max_diff)
-            print('Value_v1 = %.7f' % value_v1)
-            print('Value_v2 = %.7f' % value_v2)
-            print('Number of simulated patients above tolerance error = %d / %d \n' % (count, simulation_df.shape[0]))
+            # print('Value_v1 = %.7f' % value_v1)
+            # print('Value_v2 = %.7f' % value_v2)
+            print(value_v1)
+            print(value_v2)
+            print('Number of simulated visits above tolerance error = %d / %d \n' % (count, simulation_df.shape[0]))
         self.assertTrue(simulation_is_reproducible)
 
 

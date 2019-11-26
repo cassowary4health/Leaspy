@@ -35,8 +35,21 @@ class Leaspy:
     -------
     load(path_to_model_settings)
         Instantiate a Leaspy object from json model parameter file.
-    run(model, results)
-        Run the simulation of new patients for some given leaspy object result & model.
+    save(path)
+        Save Leaspy object as json model parameter file.
+    fit(data, algorithm_settings)
+        Estimate the model's parameters for a given dataset, a given mdel and a given algorithm.
+        These model's parameters correspond to the fixed-effects of the mixed effect model.
+    personalize(data, settings)
+        From a model, estimate individual parameters for each ID of a given dataset.
+        These individual parameters correspond to the random-effects of the mixed effect model.
+    simulate(results, settings)
+        Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
+        and some given settings.
+    save_individual_parameters(path, individual_parameters, human_readable=True)
+        Save individual parameters coming from leaspy Result class object
+    load_individual_parameters(path, verbose=True)
+        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor
     """
 
     def __init__(self, model_name):
@@ -200,7 +213,13 @@ class Leaspy:
 
     def simulate(self, results, settings):
         """
-        Generate longitudinal synthetic patients data from a model, .
+        Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
+        and some given settings.
+        This procedure learn the joined distribution of the individual parameters and baseline age of the subjects
+        present in `result` to sample new patients from this joined distribution. The model is used to compute for each
+        patient their scores from the individual parameters.
+        The number of visits per patients is set in `settings['parameters']['mean_number_of_visits']` and
+        `settings['parameters']['std_number_of_visits']` which are set by default to 6 and 3 respectively.
 
         Parameters
         ----------

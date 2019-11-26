@@ -12,8 +12,10 @@ from leaspy.algo.simulate.simulate import SimulationAlgorithm
 class AlgoFactory:
 
     @staticmethod
-    def algo(settings):
+    def algo(algorithm_class, settings):
         name = settings.name
+
+        AlgoFactory._check_compatibility(algorithm_class, name)
 
         # Fit Algorithm
         if name == 'mcmc_saem':
@@ -45,3 +47,44 @@ class AlgoFactory:
 
         algorithm.set_output_manager(settings.logs)
         return algorithm
+
+
+    @staticmethod
+    def _check_compatibility(algorithm_class, name):
+        """
+        Check compatibility of algorithms and API methods.
+
+        Parameters
+        ----------
+        name: str
+            Must be 'fit', 'simulate' or 'personalize'
+            Name of the algorithm to run
+        algorithm_class: str
+            Must be one of the following api's name:
+                'fit' - compatible with 'mcm_saem'
+                'personalize' - compatible with "mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"
+                'simulate' - compatible with "simulation"
+
+        Raises
+        ------
+        ValueError
+            Raise an error if the settings' name does not belong to the wanted api methods & display the possible
+            methods for that api.
+        """
+
+        if algorithm_class not in ['fit', 'simulate', 'personalize']:
+            raise ValueError("The algorithm class you are using should be of class 'fit', 'simulate' or 'personalize'")
+
+        compatibility_algorithms = {
+            "fit": ["mcmc_saem"],
+            "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"],
+            "simulate": ["simulation"]
+        }
+
+
+        if name not in compatibility_algorithms[algorithm_class]:
+            raise ValueError("Chosen algorithm is not compatible with method : {0} \n"
+                             "please choose one in the following method list : {1}".format(name,
+                                                                                           compatibility_algorithms[
+                                                                                               name]))
+

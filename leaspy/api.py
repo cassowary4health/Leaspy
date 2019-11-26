@@ -11,8 +11,6 @@ from leaspy.models.model_factory import ModelFactory
 from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.inputs.data.result import Result
 
-from leaspy.algo import compatibility_algorithms
-
 
 class Leaspy:
     """
@@ -155,10 +153,8 @@ class Leaspy:
          >>> Plotter().plot_mean_trajectory(leaspy_logistic_seed0.model)
         """
 
-        # Check algorithm compatibility
-        Leaspy.check_if_algo_is_compatible(algorithm_settings, "fit")
 
-        algorithm = AlgoFactory.algo(algorithm_settings)
+        algorithm = AlgoFactory.algo("fit", algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
             self.model.initialize(dataset)
@@ -198,13 +194,10 @@ class Leaspy:
         >>> Plotter().plot_distribution(individual_results, 'xi')
         """
 
-        # Check algorithm compatibility
-        Leaspy.check_if_algo_is_compatible(settings, "personalize")
-
         # Check if model has been initialized
         self.check_if_initialized()
 
-        algorithm = AlgoFactory.algo(settings)
+        algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         individual_parameters, noise_std = algorithm.run(self.model, dataset)
         result = Result(data, individual_parameters, noise_std)
@@ -248,13 +241,10 @@ class Leaspy:
                                                                   AlgorithmSettings('simulation', seed=0))
         """
 
-        # Check algorithm compatibility
-        Leaspy.check_if_algo_is_compatible(settings, "simulate")
-
         # Check if model has been initialized
         self.check_if_initialized()
 
-        algorithm = AlgoFactory.algo(settings)
+        algorithm = AlgoFactory.algo("simulate", settings)
         simulated_data = algorithm.run(self.model, results)
         return simulated_data
 
@@ -374,30 +364,3 @@ class Leaspy:
         if not self.model.is_initialized:
             raise ValueError("Model has not been initialized")
 
-    @staticmethod
-    def check_if_algo_is_compatible(settings, name):
-        """
-        Check compatibility of algorithms and API methods.
-
-        Parameters
-        ----------
-        settings: a leaspy AlgorithmSettings class object
-            Contains the algorithm's settings, including its name
-        name: str
-            Must be one of the following api's name:
-                'fit' - compatible with 'mcm_saem'
-                'personalize' - compatible with "mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"
-                'simulate' - compatible with "simulation"
-
-        Raises
-        ------
-        ValueError
-            Raise an error if the settings' name does not belong to the wanted api methods & display the possible
-            methods for that api.
-        """
-
-        if settings.name not in compatibility_algorithms[name]:
-            raise ValueError("Chosen algorithm is not compatible with method : {0} \n"
-                             "please choose one in the following method list : {1}".format(name,
-                                                                                           compatibility_algorithms[
-                                                                                               name]))

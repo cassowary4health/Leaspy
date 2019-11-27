@@ -39,6 +39,7 @@ class UnivariateModel(AbstractModel):
                 model_parameters_save[key] = value.tolist()
         model_settings = {
             'name': 'univariate',
+            'features': self.features,
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
@@ -47,10 +48,11 @@ class UnivariateModel(AbstractModel):
     def load_hyperparameters(self, hyperparameters):
         return
 
-    def initialize(self, data):
+    def initialize(self, dataset):
 
         # "Smart" initialization : may be improved
         # TODO !
+        self.features = dataset.headers
         self.parameters = {
             'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
             'noise_std': 0.1, }

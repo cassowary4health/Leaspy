@@ -41,6 +41,7 @@ class AbstractMultivariateModel(AbstractModel):
 
     def initialize(self, dataset, method="default"):
         self.dimension = dataset.dimension
+        self.features = dataset.headers
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
@@ -50,6 +51,9 @@ class AbstractMultivariateModel(AbstractModel):
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
+
+    def initialize_MCMC_toolbox(self):
+        raise NotImplementedError
 
     def load_hyperparameters(self, hyperparameters):
         if 'dimension' in hyperparameters.keys():
@@ -65,6 +69,7 @@ class AbstractMultivariateModel(AbstractModel):
                 model_parameters_save[key] = value.tolist()
         model_settings = {
             'name': self.name,
+            'features': self.features,
             'dimension': self.dimension,
             'source_dimension': self.source_dimension,
             'parameters': model_parameters_save

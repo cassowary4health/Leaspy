@@ -11,6 +11,7 @@ class AbstractModel():
     def __init__(self, name):
         self.is_initialized = False
         self.name = name
+        self.features = None
         self.parameters = None
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
 

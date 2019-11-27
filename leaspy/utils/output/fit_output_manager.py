@@ -189,6 +189,7 @@ class FitOutputManager():
 
         # Transform the types
         for key, value in model_parameters.items():
+
             if value.ndim > 1:
                 if key == "betas":
                     model_parameters_save.pop(key)
@@ -204,7 +205,7 @@ class FitOutputManager():
 
         # Save the dictionnary
         for key, value in model_parameters_save.items():
-            path = os.path.join(self.path_save_model_parameters_convergence, key + ".cbsv")
+            path = os.path.join(self.path_save_model_parameters_convergence, key + ".csv")
             with open(path, 'a', newline='') as filename:
                 writer = csv.writer(filename)
                 writer.writerow([iteration] + value)

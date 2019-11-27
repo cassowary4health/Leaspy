@@ -19,6 +19,10 @@ def initialize_parameters(model, dataset, method="default"):
     else:
         raise ValueError("There is no initialization method for the parameter of the model {}".format(name))
 
+    # To torch
+    for key, param in parameters.items():
+        parameters[key] = torch.tensor(param, dtype=torch.float32)
+
     return parameters
 
 
@@ -64,6 +68,8 @@ def initialize_logistic(model, dataset, method):
         'sources_mean': 0.0, 'sources_std': 1.0,
         'noise_std': torch.tensor([0.1], dtype=torch.float32)
     }
+
+
 
     return parameters
 

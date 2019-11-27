@@ -1,6 +1,6 @@
 import pandas as pd
 import torch
-
+import numpy as np
 from leaspy.inputs.data.dataframe_data_reader import DataframeDataReader
 from leaspy.inputs.data.csv_data_reader import CSVDataReader
 from leaspy.inputs.data.individual_data import IndividualData
@@ -39,14 +39,39 @@ class Data:
             self.iter += 1
             return self.__getitem__(self.iter - 1)
 
+
     def load_cofactors(self, df, cofactors):
-        """
+
+        df = df.copy(deep=True)
+
+        for iter, idx in self.iter_to_idx.items():
+
+            # Get the cofactors and check that it is unique
+            cof = df.loc[[idx]][cofactors].to_dict(orient='list')
+
+            for c in cofactors:
+                v = np.unique(cof[c])
+                v = [_ for _ in v if _ == _]
+                if len(v) > 1:
+                    raise ValueError("Multiples values of the cofactor {} for patient {} : {}".format(c, idx, v))
+                elif len(v) == 0:
+                    cof[c] = None
+                else:
+                    cof[c] = v[0]
+
+            # Add these cofactor to the individual
+            self.individuals[idx].add_cofactors(cof)
+
+
+    """
+    def load_cofactors(self, df, cofactors):
+        
         Load cofactors from a pandas dataframe to leaspy.data class object
 
         :param df: pandas.DataFrame class object - the index is the list of subject ids
         :param cofactors: list of string - names of the column(s) of df which shall be loaded as cofactors
         :return: None
-        """
+        
         from .result import Result
         df = df.copy(deep=True)
 
@@ -66,7 +91,7 @@ class Data:
                     cof[c] = v[0]
 
             # Add these cofactor to the individual
-            self.individuals[idx].add_cofactors(cof)
+            self.individuals[idx].add_cofactors(cof)"""
 
     @staticmethod
     def from_csv_file(path):

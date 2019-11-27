@@ -113,12 +113,12 @@ class LeaspyTest(unittest.TestCase):
         # print("\n", simulation_results.data.to_dataframe().loc[simulation_df['ID'] == 14], "\n")
         # print("\n", simulation_df[simulation_df['ID'] == 14], "\n")
 
-        round_decimal = 6
-        simulation_df = simulation_df.apply(lambda x: round(x, round_decimal))
-        simulation_is_reproducible = simulation_df.equals(simulation_results.data.to_dataframe().apply(lambda x: round(x, round_decimal)))
+        round_decimal = 13
+        simulation_df = simulation_df.round(round_decimal)
+        simulation_is_reproducible = simulation_df.equals(simulation_results.data.to_dataframe().round(round_decimal))
         # If reproducibility error > 1e-6 => display it
         if not simulation_is_reproducible:
-            # simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df.csv"))
+            simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
             max_diff = 0.
             value_v1 = 0.
             value_v2 = 0.

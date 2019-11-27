@@ -1,15 +1,29 @@
 from . import UnivariateModel, MultivariateModel, MultivariateParallelModel
 
 
-class ModelFactory():
-    """Transition from the model's name to model object"""
+class ModelFactory:
+    """
+    This class perfomrs the transition from the model's name to model object
+
+    Methods
+    -------
+    model(name)
+        Return the model object corresponding to 'name' arg
+    """
 
     @staticmethod
     def model(name):
         """
         Return the model object corresponding to 'name' arg - check name type and value
-        :param name: str - model's name
-        :return: model object determined by 'name' - each inherit AbstractModel class
+
+        Parameters
+        ----------
+        name: str
+            The model's name
+
+        Returns
+        -------
+        a child class object of leaspy.model.AbstractModel class object determined by 'name'
         """
         if type(name) == str:
             name = name.lower()

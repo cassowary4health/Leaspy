@@ -7,7 +7,34 @@ from leaspy.utils.realizations.realization import Realization
 TWO_PI = 2 * math.pi
 
 
-class AbstractModel():
+# TODO: Check & complete docstrings
+class AbstractModel:
+    """
+    AbstractModel class contains the common attributes & methods of the different models.
+
+    Attributes
+    ----------
+    distribution: torch.distributions.normal.Normal class object
+        Gaussian generator for the model's penalty (?)
+    is_initialized: bool
+        Indicates if the model is initialized
+    name: str
+        The model's name
+    parameters: dict
+        Contains the model's parameters
+
+    Methods
+    -------
+    compute_individual_attachment_tensorized_mcmc(data, realizations)
+        Compute attachment of all subjects? One subject? One visit?
+    compute_sum_squared_tensorized(data, param_ind, attribute_type=None)
+        Compute the square of the residuals. (?) from one subject? Several subjects? All subject?
+    get_individual_variable_name()
+        Return list of names of the individual variables from the model.
+    load_parameters(parameters)
+        Instantiate or update the model's parameters.
+    """
+
     def __init__(self, name):
         self.is_initialized = False
         self.name = name
@@ -15,6 +42,14 @@ class AbstractModel():
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
 
     def load_parameters(self, parameters):
+        """
+        Instantiate or update the model's parameters.
+
+        Parameters
+        ----------
+        parameters: dict
+            Contains the model's parameters
+        """
         self.parameters = {}
         for k in parameters.keys():
             self.parameters[k] = parameters[k]
@@ -27,13 +62,17 @@ class AbstractModel():
 
     def get_individual_variable_name(self):
         """
-        Return list of names of the individual variables from the model
-        :return:
+        Return list of names of the individual variables from the model.
+
+        Returns
+        -------
+        list
+            Contains the individual variables' names
         """
 
         individual_variable_name = []
 
-        infos = self.random_variable_informations()
+        infos = self.random_variable_informations()  # overloaded for each model
         for name, info in infos.items():
             if info['type'] == 'individual':
                 individual_variable_name.append(name)
@@ -41,16 +80,64 @@ class AbstractModel():
         return individual_variable_name
 
     def compute_sum_squared_tensorized(self, data, param_ind, attribute_type=None):
+        """
+        TODO: complete
+        Compute the square of the residuals. (?) from one subject? Several subjects? All subject?
+
+        Parameters
+        ----------
+        data: a leaspy.inputs.data.dataset.Dataset class object
+            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
+        param_ind: dict
+            Contain the individual parameters
+        attribute_type: str
+            The attribute's type
+
+        Returns
+        -------
+        torch.Tensor
+            Contain one residuals for each subject? Visit? Sub-score?
+        """
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         res *= data.mask.float()
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
+        """
+        TODO: complete
+        Compute attachment of all subjects? One subject? One visit?
+
+        Parameters
+        ----------
+        data: a leaspy.inputs.data.dataset.Dataset class object
+            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
+        realizations: a leaspy realization class object
+
+        Returns
+        -------
+        scalar
+            The subject attachment (?)
+        """
         param_ind = self.get_param_from_real(realizations)
         attachment = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC')
         return attachment
 
     def compute_individual_attachment_tensorized(self, data, param_ind, attribute_type):
+        """
+        TODO: complete
+        Compute attachment of all subjects? One subject? One visit?
+
+        Parameters
+        ----------
+        data: a leaspy.inputs.data.dataset.Dataset class object
+            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
+        param_ind
+        attribute_type: str
+
+        Returns
+        -------
+
+        """
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         # res *= data.mask
 

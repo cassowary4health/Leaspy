@@ -45,6 +45,7 @@ class Result:
         """
         self.data = data
         self.individual_parameters = individual_parameters
+        self.ID_to_idx = {key : i for i, key in enumerate(data.individuals)}
         self.noise_std = noise_std
 
     # def load_covariables(self, covariables, csv):

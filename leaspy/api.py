@@ -160,6 +160,20 @@ class Leaspy:
             self.model.initialize(dataset)
         algorithm.run(dataset, self.model)
 
+
+    def calibrate(self, data, algorithm_settings):
+        """
+        Duplicates of the `fit` function. Refer to the `fit` documentation
+
+        Parameters
+        ----------
+        data: a leaspy Data class object
+            Contains the informations of the individuals
+        algorithm_settings: a leaspy AlgorithmSettings class object
+            Contains the algorithm's settings
+        """
+        self.fit(data, algorithm_settings)
+
     def personalize(self, data, settings):
         """
         From a model, estimate individual parameters for each ID of a given dataset.
@@ -249,11 +263,39 @@ class Leaspy:
         return simulated_data
 
     def estimate(self, timepoints, individual_parameters):
+        """
+        Return the value of the features for an individual who is characterized by its individual parameters z_i
+        at time-points (t_ij) that can be a unique time-point or a list of time-points.
+        This functions returns f_theta(z_i, (t_ij)). It is intended to compute reconstructed data, impute missing
+        values and predict futur time-points
+
+        Parameters
+        ----------
+        timepoints: float/integer or list of floats/integers
+            Corresponds to the time-points to estimate
+        individual_parameters: dictionary of floats or torch tensors
+            Corresponds to the individua parameters of a single individual
+
+        Returns
+        -------
+        individual_trajectory: list of torch tensors, each of shape the feature space
+            Values of the modality of the individual at the different time-points
+
+        Examples
+        --------
+        Estimate the features of the individual at 70, 74 and 80 years old
+
+        >>> leaspy = Leaspy.load(path/to/model_parameters.json)
+        >>> timepoints = [70, 80]
+        >>> individual_parameters = { 'xi': 0.3, 'tau': 71, 'sources': [0.2, -0.5] }
+        >>> output = leaspy.estimate(timepoints, individual_parameters)
+        """
         # Check if model has been initialized
         self.check_if_initialized()
 
         # Compute the individual trajectory
-        self.model.compute_individual_trajectory(timepoints, individual_parameters)
+        individual_trajectory = self.model.compute_individual_trajectory(timepoints, individual_parameters)
+        return individual_trajectory
 
     @staticmethod
     def save_individual_parameters(path, individual_parameters, human_readable=True):

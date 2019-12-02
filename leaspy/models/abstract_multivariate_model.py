@@ -81,12 +81,23 @@ class AbstractMultivariateModel(AbstractModel):
             json.dump(model_settings, fp)
 
     def compute_individual_trajectory(self, timepoints, individual_parameters):
+        # Convert the timepoints (list of numbers, or single number) to a torch tensor
         if type(timepoints) != list:
             timepoints = [timepoints]
+        timepoints = torch.Tensor(timepoints)
 
-        individual_parameters = {k: torch.Tensor([v]) for k, v in individual_parameters.items()}
+        # Convert the individual parameters to torch tensor
+        for k in ['xi', 'tau', 'sources']:
+            if type(individual_parameters[k]) == torch.Tensor:
+                continue
 
+            if type(individual_parameters[k]) != list:
+                individual_parameters[k] = [individual_parameters[k]]
+            individual_parameters[k] = torch.Tensor(individual_parameters[k])
+
+        # Compute the individual trajectory
         individual_trajectory = self.compute_individual_tensorized(timepoints, individual_parameters)
+
         return individual_trajectory
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):

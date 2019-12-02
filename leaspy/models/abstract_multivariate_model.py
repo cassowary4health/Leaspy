@@ -60,6 +60,8 @@ class AbstractMultivariateModel(AbstractModel):
             self.dimension = hyperparameters['dimension']
         if 'source_dimension' in hyperparameters.keys():
             self.source_dimension = hyperparameters['source_dimension']
+        if 'features' in hyperparameters.keys():
+            self.features = hyperparameters['features']
 
     def save(self, path):
         model_parameters_save = self.parameters.copy()
@@ -67,6 +69,7 @@ class AbstractMultivariateModel(AbstractModel):
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
+
         model_settings = {
             'name': self.name,
             'features': self.features,
@@ -76,6 +79,18 @@ class AbstractMultivariateModel(AbstractModel):
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)
+
+    def compute_individual_trajectory(self, timepoints, individual_parameters):
+        if type(timepoints) != list:
+            timepoints = [timepoints]
+
+        individual_parameters = {k: torch.Tensor([v]) for k, v in individual_parameters.items()}
+
+        individual_trajectory = self.compute_individual_tensorized(timepoints, individual_parameters)
+        return individual_trajectory
+
+    def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+        return NotImplementedError
 
     def compute_mean_traj(self, timepoints):
         individual_parameters = {

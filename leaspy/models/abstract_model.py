@@ -46,6 +46,12 @@ class AbstractModel():
         res *= data.mask.float()
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
+    def compute_individual_trajectory(self, timepoints, individual_parameters):
+        return NotImplementedError
+
+    def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+        return NotImplementedError
+
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         param_ind = self.get_param_from_real(realizations)
         attachment = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC')

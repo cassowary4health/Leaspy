@@ -248,6 +248,13 @@ class Leaspy:
         simulated_data = algorithm.run(self.model, results)
         return simulated_data
 
+    def estimate(self, timepoints, individual_parameters):
+        # Check if model has been initialized
+        self.check_if_initialized()
+
+        # Compute the individual trajectory
+        self.model.compute_individual_trajectory(timepoints, individual_parameters)
+
     @staticmethod
     def save_individual_parameters(path, individual_parameters, human_readable=True):
         """

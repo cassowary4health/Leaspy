@@ -112,7 +112,6 @@ class MultivariateModel(AbstractMultivariateModel):
         model = torch.cat([model_linear, model_logistic], dim=2)
 
         return model"""
-
     ##############################
     ### MCMC-related functions ###
     ##############################

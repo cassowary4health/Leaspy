@@ -2,7 +2,6 @@ import torch
 import unittest
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.multivariate_model import MultivariateModel
 from leaspy import Leaspy
 from tests import example_logisticmodel_path
 

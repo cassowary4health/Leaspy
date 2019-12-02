@@ -1,7 +1,5 @@
 import torch
 from scipy import stats
-# from ..attributes.attributes_logistic import Attributes_Logistic
-# from ..attributes.attributes_logistic_parallel import Attributes_LogisticParallel
 
 
 def initialize_parameters(model, dataset, method="default"):

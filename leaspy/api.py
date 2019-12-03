@@ -11,8 +11,6 @@ from leaspy.models.model_factory import ModelFactory
 from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.inputs.data.result import Result
 
-from leaspy.algo import compatibility_algorithms
-
 
 class Leaspy:
     """
@@ -155,14 +153,26 @@ class Leaspy:
          >>> Plotter().plot_mean_trajectory(leaspy_logistic_seed0.model)
         """
 
-        # Check algorithm compatibility
-        Leaspy.check_if_algo_is_compatible(algorithm_settings, "fit")
 
-        algorithm = AlgoFactory.algo(algorithm_settings)
+        algorithm = AlgoFactory.algo("fit", algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
             self.model.initialize(dataset)
         algorithm.run(dataset, self.model)
+
+
+    def calibrate(self, data, algorithm_settings):
+        """
+        Duplicates of the `fit` function. Refer to the `fit` documentation
+
+        Parameters
+        ----------
+        data: a leaspy Data class object
+            Contains the informations of the individuals
+        algorithm_settings: a leaspy AlgorithmSettings class object
+            Contains the algorithm's settings
+        """
+        self.fit(data, algorithm_settings)
 
     def personalize(self, data, settings):
         """
@@ -198,13 +208,10 @@ class Leaspy:
         >>> Plotter().plot_distribution(individual_results, 'xi')
         """
 
-        # Check algorithm compatibility
-        Leaspy.check_if_algo_is_compatible(settings, "personalize")
-
         # Check if model has been initialized
         self.check_if_initialized()
 
-        algorithm = AlgoFactory.algo(settings)
+        algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         individual_parameters, noise_std = algorithm.run(self.model, dataset)
         result = Result(data, individual_parameters, noise_std)
@@ -248,15 +255,47 @@ class Leaspy:
                                                                   AlgorithmSettings('simulation', seed=0))
         """
 
-        # Check algorithm compatibility
-        Leaspy.check_if_algo_is_compatible(settings, "simulate")
-
         # Check if model has been initialized
         self.check_if_initialized()
 
-        algorithm = AlgoFactory.algo(settings)
+        algorithm = AlgoFactory.algo("simulate", settings)
         simulated_data = algorithm.run(self.model, results)
         return simulated_data
+
+    def estimate(self, timepoints, individual_parameters):
+        """
+        Return the value of the features for an individual who is characterized by its individual parameters z_i
+        at time-points (t_ij) that can be a unique time-point or a list of time-points.
+        This functions returns f_theta(z_i, (t_ij)). It is intended to compute reconstructed data, impute missing
+        values and predict futur time-points
+
+        Parameters
+        ----------
+        timepoints: float/integer or list of floats/integers
+            Corresponds to the time-points to estimate
+        individual_parameters: dictionary of floats or torch tensors
+            Corresponds to the individua parameters of a single individual
+
+        Returns
+        -------
+        individual_trajectory: list of torch tensors, each of shape the feature space
+            Values of the modality of the individual at the different time-points
+
+        Examples
+        --------
+        Estimate the features of the individual at 70, 74 and 80 years old
+
+        >>> leaspy = Leaspy.load(path/to/model_parameters.json)
+        >>> timepoints = [70, 80]
+        >>> individual_parameters = { 'xi': 0.3, 'tau': 71, 'sources': [0.2, -0.5] }
+        >>> output = leaspy.estimate(timepoints, individual_parameters)
+        """
+        # Check if model has been initialized
+        self.check_if_initialized()
+
+        # Compute the individual trajectory
+        individual_trajectory = self.model.compute_individual_trajectory(timepoints, individual_parameters)
+        return individual_trajectory
 
     @staticmethod
     def save_individual_parameters(path, individual_parameters, human_readable=True):
@@ -374,30 +413,3 @@ class Leaspy:
         if not self.model.is_initialized:
             raise ValueError("Model has not been initialized")
 
-    @staticmethod
-    def check_if_algo_is_compatible(settings, name):
-        """
-        Check compatibility of algorithms and API methods.
-
-        Parameters
-        ----------
-        settings: a leaspy AlgorithmSettings class object
-            Contains the algorithm's settings, including its name
-        name: str
-            Must be one of the following api's name:
-                'fit' - compatible with 'mcm_saem'
-                'personalize' - compatible with "mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"
-                'simulate' - compatible with "simulation"
-
-        Raises
-        ------
-        ValueError
-            Raise an error if the settings' name does not belong to the wanted api methods & display the possible
-            methods for that api.
-        """
-
-        if settings.name not in compatibility_algorithms[name]:
-            raise ValueError("Chosen algorithm is not compatible with method : {0} \n"
-                             "please choose one in the following method list : {1}".format(name,
-                                                                                           compatibility_algorithms[
-                                                                                               name]))

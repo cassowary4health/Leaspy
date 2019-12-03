@@ -25,6 +25,12 @@ class LeaspyTest(unittest.TestCase):
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
             ModelFactoryTest().test_model_factory_constructor(leaspy.model)
 
+    def test_load(self):
+        model_path = os.path.join(test_data_dir, 'model_parameters', 'fitted_multivariate_model.json')
+        leaspy = Leaspy.load(model_path)
+
+
+
     def test_load_individual_parameters(self, path=None):
         """
         Test load individual parameters

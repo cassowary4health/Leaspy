@@ -1,5 +1,6 @@
 import os
 import unittest
+import json
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,6 +11,13 @@ from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
 from tests import example_data_path
 from leaspy.inputs.data.result import Result
 
+def ordered(obj):
+    if isinstance(obj, dict):
+        return sorted((k, ordered(v)) for k, v in obj.items())
+    if isinstance(obj, list):
+        return sorted(ordered(x) for x in obj)
+    else:
+        return obj
 
 class LeaspyTest(unittest.TestCase):
 
@@ -47,16 +55,24 @@ class LeaspyTest(unittest.TestCase):
         self.assertAlmostEqual(torch.sum(diff_g ** 2), 0.0, delta=0.01)
         self.assertAlmostEqual(torch.sum(diff_v ** 2), 0.0, delta=0.02)
 
-        # Save parameters and reload
-        path_to_saved_model = os.path.join(test_data_dir,
-                                           "model_parameters",
-                                           'fitted_multivariate_model_testusecase-copy.json')
+        # Save parameters and check its consistency
+        path_to_saved_model = os.path.join(test_data_dir,'model_parameters', 'test_api-copy.json')
         leaspy.save(path_to_saved_model)
+
+
+        with open(os.path.join(test_data_dir, "model_parameters", 'test_api.json'), 'r') as f1:
+            model_parameters = json.load(f1)
+        with open(path_to_saved_model) as f2:
+            model_parameters_new = json.load(f2)
+        self.assertEqual(ordered(model_parameters) == ordered(model_parameters_new), True)
+
+        # Load data and check its consistency
         leaspy = Leaspy.load(path_to_saved_model)
         os.remove(path_to_saved_model)
 
         self.assertTrue(leaspy.model.is_initialized)
         self.assertEqual(leaspy.model.name, "logistic")
+        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2986, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.0270, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 0.9494, delta=0.01)

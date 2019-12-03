@@ -283,15 +283,3 @@ class LeaspyTest(unittest.TestCase):
         except AssertionError:
             os.remove(data_path_json_copy)
             raise AssertionError("Leaspy.save_individual_parameters did not produce the expected json file")
-
-
-ok = LeaspyTest()
-ok.test_constructor()
-ok.test_load_logistic()
-ok.test_load_logistic_parallel()
-ok.test_load_linear()
-ok.test_save_linear()
-ok.test_save_logistic()
-ok.test_save_logistic_parallel()
-ok.test_load_individual_parameters()
-ok.test_save_individual_parameters()

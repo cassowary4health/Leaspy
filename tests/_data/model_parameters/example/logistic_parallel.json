@@ -1,0 +1,19 @@
+{
+  "name": "logistic_parallel",
+  "dimension": 4,
+  "source_dimension": 2,
+  "features": ["feature_0", "feature_1", "feature_2", "feature_3"],
+  "parameters": {
+    "g": 1.0,
+    "tau_mean": 70.4,
+    "tau_std": 7.0,
+    "xi_mean": -1.7,
+    "xi_std": 1.0,
+    "sources_mean": 0.0,
+    "sources_std": 1.0,
+    "noise_std": 0.1,
+    "deltas": [-3, -2.5, -1.0],
+    "betas": [[0.1, -0.1], [0.5, -0.3], [0.3, 0.4]],
+    "mixing_matrix": [[0.386, -0.1836], [-0.25, 0.0665], [0.282, -0.1966], [0.241, 0.428]]
+  }
+}

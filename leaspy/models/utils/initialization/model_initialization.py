@@ -129,7 +129,7 @@ def initialize_logistic_parallel(model, dataset, method):
     return parameters
 
 
-def initialize_linear(model, dataset):  # , method):
+def initialize_linear(model, dataset, method):
     sum_ages = torch.sum(dataset.timepoints).item()
     nb_nonzeros = (dataset.timepoints != 0).sum()
     t0 = float(sum_ages) / float(nb_nonzeros)

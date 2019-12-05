@@ -1,6 +1,8 @@
 import os
 import unittest
+import json
 
+from numpy import allclose
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
@@ -9,6 +11,15 @@ from tests import test_data_dir
 from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
 from tests import example_data_path
 from leaspy.inputs.data.result import Result
+
+
+def ordered(obj):
+    if isinstance(obj, dict):
+        return sorted((k, ordered(v)) for k, v in obj.items())
+    if isinstance(obj, list):
+        return sorted(ordered(x) for x in obj)
+    else:
+        return obj
 
 
 class LeaspyTest(unittest.TestCase):
@@ -47,16 +58,23 @@ class LeaspyTest(unittest.TestCase):
         self.assertAlmostEqual(torch.sum(diff_g ** 2), 0.0, delta=0.01)
         self.assertAlmostEqual(torch.sum(diff_v ** 2), 0.0, delta=0.02)
 
-        # Save parameters and reload
-        path_to_saved_model = os.path.join(test_data_dir,
-                                           "model_parameters",
-                                           'fitted_multivariate_model_testusecase-copy.json')
+        # Save parameters and check its consistency
+        path_to_saved_model = os.path.join(test_data_dir,'model_parameters', 'test_api-copy.json')
         leaspy.save(path_to_saved_model)
+
+        with open(os.path.join(test_data_dir, "model_parameters", 'test_api.json'), 'r') as f1:
+            model_parameters = json.load(f1)
+        with open(path_to_saved_model) as f2:
+            model_parameters_new = json.load(f2)
+        self.assertEqual(ordered(model_parameters) == ordered(model_parameters_new), True)
+
+        # Load data and check its consistency
         leaspy = Leaspy.load(path_to_saved_model)
         os.remove(path_to_saved_model)
 
         self.assertTrue(leaspy.model.is_initialized)
         self.assertEqual(leaspy.model.name, "logistic")
+        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2986, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.0270, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 0.9494, delta=0.01)
@@ -74,7 +92,6 @@ class LeaspyTest(unittest.TestCase):
 
         # Get error distribution
         error_distribution = result.get_error_distribution(leaspy.model)
-        # print("\nerror distribution", error_distribution)
         self.assertTrue(list(error_distribution.keys()), list(data.individuals.keys()))
         self.assertTrue(torch.tensor(error_distribution['116']).shape,
                         torch.tensor(data.individuals['116'].observations).shape)
@@ -107,18 +124,25 @@ class LeaspyTest(unittest.TestCase):
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
         # BUT ON DIFFERENT MACHINE I CAN SEE ERROR OF MAGNITUDE 1e-5 !!!
         # TODO: Can we improve this??
-        # simulation_results.data.to_dataframe().to_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"), index=False)
-        simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
+        simulation_df = pd.read_csv(os.path.join(test_data_dir,
+                                                 "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
 
-        # print("\n", simulation_results.data.to_dataframe().loc[simulation_df['ID'] == 14], "\n")
-        # print("\n", simulation_df[simulation_df['ID'] == 14], "\n")
+        id_simulation_is_reproducible = simulation_df['ID'].equals(simulation_results.data.to_dataframe()['ID'])
+        self.assertTrue(id_simulation_is_reproducible)
+        # Check ID before - str doesn't seem to work with numpy.allclose
 
-        round_decimal = 13
-        simulation_df = simulation_df.round(round_decimal)
-        simulation_is_reproducible = simulation_df.equals(simulation_results.data.to_dataframe().round(round_decimal))
-        # If reproducibility error > 1e-6 => display it
+        round_decimal = 6
+        simulation_is_reproducible = allclose(simulation_df.loc[:, simulation_df.columns != 'ID'].values,
+                                              simulation_results.data.to_dataframe().
+                                              loc[:, simulation_results.data.to_dataframe().columns != 'ID'].values,
+                                              atol=10 ** (-round_decimal), rtol=1e-15)
+        # Use of numpy.allclose instead of pandas.testing.assert_frame_equal because of buggy behaviour reported
+        # in https://github.com/pandas-dev/pandas/issues/22052
+
+        # If reproducibility error > 1e-6 => display it + visit with the biggest reproducibility error
         if not simulation_is_reproducible:
-            simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
+            simulation_df = pd.read_csv(os.path.join(test_data_dir,
+                                                     "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
             max_diff = 0.
             value_v1 = 0.
             value_v2 = 0.
@@ -130,26 +154,19 @@ class LeaspyTest(unittest.TestCase):
                 if max(diff) > tol:
                     count += 1
                 if max(diff) > max_diff:
-                    # value_v1 = v1[[i for i, val in enumerate(diff) if val == max(diff)][0]]
                     value_v1 = v1
-                    # value_v2 = v2[[i for i, val in enumerate(diff) if val == max(diff)][0]]
                     value_v2 = v2
                     max_diff = max(diff)
             print('\nTolerance error = %.1e' % tol)
             print('Maximum error = %.3e' % max_diff)
-            # print('Value_v1 = %.7f' % value_v1)
-            # print('Value_v2 = %.7f' % value_v2)
-            print(value_v1)
-            print(value_v2)
+            print([round(v, round_decimal+1) for v in value_v1])
+            print([round(v, round_decimal+1) for v in value_v2])
             print('Number of simulated visits above tolerance error = %d / %d \n' % (count, simulation_df.shape[0]))
         self.assertTrue(simulation_is_reproducible)
+        # For loop before the last self.assert - otherwise no display is made
 
-
-
-
-        """
-
-            def test_constructor(self):
+    """
+    def test_constructor(self):
         leaspy = Leaspy('univariate')
         self.assertEqual(leaspy.type, 'univariate')
         self.assertEqual(type(leaspy.model), UnivariateModel)
@@ -158,6 +175,7 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.model_parameters['tau_var'], None)
         self.assertEqual(leaspy.model.model_parameters['xi_mean'], None)
         self.assertEqual(leaspy.model.model_parameters['xi_var'], None)
+
 
     def test_constructor_from_parameters(self):
         path_to_model_parameters = os.path.join(test_data_dir, 'model_settings_univariate.json')
@@ -168,6 +186,4 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.model_parameters['tau_var'], 2)
         self.assertEqual(leaspy.model.model_parameters['xi_mean'], -10)
         self.assertEqual(leaspy.model.model_parameters['xi_var'], 0.8)
-
-
-        """
+    """

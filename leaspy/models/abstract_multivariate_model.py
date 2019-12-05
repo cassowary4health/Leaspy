@@ -41,6 +41,7 @@ class AbstractMultivariateModel(AbstractModel):
 
     def initialize(self, dataset, method="default"):
         self.dimension = dataset.dimension
+        self.features = dataset.headers
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
@@ -51,11 +52,16 @@ class AbstractMultivariateModel(AbstractModel):
         self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
 
+    def initialize_MCMC_toolbox(self):
+        raise NotImplementedError
+
     def load_hyperparameters(self, hyperparameters):
         if 'dimension' in hyperparameters.keys():
             self.dimension = hyperparameters['dimension']
         if 'source_dimension' in hyperparameters.keys():
             self.source_dimension = hyperparameters['source_dimension']
+        if 'features' in hyperparameters.keys():
+            self.features = hyperparameters['features']
 
     def save(self, path):
         model_parameters_save = self.parameters.copy()
@@ -63,14 +69,39 @@ class AbstractMultivariateModel(AbstractModel):
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
+
         model_settings = {
             'name': self.name,
+            'features': self.features,
             'dimension': self.dimension,
             'source_dimension': self.source_dimension,
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)
+
+    def compute_individual_trajectory(self, timepoints, individual_parameters):
+        # Convert the timepoints (list of numbers, or single number) to a torch tensor
+        if type(timepoints) != list:
+            timepoints = [timepoints]
+        timepoints = torch.Tensor(timepoints)
+
+        # Convert the individual parameters to torch tensor
+        for k in ['xi', 'tau', 'sources']:
+            if type(individual_parameters[k]) == torch.Tensor:
+                continue
+
+            if type(individual_parameters[k]) != list:
+                individual_parameters[k] = [individual_parameters[k]]
+            individual_parameters[k] = torch.Tensor(individual_parameters[k])
+
+        # Compute the individual trajectory
+        individual_trajectory = self.compute_individual_tensorized(timepoints, individual_parameters)
+
+        return individual_trajectory
+
+    def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+        return NotImplementedError
 
     def compute_mean_traj(self, timepoints):
         individual_parameters = {

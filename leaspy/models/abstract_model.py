@@ -38,6 +38,7 @@ class AbstractModel:
     def __init__(self, name):
         self.is_initialized = False
         self.name = name
+        self.features = None
         self.parameters = None
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
 
@@ -101,6 +102,12 @@ class AbstractModel:
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         res *= data.mask.float()
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
+
+    def compute_individual_trajectory(self, timepoints, individual_parameters):
+        return NotImplementedError
+
+    def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+        return NotImplementedError
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         """

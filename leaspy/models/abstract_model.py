@@ -103,6 +103,7 @@ class AbstractModel:
         res *= data.mask.float()
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
+    # TODO: unit & functional tests
     def compute_individual_trajectory(self, timepoints, individual_parameters):
         """
         Compute the individual scores' values of a subject given his individual parameters at the given time-point(s).

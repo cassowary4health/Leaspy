@@ -80,6 +80,7 @@ class Result:
         #     ind_parameters = self.individual_parameters.copy()
         return self.individual_parameters.copy()
 
+    # TODO: unit test & functional test
     def get_dataframe_individual_parameters(self, cofactors=None):
         """
         Return the dataframe of the individual parameters. Each row corresponds to a subject. The columns correspond

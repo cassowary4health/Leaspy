@@ -1,5 +1,6 @@
 import torch
 import pandas as pd
+import warnings
 
 
 class Result:
@@ -169,18 +170,21 @@ class Result:
     @staticmethod
     def get_cofactor_states(cofactors):
         """
-        Given a list of string return the list of unique elements
+        Given a list of string return the list of unique elements.
 
         Parameters
         ----------
         cofactors: list
-            Distribution list of the cofactors
+            Distribution list of the cofactors.
 
         Returns
         -------
         list of strings
-            Uniques occurrence of the input vector
+            Uniques occurrence of the input vector.
         """
+
+        warnings.warn("This method will soon be removed!", DeprecationWarning)
+
         result = []
         for state in cofactors:
             if state not in result:
@@ -190,14 +194,14 @@ class Result:
 
     def get_parameter_distribution(self, parameter, cofactor=None):
         """
-        Return the wanted parameter distribution (one distribution per covariate state)
+        Return the wanted parameter distribution (one distribution per covariate state).
 
         Parameters
         ----------
         parameter: string
-            The wanted parameter's name (ex: 'xi', 'tau' ...)
+            The wanted parameter's name (ex: 'xi', 'tau' ...).
         cofactor: string
-            The wanted cofactor's name
+            The wanted cofactor's name.
 
         Returns
         -------
@@ -210,6 +214,9 @@ class Result:
             If a cofactor is given & the parameter is multivariate => return a dictionary =
                 {'cofactor1': {'parameter1': ..., 'parameter2': ...}, 'cofactor2': { ...}, ...}
         """
+
+        warnings.warn("This method will soon be removed!", DeprecationWarning)
+
         parameter_distribution = self.individual_parameters[parameter]  # torch.tensor class object
         # parameter_distribution is of size (N_subjects, N_dimension_of_parameter)
 
@@ -287,6 +294,9 @@ class Result:
         list of float
             Cofactor's distribution
         """
+
+        warnings.warn("This method will soon be removed!", DeprecationWarning)
+
         return [d.cofactors[cofactor] for d in self.data]
 
     def get_patient_individual_parameters(self, idx):
@@ -303,6 +313,9 @@ class Result:
         dict of torch.tensor
             Patient's individual parameters
         """
+
+        warnings.warn("This method will soon be removed!", DeprecationWarning)
+
         # indices = list(self.data.individuals.keys())
         # idx_number = int(
         #     np.where(np.array(indices) == idx)[0])
@@ -339,6 +352,9 @@ class Result:
             If cofactor is not None => return a dictionary dictionary of torch tensor
             {'cofactor1': {'patient1': error1, ...}, ...}
         """
+
+        warnings.warn("This method will soon be removed!", DeprecationWarning)
+
         error_distribution = {}
         get_sources = (model.name != "univariate")
         for i, (key, patient) in enumerate(self.data.individuals.items()):

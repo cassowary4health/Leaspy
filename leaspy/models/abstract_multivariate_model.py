@@ -35,7 +35,8 @@ class AbstractMultivariateModel(AbstractModel):
 
     def smart_initialization_realizations(self, data, realizations):
         # TODO : Qui a fait ça? A quoi ça sert?
-        # means_time = torch.Tensor([torch.mean(data.get_times_patient(i)) for i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
+        # means_time = torch.Tensor([torch.mean(data.get_times_patient(i)) for
+        # i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
         # realizations['tau'].tensor_realizations = means_time
         return realizations
 
@@ -79,26 +80,6 @@ class AbstractMultivariateModel(AbstractModel):
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)
-
-    def compute_individual_trajectory(self, timepoints, individual_parameters):
-        # Convert the timepoints (list of numbers, or single number) to a torch tensor
-        if type(timepoints) != list:
-            timepoints = [timepoints]
-        timepoints = torch.Tensor(timepoints)
-
-        # Convert the individual parameters to torch tensor
-        for k in ['xi', 'tau', 'sources']:
-            if type(individual_parameters[k]) == torch.Tensor:
-                continue
-
-            if type(individual_parameters[k]) != list:
-                individual_parameters[k] = [individual_parameters[k]]
-            individual_parameters[k] = torch.Tensor(individual_parameters[k])
-
-        # Compute the individual trajectory
-        individual_trajectory = self.compute_individual_tensorized(timepoints, individual_parameters)
-
-        return individual_trajectory
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         return NotImplementedError

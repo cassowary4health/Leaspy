@@ -124,12 +124,12 @@ class LeaspyTest(unittest.TestCase):
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
         # BUT ON DIFFERENT MACHINE I CAN SEE ERROR OF MAGNITUDE 1e-5 !!!
         # TODO: Can we improve this??
-        simulation_df = pd.read_csv(os.path.join(test_data_dir,
-                                                 "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
+        simulation_df = pd.read_csv(os.path.join(
+            test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"))
 
         id_simulation_is_reproducible = simulation_df['ID'].equals(simulation_results.data.to_dataframe()['ID'])
-        self.assertTrue(id_simulation_is_reproducible)
         # Check ID before - str doesn't seem to work with numpy.allclose
+        self.assertTrue(id_simulation_is_reproducible)
 
         round_decimal = 6
         simulation_is_reproducible = allclose(simulation_df.loc[:, simulation_df.columns != 'ID'].values,
@@ -162,8 +162,8 @@ class LeaspyTest(unittest.TestCase):
             print([round(v, round_decimal+1) for v in value_v1])
             print([round(v, round_decimal+1) for v in value_v2])
             print('Number of simulated visits above tolerance error = %d / %d \n' % (count, simulation_df.shape[0]))
-        self.assertTrue(simulation_is_reproducible)
         # For loop before the last self.assert - otherwise no display is made
+        self.assertTrue(simulation_is_reproducible)
 
     """
     def test_constructor(self):

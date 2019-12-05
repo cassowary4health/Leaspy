@@ -104,7 +104,44 @@ class AbstractModel:
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
     def compute_individual_trajectory(self, timepoints, individual_parameters):
-        return NotImplementedError
+        """
+        Compute the individual scores' values of a subject given his individual parameters at the given time-point(s).
+
+        Parameters
+        ----------
+        timepoints: scalar or list
+            Contains the age(s) of the subjects.
+        individual_parameters: dict
+            Contains the individual parameters.
+
+        Returns
+        -------
+        torch.Tensor
+            Contains the subject's scores computed at the given age(s)
+        """
+
+        # Check the given individual parameters' names & convert them to torch tensor
+        available_parameters = ['xi', 'tau'] + (self.name != 'univariate') * ['sources']
+        for key in individual_parameters.keys():
+            assert key in available_parameters,\
+                'The individual parameter {} is not available for {} model! ' \
+                'The available individual parameters are {}.'.\
+                format(key, self.name, available_parameters)
+
+            if type(individual_parameters[key]) == torch.Tensor:
+                continue
+
+            if type(individual_parameters[key]) != list:
+                individual_parameters[key] = [individual_parameters[key]]
+            individual_parameters[key] = torch.tensor(individual_parameters[key], dtype=torch.float32).unsqueeze(0)
+
+        # Convert the timepoints (list of numbers, or single number) to a torch tensor
+        if type(timepoints) != list:
+            timepoints = [timepoints]
+        timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
+
+        # Compute the individual trajectory
+        return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         return NotImplementedError
@@ -205,14 +242,13 @@ class AbstractModel:
         # Instanciate torch distribution
         # distribution = torch.distributions.normal.Normal(loc=mean, scale=std)
 
-
         self.distribution.loc = mean
         self.distribution.scale = std
 
         return -self.distribution.log_prob(value)
 
     def get_realization_object(self, n_individuals):
-        ### TODO : CollectionRealizations should probably get self.get_info_var rather than all self
+        # TODO : CollectionRealizations should probably get self.get_info_var rather than all self
         realizations = CollectionRealization()
         realizations.initialize(n_individuals, self)
         return realizations

@@ -36,9 +36,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         settings : leaspy AlgorithmSettings class object
             Settings of the algorithm
         """
-
-        def __init__(self):
-            super().__init__()
+        super().__init__()
 
         # Algorithm parameters
         self.algo_parameters = settings.parameters

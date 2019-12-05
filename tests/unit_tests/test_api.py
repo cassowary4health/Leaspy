@@ -143,6 +143,39 @@ class LeaspyTest(unittest.TestCase):
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
+    def test_load_univariate(self):
+        """
+        Test the initialization of a linear model from a json file
+        """
+        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate.json')
+        leaspy = Leaspy.load(model_path)
+
+        # Test the name
+        self.assertEqual(leaspy.type, 'univariate')
+        self.assertEqual(type(leaspy.model), type(ModelFactory.model('univariate')))
+
+        # Test the hyperparameters
+        self.assertEqual(leaspy.model.features, ['feature'])
+
+        # Test the parameters
+        parameters = {
+            "g": 1.0,
+            "tau_mean": 70.0,
+            "tau_std": 2.5,
+            "xi_mean": -1.0,
+            "xi_std": 0.01,
+            "noise_std": 0.2
+        }
+
+        for k, v in parameters.items():
+            equality = torch.all(torch.eq(leaspy.model.parameters[k], tensor(v)))
+            self.assertEqual(equality, True)
+
+        # Test the initialization
+        self.assertEqual(leaspy.model.is_initialized, True)
+
+
+
     def test_save_logistic(self):
         """
         Test saving the logistic model
@@ -209,6 +242,34 @@ class LeaspyTest(unittest.TestCase):
 
         # Save the file
         save_path = os.path.join(data_path, 'linear-copy.json')
+        leaspy.save(save_path)
+
+        # Check that the files are the same
+        with open(model_path, 'r') as f1:
+            model_parameters = json.load(f1)
+        with open(save_path, 'r') as f2:
+            model_parameters_new = json.load(f2)
+
+        self.assertEqual(model_parameters.keys(), model_parameters_new.keys())
+        self.assertEqual(model_parameters['parameters'].keys(), model_parameters_new['parameters'].keys())
+
+        for k, v in model_parameters['parameters'].items():
+            diff = np.array(v) - np.array(model_parameters_new['parameters'][k])
+            self.assertAlmostEqual(np.sum(diff**2), 0, delta=10e-8)
+
+        # Remove the created file
+        os.remove(save_path)
+
+    def test_save_univariate(self):
+        """
+        Test saving the univariate model
+        """
+        data_path = os.path.join(test_data_dir, 'model_parameters', 'example')
+        model_path = os.path.join(data_path, 'univariate.json')
+        leaspy = Leaspy.load(model_path)
+
+        # Save the file
+        save_path = os.path.join(data_path, 'univariate-copy.json')
         leaspy.save(save_path)
 
         # Check that the files are the same

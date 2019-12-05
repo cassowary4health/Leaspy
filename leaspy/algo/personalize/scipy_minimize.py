@@ -6,7 +6,10 @@ from .abstract_personalize_algo import AbstractPersonalizeAlgo
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
 
-    def _get_model_name(self, name):
+    def __init__(self, settings):
+        super(ScipyMinimize, self).__init__(settings)
+
+    def _set_model_name(self, name):
         """
         Set name attribute
 
@@ -32,8 +35,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
 
         x = [model.parameters["xi_mean"], model.parameters["tau_mean"]]
-        if self.model_name != "univariate":
-            x += [0 for _ in range(model.source_dimension)]
+        if model.name != "univariate":
+            x += [torch.Tensor([0.]) for _ in range(model.source_dimension)]
         return x
 
     def _get_attachement(self, model, times, values, x):
@@ -103,7 +106,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
 
         timepoints = times.reshape(1, -1)
-        self._get_model_name(model.name)
+        self._set_model_name(model.name)
 
         def obj(x, *args):
             """
@@ -135,6 +138,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 attachement = model.compute_individual_tensorized(times, individual_parameters) - values
                 iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
 
+            attachement[attachement != attachement] = 0.  # Set nan to zero, not to count in the sum
             attachement = torch.sum(attachement ** 2) / (2. * model.parameters['noise_std'] ** 2)
 
             # Regularity

@@ -45,9 +45,9 @@ class Leaspy:
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
     save_individual_parameters(path, individual_parameters, human_readable=True)
-        Save individual parameters coming from leaspy Result class object
+        Save individual parameters coming from leaspy Result class object.
     load_individual_parameters(path, verbose=True)
-        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor
+        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor.
     """
 
     def __init__(self, model_name):
@@ -59,7 +59,6 @@ class Leaspy:
         model_name: str
             Model's name
         """
-
         self.model = ModelFactory.model(model_name)
         self.type = model_name
 
@@ -72,7 +71,7 @@ class Leaspy:
         Parameters
         ----------
         path_to_model_settings: str
-            Path of the model's settings
+            Path of the model's settings.
 
         Returns
         -------
@@ -80,11 +79,10 @@ class Leaspy:
 
         Examples
         --------
-        Load a pre-trained model
+        Load a pre-trained model.
         >>> from leaspy import Leaspy
-        >>> leaspy_univariate_seed0 = Leaspy.load('outputs/leaspy-univariate_model-seed0.json')
+        >>> leaspy_univariate = Leaspy.load('outputs/leaspy-univariate_model-seed0.json')
         """
-
         reader = ModelSettings(path_to_model_settings)
         leaspy = cls(reader.name)
         leaspy.model.load_hyperparameters(reader.hyperparameters)
@@ -100,19 +98,18 @@ class Leaspy:
         Parameters
          ---------
         path: str
-            Path to store the model's parameters
+            Path to store the model's parameters.
 
         Examples
         --------
         >>> from leaspy import AlgorithmSettings, Data, Leaspy
-        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> leaspy_logistic = Leaspy('logistic')
         >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
         >>> settings = AlgorithmSettings('mcmc_saem', seed=0)
-        >>> leaspy_logistic_seed0.fit(data, settings)
+        >>> leaspy_logistic.fit(data, settings)
         The standard deviation of the noise at the end of the calibration is ...
-        >>> leaspy_logistic_seed0.save('outputs/leaspy-logistic_model-seed0.json')
+        >>> leaspy_logistic.save('outputs/leaspy-logistic_model-seed0.json')
         """
-
         self.check_if_initialized()
         self.model.save(path)
 
@@ -124,19 +121,20 @@ class Leaspy:
         Parameters
         ----------
         data: a leaspy Data class object
-            Contains the informations of the individuals
+            Contains the information of the individuals.
         algorithm_settings: a leaspy AlgorithmSettings class object
-            Contains the algorithm's settings
+            Contains the algorithm's settings.
 
         Examples
         -------
-        Fit a logistic model on a longitudinal dataset, display the group parameters and plot the group average trajectory
+        Fit a logistic model on a longitudinal dataset, display the group parameters and plot the
+        group average trajectory.
         >>> from leaspy import AlgorithmSettings, Data, Leaspy, Plotter
-        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> leaspy_logistic = Leaspy('logistic')
         >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
         >>> settings = AlgorithmSettings('mcmc_saem', seed=0)
-        >>> leaspy_logistic_seed0.fit(data, settings)
-        >>> print(leaspy_logistic_seed0.model.parameters)
+        >>> leaspy_logistic.fit(data, settings)
+        >>> print(leaspy_logistic.model.parameters)
         {'g': tensor([-0.4441,  1.9722,  1.6657,  0.1368,  0.8728]),
          'v0': tensor([-3.2442, -3.2942, -3.3763, -2.4901, -3.0032]),
          'betas': tensor([[ 0.0196,  0.0910],
@@ -150,27 +148,24 @@ class Leaspy:
          'sources_mean': 0.0,
          'sources_std': 1.0,
          'noise_std': tensor(0.0972)}
-         >>> Plotter().plot_mean_trajectory(leaspy_logistic_seed0.model)
+         >>> Plotter().plot_mean_trajectory(leaspy_logistic.model)
         """
-
-
         algorithm = AlgoFactory.algo("fit", algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
             self.model.initialize(dataset)
         algorithm.run(dataset, self.model)
 
-
     def calibrate(self, data, algorithm_settings):
         """
-        Duplicates of the `fit` function. Refer to the `fit` documentation
+        Duplicates of the `fit` function. Refer to the `fit` documentation.
 
         Parameters
         ----------
         data: a leaspy Data class object
-            Contains the informations of the individuals
+            Contains the information of the individuals.
         algorithm_settings: a leaspy AlgorithmSettings class object
-            Contains the algorithm's settings
+            Contains the algorithm's settings.
         """
         self.fit(data, algorithm_settings)
 
@@ -182,32 +177,32 @@ class Leaspy:
         Parameters
         ----------
         data: a leaspy Data class object
-            Contains the informations of the individuals
+            Contains the information of the individuals.
         settings: a leaspy AlgorithmSettings class object
-            Contains the algorithm's settings
+            Contains the algorithm's settings.
 
         Returns
         -------
         A leaspy.inputs.data.result.Result class object
-            Aggregates computed individual parameters and input data
+            Aggregates computed individual parameters and input data.
 
         Examples
         --------
-        Compute the individual parameters for a given longitudinal dataset & display the histogram of the log-acceleration.
+        Compute the individual parameters for a given longitudinal dataset & display the histogram of the
+        log-acceleration.
 
         >>> from leaspy import AlgorithmSettings, Data, Leaspy, Plotter
-        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> leaspy_logistic = Leaspy('logistic')
         >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
         >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
         >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
-        >>> leaspy_logistic_seed0.fit(data, model_settings)
-        >>> individual_results = leaspy_logistic_seed0.personalize(data, model_settings)
+        >>> leaspy_logistic.fit(data, model_settings)
+        >>> individual_results = leaspy_logistic.personalize(data, model_settings)
         The standard deviation of the noise at the end of the personalization is of 0.0929
-        >>> print(results.individual_parameters.keys())
+        >>> print(individual_results.individual_parameters.keys())
         dict_keys(['tau', 'xi', 'sources'])
         >>> Plotter().plot_distribution(individual_results, 'xi')
         """
-
         # Check if model has been initialized
         self.check_if_initialized()
 
@@ -231,30 +226,28 @@ class Leaspy:
         Parameters
         ----------
         results: a leaspy.inputs.data.result.Result class object
-            Aggregates individual parameters and input data
+            Aggregates individual parameters and input data.
         settings: a leaspy AlgorithmSettings class object
-            Contains the algorithm settings
+            Contains the algorithm settings.
 
         Returns
         -------
         simulated_data: a leaspy.inputs.data.result.Result class object
-            Contains the generated individal parameters & the corresponding generated scores
+            Contains the generated individual parameters & the corresponding generated scores.
 
         Examples
         --------
-        Simulate new individual from a given longitudinal, a given model a given algorithms
+        Simulate new individual from a given longitudinal, a given model and a given algorithms.
 
         >>> from leaspy import AlgorithmSettings, Data, Leaspy, Plotter
-        >>> leaspy_logistic_seed0 = Leaspy('logistic')
+        >>> leaspy_logistic = Leaspy('logistic')
         >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
         >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
         >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
-        >>> leaspy_logistic_seed0.fit(data, model_settings)
-        >>> individual_results_seed0 = leaspy_logistic_seed0.personalize(data, model_settings)
-        >>> simulated_data_seed0 = leaspy_logistic_seed0.simulate(individual_results,
-                                                                  AlgorithmSettings('simulation', seed=0))
+        >>> leaspy_logistic.fit(data, model_settings)
+        >>> individual_results = leaspy_logistic.personalize(data, model_settings)
+        >>> simulated_data = leaspy_logistic.simulate(individual_results, AlgorithmSettings('simulation', seed=0))
         """
-
         # Check if model has been initialized
         self.check_if_initialized()
 
@@ -267,25 +260,25 @@ class Leaspy:
         Return the value of the features for an individual who is characterized by its individual parameters z_i
         at time-points (t_ij) that can be a unique time-point or a list of time-points.
         This functions returns f_theta(z_i, (t_ij)). It is intended to compute reconstructed data, impute missing
-        values and predict futur time-points
+        values and predict future time-points.
 
         Parameters
         ----------
         timepoints: float/integer or list of floats/integers
-            Corresponds to the time-points to estimate
+            Corresponds to the time-points to estimate.
         individual_parameters: dictionary of floats or torch tensors
-            Corresponds to the individua parameters of a single individual
+            Corresponds to the individual parameters of a single individual.
 
         Returns
         -------
         individual_trajectory: list of torch tensors, each of shape the feature space
-            Values of the modality of the individual at the different time-points
+            Values of the modality of the individual at the different time-points.
 
         Examples
         --------
-        Estimate the features of the individual at 70, 74 and 80 years old
+        Estimate the features of the individual at 70, 74 and 80 years old.
 
-        >>> leaspy = Leaspy.load(path/to/model_parameters.json)
+        >>> leaspy = Leaspy.load('path/to/model_parameters.json')
         >>> timepoints = [70, 80]
         >>> individual_parameters = { 'xi': 0.3, 'tau': 71, 'sources': [0.2, -0.5] }
         >>> output = leaspy.estimate(timepoints, individual_parameters)
@@ -300,21 +293,21 @@ class Leaspy:
     @staticmethod
     def save_individual_parameters(path, individual_parameters, human_readable=True):
         """
-        Save individual parameters coming from leaspy Result class object
+        Save individual parameters coming from leaspy Result class object.
 
         Parameters
         ----------
         path: str
-         The output's path
+         The output's path.
         individual_parameters: dict
-            Contain 2-dimensional torch.tensor (use result.individual_parameters)
+            Contain 2-dimensional torch.tensor (use result.individual_parameters).
         human_readable: boolean (default True)
-            If set to True => save a json object
-            If set to False => save a torch object (which cannot be read from a text editor)
+            If set to True => save a json object.
+            If set to False => save a torch object (which cannot be read from a text editor).
 
         Examples
         --------
-        Save individual parameters
+        Save individual parameters.
 
         >>> from leaspy import AlgorithmSettings, Data, Leaspy
         >>> leaspy_logistic_seed0 = Leaspy('logistic')
@@ -325,7 +318,6 @@ class Leaspy:
         >>> individual_results_seed0 = leaspy_logistic_seed0.personalize(data, model_settings)
         >>> Leaspy.save_individual_parameters('outputs/logistic_seed0-mode_real_seed0-individual_parameter.json')
         """
-
         # Test path's folder existence (if path contain a folder)
         if os.path.dirname(path) != '':
             if not os.path.isdir(os.path.dirname(path)):
@@ -358,23 +350,23 @@ class Leaspy:
     @staticmethod
     def load_individual_parameters(path, verbose=True):
         """
-        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor
+        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor.
 
         Parameters
         ----------
         path: str
-            The file's path
+            The file's path.
         verbose: boolean (default True)
-            Precise if the loaded file can be read as a torch file or need conversion
+            Precise if the loaded file can be read as a torch file or need conversion.
 
         Returns
         -------
         dict
-            A dictionary of torch.tensor which contains the individual parameters
+            A dictionary of torch.tensor which contains the individual parameters.
 
         Examples
         --------
-        Recreate a leaspy.inputs.data.result.Result object from saved files
+        Recreate a leaspy.inputs.data.result.Result object from saved files.
 
         >>> from leaspy import Data, Leaspy
         >>> from leaspy.inputs.data.result import Result
@@ -382,16 +374,17 @@ class Leaspy:
         >>> individual_parameters = Leaspy.load_individual_parameters('outputs/logistic_seed0-mode_real_seed0-individual_parameter.json')
         >>> individual_results_seed0 = Result(data, individual_parameters)
         """
-
         # Test if file is a torch file
         try:
             individual_parameters = load(path)  # load function from torch
-            if verbose: print("Load from torch file")
+            if verbose:
+                print("Load from torch file")
         except UnpicklingError:
             # Else if it is a json file
             with open(path, 'r') as f:
                 individual_parameters = json.load(f)
-                if verbose: print("Load from json file ... conversion to torch file")
+                if verbose:
+                    print("Load from json file ... conversion to torch file")
                 for key in individual_parameters.keys():
                     # Convert every list in torch.tensor
                     individual_parameters[key] = tensor(individual_parameters[key])
@@ -407,9 +400,7 @@ class Leaspy:
         Raises
         ------
         ValueError
-            Raise an error if the model has not been initialized
+            Raise an error if the model has not been initialized.
         """
-
         if not self.model.is_initialized:
             raise ValueError("Model has not been initialized")
-

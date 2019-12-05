@@ -20,21 +20,28 @@ class SimulationAlgorithm(AbstractAlgo):
 
     Attributes
     ----------
-    bandwidth_method = float, str, callable, optionnal
-        Bandwith argument used in scipy.stats.gaussian_kde in order to learn the patients' distribution
+    algo_parameters: dict
+        Contains the algorithm's parameters.
+    bandwidth_method: float, str, callable, optional
+        Bandwidth argument used in scipy.stats.gaussian_kde in order to learn the patients' distribution.
     cofactor: str (default = None)
-        The cofactor used to select the wanted group of patients (ex - 'genes')
+        The cofactor used to select the wanted group of patients (ex - 'genes').
     cofactor_state: str - TODO: check that the loaded cofactors are converted into strings!
-        The cofactor state used to select the  wanted group of patients (ex - 'APOE4')
+        The cofactor state used to select the  wanted group of patients (ex - 'APOE4').
     mean_number_of_visits: int
-        Average number of visits of the simulated patients (ex - choose 5 => in average, a simulated patient will have 5 visits)
+        Average number of visits of the simulated patients.
+        Examples - choose 5 => in average, a simulated patient will have 5 visits.
+    name: str
+        Algorithm's name.
     noise: float
         Wanted level of noise in the generated scores - noise of zero will lead to patients having "perfect progression"
-        of their scores, i.e. following exactly a logistic curve
+        of their scores, i.e. following exactly a logistic curve.
     number_of_subjects: int
-        Number of subject to simulate
+        Number of subject to simulate.
+    seed: int
+        Used by numpy.random & torch.random for reproducibility.
     std_number_of_visits: float
-        Standard deviation used into the generation of the number of visits per simulated patient
+        Standard deviation used into the generation of the number of visits per simulated patient.
 
     Methods
     -------
@@ -44,14 +51,13 @@ class SimulationAlgorithm(AbstractAlgo):
 
     def __init__(self, settings):
         """
-        Process initializer function that is called by Leaspy.simulate
+        Process initializer function that is called by Leaspy.simulate.Simulate.
 
         Parameters
         ----------
-        settings: leaspy.inputs.algorithm_settings class object
-            Set the class attributes
+        settings: leaspy.inputs.algorithm_settings.AlgorithmSettings class object
+            Set the class attributes.
         """
-
         super().__init__()
 
         # TODO: put it in abstract_algo + add settings=None in AbstractAlgo __init__ method
@@ -72,30 +78,29 @@ class SimulationAlgorithm(AbstractAlgo):
     @staticmethod
     def _get_mean_and_covariance_matrix(m):
         """
-        Compute the empirical mean and covariance matrix of the input
+        Compute the empirical mean and covariance matrix of the input.
 
         Parameters
         ----------
         m: torch tensor
-            Input matrix - one row per individual parameter distribution (xi, tau etc.)
+            Input matrix - one row per individual parameter distribution (xi, tau etc).
 
         Returns
         -------
-        tuple
-        (torch.Tensor - mean by variables, torch.Tensor - covariance matrix)
+        mean: torch.Tensor
+            Mean by variable.
+        covariance:  torch.Tensor
+            Covariance matrix.
         """
-
         m_exp = torch.mean(m, dim=0)
         x = m - m_exp[None, :]
         cov = 1 / (x.size(1) - 1) * x.t() @ x
         return m_exp, cov
 
-    def _initialize_kernel(self, results=None):
-        return 0
-
-    def _sample_sources(self, bl, tau, xi, source_dimension, df_mean, df_cov):
+    @staticmethod
+    def _sample_sources(bl, tau, xi, source_dimension, df_mean, df_cov):
         """
-        Simulate individual sources given baseline age bl, time-shift tau, log-acceleration xi & sources dimension
+        Simulate individual sources given baseline age bl, time-shift tau, log-acceleration xi & sources dimension.
 
         Parameters
         ----------
@@ -117,7 +122,6 @@ class SimulationAlgorithm(AbstractAlgo):
         torch.Tensor
             sources of the simulated patient (1-dimensional)
         """
-
         x_1 = torch.tensor([bl, tau, xi], dtype=torch.float32)
 
         mu_1 = df_mean[:3].clone()
@@ -142,7 +146,6 @@ class SimulationAlgorithm(AbstractAlgo):
         int
             number of visits
         """
-
         # Generate a number of visit around the mean_number_of_visits
         number_of_visits = int(self.mean_number_of_visits)
         if self.mean_number_of_visits != 0:
@@ -174,7 +177,6 @@ class SimulationAlgorithm(AbstractAlgo):
         leaspy.inputs.data.result class object
             Contains the simulated individual parameters & individual scores.
         """
-
         # Get individual parameters & baseline ages - for joined density estimation
         # Get individual parameters (optional - & the cofactor states)
         df_ind_param = results.get_dataframe_individual_parameters(cofactors=self.cofactor)

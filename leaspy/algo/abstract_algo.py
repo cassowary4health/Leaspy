@@ -3,7 +3,7 @@ import torch
 from leaspy.utils.output.fit_output_manager import FitOutputManager
 
 
-class AbstractAlgo():
+class AbstractAlgo:
     """
     AbstractAlgo class object
     Abstract class containing common method for all algorithm classes. These classes are child classes of AbstractAlgo.
@@ -11,12 +11,12 @@ class AbstractAlgo():
     Attributes
     ----------
     algo_parameters: dict
-        Contains the algoritm's parameters. These ones are set by a leaspy.intputs.settings.algorithm_settings.AlgorithmSettings
-        class object
+        Contains the algorithm's parameters. These ones are set by a
+        leaspy.intputs.settings.algorithm_settings.AlgorithmSettings class object.
     name: str
-        Name of the algorithm
+        Name of the algorithm.
     seed: int
-        Seed used by torch.random
+        Seed used by torch.random.
 
     Methods
     -------
@@ -24,12 +24,12 @@ class AbstractAlgo():
         Update the algorithm's parameters by the ones in the given dictionary. The keys in the inputs which does not
         belong to the algorithm's parameters keys are ignored.
     set_output_manager(output_settings)
-        Set a FitOutputManager class object for the run of the algorithm
+        Set a FitOutputManager class object for the run of the algorithm.
     """
 
     def __init__(self):
         """
-        Process initializer function that is called by class FitOutputManager
+        Process initializer function that is called by class FitOutputManager.
         """
         self.algo_parameters = None
         self.name = None

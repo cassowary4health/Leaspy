@@ -17,7 +17,8 @@ class Result:
     ID_to_idx: dict
         The keys are the individual ID & the items are their respective ordered position in the data file given
         by the user. This order remains the same during the computation.
-        Example - in Result.individual_parameters['xi'], the first element corresponds to the first patient in ID_to_idx.
+        Example - in Result.individual_parameters['xi'], the first element corresponds to the
+        first patient in ID_to_idx.
     noise_std: float
         Desired noise standard deviation level.
 
@@ -38,7 +39,8 @@ class Result:
         get_patient_individual_parameters(idx)
             Get the dictionary of the wanted patient's individual parameters.
         get_error_distribution(model, cofactor=None, aggregate_subscores=False, aggregate_visits=False)
-            Get error distribution per patient. By default, return one error value per patient & per subscore & per visit.
+            Get error distribution per patient. By default, return one error value per
+            patient & per subscore & per visit.
     """
 
     def __init__(self, data, individual_parameters, noise_std=None):
@@ -54,7 +56,6 @@ class Result:
         noise_std: float
             Desired noise standard deviation level
         """
-
         self.data = data
         self.individual_parameters = individual_parameters
         self.ID_to_idx = {key: i for i, key in enumerate(data.individuals)}
@@ -72,7 +73,6 @@ class Result:
         torch.Tensor
             Contains the individual parameters
         """
-
         # if ID is not None:
         #     liste_idt = [self.ID_to_idx[id_patient] for id_patient in ID]
         #     ind_parameters = {key : value[liste_idt] for key, value in self.individual_parameters.items()}
@@ -134,7 +134,6 @@ class Result:
         sub-HS0114   81.792763 -1.003620   1.021321   2.371716      1
         sub-HS0115   89.724648 -0.820971  -0.480975   0.741601      0
         """
-
         # Initialize patient dict with ID
         patient_dict = {'ID': list(self.ID_to_idx.keys())}
 
@@ -182,7 +181,6 @@ class Result:
         list of strings
             Uniques occurrence of the input vector.
         """
-
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
         result = []
@@ -214,7 +212,6 @@ class Result:
             If a cofactor is given & the parameter is multivariate => return a dictionary =
                 {'cofactor1': {'parameter1': ..., 'parameter2': ...}, 'cofactor2': { ...}, ...}
         """
-
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
         parameter_distribution = self.individual_parameters[parameter]  # torch.tensor class object
@@ -294,7 +291,6 @@ class Result:
         list of float
             Cofactor's distribution
         """
-
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
         return [d.cofactors[cofactor] for d in self.data]
@@ -313,7 +309,6 @@ class Result:
         dict of torch.tensor
             Patient's individual parameters
         """
-
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
         # indices = list(self.data.individuals.keys())
@@ -352,7 +347,6 @@ class Result:
             If cofactor is not None => return a dictionary dictionary of torch tensor
             {'cofactor1': {'patient1': error1, ...}, ...}
         """
-
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
         error_distribution = {}

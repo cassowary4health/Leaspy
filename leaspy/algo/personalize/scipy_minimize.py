@@ -162,7 +162,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         xi_f, tau_f, sources_f = res.x[0], res.x[1], res.x[2:]
         err_f = self._get_attachement(model, times.unsqueeze(0), values, res.x)
-        return (tau_f, xi_f, sources_f), err_f  # TODO depends on the order
+
+        return (tau_f, xi_f, sources_f), err_f # TODO depends on the order
 
     def _get_individual_parameters(self, model, data):
         """
@@ -177,9 +178,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         for j, name_variable in enumerate(model.get_individual_variable_name()):
             individual_parameters[name_variable] = []
 
-        # total_error = []
-        total_error = torch.empty((data.n_visits, data.dimension))
-        total_error_index = 0
+        errors = []
 
         for idx in range(data.n_individuals):
             times = data.get_times_patient(idx)  # torch tensor
@@ -190,11 +189,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             for j, name_variable in enumerate(model.get_individual_variable_name()):
                 individual_parameters[name_variable].append(torch.tensor([ind_patient[j]], dtype=torch.float32))
 
-            total_error[total_error_index:(total_error_index + err.squeeze(0).shape[0])] = err.squeeze(0).detach()
-            total_error_index += err.squeeze(0).shape[0]
+            # The error can contain nan values
+            errors += [_ for _ in err.squeeze().tolist() if _ == _]
 
         # Print noise level
-        print(total_error.std().tolist())
+        print(torch.std(torch.Tensor(errors)))
+
 
         infos = model.random_variable_informations()
         ## TODO change for cleaner shape update

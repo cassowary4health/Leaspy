@@ -11,18 +11,18 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
     def _set_model_name(self, name):
         """
-        Set name attribute
+        Set name attribute.
 
         Parameters
         ----------
-        name: str
-            Model's name
+        name: `str`
+            Model's name.
         """
         self.model_name = name
 
     def _initialize_parameters(self, model):
         """
-        Initialize individual parameters with group average parameter
+        Initialize individual parameters of one patient with group average parameter.
 
         Parameters
         ----------
@@ -30,31 +30,36 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Returns
         -------
-        list of float
+        x: `list` [`float`]
+            The individual parameters.
             By default x = [xi_mean, tau_mean] (+ [0.] * nber_of_sources if multivariate model)
         """
-
         x = [model.parameters["xi_mean"], model.parameters["tau_mean"]]
         if model.name != "univariate":
-            x += [torch.Tensor([0.]) for _ in range(model.source_dimension)]
+            x += [torch.tensor([0.]) for _ in range(model.source_dimension)]
         return x
 
-    def _get_attachement(self, model, times, values, x):
+    def _get_attachment(self, model, times, values, x):
         """
-        Compute model values minus real values for a given model, timepoints, real values & individual parameters
+        Compute model values minus real values of a patient for a given model, timepoints, real values &
+        individual parameters.
 
         Parameters
         ----------
         model: Leaspy model class object
-        times: torch tensor
-        values: torch tensor
-        x: list of float - individual parameters
+            Model used to compute the group average parameters.
+        times: `torch.Tensor`
+            Contains the individual ages corresponding to the given ``values``.
+        values: `torch.Tensor`
+            Contains the individual true scores corresponding to the given ``times``.
+        x: `list` [`float`]
+            The individual parameters.
 
         Returns
         -------
-        torch tensor - model values minus real values
+        err: `torch.Tensor`
+            Model values minus real values.
         """
-
         xi = torch.tensor([x[0]], dtype=torch.float32).unsqueeze(0)
         tau = torch.tensor([x[1]], dtype=torch.float32).unsqueeze(0)
 
@@ -69,13 +74,20 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
     def _get_regularity(self, model, x):
         """
-        Compute the regularity of the patient for a given model & individual parameters
+        Compute the regularity of a patient given his individual parameters for a given model.
 
-        :param model: Leaspy model class object
-        :param x: list of float - individual parameters
-        :return: torch tensor - regularity of the patient corresponding to the given individual parameters
+        Parameters
+        ----------
+        model: Leaspy model class object
+            Model used to compute the group average parameters.
+        x: `list` [`float`]
+            The individual parameters.
+
+        Returns
+        -------
+        regularity: `torch.Tensor`
+            Regularity of the patient corresponding to the given individual parameters.
         """
-
         xi = torch.tensor(x[0], dtype=torch.float32)
         tau = torch.tensor(x[1], dtype=torch.float32)
         if self.model_name == 'univariate':
@@ -93,18 +105,28 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
     def _get_individual_parameters_patient(self, model, times, values):
         """
-        Compute the individual parameter by minimizing the objective loss function with scipy solver
+        Compute the individual parameter by minimizing the objective loss function with scipy solver.
 
-        :param model: Leaspy model class object
-        :param times: torch tensor
-        :param values: torch tensor
-        :return: tuples - ((tau, xi, sources), error)
-            tau - float
-            xi - float
-            sources - list of lfoat
-            error - torch tensor
+        Parameters
+        ----------
+        model: Leaspy model class object
+            Model used to compute the group average parameters.
+        times: `torch.Tensor`
+            Contains the individual ages corresponding to the given ``values``.
+        values: `torch.Tensor`
+            Contains the individual true scores corresponding to the given ``times``.
+
+        Returns
+        -------
+            - tau - `float`
+                Individual time-shift.
+            - xi - `float`
+                Individual log-acceleration.
+            - sources - `list` [`float`]
+                Individual space-shifts.
+            - error - `torch.Tensor`
+                Model values minus real values.
         """
-
         timepoints = times.reshape(1, -1)
         self._set_model_name(model.name)
 
@@ -112,34 +134,44 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             """
             Objective loss function to minimize in order to get patient's individual parameters
 
-            :param x: list of float - initialization of individual parameters
+            Parameters
+            ----------
+            x: `list` [`float`]
+                Initialization of individual parameters
                 By default x = [xi_mean, tau_mean] (+ [0.] * nber_of_sources if multivariate model)
-            :param args: (model, timepoints, values)
-                model = leaspy model class object
-                timepoints = torch tensor
-                values = torch tensor
-            :return: float - value of the loss function
+            args:
+                - model: leaspy model class object
+                    Model used to compute the group average parameters.
+                - timepoints: `torch.Tensor`
+                    Contains the individual ages corresponding to the given ``values``
+                - values: `torch.Tensor`
+                    Contains the individual true scores corresponding to the given ``times``.
+
+            Returns
+            -------
+            objective: `float`
+                Value of the loss function.
             """
 
             # Parameters
             model, times, values = args
 
-            # Attachement
+            # Attachment
             xi = torch.tensor([x[0]], dtype=torch.float32).unsqueeze(0)
             tau = torch.tensor([x[1]], dtype=torch.float32).unsqueeze(0)
 
             if self.model_name == 'univariate':
                 individual_parameters = {'xi': xi, 'tau': tau}
-                attachement = model.compute_individual_tensorized(times, individual_parameters) - values
+                attachment = model.compute_individual_tensorized(times, individual_parameters) - values
                 iterates = zip(['xi', 'tau'], (xi, tau))
             else:
                 sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
                 individual_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
-                attachement = model.compute_individual_tensorized(times, individual_parameters) - values
+                attachment = model.compute_individual_tensorized(times, individual_parameters) - values
                 iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
 
-            attachement[attachement != attachement] = 0.  # Set nan to zero, not to count in the sum
-            attachement = torch.sum(attachement ** 2) / (2. * model.parameters['noise_std'] ** 2)
+            attachment[attachment != attachment] = 0.  # Set nan to zero, not to count in the sum
+            attachment = torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
 
             # Regularity
             regularity = 0
@@ -148,7 +180,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 std = model.parameters["{0}_std".format(key)]
                 regularity += torch.sum(model.compute_regularity_variable(value, mean, std))
 
-            return (regularity + attachement).detach().tolist()
+            return (regularity + attachment).detach().tolist()
 
         initial_value = self._initialize_parameters(model)
         res = minimize(obj,
@@ -161,17 +193,25 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             print(res.success, res)
 
         xi_f, tau_f, sources_f = res.x[0], res.x[1], res.x[2:]
-        err_f = self._get_attachement(model, times.unsqueeze(0), values, res.x)
+        err_f = self._get_attachment(model, times.unsqueeze(0), values, res.x)
 
-        return (tau_f, xi_f, sources_f), err_f # TODO depends on the order
+        return (tau_f, xi_f, sources_f), err_f  # TODO depends on the order
 
     def _get_individual_parameters(self, model, data):
         """
-        Compute individal parameters of all patients given a leaspy model & a leaspy dataset
+        Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
-        :param model: leaspy model class object
-        :param data: leaspy.inputs.data.dataset class object
-        :return: dict - exemple {'xi': <list of float>, 'tau': <list of float>, 'sources': <list of list of float>}
+        Parameters
+        ----------
+        model: leaspy model class object
+            Model used to compute the group average parameters.
+        data: leaspy.inputs.data.dataset.Dataset class object
+            Contains the individual scores.
+
+        Returns
+        -------
+        out: `dict` ['str`, `torch.Tensor`]
+            Contains the individual parameters of all patients.
         """
 
         individual_parameters = {}
@@ -181,8 +221,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         errors = []
 
         for idx in range(data.n_individuals):
-            times = data.get_times_patient(idx)  # torch tensor
-            values = data.get_values_patient(idx)  # torch tensor
+            times = data.get_times_patient(idx)  # torch.Tensor
+            values = data.get_values_patient(idx)  # torch.Tensor
 
             ind_patient, err = self._get_individual_parameters_patient(model, times, values)
 
@@ -193,11 +233,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             errors += [_ for _ in err.squeeze().tolist() if _ == _]
 
         # Print noise level
-        print(torch.std(torch.Tensor(errors)))
-
+        print(torch.std(torch.tensor(errors)))
 
         infos = model.random_variable_informations()
-        ## TODO change for cleaner shape update
+        # TODO change for cleaner shape update
 
         out = dict.fromkeys(model.get_individual_variable_name())
         for variable_ind in model.get_individual_variable_name():

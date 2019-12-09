@@ -3,7 +3,7 @@ import torch
 from leaspy.utils.output.fit_output_manager import FitOutputManager
 
 
-class AbstractAlgo():
+class AbstractAlgo:
     """
     AbstractAlgo class object
     Abstract class containing common method for all algorithm classes. These classes are child classes of AbstractAlgo.

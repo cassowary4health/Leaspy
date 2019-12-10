@@ -2,6 +2,7 @@ import os
 import unittest
 import json
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
@@ -36,7 +37,7 @@ from leaspy.inputs.data.result import Result
 
 def dict_compare_and_display(d, e):
     """
-    Compare two dictionaries and display their differences.
+    Compare two dictionaries up to the standard tolerance of ``numpy.allclose`` and display their differences.
 
     Parameters
     ----------
@@ -46,7 +47,7 @@ def dict_compare_and_display(d, e):
     Returns
     -------
     `bool`
-        Answer to ``d`` == ``e``.
+        Answer to ``d`` == ``e`` up to the standard tolerance of ``numpy.allclose``.
     """
     try:
         assert d == e
@@ -57,14 +58,23 @@ def dict_compare_and_display(d, e):
             for k in d.keys():
                 if type(d[k]) == dict:
                     return dict_compare_and_display(d[k], e[k])
-                elif d[k] != e[k]:
-                    print("The following values are different !")
-                    print("{0}: {1}".format(k, d[k]))
-                    print("{0}: {1}".format(k, e[k]))
+                try:
+                    if not np.allclose(d[k], e[k]):
+                        print("The following values are different for `numpy.allclose`!")
+                        print("{0}: {1}".format(k, d[k]))
+                        print("{0}: {1}".format(k, e[k]))
+                        return False
+                except TypeError:
+                    if d[k] != e[k]:
+                        print("The following values are different !")
+                        print("{0}: {1}".format(k, d[k]))
+                        print("{0}: {1}".format(k, e[k]))
+                        return False
+                return True
         except AssertionError:
             print("The following keys are different !")
             print(d.keys() ^ e.keys())
-        return False
+            return False
 
 
 class LeaspyTest(unittest.TestCase):

@@ -239,7 +239,7 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
         self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
-        xi_mean = torch.tensor(self.parameters['xi_mean'])
+        xi_mean = self.parameters['xi_mean']
         xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         # self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])

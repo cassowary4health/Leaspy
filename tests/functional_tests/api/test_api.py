@@ -66,16 +66,15 @@ def dict_compare_and_display(d, e):
                         return False
                 except TypeError:
                     if d[k] != e[k]:
-                        print("The following values are different !")
+                        print("The following values are different!")
                         print("{0}: {1}".format(k, d[k]))
                         print("{0}: {1}".format(k, e[k]))
                         return False
                 return True
         except AssertionError:
-            print("The following keys are different !")
+            print("The following keys are different!")
             print(d.keys() ^ e.keys())
             return False
-
 
 
 class LeaspyTest(unittest.TestCase):
@@ -142,7 +141,6 @@ class LeaspyTest(unittest.TestCase):
         # Load data and check its consistency
         leaspy = Leaspy.load(path_to_saved_model)
         os.remove(path_to_saved_model)
-
         self.assertTrue(leaspy.model.is_initialized)
         self.model_values_test(leaspy.model)
 
@@ -203,8 +201,8 @@ class LeaspyTest(unittest.TestCase):
 
         # If reproducibility error > 1e-6 => display it + visit with the biggest reproducibility error
         if not simulation_is_reproducible:
-            simulation_df = pd.read_csv(os.path.join(test_data_dir,
-                                                     "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
+            simulation_df = pd.read_csv(
+                os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"))
             max_diff = 0.
             value_v1 = 0.
             value_v2 = 0.

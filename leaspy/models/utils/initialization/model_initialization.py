@@ -3,6 +3,25 @@ from scipy import stats
 
 
 def initialize_parameters(model, dataset, method="default"):
+    """
+    Initialize the model's group parameters given its name & the scores of all subjects.
+
+    Parameters
+    ----------
+    model: a leaspy model class object
+        The model to initialize.
+    dataset: a leaspy.inputs.data.dataset.Dataset class object
+        Contains the individual scores.
+    method: `str`
+        Must one of:
+        - "default": initialize at mean.
+        - "random":  initialize with a gaussian with same mean and variance.
+
+    Returns
+    -------
+    parameters: `dict` [`str`, `torch.Tensor`]
+        Contains the initialized model's group parameters.
+    """
     name = model.name
     if name == 'logistic':
         parameters = initialize_logistic(model, dataset, method)
@@ -10,21 +29,37 @@ def initialize_parameters(model, dataset, method="default"):
         parameters = initialize_logistic_parallel(model, dataset, method)
     elif name == 'linear':
         parameters = initialize_linear(model, dataset, method)
-    elif name == 'univarite':
+    elif name == 'univariate':
         parameters = initialize_univariate(dataset, method)
     elif name == 'mixed_linear-logistic':
         parameters = initialize_logistic(model, dataset, method)
     else:
         raise ValueError("There is no initialization method for the parameter of the model {}".format(name))
 
-    # To torch
-    for key, param in parameters.items():
-        parameters[key] = torch.tensor(param, dtype=torch.float32)
-
     return parameters
 
 
 def initialize_logistic(model, dataset, method):
+    """
+    Initialize the logistic model's group parameters.
+
+    Parameters
+    ----------
+    model: a leaspy model class object
+        The model to initialize.
+    dataset: a leaspy.inputs.data.dataset.Dataset class object
+        Contains the individual scores.
+    method: `str`
+        Must one of:
+        - "default": initialize at mean.
+        - "random":  initialize with a gaussian with same mean and variance.
+
+    Returns
+    -------
+    parameters: `dict` [`str`, `torch.Tensor`]
+        Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
+    """
     # Get the slopes / values / times mu and sigma
     slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
     values_mu, values_sigma = compute_patient_values_distribution(dataset)
@@ -32,13 +67,13 @@ def initialize_logistic(model, dataset, method):
 
     # Method
     if method == "default":
-        slopes = torch.tensor(slopes_mu)
-        values = torch.tensor(values_mu)
-        time = torch.tensor(time_mu)
+        slopes = slopes_mu
+        values = values_mu
+        time = time_mu
     elif method == "random":
-        slopes = torch.normal(torch.tensor(slopes_mu), torch.tensor(slopes_sigma))
-        values = torch.normal(torch.tensor(values_mu), torch.tensor(values_sigma))
-        time = torch.normal(torch.tensor(time_mu), torch.tensor(time_sigma))
+        slopes = torch.normal(slopes_mu, slopes_sigma)
+        values = torch.normal(values_mu, values_sigma)
+        time = torch.normal(time_mu, time_sigma)
     else:
         raise ValueError("Initialization method not known")
 
@@ -51,28 +86,46 @@ def initialize_logistic(model, dataset, method):
     t0 = time.clone()
     slopes = slopes.mean() * torch.ones_like(slopes)
     v0_array = slopes.log()
-    g_array = torch.exp(1 / (1 + values))
+    g_array = torch.exp(1. / (1. + values))
     betas = torch.zeros((model.dimension - 1, model.source_dimension))
     # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 
-    # Create smart initialization dictionnary
+    # Create smart initialization dictionary
     parameters = {
         'g': g_array,
         'v0': v0_array,
         'betas': betas,
-        'tau_mean': t0, 'tau_std': 1.0,
-        'xi_mean': .0, 'xi_std': 0.05,
-        'sources_mean': 0.0, 'sources_std': 1.0,
+        'tau_mean': t0, 'tau_std': torch.tensor(1.),
+        'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
+        'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
         'noise_std': torch.tensor([0.1], dtype=torch.float32)
     }
-
-
 
     return parameters
 
 
 def initialize_logistic_parallel(model, dataset, method):
+    """
+    Initialize the logistic parallel model's group parameters.
+
+    Parameters
+    ----------
+    model: a leaspy model class object
+        The model to initialize.
+    dataset: a leaspy.inputs.data.dataset.Dataset class object
+        Contains the individual scores.
+    method: `str`
+        Must one of:
+        - "default": initialize at mean.
+        - "random":  initialize with a gaussian with same mean and variance.
+
+    Returns
+    -------
+    parameters: `dict` [`str`, `torch.Tensor`]
+        Contains the initialized model's group parameters. The parameters' keys are 'g',  'tau_mean',
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'delta' and 'beta'.
+    """
     if method == "default":
 
         # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
@@ -81,16 +134,17 @@ def initialize_logistic_parallel(model, dataset, method):
 
         parameters = {
             'g': torch.tensor([1.], dtype=torch.float32), 
-            'tau_mean': 70.0, 
-            'tau_std': 2.0, 
-            'xi_mean': -3.,
-            'xi_std': 0.1,
-            'sources_mean': 0.0, 
-            'sources_std': 1.0,
+            'tau_mean': torch.tensor(70.),
+            'tau_std': torch.tensor(2.),
+            'xi_mean': torch.tensor(-3.),
+            'xi_std': torch.tensor(.1),
+            'sources_mean': torch.tensor(0.),
+            'sources_std': torch.tensor(1.),
             'noise_std': torch.tensor([0.1], dtype=torch.float32),
             'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
             'betas': betas
         }
+
     elif method == "random":
         # Get the slopes / values / times mu and sigma
         slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
@@ -98,9 +152,9 @@ def initialize_logistic_parallel(model, dataset, method):
         time_mu, time_sigma = compute_patient_time_distribution(dataset)
 
         # Get random variations
-        slopes = torch.normal(torch.tensor(slopes_mu), torch.tensor(slopes_sigma))
-        values = torch.normal(torch.tensor(values_mu), torch.tensor(values_sigma))
-        time = torch.normal(torch.tensor(time_mu), torch.tensor(time_sigma))
+        slopes = torch.normal(slopes_mu, slopes_sigma)
+        values = torch.normal(values_mu, values_sigma)
+        time = torch.normal(time_mu, time_sigma)
         # betas = torch.zeros((model.dimension - 1, model.source_dimension))
 
         # Check that slopes are >0, values between 0 and 1
@@ -117,9 +171,10 @@ def initialize_logistic_parallel(model, dataset, method):
         parameters = {
             'g': torch.tensor([torch.mean(g_array)], dtype=torch.float32),
             'tau_mean': t0, 'tau_std': torch.tensor(2.0, dtype=torch.float32),
-            'xi_mean': torch.mean(v0_array).detach().item(), 'xi_std': torch.tensor(0.1, dtype=torch.float32),
-            'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': torch.tensor([0.1], dtype=torch.float32), 'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
+            'xi_mean': torch.mean(v0_array).detach(), 'xi_std': torch.tensor(0.1, dtype=torch.float32),
+            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
+            'noise_std': torch.tensor([0.1], dtype=torch.float32),
+            'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
             'betas': betas
         }
 
@@ -129,7 +184,23 @@ def initialize_logistic_parallel(model, dataset, method):
     return parameters
 
 
-def initialize_linear(model, dataset, method):
+def initialize_linear(model, dataset):
+    """
+    Initialize the linear model's group parameters.
+
+    Parameters
+    ----------
+    model: a leaspy model class object
+        The model to initialize.
+    dataset: a leaspy.inputs.data.dataset.Dataset class object
+        Contains the individual scores.
+
+    Returns
+    -------
+    parameters: `dict` [`str`, `torch.Tensor`]
+        Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
+    """
     sum_ages = torch.sum(dataset.timepoints).item()
     nb_nonzeros = (dataset.timepoints != 0).sum()
     t0 = float(sum_ages) / float(nb_nonzeros)
@@ -164,10 +235,10 @@ def initialize_linear(model, dataset, method):
         'g': positions,
         'v0': velocities,
         'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-        'tau_mean': t0, 'tau_std': torch.tensor(1.0),
-        'xi_mean': torch.tensor(.0), 'xi_std': torch.tensor(0.05),
-        'sources_mean': 0.0, 'sources_std': 1.0,
-        'noise_std': torch.tensor([0.1], dtype=torch.float32)
+        'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
+        'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
+        'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
+        'noise_std': torch.tensor([.1], dtype=torch.float32)
     }
 
     return parameters
@@ -179,22 +250,32 @@ def initialize_univariate(dataset, method):
 
 def compute_patient_slopes_distribution(data):
     """
-    Linear Regression on each feature to get slopes
+    Linear Regression on each feature to get slopes mean and standard deviation.
 
-    :param data: leaspy.inputs.data.dataset class object
-    :return: slopes_mu : list of floats, slopes_sigma : list of floats
+    Parameters
+    ----------
+    data: a leaspy.inputs.data.dataset.Dataset class object
+        Contains the scores of all the subjects.
+
+    Returns
+    -------
+    - slopes_mu: `torch.Tensor`
+        Mean per feature.
+    - slopes_sigma : `torch.Tensor`
+        Standard deviation per feature.
     """
 
     # To Pandas
     df = data.to_pandas()
     df.set_index(["ID", "TIME"], inplace=True)
-    slopes_mu, slopes_sigma = [], []
+    slopes_mu = torch.empty(data.dimension)
+    slopes_sigma = torch.empty(data.dimension)
 
     for dim in range(data.dimension):
-        slope_dim_patients = []
+        slope_dim_patients = torch.empty(data.n_individuals)
         count = 0
 
-        for idx in data.indices:
+        for i, idx in enumerate(data.indices):
             # Select patient dataframe
             df_patient = df.loc[idx]
             df_patient_dim = df_patient.iloc[:, dim].dropna()
@@ -207,41 +288,59 @@ def compute_patient_slopes_distribution(data):
             # TODO : DO something if everyone has less than 2 visits
 
             # Linear regression
-            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+            slope, _, _, _, _ = stats.linregress(x, y)
 
-            slope_dim_patients.append(slope)
+            slope_dim_patients[i] = slope
             count += 1
 
             # Stop at 50
             if count > 50:
                 break
 
-        slopes_mu.append(torch.mean(torch.tensor(slope_dim_patients)).item())
-        slopes_sigma.append(torch.mean(torch.tensor(slope_dim_patients)).item())
+        slopes_mu[dim] = slope_dim_patients.mean()
+        slopes_sigma[dim] = slope_dim_patients.std()
 
     return slopes_mu, slopes_sigma
 
 
 def compute_patient_values_distribution(data):
     """
-    Returns mu / sigma of given dataset values
-    :param data:
-    :return:
+    Returns means and standard deviations for the features of the given dataset values.
+
+    Parameters
+    ----------
+    data: a leaspy.inputs.data.dataset.Dataset class object
+        Contains the scores of all the subjects.
+
+    Returns
+    -------
+    - means: `torch.Tensor`
+        One mean per feature.
+    - std: `torch.Tensor`
+        One standard deviation per feature.
     """
     df = data.to_pandas()
     df.set_index(["ID", "TIME"], inplace=True)
-    return df.mean().values, df.std().values
+    return torch.tensor(df.mean().values, dtype=torch.float32), torch.tensor(df.std().values, dtype=torch.float32)
 
 
 def compute_patient_time_distribution(data):
     """
-    Returns mu / sigma of given dataset times
-    :param data:
-    :return:
+    Returns mu / sigma of given dataset times.
+
+    Parameters
+    ----------
+    data: a leaspy.inputs.data.dataset.Dataset class object
+        Contains the individual scores
+
+    Returns
+    -------
+    - mean: `torch.Tensor`
+    - sigma: `torch.Tensor`
     """
     df = data.to_pandas()
     df.set_index(["ID", "TIME"], inplace=True)
-    return torch.mean(torch.tensor(df.index.get_level_values('TIME').tolist())),\
+    return torch.mean(torch.tensor(df.index.get_level_values('TIME').tolist())), \
            torch.std(torch.tensor(df.index.get_level_values('TIME').tolist()))
 
 
@@ -257,7 +356,8 @@ def initialize_logistic_parallel(model, data, method="default"):
         model.parameters = {
             'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': torch.tensor([0.1], dtype=torch.float32),, 'deltas': torch.tensor([0.0] * (model.dimension - 1)),
+            'noise_std': torch.tensor([0.1], dtype=torch.float32),
+            'deltas': torch.tensor([0.0] * (model.dimension - 1)),
             'betas': torch.zeros((model.dimension - 1, model.source_dimension))
         }
     elif method == "random":
@@ -286,7 +386,8 @@ def initialize_logistic_parallel(model, data, method="default"):
             'tau_mean': t0, 'tau_std': 2.0,
             'xi_mean': float(torch.mean(v0_array).detach().numpy()),'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': torch.tensor([0.1], dtype=torch.float32), 'deltas': torch.tensor([0.0] * (model.dimension - 1)),
+            'noise_std': torch.tensor([0.1], dtype=torch.float32), 
+            'deltas': torch.tensor([0.0] * (model.dimension - 1)),
             'betas': torch.zeros((model.dimension - 1, model.source_dimension))
         }
 

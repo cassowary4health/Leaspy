@@ -46,6 +46,8 @@ class UnivariateModel(AbstractModel):
             json.dump(model_settings, fp)
 
     def load_hyperparameters(self, hyperparameters):
+        if 'features' in hyperparameters.keys():
+            self.features = hyperparameters['features']
         return
 
     def initialize(self, dataset):

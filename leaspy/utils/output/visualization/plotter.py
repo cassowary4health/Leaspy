@@ -111,7 +111,7 @@ class Plotter:
     def plot_patient_trajectory(self, model, results, indices, **kwargs):
 
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
-        labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_' + str(i) for i in range(model.dimension)]
+        labels = model.features
         if 'ax' in kwargs.keys():
             ax = kwargs['ax']
         else:
@@ -153,13 +153,12 @@ class Plotter:
 
     def plot_from_individual_parameters(self, model, indiv_parameters, timepoints, **kwargs):
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
-        labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_' + str(i) for i in range(model.dimension)]
+        labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
-        t = torch.Tensor(timepoints).unsqueeze(0)
-        trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
+        trajectory = model.compute_individual_trajectory(timepoints, indiv_parameters).squeeze()
         for dim in range(model.dimension):
-            ax.plot(timepoints, trajectory.detach().numpy()[:, dim], c=colors[dim], label=labels[dim])
+            ax.plot(timepoints, trajectory[:, dim], c=colors[dim], label=labels[dim])
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))

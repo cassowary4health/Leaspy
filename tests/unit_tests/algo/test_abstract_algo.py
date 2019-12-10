@@ -12,6 +12,13 @@ from leaspy.algo.abstract_algo import AbstractAlgo
 
 class Test(unittest.TestCase):
 
+    def test_constructor(self):
+        algo = AbstractAlgo()
+        self.assertEqual(algo.algo_parameters, None)
+        self.assertEqual(algo.name, None)
+        self.assertEqual(algo.output_manager, None)
+        self.assertEqual(algo.seed, None)
+
     def test_initialize_seed(self):
         algo = AbstractAlgo()
         seed = torch.randint(10000, (1,)).item()

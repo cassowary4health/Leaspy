@@ -331,6 +331,7 @@ class Leaspy:
         # Create a human readable file with json
         if human_readable:
             for key in dump.keys():
+
                 if type(dump[key]) not in [list]:
                     # For multivariate parameter - like sources
                     # convert tensor([[1, 2], [2, 3]]) into [[1, 2], [2, 3]]

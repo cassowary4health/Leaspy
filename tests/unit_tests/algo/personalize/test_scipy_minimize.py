@@ -50,7 +50,7 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         times = torch.tensor([70, 80])
         values = torch.tensor([[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]])
-        individual_parameters = [torch.tensor([0.0]), torch.tensor([75.2]), torch.tensor([0.]), torch.tensor([0.])]
+        individual_parameters = [0.0, 75.2, 0., 0.]
 
         err = algo._get_attachment(leaspy.model, times, values, individual_parameters)
 
@@ -68,7 +68,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         algo = ScipyMinimize(settings)
         algo._set_model_name('logistic')
 
-        individual_parameters = [torch.tensor([0.0]), torch.tensor([75.2]), torch.tensor([0.]), torch.tensor([0.])]
+        individual_parameters = [0.0, 75.2, 0., 0.]
 
         reg = algo._get_regularity(leaspy.model, individual_parameters)
         self.assertEqual(torch.is_tensor(reg), True)

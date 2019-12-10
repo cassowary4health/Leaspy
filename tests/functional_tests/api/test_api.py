@@ -11,7 +11,21 @@ from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
 from tests import example_data_path
 from leaspy.inputs.data.result import Result
 
+
 def ordered(obj):
+    """
+    Order a list or a dictionary in order to compare it.
+
+    Parameters
+    ----------
+    obj: `dict` or `list`
+        Object to be ordered.
+
+    Returns
+    -------
+    obj: `dict` or `list`
+        Ordered object.
+    """
     if isinstance(obj, dict):
         return sorted((k, ordered(v)) for k, v in obj.items())
     if isinstance(obj, list):
@@ -19,7 +33,65 @@ def ordered(obj):
     else:
         return obj
 
+
+def dict_compare_and_display(d, e):
+    """
+    Compare two dictionaries and display their differences.
+
+    Parameters
+    ----------
+    d: `dict`
+    e: `dict`
+
+    Returns
+    -------
+    `bool`
+        Answer to ``d`` == ``e``.
+    """
+    try:
+        assert d == e
+        return True
+    except AssertionError:
+        try:
+            assert d.keys() == e.keys()
+            for (k1, v1), (k2, v2) in zip(d.items(), e.items()):
+                if type(v1) == dict:
+                    return dict_compare_and_display(v1, v2)
+                elif v1 != v2:
+                    print("The following values are different !")
+                    print("{0}: {1}".format(k1, v1))
+                    print("{0}: {1}".format(k2, v2))
+        except AssertionError:
+            print("The following keys are different !")
+            print(d.keys() ^ e.keys())
+        return False
+
+
 class LeaspyTest(unittest.TestCase):
+
+    def model_values_test(self, model):
+        """
+        Avoid copy past for the functional test.
+
+        Parameters
+        ----------
+        model: a leaspy model class object
+
+        Returns
+        -------
+        Exit code.
+        """
+        self.assertEqual(model.name, "logistic")
+        self.assertEqual(model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
+        self.assertAlmostEqual(model.parameters['noise_std'], 0.2986, delta=0.01)
+        self.assertAlmostEqual(model.parameters['tau_mean'], 78.0270, delta=0.01)
+        self.assertAlmostEqual(model.parameters['tau_std'], 0.9494, delta=0.01)
+        self.assertAlmostEqual(model.parameters['xi_mean'], 0.0, delta=0.001)
+        self.assertAlmostEqual(model.parameters['xi_std'], 0.1317, delta=0.001)
+        diff_g = model.parameters['g'] - torch.tensor([1.9557, 2.5899, 2.5184, 2.2369])
+        diff_v = model.parameters['v0'] - torch.tensor([-3.5714, -3.5820, -3.5811, -3.5886])
+        self.assertAlmostEqual(torch.sum(diff_g ** 2).item(), 0.0, delta=0.01)
+        self.assertAlmostEqual(torch.sum(diff_v ** 2).item(), 0.0, delta=0.02)
 
     def test_usecase(self):
         """
@@ -36,7 +108,6 @@ class LeaspyTest(unittest.TestCase):
         -------
         exit code
         """
-
         data = Data.from_csv_file(example_data_path)
 
         # Fit
@@ -44,44 +115,25 @@ class LeaspyTest(unittest.TestCase):
         leaspy = Leaspy("logistic")
         leaspy.model.load_hyperparameters({'source_dimension': 2})
         leaspy.fit(data, algorithm_settings=algo_settings)
-
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2986, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.0270, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 0.9494, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], 0.0, delta=0.001)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1317, delta=0.001)
-        diff_g = leaspy.model.parameters['g'] - torch.Tensor([1.9557, 2.5899, 2.5184, 2.2369])
-        diff_v = leaspy.model.parameters['v0'] - torch.Tensor([-3.5714, -3.5820, -3.5811, -3.5886])
-        self.assertAlmostEqual(torch.sum(diff_g ** 2), 0.0, delta=0.01)
-        self.assertAlmostEqual(torch.sum(diff_v ** 2), 0.0, delta=0.02)
+        self.model_values_test(leaspy.model)
 
         # Save parameters and check its consistency
-        path_to_saved_model = os.path.join(test_data_dir,'model_parameters', 'test_api-copy.json')
+        path_to_saved_model = os.path.join(test_data_dir, 'model_parameters', 'test_api-copy.json')
         leaspy.save(path_to_saved_model)
-
 
         with open(os.path.join(test_data_dir, "model_parameters", 'test_api.json'), 'r') as f1:
             model_parameters = json.load(f1)
         with open(path_to_saved_model) as f2:
             model_parameters_new = json.load(f2)
-        self.assertEqual(ordered(model_parameters) == ordered(model_parameters_new), True)
+        self.assertTrue(ordered(model_parameters) == ordered(model_parameters_new))
+        self.assertTrue(dict_compare_and_display(model_parameters, model_parameters_new))
 
         # Load data and check its consistency
         leaspy = Leaspy.load(path_to_saved_model)
         os.remove(path_to_saved_model)
 
         self.assertTrue(leaspy.model.is_initialized)
-        self.assertEqual(leaspy.model.name, "logistic")
-        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2986, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.0270, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 0.9494, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], 0.0, delta=0.001)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1317, delta=0.001)
-        diff_g = leaspy.model.parameters['g'] - torch.Tensor([1.9557, 2.5899, 2.5184, 2.2369])
-        diff_v = leaspy.model.parameters['v0'] - torch.Tensor([-3.5714, -3.5820, -3.5811, -3.5886])
-        self.assertAlmostEqual(torch.sum(diff_g ** 2), 0.0, delta=0.01)
-        self.assertAlmostEqual(torch.sum(diff_v ** 2), 0.0, delta=0.02)
+        self.model_values_test(leaspy.model)
 
         # Personalize
         algo_personalize_settings = AlgorithmSettings('mode_real', seed=0)
@@ -90,7 +142,6 @@ class LeaspyTest(unittest.TestCase):
 
         # Get error distribution
         error_distribution = result.get_error_distribution(leaspy.model)
-        # print("\nerror distribution", error_distribution)
         self.assertTrue(list(error_distribution.keys()), list(data.individuals.keys()))
         self.assertTrue(torch.tensor(error_distribution['116']).shape,
                         torch.tensor(data.individuals['116'].observations).shape)
@@ -100,7 +151,8 @@ class LeaspyTest(unittest.TestCase):
         error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True)
         self.assertTrue(len(error_distribution['116']),
                         torch.tensor(data.individuals['116'].observations).shape[1])
-        error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True, aggregate_subscores=True)
+        error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True,
+                                                           aggregate_subscores=True)
         self.assertTrue(type(error_distribution['116']) == float)
 
         # Plot TODO
@@ -120,21 +172,18 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
         # Test the reproducibility of simulate
-        # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
-        # BUT ON DIFFERENT MACHINE I CAN SEE ERROR OF MAGNITUDE 1e-5 !!!
-        # TODO: Can we improve this??
-        # simulation_results.data.to_dataframe().to_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"), index=False)
-        simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
+        # simulation_results.data.to_dataframe().to_csv(
+        #     os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"), index=False)
+        simulation_df = pd.read_csv(
+            os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
 
-        # print("\n", simulation_results.data.to_dataframe().loc[simulation_df['ID'] == 14], "\n")
-        # print("\n", simulation_df[simulation_df['ID'] == 14], "\n")
-
-        round_decimal = 13
+        round_decimal = 6
         simulation_df = simulation_df.round(round_decimal)
         simulation_is_reproducible = simulation_df.equals(simulation_results.data.to_dataframe().round(round_decimal))
         # If reproducibility error > 1e-6 => display it
         if not simulation_is_reproducible:
-            simulation_df = pd.read_csv(os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
+            simulation_df = pd.read_csv(
+                os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge.csv"))
             max_diff = 0.
             value_v1 = 0.
             value_v2 = 0.
@@ -146,25 +195,17 @@ class LeaspyTest(unittest.TestCase):
                 if max(diff) > tol:
                     count += 1
                 if max(diff) > max_diff:
-                    # value_v1 = v1[[i for i, val in enumerate(diff) if val == max(diff)][0]]
                     value_v1 = v1
-                    # value_v2 = v2[[i for i, val in enumerate(diff) if val == max(diff)][0]]
                     value_v2 = v2
                     max_diff = max(diff)
             print('\nTolerance error = %.1e' % tol)
             print('Maximum error = %.3e' % max_diff)
-            # print('Value_v1 = %.7f' % value_v1)
-            # print('Value_v2 = %.7f' % value_v2)
             print(value_v1)
             print(value_v2)
             print('Number of simulated visits above tolerance error = %d / %d \n' % (count, simulation_df.shape[0]))
         self.assertTrue(simulation_is_reproducible)
 
-
-
-
         """
-
             def test_constructor(self):
         leaspy = Leaspy('univariate')
         self.assertEqual(leaspy.type, 'univariate')
@@ -184,6 +225,4 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.model_parameters['tau_var'], 2)
         self.assertEqual(leaspy.model.model_parameters['xi_mean'], -10)
         self.assertEqual(leaspy.model.model_parameters['xi_var'], 0.8)
-
-
         """

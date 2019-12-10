@@ -12,26 +12,26 @@ from tests import example_data_path
 from leaspy.inputs.data.result import Result
 
 
-def ordered(obj):
-    """
-    Order a list or a dictionary in order to compare it.
-
-    Parameters
-    ----------
-    obj: `dict` or `list`
-        Object to be ordered.
-
-    Returns
-    -------
-    obj: `dict` or `list`
-        Ordered object.
-    """
-    if isinstance(obj, dict):
-        return sorted((k, ordered(v)) for k, v in obj.items())
-    if isinstance(obj, list):
-        return sorted(ordered(x) for x in obj)
-    else:
-        return obj
+# def ordered(obj):
+#     """
+#     Order a list or a dictionary in order to compare it.
+#
+#     Parameters
+#     ----------
+#     obj: `dict` or `list`
+#         Object to be ordered.
+#
+#     Returns
+#     -------
+#     obj: `dict` or `list`
+#         Ordered object.
+#     """
+#     if isinstance(obj, dict):
+#         return sorted((k, ordered(v)) for k, v in obj.items())
+#     if isinstance(obj, list):
+#         return sorted(ordered(x) for x in obj)
+#     else:
+#         return obj
 
 
 def dict_compare_and_display(d, e):
@@ -54,13 +54,13 @@ def dict_compare_and_display(d, e):
     except AssertionError:
         try:
             assert d.keys() == e.keys()
-            for (k1, v1), (k2, v2) in zip(d.items(), e.items()):
-                if type(v1) == dict:
-                    return dict_compare_and_display(v1, v2)
-                elif v1 != v2:
+            for k in d.keys():
+                if type(d[k]) == dict:
+                    return dict_compare_and_display(d[k], e[k])
+                elif d[k] != e[k]:
                     print("The following values are different !")
-                    print("{0}: {1}".format(k1, v1))
-                    print("{0}: {1}".format(k2, v2))
+                    print("{0}: {1}".format(k, d[k]))
+                    print("{0}: {1}".format(k, e[k]))
         except AssertionError:
             print("The following keys are different !")
             print(d.keys() ^ e.keys())
@@ -125,7 +125,7 @@ class LeaspyTest(unittest.TestCase):
             model_parameters = json.load(f1)
         with open(path_to_saved_model) as f2:
             model_parameters_new = json.load(f2)
-        self.assertTrue(ordered(model_parameters) == ordered(model_parameters_new))
+        # self.assertTrue(ordered(model_parameters) == ordered(model_parameters_new))
         self.assertTrue(dict_compare_and_display(model_parameters, model_parameters_new))
 
         # Load data and check its consistency

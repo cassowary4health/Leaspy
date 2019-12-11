@@ -4,6 +4,28 @@ import torch
 # TODO 1 : Have a Abtract Attribute class
 # TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
 class AttributesLogisticParallel:
+    """
+    Attributes
+    ----------
+    dimension: `int`
+    source_dimension: `int`
+    betas: `torch.Tensor` (default None)
+    deltas: `torch.Tensor` (default None)
+        deltas = [0, delta_2_realization, ..., delta_n_realization]
+    g: `torch.Tensor` (default None)
+        g = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
+    mixing_matrix: `torch.Tensor` (default None)
+        Matrix A such that w_i = A * s_i
+    orthonormal_basis: `torch.Tensor` (default None)
+    xi_mean: `torch.Tensor` (default None)
+
+    Methods
+    -------
+    get_attributes()
+        Returns the following attributes: ``g``, ``deltas`` & ``mixing_matrix``.
+    update(names_of_changed_values, values)
+        Update model group average parameter(s).
+    """
 
     def __init__(self, dimension, source_dimension):
         """
@@ -18,10 +40,10 @@ class AttributesLogisticParallel:
         self.source_dimension = source_dimension
         self.g = None  # g = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
         self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
-        self.xi_mean = None  # v0 is a scalar value, which corresponds to the the first dimension of the velocity vector
+        self.xi_mean = None
         self.betas = None
         self.orthonormal_basis = None
-        self.mixing_matrix = None  # Matrix A tq w_i = A * s_i
+        self.mixing_matrix = None  # Matrix A such that w_i = A * s_i
 
     def get_attributes(self):
         """
@@ -197,7 +219,7 @@ class AttributesLogisticParallel:
 
     def _compute_mixing_matrix(self):
         """
-        Compute the mixing matrix.
+        Update the attribute ``mixing_matrix``.
         """
         if self.source_dimension == 0:
             return

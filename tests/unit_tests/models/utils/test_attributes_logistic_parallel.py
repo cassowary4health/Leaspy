@@ -1,13 +1,13 @@
 import torch
 import unittest
 
-from leaspy.models.utils.attributes.attributes_logistic_parallel import Attributes_LogisticParallel
+from leaspy.models.utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
 
 
 class AttributesLogisticParallelTest(unittest.TestCase):
 
     def test_constructor(self):
-        attributes = Attributes_LogisticParallel(6, 2)
+        attributes = AttributesLogisticParallel(6, 2)
         self.assertEqual(attributes.dimension, 6)
         self.assertEqual(attributes.g, None)
         self.assertEqual(attributes.deltas, None)
@@ -17,12 +17,12 @@ class AttributesLogisticParallelTest(unittest.TestCase):
     def test_compute_orthonormal_basis(self):
         names = ['all']
         values = {
-            'g': torch.Tensor([0]),
-            'deltas': torch.Tensor([-1, 0, 2]),
-            'betas': torch.Tensor([[1, 2, 3], [0.1, 0.2, 0.3], [-1, -2, -3]]),
-            'xi_mean': torch.Tensor([-3])
+            'g': torch.tensor([0.]),
+            'deltas': torch.tensor([-1., 0., 2.]),
+            'betas': torch.tensor([[1., 2., 3.], [0.1, 0.2, 0.3], [-1., -2., -3.]]),
+            'xi_mean': torch.tensor([-3.])
         }
-        attributes = Attributes_LogisticParallel(4, 2)
+        attributes = AttributesLogisticParallel(4, 2)
         attributes.update(names, values)
 
         # Test the first value of the derivative of gamma at t0
@@ -51,7 +51,7 @@ class AttributesLogisticParallelTest(unittest.TestCase):
             'betas': torch.Tensor([[1, 2, 3], [0.1, 0.2, 0.3], [-1, -2, -3]]),
             'xi_mean': torch.Tensor([-3])
         }
-        attributes = Attributes_LogisticParallel(4, 2)
+        attributes = AttributesLogisticParallel(4, 2)
         attributes.update(names, values)
 
         dgamma_t0 = attributes._compute_dgamma_t0()

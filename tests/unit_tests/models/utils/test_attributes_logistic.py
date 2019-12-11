@@ -1,13 +1,13 @@
 import torch
 import unittest
 
-from leaspy.models.utils.attributes.attributes_logistic import Attributes_Logistic
+from leaspy.models.utils.attributes.attributes_logistic import AttributesLogistic
 
 
 class AttributesLogisticTest(unittest.TestCase):
 
     def test_constructor(self):
-        attributes = Attributes_Logistic(6, 2)
+        attributes = AttributesLogistic(6, 2)
         self.assertEqual(attributes.dimension, 6)
         self.assertEqual(attributes.g, None)
         self.assertEqual(attributes.orthonormal_basis, None)
@@ -20,7 +20,7 @@ class AttributesLogisticTest(unittest.TestCase):
             'betas': torch.Tensor([[1, 2, 3], [0.1, 0.2, 0.3], [-1, -2, -3]]),
             'v0': torch.Tensor([-3, 1, 0, -1])
         }
-        attributes = Attributes_Logistic(4, 2)
+        attributes = AttributesLogistic(4, 2)
         attributes.update(names, values)
 
         # Test the orthogonality condition
@@ -38,7 +38,7 @@ class AttributesLogisticTest(unittest.TestCase):
             'betas': torch.Tensor([[1, 2, 3], [0.1, 0.2, 0.3], [-1, -2, -3]]),
             'v0': torch.Tensor([-3, 1, 0, -1])
         }
-        attributes = Attributes_Logistic(4, 2)
+        attributes = AttributesLogistic(4, 2)
         attributes.update(names, values)
 
         metric_normalization = attributes.g.pow(2) / (1 + attributes.g).pow(2)

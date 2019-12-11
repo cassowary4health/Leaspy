@@ -3,7 +3,7 @@ import torch
 
 ## TODO 1 : Have a Abtract Attribute class
 ## TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
-class Attributes_Logistic:
+class AttributesLogistic:
     def __init__(self, dimension, source_dimension):
 
         self.dimension = dimension

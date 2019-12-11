@@ -1,14 +1,22 @@
 import torch
 
 
-## TODO 1 : Have a Abtract Attribute class
-## TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
-class Attributes_LogisticParallel:
+# TODO 1 : Have a Abtract Attribute class
+# TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
+class AttributesLogisticParallel:
 
     def __init__(self, dimension, source_dimension):
+        """
+        Instantiate a AttributesLogisticParallel class object.
+
+        Parameters
+        ----------
+        dimension: `int`
+        source_dimension: `int`
+        """
         self.dimension = dimension
         self.source_dimension = source_dimension
-        self.g = None  # g = exp(realizations['g']) tel que p0 = 1 / (1+exp(g))
+        self.g = None  # g = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
         self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
         self.xi_mean = None  # v0 is a scalar value, which corresponds to the the first dimension of the velocity vector
         self.betas = None
@@ -16,9 +24,27 @@ class Attributes_LogisticParallel:
         self.mixing_matrix = None  # Matrix A tq w_i = A * s_i
 
     def get_attributes(self):
+        """
+        Returns the following attributes: ``g``, ``deltas`` & ``mixing_matrix``.
+
+        Returns
+        -------
+        - g: `torch.Tensor`
+        - deltas: `torch.Tensor`
+        - mixing_matrix: `torch.Tensor`
+        """
         return self.g, self.deltas, self.mixing_matrix
 
     def update(self, names_of_changed_values, values):
+        """
+        Update model group average parameter(s).
+
+        Parameters
+        ----------
+        names_of_changed_values: `list` [`str`]
+            Must be one of - "all", "betas", "deltas", "g", "xi_mean". Raise an error otherwise.
+        values: `dict` [`str`, `torch.Tensor`]
+        """
         self._check_names(names_of_changed_values)
 
         compute_g = False
@@ -46,7 +72,7 @@ class Attributes_LogisticParallel:
         if compute_deltas:
             self._compute_deltas(values)
         if compute_v0:
-            self._compute_xi_men(values)
+            self._compute_xi_mean(values)
         if compute_betas:
             self._compute_betas(values)
 
@@ -56,34 +82,81 @@ class Attributes_LogisticParallel:
             self._compute_mixing_matrix()
 
     def _check_names(self, names_of_changed_values):
+        """
+        Check if the name of the parameter(s) to update are one of 'g', 'deltas', 'betas', 'xi_mean', 'all'.
+
+        Parameters
+        ----------
+        names_of_changed_values: `list` [`str`]
+
+        Raises
+        -------
+        ValueError
+        """
         for name in names_of_changed_values:
             if name not in ['g', 'deltas', 'betas', 'xi_mean', 'all']:
                 raise ValueError("The name {} is not in the attributes that are used to be updated".format(name))
 
-    def _compute_xi_men(self, values):
-        self.xi_mean = torch.exp(torch.tensor([values['xi_mean']], dtype=torch.float32))
+    def _compute_xi_mean(self, values):
+        """
+        Update the attribute ``xi_mean``.
+
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
+        self.xi_mean = torch.exp(values['xi_mean'])
 
     def _compute_g(self, values):
+        """
+        Update the attribute ``g``.
+
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
         self.g = torch.exp(values['g'])
 
     def _compute_deltas(self, values):
+        """
+        Update` the attribute ``deltas``.
+
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
         self.deltas = torch.cat((torch.tensor([0], dtype=torch.float32), values['deltas']))
 
     def _compute_betas(self, values):
+        """
+        Update the attribute ``betas``.
+
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
         if self.source_dimension == 0:
             return
-        self.betas = torch.tensor(values['betas'], dtype=torch.float32).clone()
+        self.betas = values['betas'].clone()
 
     def _compute_dgamma_t0(self):
-        # Computes the derivative of gamma_0 at time t0
+        """
+        Computes the derivative of gamma_0 at time t0.
+
+        Returns
+        -------
+        dgamma_t0: `torch.Tensor`
+        """
         exp_d = torch.exp(-self.deltas)
         sub = 1. + self.g * exp_d
         dgamma_t0 = self.xi_mean * self.g * exp_d / (sub * sub)
         return dgamma_t0
 
     def _compute_orthonormal_basis(self):
-        # Compute the basis orthogonal to v0 for the inner product implied by the metric
-        # It is equivalent to be a base orthogonal to v0 / (p0^2 (1-p0)^2 for the euclidean norm
+        """
+        Compute the attribute ``orthonormal_basis`` which is a basis orthogonal to v0 for the inner product implied by
+        the metric. It is equivalent to be a base orthogonal to v0 / (p0^2 (1-p0)^2 for the euclidean norm.
+        """
         if self.source_dimension == 0:
             return
 
@@ -108,11 +181,25 @@ class Attributes_LogisticParallel:
 
     @staticmethod
     def _mixing_matrix_utils(linear_combination_values, matrix):
+        """
+        Intermediate function used to test the good behaviour of the class' methods.
+
+        Parameters
+        ----------
+        linear_combination_values: `torch.Tensor`
+        matrix: `torch.Tensor`
+
+        Returns
+        -------
+        `torch.Tensor`
+        """
         return torch.mm(matrix, linear_combination_values)
 
     def _compute_mixing_matrix(self):
+        """
+        Compute the mixing matrix.
+        """
         if self.source_dimension == 0:
             return
 
-        self.mixing_matrix = torch.tensor(self._mixing_matrix_utils(self.betas, self.orthonormal_basis),
-                                          dtype=torch.float32)
+        self.mixing_matrix = self._mixing_matrix_utils(self.betas, self.orthonormal_basis)

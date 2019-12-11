@@ -1,7 +1,7 @@
 import torch
 
 
-class Attributes_Linear():
+class AttributesLinear():
     def __init__(self, dimension, source_dimension):
         self.dimension = dimension
         self.source_dimension = source_dimension

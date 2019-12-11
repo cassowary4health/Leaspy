@@ -1,14 +1,14 @@
 import torch
 import unittest
 
-from leaspy.models.utils.attributes.attributes_linear import Attributes_Linear
+from leaspy.models.utils.attributes.attributes_linear import AttributesLinear
 
 
 class AttributesLinearTest(unittest.TestCase):
 
     def setUp(self):
         """Set up the object for all the tests"""
-        self.attributes = Attributes_Linear(4, 2)
+        self.attributes = AttributesLinear(4, 2)
 
     def test_constructor(self):
         """Test the initialization"""

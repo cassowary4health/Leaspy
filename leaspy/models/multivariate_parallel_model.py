@@ -1,7 +1,7 @@
 import torch
 
 from .abstract_multivariate_model import AbstractMultivariateModel
-from .utils.attributes.attributes_logistic_parallel import Attributes_LogisticParallel
+from .utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
 from .utils.initialization.model_initialization import initialize_logistic_parallel
 
 
@@ -17,7 +17,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k])
-        self.attributes = Attributes_LogisticParallel(self.dimension, self.source_dimension)
+        self.attributes = AttributesLogisticParallel(self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
@@ -46,7 +46,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 1., 'deltas_std': 0.1, 'betas_std': 0.1},
-            'attributes': Attributes_LogisticParallel(self.dimension, self.source_dimension)
+            'attributes': AttributesLogisticParallel(self.dimension, self.source_dimension)
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()

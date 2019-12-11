@@ -3,7 +3,7 @@ import torch
 
 ## TODO 1 : Have a Abtract Attribute class
 ## TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
-class Attributes_Univariate:
+class AttributesUnivariate:
 
     def __init__(self):
         self.g = None  # g is a vector such that p0 = 1 / (1+exp(g)) where p0 is the position vector

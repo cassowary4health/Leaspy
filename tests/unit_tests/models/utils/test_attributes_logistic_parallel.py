@@ -13,6 +13,10 @@ class AttributesLogisticParallelTest(unittest.TestCase):
         self.assertEqual(attributes.deltas, None)
         self.assertEqual(attributes.orthonormal_basis, None)
         self.assertEqual(attributes.mixing_matrix, None)
+        self.assertEqual(attributes.name, 'logistic_parallel')
+        self.assertEqual(attributes.update_possibilities, ('g', 'deltas', 'betas', 'xi_mean', 'all'))
+        self.assertRaises(ValueError, AttributesLogisticParallel, '4', 3.2)  # with bad type arguments
+        self.assertRaises(TypeError, AttributesLogisticParallel)  # without argument
 
     def compute_instance_and_variables(self):
         names = ['all']

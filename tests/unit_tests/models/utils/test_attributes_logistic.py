@@ -12,6 +12,10 @@ class AttributesLogisticTest(unittest.TestCase):
         self.assertEqual(attributes.positions, None)
         self.assertEqual(attributes.orthonormal_basis, None)
         self.assertEqual(attributes.mixing_matrix, None)
+        self.assertEqual(attributes.name, 'logistic')
+        self.assertEqual(attributes.update_possibilities, ('all', 'g', 'v0', 'betas'))
+        self.assertRaises(ValueError, AttributesLogistic, '4', 3.2)  # with bad type arguments
+        self.assertRaises(TypeError, AttributesLogistic)  # without argument
 
     def test_compute_orthonormal_basis(self):
         names = ['all']

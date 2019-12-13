@@ -18,6 +18,10 @@ class AttributesLinearTest(unittest.TestCase):
         self.assertEqual(self.attributes.velocities, None)
         self.assertEqual(self.attributes.orthonormal_basis, None)
         self.assertEqual(self.attributes.mixing_matrix, None)
+        self.assertEqual(self.attributes.name, 'linear')
+        self.assertEqual(self.attributes.update_possibilities, ('all', 'g', 'v0', 'betas'))
+        self.assertRaises(ValueError, AttributesLinear, '4', 3.2)  # with bad type arguments
+        self.assertRaises(TypeError, AttributesLinear)  # without argument
 
     def test_check_names(self):
         """Test if raise a ValueError if wrong arg"""

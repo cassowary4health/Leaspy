@@ -30,10 +30,9 @@ class AttributesLinearTest(unittest.TestCase):
         """Test the orthonormality condition"""
         names = ['all']
         values = {
-            'g': torch.Tensor([0]),
-            'v0': torch.Tensor([1, 0, 2]),
-            'v0': torch.Tensor([1, 0, 2, 1]),
-            'betas': torch.Tensor([[1, 2, 3, 4], [.1, .2, .3, .4], [-1, -2, -3, -4]])
+            'g': torch.tensor([0.]),
+            'v0': torch.tensor([1., 0., 2., 1.]),
+            'betas': torch.tensor([[1., 2., 3., 4.], [.1, .2, .3, .4], [-1., -2., -3., -4.]])
         }
         self.attributes.update(names, values)
 
@@ -43,24 +42,21 @@ class AttributesLinearTest(unittest.TestCase):
 
         for orthonormal_vector in orthonormal_basis.permute(1, 0):
             # Test normality
-            self.assertAlmostEqual(torch.norm(orthonormal_vector).data.tolist(),
-                                   1, delta=1e-6)
+            self.assertAlmostEqual(torch.norm(orthonormal_vector).item(), 1, delta=1e-6)
             # Test orthogonality
-            self.assertAlmostEqual(torch.dot(orthonormal_vector, dgamma_t0),
-                                   0, delta=1e-6)
+            self.assertAlmostEqual(torch.dot(orthonormal_vector, dgamma_t0).item(), 0, delta=1e-6)
 
     def test_mixing_matrix_utils(self):
         """Test the orthogonality condition"""
         names = ['all']
         values = {
-            'g': torch.Tensor([0]),
-            'v0': torch.Tensor([1, 0, 2, 1]),
-            'betas': torch.Tensor([[1, 2, 3, 4], [.1, .2, .3, .4], [-1, -2, -3, -4]])
+            'g': torch.tensor([0.]),
+            'v0': torch.tensor([1., 0., 2., 1.]),
+            'betas': torch.tensor([[1., 2., 3., 4.], [.1, .2, .3, .4], [-1., -2., -3., -4.]])
         }
         self.attributes.update(names, values)
         dgamma_t0 = self.attributes.velocities
         mixing_matrix = self.attributes.mixing_matrix
 
         for mixing_column in mixing_matrix.permute(1, 0):
-            self.assertAlmostEqual(torch.dot(mixing_column, dgamma_t0),
-                                   0, delta=1e-6)
+            self.assertAlmostEqual(torch.dot(mixing_column, dgamma_t0).item(), 0, delta=1e-6)

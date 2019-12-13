@@ -19,7 +19,7 @@ class AttributesFactory:
         elif name == 'linear':
             return AttributesLinear(dimension, source_dimension)
         elif name == 'mixed_linear-logistic':
-            return AttributesLogistic(dimension, source_dimension) # TODO mixed check
+            return AttributesLogistic(dimension, source_dimension)  # TODO mixed check
         else:
             raise ValueError(
                 "The name {} you provided for the attributes is not related to an attribute class".format(name))

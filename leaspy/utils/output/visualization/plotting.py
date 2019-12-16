@@ -17,7 +17,7 @@ class Plotting():
 
         # Default plot parameters
         self.max_color = 8
-        self.color_palette = cm.get_cmap('Accent', self.max_color)
+        self.color_palette = cm.get_cmap('Set2', self.max_color)
         self.colors = self.color_palette(range(self.max_color))
         self.standard_size = (11, 6)
 

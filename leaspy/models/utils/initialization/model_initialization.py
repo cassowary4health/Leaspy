@@ -250,32 +250,22 @@ def initialize_univariate(dataset, method):
 
 def compute_patient_slopes_distribution(data):
     """
-    Linear Regression on each feature to get slopes mean and standard deviation.
+    Linear Regression on each feature to get slopes
 
-    Parameters
-    ----------
-    data: a leaspy.inputs.data.dataset.Dataset class object
-        Contains the scores of all the subjects.
-
-    Returns
-    -------
-    - slopes_mu: `torch.Tensor`
-        Mean per feature.
-    - slopes_sigma : `torch.Tensor`
-        Standard deviation per feature.
+    :param data: leaspy.inputs.data.dataset class object
+    :return: slopes_mu : list of floats, slopes_sigma : list of floats
     """
 
     # To Pandas
     df = data.to_pandas()
     df.set_index(["ID", "TIME"], inplace=True)
-    slopes_mu = torch.empty(data.dimension)
-    slopes_sigma = torch.empty(data.dimension)
+    slopes_mu, slopes_sigma = [], []
 
     for dim in range(data.dimension):
-        slope_dim_patients = torch.empty(data.n_individuals)
+        slope_dim_patients = []
         count = 0
 
-        for i, idx in enumerate(data.indices):
+        for idx in data.indices:
             # Select patient dataframe
             df_patient = df.loc[idx]
             df_patient_dim = df_patient.iloc[:, dim].dropna()
@@ -288,19 +278,19 @@ def compute_patient_slopes_distribution(data):
             # TODO : DO something if everyone has less than 2 visits
 
             # Linear regression
-            slope, _, _, _, _ = stats.linregress(x, y)
+            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
 
-            slope_dim_patients[i] = slope
+            slope_dim_patients.append(slope)
             count += 1
 
             # Stop at 50
             if count > 50:
                 break
 
-        slopes_mu[dim] = slope_dim_patients.mean()
-        slopes_sigma[dim] = slope_dim_patients.std()
+        slopes_mu.append(torch.mean(torch.tensor(slope_dim_patients)).item())
+        slopes_sigma.append(torch.mean(torch.tensor(slope_dim_patients)).item())
 
-    return slopes_mu, slopes_sigma
+    return torch.Tensor(slopes_mu), torch.Tensor(slopes_sigma)
 
 
 def compute_patient_values_distribution(data):

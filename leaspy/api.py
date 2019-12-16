@@ -11,6 +11,8 @@ from leaspy.models.model_factory import ModelFactory
 from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.inputs.data.result import Result
 
+from leaspy.utils.output.visualization.plotting import Plotting
+
 
 class Leaspy:
     """
@@ -61,6 +63,7 @@ class Leaspy:
         """
         self.model = ModelFactory.model(model_name)
         self.type = model_name
+        self.plotting = Plotting(self.model)
 
     @classmethod
     def load(cls, path_to_model_settings):
@@ -89,6 +92,10 @@ class Leaspy:
         leaspy.model.load_parameters(reader.parameters)
         leaspy.model.initialize_MCMC_toolbox()
         leaspy.model.is_initialized = True
+
+        # Update plotting
+        leaspy.plotting.update_model(leaspy.model)
+
         return leaspy
 
     def save(self, path):
@@ -155,6 +162,9 @@ class Leaspy:
         if not self.model.is_initialized:
             self.model.initialize(dataset)
         algorithm.run(dataset, self.model)
+
+        # Update plotting
+        self.plotting.update_model(self.model)
 
     def calibrate(self, data, algorithm_settings):
         """

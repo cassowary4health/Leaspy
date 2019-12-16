@@ -64,7 +64,7 @@ class Result:
     # def load_covariables(self, covariables, csv):
     #    self.covariables = covariables
 
-    def get_torch_individual_parameters(self):
+    def get_torch_individual_parameters(self, ID=None):
         """
         Getter function for the individual parameters.
 
@@ -73,12 +73,17 @@ class Result:
         torch.Tensor
             Contains the individual parameters
         """
-        # if ID is not None:
-        #     liste_idt = [self.ID_to_idx[id_patient] for id_patient in ID]
-        #     ind_parameters = {key : value[liste_idt] for key, value in self.individual_parameters.items()}
-        # else:
-        #     ind_parameters = self.individual_parameters.copy()
-        return self.individual_parameters.copy()
+
+        if ID is not None:
+            # If not list, convert to list
+            if type(ID) != list:
+                ID = [ID]
+
+            liste_idt = [self.ID_to_idx[id_patient] for id_patient in ID]
+            ind_parameters = {key : value[liste_idt] for key, value in self.individual_parameters.items()}
+        else:
+            ind_parameters = self.individual_parameters.copy()
+        return ind_parameters
 
     # TODO: unit test & functional test
     def get_dataframe_individual_parameters(self, cofactors=None):

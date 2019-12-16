@@ -68,7 +68,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
     def compute_sufficient_statistics(self, data, realizations):
         sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()[0]
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()
         sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations.detach()
         if self.source_dimension != 0:
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
@@ -90,7 +90,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
     def update_model_parameters_burn_in(self, data, realizations):
 
-        self.parameters['g'] = realizations['g'].tensor_realizations.detach()[0]
+        self.parameters['g'] = realizations['g'].tensor_realizations.detach()
         self.parameters['deltas'] = realizations['deltas'].tensor_realizations.detach()
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations.detach()

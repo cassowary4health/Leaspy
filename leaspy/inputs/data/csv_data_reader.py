@@ -27,6 +27,8 @@ class CSVDataReader:
     @staticmethod
     def _get_timepoint(idx, timepoint):
         try:
+            if timepoint != timepoint:
+                raise ValueError('One of the time value of individual {} is NaN'.format(idx))
             return float(timepoint)
         except ValueError:
             print('The timepoint {} of individual {} cannot be converted to float'.format(timepoint, idx))

@@ -35,6 +35,9 @@ class DataframeDataReader:
         for k, v in df.iterrows():
             idx = k[0]
             timepoint = k[1]
+            if timepoint != timepoint:
+                raise ValueError('One of the time value of individual {} is NaN'.format(idx))
+
             observation = v.values
             self._check_observation(observation)
 

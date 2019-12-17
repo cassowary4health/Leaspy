@@ -184,7 +184,7 @@ def initialize_logistic_parallel(model, dataset, method):
     return parameters
 
 
-def initialize_linear(model, dataset):
+def initialize_linear(model, dataset, method):
     """
     Initialize the linear model's group parameters.
 
@@ -203,12 +203,13 @@ def initialize_linear(model, dataset):
     """
     sum_ages = torch.sum(dataset.timepoints).item()
     nb_nonzeros = (dataset.timepoints != 0).sum()
+
     t0 = float(sum_ages) / float(nb_nonzeros)
 
     df = dataset.to_pandas()
     df.set_index(["ID", "TIME"], inplace=True)
 
-    positions, velocities = [], []
+    positions, velocities = [[] for _ in range(model.dimension)], [[] for _ in range(model.dimension)]
 
     for idx in dataset.indices:
         indiv_df = df.loc[idx]
@@ -218,18 +219,29 @@ def initialize_linear(model, dataset):
         if len(ages) == 1:
             continue
 
-        slopes, values = [], []
         for dim in range(model.dimension):
-            slope, intercept, _, _, _ = stats.linregress(ages, features[:, dim])
-            slopes.append(slope)
-            value = intercept + t0 * slope
-            values.append(value)
 
-        velocities.append(slopes)
-        positions.append(values)
+            X, y = [], []
+            for i, f in enumerate(features[:, dim]):
+                if f == f:
+                    X.append(f)
+                    y.append(ages[i])
 
-    positions = torch.mean(torch.tensor(positions, dtype=torch.float32), 0)
-    velocities = torch.mean(torch.tensor(velocities, dtype=torch.float32), 0)
+
+            if len(X) < 2:
+                break
+            else:
+                slope, intercept, _, _, _ = stats.linregress(X, y)
+
+                value = intercept + t0 * slope
+
+                velocities[dim].append(slope)
+                positions[dim].append(value)
+
+    positions = [torch.Tensor(_) for _ in positions]
+    positions = torch.tensor([torch.mean(_) for _ in positions], dtype=torch.float32)
+    velocities = [torch.Tensor(_) for _ in velocities]
+    velocities = torch.tensor([torch.mean(_) for _ in velocities], dtype=torch.float32)
 
     parameters = {
         'g': positions,

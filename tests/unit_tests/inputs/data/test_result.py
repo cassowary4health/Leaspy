@@ -1,12 +1,13 @@
+import filecmp
 import os
 import unittest
-import pandas as pd
 
-from leaspy import Leaspy
-from leaspy import Data
-from leaspy.inputs.data.result import Result
-from tests import example_data_path
-from tests import test_data_dir
+import pandas as pd
+import torch
+from numpy import allclose
+
+from leaspy import Data, Result
+from tests import example_data_path, test_data_dir
 
 
 class ResultTest(unittest.TestCase):
@@ -25,7 +26,7 @@ class ResultTest(unittest.TestCase):
         load_individual_parameters_path = os.path.join(test_data_dir,
                                                        "individual_parameters",
                                                        "data_tiny-individual_parameters.json")
-        individual_parameters = Leaspy.load_individual_parameters(load_individual_parameters_path)
+        individual_parameters = Result.load_individual_parameters(load_individual_parameters_path)
 
         self.results = Result(data, individual_parameters)
         if get:
@@ -38,6 +39,46 @@ class ResultTest(unittest.TestCase):
         for key in self.results.individual_parameters.keys():
             self.assertEqual(len(self.results.individual_parameters[key]), 17)
         self.assertEqual(self.results.noise_std, None)
+
+    def test_save_individual_parameters(self):
+        path_original = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters.json")
+        path_copy = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters-copy.json")
+        self.results.save_individual_parameters(path_copy)
+        self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
+
+        # Test to save only several subjects
+        idx = ['116', '142', '169']
+        path_original = os.path.join(test_data_dir, "individual_parameters",
+                                     "data_tiny-individual_parameters-3subjects.json")
+        path_copy = os.path.join(test_data_dir, "individual_parameters",
+                                 "data_tiny-individual_parameters-3subjects-copy.json")
+        self.results.save_individual_parameters(path_copy, idx)
+        self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
+
+    def test_load_individual_parameters(self, ind_param=None):
+        if ind_param is None:
+            ind_param = self.results.individual_parameters
+        self.assertEqual(type(ind_param), dict)
+        self.assertEqual(list(ind_param.keys()), ['tau', 'xi', 'sources'])
+        for key in ind_param.keys():
+            self.assertEqual(type(ind_param[key]), torch.Tensor)
+            self.assertEqual(ind_param[key].dtype, torch.float32)
+            self.assertEqual(ind_param[key].dim(), 2)
+            self.assertEqual(ind_param[key].shape[0], 17)
+
+    def test_load_result(self):
+        path_original = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters.json")
+        results = Result.load_result(example_data_path, path_original)
+        df = results.data.to_dataframe()
+        df2 = self.results.data.to_dataframe()
+        self.assertTrue(allclose(df.loc[:, df.columns != 'ID'].values,
+                                 df2.loc[:, df2.columns != 'ID'].values))
+        self.test_load_individual_parameters(ind_param=results.individual_parameters)
+
+    ###############################################################
+    # DEPRECATION WARNINGS
+    # The corresponding methods will be removed in a future release
+    ###############################################################
 
     def test_get_cofactor_distribution(self):
         self.assertEqual(self.results.get_cofactor_distribution('Treatments'),
@@ -67,4 +108,3 @@ class ResultTest(unittest.TestCase):
         self.assertEqual(list(xi_treatment_param.keys()), ["Treatment_A", "Treatment_B"])
         self.assertEqual(len(xi_treatment_param['Treatment_A']),
                          self.cofactors[self.cofactors['Treatments'] == 'Treatment_A'].shape[0])
-

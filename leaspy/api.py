@@ -46,6 +46,12 @@ class Leaspy:
     simulate(results, settings)
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
+
+    Depreciated in a future release:
+    save_individual_parameters(path, individual_parameters, human_readable)
+        Save individual parameters coming from leaspy Result class object.
+    load_individual_parameters(path, verbose)
+        Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
     """
 
     def __init__(self, model_name):
@@ -341,7 +347,8 @@ class Leaspy:
         >>> individual_results_seed0 = leaspy_logistic_seed0.personalize(data, model_settings)
         >>> Leaspy.save_individual_parameters('outputs/logistic_seed0-mode_real_seed0-individual_parameter.json')
         """
-        warnings.warn("This method will soon be removed!", DeprecationWarning)
+        warnings.warn("This method will soon be removed! Use instead `Result.save_individual_parameters`.",
+                      DeprecationWarning)
         # Test path's folder existence (if path contain a folder)
         if os.path.dirname(path) != '':
             if not os.path.isdir(os.path.dirname(path)):
@@ -355,7 +362,6 @@ class Leaspy:
         # Create a human readable file with json
         if human_readable:
             for key in dump.keys():
-
                 if type(dump[key]) not in [list]:
                     # For multivariate parameter - like sources
                     # convert tensor([[1, 2], [2, 3]]) into [[1, 2], [2, 3]]
@@ -399,7 +405,8 @@ class Leaspy:
         >>> individual_parameters = Leaspy.load_individual_parameters('outputs/logistic_seed0-mode_real_seed0-individual_parameter.json')
         >>> individual_results_seed0 = Result(data, individual_parameters)
         """
-        warnings.warn("This method will soon be removed!", DeprecationWarning)
+        warnings.warn("This method will soon be removed! Use instead `Result.load_individual_parameters`.",
+                      DeprecationWarning)
         # Test if file is a torch file
         try:
             individual_parameters = load(path)  # load function from torch

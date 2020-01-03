@@ -35,10 +35,12 @@ class Result:
         Return the dataframe of the individual parameters.
     get_torch_individual_parameters()
         Getter function for the individual parameters.
-    save_individual_parameters(path, individual_parameters, human_readable=True)
-        Save individual parameters coming from leaspy Result class object.
-    load_individual_parameters(path, verbose=True)
-        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor.
+    save_individual_parameters(self, path, idx, human_readable)
+        Save the individual parameters.
+    load_individual_parameters(path, verbose)
+        Load individual parameters from a json file or a torch file as a dictionary of Torch.tensor.
+    load_result(path_data, path_individual_parameters, verbose)
+        Load a Result class object from two file - one for the individual data & one for the individual parameters.
 
     Depreciated in a futur release:
         get_cofactor_distribution(cofactor)
@@ -251,7 +253,7 @@ class Result:
     @staticmethod
     def load_individual_parameters(path, verbose=True):
         """
-        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor.
+        Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
 
         Parameters
         ----------
@@ -325,11 +327,11 @@ class Result:
         >>> path_data = 'data/my_leaspy_data.csv'
         >>> path_individual_parameters = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.json'
         >>> individual_results.data.to_dataframe().to_csv(path_data)
-        >>> individual_results.save_individual_parameters(output_path)
+        >>> individual_results.save_individual_parameters(path_individual_parameters)
         >>> individual_parameters = Result.load_result(path_data, path_individual_parameters)
         """
         data = Data.from_csv_file(path_data)
-        individual_parameters = Result.load_individual_parameters(path_individual_parameters)
+        individual_parameters = Result.load_individual_parameters(path_individual_parameters, verbose=verbose)
         return Result(data, individual_parameters)
 
     ###############################################################

@@ -23,9 +23,7 @@ class Plotter:
     def plot_mean_trajectory(self, model, **kwargs):
         # colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
 
-
-
-        labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_' + str(i) for i in range(model.dimension)]
+        labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
         colors = color_palette(range(8))
@@ -51,7 +49,7 @@ class Plotter:
 
             for i in range(mean_trajectory.shape[-1]):
                 ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
-                        linewidth=4, alpha=0.9, c=colors[i])  # , c=colors[i])
+                        linewidth=4, alpha=0.9)#, c=colors[i])  # , c=colors[i])
             plt.legend()
 
         else:

@@ -169,17 +169,18 @@ class MultivariateModel(AbstractMultivariateModel):
                                                                  self.get_param_from_real(realizations),
                                                                  attribute_type='MCMC')
 
-        # TODO : Remove norm_0 to directly get data.L2_norm in update_model_parameters
-        norm_0 = data.values * data.values * data.mask.float()
+
+
         norm_1 = data.values * data_reconstruction * data.mask.float()
         norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
-        sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
+
         sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
         sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
 
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
+        # if self.name == 'logistic':
         realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm
@@ -198,6 +199,7 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations
         xi = realizations['xi'].tensor_realizations
+        # self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
         tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
@@ -242,7 +244,7 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         # self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        S1 = torch.sum(suff_stats['obs_x_obs'])
+        S1 = data.L2_norm
         S2 = torch.sum(suff_stats['obs_x_reconstruction'])
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 

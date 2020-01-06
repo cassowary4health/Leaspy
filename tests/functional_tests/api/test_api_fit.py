@@ -45,7 +45,7 @@ class LeaspyFitTest(unittest.TestCase):
         # Fit the model on the data
         leaspy.fit(data, algorithm_settings=algo_settings)
 
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'],0.2641, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2641, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 70.4093, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 2.2325, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.1897, delta=0.001)

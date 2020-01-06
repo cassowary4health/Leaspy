@@ -1,5 +1,6 @@
 from scipy.optimize import minimize
 import torch
+import numpy as np
 
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 
@@ -218,8 +219,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         for j, name_variable in enumerate(model.get_individual_variable_name()):
             individual_parameters[name_variable] = []
 
-        errors = []
-
         for idx in range(data.n_individuals):
             times = data.get_times_patient(idx)  # torch.Tensor
             values = data.get_values_patient(idx)  # torch.Tensor
@@ -229,11 +228,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             for j, name_variable in enumerate(model.get_individual_variable_name()):
                 individual_parameters[name_variable].append(torch.tensor([ind_patient[j]], dtype=torch.float32))
 
-            # The error can contain nan values
-            errors += [_ for _ in err.squeeze().tolist() if _ == _]
-
-        # Print noise level
-        print(torch.std(torch.tensor(errors)))
 
         infos = model.random_variable_informations()
         # TODO change for cleaner shape update

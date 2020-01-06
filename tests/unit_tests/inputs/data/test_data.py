@@ -18,7 +18,7 @@ class DataTest(unittest.TestCase):
         self.assertEqual(data.dimension, 1)
         self.assertEqual(data.n_individuals, 7)
         self.assertEqual(data.n_visits, 33)
-        self.assertEqual(data.n_observations, 33)
+
 
         self.assertEqual(individual.idx, '027_S_0179')
         self.assertEqual(individual.timepoints, [80.9, 81.9, 82.4, 82.8])
@@ -35,7 +35,7 @@ class DataTest(unittest.TestCase):
         self.assertEqual(data.dimension, 3)
         self.assertEqual(data.n_individuals, 5)
         self.assertEqual(data.n_visits, 18)
-        self.assertEqual(data.n_observations, 54)
+
 
         self.assertEqual(individual.idx, '130_S_0102')
         self.assertEqual(individual.timepoints, [71.3, 71.8])

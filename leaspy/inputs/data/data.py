@@ -19,7 +19,7 @@ class Data:
         self.dimension = None
         self.n_individuals = 0
         self.n_visits = 0
-        self.n_observations = 0
+
         self.iter = 0
 
     def get_by_idx(self, idx):
@@ -135,7 +135,6 @@ class Data:
         data.dimension = reader.dimension
         data.n_individuals = reader.n_individuals
         data.n_visits = reader.n_visits
-        data.n_observations = reader.n_observations
 
         return data
 
@@ -163,6 +162,5 @@ class Data:
 
             # Update Data metrics
             data.n_visits += len(timepoints[i])
-            data.n_observations += len(timepoints) * data.dimension
 
         return data

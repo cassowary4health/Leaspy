@@ -77,9 +77,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Estimate individual parametersabstr
         individual_parameters = self._get_individual_parameters(model, data)
 
-        # Compute the noise with the estimated individual paraeters
+        # Compute the noise with the estimated individual parameters
         squared_diff = model.compute_sum_squared_tensorized(data, individual_parameters).sum()
-        noise_std = math.sqrt(float(squared_diff.detach().tolist()) / (data.n_visits * data.dimension))
+        noise_std = math.sqrt(float(squared_diff.detach().tolist()) / (data.n_observations))
 
         # Print run infos
         time_end = time.time()

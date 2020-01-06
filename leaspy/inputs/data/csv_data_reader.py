@@ -10,7 +10,7 @@ class CSVDataReader:
         self.dimension = None
         self.n_individuals = 0
         self.n_visits = 0
-        self.n_observations = 0
+
 
         self._read(path)
 
@@ -68,4 +68,4 @@ class CSVDataReader:
 
                     self.individuals[idx].add_observation(timepoint, observation)
                     self.n_visits += 1
-                    self.n_observations += len(observation)
+

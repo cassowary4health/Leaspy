@@ -100,7 +100,6 @@ class AbstractModel:
             Contain one residuals for each subject? Visit? Sub-score?
         """
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-        res *= data.mask.float()
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
     # TODO: unit & functional tests

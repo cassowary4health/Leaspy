@@ -24,7 +24,6 @@ class DataframeDataReaderTest(unittest.TestCase):
         self.assertEqual(reader.dimension, 1)
         self.assertEqual(reader.n_individuals, 7)
         self.assertEqual(reader.n_visits, 33)
-        self.assertEqual(reader.n_observations, 33)
 
     def test_constructor_multivariate(self):
         path = os.path.join(test_data_dir, 'inputs', 'multivariate_data.csv')
@@ -41,4 +40,3 @@ class DataframeDataReaderTest(unittest.TestCase):
         self.assertEqual(reader.dimension, 3)
         self.assertEqual(reader.n_individuals, 5)
         self.assertEqual(reader.n_visits, 18)
-        self.assertEqual(reader.n_observations, 54)

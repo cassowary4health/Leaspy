@@ -180,7 +180,6 @@ class MultivariateModel(AbstractMultivariateModel):
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
-        # if self.name == 'logistic':
         realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm
@@ -199,7 +198,6 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations
         xi = realizations['xi'].tensor_realizations
-        # self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
         tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
@@ -211,15 +209,15 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
 
         # TODO : This is just for debugging of linear
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints,
-                                                                 self.get_param_from_real(realizations),
-                                                                 attribute_type='MCMC')
-        norm_0 = data.values * data.values * data.mask.float()
-        norm_1 = data.values * data_reconstruction * data.mask.float()
-        norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
-        S1 = torch.sum(torch.sum(norm_0, dim=2))
-        S2 = torch.sum(torch.sum(norm_1, dim=2))
-        S3 = torch.sum(torch.sum(norm_2, dim=2))
+        #data_reconstruction = self.compute_individual_tensorized(data.timepoints,
+        #                                                         self.get_param_from_real(realizations),
+        #                                                         attribute_type='MCMC')
+        #norm_0 = data.values * data.values * data.mask.float()
+        #norm_1 = data.values * data_reconstruction * data.mask.float()
+        #norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
+        #S1 = torch.sum(torch.sum(norm_0, dim=2))
+        #S2 = torch.sum(torch.sum(norm_1, dim=2))
+        #S3 = torch.sum(torch.sum(norm_2, dim=2))
 
         # print("During burn-in : ", torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits)), torch.sqrt(squared_diff / (data.n_visits * data.dimension)))
 

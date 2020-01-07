@@ -191,7 +191,7 @@ class LeaspyTest(unittest.TestCase):
         # Check ID before - str doesn't seem to work with numpy.allclose
         self.assertTrue(id_simulation_is_reproducible)
 
-        round_decimal = 6
+        round_decimal = 5
         simulation_is_reproducible = allclose(simulation_df.loc[:, simulation_df.columns != 'ID'].values,
                                               simulation_results.data.to_dataframe().
                                               loc[:, simulation_results.data.to_dataframe().columns != 'ID'].values,
@@ -199,7 +199,7 @@ class LeaspyTest(unittest.TestCase):
         # Use of numpy.allclose instead of pandas.testing.assert_frame_equal because of buggy behaviour reported
         # in https://github.com/pandas-dev/pandas/issues/22052
 
-        # If reproducibility error > 1e-6 => display it + visit with the biggest reproducibility error
+        # If reproducibility error > 1e-5 => display it + visit with the biggest reproducibility error
         if not simulation_is_reproducible:
             simulation_df = pd.read_csv(
                 os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"))
@@ -210,7 +210,7 @@ class LeaspyTest(unittest.TestCase):
             tol = 10 ** (-round_decimal)
             for v1, v2 in zip(simulation_df.values.tolist(),
                               simulation_results.data.to_dataframe().values.tolist()):
-                diff = [val1 - val2 for val1, val2 in zip(v1, v2)]
+                diff = [abs(val1 - val2) for val1, val2 in zip(v1, v2)]
                 if max(diff) > tol:
                     count += 1
                 if max(diff) > max_diff:

@@ -1,16 +1,16 @@
+import json
 import os
 import unittest
-import json
 
-from numpy import allclose
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 import torch
+from numpy import allclose
 
-from tests import test_data_dir
 from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
-from tests import example_data_path
 from leaspy.inputs.data.result import Result
+from tests import example_data_path
+from tests import test_data_dir
 
 
 # def ordered(obj):
@@ -195,7 +195,7 @@ class LeaspyTest(unittest.TestCase):
         simulation_is_reproducible = allclose(simulation_df.loc[:, simulation_df.columns != 'ID'].values,
                                               simulation_results.data.to_dataframe().
                                               loc[:, simulation_results.data.to_dataframe().columns != 'ID'].values,
-                                              atol=10 ** (-round_decimal), rtol=1e-15)
+                                              atol=10 ** (-round_decimal), rtol=10 ** (-round_decimal))
         # Use of numpy.allclose instead of pandas.testing.assert_frame_equal because of buggy behaviour reported
         # in https://github.com/pandas-dev/pandas/issues/22052
 

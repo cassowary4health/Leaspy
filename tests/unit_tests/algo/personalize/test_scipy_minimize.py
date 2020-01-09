@@ -1,6 +1,7 @@
 import os
 import unittest
 import torch
+import numpy as np
 
 from tests import test_data_dir
 from leaspy.api import Leaspy
@@ -83,8 +84,12 @@ class ScipyMinimizeTest(unittest.TestCase):
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
         leaspy = Leaspy.load(multivariate_path)
 
-        settings = AlgorithmSettings('scipy_minimize')
+        settings = AlgorithmSettings('scipy_minimize', seed=0)
         algo = ScipyMinimize(settings)
+
+        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
+        algo._initialize_seed(algo.seed)
+        self.assertEqual(algo.seed, np.random.get_state()[1][0])
 
         times = torch.tensor([70, 80])
 

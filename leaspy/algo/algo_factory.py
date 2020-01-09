@@ -85,6 +85,5 @@ class AlgoFactory:
         if name not in compatibility_algorithms[algorithm_class]:
             raise ValueError("Chosen algorithm is not compatible with method : {0} \n"
                              "please choose one in the following method list : {1}".format(name,
-                                                                                           compatibility_algorithms[
-                                                                                               name]))
+                                                                                           compatibility_algorithms[algorithm_class]))
 

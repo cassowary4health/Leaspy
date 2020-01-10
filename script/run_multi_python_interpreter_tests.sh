@@ -10,9 +10,11 @@ for TOOL in "${NEEDED_TOOLS[@]}"; do
     hash ${TOOL} >/dev/null 2>&1 || { echo >&2 "${TOOL} is required but it's not installed. Aborting."; exit 1; }
 done
 
+# update pyenv
+cd $(pyenv root) && git pull && cd -
 
 # setup multiple python versions
-PYTHON_VERSIONS=(3.6.9 3.7.4)
+PYTHON_VERSIONS=(3.6.10 3.7.6)
 for PYTHON_VERSION in "${PYTHON_VERSIONS[@]}"; do
     echo "Setting pyenv python version ${PYTHON_VERSION}";
     pyenv install -s ${PYTHON_VERSION}

@@ -66,6 +66,7 @@ setup(name="leaspy",
                 'leaspy.utils.output',
                 'leaspy.utils.output.visualization',
                 'leaspy.utils.realizations',
+                'leaspy.utils.parallel',
                 ],
 
       install_requires=requirements,

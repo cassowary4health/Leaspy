@@ -10,6 +10,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
     def __init__(self, settings):
         super(ScipyMinimize, self).__init__(settings)
 
+        self.minimize_kwargs = {
+            'method': "Powell",
+            'options': {
+                'xtol': 1e-4,
+                'ftol': 1e-4
+            },
+            # 'tol': 1e-6
+        }
+
     def _set_model_name(self, name):
         """
         Set name attribute.
@@ -187,7 +196,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         res = minimize(obj,
                        x0=initial_value,
                        args=(model, timepoints, values),
-                       method="Powell"
+                       **self.minimize_kwargs
                        )
 
         if res.success is not True:

@@ -1,6 +1,7 @@
 import os
 import unittest
 import torch
+import numpy as np
 
 from tests import test_data_dir
 from leaspy.api import Leaspy
@@ -83,8 +84,15 @@ class ScipyMinimizeTest(unittest.TestCase):
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
         leaspy = Leaspy.load(multivariate_path)
 
-        settings = AlgorithmSettings('scipy_minimize')
+        settings = AlgorithmSettings('scipy_minimize', seed=0)
         algo = ScipyMinimize(settings)
+
+        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
+        tol = 5e-3
+
+        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
+        algo._initialize_seed(algo.seed)
+        self.assertEqual(algo.seed, np.random.get_state()[1][0])
 
         times = torch.tensor([70, 80])
 
@@ -94,15 +102,16 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 78.93283994514304, delta=10e-8)
-        self.assertAlmostEqual(individual_parameters[1], -0.07679465847751077, delta=10e-8)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.07733279, delta=10e-8)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.57428166, delta=10e-8)
+        self.assertAlmostEqual(individual_parameters[0], 78.93283994514304, delta=tol)
+        self.assertAlmostEqual(individual_parameters[1], -0.07679465847751077, delta=tol)
+        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.07733279, delta=tol)
+        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.57428166, delta=tol)
 
         err_expected = torch.tensor([[
             [-0.4958, -0.3619, -0.3537, -0.4497],
             [0.1650, -0.0948,  0.1361, -0.1050]]])
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=10e-9)
+
+        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
 
         # Test with nan
         values = torch.tensor([[0.5, 0.4, 0.4, float('nan')], [0.3, float('nan'), float('nan'), 0.4]])
@@ -110,10 +119,10 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 78.82484683798302, delta=10e-8)
-        self.assertAlmostEqual(individual_parameters[1], -0.07808162619234782, delta=10e-8)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.17007795, delta=10e-8)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.63483322, delta=10e-8)
+        self.assertAlmostEqual(individual_parameters[0], 78.82484683798302, delta=tol)
+        self.assertAlmostEqual(individual_parameters[1], -0.07808162619234782, delta=tol)
+        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.17007795, delta=tol)
+        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.63483322, delta=tol)
 
         nan_positions = torch.tensor([
             [False, False, False, True],
@@ -126,4 +135,5 @@ class ScipyMinimizeTest(unittest.TestCase):
         err_expected = torch.tensor([[
             [-0.4957, -0.3613, -0.3516, 0.],
             [0.1718, 0., 0., -0.0796]]])
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=10e-8)
+
+        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)

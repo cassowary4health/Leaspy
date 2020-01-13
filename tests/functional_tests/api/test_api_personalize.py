@@ -1,15 +1,14 @@
-import unittest
-from leaspy import Leaspy, Data, AlgorithmSettings
-
-from tests import example_logisticmodel_path
-from tests import example_data_path
-
 import os
+import unittest
+
+from leaspy import Leaspy, Data, AlgorithmSettings
+from tests import example_data_path
+from tests import example_logisticmodel_path
 
 
 class LeaspyPersonalizeTest(unittest.TestCase):
 
-    ## Test MCMC-SAEM
+    # Test MCMC-SAEM
 
     def test_personalize_meanrealization(self):
         """
@@ -29,7 +28,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
 
         self.assertAlmostEqual(result.noise_std,  0.108, delta=0.01)
 
-
     def test_personalize_scipy(self):
         """
         Load logistic model from file, and personalize it to data from ...
@@ -46,7 +44,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
         self.assertAlmostEqual(result.noise_std,  0.1169, delta=0.01)
-
 
     def test_personalize_modereal(self):
         """
@@ -65,7 +62,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
         self.assertAlmostEqual(result.noise_std,   0.12152, delta=0.01)
-
 
     # TODO : problem with nans
     """

@@ -1,6 +1,13 @@
-import torch
-import pandas as pd
+import copy
+import json
+import os
 import warnings
+from pickle import UnpicklingError
+
+import pandas as pd
+import torch
+
+from leaspy.inputs.data.data import Data
 
 
 class Result:
@@ -28,6 +35,12 @@ class Result:
         Return the dataframe of the individual parameters.
     get_torch_individual_parameters()
         Getter function for the individual parameters.
+    save_individual_parameters(self, path, idx, human_readable)
+        Save the individual parameters.
+    load_individual_parameters(path, verbose)
+        Load individual parameters from a json file or a torch file as a dictionary of Torch.tensor.
+    load_result(path_data, path_individual_parameters, verbose)
+        Load a Result class object from two file - one for the individual data & one for the individual parameters.
 
     Depreciated in a futur release:
         get_cofactor_distribution(cofactor)
@@ -80,7 +93,7 @@ class Result:
                 ID = [ID]
 
             liste_idt = [self.ID_to_idx[id_patient] for id_patient in ID]
-            ind_parameters = {key : value[liste_idt] for key, value in self.individual_parameters.items()}
+            ind_parameters = {key: value[liste_idt] for key, value in self.individual_parameters.items()}
         else:
             ind_parameters = self.individual_parameters.copy()
         return ind_parameters
@@ -171,6 +184,160 @@ class Result:
             df_individual_parameters = df_individual_parameters.join(df_cofactors)
 
         return df_individual_parameters
+
+    # TODO: save the individual parameters DataFrame in a csv file + select the wanted cofactors & cofactors' states.
+    def save_individual_parameters(self, path, idx=None, human_readable=True):
+        """
+        Save the individual parameters.
+
+        Parameters
+        ----------
+        path: `str`
+            The output's path.
+        idx: `list` [`str`] (default None)
+            Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
+        human_readable: `bool` (default True)
+            If set to True => save a json object.
+            If set to False => save a torch object (which cannot be read from a text editor).
+
+        Examples
+        --------
+        Save the individual parameters of the twenty first subjects.
+
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy
+        >>> leaspy_logistic = Leaspy('logistic')
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
+        >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
+        >>> leaspy_logistic.fit(data, model_settings)
+        >>> individual_results = leaspy_logistic.personalize(data, model_settings)
+        >>> output_path = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.json'
+        >>> idx = list(individual_results.individual_parameters.keys())[:20]
+        >>> individual_results.save_individual_parameters(output_path, idx)
+        """
+        # Test path's folder existence (if path contain a folder)
+        if os.path.dirname(path) != '':
+            if not os.path.isdir(os.path.dirname(path)):
+                raise FileNotFoundError(
+                    'Cannot save individual parameter at path %s - The folder does not exist!' % path)
+                # Question : add 'make_dir = True' parameter to create the folder if it does not exist?
+
+        dump = copy.deepcopy(self.individual_parameters)
+        # Ex: individual_parameters = {'param1': torch.tensor([[1], [2], [3]]), ...}
+
+        # Select only the wanted subjects
+        if idx is not None:
+            selected_id = [self.ID_to_idx[val] for val in idx]
+            dump = {key: val[selected_id] for key, val in dump.items()}
+
+        # Create a human readable file with json
+        if human_readable:
+            for key in dump.keys():
+
+                if type(dump[key]) not in [list]:
+                    # For multivariate parameter - like sources
+                    # convert tensor([[1, 2], [2, 3]]) into [[1, 2], [2, 3]]
+                    if dump[key].shape[1] == 2:
+                        dump[key] = dump[key].tolist()
+                    # for univariate parameters - like xi & tau
+                    # convert tensor([[1], [2], [3]]) into [1, 2, 3] => use torch.tensor.view(-1)
+                    elif dump[key].shape[1] == 1:
+                        dump[key] = dump[key].view(-1).tolist()
+            with open(path, 'w') as fp:
+                json.dump(dump, fp)
+
+        # Create a torch file
+        else:
+            torch.save(dump, path)  # save function from torch
+
+    @staticmethod
+    def load_individual_parameters(path, verbose=True):
+        """
+        Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
+
+        Parameters
+        ----------
+        path: `str`
+            The file's path.
+        verbose: `bool` (default True)
+            Precise if the loaded file can be read as a torch file or need conversion.
+
+        Returns
+        -------
+        `dict`
+            A dictionary of torch.tensor which contains the individual parameters.
+
+        Examples
+        --------
+        Load an individual parameters dictionary from a saved file.
+
+        >>> from leaspy import Result
+        >>> path = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.json'
+        >>> individual_parameters = Result.load_individual_parameters(path)
+        """
+        # Test if file is a torch file
+        try:
+            individual_parameters = torch.load(path)  # load function from torch
+            if verbose:
+                print("Load from torch file")
+        except UnpicklingError:
+            # Else if it is a json file
+            with open(path, 'r') as f:
+                individual_parameters = json.load(f)
+                if verbose:
+                    print("Load from json file ... conversion to torch file")
+                for key in individual_parameters.keys():
+                    # Convert every list in torch.tensor
+                    individual_parameters[key] = torch.tensor(individual_parameters[key])
+                    # If tensor is 1-dimensional tensor([1, 2, 3]) => reshape it in tensor([[1], [2], [3]])
+                    if individual_parameters[key].dim() == 1:
+                        individual_parameters[key] = individual_parameters[key].view(-1, 1)
+        return individual_parameters
+
+    @staticmethod
+    def load_result(path_data, path_individual_parameters, verbose=True):
+        """
+        Load a Result class object from two file - one for the individual data & one for the individual parameters.
+
+        Parameters
+        ----------
+        path_data: `str`
+            The individual data's path. Must be a csv.
+        path_individual_parameters: `str`
+            The individual parameters' path. Must be a json or a torch file.
+        verbose: `bool` (default True)
+            Precise if the loaded file can be read as a torch file or need conversion.
+
+        Returns
+        -------
+        `Result`
+            A Result class object which contains the individual parameters and the individual data.
+
+        Examples
+        --------
+        Launch an individual parameters estimation, save it and reload it.
+
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy, Result
+        >>> leaspy_logistic = Leaspy('logistic')
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv')
+        >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
+        >>> leaspy_logistic.fit(data, model_settings)
+        >>> individual_results = leaspy_logistic.personalize(data, model_settings)
+        >>> path_data = 'data/my_leaspy_data.csv'
+        >>> path_individual_parameters = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.json'
+        >>> individual_results.data.to_dataframe().to_csv(path_data)
+        >>> individual_results.save_individual_parameters(path_individual_parameters)
+        >>> individual_parameters = Result.load_result(path_data, path_individual_parameters)
+        """
+        data = Data.from_csv_file(path_data)
+        individual_parameters = Result.load_individual_parameters(path_individual_parameters, verbose=verbose)
+        return Result(data, individual_parameters)
+
+    ###############################################################
+    # DEPRECATION WARNINGS
+    # These following methods will be removed in a future release
+    ###############################################################
 
     @staticmethod
     def get_cofactor_states(cofactors):

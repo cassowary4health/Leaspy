@@ -1,16 +1,16 @@
 import copy
 import json
 import os
+import warnings
 from pickle import UnpicklingError
 
-from torch import load, save, tensor
+from torch import float32, load, save, tensor
 
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.inputs.data.dataset import Dataset
-from leaspy.models.model_factory import ModelFactory
-from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.inputs.data.result import Result
-
+from leaspy.inputs.settings.model_settings import ModelSettings
+from leaspy.models.model_factory import ModelFactory
 from leaspy.utils.output.visualization.plotting import Plotting
 
 
@@ -46,10 +46,12 @@ class Leaspy:
     simulate(results, settings)
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
-    save_individual_parameters(path, individual_parameters, human_readable=True)
+
+    Depreciated in a future release:
+    save_individual_parameters(path, individual_parameters, human_readable)
         Save individual parameters coming from leaspy Result class object.
-    load_individual_parameters(path, verbose=True)
-        Load individual parameters from a json file or a torch file as a dictionary of torch.tensor.
+    load_individual_parameters(path, verbose)
+        Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
     """
 
     def __init__(self, model_name):
@@ -300,6 +302,23 @@ class Leaspy:
         individual_trajectory = self.model.compute_individual_trajectory(timepoints, individual_parameters)
         return individual_trajectory
 
+    def check_if_initialized(self):
+        """
+        Check if model is initialized.
+
+        Raises
+        ------
+        ValueError
+            Raise an error if the model has not been initialized.
+        """
+        if not self.model.is_initialized:
+            raise ValueError("Model has not been initialized")
+
+    ###############################################################
+    # DEPRECATION WARNINGS
+    # These following methods will be removed in a future release
+    ###############################################################
+
     @staticmethod
     def save_individual_parameters(path, individual_parameters, human_readable=True):
         """
@@ -328,6 +347,8 @@ class Leaspy:
         >>> individual_results_seed0 = leaspy_logistic_seed0.personalize(data, model_settings)
         >>> Leaspy.save_individual_parameters('outputs/logistic_seed0-mode_real_seed0-individual_parameter.json')
         """
+        warnings.warn("This method will soon be removed! Use instead `Result.save_individual_parameters`.",
+                      DeprecationWarning)
         # Test path's folder existence (if path contain a folder)
         if os.path.dirname(path) != '':
             if not os.path.isdir(os.path.dirname(path)):
@@ -341,7 +362,6 @@ class Leaspy:
         # Create a human readable file with json
         if human_readable:
             for key in dump.keys():
-
                 if type(dump[key]) not in [list]:
                     # For multivariate parameter - like sources
                     # convert tensor([[1, 2], [2, 3]]) into [[1, 2], [2, 3]]
@@ -385,6 +405,8 @@ class Leaspy:
         >>> individual_parameters = Leaspy.load_individual_parameters('outputs/logistic_seed0-mode_real_seed0-individual_parameter.json')
         >>> individual_results_seed0 = Result(data, individual_parameters)
         """
+        warnings.warn("This method will soon be removed! Use instead `Result.load_individual_parameters`.",
+                      DeprecationWarning)
         # Test if file is a torch file
         try:
             individual_parameters = load(path)  # load function from torch
@@ -398,20 +420,8 @@ class Leaspy:
                     print("Load from json file ... conversion to torch file")
                 for key in individual_parameters.keys():
                     # Convert every list in torch.tensor
-                    individual_parameters[key] = tensor(individual_parameters[key])
+                    individual_parameters[key] = tensor(individual_parameters[key], dtype=float32)
                     # If tensor is 1-dimensional tensor([1, 2, 3]) => reshape it in tensor([[1], [2], [3]])
                     if individual_parameters[key].dim() == 1:
                         individual_parameters[key] = individual_parameters[key].view(-1, 1)
         return individual_parameters
-
-    def check_if_initialized(self):
-        """
-        Check if model is initialized.
-
-        Raises
-        ------
-        ValueError
-            Raise an error if the model has not been initialized.
-        """
-        if not self.model.is_initialized:
-            raise ValueError("Model has not been initialized")

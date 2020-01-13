@@ -1,5 +1,7 @@
-import torch
 import unittest
+
+import torch
+
 from leaspy import Leaspy, Data, AlgorithmSettings
 from tests import example_data_path
 
@@ -28,7 +30,6 @@ class LeaspyFitTest(unittest.TestCase):
 
         diff_g = leaspy.model.parameters['g'] - torch.tensor([1.9557, 2.5899, 2.5184, 2.2369])
         diff_v = leaspy.model.parameters['v0'] - torch.tensor([-3.5714, -3.5820, -3.5811, -3.5886])
-
         self.assertAlmostEqual(torch.sum(diff_g**2).item(), 0.0, delta=0.01)
         self.assertAlmostEqual(torch.sum(diff_v**2).item(), 0.0, delta=0.02)
 

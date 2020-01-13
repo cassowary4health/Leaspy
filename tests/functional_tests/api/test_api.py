@@ -86,10 +86,6 @@ class LeaspyTest(unittest.TestCase):
         Parameters
         ----------
         model: a leaspy model class object
-
-        Returns
-        -------
-        Exit code.
         """
         self.assertEqual(model.name, "logistic")
         self.assertEqual(model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
@@ -113,10 +109,6 @@ class LeaspyTest(unittest.TestCase):
         4 - Personalize model with 'mode_real' algorithm
         5 - Plot results
         6 - Simulate new patients
-
-        Returns
-        -------
-        exit code
         """
         data = Data.from_csv_file(example_data_path)
 

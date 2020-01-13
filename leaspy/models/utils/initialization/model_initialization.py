@@ -13,9 +13,9 @@ def initialize_parameters(model, dataset, method="default"):
     dataset: a leaspy.inputs.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
-        Must one of:
+        Must be one of:
         - "default": initialize at mean.
-        - "random":  initialize with a gaussian with same mean and variance.
+        - "random":  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
@@ -50,9 +50,9 @@ def initialize_logistic(model, dataset, method):
     dataset: a leaspy.inputs.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
-        Must one of:
+        Must be one of:
         - "default": initialize at mean.
-        - "random":  initialize with a gaussian with same mean and variance.
+        - "random":  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
@@ -116,9 +116,9 @@ def initialize_logistic_parallel(model, dataset, method):
     dataset: a leaspy.inputs.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
-        Must one of:
+        Must be one of:
         - "default": initialize at mean.
-        - "random":  initialize with a gaussian with same mean and variance.
+        - "random":  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
@@ -397,7 +397,7 @@ def initialize_logistic_parallel(model, data, method="default"):
         raise ValueError("Initialization method not known")
 
     # Initialize the attribute
-    model.attributes = Attributes_LogisticParallel(model.dimension, model.source_dimension)
+    model.attributes = AttributesLogisticParallel(model.dimension, model.source_dimension)
     model.attributes.update(['all'], model.parameters) # TODO : why is this not needed ???
     model.is_initialized = True
 
@@ -457,7 +457,7 @@ def initialize_logistic(model, data, method="default"):
             print('ok')
 
     # Initialize the attribute
-    model.attributes = Attributes_Logistic(model.dimension, model.source_dimension)
+    model.attributes = AttributesLogistic(model.dimension, model.source_dimension)
     model.attributes.update(['all'], model.parameters)
     model.is_initialized = True
 

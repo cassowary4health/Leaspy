@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import torch
 
 from .abstract_model import AbstractModel
-from .utils.attributes.attributes_univariate import Attributes_Univariate
+from .utils.attributes.attributes_univariate import AttributesUnivariate
 
 
 class UnivariateModel(AbstractModel):
@@ -58,20 +58,20 @@ class UnivariateModel(AbstractModel):
         self.parameters = {
             'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
             'noise_std': 0.1, }
-        self.attributes = Attributes_Univariate()
+        self.attributes = AttributesUnivariate()
         self.is_initialized = True
 
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
             self.parameters[k] = torch.tensor(parameters[k])
-        self.attributes = Attributes_Univariate()
+        self.attributes = AttributesUnivariate()
         self.attributes.update(['all'], self.parameters)
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 1.},
-            'attributes': Attributes_Univariate()
+            'attributes': AttributesUnivariate()
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()

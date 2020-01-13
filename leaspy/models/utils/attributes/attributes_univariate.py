@@ -1,44 +1,62 @@
 import torch
 
+from .attributes_abstract import AttributesAbstract
 
-## TODO 1 : Have a Abtract Attribute class
-## TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
-class Attributes_Univariate:
+
+# TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
+class AttributesUnivariate(AttributesAbstract):
+    """
+    AttributesUnivariate class contains the common attributes & methods to update the UnivariateModel's attributes.
+
+    Attributes
+    ----------
+    positions: `torch.Tensor` (default None)
+        Previously noted "g".
+    velocities: `torch.Tensor` (default None)
+        Previously noted "v0".
+    name: `str` (default 'univariate')
+        Name of the associated leaspy model. Used by ``update`` method.
+    update_possibilities: `tuple` [`str`] (default ('g', 'xi_mean', 'all') )
+        Contains the available parameters to update. Different models have different parameters.
+
+    Methods
+    -------
+    get_attributes()
+        Returns the following attributes: ``positions``.
+    update(names_of_changed_values, values)
+        Update model group average parameter(s).
+    """
 
     def __init__(self):
-        self.g = None  # g is a vector such that p0 = 1 / (1+exp(g)) where p0 is the position vector
-        self.v0 = None  # v0 is the vector of velocities
+        """
+        Instantiate a AttributesUnivariate class object.
+        """
+        super().__init__()
+        self.update_possibilities = ('all', 'g', 'xi_mean')
+        self.name = 'univariate'
+
+        delattr(self, 'dimension')
+        delattr(self, 'source_dimension')
+        delattr(self, 'betas')
+        delattr(self, 'mixing_matrix')
+        delattr(self, 'orthonormal_basis')
 
     def get_attributes(self):
-        return self.g
+        """
+        Returns the following attributes: ``positions``.
 
-    def update(self, names_of_changed_values, values):
-        self._check_names(names_of_changed_values)
+        Returns
+        -------
+        positions: `torch.Tensor`
+        """
+        return self.positions
 
-        compute_g = False
-        compute_v0 = False
+    def _compute_velocities(self, values):
+        """
+        Update the attribute ``velocities``.
 
-        for name in names_of_changed_values:
-            if name == 'g':
-                compute_g = True
-            elif name == 'v0':
-                compute_v0 = True
-            elif name == 'all':
-                compute_g = True
-                compute_v0 = True
-
-        if compute_g:
-            self._compute_g(values)
-        if compute_v0:
-            self._compute_v0(values)
-
-    def _check_names(self, names_of_changed_values):
-        for name in names_of_changed_values:
-            if name not in ['all', 'g', 'v0']:
-                raise ValueError("The name {} is not in the attributes that are used to be updated".format(name))
-
-    def _compute_g(self, values):
-        self.g = torch.exp(values['g'])
-
-    def _compute_v0(self, values):
-        self.v0 = torch.exp(torch.tensor([values['xi_mean']], dtype=torch.float32))
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
+        self.velocities = torch.exp(values['xi_mean'])

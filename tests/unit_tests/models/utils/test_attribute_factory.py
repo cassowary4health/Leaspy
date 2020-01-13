@@ -1,10 +1,10 @@
 import unittest
 
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
-from leaspy.models.utils.attributes.attributes_logistic import Attributes_Logistic
+from leaspy.models.utils.attributes.attributes_logistic import AttributesLogistic
 
 
-class AttributesLinearTest(unittest.TestCase):
+class AttributesFactoryTest(unittest.TestCase):
 
     def test_attributes(self):
         """Test attributes static method"""
@@ -25,4 +25,4 @@ class AttributesLinearTest(unittest.TestCase):
         # Test if lower name:
         name_exemples = ['logistic', 'LogIStiC', 'LOGISTIC']
         for name in name_exemples:
-            self.assertTrue(type(AttributesFactory.attributes(name, 4, 2)) == Attributes_Logistic)
+            self.assertTrue(type(AttributesFactory.attributes(name, 4, 2)) == AttributesLogistic)

@@ -40,6 +40,11 @@ class SimulationAlgorithm(AbstractAlgo):
         Number of subject to simulate.
     seed: `int`
         Used by numpy.random & torch.random for reproducibility.
+    sources_method : `str`
+        Must be one of "full_kde", "normal_sources"
+        - full_kde : the sources are also learned with the gaussian kernel density estimation.
+        - normal_sources : the sources are generated as multivariate normal distribution linked with the other
+        individual parameters.
     std_number_of_visits: `float`
         Standard deviation used into the generation of the number of visits per simulated patient.
 
@@ -73,6 +78,7 @@ class SimulationAlgorithm(AbstractAlgo):
         self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
         self.noise = settings.parameters['noise']
         self.number_of_subjects = settings.parameters['number_of_subjects']
+        self.sources_method = settings.parameters['sources_method']
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
 
     @staticmethod
@@ -160,9 +166,9 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        model: leaspy.model class object
+        model : leaspy.model class object
             Model used to compute the population & individual parameters. It contains the population parameters.
-        results: `leaspy.inputs.data.result.Result` class object
+        results : `leaspy.inputs.data.result.Result` class object
             Object containing the computed individual parameters.
 
         Notes
@@ -177,6 +183,10 @@ class SimulationAlgorithm(AbstractAlgo):
         `leaspy.inputs.data.result.Result` class object
             Contains the simulated individual parameters & individual scores.
         """
+        if self.sources_method not in ("full_kde", "normal_sources"):
+            raise ValueError('The "sources_method" input must be "full_kde" or "normal_sources"')
+        print("Method: %s" % self.sources_method)
+
         # Get individual parameters & baseline ages - for joined density estimation
         # Get individual parameters (optional - & the cofactor states)
         df_ind_param = results.get_dataframe_individual_parameters(cofactors=self.cofactor)
@@ -188,21 +198,17 @@ class SimulationAlgorithm(AbstractAlgo):
         # Add the baseline ages
         df_ind_param = results.data.to_dataframe().groupby('ID').first()[['TIME']].join(df_ind_param, how='right')
         # At this point, df_ind_param.columns = ['TIME', 'tau', 'xi', 'sources_0', 'sources_1', ..., 'sources_n']
-
-        distribution = torch.from_numpy(df_ind_param.values)
-        # Note: torch.tensor always copy data, torch.from_numpy always does not
-        #   =>  torch.from_numpy(np.array) 5x faster than torch.tensor(np.array)
-        # Note: pandas.DataFrame.values.T 20x faster than pandas.DataFrame.T.values
-        # Note: 10x faster to transpose in numpy than in torch
+        distribution = df_ind_param.values
+        # Get joined density estimation of bl, tau, xi (and the sources if the model is not univariate)
 
         get_sources = (model.name != 'univariate')
-        if get_sources:
+        if get_sources & (self.sources_method == "normal_sources"):
+            # Sources are not learned with a kernel density estimator
+            distribution = distribution[:, :3]
             # Get mean by variable & covariance matrix
             # Needed to sample new sources from simulated bl, tau & xi
-            df_mean, df_cov = self._get_mean_and_covariance_matrix(distribution)
+            df_mean, df_cov = self._get_mean_and_covariance_matrix(torch.from_numpy(df_ind_param.values))
 
-        # Get joined density estimation of bl, tau & xi (sources are not learn in this fashion)
-        distribution = distribution[:, :3].numpy()
         # Normalize by variable then transpose to learn the joined distribution
         ss = StandardScaler()
         # fit_transform receive an numpy array of shape [n_samples, n_features]
@@ -214,14 +220,18 @@ class SimulationAlgorithm(AbstractAlgo):
         samples = kernel.resample(self.number_of_subjects).T
         samples = ss.inverse_transform(samples)
         # A 2D array - one raw per simulated subject
-        bl, tau, xi = samples.T
+        bl, tau, xi = samples.T[:3]
 
-        # Generate sources
         if get_sources:
-            def generate_sources(x):
-                return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).numpy()
-            sources = np.apply_along_axis(generate_sources, axis=1, arr=samples)
-            # A 2D array - one raw per subject
+            if self.sources_method == "full_kde":
+                sources = samples.T[3:].T
+                # A 2D array - one raw per subject
+            elif self.sources_method == "normal_sources":
+                # Generate sources
+                def generate_sources(x):
+                    return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).numpy()
+                sources = np.apply_along_axis(generate_sources, axis=1, arr=samples)
+                # A 2D array - one raw per subject
 
         # Initialize simulated scores
         indices, timepoints, values = [], [], []

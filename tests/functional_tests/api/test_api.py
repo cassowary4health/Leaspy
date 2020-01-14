@@ -172,6 +172,8 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
+        simulation_results.data.to_dataframe().to_csv(os.path.join(
+            test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"), index=False)
         # Test the reproducibility of simulate
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
         # BUT ON DIFFERENT MACHINE I CAN SEE ERROR OF MAGNITUDE 1e-5 !!!

@@ -78,7 +78,7 @@ class SimulationAlgorithm(AbstractAlgo):
     @staticmethod
     def _get_mean_and_covariance_matrix(m):
         """
-        Compute the empirical mean and covariance matrix of the input.
+        Compute the empirical mean and covariance matrix of the input. Twice faster than `numpy.cov`.
 
         Parameters
         ----------
@@ -94,7 +94,7 @@ class SimulationAlgorithm(AbstractAlgo):
         """
         m_exp = torch.mean(m, dim=0)
         x = m - m_exp[None, :]
-        cov = 1 / (x.size(1) - 1) * x.t() @ x
+        cov = 1 / (x.size(0) - 1) * x.t() @ x
         return m_exp, cov
 
     @staticmethod

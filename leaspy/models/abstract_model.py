@@ -1,7 +1,8 @@
-import torch
-from leaspy.utils.realizations.collection_realization import CollectionRealization
 import math
 
+import torch
+
+from leaspy.utils.realizations.collection_realization import CollectionRealization
 from leaspy.utils.realizations.realization import Realization
 
 TWO_PI = 2 * math.pi
@@ -159,7 +160,7 @@ class AbstractModel:
 
         Returns
         -------
-        scalar
+        attachment : torch.Tensor
             The subject attachment (?)
         """
         param_ind = self.get_param_from_real(realizations)
@@ -180,18 +181,19 @@ class AbstractModel:
 
         Returns
         -------
-
+        attachment : torch.Tensor
+            Log-likelihood ?
         """
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         # res *= data.mask
 
-        r1 = res * data.mask.float() - data.values
+        r1 = res * data.mask.float() - data.values  # r1.ndim = 3 - r1.shape = [n_subjects, ??, n_features]
         #r1[1-data.mask] = 0.0 # Set nans to 0
         squared_sum = torch.sum(r1 * r1, dim=(1, 2))
 
         # noise_var = self.parameters['noise_std'] ** 2
         noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
-        attachment = 0.5 * (1 / noise_var) * squared_sum
+        attachment = 0.5 * (1. / noise_var) * squared_sum
 
         attachment += math.log(math.sqrt(TWO_PI * noise_var))
         return attachment

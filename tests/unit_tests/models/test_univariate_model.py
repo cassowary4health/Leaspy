@@ -1,5 +1,8 @@
-from leaspy.models.univariate_model import UnivariateModel
+import pandas as pd
 
+from leaspy import AlgorithmSettings, Data, Leaspy
+from leaspy.models.univariate_model import UnivariateModel
+from tests import example_data_path
 from .test_abstract_model import AbstractModelTest
 
 
@@ -30,3 +33,17 @@ class UnivariateModelTest(AbstractModelTest):
 
         self.assertEqual(model.MCMC_toolbox['attributes'], None)
         self.assertEqual(model.MCMC_toolbox['priors']['g_std'], None)
+
+    def test_univariate_run(self):
+        univariate_leaspy = Leaspy('univariate')
+        settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
+
+        df = pd.read_csv(example_data_path)
+        df = df[['ID', 'TIME', 'Y0']]
+        data = Data.from_dataframe(df)
+
+        univariate_leaspy.fit(data, settings)
+
+        for method in ('mode_real', 'mean_real', 'scipy_minimize', 'gradient_descent_personalize'):
+            settings = AlgorithmSettings(method, n_iter=100, n_burn_in_iter=90, seed=0)
+            univariate_result = univariate_leaspy.personalize(data, settings)

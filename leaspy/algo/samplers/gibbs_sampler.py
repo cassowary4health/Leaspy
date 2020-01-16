@@ -1,6 +1,8 @@
-import torch
-from .abstract_sampler import AbstractSampler
 import itertools
+
+import torch
+
+from .abstract_sampler import AbstractSampler
 
 
 class GibbsSampler(AbstractSampler):
@@ -159,6 +161,7 @@ class GibbsSampler(AbstractSampler):
         realization = realizations[self.name]
 
         previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
+        # previous_attachment.ndim = 1
         previous_regularity = model.compute_regularity_realization(realization).sum(dim=1).reshape(data.n_individuals)
 
         # Keep previous realizations and sample new ones
@@ -170,12 +173,11 @@ class GibbsSampler(AbstractSampler):
         new_regularity = model.compute_regularity_realization(realization).sum(dim=1).reshape(data.n_individuals)
 
         alpha = torch.exp(-((new_regularity - previous_regularity) * temperature_inv +
-                            (new_attachment - previous_attachment)))
+                            (new_attachment - previous_attachment)))  # alpha.ndim = 1
 
-        accepted = self._group_metropolis_step(alpha)
+        accepted = self._group_metropolis_step(alpha)  # accepted.ndim = 1
         self._update_acceptation_rate(accepted)
         self._update_std()
         ##### PEUT ETRE PB DE SHAPE
         accepted = accepted.unsqueeze(1)
         realization.tensor_realizations = accepted*realization.tensor_realizations + (1-accepted)*previous_reals
-

@@ -1,4 +1,5 @@
 import json
+
 import matplotlib.backends.backend_pdf
 import matplotlib.pyplot as plt
 import torch
@@ -56,8 +57,11 @@ class UnivariateModel(AbstractModel):
         # TODO !
         self.features = dataset.headers
         self.parameters = {
-            'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
-            'noise_std': 0.1, }
+            'g': [1.],
+            'tau_mean': 70., 'tau_std': 2.,
+            'xi_mean': -3., 'xi_std': .1,
+            'noise_std': [.1]}
+        self.parameters = {key: torch.tensor(val) for key, val in self.parameters.items()}
         self.attributes = AttributesUnivariate()
         self.is_initialized = True
 
@@ -92,9 +96,9 @@ class UnivariateModel(AbstractModel):
 
     def _get_attributes(self, MCMC):
         if MCMC:
-            g = self.MCMC_toolbox['attributes'].g
+            g = self.MCMC_toolbox['attributes'].positions
         else:
-            g = self.attributes.g
+            g = self.attributes.positions
         return g
 
     # def compute_sum_squared_tensorized(self, data, param_ind, attribute_type):

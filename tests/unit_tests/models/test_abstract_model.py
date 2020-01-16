@@ -1,8 +1,9 @@
-import torch
 import unittest
 
-from leaspy.models.abstract_model import AbstractModel
+import torch
+
 from leaspy import Leaspy
+from leaspy.models.abstract_model import AbstractModel
 from tests import example_logisticmodel_path
 
 

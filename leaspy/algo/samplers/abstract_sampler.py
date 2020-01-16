@@ -50,18 +50,18 @@ class AbstractSampler:
 
     def _group_metropolis_step(self, alpha):
         """
-        Compute the acceptance decision (0. or 1.)
+        Compute the acceptance decision (0. for False & 1. for True).
 
         Parameters
         ----------
-        alpha: torch tensor
+        alpha : torch.Tensor
 
         Returns
         -------
-        float - acceptance decision (0. or 1.)
+        accepted : torch.Tensor
+            Acceptance decision (0. or 1.). The output must be one dimensional (i.e. accepted.ndim = 1)
         """
-
-        accepted = (1. * (torch.rand(alpha.size(0)) < alpha)).float()  # TODO: change for boolean?
+        accepted = (torch.rand(alpha.size(0)) < alpha).float()  # TODO: change for boolean?
         return accepted
 
     def _metropolis_step(self, alpha):
@@ -98,7 +98,7 @@ class AbstractSampler:
 
         Parameters
         ----------
-        accepted: torch tensor
+        accepted: torch.Tensor
         """
 
         # Ad the new acceptation result

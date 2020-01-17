@@ -165,7 +165,7 @@ def initialize_logistic_parallel(model, dataset, method):
         # Do transformations
         t0 = time.clone()
         v0_array = slopes.log()
-        g_array = torch.exp(1 / (1 + values))
+        g_array = torch.exp(1. / (1. + values))
         betas = torch.distributions.normal.Normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 
         parameters = {
@@ -221,26 +221,25 @@ def initialize_linear(model, dataset, method):
 
         for dim in range(model.dimension):
 
-            X, y = [], []
+            ages_list, feature_list = [], []
             for i, f in enumerate(features[:, dim]):
                 if f == f:
-                    X.append(f)
-                    y.append(ages[i])
+                    feature_list.append(f)
+                    ages_list.append(ages[i])
 
-
-            if len(X) < 2:
+            if len(ages_list) < 2:
                 break
             else:
-                slope, intercept, _, _, _ = stats.linregress(X, y)
+                slope, intercept, _, _, _ = stats.linregress(ages_list, feature_list)
 
                 value = intercept + t0 * slope
 
                 velocities[dim].append(slope)
                 positions[dim].append(value)
 
-    positions = [torch.Tensor(_) for _ in positions]
+    positions = [torch.tensor(_) for _ in positions]
     positions = torch.tensor([torch.mean(_) for _ in positions], dtype=torch.float32)
-    velocities = [torch.Tensor(_) for _ in velocities]
+    velocities = [torch.tensor(_) for _ in velocities]
     velocities = torch.tensor([torch.mean(_) for _ in velocities], dtype=torch.float32)
 
     parameters = {
@@ -302,7 +301,7 @@ def compute_patient_slopes_distribution(data):
         slopes_mu.append(torch.mean(torch.tensor(slope_dim_patients)).item())
         slopes_sigma.append(torch.mean(torch.tensor(slope_dim_patients)).item())
 
-    return torch.Tensor(slopes_mu), torch.Tensor(slopes_sigma)
+    return torch.tensor(slopes_mu), torch.tensor(slopes_sigma)
 
 
 def compute_patient_values_distribution(data):

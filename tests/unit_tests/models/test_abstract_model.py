@@ -1,9 +1,11 @@
 import unittest
 
+import pandas as pd
 import torch
 
-from leaspy import Leaspy
+from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.models.abstract_model import AbstractModel
+from tests import example_data_path
 from tests import example_logisticmodel_path
 
 
@@ -69,3 +71,22 @@ class AbstractModelTest(unittest.TestCase):
         self.assertTrue(torch.equal(abstract_model.parameters['sources_mean'], torch.tensor(0.0)))
         self.assertTrue(torch.equal(abstract_model.parameters['sources_std'], torch.tensor(1.0)))
         self.assertTrue(torch.equal(abstract_model.parameters['noise_std'], torch.tensor(0.1988248974084854)))
+
+    def test_all_model_run(self):
+        """
+        Check if the following models ru with the following algorithms.
+        """
+        for model_name in ('linear', 'univariate', 'logistic', 'logistic_parallel'):
+            logistic_leaspy = Leaspy(model_name)
+            settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
+
+            df = pd.read_csv(example_data_path)
+            if model_name == 'univariate':
+                df = df.iloc[:, :3]
+            data = Data.from_dataframe(df)
+
+            logistic_leaspy.fit(data, settings)
+
+            for method in ('mode_real', 'mean_real', 'scipy_minimize', 'gradient_descent_personalize'):
+                settings = AlgorithmSettings(method, n_iter=100, n_burn_in_iter=90, seed=0)
+                logistic_result = logistic_leaspy.personalize(data, settings)

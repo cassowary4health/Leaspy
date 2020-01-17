@@ -20,22 +20,27 @@ class SimulationAlgorithm(AbstractAlgo):
 
     Attributes
     ----------
-    algo_parameters: `dict`
+    algo_parameters : `dict`
         Contains the algorithm's parameters.
-    bandwidth_method: `float`, `str`, `callable`, optional
+    bandwidth_method : `float`, `str`, `callable`, optional
         Bandwidth argument used in scipy.stats.gaussian_kde in order to learn the patients' distribution.
-    cofactor: `str` (default = None)
-        The cofactor used to select the wanted group of patients (ex - 'genes').
-    cofactor_state: `str` - TODO: check that the loaded cofactors are converted into strings!
-        The cofactor state used to select the  wanted group of patients (ex - 'APOE4').
-    mean_number_of_visits: `int`
+    cofactor : `str` (default = None)
+        The cofactor used to select the wanted group of patients (ex - 'genes'). It must correspond to an existing
+        cofactor in the attribute `Data` of the input `result` of the ``run`` method. See ``SimulationAlgorithm.run``
+        documentation.
+    cofactor_state : `str` (default None) TODO: check that the loaded cofactors are converted into strings!
+        The cofactor state used to select the  wanted group of patients (ex - 'APOE4'). It must correspond to an
+        existing cofactor state in the attribute `Data` of the input `result` of the ``run`` method. See
+        ``SimulationAlgorithm.run`` documentation.
+    mean_number_of_visits : `int` (default 6)
         Average number of visits of the simulated patients.
         Examples - choose 5 => in average, a simulated patient will have 5 visits.
-    name: `str`
+    name : "simulation"
         Algorithm's name.
-    noise: `float`
+    noise : `float` or `bool` (default True)
         Wanted level of noise in the generated scores - noise of zero will lead to patients having "perfect progression"
-        of their scores, i.e. following exactly a logistic curve.
+        of their scores, i.e. following exactly a logistic curve. If set to ``True``, this value is set as the
+        model's `noise_std` parameter.
     number_of_subjects: `int`
         Number of subject to simulate.
     seed: `int`
@@ -45,7 +50,7 @@ class SimulationAlgorithm(AbstractAlgo):
         - full_kde : the sources are also learned with the gaussian kernel density estimation.
         - normal_sources : the sources are generated as multivariate normal distribution linked with the other
         individual parameters.
-    std_number_of_visits: `float`
+    std_number_of_visits: `int`
         Standard deviation used into the generation of the number of visits per simulated patient.
 
     Methods
@@ -60,8 +65,14 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        settings: `leaspy.inputs.algorithm_settings.AlgorithmSettings` class object
+        settings : `leaspy.inputs.algorithm_settings.AlgorithmSettings` class object
             Set the class attributes.
+
+        Raises
+        ------
+        ValueError
+            If ``settings.parameters['sources_method']`` is not one of the two option allowed -
+            "full_kde" or "normal_sources".
         """
         super().__init__()
 
@@ -75,11 +86,56 @@ class SimulationAlgorithm(AbstractAlgo):
         self.bandwidth_method = settings.parameters['bandwidth_method']
         self.cofactor = settings.parameters['cofactor']
         self.cofactor_state = settings.parameters['cofactor_state']
+
         self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
         self.noise = settings.parameters['noise']
         self.number_of_subjects = settings.parameters['number_of_subjects']
         self.sources_method = settings.parameters['sources_method']
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
+
+        if self.sources_method not in ("full_kde", "normal_sources"):
+            raise ValueError('The "sources_method" parameter must be "full_kde" or "normal_sources"!')
+
+    def _check_cofactors(self, data):
+        """
+        Check the value.
+
+        Parameters
+        ----------
+        data : `leaspy.inputs.data.Data` class object
+            Contains the cofactors and cofactors' states.
+
+        Raises
+        ------
+        ValueError
+            Raised if the parameters "source_method", "cofactor" and "cofactor_state" do not receive a valid value.
+        """
+        def reformat_str(string, replace=True):
+            result = string.replace('[', "").replace(']', "")
+            if replace:
+                result = result.replace(',', " or")
+            return result
+
+        if self.cofactor is not None:
+            cofactors = {}
+            for ind in data.individuals.values():
+                if bool(ind.cofactors):
+                    for key, val in ind.cofactors.items():
+                        if key in cofactors.keys():
+                            cofactors[key] += [val]
+                        else:
+                            cofactors[key] = [val]
+            for key, val in cofactors.items():
+                cofactors[key] = np.unique(val)
+
+            if self.cofactor not in cofactors.keys():
+                raise ValueError('The input "cofactor" parameter %s does not correspond to any cofactor in your data! '
+                                 'The available cofactor(s) are %s.' %
+                                 (self.cofactor, reformat_str(str(list(cofactors.keys())))))
+            if self.cofactor_state not in cofactors[self.cofactor]:
+                raise ValueError('The input "cofactor_state" parameter "%s" does not correspond to any cofactor state'
+                                 ' in your data! The available cofactor states for "%s" are %s.' %
+                                 (self.cofactor_state, self.cofactor, reformat_str(str(cofactors[self.cofactor]))))
 
     @staticmethod
     def _get_mean_and_covariance_matrix(m):
@@ -183,9 +239,7 @@ class SimulationAlgorithm(AbstractAlgo):
         `leaspy.inputs.data.result.Result` class object
             Contains the simulated individual parameters & individual scores.
         """
-        if self.sources_method not in ("full_kde", "normal_sources"):
-            raise ValueError('The "sources_method" input must be "full_kde" or "normal_sources"')
-        print("Method: %s" % self.sources_method)
+        self._check_cofactors(results.data)
 
         # Get individual parameters & baseline ages - for joined density estimation
         # Get individual parameters (optional - & the cofactor states)
@@ -230,6 +284,7 @@ class SimulationAlgorithm(AbstractAlgo):
                 # Generate sources
                 def generate_sources(x):
                     return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).numpy()
+
                 sources = np.apply_along_axis(generate_sources, axis=1, arr=samples)
                 # A 2D array - one raw per subject
 
@@ -256,8 +311,11 @@ class SimulationAlgorithm(AbstractAlgo):
 
             # Add the desired noise
             if self.noise:
-                noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
-                    observations.shape)
+                if type(self.noise) in [int, float]:
+                    noise = self.noise
+                else:
+                    noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
+                        observations.shape)
                 observations += noise
                 observations = observations.clamp(0, 1)
             values.append(observations.squeeze(0).detach().tolist())

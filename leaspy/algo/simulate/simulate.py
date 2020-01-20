@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 import torch
 from scipy import stats
@@ -34,6 +32,11 @@ class SimulationAlgorithm(AbstractAlgo):
         The cofactor state used to select the  wanted group of patients (ex - 'APOE4'). It must correspond to an
         existing cofactor state in the attribute `Data` of the input `result` of the ``run`` method. See
         ``SimulationAlgorithm.run`` documentation.
+    features_bounds : `bool`, `dict` : [`str`, `float`, `float`] (default False)
+        Specify if the scores of the generated subjects must be bounded. This parameter can express in two way:
+        - `bool` : the bounds are the maximum and minimum scores observed in the ``results.data`` object.
+        - `dict` : the user has to set the min and max bounds for every features. For example:
+                    ``{'feature1': (score_min, score_max), 'feature2': (score_min, score_max), ...}``
     mean_number_of_visits : `int` (default 6)
         Average number of visits of the simulated patients.
         Examples - choose 5 => in average, a simulated patient will have 5 visits.
@@ -47,12 +50,11 @@ class SimulationAlgorithm(AbstractAlgo):
         Number of subject to simulate.
     seed: `int`
         Used by numpy.random & torch.random for reproducibility.
-    sources_method : `str`
-        Must be one of "full_kde", "normal_sources"
-        - full_kde : the sources are also learned with the gaussian kernel density estimation.
-        - normal_sources : the sources are generated as multivariate normal distribution linked with the other
+    sources_method : `str` {'full_kde', 'normal_sources'}
+        - ``"full_kde"`` : the sources are also learned with the gaussian kernel density estimation.
+        - ``"normal_sources"`` : the sources are generated as multivariate normal distribution linked with the other
         individual parameters.
-    std_number_of_visits: `int`
+    std_number_of_visits : `int`
         Standard deviation used into the generation of the number of visits per simulated patient.
 
     Methods
@@ -75,9 +77,8 @@ class SimulationAlgorithm(AbstractAlgo):
         ValueError
             If ``settings.parameters['sources_method']`` is not one of the two option allowed -
             "full_kde" or "normal_sources".
-
         TypeError
-
+            If the type of ``settings.parameters['features_bounds']`` is not `bool` or `dict`.
         """
         super().__init__()
 
@@ -152,14 +153,14 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        m: `torch.Tensor`
+        m : `torch.Tensor`
             Input matrix - one row per individual parameter distribution (xi, tau etc).
 
         Returns
         -------
-        mean: `torch.Tensor`
+        mean : `torch.Tensor`
             Mean by variable.
-        covariance:  `torch.Tensor`
+        covariance :  `torch.Tensor`
             Covariance matrix.
         """
         m_exp = torch.mean(m, dim=0)
@@ -174,17 +175,17 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        bl: `float`
+        bl : `float`
             Baseline age of the simulated patient.
-        tau: `float`
+        tau : `float`
             Time-shift of the simulated patient.
-        xi: `float`
+        xi : `float`
             Log-acceleration of the simulated patient.
-        source_dimension: `int`
+        source_dimension : `int`
             Sources' dimension of the simulated patient.
-        df_mean: `torch.Tensor`
+        df_mean : `torch.Tensor`
             Mean values per individual parameter type (bl_mean, tau_mean, xi_mean & sources_means) (1-dimensional).
-        df_cov: `torch.Tensor`
+        df_cov : `torch.Tensor`
             Empirical covariance matrix of the individual parameters (2-dimensional).
 
         Returns
@@ -213,7 +214,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Returns
         -------
-        number_of_visits: `int`
+        number_of_visits : `int`
             Number of visits.
         """
         # Generate a number of visit around the mean_number_of_visits
@@ -230,7 +231,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        results_object: a `leaspy.inputs.data.result.Result` class object
+        results_object : a `leaspy.inputs.data.result.Result` class object
 
         Returns
         -------
@@ -245,7 +246,7 @@ class SimulationAlgorithm(AbstractAlgo):
             assert results_object.data.headers == list(self.features_bounds.keys()), \
                 'The keys of your input "features_bounds" do not match the headers of your data!' \
                 + '\nThe data headers - %s' % str(results_object.data.headers) \
-                + '\nYour "features_bounds" input - %s' % str(list[self.features_bounds.keys()])
+                + '\nYour "features_bounds" input - %s' % str(list(self.features_bounds.keys()))
             for i, key in enumerate(results_object.data.headers):
                 features_min[i] = self.features_bounds[key][0]
                 features_max[i] = self.features_bounds[key][1]
@@ -255,7 +256,19 @@ class SimulationAlgorithm(AbstractAlgo):
             return df_scores.iloc[:, 1:].min().values, df_scores.iloc[:, 1:].max().values
 
     def _get_timepoints(self, bl):
-        # Generate time-points
+        """
+        Generate the time points of a subject given his baseline age.
+
+        Parameters
+        ----------
+        bl : float
+            The subject's baseline age.
+
+        Returns
+        -------
+        ages : `list` [`float`]
+            Contains the subject's time points.
+        """
         number_of_visits = self._get_number_of_visits()
         if number_of_visits == 1:
             ages = [bl]
@@ -264,6 +277,73 @@ class SimulationAlgorithm(AbstractAlgo):
         else:
             ages = [bl, bl + 0.5] + [bl + j for j in range(1, number_of_visits - 1)]
         return ages
+
+    #TODO: docstrings !!
+    def _simulate_individual_parameters(self, model, number_of_simulated_subjects, kernel, ss, get_sources,
+                                        df_mean, df_cov):
+        samples = kernel.resample(number_of_simulated_subjects).T
+        samples = ss.inverse_transform(samples)  # A 2D numpy.ndarray - of shape n_subjects x n_features
+
+        simulated_parameters = {'timepoints': list(map(self._get_timepoints, samples.T[0])),
+                                           'tau': samples.T[1],
+                                           'xi': samples.T[2]}
+        # xi & tau are 1D array - one value per simulated subject
+        # timempoints is a 2D list - one row per simulated subject
+
+        if get_sources:
+            if self.sources_method == "full_kde":
+                simulated_parameters['sources'] = samples.T[3:].T
+            elif self.sources_method == "normal_sources":
+                # Generate sources
+                def simulate_sources(x):
+                    return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).numpy()
+                simulated_parameters['sources'] = np.apply_along_axis(simulate_sources, axis=1, arr=samples)
+                # sources is 2D array - of shape n_subjects x n_sources
+        return simulated_parameters
+
+    def _simulate_subjects(self, model, number_of_simulated_subjects, kernel, ss, get_sources,
+                           df_mean, df_cov):
+
+        simulated_parameters = self._simulate_individual_parameters(
+            model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
+
+        features_values = []
+        # Compute the associated scores + check scores validity (optional)
+        for i in range(number_of_simulated_subjects):
+            # Compute the scores
+            indiv_param = {'xi': simulated_parameters['xi'][i],
+                           'tau': simulated_parameters['tau'][i]}
+            if get_sources:
+                indiv_param['sources'] = simulated_parameters['sources'][i].tolist()
+            observations = model.compute_individual_trajectory(
+                simulated_parameters['timepoints'][i], indiv_param)
+
+            # Add the desired noise
+            if self.noise:
+                if type(self.noise) in [int, float]:
+                    noise = self.noise
+                else:
+                    noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
+                        observations.shape)
+                observations += noise
+                observations = observations.clamp(0, 1)
+
+            observations = observations.squeeze(0).detach().numpy()
+            features_values.append(observations)
+
+        return simulated_parameters, features_values
+
+    @staticmethod
+    def _get_bounded_subject(features_values, features_min, features_max):
+        def _test_subject(bl_score, features_min, features_max):
+            return (features_min <= bl_score).all() & (bl_score <= features_max).all()
+
+        baseline_scores = np.array([scores[0] for scores in features_values])
+        indices_of_accepted_simulated_subjects = [i for i, bl_score in enumerate(baseline_scores)
+                                                  if _test_subject(bl_score, features_min, features_max)]
+        return indices_of_accepted_simulated_subjects, [val for i, val in enumerate(features_values)
+                                                        if i in indices_of_accepted_simulated_subjects]
+
 
     def run(self, model, results):
         """
@@ -313,6 +393,8 @@ class SimulationAlgorithm(AbstractAlgo):
             # Get mean by variable & covariance matrix
             # Needed to sample new sources from simulated bl, tau & xi
             df_mean, df_cov = self._get_mean_and_covariance_matrix(torch.from_numpy(df_ind_param.values))
+        else:
+            df_mean, df_cov = None, None
 
         # Normalize by variable then transpose to learn the joined distribution
         ss = StandardScaler()
@@ -321,186 +403,59 @@ class SimulationAlgorithm(AbstractAlgo):
         # gaussian_kde receive an numpy array of shape [n_features, n_samples]
         kernel = stats.gaussian_kde(distribution, bw_method=self.bandwidth_method)
 
-        # Generate individual parameters (except sources)
+        if self.features_bounds:
+            number_of_simulated_subjects = 10 * self.number_of_subjects
+        else:
+            number_of_simulated_subjects = self.number_of_subjects
+
+        simulated_parameters, features_values = self._simulate_subjects(
+            model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
+
         if self.features_bounds:
             # Handle bounds on the generated features
             features_min, features_max = self._get_features_bounds(results)
-            indices_of_accepted_generated_subjects = []  # usefull later
-            # Generate more subject because of the filter concerning the features' bounds
-            number_of_generated_subjects = 10 * self.number_of_subjects
-        else:
-            number_of_generated_subjects = self.number_of_subjects
-
-        samples = kernel.resample(number_of_generated_subjects).T
-        samples = ss.inverse_transform(samples)  # A 2D numpy.ndarray - of shape n_subjects x n_features
-
-        bl_array, tau_array, xi_array = samples.T[:3]  # Some 1D array - one value per simulated subject
-
-        timepoints = list(map(self._get_timepoints, bl_array))  # A 2D list - one row per simulated subject
-
-        if get_sources:
-            if self.sources_method == "full_kde":
-                sources_array = samples.T[3:].T  # A 2D array - of shape n_subjects x n_sources
-            elif self.sources_method == "normal_sources":
-                # Generate sources
-                def generate_sources(x):
-                    return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).numpy()
-                sources_array = np.apply_along_axis(generate_sources, axis=1, arr=samples)
-                # A 2D array - of shape n_subjects x n_sources
-
-        values = []
-
-        # Compute the associated scores + check scores validity (optional)
-        for i in range(number_of_generated_subjects):
-            # Compute the scores
-            indiv_param = {'xi': xi_array[i], 'tau': tau_array[i]}
-            if get_sources:
-                indiv_param['sources'] = sources_array[i].tolist()
-            observations = model.compute_individual_trajectory(timepoints[i], indiv_param)
-
-            # Add the desired noise
-            if self.noise:
-                if type(self.noise) in [int, float]:
-                    noise = self.noise
+            #  Test the boundary conditions
+            indices_of_accepted_simulated_subjects, features_values = self._get_bounded_subject(
+                features_values, features_min, features_max)
+            for key, val in simulated_parameters.items():
+                if type(val) == np.ndarray:
+                    simulated_parameters[key] = val[indices_of_accepted_simulated_subjects]
                 else:
-                    noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
-                        observations.shape)
-                observations += noise
-                observations = observations.clamp(0, 1)
+                    simulated_parameters[key] = [v for i, v in enumerate(val)
+                                                 if i in indices_of_accepted_simulated_subjects]  # for timepoints
 
-            observations = observations.squeeze(0).detach().numpy()
+            while len(features_values) < self.number_of_subjects:
+                # Complete to attain the goal
+                number_of_simulated_subjects *= self.number_of_subjects / len(indices_of_accepted_simulated_subjects)
 
-            if self.features_bounds:
-                # Filter the subject whose baseline score is outside the bounds
-                # TODO: compute the test before or after adding the noise?
-                #  i.e. real scores or modelized scores inside bounds?
-                test = (features_min < observations[0]) & (observations[0] < features_max)
-                if (test * 1).min():
-                    values.append(observations)
-                    indices_of_accepted_generated_subjects.append(i)
-                    if len(indices_of_accepted_generated_subjects) >= self.number_of_subjects:
-                        break  # if enough generated subject accepted
-            else:
-                values.append(observations)
+                simulated_parameters_bis, features_values_bis = self._simulate_subjects(
+                    model, 1.5*number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
 
-        if self.features_bounds:
-            if len(indices_of_accepted_generated_subjects) < self.number_of_subjects:
-                warnings.warn('Not enough generated subjects are within the features\' bounds!', RuntimeWarning)
+                #  Test the boundary conditions
+                indices_of_accepted_simulated_subjects_bis, features_values_bis = self._get_bounded_subject(
+                    features_values_bis, features_min, features_max)
+                for key, val in simulated_parameters_bis.items():
+                    simulated_parameters_bis[key] = val[indices_of_accepted_simulated_subjects_bis]
 
-            timepoints = [timepoints[i] for i in indices_of_accepted_generated_subjects]
-            tau_array = tau_array[indices_of_accepted_generated_subjects]
-            xi_array = xi_array[indices_of_accepted_generated_subjects]
-            if get_sources:
-                sources_array = sources_array[indices_of_accepted_generated_subjects]
+                # Concatenate with previous generated subjects
+                features_values += features_values_bis
+                for key in simulated_parameters:
+                    simulated_parameters[key] = np.concatenate(simulated_parameters[key],
+                                                               simulated_parameters_bis[key])
 
-            indices = ['Generated_subject_' + str(i) for i in range(1, len(indices_of_accepted_generated_subjects) + 1)]
-        else:
-            indices = ['Generated_subject_' + str(i) for i in range(1, self.number_of_subjects + 1)]
+        # Take only the `number_of_simulated_subjects` first subjects
+        for key, val in simulated_parameters.items():
+            if key in ['tau', 'xi']:
+                simulated_parameters[key] = torch.from_numpy(val).view(-1, 1)[:self.number_of_subjects]
+            if key == 'sources':
+                simulated_parameters[key] = torch.from_numpy(val)[:self.number_of_subjects]
 
-        # Return the leaspy.inputs.data.results object
-        simulated_parameters = {'xi': torch.from_numpy(xi_array).view(-1, 1),
-                                'tau': torch.from_numpy(tau_array).view(-1, 1)}
-        if get_sources:
-            simulated_parameters['sources'] = torch.from_numpy(sources_array)
+        indices = ['Generated_subject_' + str(i) for i in range(1, self.number_of_subjects + 1)]
 
         simulated_scores = Data.from_individuals(indices=indices,
-                                                 timepoints=timepoints,
-                                                 values=values,
+                                                 timepoints=simulated_parameters['timepoints'],
+                                                 values=features_values,
                                                  headers=results.data.headers)
         return Result(data=simulated_scores,
                       individual_parameters=simulated_parameters,
                       noise_std=self.noise)
-
-
-
-        """
-        # Generate individual sources, scores, indices & time-points
-        for i in range(self.number_of_subjects):
-            # Generate time-points
-            number_of_visits = self._get_number_of_visits()  # xi[i], tau[i], bl[i] - 1, sources[-1])
-            if number_of_visits == 1:
-                ages = [bl[i]]
-            elif number_of_visits == 2:
-                ages = [bl[i], bl[i] + 0.5]
-            else:
-                ages = [bl[i], bl[i] + 0.5] + [bl[i] + j for j in range(1, number_of_visits - 1)]
-            timepoints.append(ages)
-
-            # Generate scores
-            indiv_param = {'xi': xi[i], 'tau': tau[i]}
-            if get_sources:
-                indiv_param['sources'] = sources[i].tolist()
-            observations = model.compute_individual_trajectory(ages, indiv_param)
-
-            # Add the desired noise
-            if self.noise:
-                if type(self.noise) in [int, float]:
-                    noise = self.noise
-                else:
-                    noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
-                        observations.shape)
-                observations += noise
-                observations = observations.clamp(0, 1)
-            values.append(observations.squeeze(0).detach().tolist())
-
-            # Generate indices
-            indices.append(i)
-
-        # Return the leaspy.inputs.data.results object
-        simulated_parameters = {'xi': torch.from_numpy(xi).view(-1, 1),
-                                'tau': torch.from_numpy(tau).view(-1, 1)}
-        if get_sources:
-            simulated_parameters['sources'] = torch.from_numpy(sources)
-
-        simulated_scores = Data.from_individuals(indices, timepoints, values, results.data.headers)
-        return Result(data=simulated_scores,
-                      individual_parameters=simulated_parameters,
-                      noise_std=self.noise)"""
-
-        # TODO : Check with Raphaël if he needs the following
-        '''
-
-        param = []
-        for a in param_ind:
-            for i in range(a.shape[1]):
-                param.append(a[:, i].detach().numpy())
-        param = np.array(param)
-
-        kernel = scipy.stats.gaussian_kde(param)
-
-        # Get metrics from Data
-        n_points = np.mean(dataset.nb_observations_per_individuals)
-        data_sim = pd.DataFrame(columns=['ID', 'TIME'] + dataset.headers)
-        indiv_param = {}
-
-        noise = torch.distribution.normal.Normal(0, noise_scale * self.model.parameters['noise_std'])
-        t0 = model.parameters['tau_mean'].detach().numpy()
-        v0 = model.parameters['xi_mean'].detach().numpy()
-        for idx in range(N_indiv):
-            this_indiv_param = {}
-            this_indiv_param[idx] = {}
-            sim = kernel.resample(1)[:, 0]
-            this_indiv_param[idx]['xi'] = sim[0]
-            this_indiv_param[idx]['tau'] = sim[1]
-            if model.name != "univariate":
-                this_indiv_param[idx]['sources'] = sim[2:]
-            indiv_param.update(this_indiv_param)
-            age_diag = (ref_age - t0) * np.exp(v0) / np.exp(sim[0]) + sim[1]
-            # Draw the number of visits
-            n_visits = np.random.randint(max(2, n_points - 3), dataset.max_observations)
-            timepoints = np.linspace(age_diag - n_visits * self.interval / 2, age_diag + n_visits * self.interval / 2, n_visits)
-            timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
-
-            values = model.compute_individual_tensorized(timepoints,
-                                                              self.model.param_ind_from_dict(this_indiv_param))
-            values = values + noise_scale * noise.sample(values.shape)
-            values = torch.clamp(values, 0, 1).squeeze(0)
-
-            ten_idx = torch.tensor([idx] * (n_visits), dtype=torch.float32)
-            val = torch.cat([ten_idx.unsqueeze(1), timepoints.squeeze(0).unsqueeze(1), values], dim=1)
-            truc = pd.DataFrame(val.detach().numpy(), columns=['ID', 'TIME'] + dataset.headers)
-            data_sim = data_sim.append(truc)
-
-        return data_sim
-
-        '''

@@ -43,7 +43,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         self.assertTrue(np.allclose(np.cov(values.T),
                                     t_cov.numpy()))
 
-    def test_check_cofactors(self):
+    def test_check_cofactors(self, get_result=False):
         data = Data.from_csv_file(example_data_path)
         cofactors = pd.read_csv(os.path.join(test_data_dir, "inputs/data_tiny_covariate.csv"))
         cofactors.columns = ("ID", "Treatments")
@@ -60,5 +60,46 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         settings = AlgorithmSettings('simulation', cofactor="Treatments", cofactor_state="dummy")
         self.assertRaises(ValueError, model.simulate, results, settings)
+
+        if get_result:
+            return model, results
+
+    def test_simulation_run(self):
+        model, results = self.test_check_cofactors(get_result=True)
+
+        settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
+                                     std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2)
+        new_results = model.simulate(results, settings)  # just test if run without error
+
+        settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
+                                     std_number_of_visits=0, sources_method="normal_sources", bandwidth_method=.2)
+        new_results = model.simulate(results, settings)  # just test if run without error
+
+        # settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
+        #                              std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
+        #                              features_bounds=True)  # idem + test scores bounds
+        # new_results = model.simulate(results, settings)
+        # new_results_max_bounds = new_results.data.to_dataframe().groupby('ID').first().max().values
+        # results_max_bounds = results.data.to_dataframe().groupby('ID').first().max().values
+        # bounds_ok = ((new_results_max_bounds < results_max_bounds) * 1).min()
+        # self.assertEqual(bounds_ok, 1)
+        # new_results_min_bounds = new_results.data.to_dataframe().groupby('ID').first().min().values
+        # results_min_bounds = results.data.to_dataframe().groupby('ID').first().min().values
+        # bounds_ok = ((new_results_min_bounds > results_min_bounds) * 1).min()
+        # self.assertEqual(bounds_ok, 1)
+
+        # bounds = {'Y0': (0., .5), 'Y1': (0., .1), 'Y2': (0., .1), 'Y3': (0., .1)}
+        # settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
+        #                              std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
+        #                              features_bounds=bounds)  # idem + test scores bounds
+        # new_results = model.simulate(results, settings)
+        # new_results_max_bounds = new_results.data.to_dataframe().groupby('ID').first().max().values
+        # results_max_bounds = results.data.to_dataframe().groupby('ID').first().max().values
+        # bounds_ok = ((new_results_max_bounds < results_max_bounds) * 1).min()
+        # self.assertEqual(bounds_ok, 1)
+        # new_results_min_bounds = new_results.data.to_dataframe().groupby('ID').first().min().values
+        # results_min_bounds = results.data.to_dataframe().groupby('ID').first().min().values
+        # bounds_ok = ((new_results_min_bounds > results_min_bounds) * 1).min()
+        # self.assertEqual(bounds_ok, 1)
 
     # global behaviour of SimulationAlgorithm class is tested in the functional test test_api.py

@@ -194,6 +194,7 @@ class LeaspyTest(unittest.TestCase):
         # in https://github.com/pandas-dev/pandas/issues/22052
 
         # If reproducibility error > 1e-5 => display it + visit with the biggest reproducibility error
+        error_message = ''
         if not simulation_is_reproducible:
             simulation_df = pd.read_csv(
                 os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"))
@@ -211,7 +212,7 @@ class LeaspyTest(unittest.TestCase):
                     value_v1 = v1
                     value_v2 = v2
                     max_diff = max(diff)
-            error_message = '\nTolerance error = %.1e' % tol
+            error_message += '\nTolerance error = %.1e' % tol
             error_message += 'Maximum error = %.3e' % max_diff
             error_message += str([round(v, round_decimal+1) for v in value_v1])
             error_message += str([round(v, round_decimal+1) for v in value_v2])

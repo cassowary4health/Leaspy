@@ -278,18 +278,36 @@ class SimulationAlgorithm(AbstractAlgo):
             ages = [bl, bl + 0.5] + [bl + j for j in range(1, number_of_visits - 1)]
         return ages
 
-    #TODO: docstrings !!
     def _simulate_individual_parameters(self, model, number_of_simulated_subjects, kernel, ss, get_sources,
                                         df_mean, df_cov):
+        """
+        Compute the simulated individual parameters and timepoints.
+
+        Parameters
+        ----------
+        model : a `leaspy.model` class object
+        number_of_simulated_subjects : `int`
+        kernel : a `scipy.stats.gaussian_kde` class object
+        ss : a `sklearn.preprocessing.StandardScaler` class object
+        get_sources : `bool`
+        df_mean : `torch.Tensor`
+        df_cov : `torch.Tensor`
+
+        Returns
+        -------
+        simulated_parameters : `dict` [`str`, `numpy.ndarray`]
+            Contains the simulated parameters.
+        timepoints : `list` [`float`]
+            Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
+        """
         samples = kernel.resample(number_of_simulated_subjects).T
         samples = ss.inverse_transform(samples)  # A 2D numpy.ndarray - of shape n_subjects x n_features
 
-        simulated_parameters = {'timepoints': list(map(self._get_timepoints, samples.T[0])),
-                                           'tau': samples.T[1],
-                                           'xi': samples.T[2]}
-        # xi & tau are 1D array - one value per simulated subject
+        timepoints = list(map(self._get_timepoints, samples.T[0]))
         # timempoints is a 2D list - one row per simulated subject
 
+        simulated_parameters = {'tau': samples.T[1], 'xi': samples.T[2]}
+        # xi & tau are 1D array - one value per simulated subject
         if get_sources:
             if self.sources_method == "full_kde":
                 simulated_parameters['sources'] = samples.T[3:].T
@@ -299,25 +317,32 @@ class SimulationAlgorithm(AbstractAlgo):
                     return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).numpy()
                 simulated_parameters['sources'] = np.apply_along_axis(simulate_sources, axis=1, arr=samples)
                 # sources is 2D array - of shape n_subjects x n_sources
-        return simulated_parameters
 
-    def _simulate_subjects(self, model, number_of_simulated_subjects, kernel, ss, get_sources,
-                           df_mean, df_cov):
+        return simulated_parameters, timepoints
 
-        simulated_parameters = self._simulate_individual_parameters(
-            model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
+    def _simulate_subjects(self, simulated_parameters, timepoints, model):
+        """
+        Compute the simulated scores.
 
+        Parameters
+        ----------
+        model : a `leaspy.model` class object
+        simulated_parameters : `dict` [`str`, `numpy.ndarray`]
+            Contains the simulated parameters.
+        timepoints : `list` [`float`]
+            Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
+
+        Returns
+        -------
+        features_values : `list` [`numpy.ndarray`]
+            Contains the scores of all the subjects for all their visits. Contains one entry per subject, each of
+            them is a 2D-numpy.ndarray of shape n_visits x n_features.
+        """
         features_values = []
-        # Compute the associated scores + check scores validity (optional)
-        for i in range(number_of_simulated_subjects):
-            # Compute the scores
-            indiv_param = {'xi': simulated_parameters['xi'][i],
-                           'tau': simulated_parameters['tau'][i]}
-            if get_sources:
-                indiv_param['sources'] = simulated_parameters['sources'][i].tolist()
-            observations = model.compute_individual_trajectory(
-                simulated_parameters['timepoints'][i], indiv_param)
-
+        for i in range(len(timepoints)):
+            indiv_param = {key: val[i] for key, val in simulated_parameters.items()}
+            indiv_param['sources'] = indiv_param['sources'].tolist()
+            observations = model.compute_individual_trajectory(timepoints[i], indiv_param)
             # Add the desired noise
             if self.noise:
                 if type(self.noise) in [int, float]:
@@ -331,10 +356,29 @@ class SimulationAlgorithm(AbstractAlgo):
             observations = observations.squeeze(0).detach().numpy()
             features_values.append(observations)
 
-        return simulated_parameters, features_values
+        return features_values
 
     @staticmethod
     def _get_bounded_subject(features_values, features_min, features_max):
+        """
+        Select the subject whose scores are within the features boundaries.
+
+        Parameters
+        ----------
+        features_values : `list` [`np.ndarray`]
+            Contains the scores of all the subjects of all their visits. Each element correspond to a simulated
+            subject, these elements are of shape n_vists x n_features.
+        features_min : `np.ndarray`
+            Lowest score allowed per feature - sorted accordingly to the features in ``result.data.headers``.
+        features_max : `np.ndarray`
+            Highest score allowed per feature - sorted accordingly to the features in ``result.data.headers``.
+
+        Returns
+        -------
+        indices_of_accepted_simulated_subjects : `list` [`float`]
+        `list` [`np.ndarray`]
+            Contains the scores of all the subjects whose scores are within the features boundaries.
+        """
         def _test_subject(bl_score, features_min, features_max):
             return (features_min <= bl_score).all() & (bl_score <= features_max).all()
 
@@ -343,7 +387,6 @@ class SimulationAlgorithm(AbstractAlgo):
                                                   if _test_subject(bl_score, features_min, features_max)]
         return indices_of_accepted_simulated_subjects, [val for i, val in enumerate(features_values)
                                                         if i in indices_of_accepted_simulated_subjects]
-
 
     def run(self, model, results):
         """
@@ -408,8 +451,10 @@ class SimulationAlgorithm(AbstractAlgo):
         else:
             number_of_simulated_subjects = self.number_of_subjects
 
-        simulated_parameters, features_values = self._simulate_subjects(
+        simulated_parameters, timepoints = self._simulate_individual_parameters(
             model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
+
+        features_values = self._simulate_subjects(simulated_parameters, timepoints, model)
 
         if self.features_bounds:
             # Handle bounds on the generated features
@@ -418,32 +463,36 @@ class SimulationAlgorithm(AbstractAlgo):
             indices_of_accepted_simulated_subjects, features_values = self._get_bounded_subject(
                 features_values, features_min, features_max)
             for key, val in simulated_parameters.items():
-                if type(val) == np.ndarray:
-                    simulated_parameters[key] = val[indices_of_accepted_simulated_subjects]
-                else:
-                    simulated_parameters[key] = [v for i, v in enumerate(val)
-                                                 if i in indices_of_accepted_simulated_subjects]  # for timepoints
+                simulated_parameters[key] = val[indices_of_accepted_simulated_subjects]
+
+            timepoints = [v for i, v in enumerate(timepoints) if i in indices_of_accepted_simulated_subjects]
 
             while len(features_values) < self.number_of_subjects:
                 # Complete to attain the goal
                 number_of_simulated_subjects *= self.number_of_subjects / len(indices_of_accepted_simulated_subjects)
 
-                simulated_parameters_bis, features_values_bis = self._simulate_subjects(
-                    model, 1.5*number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
+                simulated_parameters_bis, timepoints_bis = self._simulate_individual_parameters(
+                    model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
+
+                features_values_bis = self._simulate_subjects(simulated_parameters_bis, timepoints_bis, model)
 
                 #  Test the boundary conditions
                 indices_of_accepted_simulated_subjects_bis, features_values_bis = self._get_bounded_subject(
                     features_values_bis, features_min, features_max)
-                for key, val in simulated_parameters_bis.items():
+                for val in simulated_parameters_bis.values():
                     simulated_parameters_bis[key] = val[indices_of_accepted_simulated_subjects_bis]
+                timepoints_bis = [v for i, v in enumerate(timepoints_bis)
+                                  if i in indices_of_accepted_simulated_subjects_bis]
 
                 # Concatenate with previous generated subjects
                 features_values += features_values_bis
+                timepoints += timepoints_bis
                 for key in simulated_parameters:
                     simulated_parameters[key] = np.concatenate(simulated_parameters[key],
                                                                simulated_parameters_bis[key])
 
         # Take only the `number_of_simulated_subjects` first subjects
+        timepoints = timepoints[:self.number_of_subjects]
         for key, val in simulated_parameters.items():
             if key in ['tau', 'xi']:
                 simulated_parameters[key] = torch.from_numpy(val).view(-1, 1)[:self.number_of_subjects]
@@ -453,7 +502,7 @@ class SimulationAlgorithm(AbstractAlgo):
         indices = ['Generated_subject_' + str(i) for i in range(1, self.number_of_subjects + 1)]
 
         simulated_scores = Data.from_individuals(indices=indices,
-                                                 timepoints=simulated_parameters['timepoints'],
+                                                 timepoints=timepoints,
                                                  values=features_values,
                                                  headers=results.data.headers)
         return Result(data=simulated_scores,

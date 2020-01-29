@@ -213,10 +213,10 @@ class LeaspyTest(unittest.TestCase):
                     value_v2 = v2
                     max_diff = max(diff)
             error_message += '\nTolerance error = %.1e' % tol
-            error_message += 'Maximum error = %.3e' % max_diff
-            error_message += str([round(v, round_decimal+1) for v in value_v1])
-            error_message += str([round(v, round_decimal+1) for v in value_v2])
-            error_message += 'Number of simulated visits above tolerance error = %d / %d \n' \
+            error_message += '\nMaximum error = %.3e' % max_diff
+            error_message += '\n' + str([round(v, round_decimal+1) for v in value_v1])
+            error_message += '\n' + str([round(v, round_decimal+1) for v in value_v2])
+            error_message += '\nNumber of simulated visits above tolerance error = %d / %d \n' \
                              % (count, simulation_df.shape[0])
         # For loop before the last self.assert - otherwise no display is made
         self.assertTrue(simulation_is_reproducible, error_message)

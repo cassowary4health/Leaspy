@@ -40,7 +40,7 @@ class SimulationAlgorithm(AbstractAlgo):
     mean_number_of_visits : `int` (default 6)
         Average number of visits of the simulated patients.
         Examples - choose 5 => in average, a simulated patient will have 5 visits.
-    name : "simulation"
+    name : ``"simulation"``
         Algorithm's name.
     noise : `float` or `bool` (default True)
         Wanted level of noise in the generated scores - noise of zero will lead to patients having "perfect progression"

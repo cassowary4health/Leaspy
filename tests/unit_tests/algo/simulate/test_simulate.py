@@ -17,6 +17,9 @@ class SimulationAlgorithmTest(unittest.TestCase):
         self.algo = SimulationAlgorithm(self.settings)
 
     def test_construtor(self):
+        """
+        Test the initialization.
+        """
         self.assertEqual(self.settings.parameters['bandwidth_method'], self.algo.bandwidth_method)
         self.assertEqual(self.settings.parameters['noise'], self.algo.noise)
         self.assertEqual(self.settings.parameters['number_of_subjects'], self.algo.number_of_subjects)
@@ -34,6 +37,9 @@ class SimulationAlgorithmTest(unittest.TestCase):
         self.assertTrue(n_visit >= 1)
 
     def test_get_mean_and_covariance_matrix(self):
+        """
+        Test the result given by the calculus with torch vs the dedicated function of numpy.
+        """
         values = np.random.rand(100, 5)
         t_mean = torch.tensor(values).mean(dim=0)
         self.assertTrue(np.allclose(values.mean(axis=0),
@@ -44,6 +50,20 @@ class SimulationAlgorithmTest(unittest.TestCase):
                                     t_cov.numpy()))
 
     def test_check_cofactors(self, get_result=False):
+        """
+        Test Leaspy.simulate return a ``ValueError`` if the ``cofactor`` and ``cofactor_state`` parameters given
+        in the ``AlgorithmSettings`` are invalid.
+
+        Parameters
+        ----------
+        get_result : `bool`
+            If set to ``True``, return the leaspy model and result object used to do the test. Else return nothing.
+
+        Returns
+        -------
+        model : a leaspy.model class object
+        results : a leaspy.inputs.data.result.Result class object
+        """
         data = Data.from_csv_file(example_data_path)
         cofactors = pd.read_csv(os.path.join(test_data_dir, "inputs/data_tiny_covariate.csv"))
         cofactors.columns = ("ID", "Treatments")
@@ -65,6 +85,9 @@ class SimulationAlgorithmTest(unittest.TestCase):
             return model, results
 
     def test_simulation_run(self):
+        """
+        Test if the simulation run properly with different settings.
+        """
         model, results = self.test_check_cofactors(get_result=True)
 
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
@@ -75,31 +98,42 @@ class SimulationAlgorithmTest(unittest.TestCase):
                                      std_number_of_visits=0, sources_method="normal_sources", bandwidth_method=.2)
         new_results = model.simulate(results, settings)  # just test if run without error
 
-        # settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
-        #                              std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
-        #                              features_bounds=True)  # idem + test scores bounds
-        # new_results = model.simulate(results, settings)
-        # new_results_max_bounds = new_results.data.to_dataframe().groupby('ID').first().max().values
-        # results_max_bounds = results.data.to_dataframe().groupby('ID').first().max().values
-        # bounds_ok = ((new_results_max_bounds < results_max_bounds) * 1).min()
-        # self.assertEqual(bounds_ok, 1)
-        # new_results_min_bounds = new_results.data.to_dataframe().groupby('ID').first().min().values
-        # results_min_bounds = results.data.to_dataframe().groupby('ID').first().min().values
-        # bounds_ok = ((new_results_min_bounds > results_min_bounds) * 1).min()
-        # self.assertEqual(bounds_ok, 1)
+        settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
+                                     std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
+                                     features_bounds=True)  # idem + test scores bounds
+        # self.test_bounds_behaviour(model, results, settings)
 
-        # bounds = {'Y0': (0., .5), 'Y1': (0., .1), 'Y2': (0., .1), 'Y3': (0., .1)}
-        # settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
-        #                              std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
-        #                              features_bounds=bounds)  # idem + test scores bounds
-        # new_results = model.simulate(results, settings)
-        # new_results_max_bounds = new_results.data.to_dataframe().groupby('ID').first().max().values
-        # results_max_bounds = results.data.to_dataframe().groupby('ID').first().max().values
-        # bounds_ok = ((new_results_max_bounds < results_max_bounds) * 1).min()
-        # self.assertEqual(bounds_ok, 1)
-        # new_results_min_bounds = new_results.data.to_dataframe().groupby('ID').first().min().values
-        # results_min_bounds = results.data.to_dataframe().groupby('ID').first().min().values
-        # bounds_ok = ((new_results_min_bounds > results_min_bounds) * 1).min()
-        # self.assertEqual(bounds_ok, 1)
+        bounds = {'Y0': (0., .5), 'Y1': (0., .1), 'Y2': (0., .1), 'Y3': (0., .1)}
+        settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
+                                     std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
+                                     features_bounds=bounds)  # idem + test scores bounds
+        self._bounds_behaviour(model, results, settings)
+
+    def _bounds_behaviour(self, model, results, settings):
+        """
+        Test the good behaviour of the ``features_bounds`` parameter.
+
+        Parameters
+        ----------
+        model : a leaspy.model class object
+        results : a leaspy.inputs.data.result.Result class object
+        settings : a leaspy.inputs.settings.algorithm_settings.AlgorithmSettings class object
+            Contains the `features_bounds`` parameter.
+        """
+        new_results = model.simulate(results, settings)
+        new_results_max_bounds: np.ndarray = new_results.data.to_dataframe().groupby('ID').first().max().values[1:]
+        new_results_min_bounds: np.ndarray = new_results.data.to_dataframe().groupby('ID').first().min().values[1:]
+
+        if type(settings.parameters['features_bounds']) == dict:
+            results_max_bounds = np.array([val[1] for val in settings.parameters["features_bounds"].values()])
+            results_min_bounds = np.array([val[0] for val in settings.parameters["features_bounds"].values()])
+        elif settings.parameters['features_bounds']:
+            results_max_bounds: np.ndarray = results.data.to_dataframe().groupby('ID').first().max().values[1:]
+            results_min_bounds: np.ndarray = results.data.to_dataframe().groupby('ID').first().min().values[1:]
+
+        self.assertTrue(all(new_results_max_bounds <= results_max_bounds),
+                        "Generated scores contain scores outside the bounds")
+        self.assertTrue(all(new_results_min_bounds >= results_min_bounds),
+                        "Generated scores contain scores outside the bounds")
 
     # global behaviour of SimulationAlgorithm class is tested in the functional test test_api.py

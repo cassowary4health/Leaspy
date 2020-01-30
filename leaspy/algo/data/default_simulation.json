@@ -10,6 +10,7 @@
     "std_number_of_visits": 3,
     "cofactor": null,
     "cofactor_state": null,
-    "sources_method": "normal_sources"
+    "sources_method": "full_kde",
+    "features_bounds": false
   }
 }

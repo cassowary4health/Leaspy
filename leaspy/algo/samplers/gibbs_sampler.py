@@ -161,12 +161,15 @@ class GibbsSampler(AbstractSampler):
         realization = realizations[self.name]
 
         previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
+        # use realizations => use all individual parameters to compare reconstructions vs values
         # previous_attachment.ndim = 1
         previous_regularity = model.compute_regularity_realization(realization).sum(dim=1).reshape(data.n_individuals)
+        # compute log-likelihood of just the given parameter (tau or xi or ...)
 
         # Keep previous realizations and sample new ones
         previous_reals = realization.tensor_realizations.clone()
         realization.tensor_realizations = self._proposal(realization.tensor_realizations)
+        # Add perturbations to previous observations
 
         # Compute the attachment and regularity
         new_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)

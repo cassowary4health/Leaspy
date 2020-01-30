@@ -1,8 +1,11 @@
-from .abstract_personalize_algo import AbstractPersonalizeAlgo
-from ..samplers.hmc_sampler import HMCSampler
-from ..samplers.gibbs_sampler import GibbsSampler
-from leaspy.utils.realizations.realization import Realization
 import torch
+
+from leaspy.utils.realizations.realization import Realization
+from .abstract_personalize_algo import AbstractPersonalizeAlgo
+from ..samplers.gibbs_sampler import GibbsSampler
+from ..samplers.hmc_sampler import HMCSampler
+
+
 # import time
 
 
@@ -51,6 +54,8 @@ class ModeReal(AbstractPersonalizeAlgo):
         # initialize realizations
         realizations = model.get_realization_object(data.n_individuals)
         realizations.initialize_from_values(data.n_individuals, model)
+        # TODO: remove method ``realizations.initialize_from_values`` and add scale_individual parameter to
+        #  ``model.get_realization_object`` to be passed to ``realization.initialize``
 
         # Gibbs sample n_iter times
         for i in range(self.algo_parameters['n_iter']):

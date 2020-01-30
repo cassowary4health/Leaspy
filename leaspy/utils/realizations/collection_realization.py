@@ -9,7 +9,9 @@ class CollectionRealization:
         self.reals_ind_variable_names = []
 
     def initialize(self, n_individuals, model):
-
+        """
+        Idem that initialize_from_values method except it calls realization.initialize with scale_individual=1.
+        """
         # Indices
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
@@ -51,7 +53,9 @@ class CollectionRealization:
         return new_realizations
 
     def initialize_from_values(self, n_individuals, model):
-
+        """
+        Idem that initialize method except it calls realization.initialize with scale_individual=.01
+        """
         # Indices
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():

@@ -251,7 +251,55 @@ class Result:
             torch.save(dump, path)  # save function from torch
 
     @staticmethod
-    def load_individual_parameters(path, verbose=True):
+    def load_individual_parameters_from_csv(path):
+        """
+        Load individual parameters from a csv.
+
+        Parameters
+        ----------
+        path: `str`
+            The file's path.
+
+        Returns
+        -------
+        `dict`
+            A dictionary of torch.tensor which contains the individual parameters.
+
+        Examples
+        --------
+        Load an individual parameters dictionary from a saved file.
+
+        >>> from leaspy import Result
+        >>> path = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.csv'
+        >>> individual_parameters = Result.load_individual_parameters(path)
+        """
+        df = pd.read_csv(path)
+        return Result.load_individual_parameters_from_dataframe(df)
+
+    @staticmethod
+    def load_individual_parameters_from_dataframe(df):
+        """
+        Load individual parameters from a csv.
+
+        Parameters
+        ----------
+        df: `pandas.DataFrame`
+
+        Returns
+        -------
+        `dict`
+            A dictionary of torch.tensor which contains the individual parameters.
+        """
+        df.columns = [header.lower() for header in df.columns]
+        sources_index = ["sources" in header for header in df.columns]
+        ind_param = {'tau': torch.tensor(df['tau'].values, dtype=torch.float32).view(-1, 1),
+                     'xi': torch.tensor(df['xi'].values, dtype=torch.float32).view(-1, 1)}
+        if any(sources_index):
+            ind_param['sources'] = torch.tensor(df.iloc[:, sources_index].values, dtype=torch.float32)
+        return ind_param
+
+    @staticmethod
+    def load_individual_parameters_from_json(path, verbose=True):
         """
         Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
 
@@ -295,18 +343,42 @@ class Result:
         return individual_parameters
 
     @staticmethod
-    def load_result(path_data, path_individual_parameters, verbose=True):
+    def load_individual_parameters(path_or_df):
+        """
+        Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
+
+        Parameters
+        ----------
+        path_or_df: `str` or 'pandas.DataFrame`
+            The file's path or a DataFrame containing the individual parameters.
+
+        Returns
+        -------
+        `dict`
+            A dictionary of torch.tensor which contains the individual parameters.
+        """
+        if type(path_or_df) == pd.DataFrame:
+            return Result.load_individual_parameters_from_dataframe(path_or_df)
+        elif type(path_or_df) == str:
+            if path_or_df[-4:] == '.csv':
+                return Result.load_individual_parameters_from_csv(path_or_df)
+            else:
+                return Result.load_individual_parameters_from_json(path_or_df)
+        else:
+            raise TypeError("The given input must be a pandas.DataFrame or a string giving the path of the file "
+                            "containing the individual parameters!")
+
+    @staticmethod
+    def load_result(data, individual_parameters):
         """
         Load a Result class object from two file - one for the individual data & one for the individual parameters.
 
         Parameters
         ----------
-        path_data: `str`
-            The individual data's path. Must be a csv.
-        path_individual_parameters: `str`
-            The individual parameters' path. Must be a json or a torch file.
-        verbose: `bool` (default True)
-            Precise if the loaded file can be read as a torch file or need conversion.
+        data: `str` or 'pandas.DataFrame`
+            The file's path or a DataFrame containing the features' scores.
+        individual_parameters:  `str` or 'pandas.DataFrame`
+            The file's path or a DataFrame containing the individual parameters.
 
         Returns
         -------
@@ -330,8 +402,15 @@ class Result:
         >>> individual_results.save_individual_parameters(path_individual_parameters)
         >>> individual_parameters = Result.load_result(path_data, path_individual_parameters)
         """
-        data = Data.from_csv_file(path_data)
-        individual_parameters = Result.load_individual_parameters(path_individual_parameters, verbose=verbose)
+        if type(data) == 'str':
+            data = Data.from_csv_file(data)
+        elif type(data) == pd.DataFrame:
+            data = Data.from_dataframe(data)
+        else:
+            raise TypeError("The given `data` input must be a pandas.DataFrame or a string giving the path of the file "
+                            "containing the features' scores!")
+
+        individual_parameters = Result.load_individual_parameters(individual_parameters)
         return Result(data, individual_parameters)
 
     ###############################################################

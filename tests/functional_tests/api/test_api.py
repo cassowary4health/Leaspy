@@ -172,8 +172,8 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
-        simulation_results.data.to_dataframe().to_csv(os.path.join(
-            test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"), index=False)
+        # simulation_results.data.to_dataframe().to_csv(os.path.join(
+        #     test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"), index=False)
         # Test the reproducibility of simulate
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
         # BUT ON DIFFERENT MACHINE I CAN SEE ERROR OF MAGNITUDE 1e-5 !!!
@@ -194,6 +194,7 @@ class LeaspyTest(unittest.TestCase):
         # in https://github.com/pandas-dev/pandas/issues/22052
 
         # If reproducibility error > 1e-5 => display it + visit with the biggest reproducibility error
+        error_message = ''
         if not simulation_is_reproducible:
             simulation_df = pd.read_csv(
                 os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"))
@@ -211,33 +212,11 @@ class LeaspyTest(unittest.TestCase):
                     value_v1 = v1
                     value_v2 = v2
                     max_diff = max(diff)
-            print('\nTolerance error = %.1e' % tol)
-            print('Maximum error = %.3e' % max_diff)
-            print([round(v, round_decimal+1) for v in value_v1])
-            print([round(v, round_decimal+1) for v in value_v2])
-            print('Number of simulated visits above tolerance error = %d / %d \n' % (count, simulation_df.shape[0]))
+            error_message += '\nTolerance error = %.1e' % tol
+            error_message += '\nMaximum error = %.3e' % max_diff
+            error_message += '\n' + str([round(v, round_decimal+1) for v in value_v1])
+            error_message += '\n' + str([round(v, round_decimal+1) for v in value_v2])
+            error_message += '\nNumber of simulated visits above tolerance error = %d / %d \n' \
+                             % (count, simulation_df.shape[0])
         # For loop before the last self.assert - otherwise no display is made
-        self.assertTrue(simulation_is_reproducible)
-
-    """
-    def test_constructor(self):
-        leaspy = Leaspy('univariate')
-        self.assertEqual(leaspy.type, 'univariate')
-        self.assertEqual(type(leaspy.model), UnivariateModel)
-        self.assertEqual(leaspy.model.model_parameters['p0'], None)
-        self.assertEqual(leaspy.model.model_parameters['tau_mean'], None)
-        self.assertEqual(leaspy.model.model_parameters['tau_var'], None)
-        self.assertEqual(leaspy.model.model_parameters['xi_mean'], None)
-        self.assertEqual(leaspy.model.model_parameters['xi_var'], None)
-
-
-    def test_constructor_from_parameters(self):
-        path_to_model_parameters = os.path.join(test_data_dir, 'model_settings_univariate.json')
-        leaspy = Leaspy.load(path_to_model_parameters)
-        self.assertEqual(leaspy.type, "univariate")
-        self.assertEqual(leaspy.model.model_parameters['p0'], [0.3])
-        self.assertEqual(leaspy.model.model_parameters['tau_mean'], 50)
-        self.assertEqual(leaspy.model.model_parameters['tau_var'], 2)
-        self.assertEqual(leaspy.model.model_parameters['xi_mean'], -10)
-        self.assertEqual(leaspy.model.model_parameters['xi_var'], 0.8)
-    """
+        self.assertTrue(simulation_is_reproducible, error_message)

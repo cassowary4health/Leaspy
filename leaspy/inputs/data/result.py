@@ -2,6 +2,7 @@ import copy
 import json
 import os
 import warnings
+from collections import Iterable
 from pickle import UnpicklingError
 
 import pandas as pd
@@ -17,7 +18,7 @@ class Result:
 
     Attributes
     ----------
-    data: leaspy.inputs.data.data.Data class object
+    data: leaspy.inputs.data.data.Data
         Object containing the idx, time-points and observations of the patients.
     individual_parameters: dict
         Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.tensor).
@@ -33,14 +34,23 @@ class Result:
     -------
     get_dataframe_individual_parameters(cofactors)
         Return the dataframe of the individual parameters.
-    get_torch_individual_parameters()
+    get_torch_individual_parameters(ID)
         Getter function for the individual parameters.
-    save_individual_parameters(self, path, idx, human_readable)
+    save_individual_parameters_csv(path, idx, cofactors)
+        Save the individual parameters in a json format.
+    save_individual_parameters_json(path, idx, human_readable)
         Save the individual parameters.
-    load_individual_parameters(path, verbose)
-        Load individual parameters from a json file or a torch file as a dictionary of Torch.tensor.
     load_result(path_data, path_individual_parameters, verbose)
         Load a Result class object from two file - one for the individual data & one for the individual parameters.
+    load_individual_parameters(path, verbose)
+        Load individual parameters from a pandas.DataFrame, a csv, a json file or a torch file as a dictionary
+        of torch.Tensor.
+    load_individual_parameters_from_csv(path)
+        Load individual parameters from a csv.
+    load_individual_parameters_from_dataframe(df)
+        Load individual parameters from a csv.
+    load_individual_parameters_from_json(path, verbose)
+        Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
 
     Depreciated in a futur release:
         get_cofactor_distribution(cofactor)
@@ -62,11 +72,11 @@ class Result:
 
         Parameters
         ----------
-        data: leaspy.inputs.data.data class object
+        data : leaspy.inputs.data.data.Data
             Object containing the idx, time-points and observations of the patients
-        individual_parameters: dictionary of torch.tensor
+        individual_parameters : dict [str, torch.Tensor]
             Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
-        noise_std: float
+        noise_std : float, optional (default 2.)
             Desired noise standard deviation level
         """
         self.data = data
@@ -74,26 +84,31 @@ class Result:
         self.ID_to_idx = {key: i for i, key in enumerate(data.individuals)}
         self.noise_std = noise_std
 
-    # def load_covariables(self, covariables, csv):
-    #    self.covariables = covariables
-
     def get_torch_individual_parameters(self, ID=None):
         """
         Getter function for the individual parameters.
 
+        Parameters
+        ----------
+        ID : `list`, optional (default None)
+            Contains the identifiers of the wanted subject.
+
         Returns
         -------
         torch.Tensor
-            Contains the individual parameters
+            Contains the individual parameters.
         """
-
         if ID is not None:
-            # If not list, convert to list
             if type(ID) != list:
-                ID = [ID]
+                if isinstance(ID, str) or not isinstance(ID, Iterable):
+                    # If ID is not a Iterable (case where ID is a int) => convert into list
+                    # If ID is a str => convert into list
+                    ID = [ID]
+                else:
+                    raise ValueError('Input argument "ID" must be a single identifier or a list or identifier!')
 
-            liste_idt = [self.ID_to_idx[id_patient] for id_patient in ID]
-            ind_parameters = {key: value[liste_idt] for key, value in self.individual_parameters.items()}
+            list_idt = [self.ID_to_idx[id_patient] for id_patient in ID]
+            ind_parameters = {key: value[list_idt] for key, value in self.individual_parameters.items()}
         else:
             ind_parameters = self.individual_parameters.copy()
         return ind_parameters
@@ -107,7 +122,7 @@ class Result:
 
         Parameters
         ----------
-        cofactors: str or list
+        cofactors: str or `list`, optional (default None)
             Contains the cofactor(s) to join to the output dataframe.
 
         Notes
@@ -185,18 +200,58 @@ class Result:
 
         return df_individual_parameters
 
-    # TODO: save the individual parameters DataFrame in a csv file + select the wanted cofactors & cofactors' states.
-    def save_individual_parameters(self, path, idx=None, human_readable=True):
+    def save_individual_parameters_csv(self, path, idx=None, cofactors=None):
         """
-        Save the individual parameters.
+        Save the individual parameters in a json format.
 
         Parameters
         ----------
-        path: `str`
+        path : `str`
             The output's path.
-        idx: `list` [`str`] (default None)
+        idx : `list` [`str`], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
-        human_readable: `bool` (default True)
+        cofactors : `str` or `List` [`str`], optional (default None)
+            Contains the cofactor(s) to join to the output dataframe.
+
+        Notes
+        -----
+        The cofactors must be present in the leaspy data object stored into the .data attribute of the result instance.
+        See the example.
+
+        Examples
+        --------
+        Save the individual parameters of the twenty first subjects.
+
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy
+        >>> leaspy_logistic = Leaspy('logistic')
+        >>> data = Data.from_csv_file('data/my_leaspy_data.csv') # replace with your own path!
+        >>> genes_cofactors = pd.read_csv('data/genes_cofactors.csv')  # replace with your own path!
+        >>> data.load_cofactors(genes_cofactors, 'GENES')
+        >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
+        >>> leaspy_logistic.fit(data, model_settings)
+        >>> individual_results = leaspy_logistic.personalize(data, model_settings)
+        >>> output_path = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.csv'
+        >>> idx = list(individual_results.individual_parameters.keys())[:20]
+        >>> individual_results.save_individual_parameters_csv(output_path, idx, cofactors='GENES')
+        """
+        df_individual_parameters = self.get_dataframe_individual_parameters(cofactors=cofactors)
+        if idx:
+            df_individual_parameters = df_individual_parameters.loc[idx]
+        df_individual_parameters.to_csv(path, index=True)
+
+    # TODO: save the individual parameters DataFrame in a csv file + select the wanted cofactors & cofactors' states.
+    def save_individual_parameters_json(self, path, idx=None, human_readable=True):
+        """
+        Save the individual parameters in a json format.
+
+        Parameters
+        ----------
+        path : `str`
+            The output's path.
+        idx : `list` [`str`], optional (default None)
+            Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
+        human_readable : `bool`, optional (default True)
             If set to True => save a json object.
             If set to False => save a torch object (which cannot be read from a text editor).
 
@@ -213,7 +268,7 @@ class Result:
         >>> individual_results = leaspy_logistic.personalize(data, model_settings)
         >>> output_path = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.json'
         >>> idx = list(individual_results.individual_parameters.keys())[:20]
-        >>> individual_results.save_individual_parameters(output_path, idx)
+        >>> individual_results.save_individual_parameters_json(output_path, idx)
         """
         # Test path's folder existence (if path contain a folder)
         if os.path.dirname(path) != '':
@@ -257,7 +312,7 @@ class Result:
 
         Parameters
         ----------
-        path: `str`
+        path : `str`
             The file's path.
 
         Returns
@@ -283,7 +338,7 @@ class Result:
 
         Parameters
         ----------
-        df: `pandas.DataFrame`
+        df : `pandas.DataFrame`
 
         Returns
         -------
@@ -305,9 +360,9 @@ class Result:
 
         Parameters
         ----------
-        path: `str`
+        path : `str`
             The file's path.
-        verbose: `bool` (default True)
+        verbose : `bool`, optional (default True)
             Precise if the loaded file can be read as a torch file or need conversion.
 
         Returns
@@ -345,11 +400,12 @@ class Result:
     @staticmethod
     def load_individual_parameters(path_or_df):
         """
-        Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
+        Load individual parameters from a pandas.DataFrame, a csv, a json file or a torch file as a dictionary
+        of torch.Tensor.
 
         Parameters
         ----------
-        path_or_df: `str` or 'pandas.DataFrame`
+        path_or_df : `str` or `pandas.DataFrame`
             The file's path or a DataFrame containing the individual parameters.
 
         Returns
@@ -369,16 +425,19 @@ class Result:
                             "containing the individual parameters!")
 
     @staticmethod
-    def load_result(data, individual_parameters):
+    def load_result(individual_parameters, data, cofactors=None):
         """
         Load a Result class object from two file - one for the individual data & one for the individual parameters.
 
         Parameters
         ----------
-        data: `str` or 'pandas.DataFrame`
-            The file's path or a DataFrame containing the features' scores.
-        individual_parameters:  `str` or 'pandas.DataFrame`
+        individual_parameters :  `str` or `pandas.DataFrame`
             The file's path or a DataFrame containing the individual parameters.
+        data : `str` or `pandas.DataFrame`
+            The file's path or a DataFrame containing the features' scores.
+        cofactors :   `str` or `pandas.DataFrame`, optional (default None)
+            The file's path or a DataFrame containing the individual cofactors.
+            The ID must be in index! Thus, the shape is (n_subjects, n_cofactors).
 
         Returns
         -------
@@ -402,13 +461,25 @@ class Result:
         >>> individual_results.save_individual_parameters(path_individual_parameters)
         >>> individual_parameters = Result.load_result(path_data, path_individual_parameters)
         """
-        if type(data) == 'str':
+        if type(data) == str:
             data = Data.from_csv_file(data)
         elif type(data) == pd.DataFrame:
             data = Data.from_dataframe(data)
         else:
             raise TypeError("The given `data` input must be a pandas.DataFrame or a string giving the path of the file "
-                            "containing the features' scores!")
+                            "containing the features' scores! You gave an object of type %s" % str(type(data)))
+
+        if cofactors:
+            if type(cofactors) == str:
+                cofactors_df = pd.read_csv(cofactors, index_col=0)
+            elif type(cofactors) == pd.DataFrame:
+                cofactors_df = cofactors.copy()
+            else:
+                raise TypeError("The given `cofactors` input must be a pandas.DataFrame or a string giving the path of "
+                                "the file containing the cofactors! You gave an object of type %s" %
+                                str(type(cofactors)))
+            print(cofactors)
+            data.load_cofactors(cofactors_df, cofactors_df.columns.to_list())
 
         individual_parameters = Result.load_individual_parameters(individual_parameters)
         return Result(data, individual_parameters)
@@ -425,12 +496,12 @@ class Result:
 
         Parameters
         ----------
-        cofactors: list
+        cofactors : list
             Distribution list of the cofactors.
 
         Returns
         -------
-        list of strings
+        list
             Uniques occurrence of the input vector.
         """
         warnings.warn("This method will soon be removed!", DeprecationWarning)
@@ -448,9 +519,9 @@ class Result:
 
         Parameters
         ----------
-        parameter: string
+        parameter : str
             The wanted parameter's name (ex: 'xi', 'tau' ...).
-        cofactor: string
+        cofactor : str, optional (default None)
             The wanted cofactor's name.
 
         Returns
@@ -531,17 +602,17 @@ class Result:
 
     def get_cofactor_distribution(self, cofactor):
         """
-        Get the list of the cofactor's distribution
+        Get the list of the cofactor's distribution.
 
         Parameters
         ----------
-        cofactor: string
+        cofactor : str
             Cofactor's name
 
         Returns
         -------
-        list of float
-            Cofactor's distribution
+        list
+            Cofactor's distribution.
         """
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
@@ -553,12 +624,12 @@ class Result:
 
         Parameters
         ----------
-        idx: string
+        idx : string
             ID of the wanted patient
 
         Returns
         -------
-        dict of torch.tensor
+        dict of `torch.Tensor`
             Patient's individual parameters
         """
         warnings.warn("This method will soon be removed!", DeprecationWarning)
@@ -585,11 +656,11 @@ class Result:
 
         Parameters
         ----------
-        model: leaspy model class object
+        model : `leaspy.models.abstract_model.AbstractModel`
         cofactor: string
-        aggregate_subscores: boolean (default = False)
+        aggregate_subscores: bool, optional (default = False)
             Use 'aggregate_subscores' to average error values among subscores.
-        aggregate_visits: boolean (default = False)
+        aggregate_visits: bool, optional (default = False)
             Use 'aggregate_visits' to average error values among visits.
 
         Returns

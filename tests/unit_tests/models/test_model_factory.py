@@ -1,18 +1,21 @@
 import unittest
 
 from leaspy.models.model_factory import ModelFactory
-from leaspy.models.univariate_model import UnivariateModel
 from leaspy.models.multivariate_model import MultivariateModel
 from leaspy.models.multivariate_parallel_model import MultivariateParallelModel
+from leaspy.models.univariate_model import UnivariateModel
 
 
 class ModelFactoryTest(unittest.TestCase):
 
     def test_model_factory_constructor(self, model=None):
         """
-        Test initialization of leaspy model
-        :param model: string - name of the model
-        :return: exit code
+        Test initialization of leaspy model.
+
+        Parameters
+        ----------
+        model : str, optional (default None)
+            Name of the model
         """
         if model is None:
             for name in ['univariate', 'linear', 'logistic', 'logistic_parallel']:

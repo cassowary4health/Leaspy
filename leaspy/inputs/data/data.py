@@ -1,9 +1,12 @@
+import numpy as np
 import pandas as pd
 import torch
-import numpy as np
-from leaspy.inputs.data.dataframe_data_reader import DataframeDataReader
+
 from leaspy.inputs.data.csv_data_reader import CSVDataReader
+from leaspy.inputs.data.dataframe_data_reader import DataframeDataReader
 from leaspy.inputs.data.individual_data import IndividualData
+
+
 # from leaspy.inputs.data.dataset import Dataset
 
 
@@ -39,15 +42,17 @@ class Data:
             self.iter += 1
             return self.__getitem__(self.iter - 1)
 
-
     def load_cofactors(self, df, cofactors):
 
         df = df.copy(deep=True)
 
         for iter, idx in self.iter_to_idx.items():
-
             # Get the cofactors and check that it is unique
-            cof = df.loc[[idx]][cofactors].to_dict(orient='list')
+            try:
+                cof = df.loc[[idx]][cofactors].to_dict(orient='list')
+            except KeyError:
+                # If the ID are for example '116' - pandas save & reload it as integer & might induce errors
+                cof = df.loc[[int(idx)]][cofactors].to_dict(orient='list')
 
             for c in cofactors:
                 v = np.unique(cof[c])

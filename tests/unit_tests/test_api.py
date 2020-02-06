@@ -1,8 +1,6 @@
-import filecmp
 import json
 import os
 import unittest
-import warnings
 
 import numpy as np
 import torch
@@ -287,61 +285,3 @@ class LeaspyTest(unittest.TestCase):
 
         # Remove the created file
         os.remove(save_path)
-
-    def test_load_individual_parameters(self, path=None):
-        """
-        Test load individual parameters
-        :param path: string - optional - data path
-        :return: exit code
-        """
-        warnings.warn("This test will soon be removed with its corresponding method!", DeprecationWarning)
-        if path is None:
-            data_path_torch = os.path.join(test_data_dir,
-                                           'individual_parameters/individual_parameters-unit_tests-torch.pt')
-            data_path_json = os.path.join(test_data_dir,
-                                          'individual_parameters/individual_parameters-unit_tests-json.json')
-            self.test_load_individual_parameters(data_path_torch)
-            self.test_load_individual_parameters(data_path_json)
-        else:
-            individual_parameters = Leaspy.load_individual_parameters(path)
-            self.assertTrue((individual_parameters['xi'] == tensor([[1], [2], [3]])).min().item() == 1)
-            self.assertTrue((individual_parameters['tau'] ==  tensor([[2], [3], [4]])).min().item() == 1)
-            self.assertTrue((individual_parameters['sources'] ==
-                             tensor([[1, 2], [2, 3], [3, 4]])).min().item() == 1)
-
-    def test_save_individual_parameters(self):
-        warnings.warn("This test will soon be removed with its corresponding method!", DeprecationWarning)
-        individual_parameters = {'xi': tensor([[1], [2], [3]]),
-                                 'tau': tensor([[2], [3], [4]]),
-                                 'sources': tensor([[1, 2], [2, 3], [3, 4]])}
-
-        data_path_torch = os.path.join(test_data_dir,
-                                       'individual_parameters/individual_parameters-unit_tests-torch.pt')
-        data_path_json = os.path.join(test_data_dir,
-                                      'individual_parameters/individual_parameters-unit_tests-json.json')
-
-        data_path_torch_copy = data_path_torch[:-3] + '-Copy.pt'
-        data_path_json_copy = data_path_json[:-5] + '-Copy.json'
-
-        # Test torch file saving
-        Leaspy.save_individual_parameters(data_path_torch_copy,
-                                          individual_parameters,
-                                          human_readable=False)
-        try:
-            self.test_load_individual_parameters(data_path_torch_copy)
-            # filecmp does not work on torch file object - two different file can encode the same object
-            os.remove(data_path_torch_copy)
-        except AssertionError:
-            os.remove(data_path_torch_copy)
-            raise AssertionError("Leaspy.save_individual_parameters did not produce the expected torch file")
-
-        # Test json file saving
-        Leaspy.save_individual_parameters(data_path_json_copy,
-                                          individual_parameters,
-                                          human_readable=True)
-        try:
-            self.assertTrue(filecmp.cmp(data_path_json, data_path_json_copy))
-            os.remove(data_path_json_copy)
-        except AssertionError:
-            os.remove(data_path_json_copy)
-            raise AssertionError("Leaspy.save_individual_parameters did not produce the expected json file")

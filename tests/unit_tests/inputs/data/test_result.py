@@ -40,10 +40,10 @@ class ResultTest(unittest.TestCase):
             self.assertEqual(len(self.results.individual_parameters[key]), 17)
         self.assertEqual(self.results.noise_std, None)
 
-    def test_save_individual_parameters(self):
+    def test_save_individual_parameters_json(self):
         path_original = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters.json")
         path_copy = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters-copy.json")
-        self.results.save_individual_parameters(path_copy)
+        self.results.save_individual_parameters_json(path_copy)
         self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
 
         # Test to save only several subjects
@@ -52,8 +52,16 @@ class ResultTest(unittest.TestCase):
                                      "data_tiny-individual_parameters-3subjects.json")
         path_copy = os.path.join(test_data_dir, "individual_parameters",
                                  "data_tiny-individual_parameters-3subjects-copy.json")
-        self.results.save_individual_parameters(path_copy, idx)
+        self.results.save_individual_parameters_json(path_copy, idx)
         self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
+
+    def test_save_individual_parameters_csv(self):
+        individual_parameters_path = os.path.join(test_data_dir, "individual_parameters",
+                                                  "data_tiny-individual_parameters.csv")
+        path_original = os.path.join(test_data_dir, "individual_parameters",
+                                     "data_tiny-individual_parameters-original.csv")
+        self.results.save_individual_parameters_csv(individual_parameters_path)
+        self.assertTrue(filecmp.cmp(path_original, path_original, shallow=False))
 
     def test_load_individual_parameters(self, ind_param=None):
         if ind_param is None:
@@ -67,13 +75,25 @@ class ResultTest(unittest.TestCase):
             self.assertEqual(ind_param[key].shape[0], 17)
 
     def test_load_result(self):
-        path_original = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters.json")
-        results = Result.load_result(example_data_path, path_original)
-        df = results.data.to_dataframe()
-        df2 = self.results.data.to_dataframe()
-        self.assertTrue(allclose(df.loc[:, df.columns != 'ID'].values,
-                                 df2.loc[:, df2.columns != 'ID'].values))
-        self.test_load_individual_parameters(ind_param=results.individual_parameters)
+        # Test with json
+        ind_param_path_json = os.path.join(test_data_dir, "individual_parameters",
+                                           "data_tiny-individual_parameters.json")
+        ind_param_path_csv = os.path.join(test_data_dir, "individual_parameters",
+                                          "data_tiny-individual_parameters.csv")
+        cofactors_path = os.path.join(test_data_dir,
+                                      "inputs",
+                                      "data_tiny_covariate.csv")
+
+        def launch_test(ind_param, data, cofactors):
+            results = Result.load_result(ind_param, data, cofactors)
+            df = results.data.to_dataframe()
+            df2 = self.results.data.to_dataframe()
+            self.assertTrue(allclose(df.loc[:, df.columns != 'ID'].values,
+                                     df2.loc[:, df2.columns != 'ID'].values))
+            self.test_load_individual_parameters(ind_param=results.individual_parameters)
+
+        launch_test(ind_param_path_json, example_data_path, cofactors_path)
+        launch_test(ind_param_path_csv, example_data_path, cofactors_path)
 
     ###############################################################
     # DEPRECATION WARNINGS

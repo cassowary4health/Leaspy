@@ -13,13 +13,9 @@ class AbstractModelTest(unittest.TestCase):
 
     def test_abstract_model_constructor(self):
         """
-        Test initialization of abstract model class object
-
-        Returns
-        -------
-        Exit code
+        Test initialization of abstract model class object.
         """
-        print("Unit-test constructor AbstractModel")
+        print("\nUnit-test AbstractModel\n")
 
         model = AbstractModel("dummy_abstractmodel")
         self.assertFalse(model.is_initialized)
@@ -42,11 +38,7 @@ class AbstractModelTest(unittest.TestCase):
 
     def test_load_parameters(self):
         """
-        Test the method load_parameters
-
-        Returns
-        -------
-        Exit code
+        Test the method load_parameters.
         """
         leaspy_object = Leaspy.load(example_logisticmodel_path)
 
@@ -74,7 +66,7 @@ class AbstractModelTest(unittest.TestCase):
 
     def test_all_model_run(self):
         """
-        Check if the following models ru with the following algorithms.
+        Check if the following models run with the following algorithms.
         """
         for model_name in ('linear', 'univariate', 'logistic', 'logistic_parallel'):
             logistic_leaspy = Leaspy(model_name)

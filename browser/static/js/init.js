@@ -185,7 +185,7 @@ resetPatientButton = () => {
     patient.removeChild(patient.firstChild);
   }
 
-  patient.innerText = 'Date de naissance';
+  patient.innerText = 'Birthday';
   var input = document.createElement('input');
   input.setAttribute('type', 'date');
   input.setAttribute('id', 'start');
@@ -200,7 +200,7 @@ resetPatientButton = () => {
   addRow.setAttribute('class','btn btn-info btn-sm');
   addRow.setAttribute('onclick', 'addRow()');
   addRow.style = 'margin:10px';
-  addRow.innerText = 'Ajouter une ligne';
+  addRow.innerText = 'Add a line';
   patient.appendChild(addRow);
 
   var removeRow = document.createElement('button');
@@ -208,7 +208,7 @@ resetPatientButton = () => {
   removeRow.setAttribute('class', 'btn btn-warning btn-sm');
   removeRow.setAttribute('onclick', 'removeRow()');
   removeRow.style = 'margin:10px';
-  removeRow.innerText = 'Supprimer une ligne';
+  removeRow.innerText = 'Delete last line';
   patient.appendChild(removeRow);
 
   var personalize = document.createElement('button');
@@ -216,7 +216,7 @@ resetPatientButton = () => {
   personalize.setAttribute('class', 'btn btn-success btn-sm');
   personalize.setAttribute('onclick', 'personalize()');
   personalize.style = 'margin:10px';
-  personalize.innerText = 'Personaliser';
+  personalize.innerText = 'Personalize';
   patient.appendChild(personalize);
 
   var reset = document.createElement('button');
@@ -224,7 +224,7 @@ resetPatientButton = () => {
   reset.setAttribute('class', 'btn btn-danger btn-sm');
   //addRow.setAttribute('onclick', 'TODO');
   reset.style = 'margin:10px';
-  reset.innerText = 'Reinitialiser';
+  reset.innerText = 'Reinitialize';
   patient.appendChild(reset);
 
 }

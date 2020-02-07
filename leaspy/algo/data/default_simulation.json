@@ -11,6 +11,7 @@
     "cofactor": null,
     "cofactor_state": null,
     "sources_method": "full_kde",
+    "reparametrized_age_bounds": null,
     "features_bounds": false
   }
 }

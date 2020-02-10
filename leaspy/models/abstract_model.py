@@ -271,7 +271,8 @@ class AbstractModel:
 
         return pop_dictionary
 
-    def time_reparametrization(self, timepoints, xi, tau):
+    @staticmethod
+    def time_reparametrization(timepoints, xi, tau):
         return torch.exp(xi) * (timepoints - tau)
 
     def get_param_from_real(self, realizations):

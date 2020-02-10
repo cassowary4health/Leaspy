@@ -15,20 +15,20 @@ from leaspy.inputs.data.dataset import Dataset
 class Result:
     """
     Result object class.
-    Used as output by personalize algorithm & simulation algorithm.
+    Used as output by personalize algorithms & simulation algorithm.
 
     Attributes
     ----------
-    data: leaspy.inputs.data.data.Data
+    data : leaspy.inputs.data.data.Data
         Object containing the idx, time-points and observations of the patients.
-    individual_parameters: dict
-        Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.tensor).
-    ID_to_idx: dict
+    individual_parameters : dict
+        Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.Tensor).
+    ID_to_idx : dict
         The keys are the individual ID & the items are their respective ordered position in the data file given
         by the user. This order remains the same during the computation.
         Example - in Result.individual_parameters['xi'], the first element corresponds to the
         first patient in ID_to_idx.
-    noise_std: float
+    noise_std : float
         Desired noise standard deviation level.
 
     Methods
@@ -62,7 +62,7 @@ class Result:
             Return the wanted parameter distribution (one distribution per covariate state).
         get_patient_individual_parameters(idx)
             Get the dictionary of the wanted patient's individual parameters.
-        get_error_distribution(model, cofactor=None, aggregate_subscores=False, aggregate_visits=False)
+        get_error_distribution(model, cofactor=None)
             Get error distribution per patient. By default, return one error value per
             patient & per subscore & per visit.
     """
@@ -488,7 +488,7 @@ class Result:
     def get_error_distribution_dataframe(self, model, cofactors=None):
         """
         Get signed residual distribution per patient, per sub-score & per visit. Each residual is equal to the
-        modelized data minus the observed data.
+        modeled data minus the observed data.
 
         Parameters
         ----------
@@ -513,7 +513,7 @@ class Result:
         >>> settings = AlgorithmSettings("mode_real")
         >>> results = leaspy_logistic.personalize(data, settings)
         >>> residuals_dataframe = results.get_error_distribution_dataframe(model)
-        >>> residuals_dataframe.loc[results.data.headers].abs().mean()
+        >>> residuals_dataframe[results.data.headers].abs().mean()
         """
         residuals_dataset = Dataset(self.data)
         residuals_dataset.values = model.compute_individual_tensorized(residuals_dataset.timepoints,

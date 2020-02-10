@@ -61,7 +61,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         Returns
         -------
-        model : leaspy.models.abstract_model.AbstractModel
+        model : leaspy.Leaspy
         results : leaspy.inputs.data.result.Result
         """
         data = Data.from_csv_file(example_data_path)

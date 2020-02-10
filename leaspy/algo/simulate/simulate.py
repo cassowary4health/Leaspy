@@ -300,6 +300,32 @@ class SimulationAlgorithm(AbstractAlgo):
             ages = [bl, bl + 0.5] + [bl + j for j in range(1, number_of_visits - 1)]
         return ages
 
+    def _get_noise_generator(self, model, results):
+        """
+        Compute the level of L2 error per feature and return a noise generator or size n_features.
+
+        Parameters
+        ----------
+        model : leaspy.models.abstract_model.AbstractModel
+            Subclass object of AbstractModel.
+        results : leaspy.inputs.data.result.Result
+            Object containing the computed individual parameters.
+
+        Returns
+        -------
+        torch.distributions.Normal or None
+            A gaussian noise generator. If self.noise is None, the function returns None.
+        """
+        if self.noise:
+            if self.noise == "default":
+                noise = results.get_error_distribution_dataframe(model)
+                noise = torch.from_numpy(noise[results.data.headers].values)
+                noise *= noise
+                noise = torch.sqrt(noise.mean(dim=0))
+            else:
+                noise = self.noise
+            return torch.distributions.Normal(loc=0, scale=noise)
+
     def _simulate_individual_parameters(self, model, number_of_simulated_subjects, kernel, ss, get_sources,
                                         df_mean, df_cov):
         """
@@ -356,9 +382,9 @@ class SimulationAlgorithm(AbstractAlgo):
 
         return simulated_parameters, timepoints
 
-    def _simulate_subjects(self, simulated_parameters, timepoints, model):
+    def _simulate_subjects(self, simulated_parameters, timepoints, model, noise_generator):
         """
-        Compute the simulated scores given the simulated individual parameters & timepoints.
+        Compute the simulated scores given the simulated individual parameters, timepoints & noise generator.
 
         Parameters
         ----------
@@ -368,6 +394,9 @@ class SimulationAlgorithm(AbstractAlgo):
             Contains the simulated parameters.
         timepoints : `list` [float]
             Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
+        noise_generator : torch.distributions.Normal or None
+            A gaussian noise generator. If self.noise is None, the features' score are exactly the ones derived from
+            the individual parameters by the model.
 
         Returns
         -------
@@ -381,13 +410,8 @@ class SimulationAlgorithm(AbstractAlgo):
             indiv_param['sources'] = indiv_param['sources'].tolist()
             observations = model.compute_individual_trajectory(timepoints[i], indiv_param)
             # Add the desired noise
-            if self.noise:
-                if type(self.noise) in [int, float]:
-                    noise = self.noise
-                else:
-                    noise = torch.distributions.Normal(loc=0, scale=model.parameters['noise_std']).sample(
-                        observations.shape)
-                observations += noise
+            if noise_generator:
+                observations += noise_generator.sample([observations.shape[0]])
                 observations = observations.clamp(0, 1)
 
             observations = observations.squeeze(0).detach().numpy()
@@ -454,7 +478,7 @@ class SimulationAlgorithm(AbstractAlgo):
         if self.cofactor is not None:
             self._check_cofactors(results.data)
 
-        # Get individual parameters & baseline ages - for joined density estimation
+        # --------- Get individual parameters & baseline ages - for joined density estimation
         # Get individual parameters (optional - & the cofactor states)
         df_ind_param = results.get_dataframe_individual_parameters(cofactors=self.cofactor)
         if self.cofactor_state:
@@ -466,7 +490,6 @@ class SimulationAlgorithm(AbstractAlgo):
         df_ind_param = results.data.to_dataframe().groupby('ID').first()[['TIME']].join(df_ind_param, how='right')
         # At this point, df_ind_param.columns = ['TIME', 'tau', 'xi', 'sources_0', 'sources_1', ..., 'sources_n']
         distribution = df_ind_param.values
-        # Get joined density estimation of bl, tau, xi (and the sources if the model is not univariate)
 
         get_sources = (model.name != 'univariate')
         if get_sources & (self.sources_method == "normal_sources"):
@@ -478,6 +501,7 @@ class SimulationAlgorithm(AbstractAlgo):
         else:
             df_mean, df_cov = None, None
 
+        # --------- Get joined density estimation of bl, tau, xi (and the sources if the model is not univariate)
         # Normalize by variable then transpose to learn the joined distribution
         ss = StandardScaler()
         # fit_transform receive an numpy array of shape [n_samples, n_features]
@@ -485,6 +509,7 @@ class SimulationAlgorithm(AbstractAlgo):
         # gaussian_kde receive an numpy array of shape [n_features, n_samples]
         kernel = stats.gaussian_kde(distribution, bw_method=self.bandwidth_method)
 
+        # --------- Simulate new subjects - individual parameters and features' scores
         if self.features_bounds:
             number_of_simulated_subjects = 10 * self.number_of_subjects
             # Simulate more subject in order to have enough of them after filtering in order to respect the bounds
@@ -494,12 +519,15 @@ class SimulationAlgorithm(AbstractAlgo):
         simulated_parameters, timepoints = self._simulate_individual_parameters(
             model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
 
-        features_values = self._simulate_subjects(simulated_parameters, timepoints, model)
+        noise_generator = self._get_noise_generator(model, results)
 
+        features_values = self._simulate_subjects(simulated_parameters, timepoints, model, noise_generator)
+
+        # --------- If one wants to select generated subjects based on their baseline scores
         if self.features_bounds:
             # Handle bounds on the generated features
             features_min, features_max = self._get_features_bounds(results)
-            #  Test the boundary conditions
+            #  Test the boundary conditions & filter subjects with features' scores outside the bounds.
             indices_of_accepted_simulated_subjects, features_values = self._get_bounded_subject(
                 features_values, features_min, features_max)
             for key, val in simulated_parameters.items():
@@ -507,6 +535,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
             timepoints = [v for i, v in enumerate(timepoints) if i in indices_of_accepted_simulated_subjects]
 
+            # If too much subjects have been discarded
             while len(features_values) < self.number_of_subjects:
                 # Complete to attain the goal
                 number_of_simulated_subjects *= self.number_of_subjects / len(indices_of_accepted_simulated_subjects)
@@ -531,7 +560,7 @@ class SimulationAlgorithm(AbstractAlgo):
                     simulated_parameters[key] = np.concatenate(simulated_parameters[key],
                                                                simulated_parameters_bis[key])
 
-        # Take only the `number_of_simulated_subjects` first subjects
+        # --------- Take only the `number_of_simulated_subjects` first generated subjects
         n = self.number_of_subjects
         timepoints = timepoints[:n]
         for key, val in simulated_parameters.items():
@@ -540,6 +569,7 @@ class SimulationAlgorithm(AbstractAlgo):
             if key == 'sources':
                 simulated_parameters[key] = torch.from_numpy(val)[:n]
 
+        # --------- Give results
         indices = ['Generated_subject_' + '0' * (len(str(n)) - len(str(i))) + str(i) for i in range(1, n + 1)]
         # Ex - for 10 subjects, indices = ["Generated_subject_01", "Generated_subject_02", ..., "Generated_subject_10"]
 

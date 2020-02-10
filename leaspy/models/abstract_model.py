@@ -68,7 +68,7 @@ class AbstractModel:
 
         Returns
         -------
-        list
+        individual_variable_name : `list` [str]
             Contains the individual variables' names
         """
 
@@ -88,11 +88,11 @@ class AbstractModel:
 
         Parameters
         ----------
-        data: a leaspy.inputs.data.dataset.Dataset class object
+        data : leaspy.inputs.data.dataset.Dataset
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        param_ind: dict
+        param_ind : dict
             Contain the individual parameters
-        attribute_type: str
+        attribute_type : str
             The attribute's type
 
         Returns
@@ -100,7 +100,7 @@ class AbstractModel:
         torch.Tensor
             Contain one residuals for each subject? Visit? Sub-score?
         """
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+        res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
     # TODO: unit & functional tests
@@ -110,9 +110,9 @@ class AbstractModel:
 
         Parameters
         ----------
-        timepoints: scalar or list
+        timepoints : scalar or `list` [`scalar`]
             Contains the age(s) of the subjects.
-        individual_parameters: dict
+        individual_parameters : dict
             Contains the individual parameters.
 
         Returns

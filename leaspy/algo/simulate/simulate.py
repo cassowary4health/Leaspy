@@ -519,7 +519,7 @@ class SimulationAlgorithm(AbstractAlgo):
                 #  Test the boundary conditions
                 indices_of_accepted_simulated_subjects_bis, features_values_bis = self._get_bounded_subject(
                     features_values_bis, features_min, features_max)
-                for val in simulated_parameters_bis.values():
+                for key, val in simulated_parameters_bis.items():
                     simulated_parameters_bis[key] = val[indices_of_accepted_simulated_subjects_bis]
                 timepoints_bis = [v for i, v in enumerate(timepoints_bis)
                                   if i in indices_of_accepted_simulated_subjects_bis]
@@ -541,6 +541,7 @@ class SimulationAlgorithm(AbstractAlgo):
                 simulated_parameters[key] = torch.from_numpy(val)[:n]
 
         indices = ['Generated_subject_' + '0' * (len(str(n)) - len(str(i))) + str(i) for i in range(1, n + 1)]
+        # Ex - for 10 subjects, indices = ["Generated_subject_01", "Generated_subject_02", ..., "Generated_subject_10"]
 
         simulated_scores = Data.from_individuals(indices=indices,
                                                  timepoints=timepoints,

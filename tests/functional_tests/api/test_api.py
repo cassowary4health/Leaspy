@@ -141,21 +141,6 @@ class LeaspyTest(unittest.TestCase):
         result = leaspy.personalize(data, settings=algo_personalize_settings)
         self.assertAlmostEqual(result.noise_std, 0.21146, delta=0.01)
 
-        # Get error distribution
-        error_distribution = result.get_error_distribution(leaspy.model)
-        self.assertTrue(list(error_distribution.keys()), list(data.individuals.keys()))
-        self.assertTrue(torch.tensor(error_distribution['116']).shape,
-                        torch.tensor(data.individuals['116'].observations).shape)
-        error_distribution = result.get_error_distribution(leaspy.model, aggregate_subscores=True)
-        self.assertTrue(len(error_distribution['116']),
-                        torch.tensor(data.individuals['116'].observations).shape[0])
-        error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True)
-        self.assertTrue(len(error_distribution['116']),
-                        torch.tensor(data.individuals['116'].observations).shape[1])
-        error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True,
-                                                           aggregate_subscores=True)
-        self.assertTrue(type(error_distribution['116']) == float)
-
         # Plot TODO
         path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")
         plotter = Plotter(path_output)

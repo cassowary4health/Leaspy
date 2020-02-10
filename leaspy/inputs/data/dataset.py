@@ -1,5 +1,5 @@
-import torch
 import pandas as pd
+import torch
 
 
 class Dataset:
@@ -43,7 +43,6 @@ class Dataset:
             values[i, 0:d, :] = indiv_values
             padding_mask[i, 0:d, :] = 1
 
-        # mask_missingvalues = 1 - np.isnan(values) * 1
         mask_missingvalues = 1 - torch.isnan(values) * 1
         mask = padding_mask * mask_missingvalues
 

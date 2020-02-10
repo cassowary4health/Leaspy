@@ -9,6 +9,7 @@ import pandas as pd
 import torch
 
 from leaspy.inputs.data.data import Data
+from leaspy.inputs.data.dataset import Dataset
 
 
 class Result:
@@ -484,6 +485,51 @@ class Result:
         individual_parameters = Result.load_individual_parameters(individual_parameters)
         return Result(data, individual_parameters)
 
+    def get_error_distribution_dataframe(self, model, cofactors=None):
+        """
+        Get signed residual distribution per patient, per sub-score & per visit. Each residual is equal to the
+        modelized data minus the observed data.
+
+        Parameters
+        ----------
+        model : leaspy.models.abstract_model.AbstractModel
+        cofactors : str, list [str], optional (default None)
+            Contains the cofactors' names to be included in the DataFrame. By default, no cofactors are returned.
+            If cofactors == "all", all the available cofactors are returned.
+
+        Returns
+        -------
+        residuals_dataframe : pandas.DataFrame
+
+        Examples
+        --------
+        Get mean absolute error per feature:
+
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy
+        >>> data = Data.from_csv_file("/my/data/path")
+        >>> leaspy_logistic = Leaspy('logistic')
+        >>> settings = AlgorithmSettings("mcmc_saem")
+        >>> leaspy_logistic.calibrate(data, settings)
+        >>> settings = AlgorithmSettings("mode_real")
+        >>> results = leaspy_logistic.personalize(data, settings)
+        >>> residuals_dataframe = results.get_error_distribution_dataframe(model)
+        >>> residuals_dataframe.loc[results.data.headers].abs().mean()
+        """
+        residuals_dataset = Dataset(self.data)
+        residuals_dataset.values = model.compute_individual_tensorized(residuals_dataset.timepoints,
+                                                                       self.individual_parameters) \
+                                   - residuals_dataset.values
+        residuals_dataframe = residuals_dataset.to_pandas().set_index('ID')
+
+        if cofactors:
+            if cofactors == "all":
+                cofactors_list = self.data.cofactors
+            else:
+                cofactors_list = cofactors
+            cofactors_df = self.data.to_dataframe(cofactors=cofactors).set_index('ID')[cofactors_list]
+            residuals_dataframe.join(cofactors_df)
+        return residuals_dataframe
+
     ###############################################################
     # DEPRECATION WARNINGS
     # These following methods will be removed in a future release
@@ -645,65 +691,3 @@ class Result:
             patient_dict[variable_ind] = self.individual_parameters[variable_ind][idx_number]
 
         return patient_dict
-
-    def get_error_distribution(self, model, cofactor=None, aggregate_subscores=False, aggregate_visits=False):
-        """
-        Get error distribution per patient. By default, return one error value per patient & per subscore & per visit.
-        Use 'aggregate_subscores' to average error values among subscores.
-        Use 'aggregate_visits' to average error values among visits.
-        Use both to have one error value per patient.
-        Use `cofactor' to cluster the patients by their corresponding cofactor's state.
-
-        Parameters
-        ----------
-        model : `leaspy.models.abstract_model.AbstractModel`
-        cofactor: string
-        aggregate_subscores: bool, optional (default = False)
-            Use 'aggregate_subscores' to average error values among subscores.
-        aggregate_visits: bool, optional (default = False)
-            Use 'aggregate_visits' to average error values among visits.
-
-        Returns
-        -------
-        dict
-            If cofactor is None => return a dictionary of torch tensor {'patient1': error1, ...}
-            If cofactor is not None => return a dictionary dictionary of torch tensor
-            {'cofactor1': {'patient1': error1, ...}, ...}
-        """
-        warnings.warn("This method will soon be removed!", DeprecationWarning)
-
-        error_distribution = {}
-        get_sources = (model.name != "univariate")
-        for i, (key, patient) in enumerate(self.data.individuals.items()):
-            param_ind = {'tau': self.individual_parameters['tau'][i],
-                         'xi': self.individual_parameters['xi'][i]}
-            if get_sources:
-                param_ind['sources'] = self.individual_parameters['sources'][i]
-
-            computed_minus_observations = model.compute_individual_tensorized(
-                            torch.tensor(patient.timepoints, dtype=torch.float32).unsqueeze(0), param_ind).squeeze(0)
-            computed_minus_observations -= torch.tensor(patient.observations, dtype=torch.float32)
-
-            if aggregate_subscores:
-                if aggregate_visits:
-                    # One value per patient
-                    error_distribution[key] = torch.mean(computed_minus_observations).tolist()
-                else:
-                    # One value per patient & per subscore
-                    error_distribution[key] = torch.mean(computed_minus_observations, 1).tolist()
-            elif aggregate_visits:
-                # One value per patient & per visit
-                error_distribution[key] = torch.mean(computed_minus_observations, 0).tolist()
-            else:
-                # One value per patient & per subscore & per visit
-                error_distribution[key] = computed_minus_observations.tolist()
-
-        if cofactor:
-            cofactors = self.get_cofactor_distribution(cofactor)
-            result = {state: {} for state in self.get_cofactor_states(cofactors)}
-            for key in result.keys():
-                result[key] = {patient: error_distribution[patient] for i, patient in
-                               enumerate(error_distribution.keys()) if cofactors[i] == key}
-            return result  # return {'cofactor1': {'patient1': error1, ...}, ...}
-        else:
-            return error_distribution  # return {'patient1': error1, ...}

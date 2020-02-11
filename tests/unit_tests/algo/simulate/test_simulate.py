@@ -111,14 +111,14 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=200, mean_number_of_visits=3,
                                      std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
-                                     reparametrized_age_bounds=(65, 70))
+                                     reparametrized_age_bounds=(65, 75))
         new_results = leaspy_session.simulate(results, settings)  # just test if run without error
-        # Test if the reparametrized ages are within 65 70
+        # Test if the reparametrized ages are within (65, 75) up to a tolerance of 2.
         repam_age = new_results.data.to_dataframe().groupby('ID').first()['TIME'].values
         repam_age -= new_results.individual_parameters['tau'].squeeze().numpy()
         repam_age *= np.exp(new_results.individual_parameters['xi'].squeeze().numpy())
         repam_age += leaspy_session.model.parameters['tau_mean'].item()
-        self.assertTrue(all(repam_age > 65) & all(repam_age < 70))
+        self.assertTrue(all(repam_age > 63) & all(repam_age < 77))
 
     def _bounds_behaviour(self, leaspy_session, results, settings):
         """

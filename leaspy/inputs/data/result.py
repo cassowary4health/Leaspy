@@ -459,7 +459,7 @@ class Result:
         >>> path_data = 'data/my_leaspy_data.csv'
         >>> path_individual_parameters = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.json'
         >>> individual_results.data.to_dataframe().to_csv(path_data)
-        >>> individual_results.save_individual_parameters(path_individual_parameters)
+        >>> individual_results.save_individual_parameters_json(path_individual_parameters)
         >>> individual_parameters = Result.load_result(path_data, path_individual_parameters)
         """
         if type(data) == str:
@@ -470,7 +470,7 @@ class Result:
             raise TypeError("The given `data` input must be a pandas.DataFrame or a string giving the path of the file "
                             "containing the features' scores! You gave an object of type %s" % str(type(data)))
 
-        if cofactors:
+        if cofactors is not None:
             if type(cofactors) == str:
                 cofactors_df = pd.read_csv(cofactors, index_col=0)
             elif type(cofactors) == pd.DataFrame:
@@ -479,7 +479,6 @@ class Result:
                 raise TypeError("The given `cofactors` input must be a pandas.DataFrame or a string giving the path of "
                                 "the file containing the cofactors! You gave an object of type %s" %
                                 str(type(cofactors)))
-            print(cofactors)
             data.load_cofactors(cofactors_df, cofactors_df.columns.to_list())
 
         individual_parameters = Result.load_individual_parameters(individual_parameters)
@@ -521,13 +520,19 @@ class Result:
                                    - residuals_dataset.values
         residuals_dataframe = residuals_dataset.to_pandas().set_index('ID')
 
-        if cofactors:
-            if cofactors == "all":
-                cofactors_list = self.data.cofactors
-            else:
+        if cofactors is not None:
+            if type(cofactors) == str:
+                if cofactors == "all":
+                    cofactors_list = self.data.cofactors
+                else:
+                    cofactors_list = [cofactors]
+            elif type(cofactors) == list:
                 cofactors_list = cofactors
-            cofactors_df = self.data.to_dataframe(cofactors=cofactors).set_index('ID')[cofactors_list]
-            residuals_dataframe.join(cofactors_df)
+            else:
+                raise TypeError("The given `cofactors` input must be a string or a list of strings! "
+                                "You gave an object of type %s" % str(type(cofactors)))
+            cofactors_df = self.data.to_dataframe(cofactors=cofactors).groupby('ID').first()[cofactors_list]
+            residuals_dataframe = residuals_dataframe.join(cofactors_df)
         return residuals_dataframe
 
     ###############################################################

@@ -138,9 +138,10 @@ class Data:
         df = pd.DataFrame(data=arr, index=indices, columns=['TIME'] + self.headers)
         df.index.name = 'ID'
 
-        if cofactors:
-            if cofactors == "all":
-                cofactors_list = self.cofactors
+        if cofactors is not None:
+            if type(cofactors) == str:
+                if cofactors == "all":
+                    cofactors_list = self.cofactors
             else:
                 cofactors_list = cofactors
             for cofactor in cofactors_list:

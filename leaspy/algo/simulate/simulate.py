@@ -48,7 +48,7 @@ class SimulationAlgorithm(AbstractAlgo):
         model's `noise_std` parameter.
     number_of_subjects : int
         Number of subject to simulate.
-    reparametrized_age_bounds : list [float], optional (default None)
+    reparametrized_age_bounds : list [float], optional (default None), length = 2
         Set the minimum and maximum age of the generated reparametrized subjects' ages. See Notes section.
         Example - reparametrized_age_bounds = (65, 70)
     seed : int
@@ -125,8 +125,9 @@ class SimulationAlgorithm(AbstractAlgo):
             raise TypeError('The type of the "features_bounds" parameter must be %s or %s, not %s!'
                             % (str(bool), str(dict), str(type(self.features_bounds))))
 
-        if self.reparametrized_age_bounds and (not hasattr(self.reparametrized_age_bounds, '__iter__')):
-            self.reparametrized_age_bounds = [self.reparametrized_age_bounds]  # case where only a scalar is given
+        if self.reparametrized_age_bounds and (len(self.reparametrized_age_bounds) != 2):
+            raise ValueError("The parameter 'reparametrized_age_bounds' must contain exactly two elements, "
+                             "its lower bound and its upper bound. You gave {0}".format(self.reparametrized_age_bounds))
 
     def _check_cofactors(self, data):
         """
@@ -326,6 +327,50 @@ class SimulationAlgorithm(AbstractAlgo):
                 noise = self.noise
             return torch.distributions.Normal(loc=0, scale=noise)
 
+    @staticmethod
+    def _get_reparametrized_age(timepoints, tau, xi, tau_mean):
+        """
+        Returns the subjects' reparametrized ages.
+
+        Parameters
+        ----------
+        timepoints : np.ndarray, shape = (n_subjects,)
+            Real ages of the subjects.
+        tau : np.ndarray, shape = (n_subjects,)
+            Individual time-shifts.
+        xi : np.ndarray, shape = (n_subjects,)
+            Individual log-acceleration.
+        tau_mean : float
+            The mean conversion age derivated by the model.
+
+        Returns
+        -------
+        np.ndarray, shape = (n_subjects,)
+        """
+        return np.exp(xi) * (timepoints - tau) + tau_mean
+
+    @staticmethod
+    def _get_real_age(repam_ages, tau, xi, tau_mean):
+        """
+        Returns the subjects' real ages.
+
+        Parameters
+        ----------
+        repam_ages : np.ndarray, shape = (n_subjects,)
+            Reparametrized ages of the subjects.
+        tau : np.ndarray, shape = (n_subjects,)
+            Individual time-shifts.
+        xi : np.ndarray, shape = (n_subjects,)
+            Individual log-acceleration.
+        tau_mean : float
+            The mean conversion age derivated by the model.
+
+        Returns
+        -------
+        np.ndarray, shape = (n_subjects,)
+        """
+        return np.exp(-xi) * (repam_ages - tau_mean) + tau
+
     def _simulate_individual_parameters(self, model, number_of_simulated_subjects, kernel, ss, get_sources,
                                         df_mean, df_cov):
         """
@@ -352,17 +397,13 @@ class SimulationAlgorithm(AbstractAlgo):
             Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
         """
         samples = kernel.resample(number_of_simulated_subjects).T
-        samples = ss.inverse_transform(samples)  # A 2D numpy.ndarray - of shape n_subjects x n_features
+        samples = ss.inverse_transform(samples)  # A np.ndarray of shape (n_subjects, n_features)
 
-        if self.reparametrized_age_bounds:
-            # Get reparametrized baseline ages
-            samples[:, 0] = np.random.rand(samples.shape[0])
-            samples[:, 0] *= (max(self.reparametrized_age_bounds) - min(self.reparametrized_age_bounds))
-            samples[:, 0] += min(self.reparametrized_age_bounds)  # = t_reparametrized
-            # From reparametrized baseline age to baseline age
-            # t = (t_repar - tau_mean) * exp(-xi) + tau
-            samples[:, 0] = (samples[:, 0] - model.parameters['tau_mean'].item()) * np.exp(-samples[:, 2])\
-                            + samples[:, 1]
+        # Transform reparametrized baseline age into baseline real age
+        samples[:, 0] = self._get_real_age(repam_ages=samples[:, 0],
+                                           tau=samples[:, 1],
+                                           xi=samples[:, 2],
+                                           tau_mean=model.parameters['tau_mean'].item())
 
         timepoints = list(map(self._get_timepoints, samples[:, 0]))
         # timempoints is a 2D list - one row per simulated subject
@@ -374,15 +415,16 @@ class SimulationAlgorithm(AbstractAlgo):
                 simulated_parameters['sources'] = samples[:, 3:]
             elif self.sources_method == "normal_sources":
                 # Generate sources
-                def simulate_sources(x):
+                def simulate_sources(x: np.ndarray) -> np.ndarray:
                     return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).numpy()
 
                 simulated_parameters['sources'] = np.apply_along_axis(simulate_sources, axis=1, arr=samples)
-                # sources is 2D array - of shape n_subjects x n_sources
+                # sources is np.ndarray of shape (n_subjects, n_sources)
 
         return simulated_parameters, timepoints
 
-    def _simulate_subjects(self, simulated_parameters, timepoints, model, noise_generator):
+    @staticmethod
+    def _simulate_subjects(simulated_parameters, timepoints, model, noise_generator):
         """
         Compute the simulated scores given the simulated individual parameters, timepoints & noise generator.
 
@@ -478,7 +520,7 @@ class SimulationAlgorithm(AbstractAlgo):
         if self.cofactor is not None:
             self._check_cofactors(results.data)
 
-        # --------- Get individual parameters & baseline ages - for joined density estimation
+        # --------- Get individual parameters & reparametrized baseline ages - for joined density estimation
         # Get individual parameters (optional - & the cofactor states)
         df_ind_param = results.get_dataframe_individual_parameters(cofactors=self.cofactor)
         if self.cofactor_state:
@@ -490,7 +532,17 @@ class SimulationAlgorithm(AbstractAlgo):
         df_ind_param = results.data.to_dataframe().groupby('ID').first()[['TIME']].join(df_ind_param, how='right')
         # At this point, df_ind_param.columns = ['TIME', 'tau', 'xi', 'sources_0', 'sources_1', ..., 'sources_n']
         distribution = df_ind_param.values
-
+        # Transform baseline age into reparametrized baseline age
+        distribution[:, 0] = self._get_reparametrized_age(timepoints=distribution[:, 0],
+                                                          tau=distribution[:, 1],
+                                                          xi=distribution[:, 2],
+                                                          tau_mean=model.parameters['tau_mean'].item())
+        # If constraints on baseline reparametrized age have been set
+        # Select only the subjects who satisfy the constraints
+        if self.reparametrized_age_bounds:
+            distribution = np.array([ind for ind in distribution if
+                                     min(self.reparametrized_age_bounds) < ind[0] < max(self.reparametrized_age_bounds)])
+        # Get sources according the selected sources_method
         get_sources = (model.name != 'univariate')
         if get_sources & (self.sources_method == "normal_sources"):
             # Sources are not learned with a kernel density estimator
@@ -501,15 +553,15 @@ class SimulationAlgorithm(AbstractAlgo):
         else:
             df_mean, df_cov = None, None
 
-        # --------- Get joined density estimation of bl, tau, xi (and the sources if the model is not univariate)
+        # --------- Get joined density estimation of repam bl, tau, xi (and sources if the model is not univariate)
         # Normalize by variable then transpose to learn the joined distribution
         ss = StandardScaler()
-        # fit_transform receive an numpy array of shape [n_samples, n_features]
+        # fit_transform receive an numpy array of shape (n_samples, n_features)
         distribution = ss.fit_transform(distribution).T
-        # gaussian_kde receive an numpy array of shape [n_features, n_samples]
+        # gaussian_kde receive an numpy array of shape (n_features, n_samples)
         kernel = stats.gaussian_kde(distribution, bw_method=self.bandwidth_method)
 
-        # --------- Simulate new subjects - individual parameters and features' scores
+        # --------- Simulate new subjects - individual parameters, timepoints and features' scores
         if self.features_bounds:
             number_of_simulated_subjects = 10 * self.number_of_subjects
             # Simulate more subject in order to have enough of them after filtering in order to respect the bounds
@@ -543,7 +595,8 @@ class SimulationAlgorithm(AbstractAlgo):
                 simulated_parameters_bis, timepoints_bis = self._simulate_individual_parameters(
                     model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
 
-                features_values_bis = self._simulate_subjects(simulated_parameters_bis, timepoints_bis, model)
+                features_values_bis = self._simulate_subjects(simulated_parameters_bis, timepoints_bis,
+                                                              model, noise_generator)
 
                 #  Test the boundary conditions
                 indices_of_accepted_simulated_subjects_bis, features_values_bis = self._get_bounded_subject(

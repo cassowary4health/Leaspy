@@ -21,7 +21,7 @@ class Result:
     ----------
     data : leaspy.inputs.data.data.Data
         Object containing the idx, time-points and observations of the patients.
-    individual_parameters : dict
+    individual_parameters : dict [str, torch.Tensor]
         Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.Tensor).
     ID_to_idx : dict
         The keys are the individual ID & the items are their respective ordered position in the data file given
@@ -52,8 +52,10 @@ class Result:
         Load individual parameters from a csv.
     load_individual_parameters_from_json(path, verbose)
         Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
+    get_error_distribution_dataframe(model, cofactors)
+        Get signed residual distribution per patient, per sub-score & per visit.
 
-    Depreciated in a futur release:
+    Depreciated in a future release:
         get_cofactor_distribution(cofactor)
             Get the list of the cofactor's distribution.
         get_cofactor_states(cofactors)
@@ -62,9 +64,6 @@ class Result:
             Return the wanted parameter distribution (one distribution per covariate state).
         get_patient_individual_parameters(idx)
             Get the dictionary of the wanted patient's individual parameters.
-        get_error_distribution(model, cofactor=None)
-            Get error distribution per patient. By default, return one error value per
-            patient & per subscore & per visit.
     """
 
     def __init__(self, data, individual_parameters, noise_std=None):
@@ -77,7 +76,7 @@ class Result:
             Object containing the idx, time-points and observations of the patients
         individual_parameters : dict [str, torch.Tensor]
             Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
-        noise_std : float, optional (default 2.)
+        noise_std : float, optional (default None)
             Desired noise standard deviation level
         """
         self.data = data
@@ -91,12 +90,12 @@ class Result:
 
         Parameters
         ----------
-        ID : `list`, optional (default None)
+        ID : list, optional (default None)
             Contains the identifiers of the wanted subject.
 
         Returns
         -------
-        torch.Tensor
+        dict [str, torch.Tensor]
             Contains the individual parameters.
         """
         if ID is not None:
@@ -207,11 +206,11 @@ class Result:
 
         Parameters
         ----------
-        path : `str`
+        path : str
             The output's path.
-        idx : `list` [`str`], optional (default None)
+        idx : `list` [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
-        cofactors : `str` or `List` [`str`], optional (default None)
+        cofactors : str or `list` [str], optional (default None)
             Contains the cofactor(s) to join to the output dataframe.
 
         Notes
@@ -248,11 +247,11 @@ class Result:
 
         Parameters
         ----------
-        path : `str`
+        path : str
             The output's path.
-        idx : `list` [`str`], optional (default None)
+        idx : `list` [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
-        human_readable : `bool`, optional (default True)
+        human_readable : bool, (default True)
             If set to True => save a json object.
             If set to False => save a torch object (which cannot be read from a text editor).
 
@@ -313,12 +312,13 @@ class Result:
 
         Parameters
         ----------
-        path : `str`
-            The file's path.
+        path : str
+            The file's path. The csv file musts contain two columns named 'tau' and 'xi'. If the individual parameters
+            come from a multivariate model, it must also contain the columns 'sources_i' for i in [0, ..., n_sources].
 
         Returns
         -------
-        `dict`
+        dict [str, torch.Tensor]
             A dictionary of torch.tensor which contains the individual parameters.
 
         Examples
@@ -339,11 +339,13 @@ class Result:
 
         Parameters
         ----------
-        df : `pandas.DataFrame`
+        df : pandas.DataFrame
+            Must contain two columns named 'tau' and 'xi'. If the individual parameters come from a multivariate model,
+            it must also contain the columns 'sources_i' for i in [0, ..., n_sources].
 
         Returns
         -------
-        `dict`
+        dict [str, torch.Tensor]
             A dictionary of torch.tensor which contains the individual parameters.
         """
         df.columns = [header.lower() for header in df.columns]
@@ -361,15 +363,15 @@ class Result:
 
         Parameters
         ----------
-        path : `str`
+        path : str
             The file's path.
-        verbose : `bool`, optional (default True)
+        verbose : bool, (default True)
             Precise if the loaded file can be read as a torch file or need conversion.
 
         Returns
         -------
-        `dict`
-            A dictionary of torch.tensor which contains the individual parameters.
+        dict [str, torch.Tensor]
+            A dictionary of torch.Tensor which contains the individual parameters.
 
         Examples
         --------
@@ -406,12 +408,12 @@ class Result:
 
         Parameters
         ----------
-        path_or_df : `str` or `pandas.DataFrame`
+        path_or_df : str or pandas.DataFrame
             The file's path or a DataFrame containing the individual parameters.
 
         Returns
         -------
-        `dict`
+        dict [str, torch.Tensor]
             A dictionary of torch.tensor which contains the individual parameters.
         """
         if type(path_or_df) == pd.DataFrame:
@@ -432,17 +434,17 @@ class Result:
 
         Parameters
         ----------
-        individual_parameters :  `str` or `pandas.DataFrame`
+        individual_parameters :  str or pandas.DataFrame
             The file's path or a DataFrame containing the individual parameters.
-        data : `str` or `pandas.DataFrame`
+        data : str or pandas.DataFrame or leaspy.inputs.data.data.Data
             The file's path or a DataFrame containing the features' scores.
-        cofactors :   `str` or `pandas.DataFrame`, optional (default None)
+        cofactors :   str or pandas.DataFrame, optional (default None)
             The file's path or a DataFrame containing the individual cofactors.
             The ID must be in index! Thus, the shape is (n_subjects, n_cofactors).
 
         Returns
         -------
-        `Result`
+        Result
             A Result class object which contains the individual parameters and the individual data.
 
         Examples
@@ -462,7 +464,9 @@ class Result:
         >>> individual_results.save_individual_parameters_json(path_individual_parameters)
         >>> individual_parameters = Result.load_result(path_data, path_individual_parameters)
         """
-        if type(data) == str:
+        if type(data) == Data:
+            pass
+        elif type(data) == str:
             data = Data.from_csv_file(data)
         elif type(data) == pd.DataFrame:
             data = Data.from_dataframe(data)

@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import torch
 import matplotlib.backends.backend_pdf
+from matplotlib.cm import get_cmap
 # import seaborn as sns
 
 from leaspy.utils.output.visualization import color_palette
@@ -26,7 +27,9 @@ class Plotter:
         labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
-        colors = color_palette(range(8))
+        #colors = color_palette(range(8))
+
+        colors = get_cmap("tab20").colors
 
         try:
             iterator = iter(model)
@@ -49,7 +52,7 @@ class Plotter:
 
             for i in range(mean_trajectory.shape[-1]):
                 ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
-                        linewidth=4, alpha=0.9)#, c=colors[i])  # , c=colors[i])
+                        linewidth=4, alpha=0.9, c=colors[i])  # , c=colors[i])
             plt.legend()
 
         else:

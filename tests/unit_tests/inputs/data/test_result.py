@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from numpy import allclose
 
-from leaspy import Data, Result
+from leaspy import Data, Leaspy, Result
 from tests import example_data_path, test_data_dir
 
 
@@ -101,6 +101,12 @@ class ResultTest(unittest.TestCase):
         self.assertTrue(allclose(df.loc[:, df.columns != 'ID'].values,
                                  df2.loc[:, df2.columns != 'ID'].values))
         self.test_load_individual_parameters(ind_param=results.individual_parameters)
+
+    def test_get_error_distribution_dataframe(self):
+        model_path = os.path.join(test_data_dir, "model_parameters",
+                                  "fitted_multivariate_model.json")
+        leaspy_session = Leaspy.load(model_path)
+        self.results.get_error_distribution_dataframe(leaspy_session.model)
 
     ###############################################################
     # DEPRECATION WARNINGS

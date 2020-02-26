@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from numpy import allclose
 
-from leaspy import Data, Result
+from leaspy import Data, Leaspy, Result
 from tests import example_data_path, test_data_dir
 
 
@@ -75,25 +75,38 @@ class ResultTest(unittest.TestCase):
             self.assertEqual(ind_param[key].shape[0], 17)
 
     def test_load_result(self):
-        # Test with json
         ind_param_path_json = os.path.join(test_data_dir, "individual_parameters",
                                            "data_tiny-individual_parameters.json")
         ind_param_path_csv = os.path.join(test_data_dir, "individual_parameters",
                                           "data_tiny-individual_parameters.csv")
+
         cofactors_path = os.path.join(test_data_dir,
                                       "inputs",
                                       "data_tiny_covariate.csv")
 
-        def launch_test(ind_param, data, cofactors):
-            results = Result.load_result(ind_param, data, cofactors)
-            df = results.data.to_dataframe()
-            df2 = self.results.data.to_dataframe()
-            self.assertTrue(allclose(df.loc[:, df.columns != 'ID'].values,
-                                     df2.loc[:, df2.columns != 'ID'].values))
-            self.test_load_individual_parameters(ind_param=results.individual_parameters)
+        data = self.results.data
+        df = data.to_dataframe()
 
-        launch_test(ind_param_path_json, example_data_path, cofactors_path)
-        launch_test(ind_param_path_csv, example_data_path, cofactors_path)
+        ind_param_input_list = [ind_param_path_csv, ind_param_path_json]
+        data_input_list = [data, df, example_data_path]
+
+        for data_input in data_input_list:
+            for ind_param_input in ind_param_input_list:
+                self.launch_test(ind_param_input, data_input, cofactors_path)
+
+    def launch_test(self, ind_param, data, cofactors):
+        results = Result.load_result(ind_param, data, cofactors)
+        df = results.data.to_dataframe()
+        df2 = self.results.data.to_dataframe()
+        self.assertTrue(allclose(df.loc[:, df.columns != 'ID'].values,
+                                 df2.loc[:, df2.columns != 'ID'].values))
+        self.test_load_individual_parameters(ind_param=results.individual_parameters)
+
+    def test_get_error_distribution_dataframe(self):
+        model_path = os.path.join(test_data_dir, "model_parameters",
+                                  "fitted_multivariate_model.json")
+        leaspy_session = Leaspy.load(model_path)
+        self.results.get_error_distribution_dataframe(leaspy_session.model)
 
     ###############################################################
     # DEPRECATION WARNINGS

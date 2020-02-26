@@ -169,8 +169,6 @@ class MultivariateModel(AbstractMultivariateModel):
                                                                  self.get_param_from_real(realizations),
                                                                  attribute_type='MCMC')
 
-
-
         norm_1 = data.values * data_reconstruction * data.mask.float()
         norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
 

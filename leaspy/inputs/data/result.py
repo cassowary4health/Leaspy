@@ -9,25 +9,26 @@ import pandas as pd
 import torch
 
 from leaspy.inputs.data.data import Data
+from leaspy.inputs.data.dataset import Dataset
 
 
 class Result:
     """
     Result object class.
-    Used as output by personalize algorithm & simulation algorithm.
+    Used as output by personalize algorithms & simulation algorithm.
 
     Attributes
     ----------
-    data: leaspy.inputs.data.data.Data
+    data : leaspy.inputs.data.data.Data
         Object containing the idx, time-points and observations of the patients.
-    individual_parameters: dict
-        Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.tensor).
-    ID_to_idx: dict
+    individual_parameters : dict [str, torch.Tensor]
+        Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.Tensor).
+    ID_to_idx : dict
         The keys are the individual ID & the items are their respective ordered position in the data file given
         by the user. This order remains the same during the computation.
         Example - in Result.individual_parameters['xi'], the first element corresponds to the
         first patient in ID_to_idx.
-    noise_std: float
+    noise_std : float
         Desired noise standard deviation level.
 
     Methods
@@ -51,8 +52,10 @@ class Result:
         Load individual parameters from a csv.
     load_individual_parameters_from_json(path, verbose)
         Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
+    get_error_distribution_dataframe(model, cofactors)
+        Get signed residual distribution per patient, per sub-score & per visit.
 
-    Depreciated in a futur release:
+    Depreciated in a future release:
         get_cofactor_distribution(cofactor)
             Get the list of the cofactor's distribution.
         get_cofactor_states(cofactors)
@@ -61,9 +64,6 @@ class Result:
             Return the wanted parameter distribution (one distribution per covariate state).
         get_patient_individual_parameters(idx)
             Get the dictionary of the wanted patient's individual parameters.
-        get_error_distribution(model, cofactor=None, aggregate_subscores=False, aggregate_visits=False)
-            Get error distribution per patient. By default, return one error value per
-            patient & per subscore & per visit.
     """
 
     def __init__(self, data, individual_parameters, noise_std=None):
@@ -76,7 +76,7 @@ class Result:
             Object containing the idx, time-points and observations of the patients
         individual_parameters : dict [str, torch.Tensor]
             Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
-        noise_std : float, optional (default 2.)
+        noise_std : float, optional (default None)
             Desired noise standard deviation level
         """
         self.data = data
@@ -90,12 +90,12 @@ class Result:
 
         Parameters
         ----------
-        ID : `list`, optional (default None)
+        ID : list, optional (default None)
             Contains the identifiers of the wanted subject.
 
         Returns
         -------
-        torch.Tensor
+        dict [str, torch.Tensor]
             Contains the individual parameters.
         """
         if ID is not None:
@@ -206,11 +206,11 @@ class Result:
 
         Parameters
         ----------
-        path : `str`
+        path : str
             The output's path.
-        idx : `list` [`str`], optional (default None)
+        idx : `list` [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
-        cofactors : `str` or `List` [`str`], optional (default None)
+        cofactors : str or `list` [str], optional (default None)
             Contains the cofactor(s) to join to the output dataframe.
 
         Notes
@@ -247,11 +247,11 @@ class Result:
 
         Parameters
         ----------
-        path : `str`
+        path : str
             The output's path.
-        idx : `list` [`str`], optional (default None)
+        idx : `list` [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
-        human_readable : `bool`, optional (default True)
+        human_readable : bool, (default True)
             If set to True => save a json object.
             If set to False => save a torch object (which cannot be read from a text editor).
 
@@ -312,12 +312,13 @@ class Result:
 
         Parameters
         ----------
-        path : `str`
-            The file's path.
+        path : str
+            The file's path. The csv file musts contain two columns named 'tau' and 'xi'. If the individual parameters
+            come from a multivariate model, it must also contain the columns 'sources_i' for i in [0, ..., n_sources].
 
         Returns
         -------
-        `dict`
+        dict [str, torch.Tensor]
             A dictionary of torch.tensor which contains the individual parameters.
 
         Examples
@@ -338,11 +339,13 @@ class Result:
 
         Parameters
         ----------
-        df : `pandas.DataFrame`
+        df : pandas.DataFrame
+            Must contain two columns named 'tau' and 'xi'. If the individual parameters come from a multivariate model,
+            it must also contain the columns 'sources_i' for i in [0, ..., n_sources].
 
         Returns
         -------
-        `dict`
+        dict [str, torch.Tensor]
             A dictionary of torch.tensor which contains the individual parameters.
         """
         df.columns = [header.lower() for header in df.columns]
@@ -360,15 +363,15 @@ class Result:
 
         Parameters
         ----------
-        path : `str`
+        path : str
             The file's path.
-        verbose : `bool`, optional (default True)
+        verbose : bool, (default True)
             Precise if the loaded file can be read as a torch file or need conversion.
 
         Returns
         -------
-        `dict`
-            A dictionary of torch.tensor which contains the individual parameters.
+        dict [str, torch.Tensor]
+            A dictionary of torch.Tensor which contains the individual parameters.
 
         Examples
         --------
@@ -405,12 +408,12 @@ class Result:
 
         Parameters
         ----------
-        path_or_df : `str` or `pandas.DataFrame`
+        path_or_df : str or pandas.DataFrame
             The file's path or a DataFrame containing the individual parameters.
 
         Returns
         -------
-        `dict`
+        dict [str, torch.Tensor]
             A dictionary of torch.tensor which contains the individual parameters.
         """
         if type(path_or_df) == pd.DataFrame:
@@ -431,17 +434,17 @@ class Result:
 
         Parameters
         ----------
-        individual_parameters :  `str` or `pandas.DataFrame`
+        individual_parameters :  str or pandas.DataFrame
             The file's path or a DataFrame containing the individual parameters.
-        data : `str` or `pandas.DataFrame`
+        data : str or pandas.DataFrame or leaspy.inputs.data.data.Data
             The file's path or a DataFrame containing the features' scores.
-        cofactors :   `str` or `pandas.DataFrame`, optional (default None)
+        cofactors :   str or pandas.DataFrame, optional (default None)
             The file's path or a DataFrame containing the individual cofactors.
             The ID must be in index! Thus, the shape is (n_subjects, n_cofactors).
 
         Returns
         -------
-        `Result`
+        Result
             A Result class object which contains the individual parameters and the individual data.
 
         Examples
@@ -458,10 +461,12 @@ class Result:
         >>> path_data = 'data/my_leaspy_data.csv'
         >>> path_individual_parameters = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.json'
         >>> individual_results.data.to_dataframe().to_csv(path_data)
-        >>> individual_results.save_individual_parameters(path_individual_parameters)
+        >>> individual_results.save_individual_parameters_json(path_individual_parameters)
         >>> individual_parameters = Result.load_result(path_data, path_individual_parameters)
         """
-        if type(data) == str:
+        if type(data) == Data:
+            pass
+        elif type(data) == str:
             data = Data.from_csv_file(data)
         elif type(data) == pd.DataFrame:
             data = Data.from_dataframe(data)
@@ -469,7 +474,7 @@ class Result:
             raise TypeError("The given `data` input must be a pandas.DataFrame or a string giving the path of the file "
                             "containing the features' scores! You gave an object of type %s" % str(type(data)))
 
-        if cofactors:
+        if cofactors is not None:
             if type(cofactors) == str:
                 cofactors_df = pd.read_csv(cofactors, index_col=0)
             elif type(cofactors) == pd.DataFrame:
@@ -478,11 +483,61 @@ class Result:
                 raise TypeError("The given `cofactors` input must be a pandas.DataFrame or a string giving the path of "
                                 "the file containing the cofactors! You gave an object of type %s" %
                                 str(type(cofactors)))
-            print(cofactors)
             data.load_cofactors(cofactors_df, cofactors_df.columns.to_list())
 
         individual_parameters = Result.load_individual_parameters(individual_parameters)
         return Result(data, individual_parameters)
+
+    def get_error_distribution_dataframe(self, model, cofactors=None):
+        """
+        Get signed residual distribution per patient, per sub-score & per visit. Each residual is equal to the
+        modeled data minus the observed data.
+
+        Parameters
+        ----------
+        model : leaspy.models.abstract_model.AbstractModel
+        cofactors : str, list [str], optional (default None)
+            Contains the cofactors' names to be included in the DataFrame. By default, no cofactors are returned.
+            If cofactors == "all", all the available cofactors are returned.
+
+        Returns
+        -------
+        residuals_dataframe : pandas.DataFrame
+
+        Examples
+        --------
+        Get mean absolute error per feature:
+
+        >>> from leaspy import AlgorithmSettings, Data, Leaspy
+        >>> data = Data.from_csv_file("/my/data/path")
+        >>> leaspy_logistic = Leaspy('logistic')
+        >>> settings = AlgorithmSettings("mcmc_saem")
+        >>> leaspy_logistic.calibrate(data, settings)
+        >>> settings = AlgorithmSettings("mode_real")
+        >>> results = leaspy_logistic.personalize(data, settings)
+        >>> residuals_dataframe = results.get_error_distribution_dataframe(model)
+        >>> residuals_dataframe[results.data.headers].abs().mean()
+        """
+        residuals_dataset = Dataset(self.data)
+        residuals_dataset.values = model.compute_individual_tensorized(residuals_dataset.timepoints,
+                                                                       self.individual_parameters) \
+                                   - residuals_dataset.values
+        residuals_dataframe = residuals_dataset.to_pandas().set_index('ID')
+
+        if cofactors is not None:
+            if type(cofactors) == str:
+                if cofactors == "all":
+                    cofactors_list = self.data.cofactors
+                else:
+                    cofactors_list = [cofactors]
+            elif type(cofactors) == list:
+                cofactors_list = cofactors
+            else:
+                raise TypeError("The given `cofactors` input must be a string or a list of strings! "
+                                "You gave an object of type %s" % str(type(cofactors)))
+            cofactors_df = self.data.to_dataframe(cofactors=cofactors).groupby('ID').first()[cofactors_list]
+            residuals_dataframe = residuals_dataframe.join(cofactors_df)
+        return residuals_dataframe
 
     ###############################################################
     # DEPRECATION WARNINGS
@@ -645,65 +700,3 @@ class Result:
             patient_dict[variable_ind] = self.individual_parameters[variable_ind][idx_number]
 
         return patient_dict
-
-    def get_error_distribution(self, model, cofactor=None, aggregate_subscores=False, aggregate_visits=False):
-        """
-        Get error distribution per patient. By default, return one error value per patient & per subscore & per visit.
-        Use 'aggregate_subscores' to average error values among subscores.
-        Use 'aggregate_visits' to average error values among visits.
-        Use both to have one error value per patient.
-        Use `cofactor' to cluster the patients by their corresponding cofactor's state.
-
-        Parameters
-        ----------
-        model : `leaspy.models.abstract_model.AbstractModel`
-        cofactor: string
-        aggregate_subscores: bool, optional (default = False)
-            Use 'aggregate_subscores' to average error values among subscores.
-        aggregate_visits: bool, optional (default = False)
-            Use 'aggregate_visits' to average error values among visits.
-
-        Returns
-        -------
-        dict
-            If cofactor is None => return a dictionary of torch tensor {'patient1': error1, ...}
-            If cofactor is not None => return a dictionary dictionary of torch tensor
-            {'cofactor1': {'patient1': error1, ...}, ...}
-        """
-        warnings.warn("This method will soon be removed!", DeprecationWarning)
-
-        error_distribution = {}
-        get_sources = (model.name != "univariate")
-        for i, (key, patient) in enumerate(self.data.individuals.items()):
-            param_ind = {'tau': self.individual_parameters['tau'][i],
-                         'xi': self.individual_parameters['xi'][i]}
-            if get_sources:
-                param_ind['sources'] = self.individual_parameters['sources'][i]
-
-            computed_minus_observations = model.compute_individual_tensorized(
-                            torch.tensor(patient.timepoints, dtype=torch.float32).unsqueeze(0), param_ind).squeeze(0)
-            computed_minus_observations -= torch.tensor(patient.observations, dtype=torch.float32)
-
-            if aggregate_subscores:
-                if aggregate_visits:
-                    # One value per patient
-                    error_distribution[key] = torch.mean(computed_minus_observations).tolist()
-                else:
-                    # One value per patient & per subscore
-                    error_distribution[key] = torch.mean(computed_minus_observations, 1).tolist()
-            elif aggregate_visits:
-                # One value per patient & per visit
-                error_distribution[key] = torch.mean(computed_minus_observations, 0).tolist()
-            else:
-                # One value per patient & per subscore & per visit
-                error_distribution[key] = computed_minus_observations.tolist()
-
-        if cofactor:
-            cofactors = self.get_cofactor_distribution(cofactor)
-            result = {state: {} for state in self.get_cofactor_states(cofactors)}
-            for key in result.keys():
-                result[key] = {patient: error_distribution[patient] for i, patient in
-                               enumerate(error_distribution.keys()) if cofactors[i] == key}
-            return result  # return {'cofactor1': {'patient1': error1, ...}, ...}
-        else:
-            return error_distribution  # return {'patient1': error1, ...}

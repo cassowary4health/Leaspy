@@ -41,12 +41,12 @@ def dict_compare_and_display(d, e):
 
     Parameters
     ----------
-    d: `dict`
-    e: `dict`
+    d : dict
+    e : dict
 
     Returns
     -------
-    `bool`
+    bool
         Answer to ``d`` == ``e`` up to the standard tolerance of ``numpy.allclose``.
     """
     try:
@@ -85,7 +85,7 @@ class LeaspyTest(unittest.TestCase):
 
         Parameters
         ----------
-        model: a leaspy model class object
+        model: leaspy.models.abstract_model.AbstractModel
         """
         self.assertEqual(model.name, "logistic")
         self.assertEqual(model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
@@ -141,21 +141,6 @@ class LeaspyTest(unittest.TestCase):
         result = leaspy.personalize(data, settings=algo_personalize_settings)
         self.assertAlmostEqual(result.noise_std, 0.21146, delta=0.01)
 
-        # Get error distribution
-        error_distribution = result.get_error_distribution(leaspy.model)
-        self.assertTrue(list(error_distribution.keys()), list(data.individuals.keys()))
-        self.assertTrue(torch.tensor(error_distribution['116']).shape,
-                        torch.tensor(data.individuals['116'].observations).shape)
-        error_distribution = result.get_error_distribution(leaspy.model, aggregate_subscores=True)
-        self.assertTrue(len(error_distribution['116']),
-                        torch.tensor(data.individuals['116'].observations).shape[0])
-        error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True)
-        self.assertTrue(len(error_distribution['116']),
-                        torch.tensor(data.individuals['116'].observations).shape[1])
-        error_distribution = result.get_error_distribution(leaspy.model, aggregate_visits=True,
-                                                           aggregate_subscores=True)
-        self.assertTrue(type(error_distribution['116']) == float)
-
         # Plot TODO
         path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")
         plotter = Plotter(path_output)
@@ -196,15 +181,16 @@ class LeaspyTest(unittest.TestCase):
         # If reproducibility error > 1e-5 => display it + visit with the biggest reproducibility error
         error_message = ''
         if not simulation_is_reproducible:
-            simulation_df = pd.read_csv(
-                os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"))
+            # simulation_df = pd.read_csv(
+            #     os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"))
             max_diff = 0.
             value_v1 = 0.
             value_v2 = 0.
             count = 0
             tol = 10 ** (-round_decimal)
-            for v1, v2 in zip(simulation_df.values.tolist(),
-                              simulation_results.data.to_dataframe().values.tolist()):
+            actual_simu_df = simulation_results.data.to_dataframe()
+            for v1, v2 in zip(simulation_df.loc[:, simulation_df.columns != 'ID'].values.tolist(),
+                              actual_simu_df.loc[:, actual_simu_df.columns != 'ID'].values.tolist()):
                 diff = [abs(val1 - val2) for val1, val2 in zip(v1, v2)]
                 if max(diff) > tol:
                     count += 1

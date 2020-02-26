@@ -33,7 +33,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         Parameters
         ----------
-        settings : leaspy AlgorithmSettings class object
+        settings : leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
             Settings of the algorithm
         """
         super().__init__()
@@ -53,9 +53,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         Parameters
         ----------
-        model : leaspy model class object
-            The model used to compute group parameters
-        data : leaspy Dataset class object
+        model : leaspy.models.abstract_model.AbstractModel
+            A subclass object of leaspy AbstractModel.
+        data : leaspy.inputs.data.dataset.Dataset
             Dataset object build with leaspy class objects Data, algo & model
 
         Returns
@@ -79,7 +79,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         # Compute the noise with the estimated individual parameters
         squared_diff = model.compute_sum_squared_tensorized(data, individual_parameters).sum()
-        noise_std = math.sqrt(float(squared_diff.detach().tolist()) / (data.n_observations))
+        noise_std = math.sqrt(squared_diff.detach().item() / data.n_observations)
 
         # Print run infos
         time_end = time.time()
@@ -103,9 +103,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         Parameters
         ----------
-        model : leaspy model class object
-            The model used to compute group parameters
-        data : leaspy Dataset class object
+        model : leaspy.models.abstract_model.AbstractModel
+            A subclass object of leaspy AbstractModel.
+        data : leaspy.inputs.data.dataset.Dataset
             Dataset object build with leaspy class objects Data, algo & model
 
         Raises

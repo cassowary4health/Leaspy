@@ -1,9 +1,9 @@
-import os
 import json
+import os
 import warnings
 
-from leaspy.inputs.settings.outputs_settings import OutputsSettings
 from leaspy.inputs.settings import default_data_dir
+from leaspy.inputs.settings.outputs_settings import OutputsSettings
 
 
 class AlgorithmSettings:
@@ -31,7 +31,7 @@ class AlgorithmSettings:
             settings = json.load(fp)
 
         if 'name' not in settings.keys():
-            raise ValueError("Your json file must contain a \'name\' ")
+            raise ValueError("Your json file must contain a 'name' attribute!")
         algorithm_settings = cls(settings['name'])
 
         if 'parameters' in settings.keys():

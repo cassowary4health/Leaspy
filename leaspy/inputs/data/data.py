@@ -22,6 +22,7 @@ class Data:
         self.dimension = None
         self.n_individuals = 0
         self.n_visits = 0
+        self.cofactors = []
 
         self.iter = 0
 
@@ -66,7 +67,7 @@ class Data:
 
             # Add these cofactor to the individual
             self.individuals[idx].add_cofactors(cof)
-
+        self.cofactors += cofactors
 
     """
     def load_cofactors(self, df, cofactors):
@@ -103,8 +104,21 @@ class Data:
         reader = CSVDataReader(path)
         return Data._from_reader(reader)
 
-    def to_dataframe(self):
+    def to_dataframe(self, cofactors=None):
+        """
+        Return the subjects' observations in a pandas.DataFrame along their ID and ages at all visits.
 
+        Parameters
+        ----------
+        cofactors : str, list [str], optional (default None)
+            Contains the cofactors' names to be included in the DataFrame. By default, no cofactors are returned.
+            If cofactors == "all", all the available cofactors are returned.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Contains the subjects's ID, age and scores (optional - and cofactors) for each timepoint.
+        """
         indices = []
         timepoints = torch.zeros((self.n_visits, 1))
         arr = torch.zeros((self.n_visits, self.dimension))
@@ -123,6 +137,18 @@ class Data:
 
         df = pd.DataFrame(data=arr, index=indices, columns=['TIME'] + self.headers)
         df.index.name = 'ID'
+
+        if cofactors is not None:
+            if type(cofactors) == str:
+                if cofactors == "all":
+                    cofactors_list = self.cofactors
+            else:
+                cofactors_list = cofactors
+            for cofactor in cofactors_list:
+                df[cofactor] = ''
+                for subject_name in indices:
+                    df.loc[subject_name, cofactor] = self.individuals[subject_name].cofactors[cofactor]
+
         return df.reset_index()
 
     @staticmethod

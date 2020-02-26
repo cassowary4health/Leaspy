@@ -8,16 +8,16 @@ def leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, lea
 
     Parameters
     ----------
-    data_iter : `list` [`Data`]
+    data_iter : list [leaspy.inputs.data.data.Data]
         An iterable of Leaspy Data objects to be calibrated on.
-    algo_settings_iter : `list` [`AlgorithmSettings`]
+    algo_settings_iter : list [leaspy.inputs.settings.algorithm_settings.AlgorithmSettings]
         An iterable of Leaspy AlgorithmSettings for every calibration task.
     leaspy_factory : callable
         A function taking as input iteration index and returning a new Leaspy object that will be calibrated.
     leaspy_obj_cb : callable
         A function taking as input a calibrated Leaspy object and iteration index and doing whatsoever needed with it
         (i.e.: saving model to a file, ...).
-    n_jobs : `int` (default -1)
+    n_jobs : int, (default -1)
         The number of parallel jobs in joblib.
     **joblib_Parallel_kwargs
         Other joblib Parallel parameters (such as `verbose`, ...).
@@ -51,16 +51,16 @@ def leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_iter, leas
 
     Parameters
     ----------
-    leaspy_iter : `list` [`Leaspy`]
+    leaspy_iter : list [leaspy.Leaspy]
         An iterable of Leaspy objects to personalize on
-    data_iter : `list` [`Data`]
+    data_iter : list [leaspy.inputs.data.data.Data]
         An iterable of Leaspy Data objects to be calibrated on.
-    algo_settings_iter : `list` [`AlgorithmSettings`]
+    algo_settings_iter : list [leaspy.inputs.settings.algorithm_settings.AlgorithmSettings]
         An iterable of Leaspy AlgorithmSettings for every calibration task.
     leaspy_res_cb : callable
         A function taking as input a Leaspy Result object (the output of personalization task) and iteration index
         and doing whatsoever needed with it (i.e.: saving individual parameters/results to a file, ...).
-    n_jobs : `int` (default -1)
+    n_jobs : int, (default -1)
         The number of parallel jobs in joblib.
     **joblib_Parallel_kwargs
         Other joblib Parallel parameters (such as `verbose`, ...).

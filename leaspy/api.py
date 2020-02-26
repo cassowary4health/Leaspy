@@ -14,7 +14,7 @@ class Leaspy:
 
     Attributes
     ----------
-    model : `leaspy.models.abstract_model.AbstractModel`
+    model : leaspy.models.abstract_model.AbstractModel
         The model used for the computation. The available models are:
             'logistic' - suppose that every modality follow a logistic curves accross time. This model performs a
                 dimensionality reduction of the modalities.
@@ -22,7 +22,7 @@ class Leaspy:
             'univariate' - a 'logistic' model for a single modality => do not perform a dimensionality reduction.
     type : str
         Name of the model - must be one of the three listed above.
-    plotting : `leaspy.utils.output.visualization.plotting.Plotting`
+    plotting : leaspy.utils.output.visualization.plotting.Plotting
 
     Methods
     -------
@@ -68,9 +68,9 @@ class Leaspy:
 
         Parameters
         ----------
-        data : `leaspy.inputs.data.data.Data`
+        data : leaspy.inputs.data.data.Data
             Contains the information of the individuals.
-        algorithm_settings : `leaspy.inputs.settings.algorithm_settings.AlgorithmSettings`
+        algorithm_settings : leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Examples
@@ -113,9 +113,9 @@ class Leaspy:
 
         Parameters
         ----------
-        data : `leaspy.inputs.data.data.Data`
+        data : leaspy.inputs.data.data.Data
             Contains the information of the individuals.
-        algorithm_settings : `leaspy.inputs.settings.algorithm_settings.AlgorithmSettings`
+        algorithm_settings : leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
         """
         self.fit(data, algorithm_settings)

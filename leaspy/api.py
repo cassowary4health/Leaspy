@@ -255,15 +255,15 @@ class Leaspy:
 
         Parameters
         ----------
-        timepoints: array_like[numeric or array_like[numeric]]
-            Contains, for each individual, the time-point(s) to estimate.
+        timepoints: array_like[array_like[numeric]]
+            Contains, for each individual, the time-points to estimate.
             The size of this list must match the number of individuals described in individual_parameters
             If an element of this list is an empty list, no estimation will be computed for the corresponding individual,
-            resulting in a tensor of size(0,n_features)
+            resulting in a tensor of size(0, n_features).
         individual_parameters: dict
             Corresponds to the individual parameters of one or more individuals.
             Parameters in it can be tensors or not (especially it may be a Result.individual_parameters straight away)
-            cf. AbstractModel.audit_individual_parameters for some more precision on individual parameters
+            cf. AbstractModel.audit_individual_parameters for some more precision on individual parameters.
 
         Returns
         -------
@@ -274,7 +274,7 @@ class Leaspy:
 
         Raises
         ------
-        ValueError: if any checks fails
+        ValueError: if any checks fails.
 
         Examples
         --------
@@ -299,13 +299,15 @@ class Leaspy:
         try:
             n_tpts = len(timepoints)
             iter(timepoints)
+            # check that each element of timepoints is an iterable
+            list(map(lambda set_tpts_i: iter(set_tpts_i), timepoints))
         except TypeError:
-            raise ValueError('Timepoints should be a array_like each element containing timepoint(s), ' \
-                             'as a scalar or array_like[scalar], to estimate for corresponding individual.')
+            raise ValueError('Timepoints should be a array_like each element containing a set of timepoints ' \
+                             'to estimate for corresponding individual.')
 
         if n_tpts != n_inds:
-            raise ValueError('List of timepoints is not compatible with number of individuals parametrized. ' \
-                             'Respective sizes are {} and {}'.format(n_tpts, n_inds))
+            raise ValueError('There must be as many sets of timepoints as individuals parametrized. ' \
+                             'You gave {} sets of timepoints and {} individuals.'.format(n_tpts, n_inds))
 
         # Generator of individual trajectories (we skip ips checks and tensorization as were done here)
         traj_gen = (self.model.compute_individual_trajectory(tpts_i, t_ips_i, skip_ips_checks=True).squeeze(0)

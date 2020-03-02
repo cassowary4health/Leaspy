@@ -35,10 +35,10 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
             # Test with one time-point (scalar or array_like with 1 element)
             n_vis = 1
             for timepoints in (
-                [74],
-                (74,),
+                #[74],
+                [(74,)],
                 [[74]],
-                [np.array(74)],
+                #[np.array(74)],
                 [np.array([74])],
             ):
                 output = list(self.leaspy.estimate_multi(timepoints, individual_parameters))
@@ -72,6 +72,8 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
             # timepoints must be iterable, even if a single individual
             for tpts in (
                 74,
+                [74],
+                [np.array(74)],
                 np.array(74)
             ):
                 self.assertRaises(ValueError, lambda: self.leaspy.estimate_multi(tpts, individual_parameters))
@@ -101,7 +103,7 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
             # Test with one time-point (scalar or array_like with 1 element)
             n_vis = 1
             for timepoints in (
-                [74,74],
+                #[74,74],
                 [[74],[74]],
             ):
                 output = list(self.leaspy.estimate_multi(timepoints, individual_parameters))
@@ -116,7 +118,7 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
 
             # Test with multiple time-points
             for timepoints in (
-                [71,[70,71,72]],
+                [[71],[70,71,72]],
             ):
                 output = list(self.leaspy.estimate_multi(timepoints, individual_parameters))
                 #self.assertIsInstance(output, list)
@@ -152,6 +154,7 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
             # Various cases of expected errors due to wrong shape:
             # timepoints must be iterable, even if a single individual
             for tpts in (
+                [74,74], # old behavior
                 74,
                 [74],
                 [[74]],

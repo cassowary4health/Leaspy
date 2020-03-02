@@ -1,3 +1,5 @@
+import warnings
+
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.inputs.data.dataset import Dataset
 from leaspy.inputs.data.result import Result
@@ -234,12 +236,86 @@ class Leaspy:
         >>> individual_parameters = { 'xi': 0.3, 'tau': 71, 'sources': [0.2, -0.5] }
         >>> output = leaspy.estimate(timepoints, individual_parameters)
         """
+        warnings.warn("estimate() is deprecated; use estimate_multi() instead.", DeprecationWarning)
+
         # Check if model has been initialized
         self.check_if_initialized()
 
         # Compute the individual trajectory
         individual_trajectory = self.model.compute_individual_trajectory(timepoints, individual_parameters)
-        return individual_trajectory
+        return individual_trajectory # no squeezing so shape (1, n_tpts, n_features)
+
+
+    def estimate_multi(self, timepoints, individual_parameters):
+        """
+        Compute for multiple individuals, characterized by their individual parameters (z_i),
+        all features values at time-points (t_ij).
+        This functions returns, for every individual i, f_theta(z_i, (t_ij)).
+        It is intended to compute reconstructed data, impute missing values and predict future time-points.
+
+        Parameters
+        ----------
+        timepoints: array_like[array_like[numeric]]
+            Contains, for each individual, the time-points to estimate.
+            The size of this list must match the number of individuals described in individual_parameters
+            If an element of this list is an empty list, no estimation will be computed for the corresponding individual,
+            resulting in a tensor of size(0, n_features).
+        individual_parameters: dict
+            Corresponds to the individual parameters of one or more individuals.
+            Parameters in it can be tensors or not (especially it may be a Result.individual_parameters straight away)
+            cf. AbstractModel.audit_individual_parameters for some more precision on individual parameters.
+
+        Returns
+        -------
+        individual_trajectory_gen: generator
+            Each element, corresponding to each individual (ordered as is), is a torch tensor
+            of shape (number of timepoints to estimate for subject x shape of feature space),
+            containing features values at the different timepoints.
+
+        Raises
+        ------
+        ValueError: if any checks fails.
+
+        Examples
+        --------
+        Given the individual parameters of two subjetcs, estimate the features of the first
+        at 70, 74 and 80 years old and at 71 and 72 years old for the second.
+
+        >>> leaspy = Leaspy.load('path/to/model_parameters.json')
+        >>> timepoints = [ (70, 74, 80), (71, 72) ]
+        >>> individual_parameters = { 'xi': [0.3, 0.1], 'tau': [71, 59], 'sources': [[0.2, -0.5],[0,0]] }
+        >>> output = leaspy.estimate_multi(timepoints, individual_parameters)
+        """
+        # Check if model has been initialized
+        self.check_if_initialized()
+
+        # Check individual parameters consistency/compatibility with model
+        # and get number of individuals present and generator of tensorized ips
+        ips_info = self.model.audit_individual_parameters(individual_parameters)
+        n_inds = ips_info['nb_inds']
+        t_ips_gen = ips_info['tensorized_ips_gen']
+
+        # Check type and size compatibility of timepoints
+        try:
+            n_tpts = len(timepoints)
+            iter(timepoints)
+            # check that each element of timepoints is an iterable
+            list(map(lambda set_tpts_i: iter(set_tpts_i), timepoints))
+        except TypeError:
+            raise ValueError('Timepoints should be a array_like each element containing a set of timepoints ' \
+                             'to estimate for corresponding individual.')
+
+        if n_tpts != n_inds:
+            raise ValueError('There must be as many sets of timepoints as individuals parametrized. ' \
+                             'You gave {} sets of timepoints and {} individuals.'.format(n_tpts, n_inds))
+
+        # Generator of individual trajectories (we skip ips checks and tensorization as were done here)
+        traj_gen = (self.model.compute_individual_trajectory(tpts_i, t_ips_i, skip_ips_checks=True).squeeze(0)
+                        for tpts_i, t_ips_i in zip(timepoints, t_ips_gen))
+
+        # Return a generator (lazy computation)
+        return traj_gen
+
 
     def check_if_initialized(self):
         """

@@ -103,43 +103,163 @@ class AbstractModel:
         res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
-    # TODO: unit & functional tests
-    def compute_individual_trajectory(self, timepoints, individual_parameters):
+    def audit_individual_parameters(self, ips):
         """
-        Compute the individual scores' values of a subject given his individual parameters at the given time-point(s).
+        Perform various consistency and compatibility (with current model) checks
+        on an individual parameters dict and outputs qualified information about it.
 
         Parameters
         ----------
-        timepoints : scalar or `list` [`scalar`]
-            Contains the age(s) of the subjects.
-        individual_parameters : dict
+        ips: dict
+            Contains some untrusted individual parameters.
+            If representing only one individual (in a multivariate model) it could be:
+                {'tau':0.1, 'xi':-0.3, 'sources':[0.1,...]}
+            Or for multiple individuals:
+                {'tau':[0.1,0.2,...], 'xi':[-0.3,0.2,...], 'sources':[[0.1,...],[0,...],...]}
+            In particular, a sources vector (if present) should always be a array_like, even if it is 1D
+
+        Returns
+        -------
+        ips_info: dict
+            'nb_inds': number of individuals present (int >= 0)
+            'tensorized_ips': tensorized version of individual parameters
+            'tensorized_ips_gen': generator providing for all individuals present (ordered as is)
+                their own tensorized individual parameters
+
+        Raises
+        ------
+        ValueError: if any of the consistency/compatibility checks fail
+        """
+
+        def is_array_like(v):
+            # abc.Collection is useless here because set, np.array(scalar) or torch.tensor(scalar)
+            # are abc.Collection but are not array_like in numpy/torch sense or have no len()
+            try:
+                len(v) # exclude np.array(scalar) or torch.tensor(scalar)
+                return hasattr(v, '__getitem__') # exclude set
+            except TypeError:
+                return False
+
+        # Model supports and needs sources?
+        has_sources = self.name != 'univariate'
+
+        # Check parameters names
+        expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'])
+        given_parameters = set(ips.keys())
+        symmetric_diff = expected_parameters.symmetric_difference(given_parameters)
+        if len(symmetric_diff) > 0:
+            raise ValueError('Individual parameters dict provided {} is not compatible for {} model. ' \
+                'The expected individual parameters are {}.'.\
+                format(given_parameters, self.name, expected_parameters))
+
+        # Check number of individuals present (with low constraints on shapes)
+        ips_is_array_like = {k: is_array_like(v) for k,v in ips.items()}
+        ips_size = {k: len(v) if ips_is_array_like[k] else 1 for k,v in ips.items()}
+
+        if has_sources:
+            s = ips['sources']
+
+            if not ips_is_array_like['sources']:
+                raise ValueError('Sources must be an array_like but {} was provided.'.\
+                                 format(s))
+
+            tau_xi_scalars = all(ips_size[k] == 1 for k in ['tau','xi'])
+            if tau_xi_scalars and (ips_size['sources'] > 1):
+                # is 'sources' not a nested array? (allowed iff tau & xi are scalars)
+                if not is_array_like(s[0]):
+                    # then update sources size (1D vector representing only 1 individual)
+                    ips_size['sources'] = 1
+
+            # TODO? check source dimension compatibility?
+
+        uniq_sizes = set(ips_size.values())
+        if len(uniq_sizes) != 1:
+            raise ValueError('Individual parameters sizes are not compatible together. ' \
+                             'Sizes are {}.'.format(ips_size))
+
+        # number of individuals present
+        n_inds = uniq_sizes.pop()
+
+        # properly choose unsqueezing dimension when tensorizing array_like (useful for sources)
+        unsqueeze_dim = -1 # [1,2] => [[1],[2]] (expected for 2 individuals / 1D sources)
+        if n_inds == 1:
+            unsqueeze_dim = 0 # [1,2] => [[1,2]] (expected for 1 individual / 2D sources)
+
+        # tensorized (2D) version of ips
+        t_ips = {k: self._tensorize_2D(v, unsqueeze_dim=unsqueeze_dim) for k,v in ips.items()}
+
+        # construct output
+        return {
+            'nb_inds': n_inds,
+            'tensorized_ips': t_ips,
+            'tensorized_ips_gen': ({k: v[i,:].unsqueeze(0) for k,v in t_ips.items()} for i in range(n_inds))
+        }
+
+    @staticmethod
+    def _tensorize_2D(x, unsqueeze_dim, dtype=torch.float32):
+        """
+        Helper to convert a scalar or array_like into an, at least 2D, dtype tensor
+
+        Parameters
+        ----------
+        x: scalar or array_like
+            element to be tensorized
+        unsqueeze_dim: 0 or -1
+            dimension to be unsqueezed; meaningful for 1D array-like only
+            >>> _tensorize_2D([1, 2], 0) == tensor([[1, 2]])
+            >>> _tensorize_2D([1, 2], -1) == tensor([[1], [2])
+            for scalar or vector of length 1 it has no matter
+        """
+        # convert to torch.Tensor if not the case
+        if not isinstance(x, torch.Tensor):
+            x = torch.tensor(x, dtype=dtype)
+
+        # convert dtype if needed
+        if x.dtype != dtype:
+            x = x.to(dtype)
+
+        # if tensor is less than 2-dimensional add dimensions
+        while x.dim() < 2:
+            x = x.unsqueeze(dim=unsqueeze_dim)
+
+        # postcondition: x.dim() >= 2
+        return x
+
+    # TODO: unit tests? (functional tests covered by api.estimate)
+    def compute_individual_trajectory(self, timepoints, individual_parameters, *, skip_ips_checks = False):
+        """
+        Compute scores values at the given time-point(s) given a subject's individual parameters.
+
+        Parameters
+        ----------
+        timepoints: scalar or array_like[scalar] (list, tuple, np.array)
+            Contains the age(s) of the subject.
+        individual_parameters: dict
             Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like
+        skip_ips_checks: bool (default: False)
+            Flag to skip consistency/compatibility checks and tensorization
+            of individual_parameters when it was done earlier (speed-up)
 
         Returns
         -------
         torch.Tensor
             Contains the subject's scores computed at the given age(s)
+            Shape of tensor is (1, n_tpts, n_features)
         """
 
-        # Check the given individual parameters' names & convert them to torch tensor
-        available_parameters = ['xi', 'tau'] + (self.name != 'univariate') * ['sources']
-        for key in individual_parameters.keys():
-            assert key in available_parameters,\
-                'The individual parameter {} is not available for {} model! ' \
-                'The available individual parameters are {}.'.\
-                format(key, self.name, available_parameters)
+        if not skip_ips_checks:
+            # Perform checks on ips and gets tensorized version if needed
+            ips_info = self.audit_individual_parameters(individual_parameters)
+            n_inds = ips_info['nb_inds']
+            individual_parameters = ips_info['tensorized_ips']
 
-            if type(individual_parameters[key]) == torch.Tensor:
-                continue
+            if n_inds != 1:
+                raise ValueError('Only one individual computation may be performed at a time. ' \
+                                 '{} was provided.'.format(n_inds))
 
-            if type(individual_parameters[key]) != list:
-                individual_parameters[key] = [individual_parameters[key]]
-            individual_parameters[key] = torch.tensor(individual_parameters[key], dtype=torch.float32).unsqueeze(0)
-
-        # Convert the timepoints (list of numbers, or single number) to a torch tensor
-        if type(timepoints) != list:
-            timepoints = [timepoints]
-        timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
+        # Convert the timepoints (list of numbers, or single number) to a 2D torch tensor
+        timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0) # 1 individual
 
         # Compute the individual trajectory
         return self.compute_individual_tensorized(timepoints, individual_parameters)

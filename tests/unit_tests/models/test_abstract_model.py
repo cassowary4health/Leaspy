@@ -82,3 +82,89 @@ class AbstractModelTest(unittest.TestCase):
             for method in ('mode_real', 'mean_real', 'scipy_minimize', 'gradient_descent_personalize'):
                 settings = AlgorithmSettings(method, n_iter=100, n_burn_in_iter=90, seed=0)
                 logistic_result = logistic_leaspy.personalize(data, settings)
+
+    def test_tensorize_2D(self):
+
+        t5 = torch.tensor([[5]],dtype=torch.float32)
+
+        for x, unsqueeze_dim, expected_out in zip([
+            [1,2], [1,2], 5, 5, [5], [5]
+        ], [0,-1,0,-1,0,-1], [
+            torch.tensor([[1,2]],dtype=torch.float32),
+            torch.tensor([[1],[2]],dtype=torch.float32),
+            t5, t5, t5, t5
+        ]):
+            self.assertTrue(torch.equal(
+                AbstractModel._tensorize_2D(x,unsqueeze_dim=unsqueeze_dim),
+                expected_out
+            ))
+
+    def test_audit_individual_parameters(self):
+
+        # key: (valid,nb_inds,src_dim,)
+        all_ips = {
+            # 0 individual
+            (True, 0, 0): {'tau':[],'xi':[]},
+            (True, 0, 5): {'tau':[],'xi':[],'sources':[]}, # src_dim undefined here...
+
+            # 1 individual
+            (True, 1, 0): {'tau':50,'xi':0,},
+            (False, 1, 1): {'tau':50,'xi':0,'sources':0}, # faulty (source should be vector)
+            (True, 1, 1): {'tau':50,'xi':0,'sources':[0]},
+            (True, 1, 2): {'tau':50,'xi':0,'sources':[0,0]},
+
+            # 2 individuals
+            (True, 2, 0): {'tau':[50,60],'xi':[0,0.1],},
+            (True, 2, 1): {'tau':[50,60],'xi':[0,0.1],'sources':[0,0.1]}, # accepted even if ambiguous
+            (True, 2, 1): {'tau':[50,60],'xi':[0,0.1],'sources':[[0],[0.1]]}, # cleaner
+            (True, 2, 2): {'tau':[50,60],'xi':[0,0.1],'sources':[[0,-1],[0.1,0]]},
+
+            # Faulty
+            (False, 1, 0): {'tau':0,'xi':0,'extra':0},
+            (False, 1, 0): {'tau':0,},
+            (False, None, 0): {'tau':[50,60],'xi':[0]},
+        }
+
+        # univariate
+        mu = AbstractModel('univariate')
+
+        for src_compat, m in [
+            (lambda src_dim: src_dim <= 0, AbstractModel('univariate')),
+            (lambda src_dim: src_dim > 0, AbstractModel('multivariate'))
+        ]:
+            for (valid,n_inds,src_dim), ips in all_ips.items():
+
+                if (not valid) or (not src_compat(src_dim)):
+                    with self.assertRaises(ValueError, ):
+                        ips_info = m.audit_individual_parameters(ips)
+                    continue
+
+                ips_info = m.audit_individual_parameters(ips)
+
+                keys = set(ips_info.keys()).symmetric_difference({'nb_inds','tensorized_ips','tensorized_ips_gen'})
+                self.assertEqual(len(keys), 0)
+
+                self.assertEqual(ips_info['nb_inds'], n_inds)
+
+                list_t_ips = list(ips_info['tensorized_ips_gen'])
+                self.assertEqual(len(list_t_ips), n_inds)
+
+                t_ips = ips_info['tensorized_ips']
+                self.assertIsInstance(t_ips, dict)
+                keys_ips = set(t_ips.keys()).symmetric_difference(ips.keys())
+                self.assertEqual(len(keys_ips), 0)
+
+                for k,v in t_ips.items():
+                    self.assertIsInstance(v, torch.Tensor)
+                    self.assertEqual(v.dim(), 2)
+                    self.assertEqual(v.shape, (n_inds, src_dim if (k == 'sources') and (n_inds > 0) else 1))
+
+                if n_inds == 1:
+                    t_ips0 = list_t_ips[0]
+                    self.assertTrue(all(torch.equal(t_ips0[k], v) for k,v in t_ips.items())) # because only 1 individual
+                elif n_inds > 1:
+                    for t_ips_1i in list_t_ips:
+                        for k,v in t_ips_1i.items():
+                            self.assertIsInstance(v, torch.Tensor)
+                            self.assertEqual(v.dim(), 2)
+                            self.assertEqual(v.shape, (1, src_dim if (k == 'sources') else 1))

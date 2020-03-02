@@ -237,6 +237,10 @@ class Result:
         """
         df_individual_parameters = self.get_dataframe_individual_parameters(cofactors=cofactors)
         if idx:
+            if type(idx) != list:
+                raise TypeError('Input "idx" must be a list, even if it contains only one element. '
+                                'You gave idx={} which is of type {}.'.
+                                format(idx, type(idx)))
             df_individual_parameters = df_individual_parameters.loc[idx]
         df_individual_parameters.to_csv(path, index=True)
 

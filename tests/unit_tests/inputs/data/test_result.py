@@ -60,8 +60,13 @@ class ResultTest(unittest.TestCase):
                                                   "data_tiny-individual_parameters.csv")
         path_original = os.path.join(test_data_dir, "individual_parameters",
                                      "data_tiny-individual_parameters-original.csv")
+
         self.results.save_individual_parameters_csv(individual_parameters_path)
         self.assertTrue(filecmp.cmp(path_original, path_original, shallow=False))
+
+        for idx in ('116', 116, ('116',), ('116', '142')):
+            self.assertRaises(TypeError, self.results.save_individual_parameters_csv,
+                              individual_parameters_path, idx=idx)
 
     def test_load_individual_parameters(self, ind_param=None):
         if ind_param is None:

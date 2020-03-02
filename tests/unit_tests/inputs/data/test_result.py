@@ -26,9 +26,7 @@ class ResultTest(unittest.TestCase):
         load_individual_parameters_path = os.path.join(test_data_dir,
                                                        "individual_parameters",
                                                        "data_tiny-individual_parameters.json")
-        individual_parameters = Result.load_individual_parameters(load_individual_parameters_path)
-
-        self.results = Result(data, individual_parameters)
+        self.results = Result.load_result(data, load_individual_parameters_path)
         if get:
             return self.results
 
@@ -100,7 +98,7 @@ class ResultTest(unittest.TestCase):
                 self.launch_test(ind_param_input, data_input, cofactors_path)
 
     def launch_test(self, ind_param, data, cofactors):
-        results = Result.load_result(ind_param, data, cofactors)
+        results = Result.load_result(data, ind_param, cofactors)
         df = results.data.to_dataframe()
         df2 = self.results.data.to_dataframe()
         self.assertTrue(allclose(df.loc[:, df.columns != 'ID'].values,

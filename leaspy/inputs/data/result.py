@@ -432,16 +432,16 @@ class Result:
                             "containing the individual parameters!")
 
     @staticmethod
-    def load_result(individual_parameters, data, cofactors=None):
+    def load_result(data, individual_parameters, cofactors=None):
         """
         Load a Result class object from two file - one for the individual data & one for the individual parameters.
 
         Parameters
         ----------
-        individual_parameters :  str or pandas.DataFrame
-            The file's path or a DataFrame containing the individual parameters.
         data : str or pandas.DataFrame or leaspy.inputs.data.data.Data
             The file's path or a DataFrame containing the features' scores.
+        individual_parameters :  str or pandas.DataFrame
+            The file's path or a DataFrame containing the individual parameters.
         cofactors :   str or pandas.DataFrame, optional (default None)
             The file's path or a DataFrame containing the individual cofactors.
             The ID must be in index! Thus, the shape is (n_subjects, n_cofactors).

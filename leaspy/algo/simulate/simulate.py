@@ -28,7 +28,7 @@ class SimulationAlgorithm(AbstractAlgo):
         The cofactor used to select the wanted group of patients (ex - 'genes'). It must correspond to an existing
         cofactor in the attribute `Data` of the input `result` of the ``run`` method. See ``SimulationAlgorithm.run``
         documentation.
-    cofactor_state : str, optional (default None) TODO: check that the loaded cofactors are converted into strings!
+    cofactor_state : str, optional (default None)
         The cofactor state used to select the  wanted group of patients (ex - 'APOE4'). It must correspond to an
         existing cofactor state in the attribute `Data` of the input `result` of the ``run`` method. See
         ``SimulationAlgorithm.run`` documentation.
@@ -42,10 +42,15 @@ class SimulationAlgorithm(AbstractAlgo):
         Examples - choose 5 => in average, a simulated patient will have 5 visits.
     name : ``"simulation"``
         Algorithm's name.
-    noise : float or bool (default True)
-        Wanted level of noise in the generated scores - noise of zero will lead to patients having "perfect progression"
-        of their scores, i.e. following exactly a logistic curve. If set to ``True``, this value is set as the
-        model's `noise_std` parameter.
+    noise : str or float or list or None, (default "default")
+        Wanted level of gaussian noise in the generated scores.
+            - Set to "default", the noise added to each feature score correspond to the reconstruction error for each
+            feature.
+            - Set noise to ``None`` will lead to patients having "perfect progression" of their scores, i.e.
+            following exactly a logistic curve.
+            - Set a float will add for each feature's scores a noise of standard deviation the given float.
+            - Set a iterable will add for the feature j a noise of standard deviation noise[j]. Then, noise must be
+            of length the number of features' scores.
     number_of_subjects : int
         Number of subject to simulate.
     reparametrized_age_bounds : list [float], optional (default None), length = 2
@@ -109,6 +114,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         self.bandwidth_method = settings.parameters['bandwidth_method']
         self.cofactor = settings.parameters['cofactor']
+        # TODO: check that the loaded cofactors are converted into strings!
         self.cofactor_state = settings.parameters['cofactor_state']
         self.features_bounds = settings.parameters['features_bounds']
         self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
@@ -316,6 +322,11 @@ class SimulationAlgorithm(AbstractAlgo):
         -------
         torch.distributions.Normal or None
             A gaussian noise generator. If self.noise is None, the function returns None.
+
+        Raises
+        ------
+        ValueError
+            If the attribute self.noise is an iterable of float of a length different than the number of features.
         """
         if self.noise:
             if self.noise == "default":
@@ -324,7 +335,13 @@ class SimulationAlgorithm(AbstractAlgo):
                 noise *= noise
                 noise = torch.sqrt(noise.mean(dim=0))
             else:
-                noise = self.noise
+                if hasattr(self.noise, '__len__'):
+                    if len(self.noise) != len(results.data.headers):
+                        raise ValueError("The attribute 'noise' you gave is {}. If you want to specify the level of"
+                                         " noise for each feature score, you must give an iterable object of size "
+                                         "the number of features, here {}.".format(self.noise,
+                                                                                   len(results.data.headers)))
+                noise = torch.tensor(self.noise)
             return torch.distributions.Normal(loc=0, scale=noise)
 
     @staticmethod
@@ -447,6 +464,7 @@ class SimulationAlgorithm(AbstractAlgo):
             them is a 2D-numpy.ndarray of shape n_visits x n_features.
         """
         features_values = []
+        # TODO : parallelize this for loop
         for i in range(len(timepoints)):
             indiv_param = {key: val[i] for key, val in simulated_parameters.items()}
             indiv_param['sources'] = indiv_param['sources'].tolist()

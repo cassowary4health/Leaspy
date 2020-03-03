@@ -288,7 +288,7 @@ class Result:
         dump = self._get_dump(idx)
         if human_readable is not None:
             warnings.warn("This parameter is deprecated! To save as a torch file, use the method "
-                          "'save_individual_parameters_torch'.")
+                          "'save_individual_parameters_torch'.", DeprecationWarning, stacklevel=2)
             self.save_individual_parameters_torch(path, idx)
         else:
             with open(path, 'w') as fp:

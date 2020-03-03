@@ -36,21 +36,25 @@ class Result:
         Return the dataframe of the individual parameters.
     get_torch_individual_parameters(ID)
         Getter function for the individual parameters.
-    save_individual_parameters_csv(path, idx, cofactors)
+    save_individual_parameters_csv(path, idx, cofactors, **args)
+        Save the individual parameters in a csv format.
+    save_individual_parameters_json(path, idx, human_readable, **args)
         Save the individual parameters in a json format.
-    save_individual_parameters_json(path, idx, human_readable)
-        Save the individual parameters.
+    save_individual_parameters_json(path, idx, **args)
+        Save the individual parameters in a torch format.
     load_result(path_data, path_individual_parameters, verbose)
         Load a Result class object from two file - one for the individual data & one for the individual parameters.
     load_individual_parameters(path, verbose)
         Load individual parameters from a pandas.DataFrame, a csv, a json file or a torch file as a dictionary
         of torch.Tensor.
-    load_individual_parameters_from_csv(path)
+    load_individual_parameters_from_csv(path, verbose, **args)
         Load individual parameters from a csv.
-    load_individual_parameters_from_dataframe(df)
-        Load individual parameters from a csv.
-    load_individual_parameters_from_json(path, verbose)
-        Load individual parameters from a json file or a torch file as a dictionary of torch.Tensor.
+    load_individual_parameters_from_json(path, verbose, **args)
+        Load individual parameters from a json.
+    load_individual_parameters_from_torch(path, verbose, **args)
+        Load individual parameters from a torch file.
+    load_individual_parameters_from_dataframe(df, verbose, **args)
+        Load individual parameters from a dataframe.
     get_error_distribution_dataframe(model, cofactors)
         Get signed residual distribution per patient, per sub-score & per visit.
 
@@ -65,6 +69,7 @@ class Result:
             Get the dictionary of the wanted patient's individual parameters.
     """
 
+    # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters inputs.
     def __init__(self, data, individual_parameters, noise_std=None):
         """
         Process the initializer function - called by Leaspy.inputs.data.result.Result
@@ -242,7 +247,7 @@ class Result:
         df_individual_parameters = self.get_dataframe_individual_parameters(cofactors=cofactors)
         if idx:
             if type(idx) != list:
-                raise TypeError('Input "idx" must be a list, even if it contains only one element. '
+                raise TypeError('Input "idx" must be a list, even if it contains only one element! '
                                 'You gave idx={} which is of type {}.'.
                                 format(idx, type(idx)))
             df_individual_parameters = df_individual_parameters.loc[idx]
@@ -258,8 +263,6 @@ class Result:
             The output's path.
         idx : `list` [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
-        indent : int, (default 4)
-            Indentation used to write the json file.
         human_readable : bool, (default None)
             Deprecated argument!
             If set to False => call save_individual_parameters_save_torch.
@@ -346,7 +349,7 @@ class Result:
         -------
         dict [str, list]
         """
-        dump = copy.deepcopy(self.individual_parameters)
+        dump: dict = copy.deepcopy(self.individual_parameters)
         # Ex: individual_parameters = {'param1': torch.tensor([[1], [2], [3]]), ...}
 
         # Select only the wanted subjects
@@ -361,7 +364,7 @@ class Result:
                 if dump[key].shape[1] == 2:
                     dump[key] = dump[key].tolist()
                 # for univariate parameters - like xi & tau
-                # convert tensor([[1], [2], [3]]) into [1, 2, 3] => use torch.tensor.view(-1)
+                # convert tensor([[1], [2], [3]]) into [1, 2, 3] => squeeze it
                 elif dump[key].shape[1] == 1:
                     dump[key] = dump[key].squeeze().tolist()
         return dump
@@ -500,10 +503,15 @@ class Result:
         if verbose:
             print("Load from torch file")
         individual_parameters = torch.load(path, **args)
+        for key, val in individual_parameters.items():
+            if type(val) != torch.Tensor:
+                individual_parameters[key] = torch.tensor(val)
+            if individual_parameters[key].ndim != 2:
+                individual_parameters[key] = individual_parameters[key].unsqueeze(-1)
         return individual_parameters
 
     @staticmethod
-    def load_individual_parameters(path_or_df, **args):
+    def load_individual_parameters(path_or_df, verbose=True, **args):
         """
         Load individual parameters from a pandas.DataFrame, a csv, a json file or a torch file as a dictionary
         of torch.Tensor.
@@ -512,6 +520,7 @@ class Result:
         ----------
         path_or_df : str or pandas.DataFrame
             The file's path or a DataFrame containing the individual parameters.
+        verbose : bool, (default True)
         args : Any
             Parameters to pass to the corresponding load fonction.
 
@@ -524,22 +533,21 @@ class Result:
             return Result.load_individual_parameters_from_dataframe(path_or_df)
         elif type(path_or_df) == str:
             file_extension = os.path.splitext(path_or_df)[-1]
-            print(file_extension)
             if file_extension == '.csv':
-                return Result.load_individual_parameters_from_csv(path_or_df, **args)
+                return Result.load_individual_parameters_from_csv(path_or_df, verbose=verbose, **args)
             elif file_extension == '.json':
-                return Result.load_individual_parameters_from_json(path_or_df, **args)
+                return Result.load_individual_parameters_from_json(path_or_df, verbose=verbose, **args)
             else:
                 if file_extension not in ('.pt', '.p'):
-                    warnings.warn('File extension not recognized (got "%s"). Try torch.load by default',
+                    warnings.warn('File extension not recognized (got "%s"). Try torch.load by default.',
                                   RuntimeWarning, stacklevel=2)
-                return Result.load_individual_parameters_from_torch(path_or_df, **args)
+                return Result.load_individual_parameters_from_torch(path_or_df, verbose=verbose, **args)
         else:
             raise TypeError("The given input must be a pandas.DataFrame or a string giving the path of the file "
                             "containing the individual parameters!")
 
     @staticmethod
-    def load_result(data, individual_parameters, cofactors=None, **args):
+    def load_result(data, individual_parameters, cofactors=None, verbose=True, **args):
         """
         Load a Result class object from two file - one for the individual data & one for the individual parameters.
 
@@ -552,6 +560,7 @@ class Result:
         cofactors :   str or pandas.DataFrame, optional (default None)
             The file's path or a DataFrame containing the individual cofactors.
             The ID must be in index! Thus, the shape is (n_subjects, n_cofactors).
+        verbose : bool, (default True)
         args : Any
             Parameters to pass to result.load_individual_parameters static method.
 
@@ -598,7 +607,7 @@ class Result:
                                 str(type(cofactors)))
             data.load_cofactors(cofactors_df, cofactors_df.columns.to_list())
 
-        individual_parameters = Result.load_individual_parameters(individual_parameters, **args)
+        individual_parameters = Result.load_individual_parameters(individual_parameters, verbose=verbose, **args)
         return Result(data, individual_parameters)
 
     def get_error_distribution_dataframe(self, model, cofactors=None):

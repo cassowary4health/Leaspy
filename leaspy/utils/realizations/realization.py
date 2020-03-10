@@ -28,7 +28,7 @@ class Realization:
     def initialize(self, n_individuals, model, scale_individual=1.0):
         # print("Initialize realizations of {0}".format(self.name))
         if self.variable_type == "population":
-            self._tensor_realizations = model.parameters[self.name]
+            self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
 
             self.is_autograd = False
 

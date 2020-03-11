@@ -6,25 +6,23 @@ from ..abstract_algo import AbstractAlgo
 
 class AbstractPersonalizeAlgo(AbstractAlgo):
     """
-    Abstract class for "personalize" algorithm.
-    Estimation of individual parameters of a given "Data" file with
-    a freezed model (already estimated, or loaded from known parameters)
+    Abstract class for `personalize` algorithm.
+    Estimation of individual parameters of a given `Data` file with
+    a frozen model (already estimated, or loaded from known parameters).
 
     Attributes
     ----------
     algo_parameters: str
-        algorithm's name
+        Algorithm's parameters.
      name: str
-        algorithm's name
+        Algorithm's name.
      seed: int
-        algorithm's seed (default None)
+        Algorithm's seed (default None).
 
     Methods
     -------
-    _get_individual_parameters(model, data)
-        Estimate individual parameters from a data using leaspy object class model & Dataset
     run(model, data)
-        Main personalize function, wraps the _get_individual_parameters
+        Main personalize function, wraps the _get_individual_parameters.
     """
 
     def __init__(self, settings):
@@ -33,38 +31,37 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         Parameters
         ----------
-        settings : leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
             Settings of the algorithm
         """
         super().__init__()
-
-        # Algorithm parameters
         self.algo_parameters = settings.parameters
-
-        # Name
         self.name = settings.name
-
-        # Seed
         self.seed = settings.seed
 
     def run(self, model, data):
-        """
-        Main personalize function, wraps the _get_individual_parameters
+        r"""
+        Main personalize function, wraps the `_get_individual_parameters` method.
 
         Parameters
         ----------
-        model : leaspy.models.abstract_model.AbstractModel
+        model: leaspy.models.abstract_model.AbstractModel
             A subclass object of leaspy AbstractModel.
-        data : leaspy.inputs.data.dataset.Dataset
-            Dataset object build with leaspy class objects Data, algo & model
+        data: leaspy.inputs.data.dataset.Dataset
+            Dataset object build with leaspy class objects Data, algo & model.
 
         Returns
         -------
-        dict, float
-            dict - individual parameters
-                exemple {'xi': <list of float>, 'tau': <list of float>, 'sources': <list of list of float>}
-            float - estimated noise
-                = ( 1 / nber_visits * nbre_dimension * Sum_patient (modelization_scores - real_values) ** 2 ) ** 1/2
+        individual_parameters: dict [str, torch.Tensor]
+            Contains individual parameters.
+        noise_std: float
+            The estimated noise
+
+            .. math:: = \frac{1}{n_{visits} \times n_{dim}} \sqrt{\sum_{i, j \in [1, n_{visits}] \times [1, n_{dim}]} \varepsilon_{i,j}}
+
+            where :math:`\varepsilon_{i,j} = \left( f(\theta, (z_{i,j}), (t_{i,j})) - (y_{i,j}) \right)^2` , were
+            :math:`\theta` are the model's fixed effect, :math:`(z_{i,j})` the model's random effects,
+            :math:`(t_{i,j})` the time-points and :math:`f` the model's estimator.
         """
 
         # Set seed
@@ -74,7 +71,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
         time_beginning = time.time()
 
-        # Estimate individual parametersabstr
+        # Estimate individual parameters
         individual_parameters = self._get_individual_parameters(model, data)
 
         # Compute the noise with the estimated individual parameters
@@ -83,9 +80,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         # Print run infos
         time_end = time.time()
-        diff_time = (time_end - time_beginning)  # / 1000 TODO: why divided by 1000?
+        diff_time = (time_end - time_beginning)
         print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(noise_std))
-        print("Personalization {1} took : {0}s".format(diff_time, self.name))
+        print("Personalization %s took : %.3fs" % (self.name, diff_time))
 
         # Transform individual parameters to dictinnary ID / variable_ind
         # indices = data.indices
@@ -99,19 +96,19 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
     def _get_individual_parameters(self, model, data):
         """
-        Estimate individual parameters from a data using leaspy object class model & Dataset
+        Estimate individual parameters from a `Data`.
 
         Parameters
         ----------
         model : leaspy.models.abstract_model.AbstractModel
             A subclass object of leaspy AbstractModel.
         data : leaspy.inputs.data.dataset.Dataset
-            Dataset object build with leaspy class objects Data, algo & model
+            Dataset object build with leaspy class objects Data, algo & model.
 
         Raises
         ------
         NotImplementedError
-            Method only implemented in child class of AbstractPersonalizeAlgo
+            Method only implemented in child class of AbstractPersonalizeAlgo.
         """
 
         raise NotImplementedError('This algorithm does not present a personalization procedure')

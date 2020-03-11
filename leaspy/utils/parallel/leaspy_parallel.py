@@ -1,4 +1,4 @@
-from joblib import Parallel, delayed, parallel_backend
+from joblib import Parallel, delayed
 
 
 def leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, leaspy_obj_cb,
@@ -20,7 +20,7 @@ def leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, lea
     n_jobs : int, (default -1)
         The number of parallel jobs in joblib.
     **joblib_Parallel_kwargs
-        Other joblib Parallel parameters (such as `verbose`, ...).
+        Other joblib Parallel parameters (such as `verbose`, `backend`, ...).
 
     Returns
     -------
@@ -37,11 +37,11 @@ def leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, lea
         # do something with the calibrated model
         return leaspy_obj_cb(leaspy, i)
 
-    with parallel_backend('threading'):  # seems not to work for other backends
-        result = Parallel(n_jobs=n_jobs, **joblib_Parallel_kwargs)(calibrate_job(data, algo_settings, i)
-                                                                   for i, (data, algo_settings)
-                                                                   in enumerate(zip(data_iter, algo_settings_iter)))
-    return result
+    return Parallel(n_jobs=n_jobs, **joblib_Parallel_kwargs)(
+        calibrate_job(data, algo_settings, i)
+        for i, (data, algo_settings)
+        in enumerate(zip(data_iter, algo_settings_iter))
+    )
 
 
 def leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_iter, leaspy_res_cb,
@@ -63,7 +63,7 @@ def leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_iter, leas
     n_jobs : int, (default -1)
         The number of parallel jobs in joblib.
     **joblib_Parallel_kwargs
-        Other joblib Parallel parameters (such as `verbose`, ...).
+        Other joblib Parallel parameters (such as `verbose`, `backend`, ...).
 
     Returns
     -------
@@ -79,5 +79,7 @@ def leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_iter, leas
         return leaspy_res_cb(r, i)
 
     return Parallel(n_jobs=n_jobs, **joblib_Parallel_kwargs)(
-        personalize_job(leaspy, data, algo_settings, i) for i, (leaspy, data, algo_settings)
-        in enumerate(zip(leaspy_iter, data_iter, algo_settings_iter)))
+        personalize_job(leaspy, data, algo_settings, i)
+        for i, (leaspy, data, algo_settings)
+        in enumerate(zip(leaspy_iter, data_iter, algo_settings_iter))
+    )

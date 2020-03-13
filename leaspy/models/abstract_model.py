@@ -15,14 +15,14 @@ class AbstractModel:
 
     Attributes
     ----------
-    distribution: torch.distributions.normal.Normal class object
-        Gaussian generator for the model's penalty (?)
+    distribution: torch.distributions.normal.Normal
+        Gaussian generator for the model's penalty (?).
     is_initialized: bool
-        Indicates if the model is initialized
+        Indicates if the model is initialized.
     name: str
-        The model's name
+        The model's name.
     parameters: dict
-        Contains the model's parameters
+        Contains the model's parameters.
 
     Methods
     -------
@@ -89,11 +89,12 @@ class AbstractModel:
         Parameters
         ----------
         data : leaspy.inputs.data.dataset.Dataset
-            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        param_ind : dict
-            Contain the individual parameters
+            Contains the data of the subjects, in particular the subjects' time-points and the mask. (?)
+        param_ind : dict [str, torch.Tensor]
+            Contain the individual parameters. ``xi`` and ``tau`` have shape of ``(n_subjects, 1)``. If the model is
+            not `univariate`, ``sources`` has shape ``(n_subjects, n_sources)``.
         attribute_type : str
-            The attribute's type
+            The attribute's type.
 
         Returns
         -------
@@ -307,8 +308,8 @@ class AbstractModel:
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         # res *= data.mask
 
-        r1 = res * data.mask.float() - data.values  # r1.ndim = 3 - r1.shape = [n_subjects, ??, n_features]
-        #r1[1-data.mask] = 0.0 # Set nans to 0
+        r1 = res * data.mask.float() - data.values  # r1.ndim = 3 and r1.shape = [n_subjects, ??, n_features]
+        # r1[1-data.mask] = 0.0 # Set nans to 0
         squared_sum = torch.sum(r1 * r1, dim=(1, 2))
 
         # noise_var = self.parameters['noise_std'] ** 2

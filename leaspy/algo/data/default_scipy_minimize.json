@@ -3,6 +3,8 @@
   "seed": null,
   "initialization_method": null,
   "parameters": {
-    "n_iter": 100
+    "n_iter": 100,
+    "parallel": false,
+    "n_jobs": -1
   }
 }

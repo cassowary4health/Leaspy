@@ -140,7 +140,7 @@ class UnivariateModel(AbstractModel):
 
     def compute_sufficient_statistics(self, data, realizations):
         sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()[0]
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach() # avoid 0D / 1D tensors mix
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
         sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations

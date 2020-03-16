@@ -10,7 +10,7 @@ class CSVDataReader:
         self.dimension = None
         self.n_individuals = 0
         self.n_visits = 0
-        self.n_observations = 0
+
 
         self._read(path)
 
@@ -27,6 +27,8 @@ class CSVDataReader:
     @staticmethod
     def _get_timepoint(idx, timepoint):
         try:
+            if timepoint != timepoint:
+                raise ValueError('One of the time value of individual {} is NaN'.format(idx))
             return float(timepoint)
         except ValueError:
             print('The timepoint {} of individual {} cannot be converted to float'.format(timepoint, idx))
@@ -36,7 +38,8 @@ class CSVDataReader:
         try:
             return [float(_) for _ in observation]
         except ValueError:
-            print('The observations of individual '+str(idx)+' at time '+str(timepoint)+' cannot be converted to float')
+            print('The observations of individual ' + str(idx) + ' at time ' + str(
+                timepoint) + ' cannot be converted to float')
 
     def _check_observation(self, observation):
         if self.dimension is None:
@@ -65,4 +68,4 @@ class CSVDataReader:
 
                     self.individuals[idx].add_observation(timepoint, observation)
                     self.n_visits += 1
-                    self.n_observations += len(observation)
+

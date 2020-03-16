@@ -1,28 +1,25 @@
-import os
-
-
-from .abstract_model import AbstractModel
-import torch
-import numpy as np
 import json
-from .utils.attributes.attributes_univariate import Attributes_Univariate
+
 import matplotlib.backends.backend_pdf
 import matplotlib.pyplot as plt
+import torch
+
+from .abstract_model import AbstractModel
+from .utils.attributes.attributes_univariate import AttributesUnivariate
 
 
 class UnivariateModel(AbstractModel):
     ###########################
     ## Initialization
     ###########################
-    def __init__(self,name):
-
+    def __init__(self, name):
         super(UnivariateModel, self).__init__(name)
-        self.dimension=1
-        self.source_dimension=0
+        self.dimension = 1
+        self.source_dimension = 0  # TODO, None ???
         self.parameters = {
             "g": None,
             "tau_mean": None, "tau_std": None,
-            "xi_mean": None,  "xi_std": None,
+            "xi_mean": None, "xi_std": None,
             "noise_std": None
         }
         self.bayesian_priors = None
@@ -32,7 +29,7 @@ class UnivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'g_std': None, # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
             }
         }
 
@@ -43,41 +40,46 @@ class UnivariateModel(AbstractModel):
                 model_parameters_save[key] = value.tolist()
         model_settings = {
             'name': 'univariate',
+            'features': self.features,
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp)
 
-
     def load_hyperparameters(self, hyperparameters):
+        if 'features' in hyperparameters.keys():
+            self.features = hyperparameters['features']
         return
 
-
-    def initialize(self, data):
+    def initialize(self, dataset):
 
         # "Smart" initialization : may be improved
         # TODO !
+        self.features = dataset.headers
         self.parameters = {
-            'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
-            'noise_std': 0.1,}
-        self.attributes = Attributes_Univariate()
+            'g': [1.],
+            'tau_mean': 70., 'tau_std': 2.,
+            'xi_mean': -3., 'xi_std': .1,
+            'noise_std': [.1]}
+        self.parameters = {key: torch.tensor(val) for key, val in self.parameters.items()}
+        self.attributes = AttributesUnivariate()
         self.is_initialized = True
 
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
             self.parameters[k] = torch.tensor(parameters[k])
-        self.attributes = Attributes_Univariate()
-        self.attributes.update(['all'],self.parameters)
+        self.attributes = AttributesUnivariate()
+        self.attributes.update(['all'], self.parameters)
 
-    def initialize_MCMC_toolbox(self, data):
+    def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 1.},
-            'attributes': Attributes_Univariate()
+            'attributes': AttributesUnivariate()
         }
 
-        realizations = self.get_realization_object(data.n_individuals)
-        self.update_MCMC_toolbox(['all'], realizations)
+        population_dictionary = self._create_dictionary_of_population_realizations()
+        self.update_MCMC_toolbox(["all"], population_dictionary)
 
     ##########
     # CORE
@@ -94,56 +96,59 @@ class UnivariateModel(AbstractModel):
 
     def _get_attributes(self, MCMC):
         if MCMC:
-            g = self.MCMC_toolbox['attributes'].g
+            g = self.MCMC_toolbox['attributes'].positions
         else:
-            g = self.attributes.g
+            g = self.attributes.positions
         return g
 
-    def compute_sum_squared_tensorized(self, data, param_ind, attribute_type):
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-        res *= data.mask
-        return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
+    # def compute_sum_squared_tensorized(self, data, param_ind, attribute_type):
+    #    res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+    #    res *= data.mask
+    #    return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
 
+    # TODO generalize in abstract
     def compute_mean_traj(self, timepoints):
-        xi = self.parameters['xi_mean']
-        tau = self.parameters['tau_mean']
-        return self.compute_individual_tensorized(timepoints, (xi, tau))
+        individual_parameters = {
+            'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
+            'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
+        }
 
-    def plot_param_ind(self,path,param_ind):
+        return self.compute_individual_tensorized(timepoints, individual_parameters)
+
+    def plot_param_ind(self, path, param_ind):
         pdf = matplotlib.backends.backend_pdf.PdfPages(path)
         fig, ax = plt.subplots(1, 1)
-        xi,tau = param_ind
-        ax.plot(xi.squeeze(1).detach().numpy(),tau.squeeze(1).detach().numpy(),'x')
+        xi, tau = param_ind
+        ax.plot(xi.squeeze(1).detach().tolist(), tau.squeeze(1).detach().tolist(), 'x')
         plt.xlabel('xi')
         plt.ylabel('tau')
         pdf.savefig(fig)
         plt.close()
         pdf.close()
 
-
     def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
         # Population parameters
         g = self._get_attributes(MCMC)
         # Individual parameters
-        xi, tau = ind_parameters
-        reparametrized_time = self.time_reparametrization(timepoints,xi,tau)
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         LL = -reparametrized_time.unsqueeze(-1)
-        model = 1. / (1. + g*torch.exp(LL))
+        model = 1. / (1. + g * torch.exp(LL))
 
         return model
 
     def compute_sufficient_statistics(self, data, realizations):
         sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()[0]
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach() # avoid 0D / 1D tensors mix
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
         sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
-        #TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        xi, tau = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, (xi,tau),MCMC=True)
+        # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
+        ind_parameters = self.get_param_from_real(realizations)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, ind_parameters, MCMC=True)
         data_reconstruction *= data.mask
         norm_0 = data.values * data.values * data.mask
         norm_1 = data.values * data_reconstruction * data.mask
@@ -167,7 +172,7 @@ class UnivariateModel(AbstractModel):
 
         param_ind = self.get_param_from_real(realizations)
         squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type=True).sum()
-        self.parameters['noise_std'] = np.sqrt(squared_diff / (data.n_visits * data.dimension))
+        self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
 
         # Stochastic sufficient statistics used to update the parameters of the model
 
@@ -190,10 +195,10 @@ class UnivariateModel(AbstractModel):
 
         self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
 
-    def get_param_from_real(self,realizations):
-        xi = realizations['xi'].tensor_realizations
-        tau = realizations['tau'].tensor_realizations
-        return (xi,tau)
+    # def get_param_from_real(self,realizations):
+    #    xi = realizations['xi'].tensor_realizations
+    #    tau = realizations['tau'].tensor_realizations
+    #    return (xi,tau)
 
     def param_ind_from_dict(self, individual_parameters):
         xi, tau = [], []
@@ -204,9 +209,9 @@ class UnivariateModel(AbstractModel):
         tau = torch.tensor(tau).unsqueeze(1)
         return (xi, tau)
 
-    def get_xi_tau(self,param_ind):
-        xi,tau = param_ind
-        return xi,tau
+    def get_xi_tau(self, param_ind):
+        xi, tau = param_ind
+        return xi, tau
 
     def random_variable_informations(self):
 
@@ -217,7 +222,6 @@ class UnivariateModel(AbstractModel):
             "type": "population",
             "rv_type": "multigaussian"
         }
-
 
         ## Individual variables
         tau_infos = {
@@ -233,7 +237,6 @@ class UnivariateModel(AbstractModel):
             "type": "individual",
             "rv_type": "gaussian"
         }
-
 
         variables_infos = {
             "g": g_infos,

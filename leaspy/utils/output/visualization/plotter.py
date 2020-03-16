@@ -1,4 +1,3 @@
-
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os
@@ -6,7 +5,8 @@ import pandas as pd
 import numpy as np
 import torch
 import matplotlib.backends.backend_pdf
-import seaborn as sns
+from matplotlib.cm import get_cmap
+# import seaborn as sns
 
 from leaspy.utils.output.visualization import color_palette
 
@@ -22,19 +22,26 @@ class Plotter:
         self.output_path = output_path
 
     def plot_mean_trajectory(self, model, **kwargs):
-        #colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
-        labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
+        # colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
+
+        labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
-        if model.name in ['logistic', 'logistic_parallel']:
-            plt.ylim(0, 1)
+        #colors = color_palette(range(8))
 
-        colors = color_palette(range(8))
+        colors = get_cmap("tab20").colors
 
         try:
             iterator = iter(model)
         except TypeError:
+
+            # Break if model is not initialized
+            if not model.is_initialized:
+                raise ValueError("Please initialize the model before plotting")
+
             # not iterable
+            if model.name in ['logistic', 'logistic_parallel']:
+                plt.ylim(0, 1)
 
             mean_time = model.parameters['tau_mean']
             std_time = max(model.parameters['tau_std'], 4)
@@ -49,7 +56,14 @@ class Plotter:
             plt.legend()
 
         else:
+
+            # Break if model is not initialized
+            if not model[0].is_initialized:
+                raise ValueError("Please initialize the model before plotting")
+
             # iterable
+            if model[0].name in ['logistic', 'logistic_parallel']:
+                plt.ylim(0, 1)
 
             timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
                                      model[0].parameters['tau_mean'] + 6 * np.sqrt(model[0].parameters['tau_std']),
@@ -63,9 +77,12 @@ class Plotter:
                     ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
                             linewidth=4, alpha=0.5, c=colors[i])  # , )
 
-                if j==0:
+                if j == 0:
                     plt.legend()
 
+        title = kwargs['title'] if 'title' in kwargs.keys() else None
+        if title is not None:
+            ax.set_title(title)
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
@@ -74,11 +91,33 @@ class Plotter:
         plt.close()
 
 
+    def plot_mean_validity(self, model, results, **kwargs):
+        t0 = model.parameters['tau_mean'].numpy()
+        hist = []
+
+        for i, individual in enumerate(results.data):
+            ages = individual.timepoints
+            xi = results.individual_parameters['xi'][i].numpy()
+            tau = results.individual_parameters['tau'][i].numpy()
+            reparametrized = np.exp(xi) * (ages - tau) + t0
+            hist.append(reparametrized)
+
+        hist = [_ for l in hist for _ in l]
+        plt.hist(hist)
+
+        if 'save_as' in kwargs.keys():
+            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
+        plt.show()
+
     def plot_patient_trajectory(self, model, results, indices, **kwargs):
 
-        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
-        labels = kwargs['labels'] if 'labels' in kwargs.keys() else ['label_'+str(i) for i in range(model.dimension)]
-        fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
+        labels = model.features
+        if 'ax' in kwargs.keys():
+            ax = kwargs['ax']
+        else:
+            (fig, ax) = plt.subplots(1, 1, figsize=(8, 8))
+
         if model.name in ['logistic', 'logistic_parallel']:
             plt.ylim(0, 1)
 
@@ -94,15 +133,41 @@ class Plotter:
 
             trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
             for dim in range(model.dimension):
-                ax.plot(timepoints, trajectory.detach().numpy()[:, dim], c=colors[dim])
-                ax.plot(timepoints, observations[:, dim], c=colors[dim])
-
+                not_nans_idx = np.array(1-np.isnan(observations[:, dim]),dtype=bool)
+                ax.plot(np.array(timepoints), trajectory.detach().numpy()[:, dim], c=colors[dim])
+                ax.plot(np.array(timepoints)[not_nans_idx], observations[:, dim][not_nans_idx], c=colors[dim], linestyle='--')
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
+        if 'title' in kwargs.keys():
+            plt.title(kwargs['title'])
+
+        from matplotlib.lines import Line2D
+        custom_lines = [Line2D([0], [0], color=colors[i%8], lw=4) for i in range((model.dimension))]
+        print(custom_lines)
+        ax.legend(custom_lines, labels, loc='upper right')
+
+        if 'ax' not in kwargs.keys():
+            plt.show()
+            plt.close()
+
+    def plot_from_individual_parameters(self, model, indiv_parameters, timepoints, **kwargs):
+        colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
+        labels = model.features
+        fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+
+        trajectory = model.compute_individual_trajectory(timepoints, indiv_parameters).squeeze()
+        for dim in range(model.dimension):
+            ax.plot(timepoints, trajectory[:, dim], c=colors[dim], label=labels[dim])
+
+        if 'save_as' in kwargs.keys():
+            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
+
+        plt.legend()
         plt.show()
         plt.close()
+
 
     def plot_distribution(self, results, parameter, cofactor=None, **kwargs):
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
@@ -120,7 +185,6 @@ class Plotter:
 
         plt.show()
         plt.close()
-
 
     def plot_correlation(self, results, parameter_1, parameter_2, cofactor=None, **kwargs):
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
@@ -158,20 +222,20 @@ class Plotter:
 
         for i in range(dataset.values.shape[-1]):
             fig, ax = plt.subplots(1, 1)
-            #ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
+            # ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
             for idx in range(50):
                 ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
-                        dataset.values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(),'x', )
+                        dataset.values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy(), 'x', )
                 ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
-                        patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy(), alpha=0.8)
+                        patient_values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy(),
+                        alpha=0.8)
             if model.name in ['logistic', 'logistic_parallel']:
                 plt.ylim(0, 1)
-
 
     ############## TODO : The next functions are related to the plots during the fit. Disentangle them properly
 
     @staticmethod
-    def plot_error(path, dataset, model, param_ind,colors =None,labels=None):
+    def plot_error(path, dataset, model, param_ind, colors=None, labels=None):
         patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=False)
 
         if colors is None:
@@ -183,22 +247,22 @@ class Plotter:
         err = {}
         err['all'] = []
         for i in range(dataset.values.shape[-1]):
-            err[i]=[]
+            err[i] = []
             for idx in range(patient_values.shape[0]):
-                err[i].extend(dataset.values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy()-
-                              patient_values[idx,0:dataset.nb_observations_per_individuals[idx],i].detach().numpy())
+                err[i].extend(dataset.values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy() -
+                              patient_values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy())
             err['all'].extend(err[i])
             err[i] = np.array(err[i])
         err['all'] = np.array(err['all'])
         pdf = matplotlib.backends.backend_pdf.PdfPages(path)
         for i in range(dataset.values.shape[-1]):
             fig, ax = plt.subplots(1, 1)
-            sns.distplot(err[i], color='blue')
-            plt.title(labels[i]+' sqrt mean square error: '+str(np.sqrt(np.mean(err[i] ** 2))))
+            # sns.distplot(err[i], color='blue')
+            plt.title(labels[i] + ' sqrt mean square error: ' + str(np.sqrt(np.mean(err[i] ** 2))))
             pdf.savefig(fig)
             plt.close()
         fig, ax = plt.subplots(1, 1)
-        sns.distplot(err['all'], color='blue')
+        # sns.distplot(err['all'], color='blue')
         plt.title('global sqrt mean square error: ' + str(np.sqrt(np.mean(err['all'] ** 2))))
         pdf.savefig(fig)
         plt.close()
@@ -208,7 +272,7 @@ class Plotter:
     @staticmethod
     def plot_patient_reconstructions(path, data, model, param_ind, max_patient_number=10, attribute_type=None):
 
-        colors = cm.rainbow(np.linspace(0, 1, max_patient_number + 2))
+        colors = cm.Dark2(np.linspace(0, 1, max_patient_number + 2))
 
         fig, ax = plt.subplots(1, 1)
 
@@ -231,11 +295,10 @@ class Plotter:
             if i > max_patient_number:
                 break
 
-
         # Plot the mean also
-        #min_time, max_time = torch.min(data.timepoints[data.timepoints>0.0]), torch.max(data.timepoints)
+        # min_time, max_time = torch.min(data.timepoints[data.timepoints>0.0]), torch.max(data.timepoints)
 
-        min_time, max_time = np.percentile(data.timepoints[data.timepoints>0.0].detach().numpy(), [10,90])
+        min_time, max_time = np.percentile(data.timepoints[data.timepoints > 0.0].detach().numpy(), [10, 90])
 
         timepoints = np.linspace(min_time,
                                  max_time,
@@ -245,7 +308,6 @@ class Plotter:
         for i in range(patient_values.shape[-1]):
             ax.plot(timepoints[0, :].detach().numpy(), patient_values[0, :, i].detach().numpy(),
                     c="black", linewidth=3, alpha=0.3)
-
 
         plt.savefig(path)
         plt.close()
@@ -273,7 +335,6 @@ class Plotter:
             pdf.savefig(fig)
             plt.close()
         pdf.close()
-
 
     ## TODO : Refaire avec le path qui est fourni en haut!
     @staticmethod
@@ -359,7 +420,3 @@ class Plotter:
         plt.tight_layout()
         plt.savefig(path_saveplot_2)
         plt.close()
-
-
-
-

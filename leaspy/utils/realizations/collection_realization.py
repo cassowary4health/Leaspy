@@ -9,22 +9,24 @@ class CollectionRealization:
         self.reals_ind_variable_names = []
 
     def initialize(self, n_individuals, model):
-
+        """
+        Idem that initialize_from_values method except it calls realization.initialize with scale_individual=1.
+        """
         # Indices
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
             realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
-            realization.initialize(n_individuals, model, scale_individual=1.) ## TODO Check with Raphael
+            realization.initialize(n_individuals, model, scale_individual=1.)  ## TODO Check with Raphael
             self.realizations[variable] = realization
 
         # Name of variables per type
-        self.reals_pop_variable_names = [name for name, info_variable in infos.items() if info_variable['type'] =='population']
-        self.reals_ind_variable_names = [name for name, info_variable in infos.items() if info_variable['type'] =='individual']
-
-
+        self.reals_pop_variable_names = [name for name, info_variable in infos.items() if
+                                         info_variable['type'] == 'population']
+        self.reals_ind_variable_names = [name for name, info_variable in infos.items() if
+                                         info_variable['type'] == 'individual']
 
     def __getitem__(self, variable_name):
-         return self.realizations[variable_name]
+        return self.realizations[variable_name]
 
     def to_dict(self):
         reals_pop = {}
@@ -51,7 +53,9 @@ class CollectionRealization:
         return new_realizations
 
     def initialize_from_values(self, n_individuals, model):
-
+        """
+        Idem that initialize method except it calls realization.initialize with scale_individual=.01
+        """
         # Indices
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
@@ -60,5 +64,7 @@ class CollectionRealization:
             self.realizations[variable] = realization
 
         # Name of variables per type
-        self.reals_pop_variable_names = [name for name, info_variable in infos.items() if info_variable['type'] =='population']
-        self.reals_ind_variable_names = [name for name, info_variable in infos.items() if info_variable['type'] =='individual']
+        self.reals_pop_variable_names = [name for name, info_variable in infos.items() if
+                                         info_variable['type'] == 'population']
+        self.reals_ind_variable_names = [name for name, info_variable in infos.items() if
+                                         info_variable['type'] == 'individual']

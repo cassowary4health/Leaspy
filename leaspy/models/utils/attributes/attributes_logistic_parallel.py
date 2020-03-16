@@ -1,85 +1,106 @@
 import torch
 
+from .attributes_abstract import AttributesAbstract
 
-## TODO 1 : Have a Abtract Attribute class
-## TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
-class Attributes_LogisticParallel:
+
+# TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
+class AttributesLogisticParallel(AttributesAbstract):
+    """
+    AttributesAbstract class contains the common attributes & methods of the LogisticParallelModels' attributes.
+
+    Attributes
+    ----------
+    dimension: `int`
+    source_dimension: `int`
+    betas: `torch.Tensor` (default None)
+    deltas: `torch.Tensor` (default None)
+        deltas = [0, delta_2_realization, ..., delta_n_realization]
+    mixing_matrix: `torch.Tensor` (default None)
+        Matrix A such that w_i = A * s_i
+    orthonormal_basis: `torch.Tensor` (default None)
+    positions: `torch.Tensor` (default None)
+        positions = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
+    velocities: `torch.Tensor` (default None)
+    name: `str` (default 'logistic_parallel')
+        Name of the associated leaspy model. Used by ``update`` method.
+    update_possibilities: `tuple` [`str`] (default ('g', 'deltas', 'betas', 'xi_mean', 'all') )
+        Contains the available parameters to update. Different models have different parameters.
+
+    Methods
+    -------
+    get_attributes()
+        Returns the following attributes: ``positions``, ``deltas`` & ``mixing_matrix``.
+    update(names_of_changed_values, values)
+        Update model group average parameter(s).
+    """
 
     def __init__(self, dimension, source_dimension):
-        self.dimension = dimension
-        self.source_dimension = source_dimension
-        self.g = None  # g = exp(realizations['g']) tel que p0 = 1 / (1+exp(g))
+        """
+        Instantiate a AttributesLogisticParallel class object.
+
+        Parameters
+        ----------
+        dimension: `int`
+        source_dimension: `int`
+        """
+        super().__init__(dimension, source_dimension)
         self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
-        self.xi_mean = None  # v0 is a scalar value, which corresponds to the the first dimension of the velocity vector
-        self.betas = None
-        self.orthonormal_basis = None
-        self.mixing_matrix = None  # Matrix A tq w_i = A * s_i
+        self.update_possibilities = ('g', 'deltas', 'betas', 'xi_mean', 'all')
+        self.name = 'logistic_parallel'
+        if (type(dimension) != int) & (type(source_dimension) != int):
+            raise ValueError("For AttributesLogisticParallel you must provide integer inputs for the parameters"
+                             " `dimension` and `source_dimension`!")
 
     def get_attributes(self):
-        return self.g, self.deltas, self.mixing_matrix
+        """
+        Returns the following attributes: ``positions``, ``deltas`` & ``mixing_matrix``.
 
-    def update(self, names_of_changed_values, values):
-        self._check_names(names_of_changed_values)
+        Returns
+        -------
+        - positions: `torch.Tensor`
+        - deltas: `torch.Tensor`
+        - mixing_matrix: `torch.Tensor`
+        """
+        return self.positions, self.deltas, self.mixing_matrix
 
-        compute_g = False
-        compute_v0 = False
-        compute_deltas = False
-        compute_betas = False
+    def _compute_velocities(self, values):
+        """
+        Update the attribute ``velocities``.
 
-        for name in names_of_changed_values:
-            if name == 'g':
-                compute_g = True
-            elif name == 'deltas':
-                compute_deltas = True
-            elif name == 'betas':
-                compute_betas = True
-            elif name == 'xi_mean':
-                compute_v0 = True
-            elif name == 'all':
-                compute_g = True
-                compute_deltas = True
-                compute_v0 = True
-                compute_betas = True
-
-        if compute_g: self._compute_g(values)
-        if compute_deltas: self._compute_deltas(values)
-        if compute_v0: self._compute_xi_men(values)
-        if compute_betas: self._compute_betas(values)
-
-        if compute_g or compute_deltas or compute_v0:
-            self._compute_orthonormal_basis()
-        if compute_g or compute_deltas or compute_v0 or compute_betas:
-            self._compute_mixing_matrix()
-
-    def _check_names(self, names_of_changed_values):
-        for name in names_of_changed_values:
-            if name not in ['g', 'deltas', 'betas', 'xi_mean', 'all']:
-                raise ValueError("The name {} is not in the attributes that are used to be updated".format(name))
-
-    def _compute_xi_men(self, values):
-        self.xi_mean = torch.exp(torch.Tensor([values['xi_mean']]))
-
-    def _compute_g(self, values):
-        self.g = torch.exp(values['g'])
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
+        self.velocities = torch.exp(values['xi_mean'])
 
     def _compute_deltas(self, values):
-        self.deltas = torch.cat((torch.Tensor([0]), values['deltas']))
+        """
+        Update` the attribute ``deltas``.
 
-    def _compute_betas(self, values):
-        if self.source_dimension == 0:
-            return
-        self.betas = torch.Tensor(values['betas']).clone()
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
+        self.deltas = torch.cat((torch.tensor([0], dtype=torch.float32), values['deltas']))
 
     def _compute_dgamma_t0(self):
-        # Computes the derivative of gamma_0 at time t0
+        """
+        Computes the derivative of gamma_0 at time t0.
+
+        Returns
+        -------
+        dgamma_t0: `torch.Tensor`
+        """
         exp_d = torch.exp(-self.deltas)
-        sub = 1. + self.g * exp_d
-        dgamma_t0 = self.xi_mean * self.g * exp_d / (sub * sub)
+        sub = 1. + self.positions * exp_d
+        dgamma_t0 = self.velocities * self.positions * exp_d / (sub * sub)
         return dgamma_t0
 
     def _compute_orthonormal_basis(self):
-        # Compute the basis orthogonal to v0 for the inner product implied by the metric
-        # It is equivalent to be a base orthogonal to v0 / (p0^2 (1-p0)^2 for the euclidean norm
+        """
+        Compute the attribute ``orthonormal_basis`` which is a basis orthogonal to velocities for the inner product implied by
+        the metric. It is equivalent to be a base orthogonal to velocities / (p0^2 (1-p0)^2 for the euclidean norm.
+        """
         if self.source_dimension == 0:
             return
 
@@ -87,27 +108,9 @@ class Attributes_LogisticParallel:
         dgamma_t0 = self._compute_dgamma_t0()
 
         # Compute regularizer to work in the euclidean space
-        gamma_t0 = 1. / (1 + self.g * torch.exp(-self.deltas))
+        gamma_t0 = 1. / (1 + self.positions * torch.exp(-self.deltas))
         metric_normalization = gamma_t0.pow(2) * (1 - gamma_t0).pow(2)
         dgamma_t0 = dgamma_t0 / metric_normalization
 
         # Compute Q
-        e1 = torch.zeros(self.dimension)
-        e1[0] = 1
-        alpha = torch.sign(dgamma_t0[0]) * torch.norm(dgamma_t0)
-        u_vector = dgamma_t0 - alpha * e1
-        v_vector = u_vector / torch.norm(u_vector)
-        v_vector = v_vector.reshape(1, -1)
-
-        q_matrix = torch.eye(self.dimension) - 2 * v_vector.permute(1, 0) * v_vector
-        self.orthonormal_basis = q_matrix[:, 1:]
-
-    @staticmethod
-    def _mixing_matrix_utils(linear_combination_values, matrix):
-        return torch.mm(matrix, linear_combination_values)
-
-    def _compute_mixing_matrix(self):
-        if self.source_dimension == 0:
-            return
-
-        self.mixing_matrix = torch.Tensor(self._mixing_matrix_utils(self.betas, self.orthonormal_basis))
+        self._compute_Q(dgamma_t0)

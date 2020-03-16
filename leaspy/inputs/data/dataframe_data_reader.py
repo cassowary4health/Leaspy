@@ -9,7 +9,6 @@ class DataframeDataReader:
         self.dimension = None
         self.n_individuals = 0
         self.n_visits = 0
-        self.n_observations = 0
 
         self._read(df)
 
@@ -26,7 +25,7 @@ class DataframeDataReader:
         assert len(observation) == self.dimension
 
     def _read(self, df):
-        df = df.copy(deep=True) # No modification on the input dataframe !
+        df = df.copy(deep=True)  # No modification on the input dataframe !
         columns = df.columns.values
         self._check_headers(columns)
         df.set_index(['ID', 'TIME'], inplace=True)
@@ -35,6 +34,9 @@ class DataframeDataReader:
         for k, v in df.iterrows():
             idx = k[0]
             timepoint = k[1]
+            if timepoint != timepoint:
+                raise ValueError('One of the time value of individual {} is NaN'.format(idx))
+
             observation = v.values
             self._check_observation(observation)
 
@@ -45,4 +47,4 @@ class DataframeDataReader:
 
             self.individuals[idx].add_observation(timepoint, observation)
             self.n_visits += 1
-            self.n_observations += len(observation)
+

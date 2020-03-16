@@ -3,8 +3,11 @@ import json
 
 class ModelSettings:
     def __init__(self, path_to_model_settings):
-        with open(path_to_model_settings) as fp:
-            settings = json.load(fp)
+        if type(path_to_model_settings) is dict:
+            settings = path_to_model_settings
+        else:
+            with open(path_to_model_settings) as fp:
+                settings = json.load(fp)
 
         ModelSettings._check_settings(settings)
         self._get_name(settings)

@@ -21,7 +21,7 @@ def convert_data(data):
 
     # Scores
     scores = [_[1:] for _ in data['scores']]
-    scores = pd.DataFrame(data=scores, columns=['a', 'b', 'c', 'd'])
+    scores = pd.DataFrame(data=scores, columns=[str(_) for _ in range(len(scores[0]))])
     scores['ID'] = 1.
     scores['TIME'] = ages
 
@@ -36,12 +36,13 @@ def get_individual_parameters(data):
     settings = AlgorithmSettings('scipy_minimize')
 
     # Leaspy
+    print(data)
     #leaspy = Leaspy.load(data['model'])
     # TO CORRECT
     if data['model']['name'] == 'logistic_parallel':
         leaspy = Leaspy.load(os.path.join(os.getcwd(), 'data', 'example', 'logistic_parallel_parameters.json'))
     elif data['model']['name'] == 'logistic':
-        leaspy = Leaspy.load(os.path.join(os.getcwd(), 'data', 'example', 'logistic_parameters.json'))
+        leaspy = Leaspy.load(os.path.join(os.getcwd(), 'data', 'example', 'parkinson_model.json'))
     result = leaspy.personalize(leaspy_data, settings=settings)
 
     individual_parameters = {

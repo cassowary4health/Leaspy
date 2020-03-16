@@ -18,8 +18,14 @@ compute_linear = (ages, parameters, individual_parameters) => {
   // Individual parameters
   var alpha = individual_parameters['alpha']
   var tau = individual_parameters['tau']
-  var sources = individual_parameters['sources']
-  var space_shift = math.multiply(mixing_matrix, sources);
+  var sources = individual_parameters['sources'];
+  var space_shift = undefined;
+  if('space_shift' in individual_parameters) {
+    space_shift = individual_parameters['space_shift'];
+  } else {
+    space_shift = math.multiply(mixing_matrix, sources);
+  }
+
 
   // Compute values
   var outputs = []

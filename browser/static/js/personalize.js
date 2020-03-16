@@ -2,7 +2,7 @@ addIndividualData = (scores) => {
   var ages = scores[1]
   for(var i=2; i<scores.length; ++i) {
     dataset = {
-      label : 'ok',
+      label : '',
       data: convertData(ages, scores[i]),
       showLine: false,
       fill: true,

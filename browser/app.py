@@ -14,9 +14,6 @@ application._static_folder = 'static/'
 def index():
     return render_template('index.html')
 
-@application.route("/test")
-def test():
-    return render_template('test.html')
 
 
 @application.route("/", methods=['POST'])

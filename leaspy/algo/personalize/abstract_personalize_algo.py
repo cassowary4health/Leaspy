@@ -33,7 +33,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         Parameters
         ----------
-        settings : leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Settings of the algorithm
         """
         super().__init__()
@@ -55,7 +55,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         ----------
         model : leaspy.models.abstract_model.AbstractModel
             A subclass object of leaspy AbstractModel.
-        data : leaspy.inputs.data.dataset.Dataset
+        data : leaspy.io.data.dataset.Dataset
             Dataset object build with leaspy class objects Data, algo & model
 
         Returns
@@ -105,7 +105,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         ----------
         model : leaspy.models.abstract_model.AbstractModel
             A subclass object of leaspy AbstractModel.
-        data : leaspy.inputs.data.dataset.Dataset
+        data : leaspy.io.data.dataset.Dataset
             Dataset object build with leaspy class objects Data, algo & model
 
         Raises

@@ -88,7 +88,7 @@ class AbstractModel:
 
         Parameters
         ----------
-        data : leaspy.inputs.data.dataset.Dataset
+        data : leaspy.io.data.dataset.Dataset
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         param_ind : dict
             Contain the individual parameters

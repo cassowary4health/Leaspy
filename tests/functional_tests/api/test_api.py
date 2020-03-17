@@ -150,7 +150,7 @@ class LeaspyTest(unittest.TestCase):
 
         # Simulate
         simulation_settings = AlgorithmSettings('simulation', seed=0)
-        simulation_results = leaspy.simulate(individual_parameters.to_pytorch(), data, simulation_settings)
+        simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)
         self.assertTrue(type(simulation_results) == Result)
         self.assertTrue(simulation_results.data.headers == data.headers)
         n = simulation_settings.parameters['number_of_subjects']

@@ -18,7 +18,7 @@ class Result:
 
     Attributes
     ----------
-    data : leaspy.inputs.data.data.Data
+    data : leaspy.io.data.data.Data
         Object containing the idx, time-points and observations of the patients.
     individual_parameters : dict [str, torch.Tensor]
         Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.Tensor).
@@ -76,7 +76,7 @@ class Result:
 
         Parameters
         ----------
-        data : leaspy.inputs.data.data.Data
+        data : leaspy.io.data.data.Data
             Object containing the idx, time-points and observations of the patients
         individual_parameters : dict [str, torch.Tensor]
             Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
@@ -553,7 +553,7 @@ class Result:
 
         Parameters
         ----------
-        data : str or pandas.DataFrame or leaspy.inputs.data.data.Data
+        data : str or pandas.DataFrame or leaspy.io.data.data.Data
             The file's path or a DataFrame containing the features' scores.
         individual_parameters :  str or pandas.DataFrame
             The file's path or a DataFrame containing the individual parameters.

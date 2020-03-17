@@ -6,7 +6,7 @@ class IndividualParameters:
     """
     IndividualParameters object class.
     The object holds a collection of individual parameters, that are outputs of the api personalization.
-    There are used as inputs of the simulation algorithm, to provide an initial distribution of individual parameters.
+    There are used as io of the simulation algorithm, to provide an initial distribution of individual parameters.
 
     Attributes
     ----------
@@ -23,6 +23,8 @@ class IndividualParameters:
         self.parameters_shape = {} # {p_name: p_shape}
 
     def add_individual_parameters(self, index, individual_parameters):
+        if index in self.indices:
+            raise ValueError(f'The index {index} has already been added before')
         self.indices.append(index)
         self.individual_parameters[index] = individual_parameters
 
@@ -60,8 +62,8 @@ class IndividualParameters:
             if shape == 1:
                 final_names.append(p_name)
             else:
-                for i in range(shape):
-                    final_names.append(p_name+'_'+str(i))
+                final_names += [p_name+'_'+str(i) for i in range(shape)]
+
 
         df = pd.DataFrame(arr, columns=final_names)
         return df.set_index('ID')

@@ -71,9 +71,9 @@ class Leaspy:
 
         Parameters
         ----------
-        data: leaspy.inputs.data.data.Data
+        data: leaspy.io.data.data.Data
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        algorithm_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        algorithm_settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Examples
@@ -117,9 +117,9 @@ class Leaspy:
 
         Parameters
         ----------
-        data: leaspy.inputs.data.data.Data
+        data: leaspy.io.data.data.Data
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        algorithm_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        algorithm_settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
         """
         self.fit(data, algorithm_settings)
@@ -131,14 +131,14 @@ class Leaspy:
 
         Parameters
         ----------
-        data: leaspy.inputs.data.data.Data
+        data: leaspy.io.data.data.Data
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Returns
         -------
-        leaspy.inputs.data.result.Result
+        leaspy.io.data.result.Result
             Aggregates computed individual parameters and input data.
 
         Examples
@@ -178,14 +178,14 @@ class Leaspy:
 
         Parameters
         ----------
-        results: leaspy.inputs.data.result.Result
+        results: leaspy.io.data.result.Result
             Aggregates individual parameters and input data.
-        settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Returns
         -------
-        simulated_data: leaspy.inputs.data.result.Result
+        simulated_data: leaspy.io.data.result.Result
             Contains the generated individual parameters & the corresponding generated scores.
 
         Examples
@@ -204,10 +204,8 @@ class Leaspy:
         # Check if model has been initialized
         self.check_if_initialized()
 
-        results = Result(data, individual_parameters)
-
         algorithm = AlgoFactory.algo("simulate", settings)
-        simulated_data = algorithm.run(self.model, results)
+        simulated_data = algorithm.run(self.model, individual_parameters, data)
         return simulated_data
 
     def estimate(self, timepoints, individual_parameters):

@@ -63,7 +63,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         Returns
         -------
         model : leaspy.Leaspy
-        results : leaspy.inputs.data.result.Result
+        results : leaspy.io.data.result.Result
         """
         data = Data.from_csv_file(example_data_path)
         cofactors = pd.read_csv(os.path.join(test_data_dir, "inputs/data_tiny_covariate.csv"))
@@ -90,7 +90,6 @@ class SimulationAlgorithmTest(unittest.TestCase):
         Test if the simulation run properly with different settings.
         """
         leaspy_session, individual_parameters, data = self.test_check_cofactors(get_result=True)
-        individual_parameters = individual_parameters.to_pytorch()
 
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
                                      std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2)
@@ -129,10 +128,12 @@ class SimulationAlgorithmTest(unittest.TestCase):
         Parameters
         ----------
         leaspy_session : leaspy.api.Leaspy
-        results : leaspy.inputs.data.result.Result
-        settings : leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        results : leaspy.io.data.result.Result
+        settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the ``features_bounds`` parameter.
         """
+
+        results = Result(data, individual_parameters.to_pytorch)
 
         new_results = leaspy_session.simulate(individual_parameters, data, settings)
         new_results_max_bounds: np.ndarray = new_results.data.to_dataframe().groupby('ID').first().max().values[1:]

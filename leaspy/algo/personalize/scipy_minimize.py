@@ -1,6 +1,5 @@
 from scipy.optimize import minimize
 import torch
-import numpy as np
 
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 from ...io.outputs.individual_parameters import IndividualParameters

@@ -76,6 +76,7 @@ def leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_iter, leas
         # personalize calibrated model with prescribed data and settings
         r = leaspy.personalize(data, algo_settings)
         # do something with results of personalization
+
         return leaspy_res_cb(r, i)
 
     return Parallel(n_jobs=n_jobs, **joblib_Parallel_kwargs)(

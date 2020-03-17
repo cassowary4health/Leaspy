@@ -164,11 +164,9 @@ class Leaspy:
         algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         individual_parameters, noise_std = algorithm.run(self.model, dataset)
-        result = Result(data, individual_parameters, noise_std)
+        return individual_parameters
 
-        return result
-
-    def simulate(self, results, settings):
+    def simulate(self, individual_parameters, data, settings):
         r"""
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
@@ -205,6 +203,8 @@ class Leaspy:
         """
         # Check if model has been initialized
         self.check_if_initialized()
+
+        results = Result(data, individual_parameters)
 
         algorithm = AlgoFactory.algo("simulate", settings)
         simulated_data = algorithm.run(self.model, results)

@@ -3,6 +3,7 @@ import torch
 import numpy as np
 
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
+from ...io.outputs.individual_parameters import IndividualParameters
 
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
@@ -224,26 +225,17 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual parameters of all patients.
         """
 
-        individual_parameters = {}
-        for j, name_variable in enumerate(model.get_individual_variable_name()):
-            individual_parameters[name_variable] = []
+        individual_parameters = IndividualParameters()
 
-        for idx in range(data.n_individuals):
-            times = data.get_times_patient(idx)  # torch.Tensor
-            values = data.get_values_patient(idx)  # torch.Tensor
+        p_names = model.get_individual_variable_name()
+
+        for iter in range(data.n_individuals):
+            times = data.get_times_patient(iter)  # torch.Tensor
+            values = data.get_values_patient(iter)  # torch.Tensor
+            idx = data.indices[iter]
 
             ind_patient, err = self._get_individual_parameters_patient(model, times, values)
+            ind_p = {k: v for k, v in zip(p_names, ind_patient)}
+            individual_parameters.add_individual_parameters(idx, ind_p)
 
-            for j, name_variable in enumerate(model.get_individual_variable_name()):
-                individual_parameters[name_variable].append(torch.tensor([ind_patient[j]], dtype=torch.float32))
-
-
-        infos = model.random_variable_informations()
-        # TODO change for cleaner shape update
-
-        out = dict.fromkeys(model.get_individual_variable_name())
-        for variable_ind in model.get_individual_variable_name():
-            out[variable_ind] = torch.stack(individual_parameters[variable_ind]).reshape(
-                shape=(data.n_individuals, infos[variable_ind]['shape'][0]))
-
-        return out
+        return individual_parameters

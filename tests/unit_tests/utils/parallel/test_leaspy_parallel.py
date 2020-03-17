@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from leaspy import AlgorithmSettings, Data, Leaspy
-from leaspy.io.outputs.result import Result
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.utils.parallel import leaspy_parallel_calibrate, leaspy_parallel_personalize
 
 
@@ -61,4 +61,4 @@ class TestLeaspyParallel(unittest.TestCase):
         for i, (res, j) in enumerate(outs_perso_cb):
             with self.subTest(i=i):
                 self.assertEqual(i, j)  # order outputs
-                self.assertIsInstance(res, Result)  # leaspy object
+                self.assertIsInstance(res, IndividualParameters)  # leaspy object

@@ -10,7 +10,7 @@ def initialize_parameters(model, dataset, method="default"):
     ----------
     model: a leaspy model class object
         The model to initialize.
-    dataset: a leaspy.inputs.data.dataset.Dataset class object
+    dataset: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
         Must be one of:
@@ -47,7 +47,7 @@ def initialize_logistic(model, dataset, method):
     ----------
     model: a leaspy model class object
         The model to initialize.
-    dataset: a leaspy.inputs.data.dataset.Dataset class object
+    dataset: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
         Must be one of:
@@ -113,7 +113,7 @@ def initialize_logistic_parallel(model, dataset, method):
     ----------
     model: a leaspy model class object
         The model to initialize.
-    dataset: a leaspy.inputs.data.dataset.Dataset class object
+    dataset: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
         Must be one of:
@@ -192,7 +192,7 @@ def initialize_linear(model, dataset, method):
     ----------
     model: a leaspy model class object
         The model to initialize.
-    dataset: a leaspy.inputs.data.dataset.Dataset class object
+    dataset: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores.
 
     Returns
@@ -263,7 +263,7 @@ def compute_patient_slopes_distribution(data):
     """
     Linear Regression on each feature to get slopes
 
-    :param data: leaspy.inputs.data.dataset class object
+    :param data: leaspy.io.data.dataset class object
     :return: slopes_mu : list of floats, slopes_sigma : list of floats
     """
 
@@ -310,7 +310,7 @@ def compute_patient_values_distribution(data):
 
     Parameters
     ----------
-    data: a leaspy.inputs.data.dataset.Dataset class object
+    data: a leaspy.io.data.dataset.Dataset class object
         Contains the scores of all the subjects.
 
     Returns
@@ -331,7 +331,7 @@ def compute_patient_time_distribution(data):
 
     Parameters
     ----------
-    data: a leaspy.inputs.data.dataset.Dataset class object
+    data: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores
 
     Returns

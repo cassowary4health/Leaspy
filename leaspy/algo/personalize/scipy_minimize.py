@@ -215,7 +215,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ----------
         model: leaspy model class object
             Model used to compute the group average parameters.
-        data: leaspy.inputs.data.dataset.Dataset class object
+        data: leaspy.io.data.dataset.Dataset class object
             Contains the individual scores.
 
         Returns

@@ -1,5 +1,5 @@
 import csv
-from leaspy.inputs.data.individual_data import IndividualData
+from leaspy.io.data.individual_data import IndividualData
 
 
 class CSVDataReader:

@@ -8,7 +8,7 @@ import torch
 from numpy import allclose
 
 from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
-from leaspy.inputs.data.result import Result
+from leaspy.io.outputs.result import Result
 from tests import example_data_path
 from tests import test_data_dir
 

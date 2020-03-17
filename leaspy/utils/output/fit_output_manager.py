@@ -70,7 +70,7 @@ class FitOutputManager():
 
         Parameters
         ----------
-        outputs: a leaspy.inputs.settings.outputs_settings.OutputsSettings class object
+        outputs: a leaspy.io.settings.outputs_settings.OutputsSettings class object
             Initialize the FitOuputManager class attributes, like the output paths, the console print periodicity and so forth.
         """
         self.path_output = outputs.root_path
@@ -100,7 +100,7 @@ class FitOutputManager():
         ----------
         algo: a leaspy.algo.abstract_algo.AbstractAlgo class object (or one of its child class)
             The running algorithm
-        data: a leaspy.inputs.data.data.Data leaspy class object
+        data: a leaspy.io.data.data.Data leaspy class object
             The data used by the computation
         model: a leaspy.model.abstract_model.AbstractModel class object (or one of its child class)
             The model used by the computation
@@ -266,7 +266,7 @@ class FitOutputManager():
         ----------
         iteration: int
             The current iteration
-        data: a leaspy.inputs.data.data.Data leaspy class object
+        data: a leaspy.io.data.data.Data leaspy class object
             The data used by the computation
         model: a leaspy.model.abstract_model.AbstractModel class object (or one of its child class)
             The model used by the computation

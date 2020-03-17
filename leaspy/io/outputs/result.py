@@ -7,8 +7,8 @@ from collections import Iterable
 import pandas as pd
 import torch
 
-from leaspy.inputs.data.data import Data
-from leaspy.inputs.data.dataset import Dataset
+from leaspy.io.data.data import Data
+from leaspy.io.data.dataset import Dataset
 
 
 class Result:
@@ -69,10 +69,10 @@ class Result:
             Get the dictionary of the wanted patient's individual parameters.
     """
 
-    # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters inputs.
+    # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters io.
     def __init__(self, data, individual_parameters, noise_std=None):
         """
-        Process the initializer function - called by Leaspy.inputs.data.result.Result
+        Process the initializer function - called by Leaspy.io.data.result.Result
 
         Parameters
         ----------

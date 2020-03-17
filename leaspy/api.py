@@ -1,9 +1,9 @@
 import warnings
 
 from leaspy.algo.algo_factory import AlgoFactory
-from leaspy.inputs.data.dataset import Dataset
-from leaspy.inputs.data.result import Result
-from leaspy.inputs.settings.model_settings import ModelSettings
+from leaspy.io.data.dataset import Dataset
+from leaspy.io.outputs.result import Result
+from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
 from leaspy.utils.output.visualization.plotting import Plotting
 
@@ -106,7 +106,7 @@ class Leaspy:
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
             self.model.initialize(dataset)
-        algorithm.run(dataset, self.model)
+        algorithm.run(self.model, dataset)
 
         # Update plotting
         self.plotting.update_model(self.model)

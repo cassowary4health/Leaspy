@@ -6,12 +6,12 @@ dtype = 'float32'
 from .api import Leaspy
 
 # Inputs
-from .inputs.data.data import Data
-from .inputs.data.dataset import Dataset
-from .inputs.data.result import Result
+from .io.data.data import Data
+from .io.data.dataset import Dataset
+from leaspy.io.outputs.result import Result
 
 # Algorithm Settings
-from .inputs.settings.algorithm_settings import AlgorithmSettings
+from .io.settings.algorithm_settings import AlgorithmSettings
 
 # Plotter
 from .utils.output.visualization.plotter import Plotter

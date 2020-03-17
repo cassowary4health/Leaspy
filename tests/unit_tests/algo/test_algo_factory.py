@@ -1,7 +1,7 @@
 import unittest
 
 from leaspy.algo.algo_factory import AlgoFactory
-from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
+from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 
 

@@ -4,8 +4,8 @@ from scipy import stats
 from sklearn.preprocessing import StandardScaler
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-from leaspy.inputs.data.data import Data
-from leaspy.inputs.data.result import Result
+from leaspy.io.data.data import Data
+from leaspy.io.outputs.result import Result
 
 
 class SimulationAlgorithm(AbstractAlgo):

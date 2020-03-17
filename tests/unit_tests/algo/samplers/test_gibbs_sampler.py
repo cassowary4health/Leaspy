@@ -4,7 +4,7 @@ import unittest
 import torch
 
 from leaspy import Data, Leaspy
-from leaspy.inputs.data.dataset import Dataset
+from leaspy.io.data.dataset import Dataset
 from leaspy.algo.samplers.gibbs_sampler import GibbsSampler
 # from . import dummy_ind_variable_infos
 

@@ -1,7 +1,7 @@
 import unittest
 
 from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
-from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
+from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
 
 class AbstractPersonalizeAlgoTest(unittest.TestCase):

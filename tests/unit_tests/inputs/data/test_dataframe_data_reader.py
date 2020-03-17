@@ -3,7 +3,7 @@ import unittest
 import pandas as pd
 
 from tests import test_data_dir
-from leaspy.inputs.data.dataframe_data_reader import DataframeDataReader
+from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 
 
 class DataframeDataReaderTest(unittest.TestCase):

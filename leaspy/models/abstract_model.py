@@ -274,7 +274,7 @@ class AbstractModel:
 
         Parameters
         ----------
-        data: a leaspy.inputs.data.dataset.Dataset class object
+        data: a leaspy.io.data.dataset.Dataset class object
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         realizations: a leaspy realization class object
 
@@ -294,7 +294,7 @@ class AbstractModel:
 
         Parameters
         ----------
-        data: a leaspy.inputs.data.dataset.Dataset class object
+        data: a leaspy.io.data.dataset.Dataset class object
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         param_ind
         attribute_type: str

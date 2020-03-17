@@ -5,7 +5,7 @@ import unittest
 import torch.random
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-# from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
+# from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 # from leaspy.utils.output.fit_output_manager import FitOutputManager
 # from tests import test_data_dir
 

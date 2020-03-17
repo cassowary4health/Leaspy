@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from leaspy import AlgorithmSettings, Data, Leaspy
-from leaspy.inputs.data.result import Result
+from leaspy.io.outputs.result import Result
 from leaspy.utils.parallel import leaspy_parallel_calibrate, leaspy_parallel_personalize
 
 

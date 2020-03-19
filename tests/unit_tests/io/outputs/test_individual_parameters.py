@@ -100,13 +100,15 @@ class IndividualParametersTest(unittest.TestCase):
         ip.add_individual_parameters("idx1", p1)
         ip.add_individual_parameters("idx2", p2)
 
-        ip_pytorch = ip.to_pytorch()
+        indices, ip_pytorch = ip.to_pytorch()
 
         dict_test = {
             "xi": torch.tensor([[0.1], [0.2]], dtype=torch.float32),
             "tau": torch.tensor([[70], [73]], dtype=torch.float32),
             "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1]], dtype=torch.float32)
         }
+
+        self.assertEqual(indices, ["idx1", "idx2"])
 
         self.assertEqual(ip_pytorch.keys(), dict_test.keys())
         for k in dict_test.keys():
@@ -124,14 +126,14 @@ class IndividualParametersTest(unittest.TestCase):
             "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1]], dtype=torch.float32)
         }
 
-        ip = IndividualParameters.from_pytorch(ip_pytorch)
+        ip = IndividualParameters.from_pytorch(["idx1", "idx2"], ip_pytorch)
 
         dict_test = {
-            0: {"xi": 0.1, "tau": 70., "sources": [0.1, -0.3]},
-            1: {"xi": 0.2, "tau": 73., "sources": [-0.4, 0.1]}
+            "idx1": {"xi": 0.1, "tau": 70., "sources": [0.1, -0.3]},
+            "idx2": {"xi": 0.2, "tau": 73., "sources": [-0.4, 0.1]}
         }
 
-        self.assertEqual(ip._indices, [0, 1])
+        self.assertEqual(ip._indices, ["idx1", "idx2"])
         self.assertEqual(ip._individual_parameters.keys(), dict_test.keys())
         for k, v in dict_test.items():
             for kk, vv in dict_test[k].items():
@@ -150,10 +152,11 @@ class IndividualParametersTest(unittest.TestCase):
             "tau": torch.tensor([[70], [73]], dtype=torch.float32),
             "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1]], dtype=torch.float32)
         }
+        indices = ["idx1", "idx2"]
 
-        ip = IndividualParameters.from_pytorch(ip_pytorch)
-        ip_pytorch2 = ip.to_pytorch()
-        ip2 = IndividualParameters.from_pytorch(ip_pytorch2)
+        ip = IndividualParameters.from_pytorch(indices, ip_pytorch)
+        ip_indices, ip_pytorch2 = ip.to_pytorch()
+        ip2 = IndividualParameters.from_pytorch(ip_indices, ip_pytorch2)
 
         # Test Individual parameters
         self.assertEqual(ip._indices, ip2._indices)

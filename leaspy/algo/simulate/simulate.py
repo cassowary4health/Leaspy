@@ -536,7 +536,8 @@ class SimulationAlgorithm(AbstractAlgo):
             Contains the simulated individual parameters & individual scores.
         """
 
-        results = Result(data, individual_parameters.to_pytorch())
+        _, dict_pytorch = individual_parameters.to_pytorch()
+        results = Result(data, dict_pytorch)
 
         if self.cofactor is not None:
             self._check_cofactors(data)

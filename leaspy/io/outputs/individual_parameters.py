@@ -110,19 +110,16 @@ class IndividualParameters:
         return ip
 
     @staticmethod
-    def from_pytorch(dict_pytorch):
+    def from_pytorch(indices, dict_pytorch):
         """
 
         """
-        warnings.warn("The `from_pytorch` method of IndividualParameters object"
-                      "is unaware of the subject indices. They are initialized with default values")
         ip = IndividualParameters()
 
         keys = list(dict_pytorch.keys())
-        n_subjects = len(dict_pytorch[keys[0]])
 
-        for idx in range(n_subjects):
-            p = {k: dict_pytorch[k][idx].numpy().tolist() for k in keys}
+        for i, idx in enumerate(indices):
+            p = {k: dict_pytorch[k][i].numpy().tolist() for k in keys}
             p = {k: v[0] if len(v) == 1 else v for k, v in p.items()}
 
             ip.add_individual_parameters(idx, p)
@@ -144,7 +141,7 @@ class IndividualParameters:
 
             ips_pytorch[p_name] = p_val
 
-        return ips_pytorch
+        return self._indices, ips_pytorch
 
 
     def save_individual_parameters(self, path):

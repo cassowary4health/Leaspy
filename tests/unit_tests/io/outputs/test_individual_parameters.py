@@ -1,9 +1,12 @@
+import os
 import unittest
 import pandas as pd
 import torch
 import numpy as np
+import json
 
 from leaspy.io.outputs.individual_parameters import IndividualParameters
+from tests import test_data_dir
 
 class IndividualParametersTest(unittest.TestCase):
 
@@ -141,40 +144,199 @@ class IndividualParametersTest(unittest.TestCase):
                         self.assertAlmostEqual(s1, s2, delta=10e-8)
 
     def test_from_to_pytorch(self):
-        #TODO
-        return 0
+
+        ip_pytorch = {
+            "xi": torch.tensor([[0.1], [0.2]], dtype=torch.float32),
+            "tau": torch.tensor([[70], [73]], dtype=torch.float32),
+            "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1]], dtype=torch.float32)
+        }
+
+        ip = IndividualParameters.from_pytorch(ip_pytorch)
+        ip_pytorch2 = ip.to_pytorch()
+        ip2 = IndividualParameters.from_pytorch(ip_pytorch2)
+
+        # Test Individual parameters
+        self.assertEqual(ip._indices, ip2._indices)
+        self.assertDictEqual(ip._individual_parameters, ip2._individual_parameters)
+        self.assertDictEqual(ip._parameters_shape, ip2._parameters_shape)
+
+
+        # Test Pytorch dictionaries
+        self.assertEqual(ip_pytorch.keys(), ip_pytorch2.keys())
+        for k in ip_pytorch.keys():
+            for v1, v2 in zip(ip_pytorch[k], ip_pytorch2[k]):
+                self.assertTrue((v1.numpy() - v2.numpy() == 0).all())
+
+
 
     def test_check_and_get_extension(self):
-        #TODO
-        return 0
+        tests = [
+            ('file.csv', 'csv'),
+            ('path/to/file.csv', 'csv'),
+            ('file.json', 'json'),
+            ('path/to/file.json', 'json'),
+            ('nopath', False),
+            ('bad_path.bad', 'bad')
+        ]
+
+        for test in tests:
+            ext = IndividualParameters._check_and_get_extension(test[0])
+            self.assertEqual(ext, test[1])
 
     def test_save_csv(self):
-        #TODO
-        return 0
+
+        ip = IndividualParameters()
+        ip.add_individual_parameters("idx1", {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
+        ip.add_individual_parameters("idx2", {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]})
+
+        path = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
+
+        test_path = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv_test.csv")
+        ip._save_csv(test_path)
+
+        with open(path, 'r') as f1, open(test_path, 'r') as f2:
+            file1 = f1.readlines()
+            file2 = f2.readlines()
+
+        for l1, l2 in zip(file1, file2):
+            self.assertTrue(l1 == l2)
+
+        os.remove(test_path)
 
     def test_save_json(self):
-        #TODO
-        return 0
+
+        def ordered(obj):
+            if isinstance(obj, dict):
+                return sorted((k, ordered(v)) for k, v in obj.items())
+            if isinstance(obj, list):
+                return sorted(ordered(x) for x in obj)
+            else:
+                return obj
+
+        ip = IndividualParameters()
+        ip.add_individual_parameters("idx1", {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
+        ip.add_individual_parameters("idx2", {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]})
+
+        path = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
+
+        test_path = os.path.join(test_data_dir, "io", "outputs", "ip_save_json_test.json")
+        ip._save_json(test_path)
+
+        with open(path, 'r') as f1, open(test_path, 'r') as f2:
+            file1 = json.load(f1)
+            file2 = json.load(f2)
+
+        self.assertTrue(ordered(file1) == ordered(file2))
+
+        os.remove(test_path)
+
 
     def test_load_csv(self):
-        #TODO
-        return 0
+        path = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
+        ip = IndividualParameters._load_csv(path)
+
+        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
+        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+
+        self.assertEqual(ip._indices, ["idx1", "idx2"])
+        self.assertEqual(ip._individual_parameters, {"idx1": p1, "idx2": p2})
+        self.assertEqual(ip._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
 
     def test_load_json(self):
-        #TODO
-        return 0
+        path = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
+        ip = IndividualParameters._load_json(path)
+
+        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
+        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+
+        self.assertEqual(ip._indices, ["idx1", "idx2"])
+        self.assertEqual(ip._individual_parameters, {"idx1": p1, "idx2": p2})
+        self.assertEqual(ip._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
+
 
     def test_load_individual_parameters(self):
-        #TODO
-        return 0
+        # Parameters
+        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
+        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+        indices = ["idx1", "idx2"]
+        individual_parameters = {"idx1": p1, "idx2": p2}
+        parameters_shape = {"xi": 1, "tau": 1, "sources": 2}
+
+        # Test json
+        path_json = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
+        ip_json = IndividualParameters.load_individual_parameters(path_json)
+
+        self.assertEqual(ip_json._indices, indices)
+        self.assertEqual(ip_json._individual_parameters, individual_parameters)
+        self.assertEqual(ip_json._parameters_shape, parameters_shape)
+
+        # Test csv
+        path_csv = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
+        ip_csv = IndividualParameters.load_individual_parameters(path_csv)
+
+        self.assertEqual(ip_csv._indices, indices)
+        self.assertEqual(ip_csv._individual_parameters, individual_parameters)
+        self.assertEqual(ip_csv._parameters_shape, parameters_shape)
 
     def test_save_individual_parameters(self):
-        #TODO
-        return 0
 
+        # Utils
+        def ordered(obj):
+            if isinstance(obj, dict):
+                return sorted((k, ordered(v)) for k, v in obj.items())
+            if isinstance(obj, list):
+                return sorted(ordered(x) for x in obj)
+            else:
+                return obj
 
+        # Parameters
+        ip = IndividualParameters()
+        ip.add_individual_parameters("idx1", {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
+        ip.add_individual_parameters("idx2", {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]})
 
+        path_json = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
+        path_json_test = os.path.join(test_data_dir, "io", "outputs", "ip_save_json_test.json")
 
+        path_csv = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
+        path_csv_test = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv_test.csv")
+
+        path_default = os.path.join(test_data_dir, "io", "outputs", "ip_save_default")
+
+        # Test json
+        ip.save_individual_parameters(path_json_test)
+
+        with open(path_json, 'r') as f1, open(path_json_test, 'r') as f2:
+            file1 = json.load(f1)
+            file2 = json.load(f2)
+
+        self.assertTrue(ordered(file1) == ordered(file2))
+
+        os.remove(path_json_test)
+
+        # Test csv
+        ip.save_individual_parameters(path_csv_test)
+
+        with open(path_csv, 'r') as f1, open(path_csv_test, 'r') as f2:
+            file1 = f1.readlines()
+            file2 = f2.readlines()
+
+        for l1, l2 in zip(file1, file2):
+            self.assertTrue(l1 == l2)
+
+        os.remove(path_csv_test)
+
+        # Test default
+        ip.save_individual_parameters(path_default)
+        path_default_with_extension = path_default + '.' + ip._default_saving_type
+
+        with open(path_csv, 'r') as f1, open(path_default_with_extension, 'r') as f2:
+            file1 = f1.readlines()
+            file2 = f2.readlines()
+
+        for l1, l2 in zip(file1, file2):
+            self.assertTrue(l1 == l2)
+
+        os.remove(path_default_with_extension)
 
 
 

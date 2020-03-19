@@ -111,7 +111,7 @@ class ModeReal(AbstractPersonalizeAlgo):
 
         for i in range(n_sub):
             p_dict = {k: ind_parameters[k][i].numpy() for k in p_names}
-            p_dict = {k: v[0] if v.shape[0] == 1 else v for k, v in p_dict.items()}
+            p_dict = {k: v[0] if v.shape[0] == 1 else v.tolist() for k, v in p_dict.items()}
             individual_parameters.add_individual_parameters(i, p_dict)
 
         return individual_parameters

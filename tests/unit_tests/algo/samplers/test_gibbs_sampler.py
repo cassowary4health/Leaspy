@@ -24,7 +24,7 @@ class SamplerTest(unittest.TestCase):
         temperature_inv = 1.0
 
         path_model_sampler = os.path.join(test_data_dir, "model_parameters", "multivariate_model_sampler.json")
-        path_data = os.path.join(test_data_dir, "inputs", "data_tiny.csv")
+        path_data = os.path.join(test_data_dir, "io", "data", "data_tiny.csv")
 
         data = Dataset(Data.from_csv_file(path_data))
         leaspy = Leaspy.load(path_model_sampler)
@@ -66,7 +66,7 @@ class SamplerTest(unittest.TestCase):
         # temperature_inv = 1.0
 
         path_model_sampler = os.path.join(test_data_dir, "model_parameters", "multivariate_model_sampler.json")
-        path_data = os.path.join(test_data_dir, "inputs", "data_tiny.csv")
+        path_data = os.path.join(test_data_dir, "io", "data_tiny.csv")
 
         # data = Dataset(Data.from_csv_file(path_data))
         leaspy = Leaspy.load(path_model_sampler)
@@ -87,7 +87,7 @@ class SamplerTest(unittest.TestCase):
         # temperature_inv = 1.0
 
         path_model_sampler = os.path.join(test_data_dir, "model_parameters", "multivariate_model_sampler.json")
-        path_data = os.path.join(test_data_dir, "inputs", "data_tiny.csv")
+        path_data = os.path.join(test_data_dir, "io", "data_tiny.csv")
 
         # data = Dataset(Data.from_csv_file(path_data))
         leaspy = Leaspy.load(path_model_sampler)

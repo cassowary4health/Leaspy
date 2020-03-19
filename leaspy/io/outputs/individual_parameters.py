@@ -1,4 +1,5 @@
 import torch
+import json
 import pandas as pd
 import numpy as np
 import warnings
@@ -25,13 +26,25 @@ class IndividualParameters:
         self._default_saving_type = 'csv'
 
     def add_individual_parameters(self, index, individual_parameters):
+        # Check indices
         if index in self._indices:
             raise ValueError(f'The index {index} has already been added before')
         self._indices.append(index)
+
+        # Check the dictionary format
+        if type(individual_parameters) != dict:
+            raise ValueError('The `individual_parameters` argument should be a dictionary')
+
+        individual_parameters = {k: v.tolist() if isinstance(v, np.ndarray) else v for k, v in individual_parameters.items()} # Conversion from numpy to list
+        for k, v in individual_parameters.items():
+            valid_types = [list, int, float, np.float32, np.float64]
+            if type(v) not in valid_types:
+                raise ValueError(f'Incorrect dictionary value. Error for key: {k} -> type {type(v)}')
+
         self._individual_parameters[index] = individual_parameters
 
         for k, v in individual_parameters.items():
-            ### Keep track of the parameter shape
+            # Keep track of the parameter shape
             if k not in self._parameters_shape.keys():
                 self._parameters_shape[k] = 1 if np.ndim(v) == 0 else len(v)
 
@@ -91,7 +104,7 @@ class IndividualParameters:
         ip = IndividualParameters()
 
         for idx, v_flat in df.iterrows():
-            i_d = {k: v_flat[v] if np.ndim(v) == 0 else v_flat[v].values.tolist() for k, v in final_names.items()}
+            i_d = {k: v_flat[v].tolist() if np.ndim(v) == 0 else v_flat[v].values.tolist() for k, v in final_names.items()}
             ip.add_individual_parameters(idx, i_d)
 
         return ip
@@ -134,19 +147,20 @@ class IndividualParameters:
         return ips_pytorch
 
 
-    def save_individual_parameters(self, path, extension='.csv'):
+    def save_individual_parameters(self, path):
         extension = IndividualParameters._check_and_get_extension(path)
         if not extension:
             warnings.warn(f'You did not provide a valid extension (csv or json) for the file. '
                           f'Default to {self._default_saving_type}')
             extension = self._default_saving_type
+            path = path+'.'+extension
 
-        if extension == '.csv':
-            IndividualParameters._save_csv(path)
-        elif extension == '.json':
-            IndividualParameters._save_json(path)
+        if extension == 'csv':
+            self._save_csv(path)
+        elif extension == 'json':
+            self._save_json(path)
         else:
-            raise ValueError("Something bad happened")
+            raise ValueError(f"Something bad happened: extension is {extension}")
 
     @staticmethod
     def load_individual_parameters(path, verbose=True, **args):
@@ -156,33 +170,51 @@ class IndividualParameters:
 
         if extension == 'csv':
             ip = IndividualParameters._load_csv(path)
-        elif path == 'json':
+        elif extension == 'json':
             ip = IndividualParameters._load_json(path)
         else:
-            raise ValueError("Something bad happened")
+            raise ValueError(f"Something bad happened: extension is {extension}")
 
         return ip
 
     @staticmethod
     def _check_and_get_extension(path):
-
+        path = path.split('/')[-1]
         if '.' in path:
             extension = path.split('.')[-1]
             return extension
         return False
 
-    @staticmethod
-    def _save_csv(path):
-        return 0
+    def _save_csv(self, path):
+        df = self.to_dataframe()
+        df.to_csv(path)
 
-    @staticmethod
-    def _save_json(path):
-        return 0
+    def _save_json(self, path):
+        json_data = {
+            'indices': self._indices,
+            'individual_parameters': self._individual_parameters,
+            'parameters_shape': self._parameters_shape
+        }
+
+        with open(path, 'w') as f:
+            json.dump(json_data, f)
 
     @staticmethod
     def _load_csv(path):
-        return 0
+
+        df = pd.read_csv(path, index_col=0)
+        ip = IndividualParameters.from_dataframe(df)
+
+        return ip
 
     @staticmethod
     def _load_json(path):
-        return 0
+        with open(path, 'r') as f:
+            json_data = json.load(f)
+
+        ip = IndividualParameters()
+        ip._indices = json_data['indices']
+        ip._individual_parameters = json_data['individual_parameters']
+        ip._parameters_shape = json_data['parameters_shape']
+
+        return ip

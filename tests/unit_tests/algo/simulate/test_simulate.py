@@ -66,7 +66,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         results : leaspy.io.data.result.Result
         """
         data = Data.from_csv_file(example_data_path)
-        cofactors = pd.read_csv(os.path.join(test_data_dir, "inputs/data_tiny_covariate.csv"))
+        cofactors = pd.read_csv(os.path.join(test_data_dir, "io/data/data_tiny_covariate.csv"))
         cofactors.columns = ("ID", "Treatments")
         cofactors['ID'] = cofactors['ID'].apply(lambda x: str(x))
         cofactors = cofactors.set_index("ID")

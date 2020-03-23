@@ -208,7 +208,7 @@ class Leaspy:
         simulated_data = algorithm.run(self.model, individual_parameters, data)
         return simulated_data
 
-    def estimate(self, timepoints, individual_parameters):
+    def estimate_old(self, timepoints, individual_parameters):
         r"""
         Return the value of the features for an individual who is characterized by its individual parameters
         :math:`z_i` at time-points :math:`(t_{i,j})` that can be a unique time-point or a list of time-points.
@@ -236,7 +236,7 @@ class Leaspy:
         >>> individual_parameters = { 'xi': 0.3, 'tau': 71, 'sources': [0.2, -0.5] }
         >>> output = leaspy.estimate(timepoints, individual_parameters)
         """
-        warnings.warn("estimate() is deprecated; use estimate_multi() instead.", DeprecationWarning)
+        warnings.warn("estimate_old() is deprecated; use estimate() instead.", DeprecationWarning)
 
         # Check if model has been initialized
         self.check_if_initialized()
@@ -287,6 +287,8 @@ class Leaspy:
         >>> individual_parameters = { 'xi': [0.3, 0.1], 'tau': [71, 59], 'sources': [[0.2, -0.5],[0,0]] }
         >>> output = leaspy.estimate_multi(timepoints, individual_parameters)
         """
+        warnings.warn("estimate_multi() is deprecated; use estimate() instead.", DeprecationWarning)
+
         # Check if model has been initialized
         self.check_if_initialized()
 
@@ -316,6 +318,46 @@ class Leaspy:
 
         # Return a generator (lazy computation)
         return traj_gen
+
+    def estimate(self, timepoints, individual_parameters):
+        r"""
+        Description
+
+        Parameters
+        ----------
+        timepoints: dictionary {string/int: array_like[numeric]
+            Contains, for each individual, the time-points to estimate.
+        individual_parameters: dict
+            Corresponds to the individual parameters of individuals.
+
+        Returns
+        -------
+        individual_trajectory_gen: generator
+            Each element, corresponding to each individual (ordered as is), is a torch tensor
+            of shape (number of timepoints to estimate for subject x shape of feature space),
+            containing features values at the different timepoints.
+
+
+        Examples
+        --------
+        Given the individual parameters of two subjects, estimate the features of the first
+        at 70, 74 and 80 years old and at 71 and 72 years old for the second.
+
+        >>> leaspy = Leaspy.load('path/to/model_parameters.json')
+        >>> individual_parameters = IndividualParameters.load('path/to/individual_parameters.json')
+        >>> timepoints = { 'index_1': (70, 74, 80), 'index_2': (71, 72) }
+        >>> output = leaspy.estimate_multi(timepoints, individual_parameters)
+        """
+
+        estimations = {}
+
+        for index, time in timepoints.items():
+            ip = individual_parameters[index]
+            est = self.model.compute_individual_trajectory(time, ip)
+
+            estimations[index] = est
+
+        return estimations
 
     def check_if_initialized(self):
         """

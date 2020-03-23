@@ -267,7 +267,7 @@ class IndividualParametersTest(unittest.TestCase):
 
         # Test json
         path_json = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
-        ip_json = IndividualParameters.load_individual_parameters(path_json)
+        ip_json = IndividualParameters.load(path_json)
 
         self.assertEqual(ip_json._indices, indices)
         self.assertEqual(ip_json._individual_parameters, individual_parameters)
@@ -275,7 +275,7 @@ class IndividualParametersTest(unittest.TestCase):
 
         # Test csv
         path_csv = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
-        ip_csv = IndividualParameters.load_individual_parameters(path_csv)
+        ip_csv = IndividualParameters.load(path_csv)
 
         self.assertEqual(ip_csv._indices, indices)
         self.assertEqual(ip_csv._individual_parameters, individual_parameters)
@@ -306,7 +306,7 @@ class IndividualParametersTest(unittest.TestCase):
         path_default = os.path.join(test_data_dir, "io", "outputs", "ip_save_default")
 
         # Test json
-        ip.save_individual_parameters(path_json_test)
+        ip.save(path_json_test)
 
         with open(path_json, 'r') as f1, open(path_json_test, 'r') as f2:
             file1 = json.load(f1)
@@ -317,7 +317,7 @@ class IndividualParametersTest(unittest.TestCase):
         os.remove(path_json_test)
 
         # Test csv
-        ip.save_individual_parameters(path_csv_test)
+        ip.save(path_csv_test)
 
         with open(path_csv, 'r') as f1, open(path_csv_test, 'r') as f2:
             file1 = f1.readlines()
@@ -329,7 +329,7 @@ class IndividualParametersTest(unittest.TestCase):
         os.remove(path_csv_test)
 
         # Test default
-        ip.save_individual_parameters(path_default)
+        ip.save(path_default)
         path_default_with_extension = path_default + '.' + ip._default_saving_type
 
         with open(path_csv, 'r') as f1, open(path_default_with_extension, 'r') as f2:

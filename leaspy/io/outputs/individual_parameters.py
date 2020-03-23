@@ -48,6 +48,9 @@ class IndividualParameters:
             if k not in self._parameters_shape.keys():
                 self._parameters_shape[k] = 1 if np.ndim(v) == 0 else len(v)
 
+    def __getitem__(self, item):
+        return self._individual_parameters[item]
+
     def to_dataframe(self):
         """
 
@@ -143,8 +146,7 @@ class IndividualParameters:
 
         return self._indices, ips_pytorch
 
-
-    def save_individual_parameters(self, path):
+    def save(self, path):
         extension = IndividualParameters._check_and_get_extension(path)
         if not extension:
             warnings.warn(f'You did not provide a valid extension (csv or json) for the file. '
@@ -160,7 +162,7 @@ class IndividualParameters:
             raise ValueError(f"Something bad happened: extension is {extension}")
 
     @staticmethod
-    def load_individual_parameters(path, verbose=True, **args):
+    def load(path):
         extension = IndividualParameters._check_and_get_extension(path)
         if not extension or extension not in ['csv', 'json']:
             raise ValueError('The file you provide should have a `.csv` or `.json` name')

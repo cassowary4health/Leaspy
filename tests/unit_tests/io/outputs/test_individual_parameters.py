@@ -33,6 +33,78 @@ class IndividualParametersTest(unittest.TestCase):
         self.assertEqual(ip._individual_parameters, {"idx1": p1, "idx2": p2, "idx3": p3})
         self.assertEqual(ip._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
 
+
+    def test_get_item(self):
+        ip = IndividualParameters()
+
+        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
+        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+
+        ip.add_individual_parameters("idx1", p1)
+        ip.add_individual_parameters("idx2", p2)
+
+        self.assertDictEqual(ip['idx1'], p1)
+        self.assertDictEqual(ip['idx2'], p2)
+
+
+    def test_subset(self):
+
+        ip = IndividualParameters()
+        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
+        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+        p3 = {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]}
+
+        ip.add_individual_parameters("idx1", p1)
+        ip.add_individual_parameters("idx2", p2)
+        ip.add_individual_parameters("idx3", p3)
+
+        ip2 = ip.subset(["idx1", "idx3"])
+
+        self.assertEqual(ip2._indices, ["idx1", "idx3"])
+        self.assertEqual(ip2._individual_parameters, {"idx1": p1, "idx3": p3})
+        self.assertEqual(ip2._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
+
+
+    def test_get_mean(self):
+
+        ip = IndividualParameters()
+        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
+        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+        p3 = {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]}
+
+        ip.add_individual_parameters("idx1", p1)
+        ip.add_individual_parameters("idx2", p2)
+        ip.add_individual_parameters("idx3", p3)
+
+        self.assertAlmostEqual(ip.get_mean('xi'), 0.2, delta=10e-10)
+        self.assertAlmostEqual(ip.get_mean('tau'), 67., delta=10e-10)
+        ss = ip.get_mean('sources')
+        self.assertEqual(len(ss), 2)
+        self.assertEqual(type(ss), list)
+        self.assertAlmostEqual(ss[0], -0.3, delta=10e-10)
+        self.assertAlmostEqual(ss[1], 0.0, delta=10e-10)
+
+    def test_get_std(self):
+
+        ip = IndividualParameters()
+        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
+        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+        p3 = {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]}
+
+        ip.add_individual_parameters("idx1", p1)
+        ip.add_individual_parameters("idx2", p2)
+        ip.add_individual_parameters("idx3", p3)
+
+        self.assertAlmostEqual(ip.get_std('xi'), 0.0816496580927726, delta=10e-10)
+        self.assertAlmostEqual(ip.get_std('tau'), 6.48074069840786, delta=10e-10)
+        ss = ip.get_std('sources')
+        self.assertEqual(len(ss), 2)
+        self.assertEqual(type(ss), list)
+        self.assertAlmostEqual(ss[0], 0.2943920288775949, delta=10e-10)
+        self.assertAlmostEqual(ss[1], 0.21602468994692867, delta=10e-10)
+
+
+
     def test_to_dataframe(self):
         ip = IndividualParameters()
 

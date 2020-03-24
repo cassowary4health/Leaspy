@@ -51,19 +51,33 @@ class IndividualParameters:
     def __getitem__(self, item):
         return self._individual_parameters[item]
 
+    def subset(self, indices):
+        ip = IndividualParameters()
 
-    def subset(self, list_of_idx):
-        # TODO Igor
-        return
+        for idx in indices:
+            p = self[idx].copy()
+            ip.add_individual_parameters(idx, p)
+
+        return ip
 
     def get_mean(self, parameter):
-        #TODO Igor
+        if parameter not in self._parameters_shape.keys():
+            ValueError(f"Parameter {parameter} does not exist in the individual parameters")
 
-        # For now dummy return
-        if parameter in ["xi", "tau"]:
-            return 0
-        else:
-            return [0]*len(list(self._individual_parameters.values())[0]["sources"])
+        p = [v[parameter] for v in self._individual_parameters.values()]
+        p_mean = np.mean(p, axis=0).tolist()
+
+        return p_mean
+
+
+    def get_std(self, parameter):
+        if parameter not in self._parameters_shape.keys():
+            ValueError(f"Parameter {parameter} does not exist in the individual parameters")
+
+        p = [v[parameter] for v in self._individual_parameters.values()]
+        p_mean = np.std(p, axis=0).tolist()
+
+        return p_mean
 
     def to_dataframe(self):
         """

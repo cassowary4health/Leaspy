@@ -51,6 +51,15 @@ class IndividualParameters:
     def __getitem__(self, item):
         return self._individual_parameters[item]
 
+
+    def subset(self, list_of_idx):
+        # TODO Igor
+        return
+
+    def get_mean(self, parameter):
+        #TODO Igor
+        return
+
     def to_dataframe(self):
         """
 

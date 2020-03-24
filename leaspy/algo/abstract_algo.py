@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from leaspy.utils.output.fit_output_manager import FitOutputManager
+from leaspy.utils.logs.fit_output_manager import FitOutputManager
 
 
 class AbstractAlgo:
@@ -114,7 +114,7 @@ class AbstractAlgo:
         Parameters
         ----------
         output_settings: a leaspy.io.settings.outputs_settings.OutputsSettings class object
-            Contains the output settings for the computation run (console print periodicity, plot periodicity ...)
+            Contains the logs settings for the computation run (console print periodicity, plot periodicity ...)
 
         Examples
         --------

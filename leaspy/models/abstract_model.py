@@ -2,8 +2,8 @@ import math
 
 import torch
 
-from leaspy.utils.realizations.collection_realization import CollectionRealization
-from leaspy.utils.realizations.realization import Realization
+from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.realizations.realization import Realization
 
 TWO_PI = 2 * math.pi
 
@@ -188,7 +188,7 @@ class AbstractModel:
         # tensorized (2D) version of ips
         t_ips = {k: self._tensorize_2D(v, unsqueeze_dim=unsqueeze_dim) for k,v in ips.items()}
 
-        # construct output
+        # construct logs
         return {
             'nb_inds': n_inds,
             'tensorized_ips': t_ips,
@@ -340,7 +340,7 @@ class AbstractModel:
         output = "=== MODEL ===\n"
         for key in self.parameters.keys():
             # if type(self.parameters[key]) == float:
-            #    output += "{} : {:.5f}\n".format(key, self.parameters[key])
+            #    logs += "{} : {:.5f}\n".format(key, self.parameters[key])
             # else:
             output += "{} : {}\n".format(key, self.parameters[key])
         return output

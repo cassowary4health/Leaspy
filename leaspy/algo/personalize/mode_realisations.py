@@ -1,6 +1,6 @@
 import torch
 
-from leaspy.utils.realizations.realization import Realization
+from leaspy.io.realizations.realization import Realization
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 from ..samplers.gibbs_sampler import GibbsSampler
 from ..samplers.hmc_sampler import HMCSampler

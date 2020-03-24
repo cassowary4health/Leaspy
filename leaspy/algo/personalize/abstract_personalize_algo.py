@@ -71,7 +71,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         self._initialize_seed(self.seed)
 
         # Init the run
-        print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
+        #print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
         time_beginning = time.time()
 
         # Estimate individual parametersabstr
@@ -85,8 +85,8 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Print run infos
         time_end = time.time()
         diff_time = (time_end - time_beginning)  # / 1000 TODO: why divided by 1000?
-        print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(noise_std))
-        print("Personalization {1} took : {0}s".format(diff_time, self.name))
+        #print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(noise_std))
+        #print("Personalization {1} took : {0}s".format(diff_time, self.name))
 
         # Transform individual parameters to dictinnary ID / variable_ind
         # indices = data.indices

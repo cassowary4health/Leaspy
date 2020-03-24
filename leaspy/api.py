@@ -5,7 +5,7 @@ from leaspy.io.data.dataset import Dataset
 from leaspy.io.outputs.result import Result
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
-from leaspy.utils.output.visualization.plotting import Plotting
+from leaspy.utils.logs.visualization.plotting import Plotting
 
 
 class Leaspy:
@@ -234,7 +234,7 @@ class Leaspy:
         >>> leaspy = Leaspy.load('path/to/model_parameters.json')
         >>> timepoints = [70, 80]
         >>> individual_parameters = { 'xi': 0.3, 'tau': 71, 'sources': [0.2, -0.5] }
-        >>> output = leaspy.estimate(timepoints, individual_parameters)
+        >>> logs = leaspy.estimate(timepoints, individual_parameters)
         """
         warnings.warn("estimate_old() is deprecated; use estimate() instead.", DeprecationWarning)
 
@@ -285,7 +285,7 @@ class Leaspy:
         >>> leaspy = Leaspy.load('path/to/model_parameters.json')
         >>> timepoints = [ (70, 74, 80), (71, 72) ]
         >>> individual_parameters = { 'xi': [0.3, 0.1], 'tau': [71, 59], 'sources': [[0.2, -0.5],[0,0]] }
-        >>> output = leaspy.estimate_multi(timepoints, individual_parameters)
+        >>> logs = leaspy.estimate_multi(timepoints, individual_parameters)
         """
         warnings.warn("estimate_multi() is deprecated; use estimate() instead.", DeprecationWarning)
 
@@ -327,7 +327,7 @@ class Leaspy:
         ----------
         timepoints: dictionary {string/int: array_like[numeric]
             Contains, for each individual, the time-points to estimate.
-        individual_parameters: dict
+        individual_parameters: IndividualParameters object
             Corresponds to the individual parameters of individuals.
 
         Returns
@@ -346,7 +346,7 @@ class Leaspy:
         >>> leaspy = Leaspy.load('path/to/model_parameters.json')
         >>> individual_parameters = IndividualParameters.load('path/to/individual_parameters.json')
         >>> timepoints = { 'index_1': (70, 74, 80), 'index_2': (71, 72) }
-        >>> output = leaspy.estimate_multi(timepoints, individual_parameters)
+        >>> logs = leaspy.estimate_multi(timepoints, individual_parameters)
         """
 
         estimations = {}

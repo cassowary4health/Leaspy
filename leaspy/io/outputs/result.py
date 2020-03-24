@@ -14,7 +14,7 @@ from leaspy.io.data.dataset import Dataset
 class Result:
     """
     Result object class.
-    Used as output by personalize algorithms & simulation algorithm.
+    Used as logs by personalize algorithms & simulation algorithm.
 
     Attributes
     ----------
@@ -128,7 +128,7 @@ class Result:
         Parameters
         ----------
         cofactors: str or `list`, optional (default None)
-            Contains the cofactor(s) to join to the output dataframe.
+            Contains the cofactor(s) to join to the logs dataframe.
 
         Notes
         -----
@@ -212,11 +212,11 @@ class Result:
         Parameters
         ----------
         path : str
-            The output's path.
+            The logs's path.
         idx : `list` [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         cofactors : str or `list` [str], optional (default None)
-            Contains the cofactor(s) to join to the output dataframe.
+            Contains the cofactor(s) to join to the logs dataframe.
         **args : Any
             Parameters to pass to pandas.to_csv.
 
@@ -260,7 +260,7 @@ class Result:
         Parameters
         ----------
         path : str
-            The output's path.
+            The logs's path.
         idx : `list` [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         human_readable : bool, (default None)
@@ -301,7 +301,7 @@ class Result:
         Parameters
         ----------
         path : str
-            The output's path.
+            The logs's path.
         idx : `list` [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         args : Any

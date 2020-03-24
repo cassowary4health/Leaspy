@@ -6,7 +6,7 @@ import torch.random
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 # from leaspy.io.settings.algorithm_settings import AlgorithmSettings
-# from leaspy.utils.output.fit_output_manager import FitOutputManager
+# from leaspy.utils.logs.fit_output_manager import FitOutputManager
 # from tests import test_data_dir
 
 

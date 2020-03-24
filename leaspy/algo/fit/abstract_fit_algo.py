@@ -1,4 +1,4 @@
-# from ...utils.output.fit_output_manager import FitOutputManager
+# from ...utils.logs.fit_output_manager import FitOutputManager
 from ..abstract_algo import AbstractAlgo
 
 

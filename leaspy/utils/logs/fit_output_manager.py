@@ -2,7 +2,7 @@ import csv
 import os
 import time
 
-from leaspy.utils.output.visualization.plotter import Plotter
+from leaspy.utils.logs.visualization.plotter import Plotter
 
 
 class FitOutputManager():
@@ -15,7 +15,7 @@ class FitOutputManager():
     path_output: str
         Path of the folder containing all the outputs
     path_plot: str
-        Path of the subfolder of path_output containing the output plots
+        Path of the subfolder of path_output containing the logs plots
     path_plot_convergence_model_parameters_1: str
         Path of the first plot of the convergence of the model's parameters (in the subfolder path_plot)
     path_plot_convergence_model_parameters_2: str
@@ -34,7 +34,7 @@ class FitOutputManager():
     plot_options: dict
         Contain all the additional information (for now contain only the number of displayed patients by the method
         plot_patient_reconstructions - which is 5 by default)
-    plotter: a leaspy.utils.output.visualisation.plotter.Plotter class object
+    plotter: a leaspy.utils.logs.visualisation.plotter.Plotter class object
         class object used to call visualization methods
     time: scalar
         Used to display the duration between two visualization prints
@@ -71,7 +71,7 @@ class FitOutputManager():
         Parameters
         ----------
         outputs: a leaspy.io.settings.outputs_settings.OutputsSettings class object
-            Initialize the FitOuputManager class attributes, like the output paths, the console print periodicity and so forth.
+            Initialize the FitOuputManager class attributes, like the logs paths, the console print periodicity and so forth.
         """
         self.path_output = outputs.root_path
         self.path_plot = outputs.plot_path

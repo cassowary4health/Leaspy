@@ -10,7 +10,7 @@ from leaspy.io.data.individual_data import IndividualData
 # from leaspy.io.data.dataset import Dataset
 
 
-# TODO : object data as output ??? or a result object ? Because there could be ambiguetes here
+# TODO : object data as logs ??? or a result object ? Because there could be ambiguetes here
 # TODO or find a good way to say thet there are individual parameters here ???
 
 class Data:

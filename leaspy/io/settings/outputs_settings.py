@@ -54,7 +54,7 @@ class OutputsSettings:
         # Check if the parent directory exists
         if not os.path.exists(parent_directory):
             raise ValueError(
-                "Parent directory : \n {0} \n of the output path you provided does not exist".format(parent_directory))
+                "Parent directory : \n {0} \n of the logs path you provided does not exist".format(parent_directory))
 
         # Check if the folder does not exist : if not, create
         existence_cdt = os.path.exists(settings['path'])
@@ -88,7 +88,7 @@ class OutputsSettings:
 
     def _ask_user_if_erase(self, path):
         user_answer = input("Do you want to erase the existing files "
-                            "in the output folder {} you provided? [y]/[n]".format(path)).lower().strip()
+                            "in the logs folder {} you provided? [y]/[n]".format(path)).lower().strip()
         if user_answer == "y":
             return True
         elif user_answer == "n":

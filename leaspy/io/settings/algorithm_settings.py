@@ -134,3 +134,7 @@ class AlgorithmSettings:
             return None
         # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
         return settings['initialization_method']
+
+    def save_settings(self, path):
+        #TODO : Raphael
+        return 0

@@ -17,4 +17,4 @@ from .io.outputs.individual_parameters import IndividualParameters
 from .io.settings.algorithm_settings import AlgorithmSettings
 
 # Plotter
-from .utils.output.visualization.plotter import Plotter
+from .utils.logs.visualization.plotter import Plotter

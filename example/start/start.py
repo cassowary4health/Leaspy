@@ -1,7 +1,7 @@
 import os
 from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
 
-# Create the output dir
+# Create the logs dir
 if not os.path.isdir('_outputs/logs/fit'):
     os.makedirs('_outputs/logs/fit')
 

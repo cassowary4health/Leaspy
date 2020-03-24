@@ -8,7 +8,7 @@ import matplotlib.backends.backend_pdf
 from matplotlib.cm import get_cmap
 # import seaborn as sns
 
-from leaspy.utils.output.visualization import color_palette
+from leaspy.utils.logs.visualization import color_palette
 
 from leaspy.io.data.dataset import Dataset
 

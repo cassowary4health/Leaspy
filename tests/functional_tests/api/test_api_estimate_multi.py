@@ -42,7 +42,7 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
                 [np.array([74])],
             ):
                 output = list(self.leaspy.estimate_multi(timepoints, individual_parameters))
-                #self.assertIsInstance(output, list)
+                #self.assertIsInstance(logs, list)
                 self.assertEqual(len(output), 1)
                 o = output[0]
                 self.assertIsInstance(o, torch.FloatTensor)
@@ -58,7 +58,7 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
                 [np.array([70,71,72])]
             ):
                 output = list(self.leaspy.estimate_multi(timepoints, individual_parameters))
-                #self.assertIsInstance(output, list)
+                #self.assertIsInstance(logs, list)
                 self.assertEqual(len(output), 1)
                 self.assertEqual(output[0].shape, (n_vis, self.leaspy.model.dimension))
                 diff_output = output[0] - torch.tensor([
@@ -107,7 +107,7 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
                 [[74],[74]],
             ):
                 output = list(self.leaspy.estimate_multi(timepoints, individual_parameters))
-                #self.assertIsInstance(output, list)
+                #self.assertIsInstance(logs, list)
                 self.assertEqual(len(output), n_ind)
                 for o in output:
                     self.assertIsInstance(o, torch.FloatTensor)
@@ -121,7 +121,7 @@ class LeaspyEstimateMultiTest(unittest.TestCase):
                 [[71],[70,71,72]],
             ):
                 output = list(self.leaspy.estimate_multi(timepoints, individual_parameters))
-                #self.assertIsInstance(output, list)
+                #self.assertIsInstance(logs, list)
                 self.assertEqual(len(output), n_ind)
 
                 diff_output = output[0] - torch.tensor([[0.2045, 0.1211, 0.1152, 0.2049]], dtype=torch.float32)

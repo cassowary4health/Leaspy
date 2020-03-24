@@ -58,7 +58,7 @@ def leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_iter, leas
     algo_settings_iter : list [leaspy.io.settings.algorithm_settings.AlgorithmSettings]
         An iterable of Leaspy AlgorithmSettings for every calibration task.
     leaspy_res_cb : callable
-        A function taking as input a Leaspy Result object (the output of personalization task) and iteration index
+        A function taking as input a Leaspy Result object (the logs of personalization task) and iteration index
         and doing whatsoever needed with it (i.e.: saving individual parameters/results to a file, ...).
     n_jobs : int, (default -1)
         The number of parallel jobs in joblib.

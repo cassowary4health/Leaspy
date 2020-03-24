@@ -135,6 +135,17 @@ class AlgorithmSettings:
         # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
         return settings['initialization_method']
 
-    def save_settings(self, path):
-        #TODO : Raphael
-        return 0
+    def save(self, path):
+
+        json_settings = {
+            "name": self.name,
+            "seed": self.seed,
+            "parameters" : self.parameters,
+            "initialization_method" : self.initialization_method,
+            "logs" : self.logs
+        }
+
+        with open(os.path.join(path), "w") as json_file:
+            json.dump(json_settings, json_file)
+
+

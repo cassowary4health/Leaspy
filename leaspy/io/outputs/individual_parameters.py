@@ -58,7 +58,12 @@ class IndividualParameters:
 
     def get_mean(self, parameter):
         #TODO Igor
-        return
+
+        # For now dummy return
+        if parameter in ["xi", "tau"]:
+            return 0
+        else:
+            return [0]*len(list(self._individual_parameters.values())[0]["sources"])
 
     def to_dataframe(self):
         """

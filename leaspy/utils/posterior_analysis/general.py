@@ -1,6 +1,6 @@
 import numpy as np
 
-
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 
 def get_reparametrized_ages(individual_parameters, diagnosis_ages, leaspy):
@@ -46,14 +46,15 @@ def get_reparametrized_ages(individual_parameters, diagnosis_ages, leaspy):
 
 def compute_trajectory_of_population(leaspy, individual_parameters, timepoints):
 
-
     dict = {
         'xi': individual_parameters.get_mean('xi'),
         'tau': individual_parameters.get_mean('tau'),
-        'sources': individual_parameters
+        'sources': individual_parameters.get_mean("sources")
     }
 
     ip = IndividualParameters()
-    ip.add_ip('mean', dict)
+    ip.add_individual_parameters('average', dict)
 
-    leaspy.estimate()
+    trajectory = leaspy.estimate({"average": timepoints}, ip)
+
+    return trajectory

@@ -10,6 +10,34 @@ from tests import test_data_dir
 
 class IndividualParametersTest(unittest.TestCase):
 
+    def setUp(self):
+        self.indices = ['idx1', 'idx2', 'idx3']
+        self.p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
+        self.p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+        self.p3 = {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]}
+        self.parameters_shape = {"xi": 1, "tau": 1, "sources": 2}
+        self.individual_parameters = {"idx1": self.p1, "idx2": self.p2, "idx3": self.p3}
+
+        ip = IndividualParameters()
+        ip.add_individual_parameters("idx1", self.p1)
+        ip.add_individual_parameters("idx2", self.p2)
+        ip.add_individual_parameters("idx3", self.p3)
+
+        self.ip = ip
+
+        self.ip_df = pd.DataFrame(data=[[0.1, 70, 0.1, -0.3], [0.2, 73, -0.4, 0.1], [0.3, 58, -0.6, 0.2]],
+                                  index=["idx1", "idx2", "idx3"],
+                                  columns=["xi", "tau", "sources_0", "sources_1"])
+
+        self.ip_pytorch = {
+            "xi": torch.tensor([[0.1], [0.2], [0.3]], dtype=torch.float32),
+            "tau": torch.tensor([[70], [73], [58.]], dtype=torch.float32),
+            "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1], [-0.6, 0.2]], dtype=torch.float32)
+        }
+        self.path_json = os.path.join(test_data_dir, "io", "outputs", "ip_save.json")
+        self.path_csv = os.path.join(test_data_dir, "io", "outputs", "ip_save.csv")
+
+
     def test_constructor(self):
 
         ip = IndividualParameters()
@@ -49,32 +77,16 @@ class IndividualParametersTest(unittest.TestCase):
 
     def test_subset(self):
 
-        ip = IndividualParameters()
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
-        p3 = {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]}
-
-        ip.add_individual_parameters("idx1", p1)
-        ip.add_individual_parameters("idx2", p2)
-        ip.add_individual_parameters("idx3", p3)
-
-        ip2 = ip.subset(["idx1", "idx3"])
+        ip2 = self.ip.subset(["idx1", "idx3"])
 
         self.assertEqual(ip2._indices, ["idx1", "idx3"])
-        self.assertEqual(ip2._individual_parameters, {"idx1": p1, "idx3": p3})
-        self.assertEqual(ip2._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
+        self.assertEqual(ip2._individual_parameters, {"idx1": self.p1, "idx3": self.p3})
+        self.assertEqual(ip2._parameters_shape, self.parameters_shape)
 
 
     def test_get_mean(self):
 
-        ip = IndividualParameters()
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
-        p3 = {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]}
-
-        ip.add_individual_parameters("idx1", p1)
-        ip.add_individual_parameters("idx2", p2)
-        ip.add_individual_parameters("idx3", p3)
+        ip = self.ip
 
         self.assertAlmostEqual(ip.get_mean('xi'), 0.2, delta=10e-10)
         self.assertAlmostEqual(ip.get_mean('tau'), 67., delta=10e-10)
@@ -86,14 +98,7 @@ class IndividualParametersTest(unittest.TestCase):
 
     def test_get_std(self):
 
-        ip = IndividualParameters()
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
-        p3 = {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]}
-
-        ip.add_individual_parameters("idx1", p1)
-        ip.add_individual_parameters("idx2", p2)
-        ip.add_individual_parameters("idx3", p3)
+        ip = self.ip
 
         self.assertAlmostEqual(ip.get_std('xi'), 0.0816496580927726, delta=10e-10)
         self.assertAlmostEqual(ip.get_std('tau'), 6.48074069840786, delta=10e-10)
@@ -106,46 +111,26 @@ class IndividualParametersTest(unittest.TestCase):
 
 
     def test_to_dataframe(self):
-        ip = IndividualParameters()
-
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
-
-        ip.add_individual_parameters("idx1", p1)
-        ip.add_individual_parameters("idx2", p2)
-
+        ip = self.ip
         df = ip.to_dataframe()
-        df_test = pd.DataFrame(data=[[0.1, 70, 0.1, -0.3], [0.2, 73, -0.4, 0.1]],
-                               index=["idx1", "idx2"],
-                               columns=["xi", "tau", "sources_0", "sources_1"])
 
-        self.assertTrue((df.values == df_test.values).all())
-        self.assertTrue((df.index == df_test.index).all())
-        for n1, n2 in zip(df.columns, df_test.columns):
+        self.assertTrue((df.values == self.ip_df.values).all())
+        self.assertTrue((df.index == self.ip_df.index).all())
+        for n1, n2 in zip(df.columns, self.ip_df.columns):
             self.assertEqual(n1, n2)
 
 
     def test_from_dataframe(self):
 
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
+        ip = IndividualParameters.from_dataframe(self.ip_df)
 
-        df = pd.DataFrame(data=[[0.1, 70, 0.1, -0.3], [0.2, 73, -0.4, 0.1]],
-                          index=["idx1", "idx2"],
-                          columns=["xi", "tau", "sources_0", "sources_1"])
-
-        ip = IndividualParameters.from_dataframe(df)
-
-        self.assertEqual(ip._indices, ["idx1", "idx2"])
-        self.assertEqual(ip._individual_parameters, {"idx1": p1, "idx2": p2})
-        self.assertEqual(ip._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
+        self.assertEqual(ip._indices, self.indices)
+        self.assertEqual(ip._individual_parameters, self.individual_parameters)
+        self.assertEqual(ip._parameters_shape, self.parameters_shape)
 
     def test_to_from_dataframe(self):
-        df1 = pd.DataFrame(data=[[0.1, 70, 0.1, -0.3], [0.2, 73, -0.4, 0.1]],
-                           index=["idx1", "idx2"],
-                           columns=["xi", "tau", "sources_0", "sources_1"])
 
-        ip1 = IndividualParameters.from_dataframe(df1)
+        ip1 = IndividualParameters.from_dataframe(self.ip_df)
         df2 = ip1.to_dataframe()
         ip2 = IndividualParameters.from_dataframe(df2)
 
@@ -155,36 +140,24 @@ class IndividualParametersTest(unittest.TestCase):
         self.assertDictEqual(ip1._parameters_shape, ip2._parameters_shape)
 
         # Test between dataframes
-        self.assertTrue((df1.values == df2.values).all())
-        self.assertTrue((df1.index == df2.index).all())
-        for n1, n2 in zip(df1.columns, df2.columns):
+        self.assertTrue((self.ip_df.values == df2.values).all())
+        self.assertTrue((self.ip_df.index == df2.index).all())
+        for n1, n2 in zip(self.ip_df.columns, df2.columns):
             self.assertEqual(n1, n2)
 
     def test_to_pytorch(self):
         """
 
         """
-        ip = IndividualParameters()
-
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
-
-        ip.add_individual_parameters("idx1", p1)
-        ip.add_individual_parameters("idx2", p2)
+        ip = self.ip
 
         indices, ip_pytorch = ip.to_pytorch()
 
-        dict_test = {
-            "xi": torch.tensor([[0.1], [0.2]], dtype=torch.float32),
-            "tau": torch.tensor([[70], [73]], dtype=torch.float32),
-            "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1]], dtype=torch.float32)
-        }
+        self.assertEqual(indices, self.indices)
 
-        self.assertEqual(indices, ["idx1", "idx2"])
-
-        self.assertEqual(ip_pytorch.keys(), dict_test.keys())
-        for k in dict_test.keys():
-            self.assertTrue((ip_pytorch[k] == dict_test[k]).all())
+        self.assertEqual(ip_pytorch.keys(), self.ip_pytorch.keys())
+        for k in self.ip_pytorch.keys():
+            self.assertTrue((ip_pytorch[k] == self.ip_pytorch[k]).all())
 
 
     def test_from_pytorch(self):
@@ -192,23 +165,13 @@ class IndividualParametersTest(unittest.TestCase):
 
         """
 
-        ip_pytorch = {
-            "xi": torch.tensor([[0.1], [0.2]], dtype=torch.float32),
-            "tau": torch.tensor([[70], [73]], dtype=torch.float32),
-            "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1]], dtype=torch.float32)
-        }
+        ip = IndividualParameters.from_pytorch(self.indices, self.ip_pytorch)
 
-        ip = IndividualParameters.from_pytorch(["idx1", "idx2"], ip_pytorch)
-
-        dict_test = {
-            "idx1": {"xi": 0.1, "tau": 70., "sources": [0.1, -0.3]},
-            "idx2": {"xi": 0.2, "tau": 73., "sources": [-0.4, 0.1]}
-        }
-
-        self.assertEqual(ip._indices, ["idx1", "idx2"])
-        self.assertEqual(ip._individual_parameters.keys(), dict_test.keys())
-        for k, v in dict_test.items():
-            for kk, vv in dict_test[k].items():
+        self.assertEqual(ip._indices, self.indices)
+        self.assertEqual(ip._individual_parameters.keys(), self.individual_parameters.keys())
+        self.assertDictEqual(ip._parameters_shape, self.parameters_shape)
+        for k, v in self.individual_parameters.items():
+            for kk, vv in self.individual_parameters[k].items():
                 self.assertTrue(kk in ip._individual_parameters[k].keys())
                 if np.ndim(vv) == 0:
                     self.assertAlmostEqual(ip._individual_parameters[k][kk], vv, delta=10e-8)
@@ -219,14 +182,7 @@ class IndividualParametersTest(unittest.TestCase):
 
     def test_from_to_pytorch(self):
 
-        ip_pytorch = {
-            "xi": torch.tensor([[0.1], [0.2]], dtype=torch.float32),
-            "tau": torch.tensor([[70], [73]], dtype=torch.float32),
-            "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1]], dtype=torch.float32)
-        }
-        indices = ["idx1", "idx2"]
-
-        ip = IndividualParameters.from_pytorch(indices, ip_pytorch)
+        ip = IndividualParameters.from_pytorch(self.indices, self.ip_pytorch)
         ip_indices, ip_pytorch2 = ip.to_pytorch()
         ip2 = IndividualParameters.from_pytorch(ip_indices, ip_pytorch2)
 
@@ -237,9 +193,9 @@ class IndividualParametersTest(unittest.TestCase):
 
 
         # Test Pytorch dictionaries
-        self.assertEqual(ip_pytorch.keys(), ip_pytorch2.keys())
-        for k in ip_pytorch.keys():
-            for v1, v2 in zip(ip_pytorch[k], ip_pytorch2[k]):
+        self.assertEqual(self.ip_pytorch.keys(), ip_pytorch2.keys())
+        for k in self.ip_pytorch.keys():
+            for v1, v2 in zip(self.ip_pytorch[k], ip_pytorch2[k]):
                 self.assertTrue((v1.numpy() - v2.numpy() == 0).all())
 
 
@@ -260,16 +216,12 @@ class IndividualParametersTest(unittest.TestCase):
 
     def test_save_csv(self):
 
-        ip = IndividualParameters()
-        ip.add_individual_parameters("idx1", {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
-        ip.add_individual_parameters("idx2", {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]})
-
-        path = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
+        ip = self.ip
 
         test_path = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv_test.csv")
         ip._save_csv(test_path)
 
-        with open(path, 'r') as f1, open(test_path, 'r') as f2:
+        with open(self.path_csv, 'r') as f1, open(test_path, 'r') as f2:
             file1 = f1.readlines()
             file2 = f2.readlines()
 
@@ -288,16 +240,12 @@ class IndividualParametersTest(unittest.TestCase):
             else:
                 return obj
 
-        ip = IndividualParameters()
-        ip.add_individual_parameters("idx1", {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
-        ip.add_individual_parameters("idx2", {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]})
-
-        path = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
+        ip = self.ip
 
         test_path = os.path.join(test_data_dir, "io", "outputs", "ip_save_json_test.json")
         ip._save_json(test_path)
 
-        with open(path, 'r') as f1, open(test_path, 'r') as f2:
+        with open(self.path_json, 'r') as f1, open(test_path, 'r') as f2:
             file1 = json.load(f1)
             file2 = json.load(f2)
 
@@ -305,53 +253,35 @@ class IndividualParametersTest(unittest.TestCase):
 
         os.remove(test_path)
 
-
     def test_load_csv(self):
-        path = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
-        ip = IndividualParameters._load_csv(path)
+        ip = IndividualParameters._load_csv(self.path_csv)
 
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
-
-        self.assertEqual(ip._indices, ["idx1", "idx2"])
-        self.assertEqual(ip._individual_parameters, {"idx1": p1, "idx2": p2})
-        self.assertEqual(ip._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
+        self.assertEqual(ip._indices, self.indices)
+        self.assertEqual(ip._individual_parameters, self.individual_parameters)
+        self.assertEqual(ip._parameters_shape, self.parameters_shape)
 
     def test_load_json(self):
-        path = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
-        ip = IndividualParameters._load_json(path)
+        ip = IndividualParameters._load_json(self.path_json)
 
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
-
-        self.assertEqual(ip._indices, ["idx1", "idx2"])
-        self.assertEqual(ip._individual_parameters, {"idx1": p1, "idx2": p2})
-        self.assertEqual(ip._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
-
+        self.assertEqual(ip._indices, self.indices)
+        self.assertEqual(ip._individual_parameters, self.individual_parameters)
+        self.assertEqual(ip._parameters_shape, self.parameters_shape)
 
     def test_load_individual_parameters(self):
-        # Parameters
-        p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
-        p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
-        indices = ["idx1", "idx2"]
-        individual_parameters = {"idx1": p1, "idx2": p2}
-        parameters_shape = {"xi": 1, "tau": 1, "sources": 2}
 
         # Test json
-        path_json = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
-        ip_json = IndividualParameters.load(path_json)
+        ip_json = IndividualParameters.load(self.path_json)
 
-        self.assertEqual(ip_json._indices, indices)
-        self.assertEqual(ip_json._individual_parameters, individual_parameters)
-        self.assertEqual(ip_json._parameters_shape, parameters_shape)
+        self.assertEqual(ip_json._indices, self.indices)
+        self.assertEqual(ip_json._individual_parameters, self.individual_parameters)
+        self.assertEqual(ip_json._parameters_shape, self.parameters_shape)
 
         # Test csv
-        path_csv = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
-        ip_csv = IndividualParameters.load(path_csv)
+        ip_csv = IndividualParameters.load(self.path_csv)
 
-        self.assertEqual(ip_csv._indices, indices)
-        self.assertEqual(ip_csv._individual_parameters, individual_parameters)
-        self.assertEqual(ip_csv._parameters_shape, parameters_shape)
+        self.assertEqual(ip_csv._indices, self.indices)
+        self.assertEqual(ip_csv._individual_parameters, self.individual_parameters)
+        self.assertEqual(ip_csv._parameters_shape, self.parameters_shape)
 
     def test_save_individual_parameters(self):
 
@@ -365,22 +295,15 @@ class IndividualParametersTest(unittest.TestCase):
                 return obj
 
         # Parameters
-        ip = IndividualParameters()
-        ip.add_individual_parameters("idx1", {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
-        ip.add_individual_parameters("idx2", {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]})
-
-        path_json = os.path.join(test_data_dir, "io", "outputs", "ip_save_json.json")
+        ip = self.ip
         path_json_test = os.path.join(test_data_dir, "io", "outputs", "ip_save_json_test.json")
-
-        path_csv = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv.csv")
         path_csv_test = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv_test.csv")
-
         path_default = os.path.join(test_data_dir, "io", "outputs", "ip_save_default")
 
         # Test json
         ip.save(path_json_test)
 
-        with open(path_json, 'r') as f1, open(path_json_test, 'r') as f2:
+        with open(self.path_json, 'r') as f1, open(path_json_test, 'r') as f2:
             file1 = json.load(f1)
             file2 = json.load(f2)
 
@@ -391,7 +314,7 @@ class IndividualParametersTest(unittest.TestCase):
         # Test csv
         ip.save(path_csv_test)
 
-        with open(path_csv, 'r') as f1, open(path_csv_test, 'r') as f2:
+        with open(self.path_csv, 'r') as f1, open(path_csv_test, 'r') as f2:
             file1 = f1.readlines()
             file2 = f2.readlines()
 
@@ -404,7 +327,7 @@ class IndividualParametersTest(unittest.TestCase):
         ip.save(path_default)
         path_default_with_extension = path_default + '.' + ip._default_saving_type
 
-        with open(path_csv, 'r') as f1, open(path_default_with_extension, 'r') as f2:
+        with open(self.path_csv, 'r') as f1, open(path_default_with_extension, 'r') as f2:
             file1 = f1.readlines()
             file2 = f2.readlines()
 

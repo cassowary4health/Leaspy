@@ -272,7 +272,7 @@ class Leaspy:
             of shape (number of timepoints to estimate for subject x shape of feature space),
             containing features values at the different timepoints.
 
-        Raises
+        es
         ------
         ValueError
             If any checks fails.

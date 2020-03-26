@@ -5,18 +5,46 @@ import numpy as np
 import warnings
 
 class IndividualParameters:
-    """
+    r"""
     IndividualParameters object class.
     The object holds a collection of individual parameters, that are outputs of the api personalization.
     There are used as io of the simulation algorithm, to provide an initial distribution of individual parameters.
 
     Attributes
     ----------
-
+    _indices: list
+        List of the patient indices
+    _individual_parameters: dict
+        Individual indices (key) with their corresponding individual parameters {parameter name: parameter value}
+    _parameters_shape: dict
+        Shape of each individual parameter
+    _default_saving_type: str
+        Default extension for saving when none is provided
 
     Methods
     ----------
-
+    add_individual_parameters(index, individual_parameters)
+        Adds the individual parameters of a new patient
+    __getitem__[index]
+        Returns the individual parameters of patient idx
+    subset(indices)
+        Returns a IndividualParameters object containing only the patients in indices
+    get_mean(parameter_name)
+        Returns the mean value of the parameter_name across all patients
+    get_std(parameter_name)
+        Return the standard deviation value of the parameter_name across all patients
+    to_dataframe()
+        Returns the dataframe of individual parameters
+    from_dataframe(df)
+        Static method that returns an IndividualParameters object from the dataframe
+    to_pytorch()
+        Returns the indices, pytorch_dict corresponding to the individual parameters
+    from_pytorch(indices, pytorch_dict)
+        Static method that returns an IndividualParameters object from the indices and pytorch dictionary
+    save(path):
+        Saves the individual parameters (json or csv) at the path location
+    load(path):
+        Static method that loads the individual parameters (json or csv) existing at the path locatio
     """
 
     def __init__(self):
@@ -26,7 +54,33 @@ class IndividualParameters:
         self._default_saving_type = 'csv'
 
     def add_individual_parameters(self, index, individual_parameters):
+        r"""
+        Add the individual parameter of an individual to the IndividualParameters object
+
+        Parameters
+        ----------
+        index: str
+            Index of the individual
+        individual_parameters: dict
+            Individual parameters of the individual {name: value}
+
+        Raises
+        ------
+        ValueError
+            If the index is not a string or has already been added
+
+        Examples
+        --------
+        Add two individual with tau, xi and sources parameters
+
+        >>> ip = IndividualParameters()
+        >>> ip.add_individual_parameters('index-1', {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
+        >>> ip.add_individual_parameters('index-2', {"xi": 0.2, "tau": 73, "sources": [-0.4, -0.1]})
+        """
         # Check indices
+        if type(index) != str:
+            raise ValueError(f'The index should be a string ({type(item)} provided instead)')
+
         if index in self._indices:
             raise ValueError(f'The index {index} has already been added before')
         self._indices.append(index)
@@ -49,18 +103,73 @@ class IndividualParameters:
                 self._parameters_shape[k] = 1 if np.ndim(v) == 0 else len(v)
 
     def __getitem__(self, item):
+        if type(item) != str:
+            raise ValueError(f'The index should be a string ({type(item)} provided instead)')
         return self._individual_parameters[item]
 
     def subset(self, indices):
+        r"""
+        Returns IndividualParameters object with a subset of the initial individuals
+
+        Parameters
+        ----------
+        indices: list
+            List of strings that corresponds to the indices of the individuals to return
+
+        Returns
+        -------
+        IndividualParameters
+            An instance of the IndividualParameters object with the selected list of individuals
+
+        Raises
+        ------
+        ValueError
+            Raise an error if one of the index is not in the IndividualParameters
+
+        Examples
+        --------
+
+        >>> ip = IndividualParameters()
+        >>> ip.add_individual_parameters('index-1', {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
+        >>> ip.add_individual_parameters('index-2', {"xi": 0.2, "tau": 73, "sources": [-0.4, -0.1]})
+        >>> ip.add_individual_parameters('index-3', {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]})
+        >>> ip_sub = ip.subset(['index-1', 'index-3'])
+        """
         ip = IndividualParameters()
 
         for idx in indices:
+            if idx not in self._indices:
+                raise ValueError(f'The index {index} is not in the indices')
             p = self[idx].copy()
             ip.add_individual_parameters(idx, p)
 
         return ip
 
     def get_mean(self, parameter):
+        r"""
+        Returns the mean value of the parameter_name across all patients
+
+        Parameters
+        ----------
+        parameter: str
+            Name of the parameter
+
+        Returns
+        -------
+        list or float
+            Mean value of the parameter
+
+        Raises
+        ------
+        ValueError
+            If the parameter is not in the IndividualParameters
+
+        Examples
+        --------
+
+        >>> ip = IndividualParameters.load("path/to/individual_parameters")
+        >>> tau_mean = ip.get_mean("tau")
+        """
         if parameter not in self._parameters_shape.keys():
             ValueError(f"Parameter {parameter} does not exist in the individual parameters")
 
@@ -69,19 +178,56 @@ class IndividualParameters:
 
         return p_mean
 
-
     def get_std(self, parameter):
+        r"""
+        Returns the stardard deviation of the parameter_name across all patients
+
+        Parameters
+        ----------
+        parameter: str
+            Name of the parameter
+
+        Returns
+        -------
+        list or float
+            Standard value of the parameter
+
+        Raises
+        ------
+        ValueError
+            If the parameter is not in the IndividualParameters
+
+        Examples
+        --------
+
+        >>> ip = IndividualParameters.load("path/to/individual_parameters")
+        >>> tau_std = ip.get_std("tau")
+        """
         if parameter not in self._parameters_shape.keys():
             ValueError(f"Parameter {parameter} does not exist in the individual parameters")
 
         p = [v[parameter] for v in self._individual_parameters.values()]
-        p_mean = np.std(p, axis=0).tolist()
+        p_std = np.std(p, axis=0).tolist()
 
-        return p_mean
+        return p_std
 
     def to_dataframe(self):
-        """
+        r"""
+        Returns the dataframe of individual parameters
 
+        Returns
+        -------
+        dataframe: pandas.DataFrame
+            Each row corresponds to one individual. The index corresponds to the individual index. The columns are
+            the names of the parameters.
+
+
+        Examples
+        --------
+        Convert the individual parameters object into a dataframe
+
+        >>> ip = IndividualParameters.load("path/to/individual_parameters")
+        >>> ip_df = ip.to_dataframe()
         """
         p_names = list(self._parameters_shape.keys())
 
@@ -116,7 +262,19 @@ class IndividualParameters:
 
     @staticmethod
     def from_dataframe(df):
-        """
+        r"""
+        Static method that returns an IndividualParameters object from the dataframe
+
+        Parameters
+        ----------
+        df: pandas.DataFrame
+            Dataframe of the invidual parameters. Each row must correspond to one individual. The index corresponds
+            to the individual index. The columns are the names of the parameters.
+
+
+        Returns
+        -------
+        IndividualParameters
 
         """
         # Check the names to keep
@@ -142,9 +300,39 @@ class IndividualParameters:
 
     @staticmethod
     def from_pytorch(indices, dict_pytorch):
-        """
+        r"""
+        Static method that returns an IndividualParameters object from the indices and pytorch dictionary
+
+        Parameters
+        ----------
+        indices: list
+            List of the patients indices
+        dict_pytorch: dict
+            Dictionary of the individual parameters
+
+        Returns
+        -------
+        IndividualParameters
+
+
+        Examples
+        --------
+
+        >>> indices = ['index-1', 'index-2', 'index-3']
+        >>> ip_pytorch = {
+        >>>    "xi": torch.tensor([[0.1], [0.2], [0.3]], dtype=torch.float32),
+        >>>    "tau": torch.tensor([[70], [73], [58.]], dtype=torch.float32),
+        >>>    "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1], [-0.6, 0.2]], dtype=torch.float32)
+        >>> }
+        >>> ip_pytorch = IndividualParameters.from_pytorch(indices, ip_pytorch)
 
         """
+
+        len_p = {k: len(v) for k, v in dict_pytorch.items()}
+        for k, v in len_p.items():
+            if v != len(indices):
+                raise ValueError(f'The parameter {k} should be of same length as the indices')
+
         ip = IndividualParameters()
 
         keys = list(dict_pytorch.keys())
@@ -158,8 +346,23 @@ class IndividualParameters:
         return ip
 
     def to_pytorch(self):
-        """
+        r"""
+        Returns the indices and pytorch dictionary of individual parameters
 
+        Returns
+        -------
+        indices: list
+            List of patient indices
+        pytorch_dict: dict
+            Dictionary of the individual parameters {parameters name: pytorch list of values across individuals}
+
+
+        Examples
+        --------
+        Convert the individual parameters object into a dataframe
+
+        >>> ip = IndividualParameters.load("path/to/individual_parameters")
+        >>> indices, ip_pytorch = ip.to_pytorch()
         """
         ips_pytorch = {}
         p_names = list(self._parameters_shape)
@@ -175,6 +378,16 @@ class IndividualParameters:
         return self._indices, ips_pytorch
 
     def save(self, path):
+        r"""
+        Saves the individual parameters (json or csv) at the path location
+
+        Parameters
+        ----------
+        path: str
+            Path and file name of the individual parameters. The extension can be json or csv.
+            If no extension, default extension (csv) is used
+
+        """
         extension = IndividualParameters._check_and_get_extension(path)
         if not extension:
             warnings.warn(f'You did not provide a valid extension (csv or json) for the file. '
@@ -191,6 +404,30 @@ class IndividualParameters:
 
     @staticmethod
     def load(path):
+        r"""
+        Static method that loads the individual parameters (json or csv) existing at the path locatio
+
+        Parameters
+        ----------
+        path: str
+            Path and file name of the individual parameters.
+
+        Returns
+        -------
+        IndividualParameters:
+            Individual parameters object load from the file
+
+        Raises
+        ------
+        ValueError:
+            If the provided extension is not csv not json
+
+        Examples
+        --------
+
+        >>> ip = IndividualParameters.load('/path/to/individual_parameters_1.json')
+        >>> ip2 = IndividualParameters.load('/path/to/individual_parameters_2.csv')
+        """
         extension = IndividualParameters._check_and_get_extension(path)
         if not extension or extension not in ['csv', 'json']:
             raise ValueError('The file you provide should have a `.csv` or `.json` name')

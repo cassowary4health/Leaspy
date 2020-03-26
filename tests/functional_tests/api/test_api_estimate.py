@@ -13,7 +13,7 @@ class LeaspyEstimateTest(unittest.TestCase):
         model_parameters_path = os.path.join(test_data_dir, 'model_parameters', 'fitted_multivariate_model.json')
         leaspy = Leaspy.load(model_parameters_path)
 
-        ip_path = os.path.join(test_data_dir, 'io', 'outputs', 'ip_save_json.json')
+        ip_path = os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json')
         ip = IndividualParameters.load(ip_path)
 
         timepoints = {

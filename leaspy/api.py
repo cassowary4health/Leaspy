@@ -332,11 +332,9 @@ class Leaspy:
 
         Returns
         -------
-        individual_trajectory_gen: generator
-            Each element, corresponding to each individual (ordered as is), is a torch tensor
-            of shape (number of timepoints to estimate for subject x shape of feature space),
-            containing features values at the different timepoints.
-
+        individual_trajectory: dict
+            Key: patient indices. Value : Numpy array of the estimated value, in the shape
+            (number of timepoints, number of features)
 
         Examples
         --------
@@ -355,7 +353,7 @@ class Leaspy:
             ip = individual_parameters[index]
             est = self.model.compute_individual_trajectory(time, ip)
 
-            estimations[index] = est
+            estimations[index] = est[0].numpy()
 
         return estimations
 

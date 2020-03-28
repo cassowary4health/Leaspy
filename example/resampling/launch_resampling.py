@@ -9,7 +9,7 @@ import numpy as np
 #%% Parameters
 
 # N iter
-n_iter = 10
+n_iter = 500
 
 # Model parameters
 features = ["Y_{}".format(i) for i in range(4)]
@@ -42,7 +42,7 @@ from sklearn.model_selection import RepeatedKFold
 X = df.index.unique('ID')
 
 if resampling_method=="RepCV":
-    skf = RepeatedKFold(n_splits=n_folds, n_repeats=n_rep, random_state=None)
+    skf = RepeatedKFold(n_splits=n_folds, n_repeats=n_rep, random_state=seed)
     resampling_indices = {}
     for j, (train_index, test_index) in enumerate(skf.split(X)):
        patients_train, patients_test = np.array(X)[train_index], np.array(X)[test_index]
@@ -90,7 +90,7 @@ leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, leaspy_
 
 # paths and parameters
 personalize_algorithm = "scipy_minimize"
-n_iter_personalize = 10
+n_iter_personalize = 100
 name = "personalize_0"
 path_output_personalize = os.path.join(output_directory, experiment_folder, "personalize", name)
 if not os.path.exists(path_output_personalize):

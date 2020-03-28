@@ -10,7 +10,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 import pandas as pd
-0
+
 # Leaspy
 run_aramis_machine = 0
 if run_aramis_machine:
@@ -70,13 +70,24 @@ for i in range(n_folds*n_rep):
     leaspy = Leaspy.load(model_paths[i])
     leaspy_iter.append(leaspy)
 
+# Load indices
+import json
+with open(os.path.join(path_output, "resampling_indices.json"), "r") as json_file:
+    indices_resampling = json.load(json_file)
+
+
+###################################
+## Computations
+###################################
+
+
 #%% 1. Compute Trajectories and times of abnormalities
 
 from leaspy.utils.posterior_analysis.general import compute_trajectory_of_population
 from leaspy.utils.posterior_analysis.abnormality import get_age_at_abnormality_conversion
 
 # Compute cutoffs (left to user)
-dummy_cutoffs = {"Y{}".format(i):0.5 for i in range(4)}
+dummy_cutoffs = {"Y{}".format(i):0.1*(1+i) for i in range(4)}
 
 #### No resampling
 resampling_iter = 0
@@ -107,7 +118,6 @@ times_resampling = get_age_at_abnormality_conversion_resampling(leaspy_iter,
                                                 timepoints,
                                                 dummy_cutoffs)
 
-
 #%% 2. Compare 2 subgroups
 
 ## Get dummy groups
@@ -135,7 +145,6 @@ stats_group2 = compute_subgroup_statistics_resampling(leaspy_iter,
                                  df_cofactors_dummy,
                                  idx_group2)
 
-
 #%% 3. Compute Correlations
 
 ## Without resampling
@@ -143,4 +152,143 @@ from leaspy.utils.posterior_analysis.statistical_analysis import compute_correla
 corr_value, corr_log10pvalue = compute_correlation(leaspy_iter[0], individual_parameters_iter[0], df_cofactors_dummy)
 
 ## With resampling
+from leaspy.utils.resampling.general import compute_correlation_resampling
+correlation_resampling = compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_cofactors_dummy)
+corr_value_mean, corr_log10pvalue_mean, corr_value_std, corr_log10pvalue_std = correlation_resampling
 
+
+
+###################################
+## Plots
+###################################
+from matplotlib.lines import Line2D
+import matplotlib.pyplot as plt
+alpha_lines = 0.5
+width_lines = 2
+fontsize = 20
+colors = [
+    'grey',
+    'goldenrod',
+    'darkviolet',
+    'green',
+    'firebrick',
+    'royalblue',
+    'darksalmon',
+    'lightskyblue',
+]
+
+
+#%% 0. Spaghetti plots of raw data
+
+# Get args
+df = pd.read_csv(os.path.join(output_directory, "df.csv"))
+data = Data.from_dataframe(df)
+
+# Args : data
+fig, ax = plt.subplots(data.dimension, 1, figsize=(16,16))
+
+for patient in data:
+    for dim in range(data.dimension):
+        ax[dim].plot(patient.timepoints,
+                     [patient.observations[i][dim] for i,_ in enumerate(patient.timepoints)],
+                     alpha=0.6,
+                     c=colors[dim])
+        ax[dim].set_title(data.headers[dim])
+plt.show()
+
+#%% 1. Compute Trajectories and times of abnormalities
+
+## Get args
+cutoffs = dummy_cutoffs
+# Diagnostic ages # TODO real ones
+diagnostic_ages = {str(idx) : data.individuals[idx].timepoints[0] for idx in data.individuals.keys()}
+# Average on resampling subgroup
+diagnostic_ages_mean_resampling = [np.mean([diagnostic_ages[str(idx)] for idx in indices_resampling[str(resampling_iter)][0]]) for resampling_iter in range(n_resampling_iter)]
+# Average of reparametrized age on resampling subgroup
+from leaspy.utils.posterior_analysis.general import get_reparametrized_ages
+diagnostic_ages_reparametrized_mean_resampling = {resampling_iter:
+                                                 np.mean(list(get_reparametrized_ages(
+                                                     {idx: [diagnostic_ages[idx]] for idx in
+                                                      individual_parameters_iter[resampling_iter]._indices},
+                                                     individual_parameters_iter[resampling_iter],
+                                                     leaspy_iter[resampling_iter]).values())) for resampling_iter in range(n_resampling_iter)}
+
+
+# Args : cutoffs, trajectory_resampling, diagnostic_ages_resampling
+features = data.headers
+
+fig, ax = plt.subplots(1, 1, sharex=True, figsize=(12, 8))
+
+# Average trajectory values
+for resampling_iter in range(n_resampling_iter):
+    idx_features_randomized = np.random.choice(list(range(len(features))), len(features), replace=False)
+    features_randomized = np.array(features)[idx_features_randomized]
+    for j, feature in zip(idx_features_randomized, features_randomized):
+        ax.plot(timepoints,
+                trajectory_resampling[resampling_iter][:,j],
+                   linewidth=width_lines, alpha=alpha_lines, c=colors[j])
+
+
+# Plot cutoffs and mean age of when it is reached
+for j, feature in enumerate(cutoffs):
+    for resampling_iter in range(n_resampling_iter):
+        t_abnormal = times_resampling[resampling_iter,0,j]
+        ax.hlines(cutoffs[feature], min(timepoints), t_abnormal, colors=colors[j])
+        ax.vlines(t_abnormal, 0,  cutoffs[feature], colors=colors[j])
+
+        height_text = 1.0
+
+        ax.vlines(t_abnormal, cutoffs[feature], height_text,  colors=colors[j], linestyles='--')
+
+# Diagnostic Age
+for resampling_iter in range(n_resampling_iter):
+    ax.vlines(diagnostic_ages_mean_resampling[resampling_iter], 0 ,0.82,
+              color="black", linewidth = 6, alpha=0.3)
+    ax.vlines(diagnostic_ages_reparametrized_mean_resampling[resampling_iter], 0, 0.82,
+              color="red", linewidth=6, alpha=0.3)
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+ax.text(np.mean(diagnostic_ages_mean_resampling), 0.85, "PD Age",
+        rotation=0, fontsize=fontsize+5, bbox=props,
+        horizontalalignment="center")
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+ax.text(np.mean(list(diagnostic_ages_reparametrized_mean_resampling.values())), 0.95, "PD Age Reparam",
+        rotation=0, fontsize=fontsize+5, bbox=props, c="red",
+        horizontalalignment="center")
+
+# Legend
+from matplotlib.lines import Line2D
+custom_lines = [Line2D([0], [0], color=colors[i], lw=8, alpha=0.9) for i in range(len(features))]
+print(custom_lines)
+ax.legend(custom_lines, features, loc='upper left', fontsize=fontsize)
+plt.tight_layout()
+plt.ylim(0,1.05)
+plt.show()
+
+
+#%% 2. Compare 2 subgroups
+
+
+
+
+#%% 3. Compute Correlations
+
+# Args : cutoffs, trajectory_resampling, diagnostic_ages_resampling
+
+# TODO : do a pls for the sources --> change over resampling iterations
+
+#corr_value_mean, corr_log10pvalue_mean, corr_value_std, corr_log10pvalue_std
+
+import seaborn as sns
+fig, ax = plt.subplots(1,1,figsize=(10,10))
+sns.heatmap(corr_log10pvalue_mean,annot=True, ax=ax)
+plt.show()
+
+import seaborn as sns
+fig, ax = plt.subplots(1,1,figsize=(10,10))
+sns.heatmap(corr_log10pvalue_std,annot=True, ax=ax)
+plt.show()
+
+fig, ax = plt.subplots(1,1,figsize=(10,10))
+corr_value_mean[corr_log10pvalue_mean>np.log10(0.05)]=np.nan
+sns.heatmap(corr_value_mean,annot=True, ax=ax)
+plt.show()

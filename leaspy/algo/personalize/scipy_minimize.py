@@ -235,6 +235,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
             ind_patient, err = self._get_individual_parameters_patient(model, times, values)
             ind_p = {k: v for k, v in zip(p_names, ind_patient)}
-            individual_parameters.add_individual_parameters(idx, ind_p)
+            individual_parameters.add_individual_parameters(str(idx), ind_p)
 
         return individual_parameters

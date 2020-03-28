@@ -23,7 +23,7 @@ n_folds = 3
 n_resampling_iter = n_rep*n_folds
 
 # Paths
-output_directory = 'example/bootstrap/_outputs/'
+output_directory = 'example/resampling/_outputs/'
 experiment_folder = "Experiment_0"
 path_output = os.path.join(output_directory, experiment_folder)
 path_output_calibrate = os.path.join(output_directory, experiment_folder, "calibrate")
@@ -33,7 +33,7 @@ if not os.path.exists(path_output_calibrate):
     os.makedirs(path_output_calibrate)
 
 #%% Load Data
-input_directory = 'example/bootstrap/_inputs/'
+input_directory = 'example/resampling/_inputs/'
 df = pd.read_csv(os.path.join(input_directory, 'data.csv')).set_index(['ID','TIME'])
 
 #%% Create the Resempling procedure and get indices in train/test for each run
@@ -90,7 +90,7 @@ leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, leaspy_
 
 # paths and parameters
 personalize_algorithm = "scipy_minimize"
-n_iter_personalize = 1
+n_iter_personalize = 10
 name = "personalize_0"
 path_output_personalize = os.path.join(output_directory, experiment_folder, "personalize", name)
 if not os.path.exists(path_output_personalize):
@@ -118,5 +118,7 @@ def leaspy_res_cb(ind_params, i):
     # Save result somewhere ????
     path_res = os.path.join(path_output_personalize, "individual_parameters_{}.json".format(i))
     ind_params.save(path_res)
+    print(ind_params._indices)
+    print(ind_params._individual_parameters)
 
 res_parallel = leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_personalize_iter, leaspy_res_cb, n_jobs)

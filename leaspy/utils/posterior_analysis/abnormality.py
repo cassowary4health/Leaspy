@@ -31,17 +31,18 @@ from leaspy.utils.posterior_analysis.general import compute_trajectory_of_popula
 import numpy as np
 import torch
 
-def get_age_at_abnormality_conversion(leaspy,
+def get_age_at_abnormality_conversion(abnormality_thresholds,
                                       individual_parameter,
                                       timepoints,
-                                      abnormality_thresholds):
+                                      leaspy):
 
     features = leaspy.model.features
 
     # compute model values
-    model_values = compute_trajectory_of_population(leaspy,
+    model_values = compute_trajectory_of_population(timepoints,
                                                     individual_parameter,
-                                                    timepoints)["average"].detach().numpy()
+                                                    leaspy
+                                                    )
 
     # Get cutoffs
     cutoffs = [abnormality_thresholds[feature] for feature in features]
@@ -74,7 +75,8 @@ def get_age_at_abnormality_conversion(leaspy,
                 times_reach = timepoints[-1]
         else:
             raise ValueError("Threshold reached at multiples times")
-        times_reach_list.append(times_reach.reshape(1, 1))
-    res = torch.cat(times_reach_list, dim=1).unsqueeze(0)
+        times_reach_list.append(np.array(times_reach).reshape(1,1))
+    res = np.concatenate(times_reach_list, axis=1)
+    res = np.expand_dims(res, axis=0)
 
     return res

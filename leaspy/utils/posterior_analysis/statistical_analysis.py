@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
     # TODO: Igor test
@@ -29,8 +30,38 @@ def compute_subgroup_statistics(leaspy,
     return mu_grp, std_grp
 
 
-def compute_correlation(leaspy, individual_parameters, df_cofactors):
+def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pearson"):
 
     df_indparam = append_spaceshifts_to_individual_parameters_dataframe(individual_parameters.to_dataframe(), leaspy)
     df = pd.concat([df_indparam, df_cofactors], axis=1, sort=True)
-    return 0
+
+    df_corr_value = df.corr(method=method)*np.nan
+    df_corr_logpvalue = df_corr_value.copy(deep=True)*np.nan
+
+    if method =="pearson":
+        correlation_function = stats.pearsonr
+    elif method == "spearman":
+        correlation_function = stats.spearmanr
+    else:
+        raise ValueError("Correlation not known")
+
+    # P-values
+    features = df.columns
+    p = len(df.columns)
+
+    for i in range(p):
+        for j in range(i):
+            feature_row = features[i]
+            feature_col = features[j]
+
+            # Compute Correlations
+            df_corr = df[[feature_row, feature_col]].dropna()
+            value, pvalue = correlation_function(df_corr[feature_row], df_corr[feature_col])
+            logpvalue = np.log10(pvalue)
+
+            df_corr_logpvalue.iloc[i, j] = logpvalue
+            df_corr_value.iloc[i, j] = value
+            df_corr_logpvalue.iloc[j, i] = logpvalue
+            df_corr_value.iloc[j, i] = value
+
+    return df_corr_value, df_corr_logpvalue

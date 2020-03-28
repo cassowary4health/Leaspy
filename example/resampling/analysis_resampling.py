@@ -10,7 +10,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 import pandas as pd
-
+0
 # Leaspy
 run_aramis_machine = 0
 if run_aramis_machine:
@@ -80,26 +80,26 @@ dummy_cutoffs = {"Y{}".format(i):0.5 for i in range(4)}
 
 #### No resampling
 resampling_iter = 0
-timepoints = torch.tensor(np.linspace(30,100, 200))
+timepoints = np.linspace(30,100, 200).tolist()
 
 # Get average trajectory
-trajectory = compute_trajectory_of_population(leaspy_iter[resampling_iter],
+trajectory = compute_trajectory_of_population(timepoints,
                                               individual_parameters_iter[resampling_iter],
-                                              timepoints)
+                                              leaspy_iter[resampling_iter])
 
 # Get Time of abnormality
-abnormality_ages = get_age_at_abnormality_conversion(leaspy_iter[resampling_iter],
+abnormality_ages = get_age_at_abnormality_conversion(dummy_cutoffs,
                                      individual_parameters_iter[resampling_iter],
                                       timepoints,
-                                     dummy_cutoffs)
+                                     leaspy_iter[resampling_iter])
 
 
 #### With resampling
 from leaspy.utils.resampling.general import compute_trajectory_of_population_resampling, get_age_at_abnormality_conversion_resampling
 
-trajectory_resampling = compute_trajectory_of_population_resampling(leaspy_iter,
+trajectory_resampling = compute_trajectory_of_population_resampling(timepoints,
                                                 individual_parameters_iter,
-                                                timepoints)
+                                                leaspy_iter)
 
 
 times_resampling = get_age_at_abnormality_conversion_resampling(leaspy_iter,
@@ -140,7 +140,7 @@ stats_group2 = compute_subgroup_statistics_resampling(leaspy_iter,
 
 ## Without resampling
 from leaspy.utils.posterior_analysis.statistical_analysis import compute_correlation
-corr_value, corr_pvalue = compute_correlation(leaspy_iter[0], individual_parameters_iter[0], df_cofactors_dummy)
+corr_value, corr_log10pvalue = compute_correlation(leaspy_iter[0], individual_parameters_iter[0], df_cofactors_dummy)
 
 ## With resampling
 

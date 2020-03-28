@@ -120,4 +120,4 @@ def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
 
 
     trajectory = leaspy.estimate(timepoints, ip)
-    return trajectory['mean'][0]
+    return trajectory['mean'].reshape(1,trajectory["mean"].shape[0], trajectory["mean"].shape[1])

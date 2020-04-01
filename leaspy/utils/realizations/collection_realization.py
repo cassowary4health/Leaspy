@@ -34,10 +34,8 @@ class CollectionRealization:
             reals_pop[pop_var] = self.realizations[pop_var].tensor_realizations
 
         reals_ind = {}
-        for i, idx in enumerate(self.indices):
-            reals_ind[idx] = {}
-            for ind_var in self.reals_ind_variable_names:
-                reals_ind[idx][ind_var] = self.realizations[ind_var].tensor_realizations[i]
+        for ind_var in self.reals_ind_variable_names:
+            reals_ind[ind_var] = self.realizations[ind_var].tensor_realizations
 
         return reals_pop, reals_ind
 

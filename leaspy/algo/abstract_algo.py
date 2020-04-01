@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+
 from leaspy.utils.output.fit_output_manager import FitOutputManager
 
 
@@ -37,7 +38,7 @@ class AbstractAlgo:
         self.seed = None
 
     ###########################
-    ## Initialization
+    # Initialization
     ###########################
     @staticmethod
     def _initialize_seed(seed):
@@ -59,7 +60,7 @@ class AbstractAlgo:
             print(" ==> Setting seed to {0}".format(seed))
 
     ###########################
-    ## Getters / Setters
+    # Getters / Setters
     ###########################
 
     def load_parameters(self, parameters):
@@ -74,8 +75,10 @@ class AbstractAlgo:
 
         Examples
         --------
-        >>> settings = leaspy.inputs.settings.algorithm_settings.AlgorithmSettings("mcmc_saem")
-        >>> my_algo = leaspy.algo.fit.tensor_mcmcsaem.TensorMCMCSAEM(settings)
+        >>> from leaspy import AlgorithmSettings, OutputsSettings
+        >>> from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
+        >>> settings = AlgorithmSettings("mcmc_saem")
+        >>> my_algo = TensorMCMCSAEM(settings)
         >>> my_algo.algo_parameters
         {'n_iter': 10000,
          'n_burn_in_iter': 9000,
@@ -118,7 +121,7 @@ class AbstractAlgo:
 
         Examples
         --------
-        >>> from leaspy import AlgorithmSettings
+        >>> from leaspy import AlgorithmSettings, OutputsSettings
         >>> from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
         >>> algo_settings = AlgorithmSettings("mcmc_saem")
         >>> my_algo = TensorMCMCSAEM(algo_settings)
@@ -137,3 +140,32 @@ class AbstractAlgo:
 
     def iteration(self, data, model, realizations):
         raise NotImplementedError
+
+    @staticmethod
+    def timer_converter(timer):
+        """
+        Convert an integer (timer in seconds) into a formatted string "hour minutes seconds".
+
+        Parameters
+        ----------
+        timer: int
+
+        Returns
+        -------
+        str
+
+        Examples
+        --------
+        from leaspy.algo.abstract_algo import AbstractAlgo
+        >>> AbstractAlgo.timer_converter(12756)
+        "3h 32min 36s"
+        """
+        hours = timer // 3600
+        minutes = (timer % 3600) // 60
+        seconds = (timer % 3600) % 60
+        message = "%ds" % seconds
+        if minutes >= 1:
+            message = "%dmin " % minutes + message
+        if hours >= 1:
+            message = "%dh " % hours + message
+        return message

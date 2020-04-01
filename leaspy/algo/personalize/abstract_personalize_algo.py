@@ -36,6 +36,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         """
         super().__init__()
         self.algo_parameters = settings.parameters
+        self.initialization_method = settings.initialization_method
         self.name = settings.name
         self.seed = settings.seed
 
@@ -80,9 +81,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         # Print run infos
         time_end = time.time()
-        diff_time = (time_end - time_beginning)
+        diff_time = int(time_end - time_beginning)
         print("The standard deviation of the noise at the end of the personalization is of %.4f" % noise_std)
-        print("Personalization %s took : %.2fs" % (self.name, diff_time))
+        print("Personalization %s took : %s" % (self.name, self.timer_converter(diff_time)))
 
         # Transform individual parameters to dictinnary ID / variable_ind
         # indices = data.indices

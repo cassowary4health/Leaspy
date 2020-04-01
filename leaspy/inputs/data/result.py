@@ -21,7 +21,8 @@ class Result:
     data : leaspy.inputs.data.data.Data
         Object containing the idx, time-points and observations of the patients.
     individual_parameters : dict [str, torch.Tensor]
-        Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.Tensor).
+        Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'. Tau and xi have shape = (n_subjects, 1) and
+        sources have shape = (n_subjects, n_sources).
     ID_to_idx : dict
         The keys are the individual ID & the items are their respective ordered position in the data file given
         by the user. This order remains the same during the computation.
@@ -643,7 +644,7 @@ class Result:
         residuals_dataset = Dataset(self.data)
         residuals_dataset.values = model.compute_individual_tensorized(residuals_dataset.timepoints,
                                                                        self.individual_parameters) \
-                                   - residuals_dataset.values
+                                   - residuals_dataset.values  # TODO: correct it for missing values (use dataset.mask)
         residuals_dataframe = residuals_dataset.to_pandas().set_index('ID')
 
         if cofactors is not None:

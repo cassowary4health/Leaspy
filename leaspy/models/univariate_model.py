@@ -10,12 +10,11 @@ from .utils.attributes.attributes_univariate import AttributesUnivariate
 
 class UnivariateModel(AbstractModel):
     ###########################
-    ## Initialization
+    # Initialization
     ###########################
     def __init__(self, name):
         super(UnivariateModel, self).__init__(name)
         self.dimension = 1
-        self.source_dimension = 0  # TODO, None ???
         self.parameters = {
             "g": None,
             "tau_mean": None, "tau_std": None,
@@ -33,7 +32,7 @@ class UnivariateModel(AbstractModel):
             }
         }
 
-    def save(self, path):
+    def save(self, path, **args):
         model_parameters_save = self.parameters.copy()
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
@@ -41,10 +40,16 @@ class UnivariateModel(AbstractModel):
         model_settings = {
             'name': 'univariate',
             'features': self.features,
-            'parameters': model_parameters_save
+            'parameters': model_parameters_save,
         }
+        if self.individual_parameters_posterior_distribution is not None:
+            posterior_distribution = {
+                'mean': self.individual_parameters_posterior_distribution.loc.tolist(),
+                'covariance': self.individual_parameters_posterior_distribution.covariance_matrix.tolist()
+            }
+            model_settings['posterior_distribution'] = posterior_distribution
         with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+            json.dump(model_settings, fp, **args)
 
     def load_hyperparameters(self, hyperparameters):
         if 'features' in hyperparameters.keys():

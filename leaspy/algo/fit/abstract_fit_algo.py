@@ -1,3 +1,5 @@
+from time import time
+
 # from ...utils.output.fit_output_manager import FitOutputManager
 from ..abstract_algo import AbstractAlgo
 
@@ -8,6 +10,9 @@ class AbstractFitAlgo(AbstractAlgo):
         super().__init__()
         self.current_iteration = 0  # TODO change to None ?
 
+    def _initialize_algo(self, data, model, realizations):
+        return NotImplementedError
+
     ###########################
     ## Core
     ###########################
@@ -16,6 +21,7 @@ class AbstractFitAlgo(AbstractAlgo):
 
         # Initialize Model
         self._initialize_seed(self.seed)
+        start_time = time()
 
         # Initialize first the random variables
         # TODO : Check if needed - model.initialize_random_variables(data)
@@ -38,6 +44,7 @@ class AbstractFitAlgo(AbstractAlgo):
 
         print("The standard deviation of the noise at the end of the calibration is {:.4f}".format(
             model.parameters['noise_std']))
+        print("Calibration %s took : %s" % (self.name, self.timer_converter(int(time() - start_time))))
         return realizations
 
     def _maximization_step(self, data, model, realizations):

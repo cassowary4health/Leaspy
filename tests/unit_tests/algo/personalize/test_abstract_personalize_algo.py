@@ -10,7 +10,9 @@ class AbstractPersonalizeAlgoTest(unittest.TestCase):
         settings = AlgorithmSettings('scipy_minimize')
 
         algo = AbstractPersonalizeAlgo(settings)
-        self.assertEqual(algo.algo_parameters, {'n_iter': 100, 'n_jobs': -1, 'parallel': False})
+        self.assertEqual(algo.algo_parameters, {'n_iter': 100, 'n_jobs': -1, 'parallel': False,
+                                                'regularity_method': 'prior',
+                                                'regularity_weight': 1, 'attachment_weight': 1})
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, None)
 

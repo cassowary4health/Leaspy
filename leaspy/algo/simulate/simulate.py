@@ -1,3 +1,5 @@
+from time import time
+
 import numpy as np
 import torch
 from scipy import stats
@@ -182,15 +184,15 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        m : torch.Tensor, shape = (n_individual_parameters, n_subjects)
+        m: torch.Tensor, shape = (n_subjects, n_individual_parameters + 1)
             Input matrix - one row per individual parameter distribution (xi, tau etc).
 
         Returns
         -------
-        mean : torch.Tensor
-            Mean by variable, shape = (n_individual_parameters,).
-        covariance :  torch.Tensor
-            Covariance matrix, shape = (n_individual_parameters, n_individual_parameters).
+        mean: torch.Tensor
+            Mean by variable, shape = (n_individual_parameters + 1,).
+        covariance:  torch.Tensor
+            Covariance matrix, shape = (n_individual_parameters + 1, n_individual_parameters +1).
         """
         m_exp = torch.mean(m, dim=0)
         x = m - m_exp[None, :]
@@ -333,7 +335,7 @@ class SimulationAlgorithm(AbstractAlgo):
                 noise = results.get_error_distribution_dataframe(model)
                 noise = torch.from_numpy(noise[results.data.headers].values)
                 noise *= noise
-                noise = torch.sqrt(noise.mean(dim=0))
+                noise = torch.sqrt(noise.mean(dim=0))  # TODO: correct it for missing values (use dataset.mask)
             else:
                 if hasattr(self.noise, '__len__'):
                     if len(self.noise) != len(results.data.headers):
@@ -391,7 +393,7 @@ class SimulationAlgorithm(AbstractAlgo):
     def _simulate_individual_parameters(self, model, number_of_simulated_subjects, kernel, ss, get_sources,
                                         df_mean, df_cov):
         """
-        Compute the simulated individual parameters and timepoints.
+        Compute the simulated individual parameters and timepoints for all subjects.
 
         Parameters
         ----------
@@ -410,8 +412,8 @@ class SimulationAlgorithm(AbstractAlgo):
         -------
         simulated_parameters : dict [str, numpy.ndarray]
             Contains the simulated parameters.
-        timepoints : `list` [float]
-            Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
+        timepoints : `list` [`list` [float]]
+            Contains the ages of the all subjects for all their visits - 2D list with one row per simulated subject.
         """
         samples = kernel.resample(number_of_simulated_subjects).T
         samples = ss.inverse_transform(samples)  # A np.ndarray of shape (n_subjects, n_features)
@@ -451,8 +453,8 @@ class SimulationAlgorithm(AbstractAlgo):
             A subclass object of leaspy AbstractModel.
         simulated_parameters : dict [str, numpy.ndarray]
             Contains the simulated parameters.
-        timepoints : `list` [float]
-            Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
+        timepoints : `list` [`list` [float]]
+            Contains the ages of the all subjects for all their visits - 2D list with one row per simulated subject.
         noise_generator : torch.distributions.Normal or None
             A gaussian noise generator. If self.noise is None, the features' score are exactly the ones derived from
             the individual parameters by the model.
@@ -464,7 +466,7 @@ class SimulationAlgorithm(AbstractAlgo):
             them is a 2D-numpy.ndarray of shape n_visits x n_features.
         """
         features_values = []
-        # TODO : parallelize this for loop
+        # TODO : parallelize this for loop ? simulate is already pretty fast
         for i in range(len(timepoints)):
             indiv_param = {key: val[i] for key, val in simulated_parameters.items()}
             indiv_param['sources'] = indiv_param['sources'].tolist()
@@ -535,6 +537,7 @@ class SimulationAlgorithm(AbstractAlgo):
         leaspy.inputs.data.result.Result
             Contains the simulated individual parameters & individual scores.
         """
+        start_timer = time()
         if self.cofactor is not None:
             self._check_cofactors(results.data)
 
@@ -582,7 +585,7 @@ class SimulationAlgorithm(AbstractAlgo):
         # --------- Simulate new subjects - individual parameters, timepoints and features' scores
         if self.features_bounds:
             number_of_simulated_subjects = 10 * self.number_of_subjects
-            # Simulate more subject in order to have enough of them after filtering in order to respect the bounds
+            # Simulate more subject in order to have enough of them after filtering the ones outside the bounds
         else:
             number_of_simulated_subjects = self.number_of_subjects
 
@@ -648,6 +651,10 @@ class SimulationAlgorithm(AbstractAlgo):
                                                  timepoints=timepoints,
                                                  values=features_values,
                                                  headers=results.data.headers)
+
+        diff_time = int(time() - start_timer)
+        print("Simulation of %s subjects took : %s" % (n, self.timer_converter(diff_time)))
+
         return Result(data=simulated_scores,
                       individual_parameters=simulated_parameters,
                       noise_std=self.noise)

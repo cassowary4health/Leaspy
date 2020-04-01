@@ -1,4 +1,5 @@
 import math
+import warnings
 
 import torch
 
@@ -15,14 +16,19 @@ class AbstractModel:
 
     Attributes
     ----------
-    distribution: torch.distributions.normal.Normal
-        Gaussian generator for the model's penalty (?).
     is_initialized: bool
         Indicates if the model is initialized.
+    features: list [str]
+        Contains the features' name on which the model has been calibrated.
     name: str
         The model's name.
     parameters: dict
         Contains the model's parameters.
+    source_dimension: int, (default 0)
+        The number of sources used.
+    individual_parameters_posterior_distribution: dict [str, torch.Tensor]
+        Contains the individual parameters' mean and covariance matrix. Both of them are estimated at the end of the
+        calibration. The variable are stored in the following order: xi, tau then sources.
 
     Methods
     -------
@@ -34,6 +40,11 @@ class AbstractModel:
         Return list of names of the individual variables from the model.
     load_parameters(parameters)
         Instantiate or update the model's parameters.
+     get_individual_parameters_distributions(self, individual_parameters)
+        Set the attribute ``individual_parameters_distributions`` from a dictionary of ``individual_parameters``.
+    compute_multivariate_gaussian_posterior_regularity(self, value)
+        Given the individual parameter of a subject, compute its regularity compared to the posterior distribution
+        of the individual parameters.
     """
 
     def __init__(self, name):
@@ -41,7 +52,13 @@ class AbstractModel:
         self.name = name
         self.features = None
         self.parameters = None
-        self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
+        self.source_dimension = 0
+        self.attributes = None
+
+        self._last_realisations = None
+        self.individual_parameters_posterior_distribution = None
+        self.sources_posterior_distribution = None
+        self._univariate_gaussian_distribution = torch.distributions.normal.Normal(loc=0., scale=1.)
 
     def load_parameters(self, parameters):
         """
@@ -55,6 +72,26 @@ class AbstractModel:
         self.parameters = {}
         for k in parameters.keys():
             self.parameters[k] = parameters[k]
+
+    def load_posterior_distribution(self, posterior_distribution):
+        """
+        Create the attribute ``individual_parameters_posterior_distribution`` which is a torch `MultivariateNormal`
+        class object from its mean and covariance matrix contained in the input.
+
+        Parameters
+        ----------
+        posterior_distribution: dict [str, torch.Tensor]
+            Contains the mean and covariance matrix of the posterior distribution.
+        """
+        if all([val is not None for val in posterior_distribution.values()]):
+            self.individual_parameters_posterior_distribution = \
+                torch.distributions.multivariate_normal.MultivariateNormal(
+                    loc=posterior_distribution['mean'],
+                    covariance_matrix=posterior_distribution['covariance']
+                )
+            self.set_sources_distribution()
+        else:
+            warnings.warn('The posterior distribution could not have been loaded from this  model file!', stacklevel=4)
 
     def load_hyperparameters(self, hyperparameters):
         raise NotImplementedError
@@ -71,7 +108,6 @@ class AbstractModel:
         individual_variable_name : `list` [str]
             Contains the individual variables' names
         """
-
         individual_variable_name = []
 
         infos = self.random_variable_informations()  # overloaded for each model
@@ -83,23 +119,22 @@ class AbstractModel:
 
     def compute_sum_squared_tensorized(self, data, param_ind, attribute_type=None):
         """
-        TODO: complete
-        Compute the square of the residuals. (?) from one subject? Several subjects? All subject?
+        Compute for each subject the sum of its squared residuals. The sum is on every scores and every visits.
 
         Parameters
         ----------
         data : leaspy.inputs.data.dataset.Dataset
-            Contains the data of the subjects, in particular the subjects' time-points and the mask. (?)
+            Contains the data of the subjects, in particular the subjects' values, time-points and the mask.
         param_ind : dict [str, torch.Tensor]
             Contain the individual parameters. ``xi`` and ``tau`` have shape of ``(n_subjects, 1)``. If the model is
             not `univariate`, ``sources`` has shape ``(n_subjects, n_sources)``.
-        attribute_type : str
+        attribute_type : str, optional (default None)
             The attribute's type.
 
         Returns
         -------
-        torch.Tensor
-            Contain one residuals for each subject? Visit? Sub-score?
+        torch.Tensor, shape = (n_subjects,)
+            Contain for each subject the sum of its squared residuals. The sum is on every scores and every visits.
         """
         res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
@@ -199,17 +234,23 @@ class AbstractModel:
     @staticmethod
     def _tensorize_2D(x, unsqueeze_dim, dtype=torch.float32):
         """
-        Helper to convert a scalar or array_like into an, at least 2D, dtype tensor
+        Helper to convert a scalar or array_like into an, at least 2D, dtype tensor.
 
         Parameters
         ----------
         x: scalar or array_like
-            element to be tensorized
+            Element to be tensorized.
         unsqueeze_dim: 0 or -1
-            dimension to be unsqueezed; meaningful for 1D array-like only
-            >>> _tensorize_2D([1, 2], 0) == tensor([[1, 2]])
-            >>> _tensorize_2D([1, 2], -1) == tensor([[1], [2])
-            for scalar or vector of length 1 it has no matter
+            dimension to be unsqueezed; meaningful for 1D array-like only.
+
+        Examples
+        --------
+        >>> import torch
+        >>> from leaspy.models.abstract_model import AbstractModel
+        >>> model = AbstractModel()
+        >>> model._tensorize_2D([1, 2], 0) == torch.tensor([[1, 2]])
+        >>> model._tensorize_2D([1, 2], -1) == torch.tensor([[1], [2])
+        For scalar or vector of length 1 it has no matter
         """
         # convert to torch.Tensor if not the case
         if not isinstance(x, torch.Tensor):
@@ -227,26 +268,26 @@ class AbstractModel:
         return x
 
     # TODO: unit tests? (functional tests covered by api.estimate)
-    def compute_individual_trajectory(self, timepoints, individual_parameters, *, skip_ips_checks = False):
+    def compute_individual_trajectory(self, timepoints, individual_parameters, *, skip_ips_checks=False):
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
 
         Parameters
         ----------
-        timepoints: scalar or array_like[scalar] (list, tuple, np.array)
+        timepoints: scalar or array_like[scalar]
             Contains the age(s) of the subject.
         individual_parameters: dict
             Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
-        skip_ips_checks: bool (default: False)
+            Each individual parameter should be a scalar or array_like.
+        skip_ips_checks: bool, (default False)
             Flag to skip consistency/compatibility checks and tensorization
-            of individual_parameters when it was done earlier (speed-up)
+            of individual_parameters when it was done earlier (speed-up).
 
         Returns
         -------
         torch.Tensor
             Contains the subject's scores computed at the given age(s)
-            Shape of tensor is (1, n_tpts, n_features)
+            Shape of tensor is (1, n_timepoints, n_features)
         """
 
         if not skip_ips_checks:
@@ -270,19 +311,19 @@ class AbstractModel:
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         """
-        TODO: complete
-        Compute attachment of all subjects? One subject? One visit?
+        Compute attachment of the subjects for all visits.
 
         Parameters
         ----------
-        data: a leaspy.inputs.data.dataset.Dataset class object
-            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        realizations: a leaspy realization class object
+        data: leaspy.inputs.data.dataset.Dataset
+            Contains the data of the subjects, in particular the subjects' scores, time-points and the mask.
+        realizations: leaspy.utils.realizations.collection_realization.CollectionRealization
+            Contains the subjects' individual parameters.
 
         Returns
         -------
         attachment : torch.Tensor
-            The subject attachment (?)
+            The subjects' attachment.
         """
         param_ind = self.get_param_from_real(realizations)
         attachment = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC')
@@ -290,29 +331,28 @@ class AbstractModel:
 
     def compute_individual_attachment_tensorized(self, data, param_ind, attribute_type):
         """
-        TODO: complete
-        Compute attachment of all subjects? One subject? One visit?
+        Compute attachment of the subjects for all visits.
 
         Parameters
         ----------
-        data: a leaspy.inputs.data.dataset.Dataset class object
+        data: leaspy.inputs.data.dataset.Dataset
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        param_ind
+        param_ind: dict [str, torch.Tensor]
+            Contains the subjects individual parameters.
         attribute_type: str
 
         Returns
         -------
-        attachment : torch.Tensor
-            Log-likelihood ?
+        attachment: torch.Tensor
+            The subjects' attachment.
         """
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
         # res *= data.mask
 
-        r1 = res * data.mask.float() - data.values  # r1.ndim = 3 and r1.shape = [n_subjects, ??, n_features]
+        r1 = res * data.mask.float() - data.values  # r1.shape = (n_subjects, ??, n_features)
         # r1[1-data.mask] = 0.0 # Set nans to 0
         squared_sum = torch.sum(r1 * r1, dim=(1, 2))
 
-        # noise_var = self.parameters['noise_std'] ** 2
         noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
         attachment = 0.5 * (1. / noise_var) * squared_sum
 
@@ -328,7 +368,10 @@ class AbstractModel:
             self.update_model_parameters_normal(data, suff_stats)
         self.attributes.update(['all'], self.parameters)
 
-    def update_model_parameters_burn_in(self, data, realizations):
+    def update_model_parameters_burn_in(self, data, suff_stats):
+        raise NotImplementedError
+
+    def update_model_parameters_normal(self, data, suff_stats):
         raise NotImplementedError
 
     def get_population_realization_names(self):
@@ -347,7 +390,7 @@ class AbstractModel:
         return output
 
     def compute_regularity_realization(self, realization):
-        # Instanciate torch distribution
+        # Instantiate torch distribution
         if realization.variable_type == 'population':
             mean = self.parameters[realization.name]
             # TODO : Sure it is only MCMC_toolbox?
@@ -361,14 +404,9 @@ class AbstractModel:
         return self.compute_regularity_variable(realization.tensor_realizations, mean, std)
 
     def compute_regularity_variable(self, value, mean, std):
-        # TODO change to static ???
-        # Instanciate torch distribution
-        # distribution = torch.distributions.normal.Normal(loc=mean, scale=std)
-
-        self.distribution.loc = mean
-        self.distribution.scale = std
-
-        return -self.distribution.log_prob(value)
+        self._univariate_gaussian_distribution.loc = mean
+        self._univariate_gaussian_distribution.scale = std
+        return -self._univariate_gaussian_distribution.log_prob(value)
 
     def get_realization_object(self, n_individuals):
         # TODO : CollectionRealizations should probably get self.get_info_var rather than all self
@@ -407,3 +445,92 @@ class AbstractModel:
                 individual_parameters[variable_ind] = realizations[variable_ind].tensor_realizations
 
         return individual_parameters
+
+    def get_individual_parameters_distribution(self, individual_parameters):
+        """
+        Set the attribute ``individual_parameters_posterior_distribution`` from a dictionary of
+        ``individual_parameters``.
+
+        Parameters
+        ----------
+        individual_parameters : dict [str, torch.Tensor]
+            Contains log-acceleration 'xi', time-shifts 'tau' (& 'sources' if multivariate).
+            Tau and xi have shape = (n_subjects, 1) and sources have shape = (n_subjects, n_sources).
+        """
+        # ------ Impose the order on tau, xi, sources
+        tensor_list = [individual_parameters['tau'], individual_parameters['xi']]
+        if self.name != 'univariate':
+            tensor_list += [individual_parameters['sources']]
+        ind_param = torch.cat(tensor_list, dim=-1)
+
+        # ------ Compute mean and covariance matrix
+        ind_param_mean = torch.mean(ind_param, dim=0)
+        ind_param_cov = ind_param - ind_param_mean[None, :]
+        ind_param_cov = 1 / (ind_param_cov.size(0) - 1) * ind_param_cov.t() @ ind_param_cov
+
+        # ------ Impose xi & tau independent to each other & independent to sources
+        # ind_param_cov[0, 1:] = 0.
+        # ind_param_cov[1:, 0] = 0.
+        # ind_param_cov[1, 2:] = 0.
+        # ind_param_cov[2:, 1] = 0.
+
+        self.individual_parameters_posterior_distribution = torch.distributions.multivariate_normal.MultivariateNormal(
+            loc=ind_param_mean, covariance_matrix=ind_param_cov)
+
+    def set_sources_distribution(self):
+        """
+        Set the attribute ``sources_posterior_distribution`` from the attribute
+        ``individual_parameters_posterior_distribution``.
+        """
+        if self.name != 'univariate':
+            if self.individual_parameters_posterior_distribution is not None:
+                self.sources_posterior_distribution = torch.distributions.multivariate_normal.MultivariateNormal(
+                    loc=self.individual_parameters_posterior_distribution.loc[2:],
+                    covariance_matrix=self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
+                        0, 2, self.source_dimension).narrow(1, 2, self.source_dimension))
+            else:
+                raise ValueError('The attribute "individual_parameters_posterior_distribution" of your model is None! '
+                                 'First you need to calibrate this model.')
+
+    def compute_multivariate_gaussian_posterior_regularity(self, value):
+        """
+        Given the individual parameter of a subject, compute its regularity assuming the individual parameters
+        follow a multivariate normal distribution. We use the posterior distribution of the individual
+        parameters of the cohort on which the model has been calibrated.
+
+        Parameters
+        ----------
+        value: torch.Tensor, shape = (n_individual_parameters,)
+            Contains the subject's individual parameters.
+
+        Returns
+        -------
+        torch.Tensor
+            The subject's regularity.
+        """
+        return -self.individual_parameters_posterior_distribution.log_prob(value)
+    # TODO : Add non parametric method to compute regularity ? Ex with scipy.stats.gaussian_kde.integrate_kde
+    # TODO : Pblm - it is very dependent of the selected bandwidth in the two distributions!
+
+    def compute_multivariate_sources_regularity(self, conditional_mean, conditional_covariance, value):
+        """
+        Given the individual parameter of a subject, compute its regularity assuming the individual parameters
+        follow a multivariate normal distribution. We use the posterior distribution of the individual
+        parameters of the cohort on which the model has been calibrated. The parameter tau & i are assumed to be
+        independent (from each other and from the sources). To compute the regularity of the sources, the conditional
+        mean and covariance matrix of the sources knowing tau and i are used.
+
+        Parameters
+        ----------
+        conditional_mean: torch.Tensor, shape = (n_sources,)
+        conditional_covariance: torch.Tensor, shape = (n_sources, n_sources)
+        value: torch.Tensor, shape = (n_sources,)
+
+        Returns
+        -------
+        torch.Tensor
+            The subject's regularity.
+        """
+        self.sources_posterior_distribution.loc = conditional_mean
+        self.sources_posterior_distribution.covariance_matrix = conditional_covariance
+        return -self.sources_posterior_distribution.log_prob(value)

@@ -1,8 +1,16 @@
 import json
+import warnings
+
+from torch import tensor, float32
 
 
 class ModelSettings:
     def __init__(self, path_to_model_settings):
+        self.name = None
+        self.hyperparameters = None
+        self.parameters = None
+        self.posterior_distribution = {'mean': None, 'covariance': None}
+
         if type(path_to_model_settings) is dict:
             settings = path_to_model_settings
         else:
@@ -13,6 +21,7 @@ class ModelSettings:
         self._get_name(settings)
         self._get_parameters(settings)
         self._get_hyperparameters(settings)
+        self._get_posterior_distribution(settings)
 
     @staticmethod
     def _check_settings(settings):
@@ -33,3 +42,11 @@ class ModelSettings:
             self.hyperparameters = hyperparameters
         else:
             self.hyperparameters = None
+
+    def _get_posterior_distribution(self, settings):
+        if "posterior_distribution" in settings.keys():
+            self.posterior_distribution.update({k.lower(): tensor(v, dtype=float32) for k, v in
+                                                settings["posterior_distribution"].items()})
+        else:
+            warnings.warn('The loaded model file does not have the field "posterior_distribution". '
+                          'This might rise an error in future release!', DeprecationWarning, stacklevel=4)

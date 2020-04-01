@@ -1,11 +1,12 @@
 import json
 import math
+
 import torch
 
-from .abstract_model import AbstractModel
 # from leaspy.utils.realizations.realization import Realization
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+from .abstract_model import AbstractModel
 
 
 class AbstractMultivariateModel(AbstractModel):
@@ -64,22 +65,27 @@ class AbstractMultivariateModel(AbstractModel):
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
 
-    def save(self, path):
+    def save(self, path, **args):
         model_parameters_save = self.parameters.copy()
         model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
-
         model_settings = {
             'name': self.name,
             'features': self.features,
             'dimension': self.dimension,
             'source_dimension': self.source_dimension,
-            'parameters': model_parameters_save
+            'parameters': model_parameters_save,
         }
+        if self.individual_parameters_posterior_distribution is not None:
+            posterior_distribution = {
+                'mean': self.individual_parameters_posterior_distribution.loc.tolist(),
+                'covariance': self.individual_parameters_posterior_distribution.covariance_matrix.tolist()
+            }
+            model_settings['posterior_distribution'] = posterior_distribution
         with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+            json.dump(model_settings, fp, **args)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         return NotImplementedError

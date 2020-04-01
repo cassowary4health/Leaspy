@@ -60,20 +60,21 @@ def dict_compare_and_display(d, e):
                     return dict_compare_and_display(d[k], e[k])
                 try:
                     if not allclose(d[k], e[k]):
-                        print("The following values are different for `numpy.allclose`!")
+                        print("\nThe following values are different for `numpy.allclose`!")
                         print("{0}: {1}".format(k, d[k]))
-                        print("{0}: {1}".format(k, e[k]))
+                        print("{0}: {1}\n".format(k, e[k]))
                         return False
                 except TypeError:
                     if d[k] != e[k]:
-                        print("The following values are different!")
+                        print("\nThe following values are different!")
                         print("{0}: {1}".format(k, d[k]))
-                        print("{0}: {1}".format(k, e[k]))
+                        print("{0}: {1}\n".format(k, e[k]))
                         return False
                 return True
         except AssertionError:
-            print("The following keys are different!")
+            print("\nThe following keys are different!")
             print(d.keys() ^ e.keys())
+            print("")
             return False
 
 
@@ -129,6 +130,7 @@ class LeaspyTest(unittest.TestCase):
             model_parameters_new = json.load(f2)
         # self.assertTrue(ordered(model_parameters) == ordered(model_parameters_new))
         self.assertTrue(dict_compare_and_display(model_parameters, model_parameters_new))
+        # dict_compare_and_display(model_parameters, model_parameters_new)
 
         # Load data and check its consistency
         leaspy = Leaspy.load(path_to_saved_model)

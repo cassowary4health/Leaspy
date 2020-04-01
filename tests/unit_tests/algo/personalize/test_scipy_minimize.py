@@ -17,7 +17,9 @@ class ScipyMinimizeTest(unittest.TestCase):
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
 
-        self.assertEqual(algo.algo_parameters, {'n_iter': 100, 'n_jobs': -1, 'parallel': False})
+        self.assertEqual(algo.algo_parameters, {'n_iter': 100, 'n_jobs': -1, 'parallel': False,
+                                                'regularity_method': 'prior',
+                                                'regularity_weight': 1, 'attachment_weight': 1})
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, None)
 
@@ -34,14 +36,15 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate.json')
         univariate_model = Leaspy.load(univariate_path)
-        param = algo._initialize_parameters(univariate_model.model)
+        algo._initialize_parameters(univariate_model.model)
 
-        self.assertEqual(param, [torch.tensor([-1.0]), torch.tensor([70.0])])
+        self.assertEqual(algo.initial_parameters, [torch.tensor([-1.0]), torch.tensor([70.0])])
 
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
         multivariate_model = Leaspy.load(multivariate_path)
-        param = algo._initialize_parameters(multivariate_model.model)
-        self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2]), torch.tensor([0.]), torch.tensor([0.])])
+        algo._initialize_parameters(multivariate_model.model)
+        self.assertEqual(algo.initial_parameters, [torch.tensor([0.0]), torch.tensor([75.2]),
+                                                   torch.tensor([0.]), torch.tensor([0.])])
 
     def test_get_attachment(self):
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
@@ -69,14 +72,14 @@ class ScipyMinimizeTest(unittest.TestCase):
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
         leaspy = Leaspy.load(multivariate_path)
 
-        settings = AlgorithmSettings('scipy_minimize')
-        algo = ScipyMinimize(settings)
-        algo._set_model_name('logistic')
-
         individual_parameters = {'xi': torch.zeros(1, dtype=torch.float32),
                                  'tau': torch.tensor(75.2, dtype=torch.float32),
                                  'sources': torch.zeros(2, dtype=torch.float32)}
 
+        # Test for gaussian prior regularity
+        settings = AlgorithmSettings('scipy_minimize')
+        algo = ScipyMinimize(settings)
+        algo._set_model_name('logistic')
         reg = algo._get_regularity(leaspy.model, individual_parameters)
         self.assertEqual(torch.is_tensor(reg), True)
         output = torch.tensor([4.0264])
@@ -87,7 +90,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         leaspy_univariate = Leaspy('univariate')
         leaspy_univariate.calibrate(data_univariate, AlgorithmSettings('mcmc_saem', n_iter=100, seed=0))
         result_univariate = leaspy_univariate.personalize(data_univariate,
-                                                          AlgorithmSettings('scipy_minimize', seed=0))
+                                                          AlgorithmSettings('scipy_minimize', n_iter=100, seed=0))
         self.assertTrue(torch.allclose(result_univariate.individual_parameters['tau'],
                                        torch.tensor([[70.2492],
                                                      [69.9342],
@@ -160,17 +163,19 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         # manually initialize seed since it's not done by algo itself (no call to run afterwards)
         algo._initialize_seed(algo.seed)
+        algo.initial_parameters = [0.] * (2 + leaspy.model.source_dimension)
         self.assertEqual(algo.seed, np.random.get_state()[1][0])
 
         times = torch.tensor([70, 80])
 
         # Test without nan
         values = torch.tensor([[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]])
-        individual_parameters = algo._get_individual_parameters_patient(leaspy.model, times, values)
+        individual_parameters = algo._get_individual_parameters_patient(leaspy.model, times, values,
+                                                                        algo.initial_parameters)
         err = leaspy.model.compute_individual_tensorized(times, individual_parameters) - values
 
-        self.assertAlmostEqual(individual_parameters['tau'], 78.93283994514304, delta=tol)
-        self.assertAlmostEqual(individual_parameters['xi'], -0.07679465847751077, delta=tol)
+        self.assertAlmostEqual(individual_parameters['tau'].item(), 78.93283994514304, delta=tol)
+        self.assertAlmostEqual(individual_parameters['xi'].item(), -0.07679465847751077, delta=tol)
         self.assertAlmostEqual(individual_parameters['sources'].tolist()[0], -0.07733279, delta=tol)
         self.assertAlmostEqual(individual_parameters['sources'].tolist()[1], -0.57428166, delta=tol)
 
@@ -182,11 +187,12 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         # Test with nan
         values = torch.tensor([[0.5, 0.4, 0.4, float('nan')], [0.3, float('nan'), float('nan'), 0.4]])
-        individual_parameters = algo._get_individual_parameters_patient(leaspy.model, times, values)
+        individual_parameters = algo._get_individual_parameters_patient(leaspy.model, times, values,
+                                                                        algo.initial_parameters)
         err = leaspy.model.compute_individual_tensorized(times, individual_parameters) - values
 
-        self.assertAlmostEqual(individual_parameters['tau'], 78.82484683798302, delta=tol)
-        self.assertAlmostEqual(individual_parameters['xi'], -0.07808162619234782, delta=tol)
+        self.assertAlmostEqual(individual_parameters['tau'].item(), 78.82484683798302, delta=tol)
+        self.assertAlmostEqual(individual_parameters['xi'].item(), -0.07808162619234782, delta=tol)
         self.assertAlmostEqual(individual_parameters['sources'].tolist()[0], -0.17007795, delta=tol)
         self.assertAlmostEqual(individual_parameters['sources'].tolist()[1], -0.63483322, delta=tol)
 

@@ -160,6 +160,7 @@ class GibbsSampler(AbstractSampler):
         # Compute the attachment and regularity
         realization = realizations[self.name]
 
+        # TODO : compute attachment and regularity only once ? => save it and load it in the next iteration
         previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
         # use realizations => use all individual parameters to compare reconstructions vs values
         # previous_attachment.ndim = 1

@@ -3,6 +3,7 @@ import warnings
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.inputs.data.dataset import Dataset
 from leaspy.inputs.data.result import Result
+from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
 from leaspy.inputs.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
 from leaspy.utils.output.visualization.plotting import Plotting
@@ -64,7 +65,7 @@ class Leaspy:
         self.type = model_name
         self.plotting = Plotting(self.model)
 
-    def fit(self, data, algorithm_settings):
+    def fit(self, data, algorithm_settings, personalization_settings=AlgorithmSettings('scipy_minimize')):
         r"""
         Estimate the model's parameters :math:`\theta` for a given dataset, a given model and a given algorithm.
         These model's parameters correspond to the fixed-effects of the mixed effect model.
@@ -72,9 +73,14 @@ class Leaspy:
         Parameters
         ----------
         data: leaspy.inputs.data.data.Data
-            Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
+            Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the
+            observations :math:`(y_{i,j})`.
         algorithm_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
-            Contains the algorithm's settings.
+            Contains the algorithm's settings for the calibration step.
+        personalization_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+            Contains the algorithm's settings for the personalization step needed to compute the covariance of
+            the individual parameters. It will be needed in order to personalize the model to a more sparse dataset,
+            and to impute missing features.
 
         Examples
         --------
@@ -102,27 +108,38 @@ class Leaspy:
          'noise_std': tensor(0.0972)}
          >>> leaspy_logistic.plotting.average_trajectory()
         """
+        # ------ Calibrate the model
         algorithm = AlgoFactory.algo("fit", algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
             self.model.initialize(dataset)
-        algorithm.run(dataset, self.model)
+        self.model._last_realisations = algorithm.run(dataset, self.model)  # Save last realisations as hidden attribute
 
-        # Update plotting
+        # ------ Update plotting
         self.plotting.update_model(self.model)
 
-    def calibrate(self, data, algorithm_settings):
+        # ------ Personalize the individual parameters
+        result = self.personalize(data, personalization_settings)
+
+        # ------ Compute the individual parameters mean & covariance matrix
+        self.model.get_individual_parameters_distribution(result.individual_parameters)
+        self.model.set_sources_distribution()
+
+    def calibrate(self, data, algorithm_settings, personalization_settings=AlgorithmSettings('scipy_minimize')):
         r"""
         Duplicates of the ``fit`` method. Refer to the ``fit`` documentation.
 
         Parameters
         ----------
         data: leaspy.inputs.data.data.Data
-            Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
+            Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the
+            observations :math:`(y_{i,j})`.
         algorithm_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
-            Contains the algorithm's settings.
+            Contains the algorithm's settings for the calibration step.
+        personalization_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+            Contains the algorithm's settings for the personalization step.
         """
-        self.fit(data, algorithm_settings)
+        self.fit(data, algorithm_settings, personalization_settings)
 
     def personalize(self, data, settings):
         r"""
@@ -132,9 +149,10 @@ class Leaspy:
         Parameters
         ----------
         data: leaspy.inputs.data.data.Data
-            Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
+            Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the
+            observations :math:`(y_{i,j})`.
         settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
-            Contains the algorithm's settings.
+            Contains the algorithm's settings for the personalization step.
 
         Returns
         -------
@@ -168,7 +186,7 @@ class Leaspy:
 
         return result
 
-    def simulate(self, results, settings):
+    def simulate(self, results, simulation_settings):
         r"""
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
@@ -182,7 +200,7 @@ class Leaspy:
         ----------
         results: leaspy.inputs.data.result.Result
             Aggregates individual parameters and input data.
-        settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        simulation_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Returns
@@ -206,7 +224,7 @@ class Leaspy:
         # Check if model has been initialized
         self.check_if_initialized()
 
-        algorithm = AlgoFactory.algo("simulate", settings)
+        algorithm = AlgoFactory.algo("simulate", simulation_settings)
         simulated_data = algorithm.run(self.model, results)
         return simulated_data
 
@@ -305,11 +323,11 @@ class Leaspy:
             # check that each element of timepoints is an iterable
             list(map(lambda set_tpts_i: iter(set_tpts_i), timepoints))
         except TypeError:
-            raise ValueError('Timepoints should be a array_like each element containing a set of timepoints ' \
+            raise ValueError('Timepoints should be a array_like each element containing a set of timepoints '
                              'to estimate for corresponding individual.')
 
         if n_tpts != n_inds:
-            raise ValueError('There must be as many sets of timepoints as individuals parametrized. ' \
+            raise ValueError('There must be as many sets of timepoints as individuals parametrized. '
                              'You gave {} sets of timepoints and {} individuals.'.format(n_tpts, n_inds))
 
         # Generator of individual trajectories (we skip ips checks and tensorization as were done here)
@@ -358,6 +376,7 @@ class Leaspy:
         leaspy = cls(reader.name)
         leaspy.model.load_hyperparameters(reader.hyperparameters)
         leaspy.model.load_parameters(reader.parameters)
+        leaspy.model.load_posterior_distribution(reader.posterior_distribution)
         leaspy.model.initialize_MCMC_toolbox()
         leaspy.model.is_initialized = True
 
@@ -366,7 +385,7 @@ class Leaspy:
 
         return leaspy
 
-    def save(self, path):
+    def save(self, path, **args):
         """
         Save Leaspy object as json model parameter file.
 
@@ -374,6 +393,8 @@ class Leaspy:
         ----------
         path: str
             Path to store the model's parameters.
+        **args: Any
+            Additional argument to be passed to ``json.dump``.
 
         Examples
         --------
@@ -387,4 +408,4 @@ class Leaspy:
         >>> leaspy_logistic.save('outputs/leaspy-logistic_model-seed0.json')
         """
         self.check_if_initialized()
-        self.model.save(path)
+        self.model.save(path, **args)

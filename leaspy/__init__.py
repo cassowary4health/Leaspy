@@ -12,6 +12,7 @@ from .inputs.data.result import Result
 
 # Algorithm Settings
 from .inputs.settings.algorithm_settings import AlgorithmSettings
+from .inputs.settings.outputs_settings import OutputsSettings
 
 # Plotter
 from .utils.output.visualization.plotter import Plotter

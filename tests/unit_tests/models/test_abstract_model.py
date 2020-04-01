@@ -21,7 +21,6 @@ class AbstractModelTest(unittest.TestCase):
         self.assertFalse(model.is_initialized)
         self.assertEqual(model.name, "dummy_abstractmodel")
         self.assertEqual(model.parameters, None)
-        self.assertEqual(type(model.distribution), torch.distributions.normal.Normal)
 
         # Test the presence of all these essential methods
         main_methods = ['load_parameters', 'get_individual_variable_name', 'compute_sum_squared_tensorized',
@@ -70,7 +69,7 @@ class AbstractModelTest(unittest.TestCase):
         """
         for model_name in ('linear', 'univariate', 'logistic', 'logistic_parallel'):
             logistic_leaspy = Leaspy(model_name)
-            settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
+            settings = AlgorithmSettings('mcmc_saem', n_iter=1000, seed=0)
 
             df = pd.read_csv(example_data_path)
             if model_name == 'univariate':
@@ -79,9 +78,10 @@ class AbstractModelTest(unittest.TestCase):
 
             logistic_leaspy.fit(data, settings)
 
-            for method in ('mode_real', 'mean_real', 'scipy_minimize', 'gradient_descent_personalize'):
+            for method in ('mode_real', 'mean_real', 'gradient_descent_personalize'):
                 settings = AlgorithmSettings(method, n_iter=100, n_burn_in_iter=90, seed=0)
                 logistic_result = logistic_leaspy.personalize(data, settings)
+                # Scipy-minimize already tested inside the calibration
 
     def test_tensorize_2D(self):
 

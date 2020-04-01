@@ -14,6 +14,7 @@ class Dataset:
         self.max_observations = None
         self.dimension = None
         self.n_visits = None
+        self.n_observations = None
         self.individual_parameters = None
         self.indices = list(data.individuals.keys())
         self.L2_norm = None

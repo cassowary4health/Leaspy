@@ -154,7 +154,7 @@ corr_value, corr_log10pvalue = compute_correlation(leaspy_iter[0], individual_pa
 ## With resampling
 from leaspy.utils.resampling.general import compute_correlation_resampling
 correlation_resampling = compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_cofactors_dummy)
-corr_value_mean, corr_log10pvalue_mean, corr_value_std, corr_log10pvalue_std = correlation_resampling
+corr_value_mean, corr_log10pvalue_mean, corr_value_std, corr_log10pvalue_std, corr_log10pvalue_95percent = correlation_resampling
 
 
 
@@ -272,23 +272,37 @@ plt.show()
 
 #%% 3. Compute Correlations
 
+# Compute args
+correlation_resampling = compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_cofactors_dummy)
+corr_value_mean, corr_log10pvalue_mean, corr_value_std, corr_log10pvalue_std, corr_log10pvalue_95percent = correlation_resampling
+
 # Args : cutoffs, trajectory_resampling, diagnostic_ages_resampling
 
 # TODO : do a pls for the sources --> change over resampling iterations
 
-#corr_value_mean, corr_log10pvalue_mean, corr_value_std, corr_log10pvalue_std
-
 import seaborn as sns
-fig, ax = plt.subplots(1,1,figsize=(10,10))
-sns.heatmap(corr_log10pvalue_mean,annot=True, ax=ax)
-plt.show()
+fig, ax = plt.subplots(2,2,figsize=(14,14))
 
-import seaborn as sns
-fig, ax = plt.subplots(1,1,figsize=(10,10))
-sns.heatmap(corr_log10pvalue_std,annot=True, ax=ax)
-plt.show()
 
-fig, ax = plt.subplots(1,1,figsize=(10,10))
+sns.heatmap(corr_log10pvalue_mean,annot=True, ax=ax[0,0])
+ax[0,0].set_title("Mean of log10 pvalue")
+
+sns.heatmap(corr_log10pvalue_std,annot=True, ax=ax[1,0])
+ax[1,0].set_title("Std of log10 pvalue")
+
 corr_value_mean[corr_log10pvalue_mean>np.log10(0.05)]=np.nan
-sns.heatmap(corr_value_mean,annot=True, ax=ax)
+sns.heatmap(corr_value_mean,annot=True, ax=ax[0,1])
+ax[0,1].set_title("Mean of value (resampling mean pvalue under 0.05)")
+
+corr_value_mean[corr_log10pvalue_95percent>np.log10(0.05)]=np.nan
+sns.heatmap(corr_value_mean,annot=True, ax=ax[1,1])
+ax[1,1].set_title("Mean of value (resampling quantile 95% pvalue under 0.05)")
+
+for axi in ax:
+    for axij in axi:
+        b, t = axij.get_ylim() # discover the values for bottom and top
+        b += 0.5 # Add 0.5 to the bottom
+        t -= 0.5 # Subtract 0.5 from the top
+        axij.set_ylim(b, t) # update the ylim(bottom, top) values
+
 plt.show()

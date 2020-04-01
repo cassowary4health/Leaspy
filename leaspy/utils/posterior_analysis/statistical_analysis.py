@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+from sklearn.cross_decomposition import PLSRegression
+from sklearn.decomposition import PCA
 
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
     # TODO: Igor test
@@ -10,8 +12,8 @@ def append_spaceshifts_to_individual_parameters_dataframe(df_individual_paramete
     spaceshifts = np.dot(leaspy.model.attributes.mixing_matrix, sources)
 
     for i, spaceshift_coord in enumerate(spaceshifts):
-        population_speed_coord = np.exp(float((leaspy.model.parameters["v0"][i])))
-        df_ip['w_' + str(i)] = spaceshift_coord/population_speed_coord
+        #population_speed_coord = np.exp(float((leaspy.model.parameters["v0"][i])))
+        df_ip['w_' + str(i)] = spaceshift_coord#/population_speed_coord
 
     return df_ip
 
@@ -33,10 +35,21 @@ def compute_subgroup_statistics(leaspy,
 def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pearson"):
 
     df_indparam = append_spaceshifts_to_individual_parameters_dataframe(individual_parameters.to_dataframe(), leaspy)
-    df = pd.concat([df_indparam, df_cofactors], axis=1, sort=True)
 
-    df_corr_value = df.corr(method=method)*np.nan
-    df_corr_logpvalue = df_corr_value.copy(deep=True)*np.nan
+    # Compute PCA of w_i
+    if "sources_0" in df_indparam.columns:
+        pca = PCA(n_components=2)
+        w_features = [feature for feature in df_indparam if "w_" in feature]
+        pca.fit(df_indparam[w_features])
+
+        print("PCA variance ratio : ", pca.explained_variance_ratio_)
+
+        res_pca = pca.transform(df_indparam[w_features])
+
+        df_indparam["w_pca1"] = res_pca[:, 0]
+        df_indparam["w_pca2"] = res_pca[:, 1]
+
+    df = pd.concat([df_indparam, df_cofactors], axis=1, sort=True).dropna()
 
     if method =="pearson":
         correlation_function = stats.pearsonr
@@ -47,7 +60,17 @@ def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pea
 
     # P-values
     features = df.columns
-    p = len(df.columns)
+
+    features = [feature for feature in df_indparam.columns if "sources" not in feature]
+    if "sources_0" in df.columns:
+        features += ["sources"]
+    features += list(df_cofactors.columns)
+
+    # Create
+    df_corr_value = pd.DataFrame(np.nan*np.zeros(shape=(len(features),len(features))), index=features, columns=features)
+    df_corr_logpvalue = pd.DataFrame(np.nan*np.zeros(shape=(len(features),len(features))), index=features, columns=features)
+
+    p = len(features)
 
     for i in range(p):
         for j in range(i):
@@ -55,13 +78,32 @@ def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pea
             feature_col = features[j]
 
             # Compute Correlations
-            df_corr = df[[feature_row, feature_col]].dropna()
-            value, pvalue = correlation_function(df_corr[feature_row], df_corr[feature_col])
+            # Remove w_i between them
+            if "w_" in feature_row and "w_" in feature_col:
+                value, pvalue = np.nan, np.nan
+            elif feature_row != 'sources' and feature_col != 'sources':
+                df_corr = df[[feature_row, feature_col]].dropna()
+                value, pvalue = correlation_function(df_corr.iloc[:, 0], df_corr.iloc[:, 1])
+            else:
+                feature_not_source = feature_row if "sources" in feature_col else feature_col
+                if "w_" not in feature_not_source:
+                    X = df.drop(feature_not_source, axis=1).values
+                    Y = df[feature_not_source].values
+                    pls2 = PLSRegression(n_components=1)
+                    pls2.fit(X, Y)
+                    Y_pred = pls2.predict(X)
+                    df_corr = pd.DataFrame(np.array([Y_pred.reshape(-1),  Y.reshape(-1)]).T)
+                    value, pvalue = correlation_function(df_corr.iloc[:,0], df_corr.iloc[:,1])
+                else:
+                    value , pvalue = np.nan, np.nan
+
             logpvalue = np.log10(pvalue)
 
             df_corr_logpvalue.iloc[i, j] = logpvalue
             df_corr_value.iloc[i, j] = value
             df_corr_logpvalue.iloc[j, i] = logpvalue
             df_corr_value.iloc[j, i] = value
+
+
 
     return df_corr_value, df_corr_logpvalue

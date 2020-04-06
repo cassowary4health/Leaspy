@@ -79,9 +79,9 @@ def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pea
 
             # Compute Correlations
             # Remove w_i between them
-            if "w_" in feature_row and "w_" in feature_col:
-                value, pvalue = np.nan, np.nan
-            elif feature_row != 'sources' and feature_col != 'sources':
+            #if "w_" in feature_row and "w_" in feature_col:
+            #    value, pvalue = np.nan, np.nan
+            if feature_row != 'sources' and feature_col != 'sources':
                 df_corr = df[[feature_row, feature_col]].dropna()
                 value, pvalue = correlation_function(df_corr.iloc[:, 0], df_corr.iloc[:, 1])
             else:

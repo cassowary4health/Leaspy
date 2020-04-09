@@ -43,7 +43,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         Initialize all the individual parameters for all subjects. Used as initial value for scipy ``minimize``
         function. If the ``initialization_method`` is set to ``"last_realisations"``, the model's last realisation is
-        used as initial guess. Else, the group average parameters are used as initial guess.
+        used as initial guess. Else, the posterior mean of the individual parameters distribution is used as
+        initial guess.
 
         Parameters
         ----------
@@ -53,11 +54,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         if self.initialization_method == "last_realisations":
             _, ind_param = model._last_realisations.to_dict()
-            self.initial_parameters = torch.cat(tuple(val.t() for val in ind_param.values()))
+            self.initial_parameters = torch.cat((ind_param['tau'], ind_param['xi'], ind_param['sources']), dim=1)
         else:
-            self.initial_parameters = [0.] * (2 + model.source_dimension)
-            self.initial_parameters[0] = model.parameters["xi_mean"].item()
-            self.initial_parameters[1] = model.parameters["tau_mean"].item()
+            self.initial_parameters = torch.zeros(2 + model.source_dimension)
+            # self.initial_parameters[0] = model.parameters["tau_mean"].item()
+            # self.initial_parameters[1] = model.parameters["xi_mean"].item()
+            self.initial_parameters[:2] = model.individual_parameters_posterior_distribution.loc[:2]
 
     def get_initial_parameters(self, idx):
         """
@@ -70,12 +72,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Returns
         -------
-        numpy.ndarray or list [float], shape = (n_individual_parameters,)
+        numpy.ndarray, shape = (n_individual_parameters,)
         """
         if self.initialization_method == "last_realisations":
             return self.initial_parameters[:, idx].numpy()
         else:
-            return self.initial_parameters
+            return self.initial_parameters.numpy()
 
     @staticmethod
     def _get_attachment(model, times, values, individual_parameters):
@@ -93,7 +95,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         values: torch.Tensor
             Contains the individual true scores corresponding to the given ``times``.
         individual_parameters: dict [str, torch.Tensor]
-            The individual parameters.
+            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
 
         Returns
         -------
@@ -113,7 +115,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Subclass object of AbstractModel. Model used to compute the population & individual parameters.
             It contains the population parameters.
         individual_parameters: dict [str, torch.Tensor]
-            The individual parameters.
+            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
 
         Returns
         -------
@@ -142,7 +144,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Subclass object of AbstractModel. Model used to compute the population & individual parameters.
             It contains the population parameters.
         individual_parameters: dict [str, torch.Tensor]
-            The individual parameters.
+            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
 
         Returns
         -------
@@ -168,16 +170,17 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Subclass object of AbstractModel. Model used to compute the population & individual parameters.
             It contains the population parameters.
         individual_parameters: dict [str, torch.Tensor]
-            The individual parameters of one subject.
+            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
 
         Returns
         -------
         regularity: torch.Tensor
             Regularity of the patient corresponding to the given individual parameters.
         """
-        value = torch.cat([individual_parameters['tau'].unsqueeze(0),
-                          individual_parameters['xi'].unsqueeze(0),
-                          individual_parameters['sources'].unsqueeze(0)], dim=-1).squeeze()
+        tensor_list = [individual_parameters['tau'].unsqueeze(0), individual_parameters['xi'].unsqueeze(0)]
+        if model.name != 'univariate':
+            tensor_list.append([individual_parameters['sources'].unsqueeze(0)])
+        value = torch.cat(tensor_list, dim=-1).squeeze()
         # Reshaped into torch.Tensor([tau, xi, s0, s1, ...])
 
         return model.compute_multivariate_gaussian_posterior_regularity(value)
@@ -197,14 +200,13 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Subclass object of AbstractModel. Model used to compute the population & individual parameters.
             It contains the population parameters.
         individual_parameters: dict [str, torch.Tensor]
-            The individual parameters of one subject.
+            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
 
         Returns
         -------
-        torch.Tensor
+        regularity: torch.Tensor
             Regularity of the patient corresponding to the given individual parameters.
         """
-        # TODO : do the computation into model.compute_multivariate_sources_regularity ?
         # ------ First, compute regularity of the subject's tau & xi to their respective
         # posterior distribution assuming they are independent
         regularity = torch.tensor(0.)
@@ -213,27 +215,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             std = model.individual_parameters_posterior_distribution.covariance_matrix[i, i].sqrt()
             regularity += model.compute_regularity_variable(individual_parameters[param], mean, std).sum()
 
-        # ------ Then, compute conditional mean and covariance of sources given the subject's tau & xi
-        x_1 = torch.tensor([individual_parameters['tau'].item(),
-                            individual_parameters['xi'].item()], dtype=torch.float32)
-
-        mu_1 = model.individual_parameters_posterior_distribution.loc[:2]
-        mu_2 = model.individual_parameters_posterior_distribution.loc[2:]
-
-        sigma_11 = model.individual_parameters_posterior_distribution.covariance_matrix.narrow(
-            0, 0, 2).narrow(1, 0, 2)
-        sigma_22 = model.individual_parameters_posterior_distribution.covariance_matrix.narrow(
-            0, 2, model.source_dimension).narrow(1, 2, model.source_dimension)
-        sigma_12 = model.individual_parameters_posterior_distribution.covariance_matrix.narrow(
-            0, 2, model.source_dimension).narrow(1, 0, 2)
-
-        mean_cond = mu_2 + sigma_12 @ sigma_11.inverse() @ (x_1 - mu_1)
-        cov_cond = sigma_22 - sigma_12 @ sigma_11.inverse() @ sigma_12.transpose(0, -1)
-
         # ------ Then compute the sources' regularity and add it to the one of tau and xi
-        return model.compute_multivariate_sources_regularity(individual_parameters['sources'],
-                                                             mean_cond, cov_cond).sum() + regularity
-    # TODO: virer les déterminants dans la LL
+        if model.name != 'univariate':
+            tau_xi = torch.tensor([individual_parameters['tau'].item(),
+                                   individual_parameters['xi'].item()], dtype=torch.float32)
+            sources = individual_parameters['sources'].squeeze()
+            regularity += model.compute_multivariate_sources_regularity(tau_xi, sources).sum()
+
+        return regularity
 
     def _get_individual_parameters_patient_master(self, model, dataset, idx):
         """
@@ -255,10 +244,51 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         dict [str, torch.Tensor]
             Contains the subject's time-shift, log-acceleration & space-shifts.
         """
-        values = dataset.get_values_patient(idx)  # torch.Tensor
-        timepoints = dataset.get_times_patient(idx)  # torch.Tensor
+        values = dataset.get_values_patient(idx)
+        timepoints = dataset.get_times_patient(idx)
         initial_value = self.get_initial_parameters(idx)
         return self._get_individual_parameters_patient(model, timepoints, values, initial_value)
+
+    def objective_function_bis(self, x, *args):
+        """
+        Objective loss function to minimize in order to get the patient's individual parameters.
+
+        Parameters
+        ----------
+        x: numpy.ndarray
+            Initialization of individual parameters - in the following order (xi, tau, sources).
+        args: tuple(model, timepoints, values)
+            - model: leaspy model class object
+                Model used to compute the group average parameters.
+            - timepoints: torch.Tensor
+                Contains the individual ages corresponding to the given ``values``
+            - values: torch.Tensor
+                Contains the individual true scores corresponding to the given ``times``.
+
+        Returns
+        -------
+        objective: float
+            Value of the loss function.
+        """
+        # ------ Get the additional parameters
+        model, times, values = args
+
+        # ------ Get the subject's parameters
+        individual_parameters = {'tau': x[0].view(1, 1), 'xi': x[1].view(1, 1)}
+        if self.model_name != 'univariate':
+            individual_parameters['sources'] = x[2:].view(1, -1)
+        # Parameters must be in this order: 'tau', 'xi' then 'sources'
+
+        # ------ Compute the subject's attachment
+        attachment = self._get_attachment(model, times, values, individual_parameters)
+        attachment[attachment != attachment] = 0.  # Set nan to zero, not to count in the sum
+        attachment = torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
+        attachment *= self.algo_parameters['attachment_weight']
+
+        # ------ Compute the subject's regularity
+        regularity = self._get_regularity(model, individual_parameters) * self.algo_parameters['regularity_weight']
+
+        return regularity + attachment
 
     def objective_function(self, x, *args):
         """
@@ -285,8 +315,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         model, times, values = args
 
         # ------ Get the subject's parameters
-        individual_parameters = {'tau': torch.tensor([[x[1]]], dtype=torch.float32),
-                                 'xi': torch.tensor([[x[0]]], dtype=torch.float32)}
+        individual_parameters = {'tau': torch.tensor([[x[0]]], dtype=torch.float32),
+                                 'xi': torch.tensor([[x[1]]], dtype=torch.float32)}
         if self.model_name != 'univariate':
             individual_parameters['sources'] = torch.tensor([x[2:]], dtype=torch.float32)
         # Parameters must be in this order: 'tau', 'xi' then 'sources'
@@ -316,6 +346,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual ages corresponding to the given ``values``.
         values: torch.Tensor
             Contains the individual true scores corresponding to the given ``times``.
+        initial_value: numpy.ndarray, shape = (n_individual_parameters,)
+            Contains the initial guess fo the subject's individual parameters.
 
         Returns
         -------
@@ -332,8 +364,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if res.success is not True:
             print(res.success, res)
 
-        return {'xi': torch.tensor(res.x[0], dtype=torch.float32),
-                'tau': torch.tensor(res.x[1], dtype=torch.float32),
+        return {'tau': torch.tensor(res.x[0], dtype=torch.float32),
+                'xi': torch.tensor(res.x[1], dtype=torch.float32),
                 'sources': torch.tensor(res.x[2:], dtype=torch.float32)}
 
     def _get_individual_parameters(self, model, dataset):

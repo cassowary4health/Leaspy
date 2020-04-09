@@ -40,7 +40,7 @@ class AbstractModel:
         Return list of names of the individual variables from the model.
     load_parameters(parameters)
         Instantiate or update the model's parameters.
-     get_individual_parameters_distributions(self, individual_parameters)
+     set_individual_parameters_distribution(self, individual_parameters)
         Set the attribute ``individual_parameters_distributions`` from a dictionary of ``individual_parameters``.
     compute_multivariate_gaussian_posterior_regularity(self, value)
         Given the individual parameter of a subject, compute its regularity compared to the posterior distribution
@@ -57,7 +57,8 @@ class AbstractModel:
 
         self._last_realisations = None
         self.individual_parameters_posterior_distribution = None
-        self.sources_posterior_distribution = None
+        self._sources_conditional_posterior_covariance = None
+        self._sources_conditional_posterior_covariance_inverse = None
         self._univariate_gaussian_distribution = torch.distributions.normal.Normal(loc=0., scale=1.)
 
     def load_parameters(self, parameters):
@@ -89,7 +90,8 @@ class AbstractModel:
                     loc=posterior_distribution['mean'],
                     covariance_matrix=posterior_distribution['covariance']
                 )
-            self.set_sources_distribution()
+            if self.name != 'univariate':
+                self.set_sources_distribution()
         else:
             warnings.warn('The posterior distribution could not have been loaded from this  model file!', stacklevel=4)
 
@@ -446,7 +448,7 @@ class AbstractModel:
 
         return individual_parameters
 
-    def get_individual_parameters_distribution(self, individual_parameters):
+    def set_individual_parameters_distribution(self, individual_parameters):
         """
         Set the attribute ``individual_parameters_posterior_distribution`` from a dictionary of
         ``individual_parameters``.
@@ -479,15 +481,23 @@ class AbstractModel:
 
     def set_sources_distribution(self):
         """
-        Set the attribute ``sources_posterior_distribution`` from the attribute
+        Set the attribute ``sources_posterior_conditional_distribution`` from the attribute
         ``individual_parameters_posterior_distribution``.
         """
         if self.name != 'univariate':
             if self.individual_parameters_posterior_distribution is not None:
-                self.sources_posterior_distribution = torch.distributions.multivariate_normal.MultivariateNormal(
-                    loc=self.individual_parameters_posterior_distribution.loc[2:],
-                    covariance_matrix=self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
-                        0, 2, self.source_dimension).narrow(1, 2, self.source_dimension))
+                sigma_11 = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
+                    0, 0, 2).narrow(1, 0, 2)
+                sigma_22 = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
+                    0, 2, self.source_dimension).narrow(1, 2, self.source_dimension)
+                sigma_12 = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
+                    0, 2, self.source_dimension).narrow(1, 0, 2)
+
+                # ------ Compute the conditional covariance matrix of the sources knowing (tau, xi)
+                self._sources_conditional_posterior_covariance = sigma_22 - sigma_12 @ sigma_11.inverse() \
+                                                                @ sigma_12.transpose(0, -1)
+                self._sources_conditional_posterior_covariance_inverse = \
+                    self._sources_conditional_posterior_covariance.inverse()
             else:
                 raise ValueError('The attribute "individual_parameters_posterior_distribution" of your model is None! '
                                  'First you need to calibrate this model.')
@@ -512,25 +522,34 @@ class AbstractModel:
     # TODO : Add non parametric method to compute regularity ? Ex with scipy.stats.gaussian_kde.integrate_kde
     # TODO : Pblm - it is very dependent of the selected bandwidth in the two distributions!
 
-    def compute_multivariate_sources_regularity(self, conditional_mean, conditional_covariance, value):
+    def compute_multivariate_sources_regularity(self, tau_xi, sources):
         """
-        Given the individual parameter of a subject, compute its regularity assuming the individual parameters
-        follow a multivariate normal distribution. We use the posterior distribution of the individual
-        parameters of the cohort on which the model has been calibrated. The parameter tau & i are assumed to be
-        independent (from each other and from the sources). To compute the regularity of the sources, the conditional
-        mean and covariance matrix of the sources knowing tau and i are used.
+        Given the individual parameter of a subject, compute its the regularity of the `sources` assuming
+        the individual parameters follow a multivariate normal distribution. We use the posterior distribution of the
+        individual parameters of the cohort on which the model has been calibrated. To compute the regularity of
+        the `sources`, the conditional mean and covariance matrix of the `sources` knowing `tau` and `xi` are used.
 
         Parameters
         ----------
-        conditional_mean: torch.Tensor, shape = (n_sources,)
-        conditional_covariance: torch.Tensor, shape = (n_sources, n_sources)
-        value: torch.Tensor, shape = (n_sources,)
+        tau_xi: torch.Tensor, shape = (2,)
+            Subject's (tau, xi).
+        sources: torch.Tensor, shape = (n_sources,)
+            Subject's sources.
 
         Returns
         -------
         torch.Tensor
             The subject's regularity.
         """
-        self.sources_posterior_distribution.loc = conditional_mean
-        self.sources_posterior_distribution.covariance_matrix = conditional_covariance
-        return -self.sources_posterior_distribution.log_prob(value)
+        mu_1 = self.individual_parameters_posterior_distribution.loc[:2]  # (tau, xi) mean
+        mu_2 = self.individual_parameters_posterior_distribution.loc[2:]  # sources mean
+
+        sigma_11 = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
+            0, 0, 2).narrow(1, 0, 2)  # covariance matrix of (tau, xi)
+        sigma_12 = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
+            0, 2, self.source_dimension).narrow(1, 0, 2)  # covariance between (tau, xi) & the sources
+
+        mean_cond = mu_2 + sigma_12 @ sigma_11.inverse() @ (tau_xi - mu_1)  # conditional sources mean knowing (tau, xi)
+
+        diff = sources - mean_cond
+        return diff @ self._sources_conditional_posterior_covariance_inverse @ diff

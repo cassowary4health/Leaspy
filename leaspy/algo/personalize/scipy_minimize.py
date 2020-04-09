@@ -57,9 +57,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             self.initial_parameters = torch.cat((ind_param['tau'], ind_param['xi'], ind_param['sources']), dim=1)
         else:
             self.initial_parameters = torch.zeros(2 + model.source_dimension)
-            # self.initial_parameters[0] = model.parameters["tau_mean"].item()
-            # self.initial_parameters[1] = model.parameters["xi_mean"].item()
-            self.initial_parameters[:2] = model.individual_parameters_posterior_distribution.loc[:2]
+            self.initial_parameters[0] = model.parameters["tau_mean"].item()
+            self.initial_parameters[1] = model.parameters["xi_mean"].item()
+            # self.initial_parameters[:2] = model.individual_parameters_posterior_distribution.loc[:2]
 
     def get_initial_parameters(self, idx):
         """

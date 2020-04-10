@@ -372,13 +372,13 @@ class Leaspy:
     @classmethod
     def load(cls, path_to_model_settings):
         """
-        Instantiate a Leaspy object from json model parameter file.
+        Instantiate a Leaspy object from json model parameter file or the corresponding dictionary
         This function can be used to load a pre-trained model.
 
         Parameters
         ----------
-        path_to_model_settings: str
-            Path of the model's settings.
+        path_to_model_settings: str of dict
+            Path of the model's settings of loaded json in a dictionary
 
         Returns
         -------
@@ -403,6 +403,7 @@ class Leaspy:
         leaspy.plotting.update_model(leaspy.model)
 
         return leaspy
+
 
     def save(self, path):
         """

@@ -85,7 +85,7 @@ class Dataset:
         if model.dimension is None:
             return
         if data.dimension != model.dimension:
-            raise ValueError("The initialized model and the data do not have the same dimension")
+            raise ValueError(f"Unmatched dimensions. Model {model.dimension} ≠ {data.dimension} Data ")
 
     @staticmethod
     def _check_algo_compatibility(data, algo):

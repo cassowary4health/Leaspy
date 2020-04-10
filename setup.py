@@ -54,19 +54,26 @@ setup(name="leaspy",
                 'leaspy.algo.personalize',
                 'leaspy.algo.samplers',
                 'leaspy.algo.simulate',
+
                 'leaspy.io',
                 'leaspy.io.data',
                 'leaspy.io.settings',
+                'leaspy.io.realizations',
+                'leaspy.io.outputs',
+
                 'leaspy.models',
                 # 'leaspy.models.data',
                 'leaspy.models.utils',
                 'leaspy.models.utils.attributes',
                 'leaspy.models.utils.initialization',
+
                 'leaspy.utils',
+                'leaspy.utils.core',
                 'leaspy.utils.logs',
                 'leaspy.utils.logs.visualization',
-                'leaspy.utils.realizations',
                 'leaspy.utils.parallel',
+                'leaspy.utils.posterior_analysis',
+                'leaspy.utils.resampling',
                 ],
 
       install_requires=requirements,
@@ -82,4 +89,3 @@ setup(name="leaspy",
           "Operating System :: OS Independent",
       ],
       )
-

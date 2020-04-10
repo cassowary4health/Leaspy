@@ -14,9 +14,9 @@ def compute_trajectory_of_population_resampling(timepoints,
     assert len(leaspy_iter)==len(individual_parameters)
     n_resampling_iter = len(leaspy_iter)
 
-    resampling_trajectory = np.concatenate([compute_trajectory_of_population(timepoints,
+    resampling_trajectory = np.array([compute_trajectory_of_population(timepoints,
                                       individual_parameters[resampling_iter],
-                                    leaspy_iter[resampling_iter]) for resampling_iter in range(n_resampling_iter)],axis=0)
+                                    leaspy_iter[resampling_iter]) for resampling_iter in range(n_resampling_iter)])
 
     return resampling_trajectory
 
@@ -29,12 +29,11 @@ def get_age_at_abnormality_conversion_resampling(leaspy_iter,
     assert len(leaspy_iter)==len(individual_parameters)
     n_resampling_iter = len(leaspy_iter)
 
-    res = np.concatenate([get_age_at_abnormality_conversion(cutoffs,
+    res = np.array([get_age_at_abnormality_conversion(cutoffs,
                                                 individual_parameters[resampling_iter],
                                                 timepoints,
                                                 leaspy_iter[resampling_iter]
-                                                 ) for resampling_iter in range(n_resampling_iter)],
-              axis=0)
+                                                 ) for resampling_iter in range(n_resampling_iter)])
 
     return res
 

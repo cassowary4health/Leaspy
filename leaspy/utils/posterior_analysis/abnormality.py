@@ -53,7 +53,7 @@ def get_age_at_abnormality_conversion(abnormality_thresholds,
     # Translate to times
     times_reach_list = []
     for j, feature in enumerate(features):
-        where_reach = np.where(np.diff(is_superior_cutoff[:, :, j], axis=1))[1]
+        where_reach = np.where(np.diff(is_superior_cutoff[:, j], axis=0))[0]
         len_idx = len(where_reach)
         # If threshold is reached
         if len_idx == 1:
@@ -77,6 +77,6 @@ def get_age_at_abnormality_conversion(abnormality_thresholds,
             raise ValueError("Threshold reached at multiples times")
         times_reach_list.append(np.array(times_reach).reshape(1,1))
     res = np.concatenate(times_reach_list, axis=1)
-    res = np.expand_dims(res, axis=0)
+    #res = np.expand_dims(res, axis=0)
 
     return res

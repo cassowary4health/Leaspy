@@ -30,3 +30,15 @@ class TestUtilsGeneral(unittest.TestCase):
         self.assertEqual(reparametrized_ages['idx1'], [78.02704620361328, 89.0787582397461])
         self.assertEqual(reparametrized_ages['idx3'], [134.7211151123047])
 
+    def test_compute_trajectory_of_population(self):
+        leaspy = Leaspy.load(os.path.join(test_data_dir, 'model_parameters', 'test_api.json'))
+        ip = IndividualParameters.load(os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json'))
+
+        timepoints = [70, 71, 72, 73, 74, 75, 76]
+
+        trajectory = compute_trajectory_of_population(timepoints, ip, leaspy)
+        #self.assertTrue(torch.is_tensor(trajectory))
+        # TODO : choose a convention for output type : Numpy or Torch ? For now it seems numpy in api.estimate
+        self.assertEqual(trajectory.shape[0], 7)
+        self.assertEqual(trajectory.shape[1], 4)
+        # TODO : the above test just check that it runs, not the results!

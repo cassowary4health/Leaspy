@@ -56,10 +56,15 @@ class AbstractModel:
         self.attributes = None
 
         self._last_realisations = None
+        self._univariate_gaussian_distribution = torch.distributions.normal.Normal(loc=0., scale=1.)
         self.individual_parameters_posterior_distribution = None
+
         self._sources_conditional_posterior_covariance = None
         self._sources_conditional_posterior_covariance_inverse = None
-        self._univariate_gaussian_distribution = torch.distributions.normal.Normal(loc=0., scale=1.)
+
+        self._omegas_posterior_mean = None
+        self._omegas_posterior_covariance = None
+        self._omegas_posterior_covariance_inverse = None
 
     def load_parameters(self, parameters):
         """
@@ -92,6 +97,7 @@ class AbstractModel:
                 )
             if self.name != 'univariate':
                 self.set_sources_distribution()
+                self.set_omegas_distribution()
         else:
             warnings.warn('The posterior distribution could not have been loaded from this  model file!', stacklevel=4)
 
@@ -173,8 +179,8 @@ class AbstractModel:
             # abc.Collection is useless here because set, np.array(scalar) or torch.tensor(scalar)
             # are abc.Collection but are not array_like in numpy/torch sense or have no len()
             try:
-                len(v) # exclude np.array(scalar) or torch.tensor(scalar)
-                return hasattr(v, '__getitem__') # exclude set
+                len(v)  # exclude np.array(scalar) or torch.tensor(scalar)
+                return hasattr(v, '__getitem__')  # exclude set
             except TypeError:
                 return False
 
@@ -182,26 +188,26 @@ class AbstractModel:
         has_sources = self.name != 'univariate'
 
         # Check parameters names
-        expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'])
+        expected_parameters = set(['xi', 'tau'] + int(has_sources) * ['sources'])
         given_parameters = set(ips.keys())
         symmetric_diff = expected_parameters.symmetric_difference(given_parameters)
         if len(symmetric_diff) > 0:
             raise ValueError('Individual parameters dict provided {} is not compatible for {} model. ' \
-                'The expected individual parameters are {}.'.\
-                format(given_parameters, self.name, expected_parameters))
+                             'The expected individual parameters are {}.'. \
+                             format(given_parameters, self.name, expected_parameters))
 
         # Check number of individuals present (with low constraints on shapes)
-        ips_is_array_like = {k: is_array_like(v) for k,v in ips.items()}
-        ips_size = {k: len(v) if ips_is_array_like[k] else 1 for k,v in ips.items()}
+        ips_is_array_like = {k: is_array_like(v) for k, v in ips.items()}
+        ips_size = {k: len(v) if ips_is_array_like[k] else 1 for k, v in ips.items()}
 
         if has_sources:
             s = ips['sources']
 
             if not ips_is_array_like['sources']:
-                raise ValueError('Sources must be an array_like but {} was provided.'.\
+                raise ValueError('Sources must be an array_like but {} was provided.'. \
                                  format(s))
 
-            tau_xi_scalars = all(ips_size[k] == 1 for k in ['tau','xi'])
+            tau_xi_scalars = all(ips_size[k] == 1 for k in ['tau', 'xi'])
             if tau_xi_scalars and (ips_size['sources'] > 1):
                 # is 'sources' not a nested array? (allowed iff tau & xi are scalars)
                 if not is_array_like(s[0]):
@@ -219,18 +225,18 @@ class AbstractModel:
         n_inds = uniq_sizes.pop()
 
         # properly choose unsqueezing dimension when tensorizing array_like (useful for sources)
-        unsqueeze_dim = -1 # [1,2] => [[1],[2]] (expected for 2 individuals / 1D sources)
+        unsqueeze_dim = -1  # [1,2] => [[1],[2]] (expected for 2 individuals / 1D sources)
         if n_inds == 1:
-            unsqueeze_dim = 0 # [1,2] => [[1,2]] (expected for 1 individual / 2D sources)
+            unsqueeze_dim = 0  # [1,2] => [[1,2]] (expected for 1 individual / 2D sources)
 
         # tensorized (2D) version of ips
-        t_ips = {k: self._tensorize_2D(v, unsqueeze_dim=unsqueeze_dim) for k,v in ips.items()}
+        t_ips = {k: self._tensorize_2D(v, unsqueeze_dim=unsqueeze_dim) for k, v in ips.items()}
 
         # construct output
         return {
             'nb_inds': n_inds,
             'tensorized_ips': t_ips,
-            'tensorized_ips_gen': ({k: v[i,:].unsqueeze(0) for k,v in t_ips.items()} for i in range(n_inds))
+            'tensorized_ips_gen': ({k: v[i, :].unsqueeze(0) for k, v in t_ips.items()} for i in range(n_inds))
         }
 
     @staticmethod
@@ -303,7 +309,7 @@ class AbstractModel:
                                  '{} was provided.'.format(n_inds))
 
         # Convert the timepoints (list of numbers, or single number) to a 2D torch tensor
-        timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0) # 1 individual
+        timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0)  # 1 individual
 
         # Compute the individual trajectory
         return self.compute_individual_tensorized(timepoints, individual_parameters)
@@ -495,12 +501,42 @@ class AbstractModel:
 
                 # ------ Compute the conditional covariance matrix of the sources knowing (tau, xi)
                 self._sources_conditional_posterior_covariance = sigma_22 - sigma_12 @ sigma_11.inverse() \
-                                                                @ sigma_12.transpose(0, -1)
+                                                                 @ sigma_12.transpose(0, -1)
                 self._sources_conditional_posterior_covariance_inverse = \
                     self._sources_conditional_posterior_covariance.inverse()
             else:
                 raise ValueError('The attribute "individual_parameters_posterior_distribution" of your model is None! '
                                  'First you need to calibrate this model.')
+
+    def set_omegas_distribution(self):
+        """
+        Set the attribute ``_omegas_posterior_conditional_mean`` & ``_omegas_posterior_conditional_covariance``
+        from the attribute ``individual_parameters_posterior_distribution``.
+        """
+        if self.name != 'univariate':
+            if self.individual_parameters_posterior_distribution is not None:
+                # ------ Get sources posterior mean & covariance matrix
+                mu_sources = self.individual_parameters_posterior_distribution.loc[2:]
+                sigma_sources = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
+                    0, 2, self.source_dimension).narrow(1, 2, self.source_dimension)
+
+                # ------ Compute the omegas posterior mean & covariance matrix
+                self._omegas_posterior_mean = self.attributes.mixing_matrix @ mu_sources
+                self._omegas_posterior_covariance = self.attributes.mixing_matrix @ sigma_sources @ \
+                                                    self.attributes.mixing_matrix.t()
+            else:
+                raise ValueError('The attribute "individual_parameters_posterior_distribution" of your model is None! '
+                                 'First you need to calibrate this model.')
+
+    def set_omegas_posterior_covariance_inverse(self, omegas_regularity_factor):
+        """
+        Compute the space-shifts posterior covariance inverse matrix with the given regularization factor. Indeed,
+        as soon as the number of sources is less than the number of scores, the space-shifts are not linearly
+        independent.
+        """
+        n_omegas = self._omegas_posterior_mean.shape[0]
+        regularized_covariance = self._omegas_posterior_covariance + omegas_regularity_factor * torch.eye(n_omegas)
+        self._omegas_posterior_covariance_inverse = torch.inverse(regularized_covariance)
 
     def compute_multivariate_gaussian_posterior_regularity(self, value):
         """
@@ -519,6 +555,7 @@ class AbstractModel:
             The subject's regularity.
         """
         return -self.individual_parameters_posterior_distribution.log_prob(value)
+
     # TODO : Add non parametric method to compute regularity ? Ex with scipy.stats.gaussian_kde.integrate_kde
     # TODO : Pblm - it is very dependent of the selected bandwidth in the two distributions!
 
@@ -553,3 +590,20 @@ class AbstractModel:
 
         diff = sources - mean_cond
         return diff @ self._sources_conditional_posterior_covariance_inverse @ diff
+
+    def compute_multivariate_omegas_regularity(self, omegas):
+        """
+        Given the individual parameter of a subject, compute its the regularity of the `space-shifts`.
+
+        Parameters
+        ----------
+        omegas: torch.Tensor, shape = (n_scores,)
+            Subject's omegas (space-shifts).
+
+        Returns
+        -------
+        torch.Tensor
+            The subject's regularity.
+        """
+        diff = omegas - self._omegas_posterior_mean
+        return diff @ self._omegas_posterior_covariance_inverse @ diff

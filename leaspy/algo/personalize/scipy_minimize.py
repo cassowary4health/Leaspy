@@ -56,10 +56,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             _, ind_param = model._last_realisations.to_dict()
             self.initial_parameters = torch.cat((ind_param['tau'], ind_param['xi'], ind_param['sources']), dim=1)
         else:
-            self.initial_parameters = torch.zeros(2 + model.source_dimension)
-            self.initial_parameters[0] = model.parameters["tau_mean"].item()
-            self.initial_parameters[1] = model.parameters["xi_mean"].item()
-            # self.initial_parameters[:2] = model.individual_parameters_posterior_distribution.loc[:2]
+            if model.individual_parameters_posterior_distribution is None:
+                self.initial_parameters = torch.zeros(2 + model.source_dimension)
+                self.initial_parameters[0] = model.parameters["tau_mean"].item()
+                self.initial_parameters[1] = model.parameters["xi_mean"].item()
+            else:
+                self.initial_parameters = model.individual_parameters_posterior_distribution.loc
 
     def get_initial_parameters(self, idx):
         """
@@ -102,7 +104,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         torch.Tensor
             Model values minus real values.
         """
-        return model.compute_individual_tensorized(times, individual_parameters) - values
+        attachment = model.compute_individual_tensorized(times, individual_parameters) - values
+        attachment[attachment != attachment] = 0.  # Set nan to zero, not to count in the sum
+        return torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
 
     def _get_regularity(self, model, individual_parameters):
         """
@@ -128,6 +132,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             return self._get_posterior_regularity(model, individual_parameters)
         elif self.algo_parameters['regularity_method'] == "conditional_posterior":
             return self._get_conditional_posterior_regularity(model, individual_parameters)
+        elif self.algo_parameters['regularity_method'] == "posterior_omegas":
+            return self._get_posterior_regularity_omegas(model, individual_parameters)
         else:
             raise ValueError('The parameter "regularity_method" must be "prior", "posterior" or '
                              '"conditional_posterior"! You gave {}'.format(self.algo_parameters['regularity_method']))
@@ -136,7 +142,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
     def _get_prior_regularity(model, individual_parameters):
         """
         Compute the regularity of a patient given his individual parameters for a given model. In this settings,
-        the individual variables are assumed to be univariate gaussians independent for each other.
+        the individual variables are assumed to be univariate gaussians independent from each other.
 
         Parameters
         ----------
@@ -151,7 +157,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         regularity: torch.Tensor
             Regularity of the patient corresponding to the given individual parameters.
         """
-        regularity = torch.zeros(1)
+        regularity = torch.tensor(0., dtype=torch.float32)
         for key, value in individual_parameters.items():
             mean = model.parameters["{0}_mean".format(key)]
             std = model.parameters["{0}_std".format(key)]
@@ -209,7 +215,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         # ------ First, compute regularity of the subject's tau & xi to their respective
         # posterior distribution assuming they are independent
-        regularity = torch.tensor(0.)
+        regularity = torch.tensor(0., dtype=torch.float32)
         for i, param in enumerate(('tau', 'xi')):  # tau, xi in this order
             mean = model.individual_parameters_posterior_distribution.loc[i]
             std = model.individual_parameters_posterior_distribution.covariance_matrix[i, i].sqrt()
@@ -221,6 +227,44 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                                    individual_parameters['xi'].item()], dtype=torch.float32)
             sources = individual_parameters['sources'].squeeze()
             regularity += model.compute_multivariate_sources_regularity(tau_xi, sources).sum()
+
+        return regularity
+
+    @staticmethod
+    def _get_posterior_regularity_omegas(model, individual_parameters):
+        """
+        Given the individual parameter of a subject, compute its regularity assuming the individual parameters
+        follow a multivariate normal distribution. We use the posterior distribution of the individual
+        parameters of the cohort on which the model has been calibrated. The parameter tau & i are assumed to be
+        independent (from each other and from the sources). To compute the regularity of the sources, the conditional
+        mean and covariance matrix of the sources knowing tau and i are computed.
+
+        Parameters
+        ----------
+        model: leaspy.models.abstract_model.AbstractModel
+            Subclass object of AbstractModel. Model used to compute the population & individual parameters.
+            It contains the population parameters.
+        individual_parameters: dict [str, torch.Tensor]
+            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
+
+        Returns
+        -------
+        regularity: torch.Tensor
+            Regularity of the patient corresponding to the given individual parameters.
+        """
+        # ------ First, compute regularity of the subject's tau & xi to their respective
+        # posterior distribution assuming they are independent
+        regularity = torch.tensor(0., dtype=torch.float32)
+        for i, param in enumerate(('tau', 'xi')):  # tau, xi in this order
+            mean = model.individual_parameters_posterior_distribution.loc[i]
+            std = model.individual_parameters_posterior_distribution.covariance_matrix[i, i].sqrt()
+            regularity += model.compute_regularity_variable(individual_parameters[param], mean, std).sum()
+
+        # ------ Then compute the sources' regularity and add it to the one of tau and xi
+        if model.name != 'univariate':
+            sources = individual_parameters['sources'].squeeze()
+            omegas = sources @ model.attributes.mixing_matrix.t()
+            regularity += model.compute_multivariate_omegas_regularity(omegas).sum()
 
         return regularity
 
@@ -281,8 +325,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         # ------ Compute the subject's attachment
         attachment = self._get_attachment(model, times, values, individual_parameters)
-        attachment[attachment != attachment] = 0.  # Set nan to zero, not to count in the sum
-        attachment = torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
         attachment *= self.algo_parameters['attachment_weight']
 
         # ------ Compute the subject's regularity
@@ -323,13 +365,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         # ------ Compute the subject's attachment
         attachment = self._get_attachment(model, times, values, individual_parameters)
-        attachment[attachment != attachment] = 0.  # Set nan to zero, not to count in the sum
-        attachment = torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
         attachment *= self.algo_parameters['attachment_weight']
 
         # ------ Compute the subject's regularity
         regularity = self._get_regularity(model, individual_parameters) * self.algo_parameters['regularity_weight']
-
         return (regularity + attachment).detach().item()
 
     def _get_individual_parameters_patient(self, model, times, values, initial_value):
@@ -356,9 +395,22 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         timepoints = times.reshape(1, -1)
 
+        if self.algo_parameters['verbose'] == 'debug':
+            def callback(xk):
+                individual_parameters = {'tau': torch.tensor([xk[0]], dtype=torch.float32),
+                                         'xi': torch.tensor([xk[1]], dtype=torch.float32),
+                                         'sources': torch.tensor([xk[2:]], dtype=torch.float32)}
+                attachment = self._get_attachment(model, times, values, individual_parameters)
+                attachment *= self.algo_parameters['attachment_weight']
+                regularity = self._get_regularity(model, individual_parameters) * self.algo_parameters['regularity_weight']
+                print("Attachment : %.5f - Regularity : %.5f" % (attachment.item(), regularity.item()))
+        else:
+            callback = None
+
         res = minimize(self.objective_function,
                        x0=initial_value,
                        args=(model, timepoints, values),
+                       callback=callback,
                        **self.minimize_kwargs)
 
         if res.success is not True:
@@ -388,6 +440,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         self._set_model_name(model.name)
         infos = model.random_variable_informations()
         self._initialize_parameters(model)
+        if self.algo_parameters['regularity_method'] == 'posterior_omegas':
+            model.set_omegas_posterior_covariance_inverse(self.algo_parameters['omegas_regularity_factor'])
+            # TODO : raise error if model is univariate and method is "omegas_regularity_factor"
 
         if self.algo_parameters['parallel']:
             # Use joblib

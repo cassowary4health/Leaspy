@@ -5,9 +5,11 @@
   "parameters": {
     "n_iter": 100,
     "regularity_method": "prior",
+    "regularity_weight": 1,
+    "attachment_weight": 1,
+    "omegas_regularity_factor": 1e-3,
     "parallel": false,
     "n_jobs": -1,
-    "regularity_weight": 1,
-    "attachment_weight": 1
+    "verbose": null
   }
 }

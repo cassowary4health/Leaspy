@@ -124,6 +124,7 @@ class Leaspy:
         # ------ Compute the individual parameters mean & covariance matrix
         self.model.set_individual_parameters_distribution(result.individual_parameters)
         self.model.set_sources_distribution()
+        self.model.set_omegas_distribution()
 
     def calibrate(self, data, algorithm_settings, personalization_settings=AlgorithmSettings('scipy_minimize')):
         r"""

@@ -2,7 +2,7 @@ import copy
 import json
 import os
 import warnings
-from collections import Iterable
+from collections.abc import Iterable
 
 import pandas as pd
 import torch

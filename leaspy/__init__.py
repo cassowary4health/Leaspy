@@ -8,7 +8,7 @@ from .api import Leaspy
 # Inputs
 from .io.data.data import Data
 from .io.data.dataset import Dataset
-from leaspy.io.outputs.result import Result
+from .io.outputs.result import Result
 
 # Outputs
 from .io.outputs.individual_parameters import IndividualParameters

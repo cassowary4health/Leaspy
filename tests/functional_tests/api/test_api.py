@@ -2,12 +2,12 @@ import json
 import os
 import unittest
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 from numpy import allclose
 
-from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
+from leaspy import Leaspy, Data, AlgorithmSettings #, Plotter
 from leaspy.io.outputs.result import Result
 from tests import example_data_path
 from tests import test_data_dir
@@ -142,11 +142,11 @@ class LeaspyTest(unittest.TestCase):
         # TODO REFORMAT: compute the noise std afterwards
         #self.assertAlmostEqual(result.noise_std, 0.21146, delta=0.01)
 
-        # Plot TODO
-        path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")
-        plotter = Plotter(path_output)
+        ## Plot TODO
+        #path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")
+        #plotter = Plotter(path_output)
         # plotter.plot_mean_trajectory(leaspy.model, save_as="mean_trajectory_plot")
-        plt.close()
+        #plt.close()
 
         # Simulate
         simulation_settings = AlgorithmSettings('simulation', seed=0)

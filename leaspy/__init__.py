@@ -8,10 +8,10 @@ from .api import Leaspy
 # Inputs
 from .io.data.data import Data
 from .io.data.dataset import Dataset
-from .io.outputs.result import Result
 
 # Outputs
 from .io.outputs.individual_parameters import IndividualParameters
+from .io.outputs.result import Result
 
 # Algorithm Settings
 from .io.settings.algorithm_settings import AlgorithmSettings

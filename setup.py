@@ -68,7 +68,6 @@ setup(name="leaspy",
                 'leaspy.models.utils.initialization',
 
                 'leaspy.utils',
-                'leaspy.utils.core',
                 'leaspy.utils.logs',
                 'leaspy.utils.logs.visualization',
                 'leaspy.utils.parallel',

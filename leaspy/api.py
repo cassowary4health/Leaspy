@@ -5,7 +5,7 @@ from leaspy.io.data.dataset import Dataset
 #from leaspy.io.outputs.result import Result # not used
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
-from leaspy.utils.logs.visualization.plotting import Plotting
+from leaspy.io.logs.visualization.plotting import Plotting
 
 
 class Leaspy:

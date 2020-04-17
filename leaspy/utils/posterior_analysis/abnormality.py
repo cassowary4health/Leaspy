@@ -1,40 +1,16 @@
-
-
-
-def get_age_at_abnormality_conversion(abnormality_thresholds, individual_parameter, leaspy):
-    r"""
-    Description
-
-    Parameters
-    ----------
-    abnormality_thresholds: dictionary {feature: abnormality_value}
-
-    individual_parameter: dictionary {parameter: parameter_value}
-
-    leaspy: Leaspy object
-
-
-    Returns
-    -------
-    abnormality_ages: dictionary {feature: abnormality_age}
-
-    Examples
-    --------
-
-    >>> leaspy =
-    >>> ...
-    """
-
-    #TODO : Raphael
-
-from leaspy.utils.posterior_analysis.general import compute_trajectory_of_population
+import warnings
 import numpy as np
 import torch
+
+
+from leaspy.utils.posterior_analysis.general import compute_trajectory_of_population
+
 
 def get_age_at_abnormality_conversion(abnormality_thresholds,
                                       individual_parameter,
                                       timepoints,
                                       leaspy):
+    warnings.warn('get_age_at_abnormality_conversion function is deprecated. Please use the one in Leaspype')
 
     features = leaspy.model.features
 

@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from leaspy import IndividualParameters
 
@@ -20,7 +21,7 @@ def append_spaceshifts_to_individual_parameters_dataframe(df_individual_paramete
         Copy of the initial dataframe with additional columns being the space shifts of the individuals.
 
     """
-
+    warnings.warn('append_spaceshifts_to_individual_parameters_dataframe function is deprecated. Please use the one in Leaspype')
     df_ip = df_individual_parameters.copy()
 
     sources = df_ip [['sources_' + str(i) for i in range(leaspy.model.source_dimension)]].values.T
@@ -63,6 +64,8 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
     >>> ages = {'idx-1': [78, 79, 81], 'idx-2': [67, 68, 74], 'idx-3': [56]}
     >>> repametrized_ages = get_reparametrized_ages(ages, individual_parameters, leaspy)
     """
+
+    warnings.warn('get_reparametrized_ages function is deprecated. Please use the one in Leaspype')
     tau_mean = leaspy.model.parameters['tau_mean']
     indices = individual_parameters._indices
     reparametrized_ages = {}
@@ -108,6 +111,8 @@ def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
     >>> timepoints = [70, 71, 72, 73, 74, 75, 76]
     >>> trajectory = compute_trajectory_of_population(timepoints, ip, leaspy)
     """
+
+    warnings.warn('compute_trajectory_of_population function is deprecated. Please use the one in Leaspype')
     ip_dict = {
         'xi': individual_parameters.get_mean('xi'),
         'tau': individual_parameters.get_mean('tau'),

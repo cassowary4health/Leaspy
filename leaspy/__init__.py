@@ -17,4 +17,4 @@ from .io.outputs.result import Result
 from .io.settings.algorithm_settings import AlgorithmSettings
 
 # Plotter
-from .utils.logs.visualization.plotter import Plotter
+from leaspy.io.logs.visualization.plotter import Plotter

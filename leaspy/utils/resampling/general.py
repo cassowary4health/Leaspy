@@ -83,19 +83,19 @@ def compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_c
         corr_log10pvalue_dict[i] = corr_log10pvalue
 
 
-    features = corr_value.columns
-    df_value_concat = pd.concat(list(corr_value_dict.values()))
-    value_by_row_index = df_value_concat.groupby(df_value_concat.index)
-    corr_value_mean = value_by_row_index.mean().loc[features, features]
-    corr_value_std = value_by_row_index.mean().loc[features, features]
+    #features = corr_value.columns
+    #df_value_concat = pd.concat(list(corr_value_dict.values()))
+    #value_by_row_index = df_value_concat.groupby(df_value_concat.index)
+    #corr_value_mean = value_by_row_index.mean().loc[features, features]
+    #corr_value_std = value_by_row_index.mean().loc[features, features]
 
-    df_log10pvalue_concat = pd.concat(list(corr_log10pvalue_dict.values()))
-    log10pvalue_by_row_index = df_log10pvalue_concat.groupby(df_log10pvalue_concat.index)
-    corr_log10pvalue_mean = log10pvalue_by_row_index.mean().loc[features, features]
-    corr_log10pvalue_95percent = log10pvalue_by_row_index.quantile(0.95).loc[features, features]
-    corr_log10pvalue_std = log10pvalue_by_row_index.std().loc[features, features]
+    #df_log10pvalue_concat = pd.concat(list(corr_log10pvalue_dict.values()))
+    #log10pvalue_by_row_index = df_log10pvalue_concat.groupby(df_log10pvalue_concat.index)
+    #corr_log10pvalue_mean = log10pvalue_by_row_index.mean().loc[features, features]
+    #corr_log10pvalue_95percent = log10pvalue_by_row_index.quantile(0.95).loc[features, features]
+    #corr_log10pvalue_std = log10pvalue_by_row_index.std().loc[features, features]
 
-    return corr_value_mean, corr_log10pvalue_mean, corr_value_std, corr_log10pvalue_std, corr_log10pvalue_95percent
+    return corr_value_dict, corr_log10pvalue_dict
 
 
 

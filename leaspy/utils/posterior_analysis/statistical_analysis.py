@@ -89,14 +89,18 @@ def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pea
                 df_corr = df[[feature_row, feature_col]].dropna()
                 value, pvalue = correlation_function(df_corr.iloc[:, 0], df_corr.iloc[:, 1])
             else:
+                features_source = [feature for feature in df.columns if "sources" in feature]
                 feature_not_source = feature_row if "sources" in feature_col else feature_col
                 if "w_" not in feature_not_source:
-                    X = df.drop(feature_not_source, axis=1).values
-                    Y = df[feature_not_source].values
+                    sampling_size = df[features_source].shape[0]
+                    X_train = df[features_source].values[:int(sampling_size/2)]
+                    X_test = df[features_source].values[int(sampling_size/2):]
+                    Y_train = df[feature_not_source].values[:int(sampling_size/2)]
+                    Y_test = df[feature_not_source].values[int(sampling_size/2):]
                     pls2 = PLSRegression(n_components=1)
-                    pls2.fit(X, Y)
-                    Y_pred = pls2.predict(X)
-                    df_corr = pd.DataFrame(np.array([Y_pred.reshape(-1),  Y.reshape(-1)]).T)
+                    pls2.fit(X_train, Y_train)
+                    Y_pred = pls2.predict(X_test)
+                    df_corr = pd.DataFrame(np.array([Y_pred.reshape(-1),  Y_test.reshape(-1)]).T)
                     value, pvalue = correlation_function(df_corr.iloc[:,0], df_corr.iloc[:,1])
                 else:
                     value , pvalue = np.nan, np.nan

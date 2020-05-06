@@ -5,6 +5,8 @@ import torch
 
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.model_factory import ModelFactory
+
 from tests import example_data_path
 from tests import example_logisticmodel_path
 
@@ -129,10 +131,14 @@ class AbstractModelTest(unittest.TestCase):
         ]
 
         for src_compat, m in [
-            (lambda src_dim: src_dim <= 0, AbstractModel('univariate')),
-            (lambda src_dim: src_dim > 0, AbstractModel('multivariate'))
+            (lambda src_dim: src_dim <= 0, ModelFactory.model('univariate')),
+            (lambda src_dim: src_dim >= 0, ModelFactory.model('logistic'))
         ]:
+
             for (valid,n_inds,src_dim), ips in all_ips:
+
+                if m.name == 'logistic':
+                    m.source_dimension = src_dim
 
                 if (not valid) or (not src_compat(src_dim)):
                     with self.assertRaises(ValueError, ):

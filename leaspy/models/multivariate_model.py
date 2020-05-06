@@ -31,7 +31,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
-        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
@@ -44,6 +44,7 @@ class MultivariateModel(AbstractMultivariateModel):
         LL = velocities * reparametrized_time + positions
 
         if self.source_dimension != 0:
+            sources = ind_parameters['sources']
             wi = torch.nn.functional.linear(sources, mixing_matrix, bias=None)
             LL += wi.unsqueeze(-2)
         return LL
@@ -55,7 +56,7 @@ class MultivariateModel(AbstractMultivariateModel):
         b = g_plus_1 * g_plus_1 / g
 
         # Individual parameters
-        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
 
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
@@ -65,6 +66,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         LL = v0 * reparametrized_time
         if self.source_dimension != 0:
+            sources = ind_parameters['sources']
             wi = sources.matmul(a_matrix.t())
             LL += wi.unsqueeze(-2)
         LL = 1. + g * torch.exp(-LL * b)

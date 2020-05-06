@@ -26,12 +26,13 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         deltas_exp = torch.exp(-deltas)
 
         # Individual parameters
-        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
         LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
         if self.source_dimension != 0:
+            sources = ind_parameters['sources']
             wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
             LL += wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
         LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)

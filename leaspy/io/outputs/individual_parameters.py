@@ -466,7 +466,7 @@ class IndividualParameters:
     @staticmethod
     def _load_csv(path):
 
-        df = pd.read_csv(path, index_col=0)
+        df = pd.read_csv(path, dtype={'ID':str}).set_index('ID')
         ip = IndividualParameters.from_dataframe(df)
 
         return ip

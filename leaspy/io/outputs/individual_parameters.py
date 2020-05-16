@@ -1,8 +1,10 @@
-import torch
+import os
 import json
+import warnings
+
+import torch
 import pandas as pd
 import numpy as np
-import warnings
 
 class IndividualParameters:
     r"""
@@ -443,11 +445,11 @@ class IndividualParameters:
 
     @staticmethod
     def _check_and_get_extension(path):
-        path = path.split('/')[-1]
-        if '.' in path:
-            extension = path.split('.')[-1]
-            return extension
-        return False
+        _, ext = os.path.splitext(path)
+        if len(ext) == 0:
+            return False
+        else:
+            return ext[1:]
 
     def _save_csv(self, path):
         df = self.to_dataframe()

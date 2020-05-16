@@ -15,7 +15,7 @@ class IndividualParametersTest(unittest.TestCase):
         self.p1 = {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]}
         self.p2 = {"xi": 0.2, "tau": 73, "sources": [-0.4, 0.1]}
         self.p3 = {"xi": 0.3, "tau": 58, "sources": [-0.6, 0.2]}
-        self.parameters_shape = {"xi": 1, "tau": 1, "sources": 2}
+        self.parameters_shape = {"xi": (), "tau": (), "sources": (2,)}
         self.individual_parameters = {"idx1": self.p1, "idx2": self.p2, "idx3": self.p3}
 
         ip = IndividualParameters()
@@ -43,7 +43,7 @@ class IndividualParametersTest(unittest.TestCase):
         ip = IndividualParameters()
         self.assertEqual(ip._indices, [])
         self.assertEqual(ip._individual_parameters, {})
-        self.assertEqual(ip._parameters_shape, {})
+        self.assertEqual(ip._parameters_shape, None) # changed
         self.assertEqual(ip._default_saving_type, "csv")
 
     def test_individual_parameters(self):
@@ -57,10 +57,45 @@ class IndividualParametersTest(unittest.TestCase):
         ip.add_individual_parameters("idx2", p2)
         ip.add_individual_parameters("idx3", p3)
 
-        self.assertEqual(ip._indices, ["idx1", "idx2", "idx3"])
-        self.assertEqual(ip._individual_parameters, {"idx1": p1, "idx2": p2, "idx3": p3})
-        self.assertEqual(ip._parameters_shape, {"xi": 1, "tau": 1, "sources": 2})
+        ## test fail index exist
+        with self.assertRaises(ValueError):
+            ip.add_individual_parameters('idx1', p3)
+        ## test fail index numeric
+        with self.assertRaises(ValueError):
+            ip.add_individual_parameters(1, p1)
+        ## test fail expect scalar
+        with self.assertRaises(ValueError):
+            ip.add_individual_parameters('tau_list', {'tau': [0.2], 'xi': .1, 'sources': [0,0]})
+        ## test fail missing key
+        with self.assertRaises(ValueError):
+            ip.add_individual_parameters('no_xi', {'tau': 0.2, 'sources': [0,0]})
 
+        self.assertEqual(ip._indices, ["idx1", "idx2", "idx3"])
+        self.assertEqual(ip._indices, list(ip._individual_parameters.keys())) # TODO: delete indices? as they should be dict keys
+        self.assertEqual(ip._individual_parameters, {"idx1": p1, "idx2": p2, "idx3": p3})
+        self.assertEqual(ip._parameters_shape, {"xi": (), "tau": (), "sources": (2,)})
+        self.assertEqual(ip._parameters_size, {"xi": 1, "tau": 1, "sources": 2})
+
+        ### test with 1 source only (previous bug)
+        ip1 = IndividualParameters()
+
+        src1 = {'tau': 73, 'xi': .1, 'sources': [0.14]}
+
+        ip1.add_individual_parameters('id1', src1)
+        ip1.add_individual_parameters('id2', src1)
+
+        self.assertEqual(ip1._parameters_shape, {"xi": (), "tau": (), "sources": (1,)})
+        self.assertEqual(ip1._parameters_size, {"xi": 1, "tau": 1, "sources": 1})
+
+        ## test fail compat nb sources 1 != 2
+        with self.assertRaises(ValueError):
+            ip1.add_individual_parameters('id_fail', p1)
+
+        ## test columns of dataframe
+        # previously would have been "sources" for 1 source which is not generic...
+        self.assertEqual({'tau','xi','sources_0'}, set(ip1.to_dataframe().columns))
+        # previously one would get a column named "sources", with a string encoded list of 1 element at each row...
+        self.assertTrue(pd.api.types.is_numeric_dtype(ip1.to_dataframe().dtypes.all()))
 
     def test_get_item(self):
         ip = IndividualParameters()

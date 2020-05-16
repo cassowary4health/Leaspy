@@ -1,6 +1,8 @@
 import os
 import json
 import warnings
+import functools
+import operator
 
 import torch
 import pandas as pd
@@ -52,8 +54,17 @@ class IndividualParameters:
     def __init__(self):
         self._indices = []
         self._individual_parameters = {}
-        self._parameters_shape = {} # {p_name: p_shape}
+        self._parameters_shape = None # {p_name: p_shape as tuple}
         self._default_saving_type = 'csv'
+
+    @property
+    def _parameters_size(self):
+        # convert parameter shape to parameter size
+        # e.g. () -> 1, (1,) -> 1, (2,3) -> 6
+        shape_to_size = lambda shape: functools.reduce(operator.mul, shape, 1)
+
+        return {p: shape_to_size(s)
+                for p,s in self._parameters_shape.items()}
 
     def add_individual_parameters(self, index, individual_parameters):
         r"""
@@ -85,24 +96,44 @@ class IndividualParameters:
 
         if index in self._indices:
             raise ValueError(f'The index {index} has already been added before')
-        self._indices.append(index)
 
         # Check the dictionary format
         if type(individual_parameters) != dict:
             raise ValueError('The `individual_parameters` argument should be a dictionary')
 
-        individual_parameters = {k: v.tolist() if isinstance(v, np.ndarray) else v for k, v in individual_parameters.items()} # Conversion from numpy to list
-        for k, v in individual_parameters.items():
-            valid_types = [list, int, float, np.float32, np.float64]
-            if type(v) not in valid_types:
-                raise ValueError(f'Incorrect dictionary value. Error for key: {k} -> type {type(v)}')
+        # Conversion of numpy arrays to lists
+        individual_parameters = {k: v.tolist() if isinstance(v, np.ndarray) else v
+                                 for k, v in individual_parameters.items()}
 
+        # Check types of params
+        for k, v in individual_parameters.items():
+
+            valid_scalar_types = [int, np.int32, np.int64, float, np.float32, np.float64]
+
+            scalar_type = type(v)
+            if isinstance(v, list):
+                scalar_type = None if len(v) == 0 else type(v[0])
+            #elif isinstance(v, np.ndarray):
+            #    scalar_type = v.dtype
+
+            if scalar_type not in valid_scalar_types:
+                raise ValueError(f'Incorrect dictionary value. Error for key: {k} -> scalar type {scalar_type}')
+
+        # Fix/check parameters nomenclature and shapes
+        # (scalar or 1D arrays only...)
+        pshapes = {p: (len(v),) if isinstance(v, list) else ()
+                   for p,v in individual_parameters.items()}
+
+        if self._parameters_shape is None:
+            # Keep track of the parameter shape
+            self._parameters_shape = pshapes
+        elif self._parameters_shape != pshapes:
+            raise ValueError(f'Invalid parameter shapes provided: {pshapes}. Expected: {self._parameters_shape}. Some parameters may be missing/unknown or have a wrong shape.')
+
+        # Finally: add to internal dict object + indices array
+        self._indices.append(index)
         self._individual_parameters[index] = individual_parameters
 
-        for k, v in individual_parameters.items():
-            # Keep track of the parameter shape
-            if k not in self._parameters_shape.keys():
-                self._parameters_shape[k] = 1 if np.ndim(v) == 0 else len(v)
 
     def __getitem__(self, item):
         if type(item) != str:
@@ -231,32 +262,26 @@ class IndividualParameters:
         >>> ip = IndividualParameters.load("path/to/individual_parameters")
         >>> ip_df = ip.to_dataframe()
         """
-        p_names = list(self._parameters_shape.keys())
-
         # Get the data, idx per idx
         arr = []
         for idx in self._indices:
             indiv_arr = [idx]
             indiv_p = self._individual_parameters[idx]
 
-            for p_name in p_names:
-                shape = self._parameters_shape[p_name]
-
-                if shape == 1:
+            for p_name, p_shape in self._parameters_shape.items():
+                if p_shape == ():
                     indiv_arr.append(indiv_p[p_name])
                 else:
-                    for i in range(shape):
-                        indiv_arr.append(indiv_p[p_name][i])
+                    indiv_arr += indiv_p[p_name] # 1D array only...
             arr.append(indiv_arr)
 
         # Get the column names
         final_names = ['ID']
-        for p_name in p_names:
-            shape = self._parameters_shape[p_name]
-            if shape == 1:
+        for p_name, p_shape in self._parameters_shape.items():
+            if p_shape == ():
                 final_names.append(p_name)
             else:
-                final_names += [p_name+'_'+str(i) for i in range(shape)]
+                final_names += [p_name+'_'+str(i) for i in range(p_shape[0])] # 1D array only...
 
         df = pd.DataFrame(arr, columns=final_names)
         return df.set_index('ID')
@@ -285,17 +310,19 @@ class IndividualParameters:
         final_names = {}
         for name in df_names:
             split = name.split('_')[0]
-            if split not in final_names:
-                final_names[split] = []
-            final_names[split].append(name)
-
-        final_names = {k: v if len(v) > 1 else v[0] for k, v in final_names.items()}
+            if split == name: # e.g tau, xi, ...
+                final_names[name] = name
+            else: # e.g sources_0 --> sources
+                if split not in final_names:
+                    final_names[split] = []
+                final_names[split].append(name)
 
         # Create the individual parameters
         ip = IndividualParameters()
 
-        for idx, v_flat in df.iterrows():
-            i_d = {k: v_flat[v].tolist() if np.ndim(v) == 0 else v_flat[v].values.tolist() for k, v in final_names.items()}
+        for idx, row in df.iterrows():
+            i_d = {param: row[col].tolist() if isinstance(col, list) else row[col]
+                   for param, col in final_names.items()}
             ip.add_individual_parameters(idx, i_d)
 
         return ip
@@ -340,8 +367,8 @@ class IndividualParameters:
         keys = list(dict_pytorch.keys())
 
         for i, idx in enumerate(indices):
-            p = {k: dict_pytorch[k][i].numpy().tolist() for k in keys}
-            p = {k: v[0] if len(v) == 1 else v for k, v in p.items()}
+            p = {k: dict_pytorch[k][i].tolist() for k in keys}
+            p = {k: v[0] if len(v) == 1 and k != 'sources' else v for k, v in p.items()}
 
             ip.add_individual_parameters(idx, p)
 
@@ -367,13 +394,12 @@ class IndividualParameters:
         >>> indices, ip_pytorch = ip.to_pytorch()
         """
         ips_pytorch = {}
-        p_names = list(self._parameters_shape)
 
-        for p_name in p_names:
+        for p_name, p_size in self._parameters_size.items():
 
             p_val = [self._individual_parameters[idx][p_name] for idx in self._indices]
             p_val = torch.tensor(p_val, dtype=torch.float32)
-            p_val = p_val.reshape(shape=(len(self._indices), self._parameters_shape[p_name]))
+            p_val = p_val.reshape(shape=(len(self._indices), p_size)) # always 2D
 
             ips_pytorch[p_name] = p_val
 
@@ -482,5 +508,8 @@ class IndividualParameters:
         ip._indices = json_data['indices']
         ip._individual_parameters = json_data['individual_parameters']
         ip._parameters_shape = json_data['parameters_shape']
+
+        # convert json lists to tuple for shapes
+        ip._parameters_shape = {p: tuple(s) for p,s in ip._parameters_shape.items()}
 
         return ip

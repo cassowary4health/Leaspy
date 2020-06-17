@@ -19,7 +19,7 @@ class AlgorithmSettings:
         self.logs = None
 
         if name in ['mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize',
-                    'mode_real']:
+                    'mode_real', 'scipy_minimize_omegas']:
             self._load_default_values(os.path.join(default_data_dir, 'default_' + name + '.json'))
         else:
             raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))

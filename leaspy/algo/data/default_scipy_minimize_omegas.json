@@ -1,10 +1,10 @@
 {
-  "name": "scipy_minimize",
+  "name": "scipy_minimize_omegas",
   "seed": null,
   "initialization_method": null,
   "parameters": {
     "n_iter": 100,
-    "regularity_method": "prior",
+    "regularity_method": "posterior_omegas",
     "regularity_weight": 1,
     "attachment_weight": 1,
     "omegas_regularity_factor": 1e-6,

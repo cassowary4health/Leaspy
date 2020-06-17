@@ -2,9 +2,10 @@
 # from leaspy.algo.fit.gradient_mcmcsaem import GradientMCMCSAEM
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 from leaspy.algo.personalize.gradient_descent_personalize import GradientDescentPersonalize
-from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.algo.personalize.mean_realisations import MeanReal
 from leaspy.algo.personalize.mode_realisations import ModeReal
+from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
+from leaspy.algo.personalize.scipy_minimize_omegas import ScipyMinimizeOmegas
 # from leaspy.algo.fit.hmc_saem import HMC_SAEM
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 
@@ -30,6 +31,8 @@ class AlgoFactory:
             algorithm = GradientDescentPersonalize(settings)
         elif name == 'scipy_minimize':
             algorithm = ScipyMinimize(settings)
+        elif name == 'scipy_minimize_omegas':
+            algorithm = ScipyMinimizeOmegas(settings)
         elif name == 'mean_real':
             algorithm = MeanReal(settings)
         elif name == 'mode_real':
@@ -77,7 +80,8 @@ class AlgoFactory:
 
         compatibility_algorithms = {
             "fit": ["mcmc_saem"],
-            "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"],
+            "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize",
+                            "scipy_minimize_omegas"],
             "simulate": ["simulation"]
         }
 

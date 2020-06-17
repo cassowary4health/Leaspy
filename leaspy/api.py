@@ -65,7 +65,7 @@ class Leaspy:
         self.type = model_name
         self.plotting = Plotting(self.model)
 
-    def fit(self, data, algorithm_settings, personalization_settings=AlgorithmSettings('scipy_minimize')):
+    def fit(self, data, algorithm_settings, personalization_settings=AlgorithmSettings('scipy_minimize', seed=0)):
         r"""
         Estimate the model's parameters :math:`\theta` for a given dataset, a given model and a given algorithm.
         These model's parameters correspond to the fixed-effects of the mixed effect model.
@@ -126,7 +126,7 @@ class Leaspy:
         self.model.set_sources_distribution()
         self.model.set_omegas_distribution()
 
-    def calibrate(self, data, algorithm_settings, personalization_settings=AlgorithmSettings('scipy_minimize')):
+    def calibrate(self, data, algorithm_settings, personalization_settings=AlgorithmSettings('scipy_minimize', seed=0)):
         r"""
         Duplicates of the ``fit`` method. Refer to the ``fit`` documentation.
 

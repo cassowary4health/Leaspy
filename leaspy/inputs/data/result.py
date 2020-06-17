@@ -420,10 +420,13 @@ class Result:
         """
         df.columns = [header.lower() for header in df.columns]
         sources_index = ["sources" in header for header in df.columns]
+        omegas_index = ["omegas" in header for header in df.columns]
         ind_param = {'tau': torch.tensor(df['tau'].values, dtype=torch.float32).view(-1, 1),
                      'xi': torch.tensor(df['xi'].values, dtype=torch.float32).view(-1, 1)}
         if any(sources_index):
             ind_param['sources'] = torch.tensor(df.iloc[:, sources_index].values, dtype=torch.float32)
+        if any(omegas_index):
+            ind_param['omegas'] = torch.tensor(df.iloc[:, omegas_index].values, dtype=torch.float32)
         return ind_param
 
     @staticmethod

@@ -69,6 +69,27 @@ class MultivariateModel(AbstractMultivariateModel):
         model = 1. / LL
         return model
 
+    def compute_individual_tensorized_omegas(self, timepoints, ind_parameters, attribute_type=None):
+        # Population parameters
+        g, v0, _ = self._get_attributes(attribute_type)
+        g_plus_1 = 1. + g
+        b = g_plus_1 * g_plus_1 / g
+
+        # Individual parameters
+        xi, tau, wi = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['omegas']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        # Log likelihood computation
+        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
+        v0 = v0.reshape(1, 1, -1)
+
+        LL = v0 * reparametrized_time
+        if self.source_dimension != 0:
+            LL += wi.unsqueeze(-2)
+        LL = 1. + g * torch.exp(-LL * b)
+        model = 1. / LL
+        return model
+
     def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError()
 

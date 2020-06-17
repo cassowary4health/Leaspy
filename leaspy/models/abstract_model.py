@@ -2,6 +2,7 @@ import math
 import warnings
 
 import torch
+from numpy.linalg import lstsq, LinAlgError
 
 from leaspy.utils.realizations.collection_realization import CollectionRealization
 from leaspy.utils.realizations.realization import Realization
@@ -144,7 +145,10 @@ class AbstractModel:
         torch.Tensor, shape = (n_subjects,)
             Contain for each subject the sum of its squared residuals. The sum is on every scores and every visits.
         """
-        res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+        if 'sources' in param_ind.keys():
+            res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+        else:
+            res: torch.FloatTensor = self.compute_individual_tensorized_omegas(data.timepoints, param_ind, attribute_type)
         return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
 
     def audit_individual_parameters(self, ips):
@@ -317,6 +321,9 @@ class AbstractModel:
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         return NotImplementedError
 
+    def compute_individual_tensorized_omegas(self, timepoints, individual_parameters, attribute_type=None):
+        return NotImplementedError
+
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         """
         Compute attachment of the subjects for all visits.
@@ -474,7 +481,7 @@ class AbstractModel:
         # ------ Compute mean and covariance matrix
         ind_param_mean = torch.mean(ind_param, dim=0)
         ind_param_cov = ind_param - ind_param_mean[None, :]
-        ind_param_cov = 1 / (ind_param_cov.size(0) - 1) * ind_param_cov.t() @ ind_param_cov
+        ind_param_cov = ind_param_cov.t() @ ind_param_cov / (ind_param_cov.size(0) - 1)
 
         # ------ Impose xi & tau independent to each other & independent to sources
         # ind_param_cov[0, 1:] = 0.
@@ -529,14 +536,30 @@ class AbstractModel:
                                  'First you need to calibrate this model.')
 
     def set_omegas_posterior_covariance_inverse(self, omegas_regularity_factor):
-        """
-        Compute the space-shifts posterior covariance inverse matrix with the given regularization factor. Indeed,
-        as soon as the number of sources is less than the number of scores, the space-shifts are not linearly
+        r"""
+        Compute the space-shifts posterior covariance inverse matrix with the given regularization factor.
+        Compute :math:`(\Sigma + \lambda I)^{-1}`.
+        Indeed, as soon as the number of sources is less than the number of scores, the space-shifts are not linearly
         independent.
         """
         n_omegas = self._omegas_posterior_mean.shape[0]
         regularized_covariance = self._omegas_posterior_covariance + omegas_regularity_factor * torch.eye(n_omegas)
         self._omegas_posterior_covariance_inverse = torch.inverse(regularized_covariance)
+
+    def set_omegas_posterior_covariance_inverse_bis(self, omegas_regularity_factor):
+        r"""
+        Compute the space-shifts posterior covariance inverse matrix with the given regularization factor.
+        Compute :math:`(\Sigma^2 + \lambda I)^{-1}\Sigma` the solution of the optimization problem
+        :math:`\widehat{X} \in argmin_{X \in \mathbb{R}^S} || \Sigma X - (\omega - \bar{\omega}) ||^2 + \lambda ||X||^2`
+        knowing that the space-shift covariance matrix :math:`\Sigma` is symetric, with :math:`\omega` the space-shifts.
+        Indeed, as soon as the number of sources is less than the number of scores, the space-shifts are not linearly
+        independent, then the covariance matrix is non-invertible.
+        """
+        n_omegas = self._omegas_posterior_mean.shape[0]
+        cov_square = self._omegas_posterior_covariance @ self._omegas_posterior_covariance
+        regularized_covariance = cov_square + omegas_regularity_factor * torch.eye(n_omegas)
+        self._omegas_posterior_covariance_inverse = torch.inverse(regularized_covariance) \
+                                                    @ self._omegas_posterior_covariance
 
     def compute_multivariate_gaussian_posterior_regularity(self, value):
         """
@@ -583,15 +606,15 @@ class AbstractModel:
 
         sigma_11 = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
             0, 0, 2).narrow(1, 0, 2)  # covariance matrix of (tau, xi)
-        sigma_12 = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
+        sigma_21 = self.individual_parameters_posterior_distribution.covariance_matrix.narrow(
             0, 2, self.source_dimension).narrow(1, 0, 2)  # covariance between (tau, xi) & the sources
 
-        mean_cond = mu_2 + sigma_12 @ sigma_11.inverse() @ (tau_xi - mu_1)  # conditional sources mean knowing (tau, xi)
+        mean_cond = mu_2 + sigma_21 @ sigma_11.inverse() @ (tau_xi - mu_1)  # conditional sources mean knowing (tau, xi)
 
         diff = sources - mean_cond
         return diff @ self._sources_conditional_posterior_covariance_inverse @ diff
 
-    def compute_multivariate_omegas_regularity(self, omegas):
+    def compute_multivariate_omegas_regularity(self, omegas, solve_method='numpy_lstsq'):
         """
         Given the individual parameter of a subject, compute its the regularity of the `space-shifts`.
 
@@ -599,6 +622,8 @@ class AbstractModel:
         ----------
         omegas: torch.Tensor, shape = (n_scores,)
             Subject's omegas (space-shifts).
+        solve_method: {'torch_solve', 'numpy_lstsq'} (default 'numpy_lstsq')
+            Method used to solve the inversion of space-shifts covariance matrix.
 
         Returns
         -------
@@ -606,4 +631,67 @@ class AbstractModel:
             The subject's regularity.
         """
         diff = omegas - self._omegas_posterior_mean
-        return diff @ self._omegas_posterior_covariance_inverse @ diff
+        if solve_method == 'torch_solve':
+            return diff @ torch.solve(diff.view(-1, 1), self._omegas_posterior_covariance)
+        elif solve_method == "numpy_lstsq":
+            try:
+                solved_regularizd_system = lstsq(self._omegas_posterior_covariance.numpy(), diff.numpy(), rcond=None)[0]
+                conv_ind_times_diff = torch.as_tensor(solved_regularizd_system, dtype=torch.float32)
+                return diff @ conv_ind_times_diff
+            except LinAlgError:
+                print('omega cov', self._omegas_posterior_covariance.numpy())
+                print('omega - omega_mean', diff)
+                raise LinAlgError('')
+        else:
+            raise ValueError('%s solve method is unknown!' % solve_method)
+
+    def compute_space_shifs_missing_features(self, ind_param, index_missing, solve_method='numpy_lstsq'):
+        """
+        Compute the space-shifts of the missing scores by computing the conditional mean of the corresponding
+        space-shifts knowing the space-shifts of the features seen.
+
+        Parameters
+        ----------
+        ind_param: dict[str, torch.Tensor]
+            Contain the individual parameters of the given subject.
+        index_missing: torch.Tensor
+            Contains the index of the score for which the subjects has no values.
+        solve_method: {'torch_solve', 'numpy_lstsq'} (default 'numpy_lstsq')
+            Method used to solve the inversion of space-shifts covariance matrix.
+
+        Returns
+        -------
+        result: dict[str, torch.Tensor]
+            Contain the individual parameters of the given subject with rectified sources.
+        """
+
+        result = {key: val.clone() for key, val in ind_param.items()}
+
+        # ----- compute the individual space-shift
+        wi = result['sources'] @ self.attributes.mixing_matrix.t()
+
+        # ----- Compute space-shift conditional mean of missing features knowing space-shift of seen features
+        index_seen = torch.tensor([i for i in range(len(self.features)) if i not in index_missing])
+        mu_1 = self._omegas_posterior_mean[index_seen]  # space-shifts mean of seen features
+        mu_2 = self._omegas_posterior_mean[index_missing]  # space-shifts mean of missing features
+
+        # space-shift covariance matrix of seen features
+        sigma_11 = self._omegas_posterior_covariance.index_select(0, index_seen).index_select(1, index_seen)
+        # space-shift covariance between the seen features and the missing ones
+        sigma_21 = self._omegas_posterior_covariance.index_select(1, index_seen).index_select(0, index_missing)
+
+        if solve_method == 'torch_solve':
+            wi[index_missing] = mu_2 + sigma_21 @ torch.solve((wi[index_seen] - mu_1).view(-1, 1),
+                                                              sigma_11)
+        elif solve_method == "numpy_lstsq":
+            diff = wi[index_seen] - mu_1
+            solved_system = lstsq(sigma_11.numpy(), diff.numpy(), rcond=None)[0]
+            sigma_11_diff = torch.as_tensor(solved_system, dtype=torch.float32)
+            wi[index_missing] = mu_2 + sigma_21 @ sigma_11_diff
+        else:
+            raise ValueError('%s solve method is unknown!')
+
+        sources, residual, _, _ = lstsq(self.attributes.mixing_matrix.numpy(), wi.numpy(), rcond=None)
+        result['sources'] = torch.as_tensor(sources, dtype=torch.float32)
+
+        return result

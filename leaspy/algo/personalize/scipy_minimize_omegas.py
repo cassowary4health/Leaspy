@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 
 
-class ScipyMinimize(AbstractPersonalizeAlgo):
+class ScipyMinimizeOmegas(AbstractPersonalizeAlgo):
 
     def __init__(self, settings):
         """
@@ -15,7 +15,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ----------
         settings: leaspy.intputs.settings.algorithm_settings.AlgorithmSettings
         """
-        super(ScipyMinimize, self).__init__(settings)
+        super(ScipyMinimizeOmegas, self).__init__(settings)
 
         self.model_name = None
         self.initial_parameters = None
@@ -52,16 +52,13 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Subclass object of AbstractModel. Model used to compute the population & individual parameters.
             It contains the population parameters.
         """
-        if self.initialization_method == "last_realisations":
-            _, ind_param = model._last_realisations.to_dict()
-            self.initial_parameters = torch.cat((ind_param['tau'], ind_param['xi'], ind_param['sources']), dim=1)
+        self.initial_parameters = torch.zeros(2 + len(model.features))
+        if model.individual_parameters_posterior_distribution is None:
+            self.initial_parameters[0] = model.parameters["tau_mean"].item()
+            self.initial_parameters[1] = model.parameters["xi_mean"].item()
         else:
-            if model.individual_parameters_posterior_distribution is None:
-                self.initial_parameters = torch.zeros(2 + model.source_dimension)
-                self.initial_parameters[0] = model.parameters["tau_mean"].item()
-                self.initial_parameters[1] = model.parameters["xi_mean"].item()
-            else:
-                self.initial_parameters = model.individual_parameters_posterior_distribution.loc
+            self.initial_parameters[:2] = model.individual_parameters_posterior_distribution.loc[:2]
+            self.initial_parameters[2:] = model._omegas_posterior_mean
 
     def get_initial_parameters(self, idx):
         """
@@ -76,10 +73,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         -------
         numpy.ndarray, shape = (n_individual_parameters,)
         """
-        if self.initialization_method == "last_realisations":
-            return self.initial_parameters[:, idx].numpy()
-        else:
-            return self.initial_parameters.numpy()
+        return self.initial_parameters.numpy()
 
     @staticmethod
     def _get_attachment(model, times, values, individual_parameters):
@@ -104,7 +98,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         torch.Tensor
             Model values minus real values.
         """
-        attachment = model.compute_individual_tensorized(times, individual_parameters) - values
+        attachment = model.compute_individual_tensorized_omegas(times, individual_parameters) - values
         attachment[attachment != attachment] = 0.  # Set nan to zero, not to count in the sum
         return torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
 
@@ -126,119 +120,18 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         regularity: torch.Tensor
             Regularity of the patient corresponding to the given individual parameters.
         """
-        if self.algo_parameters['regularity_method'] in ("prior", "prior+imputation"):
-            return self._get_prior_regularity(model, individual_parameters)
-        elif self.algo_parameters['regularity_method'] == "posterior":
-            return self._get_posterior_regularity(model, individual_parameters)
-        elif self.algo_parameters['regularity_method'] == "conditional_posterior":
-            return self._get_conditional_posterior_regularity(model, individual_parameters)
-        elif self.algo_parameters['regularity_method'] in ("posterior_omegas" or "posterior_omegas_bis"):
+        if self.algo_parameters['regularity_method'] == "posterior_omegas":
             return self._get_posterior_regularity_omegas(
                 model, individual_parameters, solve_method=self.algo_parameters["solve_method"])
         else:
-            raise ValueError('The parameter "regularity_method" must be "prior", "posterior" or '
-                             '"conditional_posterior"! You gave "{}".'.format(self.algo_parameters['regularity_method']))
-
-    @staticmethod
-    def _get_prior_regularity(model, individual_parameters):
-        """
-        Compute the regularity of a patient given his individual parameters for a given model. In this settings,
-        the individual variables are assumed to be univariate gaussians independent from each other.
-
-        Parameters
-        ----------
-        model: leaspy.models.abstract_model.AbstractModel
-            Subclass object of AbstractModel. Model used to compute the population & individual parameters.
-            It contains the population parameters.
-        individual_parameters: dict [str, torch.Tensor]
-            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
-
-        Returns
-        -------
-        regularity: torch.Tensor
-            Regularity of the patient corresponding to the given individual parameters.
-        """
-        regularity = torch.tensor(0., dtype=torch.float32)
-        for key, value in individual_parameters.items():
-            mean = model.parameters["{0}_mean".format(key)]
-            std = model.parameters["{0}_std".format(key)]
-            regularity += torch.sum(model.compute_regularity_variable(value, mean, std))
-        return regularity
-
-    @staticmethod
-    def _get_posterior_regularity(model, individual_parameters):
-        """
-        Compute the regularity of a patient given his individual parameters for a given model. In this settings,
-        the individual variables are assumed to be a multivariate gaussian distribution.
-
-        Parameters
-        ----------
-        model: leaspy.models.abstract_model.AbstractModel
-            Subclass object of AbstractModel. Model used to compute the population & individual parameters.
-            It contains the population parameters.
-        individual_parameters: dict [str, torch.Tensor]
-            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
-
-        Returns
-        -------
-        regularity: torch.Tensor
-            Regularity of the patient corresponding to the given individual parameters.
-        """
-        tensor_list = [individual_parameters['tau'].unsqueeze(0), individual_parameters['xi'].unsqueeze(0)]
-        if model.name != 'univariate':
-            tensor_list.append([individual_parameters['sources'].unsqueeze(0)])
-        value = torch.cat(tensor_list, dim=-1).squeeze()
-        # Reshaped into torch.Tensor([tau, xi, s0, s1, ...])
-
-        return model.compute_multivariate_gaussian_posterior_regularity(value)
-
-    @staticmethod
-    def _get_conditional_posterior_regularity(model, individual_parameters):
-        """
-        Given the individual parameter of a subject, compute its regularity assuming the individual parameters
-        follow a multivariate normal distribution. We use the posterior distribution of the individual
-        parameters of the cohort on which the model has been calibrated. The parameter tau & i are assumed to be
-        independent (from each other and from the sources). To compute the regularity of the sources, the conditional
-        mean and covariance matrix of the sources knowing tau and i are computed.
-
-        Parameters
-        ----------
-        model: leaspy.models.abstract_model.AbstractModel
-            Subclass object of AbstractModel. Model used to compute the population & individual parameters.
-            It contains the population parameters.
-        individual_parameters: dict [str, torch.Tensor]
-            The individual parameters. The sources' shape is (1, n_sources), tau and xi have shape of (1, 1).
-
-        Returns
-        -------
-        regularity: torch.Tensor
-            Regularity of the patient corresponding to the given individual parameters.
-        """
-        # ------ First, compute regularity of the subject's tau & xi to their respective
-        # posterior distribution assuming they are independent
-        regularity = torch.tensor(0., dtype=torch.float32)
-        for i, param in enumerate(('tau', 'xi')):  # tau, xi in this order
-            mean = model.individual_parameters_posterior_distribution.loc[i]
-            std = model.individual_parameters_posterior_distribution.covariance_matrix[i, i].sqrt()
-            regularity += model.compute_regularity_variable(individual_parameters[param], mean, std).sum()
-
-        # ------ Then compute the sources' regularity and add it to the one of tau and xi
-        if model.name != 'univariate':
-            tau_xi = torch.tensor([individual_parameters['tau'].item(),
-                                   individual_parameters['xi'].item()], dtype=torch.float32)
-            sources = individual_parameters['sources'].squeeze()
-            regularity += model.compute_multivariate_sources_regularity(tau_xi, sources).sum()
-
-        return regularity
+            raise ValueError('The parameter "regularity_method" must be "posterior_omegas" ! '
+                             'You gave {}'.format(self.algo_parameters['regularity_method']))
 
     @staticmethod
     def _get_posterior_regularity_omegas(model, individual_parameters, solve_method='numpy_lstsq'):
         """
-        Given the individual parameter of a subject, compute its regularity assuming the individual parameters
-        follow a multivariate normal distribution. We use the posterior distribution of the individual
-        parameters of the cohort on which the model has been calibrated. The parameter tau & i are assumed to be
-        independent (from each other and from the sources). To compute the regularity of the sources, the conditional
-        mean and covariance matrix of the sources knowing tau and i are computed.
+        Compute the regularity of a patient given his individual parameters for a given model. In this settings,
+        the individual variables are assumed to be a multivariate gaussian distribution.
 
         Parameters
         ----------
@@ -263,9 +156,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         # ------ Then compute the omegas' regularity and add it to the one of tau and xi
         if model.name != 'univariate':
-            sources = individual_parameters['sources'].squeeze()
-            omegas = sources @ model.attributes.mixing_matrix.t()
-            regularity += model.compute_multivariate_omegas_regularity(omegas, solve_method=solve_method).sum()
+            regularity += model.compute_multivariate_omegas_regularity(individual_parameters['omegas'],
+                                                                       solve_method=solve_method).sum()
 
         return regularity
 
@@ -361,7 +253,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         individual_parameters = {'tau': torch.tensor([[x[0]]], dtype=torch.float32),
                                  'xi': torch.tensor([[x[1]]], dtype=torch.float32)}
         if self.model_name != 'univariate':
-            individual_parameters['sources'] = torch.tensor([x[2:]], dtype=torch.float32)
+            individual_parameters['omegas'] = torch.tensor([x[2:]], dtype=torch.float32)
         # Parameters must be in this order: 'tau', 'xi' then 'sources'
 
         # ------ Compute the subject's attachment
@@ -400,7 +292,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             def callback(xk):
                 individual_parameters = {'tau': torch.tensor([xk[0]], dtype=torch.float32),
                                          'xi': torch.tensor([xk[1]], dtype=torch.float32),
-                                         'sources': torch.tensor([xk[2:]], dtype=torch.float32)}
+                                         'omegas': torch.tensor([xk[2:]], dtype=torch.float32)}
                 attachment = self._get_attachment(model, times, values, individual_parameters)
                 attachment *= self.algo_parameters['attachment_weight']
                 regularity = self._get_regularity(model, individual_parameters) * self.algo_parameters['regularity_weight']
@@ -417,41 +309,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if res.success is not True:
             print(res.success, res)
 
-        # TODO : if missing features, sample associated space-shifts
-
-        ind_param = {'tau': torch.tensor(res.x[0], dtype=torch.float32),
-                     'xi': torch.tensor(res.x[1], dtype=torch.float32),
-                     'sources': torch.tensor(res.x[2:], dtype=torch.float32)}
-
-        if self.algo_parameters['regularity_method'] == "prior+imputation":
-            ind_param = self._compute_space_shifts_missing_features(ind_param, model, values)
-
-        return ind_param
-
-    @staticmethod
-    def _compute_space_shifts_missing_features(ind_param, model, values):
-        """
-        Compute the space-shifts of the missing scores by computing the conditional mean of the corresponding
-        space-shifts knowing the space-shifts of the features seen.
-
-        Parameters
-        ----------
-        ind_param
-        model
-        values
-
-        Returns
-        -------
-
-        """
-        # ----- Get index of seen and unseen features
-        mask = values.clone()
-        mask[mask == mask] = 0.
-        mask[mask != mask] = 1.
-        index_missing = torch.arange(mask.shape[1])[mask.sum(dim=0) == mask.shape[0]]
-        # index_seen = torch.arange(mask.shape[1])[mask.sum(dim=0) < mask.shape[0]]
-
-        return model.compute_space_shifs_missing_features(ind_param, index_missing)
+        return {'tau': torch.tensor(res.x[0], dtype=torch.float32),
+                'xi': torch.tensor(res.x[1], dtype=torch.float32),
+                'omegas': torch.tensor(res.x[2:], dtype=torch.float32)}
 
     def _get_individual_parameters(self, model, dataset):
         """
@@ -473,6 +333,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         self._set_model_name(model.name)
         infos = model.random_variable_informations()
         self._initialize_parameters(model)
+
         if self.algo_parameters['regularity_method'] == 'posterior_omegas':
             model.set_omegas_posterior_covariance_inverse(self.algo_parameters['omegas_regularity_factor'])
         if self.algo_parameters['regularity_method'] == 'posterior_omegas_bis':
@@ -484,7 +345,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             individual_parameters = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
                 delayed(self._get_individual_parameters_patient_master)(model, dataset, idx)
                 for idx in range(dataset.n_individuals))
-            print(individual_parameters)
             out = {key: torch.tensor([ind_param[key] for ind_param in individual_parameters], dtype=torch.float32)
                    for key in model.get_individual_variable_name()}
             for variable_ind in model.get_individual_variable_name():
@@ -492,17 +352,21 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                                                                      infos[variable_ind]['shape'][0]))
         else:
             individual_parameters = {}
-            for name_variable in model.get_individual_variable_name():
+            for name_variable in ('tau', 'xi', 'omegas'):
                 individual_parameters[name_variable] = []
             # Simple for loop
             for idx in range(dataset.n_individuals):
                 ind_patient = self._get_individual_parameters_patient_master(model, dataset, idx)
-                for name_variable in model.get_individual_variable_name():
+                for name_variable in ('tau', 'xi', 'omegas'):
                     individual_parameters[name_variable].append(ind_patient[name_variable])
 
-            out = dict.fromkeys(model.get_individual_variable_name())
+            out = dict.fromkeys(('tau', 'xi', 'omegas'))
             for variable_ind in model.get_individual_variable_name():
-                out[variable_ind] = torch.stack(individual_parameters[variable_ind]).reshape(
-                    shape=(dataset.n_individuals, infos[variable_ind]['shape'][0]))
+                if variable_ind in ('tau', 'xi'):
+                    out[variable_ind] = torch.stack(individual_parameters[variable_ind]).reshape(
+                        shape=(dataset.n_individuals, infos[variable_ind]['shape'][0]))
+                else:
+                    out['omegas'] = torch.stack(individual_parameters['omegas']).reshape(
+                        shape=(dataset.n_individuals, len(model.features)))
 
         return out

@@ -6,7 +6,7 @@ import numpy as np
 from tests import test_data_dir
 from leaspy.api import Leaspy
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
-from leaspy.inputs.settings.algorithm_settings import AlgorithmSettings
+from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
 
 class ScipyMinimizeTest(unittest.TestCase):

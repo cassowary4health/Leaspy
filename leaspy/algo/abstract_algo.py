@@ -21,7 +21,7 @@ class AbstractAlgo:
     Methods
     -------
     load_parameters(parameters)
-        Update the algorithm's parameters by the ones in the given dictionary. The keys in the inputs which does not
+        Update the algorithm's parameters by the ones in the given dictionary. The keys in the io which does not
         belong to the algorithm's parameters keys are ignored.
     set_output_manager(output_settings)
         Set a FitOutputManager class object for the run of the algorithm.
@@ -64,7 +64,7 @@ class AbstractAlgo:
 
     def load_parameters(self, parameters):
         """
-        Update the algorithm's parameters by the ones in the given dictionary. The keys in the inputs which does not
+        Update the algorithm's parameters by the ones in the given dictionary. The keys in the io which does not
         belong to the algorithm's parameters keys are ignored.
 
         Parameters
@@ -74,7 +74,7 @@ class AbstractAlgo:
 
         Examples
         --------
-        >>> settings = leaspy.inputs.settings.algorithm_settings.AlgorithmSettings("mcmc_saem")
+        >>> settings = leaspy.io.settings.algorithm_settings.AlgorithmSettings("mcmc_saem")
         >>> my_algo = leaspy.algo.fit.tensor_mcmcsaem.TensorMCMCSAEM(settings)
         >>> my_algo.algo_parameters
         {'n_iter': 10000,
@@ -113,7 +113,7 @@ class AbstractAlgo:
 
         Parameters
         ----------
-        output_settings: a leaspy.inputs.settings.outputs_settings.OutputsSettings class object
+        output_settings: a leaspy.io.settings.outputs_settings.OutputsSettings class object
             Contains the output settings for the computation run (console print periodicity, plot periodicity ...)
 
         Examples
@@ -132,8 +132,6 @@ class AbstractAlgo:
         if output_settings is not None:
             self.output_manager = FitOutputManager(output_settings)
 
-    def run(self, data, model):
-        raise NotImplementedError
 
     def iteration(self, data, model, realizations):
         raise NotImplementedError

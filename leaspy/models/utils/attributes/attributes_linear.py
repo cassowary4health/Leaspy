@@ -39,7 +39,7 @@ class AttributesLinear(AttributesAbstract):
         super().__init__(dimension, source_dimension)
         self.name = 'linear'
         if (type(dimension) != int) & (type(source_dimension) != int):
-            raise ValueError("For AttributesLinear you must provide integer inputs for the parameters"
+            raise ValueError("For AttributesLinear you must provide integer io for the parameters"
                              " `dimension` and `source_dimension`!")
 
     def _compute_positions(self, values):

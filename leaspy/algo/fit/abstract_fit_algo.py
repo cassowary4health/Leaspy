@@ -12,7 +12,7 @@ class AbstractFitAlgo(AbstractAlgo):
     ## Core
     ###########################
 
-    def run(self, data, model):
+    def run(self, model, data):
 
         # Initialize Model
         self._initialize_seed(self.seed)

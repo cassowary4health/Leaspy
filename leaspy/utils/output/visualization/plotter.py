@@ -10,7 +10,7 @@ from matplotlib.cm import get_cmap
 
 from leaspy.utils.output.visualization import color_palette
 
-from leaspy.inputs.data.dataset import Dataset
+from leaspy.io.data.dataset import Dataset
 
 
 class Plotter:

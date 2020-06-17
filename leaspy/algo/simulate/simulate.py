@@ -4,8 +4,8 @@ from scipy import stats
 from sklearn.preprocessing import StandardScaler
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-from leaspy.inputs.data.data import Data
-from leaspy.inputs.data.result import Result
+from leaspy.io.data.data import Data
+from leaspy.io.outputs.result import Result
 
 
 class SimulationAlgorithm(AbstractAlgo):
@@ -92,7 +92,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        settings : leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Set the class attributes.
 
         Raises
@@ -141,7 +141,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        data : leaspy.inputs.data.data.Data
+        data : leaspy.io.data.data.Data
             Contains the cofactors and cofactors' states.
 
         Raises
@@ -260,7 +260,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        results_object : leaspy.inputs.data.result.Result
+        results_object : leaspy.io.data.result.Result
 
         Returns
         -------
@@ -315,7 +315,7 @@ class SimulationAlgorithm(AbstractAlgo):
         ----------
         model : leaspy.models.abstract_model.AbstractModel
             Subclass object of AbstractModel.
-        results : leaspy.inputs.data.result.Result
+        results : leaspy.io.data.result.Result
             Object containing the computed individual parameters.
 
         Returns
@@ -510,7 +510,7 @@ class SimulationAlgorithm(AbstractAlgo):
         return indices_of_accepted_simulated_subjects, [val for i, val in enumerate(features_values)
                                                         if i in indices_of_accepted_simulated_subjects]
 
-    def run(self, model, results):
+    def run(self, model, individual_parameters, data):
         """
         Run simulation - learn joined distribution of patients' individual parameters and return a results object
         containing the simulated individual parameters and the simulated scores.
@@ -520,7 +520,7 @@ class SimulationAlgorithm(AbstractAlgo):
         model : leaspy.models.abstract_model.AbstractModel
             Subclass object of AbstractModel. Model used to compute the population & individual parameters.
             It contains the population parameters.
-        results : leaspy.inputs.data.result.Result
+        results : leaspy.io.data.result.Result
             Object containing the computed individual parameters.
 
         Notes
@@ -532,11 +532,14 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Returns
         -------
-        leaspy.inputs.data.result.Result
+        leaspy.io.data.result.Result
             Contains the simulated individual parameters & individual scores.
         """
+
+        results = Result(data, individual_parameters.to_pytorch())
+
         if self.cofactor is not None:
-            self._check_cofactors(results.data)
+            self._check_cofactors(data)
 
         # --------- Get individual parameters & reparametrized baseline ages - for joined density estimation
         # Get individual parameters (optional - & the cofactor states)

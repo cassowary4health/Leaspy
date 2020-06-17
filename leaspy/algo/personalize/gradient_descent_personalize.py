@@ -1,3 +1,4 @@
+from ...io.outputs.individual_parameters import IndividualParameters
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 import torch
 
@@ -46,4 +47,15 @@ class GradientDescentPersonalize(AbstractPersonalizeAlgo):
         # Get individual realizations from realizations object
         param_ind = model.get_param_from_real(realizations)
 
-        return param_ind
+        ### TODO : The following was adding for the conversion from Results to IndividualParameters. Everything should be changed
+
+        individual_parameters = IndividualParameters()
+        p_names = list(param_ind.keys())
+        n_sub = len(param_ind[p_names[0]])
+
+        for i in range(n_sub):
+            p_dict = {k: param_ind[k][i].detach().numpy() for k in p_names}
+            p_dict = {k: v[0] if v.shape[0] == 1 else v for k, v in p_dict.items()}
+            individual_parameters.add_individual_parameters(i, p_dict)
+
+        return individual_parameters

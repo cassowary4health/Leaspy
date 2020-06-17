@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 import torch
 
-from leaspy.inputs.data.csv_data_reader import CSVDataReader
-from leaspy.inputs.data.dataframe_data_reader import DataframeDataReader
-from leaspy.inputs.data.individual_data import IndividualData
+from leaspy.io.data.csv_data_reader import CSVDataReader
+from leaspy.io.data.dataframe_data_reader import DataframeDataReader
+from leaspy.io.data.individual_data import IndividualData
 
 
-# from leaspy.inputs.data.dataset import Dataset
+# from leaspy.io.data.dataset import Dataset
 
 
 # TODO : object data as output ??? or a result object ? Because there could be ambiguetes here

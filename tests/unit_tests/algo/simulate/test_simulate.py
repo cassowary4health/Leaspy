@@ -8,6 +8,7 @@ import torch
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 from tests import example_data_path, test_data_dir
+from leaspy.io.outputs.result import Result
 
 
 class SimulationAlgorithmTest(unittest.TestCase):
@@ -62,7 +63,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         Returns
         -------
         model : leaspy.Leaspy
-        results : leaspy.inputs.data.result.Result
+        results : leaspy.io.data.result.Result
         """
         data = Data.from_csv_file(example_data_path)
         cofactors = pd.read_csv(os.path.join(test_data_dir, "inputs/data_tiny_covariate.csv"))
@@ -73,30 +74,30 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         model = Leaspy.load(os.path.join(test_data_dir, "model_parameters/multivariate_model_sampler.json"))
         settings = AlgorithmSettings('mode_real')
-        results = model.personalize(data, settings)
+        individual_parameters = model.personalize(data, settings)
 
         settings = AlgorithmSettings('simulation', cofactor="dummy")
-        self.assertRaises(ValueError, model.simulate, results, settings)
+        self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
         settings = AlgorithmSettings('simulation', cofactor="Treatments", cofactor_state="dummy")
-        self.assertRaises(ValueError, model.simulate, results, settings)
+        self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
         if get_result:
-            return model, results
+            return model, individual_parameters, data
 
     def test_simulation_run(self):
         """
         Test if the simulation run properly with different settings.
         """
-        leaspy_session, results = self.test_check_cofactors(get_result=True)
+        leaspy_session, individual_parameters, data = self.test_check_cofactors(get_result=True)
 
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
                                      std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2)
-        new_results = leaspy_session.simulate(results, settings)  # just test if run without error
+        new_results = leaspy_session.simulate(individual_parameters, data, settings)  # just test if run without error
 
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
                                      std_number_of_visits=0, sources_method="normal_sources", bandwidth_method=.2)
-        new_results = leaspy_session.simulate(results, settings)  # just test if run without error
+        new_results = leaspy_session.simulate(individual_parameters, data, settings)  # just test if run without error
 
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
                                      std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
@@ -107,12 +108,12 @@ class SimulationAlgorithmTest(unittest.TestCase):
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
                                      std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
                                      features_bounds=bounds)  # idem + test scores bounds
-        self._bounds_behaviour(leaspy_session, results, settings)
+        self._bounds_behaviour(leaspy_session, individual_parameters, data, settings)
 
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=200, mean_number_of_visits=3,
                                      std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
                                      reparametrized_age_bounds=(65, 75))
-        new_results = leaspy_session.simulate(results, settings)  # just test if run without error
+        new_results = leaspy_session.simulate(individual_parameters, data, settings)  # just test if run without error
         # Test if the reparametrized ages are within (65, 75) up to a tolerance of 2.
         repam_age = new_results.data.to_dataframe().groupby('ID').first()['TIME'].values
         repam_age -= new_results.individual_parameters['tau'].squeeze().numpy()
@@ -120,18 +121,21 @@ class SimulationAlgorithmTest(unittest.TestCase):
         repam_age += leaspy_session.model.parameters['tau_mean'].item()
         self.assertTrue(all(repam_age > 63) & all(repam_age < 77))
 
-    def _bounds_behaviour(self, leaspy_session, results, settings):
+    def _bounds_behaviour(self, leaspy_session, individual_parameters, data, settings):
         """
         Test the good behaviour of the ``features_bounds`` parameter.
 
         Parameters
         ----------
         leaspy_session : leaspy.api.Leaspy
-        results : leaspy.inputs.data.result.Result
-        settings : leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        results : leaspy.io.data.result.Result
+        settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the ``features_bounds`` parameter.
         """
-        new_results = leaspy_session.simulate(results, settings)
+
+        results = Result(data, individual_parameters.to_pytorch)
+
+        new_results = leaspy_session.simulate(individual_parameters, data, settings)
         new_results_max_bounds: np.ndarray = new_results.data.to_dataframe().groupby('ID').first().max().values[1:]
         new_results_min_bounds: np.ndarray = new_results.data.to_dataframe().groupby('ID').first().min().values[1:]
 

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 import torch
-from leaspy.inputs.data.dataset import Dataset
+from leaspy.io.data.dataset import Dataset
 from leaspy.utils.realizations.realization import Realization
 
 

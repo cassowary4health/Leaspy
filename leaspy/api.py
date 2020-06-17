@@ -1,9 +1,9 @@
 import warnings
 
 from leaspy.algo.algo_factory import AlgoFactory
-from leaspy.inputs.data.dataset import Dataset
-from leaspy.inputs.data.result import Result
-from leaspy.inputs.settings.model_settings import ModelSettings
+from leaspy.io.data.dataset import Dataset
+from leaspy.io.outputs.result import Result
+from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
 from leaspy.utils.output.visualization.plotting import Plotting
 
@@ -71,9 +71,9 @@ class Leaspy:
 
         Parameters
         ----------
-        data: leaspy.inputs.data.data.Data
+        data: leaspy.io.data.data.Data
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        algorithm_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        algorithm_settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Examples
@@ -106,7 +106,7 @@ class Leaspy:
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
             self.model.initialize(dataset)
-        algorithm.run(dataset, self.model)
+        algorithm.run(self.model, dataset)
 
         # Update plotting
         self.plotting.update_model(self.model)
@@ -117,9 +117,9 @@ class Leaspy:
 
         Parameters
         ----------
-        data: leaspy.inputs.data.data.Data
+        data: leaspy.io.data.data.Data
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        algorithm_settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        algorithm_settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
         """
         self.fit(data, algorithm_settings)
@@ -131,14 +131,14 @@ class Leaspy:
 
         Parameters
         ----------
-        data: leaspy.inputs.data.data.Data
+        data: leaspy.io.data.data.Data
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Returns
         -------
-        leaspy.inputs.data.result.Result
+        leaspy.io.data.result.Result
             Aggregates computed individual parameters and input data.
 
         Examples
@@ -164,11 +164,9 @@ class Leaspy:
         algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         individual_parameters, noise_std = algorithm.run(self.model, dataset)
-        result = Result(data, individual_parameters, noise_std)
+        return individual_parameters
 
-        return result
-
-    def simulate(self, results, settings):
+    def simulate(self, individual_parameters, data, settings):
         r"""
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
@@ -180,14 +178,14 @@ class Leaspy:
 
         Parameters
         ----------
-        results: leaspy.inputs.data.result.Result
+        results: leaspy.io.data.result.Result
             Aggregates individual parameters and input data.
-        settings: leaspy.inputs.settings.algorithm_settings.AlgorithmSettings
+        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Returns
         -------
-        simulated_data: leaspy.inputs.data.result.Result
+        simulated_data: leaspy.io.data.result.Result
             Contains the generated individual parameters & the corresponding generated scores.
 
         Examples
@@ -207,7 +205,7 @@ class Leaspy:
         self.check_if_initialized()
 
         algorithm = AlgoFactory.algo("simulate", settings)
-        simulated_data = algorithm.run(self.model, results)
+        simulated_data = algorithm.run(self.model, individual_parameters, data)
         return simulated_data
 
     def estimate(self, timepoints, individual_parameters):

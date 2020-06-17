@@ -42,6 +42,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # Computation
         LL = velocities * reparametrized_time + positions
+
         if self.source_dimension != 0:
             wi = torch.nn.functional.linear(sources, mixing_matrix, bias=None)
             LL += wi.unsqueeze(-2)
@@ -55,6 +56,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # Individual parameters
         xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
+
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation

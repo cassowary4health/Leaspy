@@ -2,13 +2,13 @@ import copy
 import json
 import os
 import warnings
-from collections import Iterable
+from collections.abc import Iterable
 
 import pandas as pd
 import torch
 
-from leaspy.inputs.data.data import Data
-from leaspy.inputs.data.dataset import Dataset
+from leaspy.io.data.data import Data
+from leaspy.io.data.dataset import Dataset
 
 
 class Result:
@@ -18,7 +18,7 @@ class Result:
 
     Attributes
     ----------
-    data : leaspy.inputs.data.data.Data
+    data : leaspy.io.data.data.Data
         Object containing the idx, time-points and observations of the patients.
     individual_parameters : dict [str, torch.Tensor]
         Contains log-acceleration 'xi', time-shifts 'tau' & 'sources' (dictionary of torch.Tensor).
@@ -69,14 +69,14 @@ class Result:
             Get the dictionary of the wanted patient's individual parameters.
     """
 
-    # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters inputs.
+    # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters io.
     def __init__(self, data, individual_parameters, noise_std=None):
         """
-        Process the initializer function - called by Leaspy.inputs.data.result.Result
+        Process the initializer function - called by Leaspy.io.data.result.Result
 
         Parameters
         ----------
-        data : leaspy.inputs.data.data.Data
+        data : leaspy.io.data.data.Data
             Object containing the idx, time-points and observations of the patients
         individual_parameters : dict [str, torch.Tensor]
             Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
@@ -553,7 +553,7 @@ class Result:
 
         Parameters
         ----------
-        data : str or pandas.DataFrame or leaspy.inputs.data.data.Data
+        data : str or pandas.DataFrame or leaspy.io.data.data.Data
             The file's path or a DataFrame containing the features' scores.
         individual_parameters :  str or pandas.DataFrame
             The file's path or a DataFrame containing the individual parameters.

@@ -3,8 +3,8 @@ import unittest
 import torch
 
 from tests import test_data_dir
-from leaspy.inputs.data.data import Data
-from leaspy.inputs.data.dataset import Dataset
+from leaspy.io.data.data import Data
+from leaspy.io.data.dataset import Dataset
 
 
 class DatasetTest(unittest.TestCase):

@@ -48,7 +48,7 @@ class AttributesLogisticParallel(AttributesAbstract):
         self.update_possibilities = ('g', 'deltas', 'betas', 'xi_mean', 'all')
         self.name = 'logistic_parallel'
         if (type(dimension) != int) & (type(source_dimension) != int):
-            raise ValueError("For AttributesLogisticParallel you must provide integer inputs for the parameters"
+            raise ValueError("For AttributesLogisticParallel you must provide integer io for the parameters"
                              " `dimension` and `source_dimension`!")
 
     def get_attributes(self):

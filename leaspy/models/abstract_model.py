@@ -315,7 +315,7 @@ class AbstractModel:
         noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
         attachment = 0.5 * (1. / noise_var) * squared_sum
 
-        attachment += math.log(math.sqrt(TWO_PI * noise_var))
+        attachment += torch.Tensor(data.nb_observations_per_individuals)*math.log(math.sqrt(TWO_PI * noise_var))
         return attachment
 
     def update_model_parameters(self, data, suff_stats, burn_in_phase=True):

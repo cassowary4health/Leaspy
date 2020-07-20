@@ -1,6 +1,7 @@
 {
   "name": "simulation",
   "seed": null,
+  "loss": "MSE",
   "initialization_method": null,
   "parameters": {
     "number_of_subjects": 100,

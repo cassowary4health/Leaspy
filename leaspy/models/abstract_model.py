@@ -23,6 +23,8 @@ class AbstractModel:
         The model's name
     parameters: dict
         Contains the model's parameters
+    loss : str
+        The loss to optimize (MSE or crossentropy)
 
     Methods
     -------
@@ -41,6 +43,7 @@ class AbstractModel:
         self.name = name
         self.features = None
         self.parameters = None
+        self.loss = 'MSE'  # default value, changes when a fit / personalize algo is called
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
 
     def load_parameters(self, parameters):
@@ -305,17 +308,21 @@ class AbstractModel:
             Log-likelihood ?
         """
         res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+        mask = data.mask.float()
         # res *= data.mask
+        if self.loss == 'MSE':
+            r1 = mask * (res - data.values)  # r1.ndim = 3 - r1.shape = [n_subjects, ??, n_features]
+            #r1[1-data.mask] = 0.0 # Set nans to 0
+            squared_sum = torch.sum(r1 * r1, dim=(1, 2))
 
-        r1 = res * data.mask.float() - data.values  # r1.ndim = 3 - r1.shape = [n_subjects, ??, n_features]
-        #r1[1-data.mask] = 0.0 # Set nans to 0
-        squared_sum = torch.sum(r1 * r1, dim=(1, 2))
-
-        # noise_var = self.parameters['noise_std'] ** 2
-        noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
-        attachment = 0.5 * (1. / noise_var) * squared_sum
-
-        attachment += math.log(math.sqrt(TWO_PI * noise_var))
+            # noise_var = self.parameters['noise_std'] ** 2
+            noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
+            attachment = 0.5 * (1. / noise_var) * squared_sum
+            attachment += math.log(math.sqrt(TWO_PI * noise_var)) * torch.tensor(data.nb_observations_per_individuals)
+        elif self.loss == 'crossentropy':
+            res = torch.clamp(res, 1e-38, 1. - 1e-7) # safety before taking the log
+            neg_crossentropy = data.values * torch.log(res) + (1. - data.values) * torch.log(1. - res)
+            attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
         return attachment
 
     def update_model_parameters(self, data, suff_stats, burn_in_phase=True):

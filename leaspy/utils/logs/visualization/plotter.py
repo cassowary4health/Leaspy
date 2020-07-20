@@ -365,7 +365,10 @@ class Plotter:
         reals_pop_name = model.get_population_realization_names()
         reals_ind_name = model.get_individual_realization_names()
 
-        fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
+        if model.loss == 'MSE':
+            fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
+        else:
+            fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 2, 1, figsize=(10, 20))
 
         # Noise var
         import_path = os.path.join(path, 'noise_std' + ".csv")
@@ -376,6 +379,16 @@ class Plotter:
         ax[y_position].set_title('noise_std')
         ax[y_position].set_yscale("log", nonposy='clip')
         plt.grid(True)
+
+        if model.loss == 'crossentropy':
+            import_path = os.path.join(path, 'crossentropy' + ".csv")
+            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+            df_convergence.index.rename("iter", inplace=True)
+            y_position = 1
+            df_convergence.plot(ax=ax[y_position], legend=False)
+            ax[y_position].set_title('crossentropy')
+            ax[y_position].set_yscale("log", nonposy='clip')
+            plt.grid(True)
 
         for i, key in enumerate(reals_pop_name):
             y_position += 1

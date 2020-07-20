@@ -1,6 +1,7 @@
 {
   "name": "mcmc_saem",
   "seed": null,
+  "loss": "MSE",
   "initialization_method": null,
   "parameters": {
     "n_iter": 10000,

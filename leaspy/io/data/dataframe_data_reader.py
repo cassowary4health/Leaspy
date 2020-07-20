@@ -27,7 +27,15 @@ class DataframeDataReader:
     def _read(self, df):
         df = df.copy(deep=True)  # No modification on the input dataframe !
         columns = df.columns.values
-        self._check_headers(columns)
+        # Try to read the raw dataframe
+        try:
+            self._check_headers(columns)
+
+        # If we do not find 'ID' and 'TIME' columns, check the Index
+        except ValueError:
+            df.reset_index(inplace=True)
+            columns = df.columns.values
+            self._check_headers(columns)
         df.set_index(['ID', 'TIME'], inplace=True)
         self.headers = df.columns.values.tolist()
 

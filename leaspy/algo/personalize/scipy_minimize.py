@@ -172,17 +172,26 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
             if self.model_name == 'univariate':
                 individual_parameters = {'xi': xi, 'tau': tau}
-                attachment = model.compute_individual_tensorized(times, individual_parameters) - values
+                attachment = model.compute_individual_tensorized(times, individual_parameters)
                 iterates = zip(['xi', 'tau'], (xi, tau))
             else:
                 sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
                 individual_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
-                attachment = model.compute_individual_tensorized(times, individual_parameters) - values
+                attachment = model.compute_individual_tensorized(times, individual_parameters)
                 iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
 
-            attachment[attachment != attachment] = 0.  # Set nan to zero, not to count in the sum
-            attachment = torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
+            diff = attachment - values
+            mask = (diff != diff)
 
+            if self.loss == 'MSE':
+                attachment = diff
+                attachment[mask] = 0.  # Set nan to zero, not to count in the sum
+                attachment = torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
+            elif self.loss == 'crossentropy':
+                attachment = torch.clamp(attachment, 1e-38, 1. - 1e-7)  # safety before taking the log
+                neg_crossentropy = values * torch.log(attachment) + (1. - values) * torch.log(1. - attachment)
+                neg_crossentropy[mask] = 0. # Set nan to zero, not to count in the sum
+                attachment = -torch.sum(neg_crossentropy)
             # Regularity
             regularity = 0
             for key, value in iterates:

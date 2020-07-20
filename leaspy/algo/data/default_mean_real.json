@@ -1,6 +1,7 @@
 {
   "name": "mean_real",
   "seed": null,
+  "loss": "MSE",
   "initialization_method": null,
   "parameters": {
     "n_burn_in_iter": 500,

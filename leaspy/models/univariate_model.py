@@ -157,6 +157,9 @@ class UnivariateModel(AbstractModel):
         sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
         sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
 
+        if self.loss == 'crossentropy':
+            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters, attribute_type=True)
+
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
@@ -174,6 +177,9 @@ class UnivariateModel(AbstractModel):
         squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type=True).sum()
         self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
 
+        if self.loss == 'crossentropy':
+            crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type=True).sum()
+            self.parameters['crossentropy'] = crossentropy
         # Stochastic sufficient statistics used to update the parameters of the model
 
     def update_model_parameters_normal(self, data, suff_stats):
@@ -194,6 +200,9 @@ class UnivariateModel(AbstractModel):
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 
         self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
+
+        if self.loss == 'crossentropy':
+            self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
 
     # def get_param_from_real(self,realizations):
     #    xi = realizations['xi'].tensor_realizations

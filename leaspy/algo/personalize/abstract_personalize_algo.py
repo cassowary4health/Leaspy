@@ -46,6 +46,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         # Seed
         self.seed = settings.seed
+        self.loss = settings.loss
 
     def run(self, model, data):
         """
@@ -73,6 +74,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Init the run
         #print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
         time_beginning = time.time()
+
+        # Give the model the adequate loss
+        model.loss = self.loss
 
         # Estimate individual parametersabstr
         individual_parameters = self._get_individual_parameters(model, data)

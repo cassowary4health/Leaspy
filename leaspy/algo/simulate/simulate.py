@@ -67,8 +67,8 @@ class SimulationAlgorithm(AbstractAlgo):
 
     Methods
     -------
-    run(model, results)
-        Run the simulation of new patients for some given leaspy object result & model.
+    run(model, individual_parameters, data)
+        Run the simulation of new patients for some given leaspy model, individual parameters and data.
 
     Notes
     -----
@@ -260,7 +260,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        results_object : leaspy.io.data.result.Result
+        results_object : leaspy.io.outputs.result.Result
 
         Returns
         -------
@@ -315,7 +315,7 @@ class SimulationAlgorithm(AbstractAlgo):
         ----------
         model : leaspy.models.abstract_model.AbstractModel
             Subclass object of AbstractModel.
-        results : leaspy.io.data.result.Result
+        results : leaspy.io.outputs.result.Result
             Object containing the computed individual parameters.
 
         Returns
@@ -520,7 +520,7 @@ class SimulationAlgorithm(AbstractAlgo):
         model : leaspy.models.abstract_model.AbstractModel
             Subclass object of AbstractModel. Model used to compute the population & individual parameters.
             It contains the population parameters.
-        results : leaspy.io.data.result.Result
+        individual_parameters : leaspy.io.outputs.individual_parameters.IndividualParameters
             Object containing the computed individual parameters.
 
         Notes
@@ -532,7 +532,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Returns
         -------
-        leaspy.io.data.result.Result
+        leaspy.io.outputs.result.Result
             Contains the simulated individual parameters & individual scores.
         """
 

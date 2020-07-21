@@ -8,7 +8,7 @@ import matplotlib.backends.backend_pdf
 from matplotlib.cm import get_cmap
 # import seaborn as sns
 
-from leaspy.utils.logs.visualization import color_palette
+#from leaspy.utils.logs.visualization import color_palette # not used
 
 from leaspy.io.data.dataset import Dataset
 
@@ -32,7 +32,7 @@ class Plotter:
         colors = get_cmap("tab20").colors
 
         try:
-            iterator = iter(model)
+            iter(model)
         except TypeError:
 
             # Break if model is not initialized

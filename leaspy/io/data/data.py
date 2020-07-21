@@ -71,13 +71,13 @@ class Data:
 
     """
     def load_cofactors(self, df, cofactors):
-        
+
         Load cofactors from a pandas dataframe to leaspy.data class object
 
         :param df: pandas.DataFrame class object - the index is the list of subject ids
         :param cofactors: list of string - names of the column(s) of df which shall be loaded as cofactors
         :return: None
-        
+
         from .result import Result
         df = df.copy(deep=True)
 

@@ -24,7 +24,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         # Launch algorithm
         path_settings = os.path.join(os.path.dirname(__file__), "data/settings_mean_real.json")
         algo_personalize_settings = AlgorithmSettings.load(path_settings)
-        result = leaspy.personalize(data, settings=algo_personalize_settings)
+        ips = leaspy.personalize(data, settings=algo_personalize_settings)
 
         # TODO REFORMAT: compute the noise std afterwards
         #self.assertAlmostEqual(result.noise_std,  0.108, delta=0.01)
@@ -43,7 +43,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
 
         # Launch algorithm
         algo_personalize_settings = AlgorithmSettings('scipy_minimize', seed=0)
-        result = leaspy.personalize(data, settings=algo_personalize_settings)
+        ips = leaspy.personalize(data, settings=algo_personalize_settings)
         # TODO REFORMAT: compute the noise std afterwards
         #self.assertAlmostEqual(result.noise_std,  0.1169, delta=0.01)
 
@@ -61,7 +61,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         # Launch algorithm
         path_settings = os.path.join(os.path.dirname(__file__), "data/settings_mode_real.json")
         algo_personalize_settings = AlgorithmSettings.load(path_settings)
-        result = leaspy.personalize(data, settings=algo_personalize_settings)
+        ips = leaspy.personalize(data, settings=algo_personalize_settings)
         # TODO REFORMAT: compute the noise std afterwards
         #self.assertAlmostEqual(result.noise_std,   0.12152, delta=0.01)
 
@@ -75,7 +75,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         leaspy = Leaspy.load(example_logisticmodel_path)
 
         # Launch algorithm
-        algo_personalize_settings = AlgorithmSettings('gradient_descent_personalize', seed=2) 
+        algo_personalize_settings = AlgorithmSettings('gradient_descent_personalize', seed=2)
         result = leaspy.personalize(data, settings=algo_personalize_settings)
 
         self.assertAlmostEqual(result.noise_std,  0.17925, delta=0.01)"""

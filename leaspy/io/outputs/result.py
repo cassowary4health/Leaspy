@@ -2,7 +2,7 @@ import copy
 import json
 import os
 import warnings
-from collections import Iterable
+from collections.abc import Iterable
 
 import pandas as pd
 import torch
@@ -72,7 +72,7 @@ class Result:
     # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters io.
     def __init__(self, data, individual_parameters, noise_std=None):
         """
-        Process the initializer function - called by Leaspy.io.data.result.Result
+        Process the initializer function - called by Leaspy.io.outputs.result.Result
 
         Parameters
         ----------

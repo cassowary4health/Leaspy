@@ -79,7 +79,7 @@ class IndividualParameters:
         """
         # Check indices
         if type(index) != str:
-            raise ValueError(f'The index should be a string ({type(item)} provided instead)')
+            raise ValueError(f'The index should be a string ({type(index)} provided instead)')
 
         if index in self._indices:
             raise ValueError(f'The index {index} has already been added before')
@@ -354,7 +354,7 @@ class IndividualParameters:
         indices: list
             List of patient indices
         pytorch_dict: dict
-            Dictionary of the individual parameters {parameters name: pytorch list of values across individuals}
+            Dictionary of the individual parameters {parameter name: pytorch tensor of values across individuals}
 
 
         Examples
@@ -466,7 +466,7 @@ class IndividualParameters:
     @staticmethod
     def _load_csv(path):
 
-        df = pd.read_csv(path, index_col=0)
+        df = pd.read_csv(path, dtype={'ID':str}).set_index('ID')
         ip = IndividualParameters.from_dataframe(df)
 
         return ip

@@ -1,4 +1,4 @@
-
+import warnings
 import numpy as np
 from leaspy.utils.posterior_analysis.general import compute_trajectory_of_population
 from leaspy.utils.posterior_analysis.abnormality import get_age_at_abnormality_conversion
@@ -10,6 +10,7 @@ import pandas as pd
 def compute_trajectory_of_population_resampling(timepoints,
                                                 individual_parameters,
                                                 leaspy_iter):
+    warnings.warn('compute_trajectory_of_population_resampling function is deprecated. Please use the one in Leaspype')
 
     assert len(leaspy_iter)==len(individual_parameters)
     n_resampling_iter = len(leaspy_iter)
@@ -25,6 +26,7 @@ def get_age_at_abnormality_conversion_resampling(leaspy_iter,
                             individual_parameters,
                             timepoints,
                            cutoffs):
+    warnings.warn('get_age_at_abnormality_conversion_resampling function is deprecated. Please use the one in Leaspype')
 
     assert len(leaspy_iter)==len(individual_parameters)
     n_resampling_iter = len(leaspy_iter)
@@ -44,6 +46,7 @@ def compute_subgroup_statistics_resampling(leaspy_iter,
                                  individual_parameters_iter,
                                  df_cofactors,
                                  idx_group):
+    warnings.warn('compute_subgroup_statistics_resampling function is deprecated. Please use the one in Leaspype')
 
     difference_subgroups_resampling = {}
 
@@ -64,6 +67,7 @@ def compute_subgroup_statistics_resampling(leaspy_iter,
 
 
 def compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_cofactors_dummy):
+    warnings.warn('compute_correlation_resampling function is deprecated. Please use the one in Leaspype')
 
     assert len(leaspy_iter) == len(individual_parameters_iter)
 
@@ -79,19 +83,19 @@ def compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_c
         corr_log10pvalue_dict[i] = corr_log10pvalue
 
 
-    features = corr_value.columns
-    df_value_concat = pd.concat(list(corr_value_dict.values()))
-    value_by_row_index = df_value_concat.groupby(df_value_concat.index)
-    corr_value_mean = value_by_row_index.mean().loc[features, features]
-    corr_value_std = value_by_row_index.mean().loc[features, features]
+    #features = corr_value.columns
+    #df_value_concat = pd.concat(list(corr_value_dict.values()))
+    #value_by_row_index = df_value_concat.groupby(df_value_concat.index)
+    #corr_value_mean = value_by_row_index.mean().loc[features, features]
+    #corr_value_std = value_by_row_index.mean().loc[features, features]
 
-    df_log10pvalue_concat = pd.concat(list(corr_log10pvalue_dict.values()))
-    log10pvalue_by_row_index = df_log10pvalue_concat.groupby(df_log10pvalue_concat.index)
-    corr_log10pvalue_mean = log10pvalue_by_row_index.mean().loc[features, features]
-    corr_log10pvalue_95percent = log10pvalue_by_row_index.quantile(0.95).loc[features, features]
-    corr_log10pvalue_std = log10pvalue_by_row_index.std().loc[features, features]
+    #df_log10pvalue_concat = pd.concat(list(corr_log10pvalue_dict.values()))
+    #log10pvalue_by_row_index = df_log10pvalue_concat.groupby(df_log10pvalue_concat.index)
+    #corr_log10pvalue_mean = log10pvalue_by_row_index.mean().loc[features, features]
+    #corr_log10pvalue_95percent = log10pvalue_by_row_index.quantile(0.95).loc[features, features]
+    #corr_log10pvalue_std = log10pvalue_by_row_index.std().loc[features, features]
 
-    return corr_value_mean, corr_log10pvalue_mean, corr_value_std, corr_log10pvalue_std, corr_log10pvalue_95percent
+    return corr_value_dict, corr_log10pvalue_dict
 
 
 

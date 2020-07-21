@@ -38,4 +38,4 @@ class ModelFactory:
             return MultivariateParallelModel(name)
         else:
             raise ValueError("The name of the model you are trying to create does not exist! " +
-                             "It should be \`logistic\` or \`logistic_parallel\`")
+                             "It should be `logistic` or `logistic_parallel`")

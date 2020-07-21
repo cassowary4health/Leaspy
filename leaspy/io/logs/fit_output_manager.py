@@ -2,7 +2,7 @@ import csv
 import os
 import time
 
-from leaspy.utils.logs.visualization.plotter import Plotter
+from leaspy.io.logs.visualization.plotter import Plotter
 
 
 class FitOutputManager():

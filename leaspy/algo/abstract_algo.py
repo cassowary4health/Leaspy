@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from leaspy.utils.logs.fit_output_manager import FitOutputManager
+from leaspy.io.logs.fit_output_manager import FitOutputManager
 
 
 class AbstractAlgo:

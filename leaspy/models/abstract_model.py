@@ -144,7 +144,7 @@ class AbstractModel:
                 return False
 
         # Model supports and needs sources?
-        has_sources = self.name != 'univariate'
+        has_sources = hasattr(self, 'source_dimension') and isinstance(self.source_dimension, int) and self.source_dimension > 0
 
         # Check parameters names
         expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'])

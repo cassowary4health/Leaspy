@@ -54,6 +54,6 @@ class GradientMCMCSAEM(AbstractFitMCMC):
         # Update ind
         with torch.no_grad():
             for key in realizations.reals_ind_variable_names:
-                eps = self.algo_parameters['learning_rate'] 
+                eps = self.algo_parameters['learning_rate']
                 realizations[key].tensor_realizations -= eps * realizations[key].tensor_realizations.grad
                 realizations[key].tensor_realizations.grad.zero_()"""

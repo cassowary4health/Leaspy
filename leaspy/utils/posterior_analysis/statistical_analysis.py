@@ -1,10 +1,13 @@
 import numpy as np
 import pandas as pd
+import warnings
 import scipy.stats as stats
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
+    warnings.warn('append_spaceshifts_to_individual_parameters_dataframe function is deprecated. Please use the one in Leaspype')
+
     # TODO: Igor test
     df_ip = df_individual_parameters.copy()
 
@@ -22,7 +25,7 @@ def compute_subgroup_statistics(leaspy,
                                  individual_parameters,
                                  df_cofactors,
                                  idx_group):
-
+    warnings.warn('compute_subgroup_statistics function is deprecated. Please use the one in Leaspype')
     df_indparam = append_spaceshifts_to_individual_parameters_dataframe(individual_parameters.to_dataframe(),
                                                                         leaspy)
     df_run = pd.concat([df_indparam, df_cofactors], axis=1, sort=True)
@@ -33,6 +36,7 @@ def compute_subgroup_statistics(leaspy,
 
 
 def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pearson"):
+    warnings.warn('compute_correlation function is deprecated. Please use the one in Leaspype')
 
     df_indparam = append_spaceshifts_to_individual_parameters_dataframe(individual_parameters.to_dataframe(), leaspy)
 
@@ -85,14 +89,18 @@ def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pea
                 df_corr = df[[feature_row, feature_col]].dropna()
                 value, pvalue = correlation_function(df_corr.iloc[:, 0], df_corr.iloc[:, 1])
             else:
+                features_source = [feature for feature in df.columns if "sources" in feature]
                 feature_not_source = feature_row if "sources" in feature_col else feature_col
                 if "w_" not in feature_not_source:
-                    X = df.drop(feature_not_source, axis=1).values
-                    Y = df[feature_not_source].values
+                    sampling_size = df[features_source].shape[0]
+                    X_train = df[features_source].values[:int(sampling_size/2)]
+                    X_test = df[features_source].values[int(sampling_size/2):]
+                    Y_train = df[feature_not_source].values[:int(sampling_size/2)]
+                    Y_test = df[feature_not_source].values[int(sampling_size/2):]
                     pls2 = PLSRegression(n_components=1)
-                    pls2.fit(X, Y)
-                    Y_pred = pls2.predict(X)
-                    df_corr = pd.DataFrame(np.array([Y_pred.reshape(-1),  Y.reshape(-1)]).T)
+                    pls2.fit(X_train, Y_train)
+                    Y_pred = pls2.predict(X_test)
+                    df_corr = pd.DataFrame(np.array([Y_pred.reshape(-1),  Y_test.reshape(-1)]).T)
                     value, pvalue = correlation_function(df_corr.iloc[:,0], df_corr.iloc[:,1])
                 else:
                     value , pvalue = np.nan, np.nan

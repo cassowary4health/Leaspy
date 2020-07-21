@@ -6,6 +6,7 @@ import torch
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.models.abstract_model import AbstractModel
 from tests import example_data_path
+from tests import binary_data_path
 from tests import example_logisticmodel_path
 
 
@@ -81,6 +82,25 @@ class AbstractModelTest(unittest.TestCase):
 
             for method in ('mode_real', 'mean_real', 'scipy_minimize', 'gradient_descent_personalize'):
                 settings = AlgorithmSettings(method, n_iter=100, n_burn_in_iter=90, seed=0)
+                logistic_result = logistic_leaspy.personalize(data, settings)
+
+    def test_all_model_run_crossentropy(self):
+        """
+        Check if the following models run with the following algorithms.
+        """
+        for model_name in ('linear', 'univariate', 'logistic', 'logistic_parallel'):
+            logistic_leaspy = Leaspy(model_name)
+            settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0, loss="crossentropy")
+
+            df = pd.read_csv(binary_data_path)
+            if model_name == 'univariate':
+                df = df.iloc[:, :3]
+            data = Data.from_dataframe(df)
+
+            logistic_leaspy.fit(data, settings)
+
+            for method in ['scipy_minimize']:
+                settings = AlgorithmSettings(method, n_iter=100, n_burn_in_iter=90, seed=0, loss="crossentropy")
                 logistic_result = logistic_leaspy.personalize(data, settings)
 
     def test_tensorize_2D(self):

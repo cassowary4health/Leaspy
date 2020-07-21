@@ -90,7 +90,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         if self.loss == 'crossentropy':
             sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters,
-                                                                                                  attribute_type=True)
+                                                                                                  attribute_type="MCMC")
 
         return sufficient_statistics
 
@@ -115,7 +115,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
         if self.loss == 'crossentropy':
             self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
-                                                                                            attribute_type=True).sum()
+                                                                                            attribute_type="MCMC").sum()
     def update_model_parameters_normal(self, data, suff_stats):
 
         self.parameters['g'] = suff_stats['g']

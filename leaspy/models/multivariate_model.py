@@ -181,7 +181,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         if self.loss == 'crossentropy':
             sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters,
-                                                                                                  attribute_type=True)
+                                                                                                  attribute_type="MCMC")
 
         return sufficient_statistics
 
@@ -218,7 +218,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         if self.loss == 'crossentropy':
             self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
-                                                                                            attribute_type=True).sum()
+                                                                                            attribute_type="MCMC").sum()
 
         # TODO : This is just for debugging of linear
         #data_reconstruction = self.compute_individual_tensorized(data.timepoints,

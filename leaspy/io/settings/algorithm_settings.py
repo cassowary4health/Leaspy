@@ -110,17 +110,17 @@ class AlgorithmSettings:
     @staticmethod
     def _check_default_settings(settings):
         if 'name' not in settings.keys():
-            raise ValueError('The \'name\' key is missing in the algorithm settings (JSON file) you are loading')
+            raise ValueError("The 'name' key is missing in the algorithm settings (JSON file) you are loading")
         if 'seed' not in settings.keys():
-            raise ValueError('The \'settings\' key is missing in the algorithm settings (JSON file) you are loading')
+            raise ValueError("The 'settings' key is missing in the algorithm settings (JSON file) you are loading")
         if 'parameters' not in settings.keys():
-            raise ValueError('The \'parameters\' key is missing in the algorithm settings (JSON file) you are loading')
+            raise ValueError("The 'parameters' key is missing in the algorithm settings (JSON file) you are loading")
         if 'initialization_method' not in settings.keys():
             raise ValueError(
-                'The \'initialization_method\' key is missing in the algorithm settings (JSON file) you are loading')
+                "The 'initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
         if 'loss' not in settings.keys():
-            warnings.warn("The \'loss\' key is missing in the algorithm settings (JSON file) you are loading. \
-            Its value will be \'MSE\' by default")
+            warnings.warn("The 'loss' key is missing in the algorithm settings (JSON file) you are loading. \
+            Its value will be 'MSE' by default")
 
     @staticmethod
     def _get_name(settings):
@@ -137,7 +137,7 @@ class AlgorithmSettings:
         try:
             return int(settings['seed'])
         except ValueError:
-            print("The \'seed\' parameter you provided cannot be converted to int")
+            print("The 'seed' parameter you provided cannot be converted to int")
 
     @staticmethod
     def _get_initialization_method(settings):
@@ -148,23 +148,23 @@ class AlgorithmSettings:
 
     @staticmethod
     def _get_loss(settings):
-        if not 'loss' in settings:
+        if 'loss' not in settings.keys():
             # Return default value for the loss (Mean Squared Error)
             return 'MSE'
         if settings['loss'].lower() in ['mse', 'crossentropy']:
             return settings['loss']
         else:
-            raise ValueError("The loss provided is not recognised. Should be one of [\'MSE\', \'crossentropy\']")
+            raise ValueError("The loss provided is not recognised. Should be one of ['MSE', 'crossentropy']")
 
     def save(self, path):
 
         json_settings = {
             "name": self.name,
             "seed": self.seed,
-            "parameters" : self.parameters,
-            "initialization_method" : self.initialization_method,
-            "loss" : self.loss,
-            "logs" : self.logs
+            "parameters": self.parameters,
+            "initialization_method": self.initialization_method,
+            "loss": self.loss,
+            "logs": self.logs
         }
 
         with open(os.path.join(path), "w") as json_file:

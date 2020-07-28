@@ -18,9 +18,9 @@ class CSVDataReader:
         if len(csv_headers) < 3:
             raise ValueError("There must be at least three columns in the input dataset")
         if csv_headers[0].lower() != 'id':
-            raise ValueError("The first column of the input csv must be \'ID\'")
+            raise ValueError("The first column of the input csv must be 'ID'")
         if csv_headers[1].lower() != 'time':
-            raise ValueError("The second column of the input csv must be \'Time\'")
+            raise ValueError("The second column of the input csv must be 'Time'")
 
         self.headers = csv_headers[2:]
 

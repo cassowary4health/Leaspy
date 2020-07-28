@@ -175,7 +175,7 @@ class UnivariateModel(AbstractModel):
 
         param_ind = self.get_param_from_real(realizations)
         squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type=True).sum()
-        self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
+        self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
 
         if self.loss == 'crossentropy':
             crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type=True).sum()
@@ -199,7 +199,7 @@ class UnivariateModel(AbstractModel):
         S2 = torch.sum(suff_stats['obs_x_reconstruction'])
         S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
 
-        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
+        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
 
         if self.loss == 'crossentropy':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()

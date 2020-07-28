@@ -192,6 +192,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 neg_crossentropy = values * torch.log(attachment) + (1. - values) * torch.log(1. - attachment)
                 neg_crossentropy[mask] = 0. # Set nan to zero, not to count in the sum
                 attachment = -torch.sum(neg_crossentropy)
+            else:
+                raise NotImplementedError
             # Regularity
             regularity = 0
             for key, value in iterates:

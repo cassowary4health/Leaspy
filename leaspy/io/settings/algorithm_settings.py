@@ -151,7 +151,7 @@ class AlgorithmSettings:
         if 'loss' not in settings.keys():
             # Return default value for the loss (Mean Squared Error)
             return 'MSE'
-        if settings['loss'].lower() in ['mse', 'crossentropy']:
+        if settings['loss'] in ['MSE', 'crossentropy']:
             return settings['loss']
         else:
             raise ValueError("The loss provided is not recognised. Should be one of ['MSE', 'crossentropy']")

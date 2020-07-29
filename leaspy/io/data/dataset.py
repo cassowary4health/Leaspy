@@ -16,8 +16,8 @@ class Dataset:
         self.n_visits = None
         self.individual_parameters = None
         self.indices = list(data.individuals.keys())
-        self.L2_norm_per_feature = None
-        self.L2_norm = None
+        self.L2_norm_per_ft = None # 1D float tensor, shape (dimension,)
+        self.L2_norm = None # scalar float tensor
 
         if model is not None:
             self._check_model_compatibility(data, model)
@@ -52,7 +52,7 @@ class Dataset:
 
         self.n_individuals = batch_size
         self.max_observations = max(x_len)
-        self.nb_observations_per_individuals = x_len # list
+        self.nb_observations_per_individuals = x_len # list of length n_individuals
         self.dimension = channels
         self.values = values
         self.mask = mask
@@ -70,8 +70,8 @@ class Dataset:
             self.timepoints[i, 0:d] = torch.tensor(data[i].timepoints, dtype=torch.float32)
 
     def _compute_L2_norm(self):
-        self.L2_norm_per_feature = torch.sum(self.values * self.values * self.mask.float(), dim=(0,1)) # 1D tensor of shape (dimension,)
-        self.L2_norm = self.L2_norm_per_feature.sum() # sum on all features
+        self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0,1)) # 1D tensor of shape (dimension,)
+        self.L2_norm = self.L2_norm_per_ft.sum() # sum on all features
 
     def get_times_patient(self, i):
         return self.timepoints[i, :self.nb_observations_per_individuals[i]]

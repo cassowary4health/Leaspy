@@ -1,6 +1,8 @@
 import math
 import time
 
+import torch
+
 from ..abstract_algo import AbstractAlgo
 
 
@@ -61,11 +63,14 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         Returns
         -------
-        dict, float
-            dict - individual parameters
-                exemple {'xi': <list of float>, 'tau': <list of float>, 'sources': <list of list of float>}
-            float - estimated noise
-                = ( 1 / nber_visits * nbre_dimension * Sum_patient (modelization_scores - real_values) ** 2 ) ** 1/2
+        tuple (ips, noise_std)
+
+        ips: dict
+            individual parameters
+            example {'xi': <list of float>, 'tau': <list of float>, 'sources': <list of list of float>}
+
+        noise_std: torch.FloatTensor of shape (dimension,) or scalar
+            estimated noise (per feature or globally)
         """
 
         # Set seed
@@ -75,30 +80,36 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         #print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
         time_beginning = time.time()
 
-        # Give the model the adequate loss
-        model.loss = self.loss
+        ## Give the model the adequate loss
+        #model.loss = self.loss
+
+        # mod Etienne: during personalization we should rather do the opposite (algorithm loss must correspond to model loss, for wich the model was trained for)
+        self.loss = model.loss
 
         # Estimate individual parametersabstr
         individual_parameters = self._get_individual_parameters(model, data)
 
-        # Compute the noise with the estimated individual parameters
+        # Compute the noise with the estimated individual parameters (per feature or not, depending on model loss)
         _, dict_pytorch = individual_parameters.to_pytorch()
-        squared_diff = model.compute_sum_squared_tensorized(data, dict_pytorch).sum()
-        noise_std = math.sqrt(squared_diff.detach().item() / data.n_observations)
+        if 'diag_noise' in model.loss:
+            squared_diff = model.compute_sum_squared_per_ft_tensorized(data, dict_pytorch).sum(dim=0) # k tensor
+            noise_std = torch.sqrt(squared_diff.detach() / data.n_observations_per_ft.float())
+
+            # for displaying only
+            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, noise_std)}
+            print_noise = repr(noise_map).replace("'", "")
+        else:
+            squared_diff = model.compute_sum_squared_tensorized(data, dict_pytorch).sum()
+            noise_std = torch.sqrt(squared_diff.detach() / data.n_observations)
+            # for displaying only
+            print_noise = '{:.4f}'.format(noise_std.item())
 
         # Print run infos
         time_end = time.time()
-        diff_time = (time_end - time_beginning)  # / 1000 TODO: why divided by 1000?
-        #print("The standard deviation of the noise at the end of the personalization is of {:.4f}".format(noise_std))
-        #print("Personalization {1} took : {0}s".format(diff_time, self.name))
+        diff_time = (time_end - time_beginning)
 
-        # Transform individual parameters to dictinnary ID / variable_ind
-        # indices = data.indices
-        # new_individual_parameters = dict.fromkeys(indices)
-        # for i, idx in enumerate(indices):
-        #    new_individual_parameters[idx] = {}
-        #    for j, variable_ind_name in enumerate(model.get_individual_variable_name()):
-        #        new_individual_parameters[idx][variable_ind_name] = individual_parameters[j][i].detach().tolist()
+        print("The standard deviation of the noise at the end of the personalization is " + print_noise)
+        print("Personalization {} took : {:.1f}s".format(self.name, diff_time))
 
         return individual_parameters, noise_std
 
@@ -117,6 +128,10 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         ------
         NotImplementedError
             Method only implemented in child class of AbstractPersonalizeAlgo
+
+        Should return
+        ------
+        leaspy.io.outputs.individual_parameters.IndividualParameters
         """
 
         raise NotImplementedError('This algorithm does not present a personalization procedure')

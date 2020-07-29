@@ -365,7 +365,7 @@ class Plotter:
         reals_pop_name = model.get_population_realization_names()
         reals_ind_name = model.get_individual_realization_names()
 
-        if model.loss == 'MSE':
+        if 'MSE' in model.loss:
             fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
         else:
             fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 2, 1, figsize=(10, 20))

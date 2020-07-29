@@ -1,7 +1,6 @@
 # from ...utils.logs.fit_output_manager import FitOutputManager
 from ..abstract_algo import AbstractAlgo
 
-
 class AbstractFitAlgo(AbstractAlgo):
 
     def __init__(self):
@@ -36,8 +35,13 @@ class AbstractFitAlgo(AbstractAlgo):
                 self.output_manager.iteration(self, data, model, realizations)
             self.current_iteration += 1
 
-        print("The standard deviation of the noise at the end of the calibration is {:.4f}".format(
-            model.parameters['noise_std']))
+        if 'diag_noise' in model.loss:
+            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'])}
+            print_noise = repr(noise_map).replace("'", "")
+        else:
+            print_noise = '{:.4f}'.format(model.parameters['noise_std'].item())
+        print("The standard deviation of the noise at the end of the calibration is " + print_noise)
+
         return realizations
 
     def _maximization_step(self, data, model, realizations):

@@ -124,7 +124,7 @@ class Leaspy:
         """
         self.fit(data, algorithm_settings)
 
-    def personalize(self, data, settings):
+    def personalize(self, data, settings, return_noise=False):
         r"""
         From a model, estimate individual parameters for each `ID` of a given dataset.
         These individual parameters correspond to the random-effects :math:`(z_{i,j})` of the mixed effect model.
@@ -135,11 +135,16 @@ class Leaspy:
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
         settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
+        return_noise: boolean (default False)
+            Returns a tuple (individual_parameters, noise_std) if True
 
         Returns
         -------
-        leaspy.io.outputs.individual_parameters.IndividualParameters
-            Aggregates computed individual parameters and input data.
+        ips: leaspy.io.outputs.individual_parameters.IndividualParameters
+            Contains individual parameters
+
+        if return_noise is True:
+            tuple(ips, noise_std: torch.FloatTensor)
 
         Examples
         --------
@@ -162,7 +167,11 @@ class Leaspy:
         algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         individual_parameters, noise_std = algorithm.run(self.model, dataset)
-        return individual_parameters
+
+        if return_noise:
+            return individual_parameters, noise_std
+        else: # default
+            return individual_parameters
 
     def simulate(self, individual_parameters, data, settings):
         r"""

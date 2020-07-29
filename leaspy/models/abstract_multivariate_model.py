@@ -63,6 +63,8 @@ class AbstractMultivariateModel(AbstractModel):
             self.source_dimension = hyperparameters['source_dimension']
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
+        if 'loss' in hyperparameters.keys():
+            self.loss = hyperparameters['loss']
 
     def save(self, path):
         model_parameters_save = self.parameters.copy()
@@ -76,6 +78,7 @@ class AbstractMultivariateModel(AbstractModel):
             'features': self.features,
             'dimension': self.dimension,
             'source_dimension': self.source_dimension,
+            'loss': self.loss,
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:

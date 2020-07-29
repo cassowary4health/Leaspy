@@ -27,7 +27,7 @@ class Result:
         by the user. This order remains the same during the computation.
         Example - in Result.individual_parameters['xi'], the first element corresponds to the
         first patient in ID_to_idx.
-    noise_std : float
+    noise_std : float or torch.FloatTensor
         Desired noise standard deviation level.
 
     Methods
@@ -80,7 +80,7 @@ class Result:
             Object containing the idx, time-points and observations of the patients
         individual_parameters : dict [str, torch.Tensor]
             Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
-        noise_std : float, optional (default None)
+        noise_std : float or torch.FloatTensor, optional (default None)
             Desired noise standard deviation level
         """
         self.data = data

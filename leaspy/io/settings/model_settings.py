@@ -17,7 +17,7 @@ class ModelSettings:
     @staticmethod
     def _check_settings(settings):
         if 'name' not in settings.keys():
-            raise ValueError("The 'type' key is missing in the model parameters (JSON file) you are loading")
+            raise ValueError("The 'name' key is missing in the model parameters (JSON file) you are loading")
         if 'parameters' not in settings.keys():
             raise ValueError("The 'parameters' key is missing in the model parameters (JSON file) you are loading")
 

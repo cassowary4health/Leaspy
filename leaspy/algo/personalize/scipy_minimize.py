@@ -75,11 +75,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         if self.model_name == 'univariate':
             individual_parameters = {'xi': xi, 'tau': tau}
-            err = model.compute_individual_tensorized(times, individual_parameters) - values
         else:
             sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
             individual_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
-            err = model.compute_individual_tensorized(times, individual_parameters) - values
+
+        err = model.compute_individual_tensorized(times, individual_parameters) - values
         return err
 
     def _get_regularity(self, model, x):
@@ -172,28 +172,30 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
             if self.model_name == 'univariate':
                 individual_parameters = {'xi': xi, 'tau': tau}
-                attachment = model.compute_individual_tensorized(times, individual_parameters)
                 iterates = zip(['xi', 'tau'], (xi, tau))
             else:
                 sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
                 individual_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
-                attachment = model.compute_individual_tensorized(times, individual_parameters)
                 iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
 
-            diff = attachment - values
-            mask = (diff != diff)
+            predicted = model.compute_individual_tensorized(times, individual_parameters)
+            diff = predicted - values # tensor 1,j,k (j=visits, k=feature) [1 individual at a time]
+            nans = torch.isnan(diff) # <!> opposite of data.mask logic...
 
-            if self.loss == 'MSE':
-                attachment = diff
-                attachment[mask] = 0.  # Set nan to zero, not to count in the sum
-                attachment = torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
+            if 'MSE' in self.loss:
+                diff[nans] = 0.  # Set nan to zero, not to count in the sum
+                diff = diff.reshape((-1, model.dimension)) # or diff = diff.squeeze(dim=0)
+                noise_var = model.parameters['noise_std'] * model.parameters['noise_std']
+                noise_var = noise_var.expand((1, model.dimension)) # tensor 1,k (works with diagonal noise or scalar noise)
+                attachment = torch.sum((0.5 / noise_var) @ (diff * diff).t()) # noise per feature
             elif self.loss == 'crossentropy':
-                attachment = torch.clamp(attachment, 1e-38, 1. - 1e-7)  # safety before taking the log
-                neg_crossentropy = values * torch.log(attachment) + (1. - values) * torch.log(1. - attachment)
-                neg_crossentropy[mask] = 0. # Set nan to zero, not to count in the sum
+                predicted = torch.clamp(predicted, 1e-38, 1. - 1e-7)  # safety before taking the log
+                neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
+                neg_crossentropy[nans] = 0. # Set nan to zero, not to count in the sum
                 attachment = -torch.sum(neg_crossentropy)
             else:
                 raise NotImplementedError
+
             # Regularity
             regularity = 0
             for key, value in iterates:
@@ -214,7 +216,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             print(res.success, res)
 
         xi_f, tau_f, sources_f = res.x[0], res.x[1], res.x[2:]
-        err_f = self._get_attachment(model, times.unsqueeze(0), values, res.x)
+        err_f = self._get_attachment(model, timepoints, values, res.x)
 
         return (tau_f, xi_f, sources_f), err_f  # TODO depends on the order
 
@@ -231,7 +233,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Returns
         -------
-        out: `dict` ['str`, `torch.Tensor`]
+        leaspy.io.outputs.individual_parameters.IndividualParameters
             Contains the individual parameters of all patients.
         """
 
@@ -239,6 +241,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         p_names = model.get_individual_variable_name()
 
+        # TODO: parallelize here?
         for iter in range(data.n_individuals):
             times = data.get_times_patient(iter)  # torch.Tensor
             values = data.get_values_patient(iter)  # torch.Tensor

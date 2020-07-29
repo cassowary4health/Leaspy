@@ -83,11 +83,13 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         data_reconstruction = self.compute_individual_tensorized(data.timepoints,
                                                                  ind_parameters,
                                                                  attribute_type='MCMC')
-        data_reconstruction *= data.mask.float()
-        norm_1 = data.values * data_reconstruction * data.mask.float()
-        norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
-        sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
-        sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
+        data_reconstruction *= data.mask.float() # speed-up computations
+
+        norm_1 = data.values * data_reconstruction #* data.mask.float()
+        norm_2 = data_reconstruction * data_reconstruction #* data.mask.float()
+
+        sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2) # no sum on features...
+        sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2) # no sum on features...
 
         if self.loss == 'crossentropy':
             sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters,
@@ -108,15 +110,20 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
+        # TODO: same as MultivariateModel, should we factorize code?
         param_ind = self.get_param_from_real(realizations)
-        data_fit = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type='MCMC')
-        data_fit *= data.mask.float()
-        squared_diff = ((data_fit - data.values) ** 2).sum()
-        squared_diff = squared_diff.detach()  # Remove the gradients
-        self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
+        # TODO : Why is it MCMC-SAEM? SHouldn't it be computed with the parameters?
+        if 'diag_noise' in self.loss:
+            squared_diff_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type='MCMC').sum(dim=0) # sum on individuals
+            self.parameters['noise_std'] = torch.sqrt(squared_diff_per_ft / data.n_observations_per_ft.float())
+        else:
+            squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type='MCMC').sum() # sum on individuals
+            self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
+
         if self.loss == 'crossentropy':
             self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
                                                                                             attribute_type="MCMC").sum()
+
     def update_model_parameters_normal(self, data, suff_stats):
 
         self.parameters['g'] = suff_stats['g']
@@ -134,11 +141,20 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        S1 = data.L2_norm
-        S2 = torch.sum(suff_stats['obs_x_reconstruction'])
-        S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
+        # TODO: same as MultivariateModel, should we factorize code?
+        if 'diag_noise' in self.loss:
+            # keep feature dependence on feature to update diagonal noise (1 free param per feature)
+            S1 = data.L2_norm_per_ft
+            S2 = suff_stats['obs_x_reconstruction'].sum(dim=(0,1))
+            S3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0,1))
 
-        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
+            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations_per_ft.float()) # tensor 1D, shape (dimension,)
+        else: # scalar noise (same for all features)
+            S1 = data.L2_norm
+            S2 = suff_stats['obs_x_reconstruction'].sum()
+            S3 = suff_stats['reconstruction_x_reconstruction'].sum()
+
+            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
 
         if self.loss == 'crossentropy':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()

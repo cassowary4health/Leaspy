@@ -99,7 +99,7 @@ def initialize_logistic(model, dataset, method):
         'tau_mean': t0, 'tau_std': torch.tensor(1.),
         'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
         'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-        'noise_std': torch.tensor([0.1], dtype=torch.float32) #TODO: noiser per feature
+        'noise_std': torch.tensor([0.1], dtype=torch.float32)
     }
 
     return parameters
@@ -140,7 +140,7 @@ def initialize_logistic_parallel(model, dataset, method):
             'xi_std': torch.tensor(.1),
             'sources_mean': torch.tensor(0.),
             'sources_std': torch.tensor(1.),
-            'noise_std': torch.tensor([0.1], dtype=torch.float32), #TODO: noise per feature
+            'noise_std': torch.tensor([0.1], dtype=torch.float32),
             'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
             'betas': betas
         }
@@ -173,7 +173,7 @@ def initialize_logistic_parallel(model, dataset, method):
             'tau_mean': t0, 'tau_std': torch.tensor(2.0, dtype=torch.float32),
             'xi_mean': torch.mean(v0_array).detach(), 'xi_std': torch.tensor(0.1, dtype=torch.float32),
             'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-            'noise_std': torch.tensor([0.1], dtype=torch.float32), #TODO: noise per feature
+            'noise_std': torch.tensor([0.1], dtype=torch.float32),
             'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
             'betas': betas
         }
@@ -249,7 +249,7 @@ def initialize_linear(model, dataset, method):
         'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
         'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
         'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-        'noise_std': torch.tensor([0.1], dtype=torch.float32) #TODO: noise per feature
+        'noise_std': torch.tensor([0.1], dtype=torch.float32)
     }
 
     return parameters

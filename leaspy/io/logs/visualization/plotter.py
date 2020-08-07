@@ -1,3 +1,4 @@
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os
@@ -370,6 +371,13 @@ class Plotter:
         else:
             fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 2, 1, figsize=(10, 20))
 
+        # nonposy is deprecated since Matplotlib 3.3
+        mpl_version = mpl.__version__.split('.')
+        if int(mpl_version[0]) < 3 or ((int(mpl_version[0]) == 3) and (int(mpl_version[1]) < 3)):
+            yscale_kw = dict(nonposy='clip')
+        else: # >= 3.3
+            yscale_kw = dict(nonpositive='clip')
+
         # Noise var
         import_path = os.path.join(path, 'noise_std' + ".csv")
         df_convergence = pd.read_csv(import_path, index_col=0, header=None)
@@ -377,7 +385,7 @@ class Plotter:
         y_position = 0
         df_convergence.plot(ax=ax[y_position], legend=False)
         ax[y_position].set_title('noise_std')
-        ax[y_position].set_yscale("log", nonposy='clip')
+        ax[y_position].set_yscale("log", **yscale_kw)
         plt.grid(True)
 
         if model.loss == 'crossentropy':
@@ -387,7 +395,7 @@ class Plotter:
             y_position = 1
             df_convergence.plot(ax=ax[y_position], legend=False)
             ax[y_position].set_title('crossentropy')
-            ax[y_position].set_yscale("log", nonposy='clip')
+            ax[y_position].set_yscale("log", **yscale_kw)
             plt.grid(True)
 
         for i, key in enumerate(reals_pop_name):

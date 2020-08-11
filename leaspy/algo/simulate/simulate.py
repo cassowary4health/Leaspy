@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
-
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.data.data import Data
 from leaspy.io.outputs.result import Result
@@ -45,7 +45,7 @@ class SimulationAlgorithm(AbstractAlgo):
     noise : str or float or list or None, (default "default")
         Wanted level of gaussian noise in the generated scores.
             - Set to "default", the noise added to each feature score correspond to the reconstruction error for each
-            feature.
+            feature (MSE on all visits, per feature).
             - Set noise to ``None`` will lead to patients having "perfect progression" of their scores, i.e.
             following exactly a logistic curve.
             - Set a float will add for each feature's scores a noise of standard deviation the given float.
@@ -123,6 +123,8 @@ class SimulationAlgorithm(AbstractAlgo):
         self.reparametrized_age_bounds = settings.parameters['reparametrized_age_bounds']
         self.sources_method = settings.parameters['sources_method']
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
+
+        self.prefix = settings.parameters['prefix']
 
         if self.sources_method not in ("full_kde", "normal_sources"):
             raise ValueError('The "sources_method" parameter must be "full_kde" or "normal_sources"!')
@@ -332,8 +334,7 @@ class SimulationAlgorithm(AbstractAlgo):
             if self.noise == "default":
                 noise = results.get_error_distribution_dataframe(model)
                 noise = torch.from_numpy(noise[results.data.headers].values)
-                noise *= noise
-                noise = torch.sqrt(noise.mean(dim=0))
+                noise = torch.sqrt((noise*noise).mean(dim=0)) #MSE on visits (per feature)
             else:
                 if hasattr(self.noise, '__len__'):
                     if len(self.noise) != len(results.data.headers):
@@ -342,7 +343,7 @@ class SimulationAlgorithm(AbstractAlgo):
                                          "the number of features, here {}.".format(self.noise,
                                                                                    len(results.data.headers)))
                 noise = torch.tensor(self.noise)
-            return torch.distributions.Normal(loc=0, scale=noise)
+            return torch.distributions.Normal(loc=0., scale=noise) # diagonal noise (per feature)
 
     @staticmethod
     def _get_reparametrized_age(timepoints, tau, xi, tau_mean):
@@ -471,8 +472,10 @@ class SimulationAlgorithm(AbstractAlgo):
             observations = model.compute_individual_trajectory(timepoints[i], indiv_param)
             # Add the desired noise
             if noise_generator:
-                observations += noise_generator.sample([observations.shape[0]])
-                observations = observations.clamp(0, 1)
+                observations += noise_generator.sample([observations.shape[1]])
+                # for logistic models only
+                if model.name in ['logistic','logistic_parallel','univariate']:
+                    observations = observations.clamp(0, 1)
 
             observations = observations.squeeze(0).detach().numpy()
             features_values.append(observations)
@@ -645,7 +648,7 @@ class SimulationAlgorithm(AbstractAlgo):
                 simulated_parameters[key] = torch.from_numpy(val)[:n]
 
         # --------- Give results
-        indices = ['Generated_subject_' + '0' * (len(str(n)) - len(str(i))) + str(i) for i in range(1, n + 1)]
+        indices = [self.prefix + '0' * (len(str(n)) - len(str(i))) + str(i) for i in range(1, n + 1)]
         # Ex - for 10 subjects, indices = ["Generated_subject_01", "Generated_subject_02", ..., "Generated_subject_10"]
 
         simulated_scores = Data.from_individuals(indices=indices,
@@ -654,4 +657,4 @@ class SimulationAlgorithm(AbstractAlgo):
                                                  headers=results.data.headers)
         return Result(data=simulated_scores,
                       individual_parameters=simulated_parameters,
-                      noise_std=self.noise)
+                      noise_std=self.noise) # TODO: we could/should convert self.noise into something OK for Result object (in particular "default" is a special flag for SimulationAlgorithm and should be replaced by computed values...)

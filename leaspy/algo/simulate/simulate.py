@@ -472,7 +472,7 @@ class SimulationAlgorithm(AbstractAlgo):
             observations = model.compute_individual_trajectory(timepoints[i], indiv_param)
             # Add the desired noise
             if noise_generator:
-                observations += noise_generator.sample([observations.shape[1]])
+                observations += noise_generator.sample([observations.shape[0]]) # TODO: Raphaël? test won't pass with observations.shape[1] as you put
                 # for logistic models only
                 if model.name in ['logistic','logistic_parallel','univariate']:
                     observations = observations.clamp(0, 1)

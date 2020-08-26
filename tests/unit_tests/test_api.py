@@ -49,6 +49,7 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.dimension, 4)
         self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
+        self.assertEqual(leaspy.model.loss, 'MSE')
 
         # Test the parameters
         parameters = {
@@ -85,6 +86,7 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.dimension, 4)
         self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
+        self.assertEqual(leaspy.model.loss, 'MSE')
 
         # Test the parameters
         parameters = {
@@ -121,6 +123,7 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(leaspy.model.dimension, 4)
         self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
+        self.assertEqual(leaspy.model.loss, 'MSE')
 
         # Test the parameters
         parameters = {
@@ -156,6 +159,7 @@ class LeaspyTest(unittest.TestCase):
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.features, ['feature'])
+        self.assertEqual(leaspy.model.loss, 'MSE')
 
         # Test the parameters
         parameters = {

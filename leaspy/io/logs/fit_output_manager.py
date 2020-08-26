@@ -140,7 +140,7 @@ class FitOutputManager():
         Display the duration since the last print
         """
         current_time = time.time()
-        print("Duration since last print : {0}s".format(round(current_time - self.time), 4))
+        print("Duration since last print : {:.4f}s".format(current_time - self.time))
         self.time = current_time
 
     def print_model_statistics(self, model):

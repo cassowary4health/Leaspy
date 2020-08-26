@@ -172,7 +172,7 @@ class IndividualParameters:
 
         for idx in indices:
             if idx not in self._indices:
-                raise ValueError(f'The index {0} is not in the indices'.format(idx))
+                raise ValueError(f'The index {idx} is not in the indices')
             p = self[idx].copy()
             ip.add_individual_parameters(idx, p)
 

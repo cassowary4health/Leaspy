@@ -249,7 +249,7 @@ def initialize_linear(model, dataset, method):
         'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
         'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
         'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-        'noise_std': torch.tensor([.1], dtype=torch.float32)
+        'noise_std': torch.tensor([0.1], dtype=torch.float32)
     }
 
     return parameters

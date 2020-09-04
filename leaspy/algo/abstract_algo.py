@@ -1,5 +1,8 @@
+import sys
+
 import numpy as np
 import torch
+
 from leaspy.io.logs.fit_output_manager import FitOutputManager
 
 
@@ -132,6 +135,21 @@ class AbstractAlgo:
         if output_settings is not None:
             self.output_manager = FitOutputManager(output_settings)
 
-
     def iteration(self, data, model, realizations):
         raise NotImplementedError
+
+    @staticmethod
+    def display_progress_bar(iteration, n_iter, suffix, n_step=50):
+        if iteration == -1:
+            sys.stdout.write('\r')
+            sys.stdout.write('|' + '-' * n_step + '|   0/%d ' % n_iter + suffix)
+            sys.stdout.flush()
+        else:
+            print_every_iter = n_iter // n_step
+            display = (iteration + 1) % print_every_iter
+            if display == 0:
+                nbar = (iteration + 1) // print_every_iter
+                sys.stdout.write('\r')
+                sys.stdout.write(
+                    '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration + 1, n_iter) + suffix)
+                sys.stdout.flush()

@@ -1,12 +1,13 @@
 import os
 import unittest
-import torch
-import numpy as np
 
-from tests import test_data_dir
-from leaspy.api import Leaspy
+import numpy as np
+import torch
+
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
+from leaspy.api import Leaspy
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+from tests import test_data_dir
 
 
 class ScipyMinimizeTest(unittest.TestCase):
@@ -15,7 +16,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
 
-        self.assertEqual(algo.algo_parameters, {'n_iter': 100})
+        self.assertEqual(algo.algo_parameters, {'n_iter': 100, "progress_bar": False})
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, None)
 

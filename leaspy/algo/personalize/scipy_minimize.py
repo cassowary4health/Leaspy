@@ -1,5 +1,5 @@
-from scipy.optimize import minimize
 import torch
+from scipy.optimize import minimize
 
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 from ...io.outputs.individual_parameters import IndividualParameters
@@ -241,14 +241,20 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         p_names = model.get_individual_variable_name()
 
+        if self.algo_parameters['progress_bar']:
+            self.display_progress_bar(-1, data.n_individuals, suffix='subjets')
+
         # TODO: parallelize here?
-        for iter in range(data.n_individuals):
-            times = data.get_times_patient(iter)  # torch.Tensor
-            values = data.get_values_patient(iter)  # torch.Tensor
-            idx = data.indices[iter]
+        for it in range(data.n_individuals):
+            times = data.get_times_patient(it)  # torch.Tensor
+            values = data.get_values_patient(it)  # torch.Tensor
+            idx = data.indices[it]
 
             ind_patient, err = self._get_individual_parameters_patient(model, times, values)
             ind_p = {k: v for k, v in zip(p_names, ind_patient)}
             individual_parameters.add_individual_parameters(str(idx), ind_p)
+
+            if self.algo_parameters['progress_bar']:
+                self.display_progress_bar(it, data.n_individuals, suffix='subjets')
 
         return individual_parameters

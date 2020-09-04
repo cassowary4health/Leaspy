@@ -28,12 +28,17 @@ class AbstractFitAlgo(AbstractAlgo):
         # Initialize Algo
         self._initialize_algo(data, model, realizations)
 
+        if self.algo_parameters['progress_bar']:
+            self.display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
+
         # Iterate
         for it in range(self.algo_parameters['n_iter']):
             self.iteration(data, model, realizations)
             if self.output_manager is not None:  # TODO better this, should work with nones
                 self.output_manager.iteration(self, data, model, realizations)
             self.current_iteration += 1
+            if self.algo_parameters['progress_bar']:
+                self.display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
 
         if 'diag_noise' in model.loss:
             noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'])}

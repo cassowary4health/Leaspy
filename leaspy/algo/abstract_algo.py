@@ -142,7 +142,7 @@ class AbstractAlgo:
     def display_progress_bar(iteration, n_iter, suffix, n_step=50):
         if iteration == -1:
             sys.stdout.write('\r')
-            sys.stdout.write('|' + '-' * n_step + '|   0/%d ' % n_iter + suffix)
+            sys.stdout.write('|' + '-' * n_step + '|   0/%d ' % n_iter + suffix + '\n')
             sys.stdout.flush()
         else:
             print_every_iter = n_iter // n_step
@@ -151,5 +151,5 @@ class AbstractAlgo:
                 nbar = (iteration + 1) // print_every_iter
                 sys.stdout.write('\r')
                 sys.stdout.write(
-                    '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration + 1, n_iter) + suffix)
+                    '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration + 1, n_iter) + suffix + '\n')
                 sys.stdout.flush()

@@ -16,6 +16,7 @@ class AlgorithmSettings:
         self.parameters = None
         self.seed = None
         self.initialization_method = None
+        self.loss = None
         self.logs = None
 
         if name in ['mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize',
@@ -46,6 +47,10 @@ class AlgorithmSettings:
             print("You overwrote the algorithm default initialization method")
             algorithm_settings.initialization_method = cls._get_initialization_method(settings)
 
+        if 'loss' in settings.keys():
+            print('You overwrote the algorithm default loss')
+        algorithm_settings.loss = cls._get_loss(settings)
+
         return algorithm_settings
 
     def _manage_kwargs(self, kwargs):
@@ -53,9 +58,11 @@ class AlgorithmSettings:
             self.seed = self._get_seed(kwargs)
         if 'initialization_method' in kwargs.keys():
             self.initialization_method = self._get_initialization_method(kwargs)
+        if 'loss' in kwargs.keys():
+            self.loss = self._get_loss(kwargs)
 
         for k, v in kwargs.items():
-            if k in ['seed', 'initialization_method']:
+            if k in ['seed', 'initialization_method', 'loss']:
                 continue
 
             if k in self.parameters.keys():
@@ -81,6 +88,7 @@ class AlgorithmSettings:
         self.name = self._get_name(settings)
         self.parameters = self._get_parameters(settings)
         self.seed = self._get_seed(settings)
+        self.loss = self._get_loss(settings)
 
     def set_logs(self, path, **kwargs):
         settings = {
@@ -102,14 +110,17 @@ class AlgorithmSettings:
     @staticmethod
     def _check_default_settings(settings):
         if 'name' not in settings.keys():
-            raise ValueError('The \'name\' key is missing in the algorithm settings (JSON file) you are loading')
+            raise ValueError("The 'name' key is missing in the algorithm settings (JSON file) you are loading")
         if 'seed' not in settings.keys():
-            raise ValueError('The \'settings\' key is missing in the algorithm settings (JSON file) you are loading')
+            raise ValueError("The 'settings' key is missing in the algorithm settings (JSON file) you are loading")
         if 'parameters' not in settings.keys():
-            raise ValueError('The \'parameters\' key is missing in the algorithm settings (JSON file) you are loading')
+            raise ValueError("The 'parameters' key is missing in the algorithm settings (JSON file) you are loading")
         if 'initialization_method' not in settings.keys():
             raise ValueError(
-                'The \'initialization_method\' key is missing in the algorithm settings (JSON file) you are loading')
+                "The 'initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
+        if 'loss' not in settings.keys():
+            warnings.warn("The 'loss' key is missing in the algorithm settings (JSON file) you are loading. \
+            Its value will be 'MSE' by default")
 
     @staticmethod
     def _get_name(settings):
@@ -126,7 +137,7 @@ class AlgorithmSettings:
         try:
             return int(settings['seed'])
         except ValueError:
-            print("The \'seed\' parameter you provided cannot be converted to int")
+            print("The 'seed' parameter you provided cannot be converted to int")
 
     @staticmethod
     def _get_initialization_method(settings):
@@ -134,3 +145,29 @@ class AlgorithmSettings:
             return None
         # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
         return settings['initialization_method']
+
+    @staticmethod
+    def _get_loss(settings):
+        if 'loss' not in settings.keys():
+            # Return default value for the loss (Mean Squared Error)
+            return 'MSE'
+        if settings['loss'] in ['MSE', 'MSE_diag_noise', 'crossentropy']:
+            return settings['loss']
+        else:
+            raise ValueError("The loss provided is not recognised. Should be one of ['MSE', 'MSE_diag_noise', 'crossentropy']")
+
+    def save(self, path):
+
+        json_settings = {
+            "name": self.name,
+            "seed": self.seed,
+            "parameters": self.parameters,
+            "initialization_method": self.initialization_method,
+            "loss": self.loss,
+            "logs": self.logs
+        }
+
+        with open(os.path.join(path), "w") as json_file:
+            json.dump(json_settings, json_file)
+
+

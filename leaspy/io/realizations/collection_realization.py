@@ -1,4 +1,4 @@
-from leaspy.utils.realizations.realization import Realization
+from leaspy.io.realizations.realization import Realization
 
 
 class CollectionRealization:

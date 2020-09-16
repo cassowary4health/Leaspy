@@ -13,7 +13,7 @@ class GradientDescent(AbstractFitAlgo):
         self.task = None
         self.algo_parameters = settings.parameters
         self.current_iteration = 0
-        self.path_output = 'output/'
+        self.path_output = 'logs/'
 
     ###########################
     ## Initialization

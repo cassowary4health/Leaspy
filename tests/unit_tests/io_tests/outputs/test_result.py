@@ -17,7 +17,8 @@ class ResultTest(unittest.TestCase):
         data = Data.from_csv_file(example_data_path)
 
         cofactors_path = os.path.join(test_data_dir,
-                                      "inputs",
+                                      "io",
+                                      "data",
                                       "data_tiny_covariate.csv")
         self.cofactors = pd.read_csv(cofactors_path, index_col=0)
         self.cofactors.index = [str(i) for i in self.cofactors.index.values]
@@ -115,7 +116,8 @@ class ResultTest(unittest.TestCase):
                                             "data_tiny-individual_parameters.pt")
 
         cofactors_path = os.path.join(test_data_dir,
-                                      "inputs",
+                                      "io",
+                                      "data",
                                       "data_tiny_covariate.csv")
 
         data = self.results.data

@@ -1,3 +1,4 @@
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os
@@ -8,7 +9,7 @@ import matplotlib.backends.backend_pdf
 from matplotlib.cm import get_cmap
 # import seaborn as sns
 
-from leaspy.utils.output.visualization import color_palette
+#from leaspy.utils.logs.visualization import color_palette # not used
 
 from leaspy.io.data.dataset import Dataset
 
@@ -32,7 +33,7 @@ class Plotter:
         colors = get_cmap("tab20").colors
 
         try:
-            iterator = iter(model)
+            iter(model)
         except TypeError:
 
             # Break if model is not initialized
@@ -365,7 +366,17 @@ class Plotter:
         reals_pop_name = model.get_population_realization_names()
         reals_ind_name = model.get_individual_realization_names()
 
-        fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
+        if 'MSE' in model.loss:
+            fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
+        else:
+            fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 2, 1, figsize=(10, 20))
+
+        # nonposy is deprecated since Matplotlib 3.3
+        mpl_version = mpl.__version__.split('.')
+        if int(mpl_version[0]) < 3 or ((int(mpl_version[0]) == 3) and (int(mpl_version[1]) < 3)):
+            yscale_kw = dict(nonposy='clip')
+        else: # >= 3.3
+            yscale_kw = dict(nonpositive='clip')
 
         # Noise var
         import_path = os.path.join(path, 'noise_std' + ".csv")
@@ -374,8 +385,18 @@ class Plotter:
         y_position = 0
         df_convergence.plot(ax=ax[y_position], legend=False)
         ax[y_position].set_title('noise_std')
-        ax[y_position].set_yscale("log", nonposy='clip')
+        ax[y_position].set_yscale("log", **yscale_kw)
         plt.grid(True)
+
+        if model.loss == 'crossentropy':
+            import_path = os.path.join(path, 'crossentropy' + ".csv")
+            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+            df_convergence.index.rename("iter", inplace=True)
+            y_position = 1
+            df_convergence.plot(ax=ax[y_position], legend=False)
+            ax[y_position].set_title('crossentropy')
+            ax[y_position].set_yscale("log", **yscale_kw)
+            plt.grid(True)
 
         for i, key in enumerate(reals_pop_name):
             y_position += 1

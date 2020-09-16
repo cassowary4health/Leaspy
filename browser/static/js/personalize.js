@@ -40,6 +40,8 @@ personalize = () => {
     'model': parameters
   }
 
+
+
   $.ajax({
     type: 'POST',
     contentType: 'application/json',

@@ -133,7 +133,7 @@ def initialize_logistic_parallel(model, dataset, method):
         betas = torch.zeros((model.dimension - 1, model.source_dimension))
 
         parameters = {
-            'g': torch.tensor([1.], dtype=torch.float32), 
+            'g': torch.tensor([1.], dtype=torch.float32),
             'tau_mean': torch.tensor(70.),
             'tau_std': torch.tensor(2.),
             'xi_mean': torch.tensor(-3.),
@@ -249,7 +249,7 @@ def initialize_linear(model, dataset, method):
         'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
         'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
         'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-        'noise_std': torch.tensor([.1], dtype=torch.float32)
+        'noise_std': torch.tensor([0.1], dtype=torch.float32)
     }
 
     return parameters
@@ -387,7 +387,7 @@ def initialize_logistic_parallel(model, data, method="default"):
             'tau_mean': t0, 'tau_std': 2.0,
             'xi_mean': float(torch.mean(v0_array).detach().numpy()),'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': torch.tensor([0.1], dtype=torch.float32), 
+            'noise_std': torch.tensor([0.1], dtype=torch.float32),
             'deltas': torch.tensor([0.0] * (model.dimension - 1)),
             'betas': torch.zeros((model.dimension - 1, model.source_dimension))
         }

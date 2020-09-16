@@ -4,7 +4,7 @@ import matplotlib.cm as cm
 import numpy as np
 import torch
 from leaspy.io.data.dataset import Dataset
-from leaspy.utils.realizations.realization import Realization
+from leaspy.io.realizations.realization import Realization
 
 
 class VisualizationToolbox():

@@ -1,8 +1,10 @@
 {
   "name": "scipy_minimize",
   "seed": null,
+  "loss": "MSE",
   "initialization_method": null,
   "parameters": {
-    "n_iter": 100
+    "n_iter": 100,
+    "progress_bar": false
   }
 }

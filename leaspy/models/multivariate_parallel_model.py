@@ -2,7 +2,7 @@ import torch
 
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
-from .utils.initialization.model_initialization import initialize_logistic_parallel
+#from .utils.initialization.model_initialization import initialize_logistic_parallel # not used
 
 
 class MultivariateParallelModel(AbstractMultivariateModel):
@@ -16,7 +16,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         for k in parameters.keys():
             if k in ['mixing_matrix']:
                 continue
-            self.parameters[k] = torch.tensor(parameters[k])
+            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
         self.attributes = AttributesLogisticParallel(self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
@@ -26,12 +26,13 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         deltas_exp = torch.exp(-deltas)
 
         # Individual parameters
-        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
         LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
         if self.source_dimension != 0:
+            sources = ind_parameters['sources']
             wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
             LL += wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
         LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)
@@ -77,14 +78,22 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
+        ind_parameters = self.get_param_from_real(realizations)
+
         data_reconstruction = self.compute_individual_tensorized(data.timepoints,
-                                                                 self.get_param_from_real(realizations),
+                                                                 ind_parameters,
                                                                  attribute_type='MCMC')
-        data_reconstruction *= data.mask.float()
-        norm_1 = data.values * data_reconstruction * data.mask.float()
-        norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
-        sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
-        sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
+        data_reconstruction *= data.mask.float() # speed-up computations
+
+        norm_1 = data.values * data_reconstruction #* data.mask.float()
+        norm_2 = data_reconstruction * data_reconstruction #* data.mask.float()
+
+        sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2) # no sum on features...
+        sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2) # no sum on features...
+
+        if self.loss == 'crossentropy':
+            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters,
+                                                                                                  attribute_type="MCMC")
 
         return sufficient_statistics
 
@@ -101,12 +110,19 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
+        # TODO: same as MultivariateModel, should we factorize code?
         param_ind = self.get_param_from_real(realizations)
-        data_fit = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type='MCMC')
-        data_fit *= data.mask.float()
-        squared_diff = ((data_fit - data.values) ** 2).sum()
-        squared_diff = squared_diff.detach()  # Remove the gradients
-        self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
+        # TODO : Why is it MCMC-SAEM? SHouldn't it be computed with the parameters?
+        if 'diag_noise' in self.loss:
+            squared_diff_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type='MCMC').sum(dim=0) # sum on individuals
+            self.parameters['noise_std'] = torch.sqrt(squared_diff_per_ft / data.n_observations_per_ft.float())
+        else:
+            squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type='MCMC').sum() # sum on individuals
+            self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
+
+        if self.loss == 'crossentropy':
+            self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
+                                                                                            attribute_type="MCMC").sum()
 
     def update_model_parameters_normal(self, data, suff_stats):
 
@@ -125,11 +141,23 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        S1 = data.L2_norm
-        S2 = torch.sum(suff_stats['obs_x_reconstruction'])
-        S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
+        # TODO: same as MultivariateModel, should we factorize code?
+        if 'diag_noise' in self.loss:
+            # keep feature dependence on feature to update diagonal noise (1 free param per feature)
+            S1 = data.L2_norm_per_ft
+            S2 = suff_stats['obs_x_reconstruction'].sum(dim=(0,1))
+            S3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0,1))
 
-        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
+            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations_per_ft.float()) # tensor 1D, shape (dimension,)
+        else: # scalar noise (same for all features)
+            S1 = data.L2_norm
+            S2 = suff_stats['obs_x_reconstruction'].sum()
+            S3 = suff_stats['reconstruction_x_reconstruction'].sum()
+
+            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
+
+        if self.loss == 'crossentropy':
+            self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
 
     ###################################
     ### Random Variable Information ###

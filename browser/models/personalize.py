@@ -17,14 +17,15 @@ def convert_data(data):
     dates = [datetime.strptime(_, '%m/%d/%Y') for _ in dates]
     ages = [relativedelta(_, birthday) for _ in dates]
     ages = [_.years + _.months/12 + _.days/365 for _ in ages]
+    ages = np.array(ages, dtype=np.float32)
 
 
     # Scores
     scores = [_[1:] for _ in data['scores']]
+    scores = np.array(scores, dtype=np.float32)
     scores = pd.DataFrame(data=scores, columns=[str(_) for _ in range(len(scores[0]))])
-    scores['ID'] = 1.
+    scores['ID'] = "patient"
     scores['TIME'] = ages
-
 
     return Data.from_dataframe(scores)
 
@@ -36,23 +37,17 @@ def get_individual_parameters(data):
     settings = AlgorithmSettings('scipy_minimize')
 
     # Leaspy
-    print(data)
+
     #leaspy = Leaspy.load(data['model'])
     # TO CORRECT
-    if data['model']['name'] == 'logistic_parallel':
-        leaspy = Leaspy.load(os.path.join(os.getcwd(), 'data', 'example', 'logistic_parallel_parameters.json'))
-    elif data['model']['name'] == 'logistic':
-        leaspy = Leaspy.load(os.path.join(os.getcwd(), 'data', 'example', 'parkinson_model.json'))
-    result = leaspy.personalize(leaspy_data, settings=settings)
-
-    individual_parameters = {
-        'xi': result.individual_parameters['xi'].numpy().tolist(),
-        'tau': result.individual_parameters['tau'].numpy().tolist(),
-        'sources': result.individual_parameters['sources'].numpy().tolist()[0]
-    }
+    #if data['model']['name'] == 'logistic_parallel':
+    leaspy = Leaspy.load(data['model'])
+    #elif data['model']['name'] == 'logistic':
+    #    leaspy = Leaspy.load(os.path.join(os.getcwd(), 'data', 'example', 'parkinson_model.json'))
+    individual_parameters = leaspy.personalize(leaspy_data, settings=settings)
 
     output = {
-        'individual_parameters' : individual_parameters,
+        'individual_parameters' : individual_parameters["patient"],
         'scores': leaspy_data.to_dataframe().values.T.tolist()
     }
 

@@ -24,21 +24,21 @@ class OutputsSettings:
             try:
                 self.console_print_periodicity = int(settings['console_print_periodicity'])
             except ValueError:
-                print('The \'console_print_periodicity\' parameters you provided is not an int')
+                print("The 'console_print_periodicity' parameters you provided is not an int")
 
     def _get_plot_periodicity(self, settings):
         if 'plot_periodicity' in settings.keys():
             try:
                 self.plot_periodicity = int(settings['plot_periodicity'])
             except ValueError:
-                print('The \'plot_periodicity\' parameters you provided is not an int')
+                print("The 'plot_periodicity' parameters you provided is not an int")
 
     def _get_save_periodicity(self, settings):
         if 'save_periodicity' in settings.keys():
             try:
                 self.save_periodicity = int(settings['save_periodicity'])
             except ValueError:
-                print('The \'save_periodicity\' parameters you provided is not an int')
+                print("The 'save_periodicity' parameters you provided is not an int")
 
     def _create_root_folder(self, settings):
         # Get a path to put the outputs
@@ -54,7 +54,7 @@ class OutputsSettings:
         # Check if the parent directory exists
         if not os.path.exists(parent_directory):
             raise ValueError(
-                "Parent directory : \n {0} \n of the output path you provided does not exist".format(parent_directory))
+                "Parent directory : \n {0} \n of the logs path you provided does not exist".format(parent_directory))
 
         # Check if the folder does not exist : if not, create
         existence_cdt = os.path.exists(settings['path'])
@@ -88,7 +88,7 @@ class OutputsSettings:
 
     def _ask_user_if_erase(self, path):
         user_answer = input("Do you want to erase the existing files "
-                            "in the output folder {} you provided? [y]/[n]".format(path)).lower().strip()
+                            "in the logs folder {} you provided? [y]/[n]".format(path)).lower().strip()
         if user_answer == "y":
             return True
         elif user_answer == "n":

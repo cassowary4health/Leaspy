@@ -8,7 +8,7 @@ from leaspy.io.settings.model_settings import ModelSettings
 class ModelSettingsTest(unittest.TestCase):
 
     def test_model_settings_univariate(self):
-        path_to_model_settings = os.path.join(test_data_dir, 'inputs', 'model_settings_univariate.json')
+        path_to_model_settings = os.path.join(test_data_dir, 'io', 'settings', 'model_settings_univariate.json')
         model_settings = ModelSettings(path_to_model_settings)
 
         self.assertEqual(model_settings.name, "univariate")
@@ -22,7 +22,7 @@ class ModelSettingsTest(unittest.TestCase):
         self.assertEqual(model_settings.hyperparameters, None)
 
     def test_model_settings_multivariate(self):
-        path_to_model_settings = os.path.join(test_data_dir, 'inputs', 'model_settings_multivariate.json')
+        path_to_model_settings = os.path.join(test_data_dir, 'io', 'settings', 'model_settings_multivariate.json')
         model_settings = ModelSettings(path_to_model_settings)
 
         self.assertEqual(model_settings.name, "multivariate")

@@ -2,10 +2,10 @@ import warnings
 
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.data.dataset import Dataset
-from leaspy.io.outputs.result import Result
+#from leaspy.io.outputs.result import Result # not used
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
-from leaspy.utils.output.visualization.plotting import Plotting
+from leaspy.io.logs.visualization.plotting import Plotting
 
 
 class Leaspy:
@@ -37,7 +37,7 @@ class Leaspy:
     personalize(data, settings)
         From a model, estimate individual parameters for each ID of a given dataset.
         These individual parameters correspond to the random-effects of the mixed effect model.
-    simulate(results, settings)
+    simulate(individual_parameters, data, settings)
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
     estimate(timepoints, individual_parameters)
@@ -124,7 +124,7 @@ class Leaspy:
         """
         self.fit(data, algorithm_settings)
 
-    def personalize(self, data, settings):
+    def personalize(self, data, settings, return_noise=False):
         r"""
         From a model, estimate individual parameters for each `ID` of a given dataset.
         These individual parameters correspond to the random-effects :math:`(z_{i,j})` of the mixed effect model.
@@ -135,11 +135,16 @@ class Leaspy:
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
         settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
+        return_noise: boolean (default False)
+            Returns a tuple (individual_parameters, noise_std) if True
 
         Returns
         -------
-        leaspy.io.data.result.Result
-            Aggregates computed individual parameters and input data.
+        ips: leaspy.io.outputs.individual_parameters.IndividualParameters
+            Contains individual parameters
+
+        if return_noise is True:
+            tuple(ips, noise_std: torch.FloatTensor)
 
         Examples
         --------
@@ -152,11 +157,9 @@ class Leaspy:
         >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
         >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
         >>> leaspy_logistic.fit(data, model_settings)
-        >>> individual_results = leaspy_logistic.personalize(data, personalize_settings)
+        >>> individual_parameters = leaspy_logistic.personalize(data, personalize_settings)
         The standard deviation of the noise at the end of the personalization is of 0.0929
-        >>> print(individual_results.individual_parameters.keys())
-        dict_keys(['tau', 'xi', 'sources'])
-        >>> Plotter().plot_distribution(individual_results, 'xi')
+        >>> individual_parameters.to_dataframe()
         """
         # Check if model has been initialized
         self.check_if_initialized()
@@ -164,28 +167,34 @@ class Leaspy:
         algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         individual_parameters, noise_std = algorithm.run(self.model, dataset)
-        return individual_parameters
+
+        if return_noise:
+            return individual_parameters, noise_std
+        else: # default
+            return individual_parameters
 
     def simulate(self, individual_parameters, data, settings):
         r"""
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
         This procedure learn the joined distribution of the individual parameters and baseline age of the subjects
-        present in ``result`` to sample new patients from this joined distribution. The model is used to compute for
-        each patient their scores from the individual parameters.
+        present in ``individual_parameters`` and ``data``respectively to sample new patients from this joined distribution.
+        The model is used to compute for each patient their scores from the individual parameters.
         The number of visits per patients is set in ``settings['parameters']['mean_number_of_visits']`` and
         ``settings['parameters']['std_number_of_visits']`` which are set by default to 6 and 3 respectively.
 
         Parameters
         ----------
-        results: leaspy.io.data.result.Result
-            Aggregates individual parameters and input data.
+        individual_parameters: leaspy.io.outputs.individual_parameters.IndividualParameters
+            Contains the individual parameters.
+        data: leaspy.io.data.data.Data
+            Data object
         settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             Contains the algorithm's settings.
 
         Returns
         -------
-        simulated_data: leaspy.io.data.result.Result
+        simulated_data: leaspy.io.outputs.result.Result
             Contains the generated individual parameters & the corresponding generated scores.
 
         Examples
@@ -198,8 +207,8 @@ class Leaspy:
         >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
         >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
         >>> leaspy_logistic.fit(data, model_settings)
-        >>> individual_results = leaspy_logistic.personalize(data, personalize_settings)
-        >>> simulated_data = leaspy_logistic.simulate(individual_results, AlgorithmSettings('simulation', seed=0))
+        >>> individual_params = leaspy_logistic.personalize(data, personalize_settings)
+        >>> simulated_data = leaspy_logistic.simulate(individual_params, data, AlgorithmSettings('simulation', seed=0))
         """
         # Check if model has been initialized
         self.check_if_initialized()
@@ -208,11 +217,11 @@ class Leaspy:
         simulated_data = algorithm.run(self.model, individual_parameters, data)
         return simulated_data
 
-    def estimate(self, timepoints, individual_parameters):
+    def estimate_old(self, timepoints, individual_parameters):
         r"""
         Return the value of the features for an individual who is characterized by its individual parameters
         :math:`z_i` at time-points :math:`(t_{i,j})` that can be a unique time-point or a list of time-points.
-        This functions returns :math:`f(\theta, z_i, (t_{i,j}))`, where :math:`\theta` are the population parameters. 
+        This functions returns :math:`f(\theta, z_i, (t_{i,j}))`, where :math:`\theta` are the population parameters.
         It is intended to compute reconstructed data, impute missing values and predict future time-points.
 
         Parameters
@@ -234,9 +243,9 @@ class Leaspy:
         >>> leaspy = Leaspy.load('path/to/model_parameters.json')
         >>> timepoints = [70, 80]
         >>> individual_parameters = { 'xi': 0.3, 'tau': 71, 'sources': [0.2, -0.5] }
-        >>> output = leaspy.estimate(timepoints, individual_parameters)
+        >>> logs = leaspy.estimate(timepoints, individual_parameters)
         """
-        warnings.warn("estimate() is deprecated; use estimate_multi() instead.", DeprecationWarning)
+        warnings.warn("estimate_old() is deprecated; use estimate() instead.", DeprecationWarning)
 
         # Check if model has been initialized
         self.check_if_initialized()
@@ -262,7 +271,7 @@ class Leaspy:
             resulting in a tensor of size(0, n_features).
         individual_parameters: dict
             Corresponds to the individual parameters of one or more individuals.
-            Parameters in it can be tensors or not (especially it may be a Result.individual_parameters straight away)
+            Parameters in it can be tensors or not
             cf. AbstractModel.audit_individual_parameters for some more precision on individual parameters.
 
         Returns
@@ -272,7 +281,7 @@ class Leaspy:
             of shape (number of timepoints to estimate for subject x shape of feature space),
             containing features values at the different timepoints.
 
-        Raises
+        es
         ------
         ValueError
             If any checks fails.
@@ -285,8 +294,10 @@ class Leaspy:
         >>> leaspy = Leaspy.load('path/to/model_parameters.json')
         >>> timepoints = [ (70, 74, 80), (71, 72) ]
         >>> individual_parameters = { 'xi': [0.3, 0.1], 'tau': [71, 59], 'sources': [[0.2, -0.5],[0,0]] }
-        >>> output = leaspy.estimate_multi(timepoints, individual_parameters)
+        >>> logs = leaspy.estimate_multi(timepoints, individual_parameters)
         """
+        warnings.warn("estimate_multi() is deprecated; use estimate() instead.", DeprecationWarning)
+
         # Check if model has been initialized
         self.check_if_initialized()
 
@@ -317,6 +328,44 @@ class Leaspy:
         # Return a generator (lazy computation)
         return traj_gen
 
+    def estimate(self, timepoints, individual_parameters):
+        r"""
+        Description
+
+        Parameters
+        ----------
+        timepoints: dictionary {string/int: array_like[numeric]
+            Contains, for each individual, the time-points to estimate.
+        individual_parameters: IndividualParameters object
+            Corresponds to the individual parameters of individuals.
+
+        Returns
+        -------
+        individual_trajectory: dict
+            Key: patient indices. Value : Numpy array of the estimated value, in the shape
+            (number of timepoints, number of features)
+
+        Examples
+        --------
+        Given the individual parameters of two subjects, estimate the features of the first
+        at 70, 74 and 80 years old and at 71 and 72 years old for the second.
+
+        >>> leaspy = Leaspy.load('path/to/model_parameters.json')
+        >>> individual_parameters = IndividualParameters.load('path/to/individual_parameters.json')
+        >>> timepoints = { 'index_1': (70, 74, 80), 'index_2': (71, 72) }
+        >>> logs = leaspy.estimate_multi(timepoints, individual_parameters)
+        """
+
+        estimations = {}
+
+        for index, time in timepoints.items():
+            ip = individual_parameters[index]
+            est = self.model.compute_individual_trajectory(time, ip)
+
+            estimations[index] = est[0].numpy()
+
+        return estimations
+
     def check_if_initialized(self):
         """
         Check if model is initialized.
@@ -332,13 +381,13 @@ class Leaspy:
     @classmethod
     def load(cls, path_to_model_settings):
         """
-        Instantiate a Leaspy object from json model parameter file.
+        Instantiate a Leaspy object from json model parameter file or the corresponding dictionary
         This function can be used to load a pre-trained model.
 
         Parameters
         ----------
-        path_to_model_settings: str
-            Path of the model's settings.
+        path_to_model_settings: str of dict
+            Path of the model's settings of loaded json in a dictionary
 
         Returns
         -------
@@ -363,6 +412,7 @@ class Leaspy:
         leaspy.plotting.update_model(leaspy.model)
 
         return leaspy
+
 
     def save(self, path):
         """

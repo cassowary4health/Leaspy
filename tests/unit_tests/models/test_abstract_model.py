@@ -84,7 +84,7 @@ class AbstractModelTest(unittest.TestCase):
 
             for method in ('mode_real', 'mean_real', 'scipy_minimize', 'gradient_descent_personalize'):
                 burn_in_kw = dict() # not for all algos
-                if 'real' in method:
+                if '_real' in method:
                     burn_in_kw = dict(n_burn_in_iter=90, )
                 settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
                 logistic_result = logistic_leaspy.personalize(data, settings)
@@ -105,7 +105,10 @@ class AbstractModelTest(unittest.TestCase):
             logistic_leaspy.fit(data, settings)
 
             for method in ['scipy_minimize']:
-                settings = AlgorithmSettings(method, n_iter=100, n_burn_in_iter=90, seed=0, loss="crossentropy")
+                burn_in_kw = dict() # not for all algos
+                if '_real' in method:
+                    burn_in_kw = dict(n_burn_in_iter=90, )
+                settings = AlgorithmSettings(method, n_iter=100, seed=0, loss="crossentropy", **burn_in_kw)
                 logistic_result = logistic_leaspy.personalize(data, settings)
 
     def test_tensorize_2D(self):

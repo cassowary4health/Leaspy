@@ -41,6 +41,8 @@ class UnivariateModel(AbstractModel):
         model_settings = {
             'name': 'univariate',
             'features': self.features,
+            #'dimension': 1,
+            'loss': self.loss,
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
@@ -49,7 +51,8 @@ class UnivariateModel(AbstractModel):
     def load_hyperparameters(self, hyperparameters):
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
-        return
+        if 'loss' in hyperparameters.keys():
+            self.loss = hyperparameters['loss']
 
     def initialize(self, dataset):
 
@@ -149,13 +152,17 @@ class UnivariateModel(AbstractModel):
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         ind_parameters = self.get_param_from_real(realizations)
         data_reconstruction = self.compute_individual_tensorized(data.timepoints, ind_parameters, MCMC=True)
-        data_reconstruction *= data.mask
-        norm_0 = data.values * data.values * data.mask
-        norm_1 = data.values * data_reconstruction * data.mask
-        norm_2 = data_reconstruction * data_reconstruction * data.mask
-        sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
-        sufficient_statistics['obs_x_reconstruction'] = torch.sum(norm_1, dim=2)
-        sufficient_statistics['reconstruction_x_reconstruction'] = torch.sum(norm_2, dim=2)
+
+        data_reconstruction *= data.mask.float() # speed-up computations
+        #norm_0 = data.values * data.values * data.mask.float()
+        norm_1 = data.values * data_reconstruction #* data.mask.float()
+        norm_2 = data_reconstruction * data_reconstruction #* data.mask.float()
+        #sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
+        sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2)
+        sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2)
+
+        if self.loss == 'crossentropy':
+            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters, attribute_type=True)
 
         return sufficient_statistics
 
@@ -172,8 +179,11 @@ class UnivariateModel(AbstractModel):
 
         param_ind = self.get_param_from_real(realizations)
         squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type=True).sum()
-        self.parameters['noise_std'] = torch.sqrt(squared_diff / (data.n_visits * data.dimension))
+        self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
 
+        if self.loss == 'crossentropy':
+            crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type=True).sum()
+            self.parameters['crossentropy'] = crossentropy
         # Stochastic sufficient statistics used to update the parameters of the model
 
     def update_model_parameters_normal(self, data, suff_stats):
@@ -189,11 +199,15 @@ class UnivariateModel(AbstractModel):
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        S1 = torch.sum(suff_stats['obs_x_obs'])
-        S2 = torch.sum(suff_stats['obs_x_reconstruction'])
-        S3 = torch.sum(suff_stats['reconstruction_x_reconstruction'])
+        #S1 = torch.sum(suff_stats['obs_x_obs'])
+        S1 = data.L2_norm
+        S2 = suff_stats['obs_x_reconstruction'].sum()
+        S3 = suff_stats['reconstruction_x_reconstruction'].sum()
 
-        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits))
+        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
+
+        if self.loss == 'crossentropy':
+            self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
 
     # def get_param_from_real(self,realizations):
     #    xi = realizations['xi'].tensor_realizations

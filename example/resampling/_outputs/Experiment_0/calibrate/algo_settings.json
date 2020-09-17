@@ -1,0 +1,1 @@
+{"name": "mcmc_saem", "seed": 0, "parameters": {"n_iter": 10, "n_burn_in_iter": 9, "eps": 0.001, "L": 10, "sampler_ind": "Gibbs", "sampler_pop": "Gibbs", "annealing": {"do_annealing": false, "initial_temperature": 10, "n_plateau": 10, "n_iter": 5}}, "initialization_method": "random", "logs": null}

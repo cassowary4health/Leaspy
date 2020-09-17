@@ -1,9 +1,10 @@
 import torch
 
-from leaspy.utils.realizations.realization import Realization
+from leaspy.io.realizations.realization import Realization
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 from ..samplers.gibbs_sampler import GibbsSampler
 from ..samplers.hmc_sampler import HMCSampler
+from ...io.outputs.individual_parameters import IndividualParameters
 
 
 # import time
@@ -102,4 +103,15 @@ class ModeReal(AbstractPersonalizeAlgo):
         ind_parameters = model.get_param_from_real(
             mode_output)  # TODO ordering between the ind variables, should not be the case
 
-        return ind_parameters
+        ### TODO : The following was adding for the conversion from Results to IndividualParameters. Everything should be changed
+
+        individual_parameters = IndividualParameters()
+        p_names = list(ind_parameters.keys())
+        n_sub = len(ind_parameters[p_names[0]])
+
+        for i in range(n_sub):
+            p_dict = {k: ind_parameters[k][i].numpy() for k in p_names}
+            p_dict = {k: v[0] if v.shape[0] == 1 else v.tolist() for k, v in p_dict.items()}
+            individual_parameters.add_individual_parameters(str(i), p_dict)
+
+        return individual_parameters

@@ -1,7 +1,7 @@
 import torch
 from leaspy.algo.abstract_mcmc import AbstractMCMC
 import os
-from leaspy.inputs.algorithm_settings import AlgorithmSettings
+from leaspy.io.algorithm_settings import AlgorithmSettings
 from leaspy import default_algo_dir
 from leaspy.utils.sampler import Sampler
 import numpy as np

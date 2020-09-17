@@ -1,6 +1,5 @@
-# from ...utils.output.fit_output_manager import FitOutputManager
+# from ...utils.logs.fit_output_manager import FitOutputManager
 from ..abstract_algo import AbstractAlgo
-
 
 class AbstractFitAlgo(AbstractAlgo):
 
@@ -12,7 +11,7 @@ class AbstractFitAlgo(AbstractAlgo):
     ## Core
     ###########################
 
-    def run(self, data, model):
+    def run(self, model, data):
 
         # Initialize Model
         self._initialize_seed(self.seed)
@@ -29,15 +28,25 @@ class AbstractFitAlgo(AbstractAlgo):
         # Initialize Algo
         self._initialize_algo(data, model, realizations)
 
+        if self.algo_parameters['progress_bar']:
+            self.display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
+
         # Iterate
         for it in range(self.algo_parameters['n_iter']):
             self.iteration(data, model, realizations)
             if self.output_manager is not None:  # TODO better this, should work with nones
                 self.output_manager.iteration(self, data, model, realizations)
             self.current_iteration += 1
+            if self.algo_parameters['progress_bar']:
+                self.display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
 
-        print("The standard deviation of the noise at the end of the calibration is {:.4f}".format(
-            model.parameters['noise_std']))
+        if 'diag_noise' in model.loss:
+            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'])}
+            print_noise = repr(noise_map).replace("'", "")
+        else:
+            print_noise = '{:.4f}'.format(model.parameters['noise_std'].item())
+        print("The standard deviation of the noise at the end of the calibration is " + print_noise)
+
         return realizations
 
     def _maximization_step(self, data, model, realizations):

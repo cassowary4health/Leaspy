@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from leaspy import AlgorithmSettings, Data, Leaspy
-from leaspy.inputs.data.result import Result
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.utils.parallel import leaspy_parallel_calibrate, leaspy_parallel_personalize
 
 
@@ -40,8 +40,8 @@ class TestLeaspyParallel(unittest.TestCase):
         def leaspy_cb(leaspy, k):
             return leaspy, k
 
-        def leaspy_res_cb(res, k):
-            return res, k
+        def leaspy_res_cb(ips, k):
+            return ips, k
 
         outs_fit_cb = leaspy_parallel_calibrate(self.datas, self.settings_algos_fit,
                                                 leaspy_factory, leaspy_cb, verbose=50)
@@ -58,7 +58,7 @@ class TestLeaspyParallel(unittest.TestCase):
                                                     leaspy_res_cb, verbose=50)
 
         self.assertEqual(len(outs_perso_cb), self.n_runs)
-        for i, (res, j) in enumerate(outs_perso_cb):
+        for i, (ips, j) in enumerate(outs_perso_cb):
             with self.subTest(i=i):
                 self.assertEqual(i, j)  # order outputs
-                self.assertIsInstance(res, Result)  # leaspy object
+                self.assertIsInstance(ips, IndividualParameters)  # leaspy IndividualParameters object

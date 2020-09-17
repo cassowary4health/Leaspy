@@ -1,6 +1,7 @@
 {
   "name": "gradient_descent_personalize",
   "seed": null,
+  "loss": "MSE",
   "initialization_method": null,
   "parameters": {
     "n_iter": 100,

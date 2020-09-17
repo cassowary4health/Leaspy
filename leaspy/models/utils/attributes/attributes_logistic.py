@@ -42,7 +42,7 @@ class AttributesLogistic(AttributesAbstract):
         super().__init__(dimension, source_dimension)
         self.name = 'logistic'
         if (type(dimension) != int) & (type(source_dimension) != int):
-            raise ValueError("For AttributesLogistic you must provide integer inputs for the parameters"
+            raise ValueError("For AttributesLogistic you must provide integer io for the parameters"
                              " `dimension` and `source_dimension`!")
 
     def _compute_orthonormal_basis(self):

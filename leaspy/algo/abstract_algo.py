@@ -1,6 +1,9 @@
+import sys
+
 import numpy as np
 import torch
-from leaspy.utils.output.fit_output_manager import FitOutputManager
+
+from leaspy.io.logs.fit_output_manager import FitOutputManager
 
 
 class AbstractAlgo:
@@ -21,7 +24,7 @@ class AbstractAlgo:
     Methods
     -------
     load_parameters(parameters)
-        Update the algorithm's parameters by the ones in the given dictionary. The keys in the inputs which does not
+        Update the algorithm's parameters by the ones in the given dictionary. The keys in the io which does not
         belong to the algorithm's parameters keys are ignored.
     set_output_manager(output_settings)
         Set a FitOutputManager class object for the run of the algorithm.
@@ -64,7 +67,7 @@ class AbstractAlgo:
 
     def load_parameters(self, parameters):
         """
-        Update the algorithm's parameters by the ones in the given dictionary. The keys in the inputs which does not
+        Update the algorithm's parameters by the ones in the given dictionary. The keys in the io which does not
         belong to the algorithm's parameters keys are ignored.
 
         Parameters
@@ -74,7 +77,7 @@ class AbstractAlgo:
 
         Examples
         --------
-        >>> settings = leaspy.inputs.settings.algorithm_settings.AlgorithmSettings("mcmc_saem")
+        >>> settings = leaspy.io.settings.algorithm_settings.AlgorithmSettings("mcmc_saem")
         >>> my_algo = leaspy.algo.fit.tensor_mcmcsaem.TensorMCMCSAEM(settings)
         >>> my_algo.algo_parameters
         {'n_iter': 10000,
@@ -113,8 +116,8 @@ class AbstractAlgo:
 
         Parameters
         ----------
-        output_settings: a leaspy.inputs.settings.outputs_settings.OutputsSettings class object
-            Contains the output settings for the computation run (console print periodicity, plot periodicity ...)
+        output_settings: a leaspy.io.settings.outputs_settings.OutputsSettings class object
+            Contains the logs settings for the computation run (console print periodicity, plot periodicity ...)
 
         Examples
         --------
@@ -132,8 +135,21 @@ class AbstractAlgo:
         if output_settings is not None:
             self.output_manager = FitOutputManager(output_settings)
 
-    def run(self, data, model):
-        raise NotImplementedError
-
     def iteration(self, data, model, realizations):
         raise NotImplementedError
+
+    @staticmethod
+    def display_progress_bar(iteration, n_iter, suffix, n_step=50):
+        if iteration == -1:
+            sys.stdout.write('\r')
+            sys.stdout.write('|' + '-' * n_step + '|   0/%d ' % n_iter + suffix + '\n')
+            sys.stdout.flush()
+        else:
+            print_every_iter = n_iter // n_step
+            display = (iteration + 1) % print_every_iter
+            if display == 0:
+                nbar = (iteration + 1) // print_every_iter
+                sys.stdout.write('\r')
+                sys.stdout.write(
+                    '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration + 1, n_iter) + suffix + '\n')
+                sys.stdout.flush()

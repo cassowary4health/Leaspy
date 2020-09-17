@@ -1,8 +1,8 @@
-from scipy.optimize import minimize
 import torch
-import numpy as np
+from scipy.optimize import minimize
 
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
+from ...io.outputs.individual_parameters import IndividualParameters
 
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
@@ -75,11 +75,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         if self.model_name == 'univariate':
             individual_parameters = {'xi': xi, 'tau': tau}
-            err = model.compute_individual_tensorized(times, individual_parameters) - values
         else:
             sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
             individual_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
-            err = model.compute_individual_tensorized(times, individual_parameters) - values
+
+        err = model.compute_individual_tensorized(times, individual_parameters) - values
         return err
 
     def _get_regularity(self, model, x):
@@ -172,16 +172,29 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
             if self.model_name == 'univariate':
                 individual_parameters = {'xi': xi, 'tau': tau}
-                attachment = model.compute_individual_tensorized(times, individual_parameters) - values
                 iterates = zip(['xi', 'tau'], (xi, tau))
             else:
                 sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
                 individual_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
-                attachment = model.compute_individual_tensorized(times, individual_parameters) - values
                 iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
 
-            attachment[attachment != attachment] = 0.  # Set nan to zero, not to count in the sum
-            attachment = torch.sum(attachment ** 2) / (2. * model.parameters['noise_std'] ** 2)
+            predicted = model.compute_individual_tensorized(times, individual_parameters)
+            diff = predicted - values # tensor 1,j,k (j=visits, k=feature) [1 individual at a time]
+            nans = torch.isnan(diff) # <!> opposite of data.mask logic...
+
+            if 'MSE' in self.loss:
+                diff[nans] = 0.  # Set nan to zero, not to count in the sum
+                diff = diff.reshape((-1, model.dimension)) # or diff = diff.squeeze(dim=0)
+                noise_var = model.parameters['noise_std'] * model.parameters['noise_std']
+                noise_var = noise_var.expand((1, model.dimension)) # tensor 1,k (works with diagonal noise or scalar noise)
+                attachment = torch.sum((0.5 / noise_var) @ (diff * diff).t()) # noise per feature
+            elif self.loss == 'crossentropy':
+                predicted = torch.clamp(predicted, 1e-38, 1. - 1e-7)  # safety before taking the log
+                neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
+                neg_crossentropy[nans] = 0. # Set nan to zero, not to count in the sum
+                attachment = -torch.sum(neg_crossentropy)
+            else:
+                raise NotImplementedError
 
             # Regularity
             regularity = 0
@@ -203,7 +216,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             print(res.success, res)
 
         xi_f, tau_f, sources_f = res.x[0], res.x[1], res.x[2:]
-        err_f = self._get_attachment(model, times.unsqueeze(0), values, res.x)
+        err_f = self._get_attachment(model, timepoints, values, res.x)
 
         return (tau_f, xi_f, sources_f), err_f  # TODO depends on the order
 
@@ -215,35 +228,33 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ----------
         model: leaspy model class object
             Model used to compute the group average parameters.
-        data: leaspy.inputs.data.dataset.Dataset class object
+        data: leaspy.io.data.dataset.Dataset class object
             Contains the individual scores.
 
         Returns
         -------
-        out: `dict` ['str`, `torch.Tensor`]
+        leaspy.io.outputs.individual_parameters.IndividualParameters
             Contains the individual parameters of all patients.
         """
 
-        individual_parameters = {}
-        for j, name_variable in enumerate(model.get_individual_variable_name()):
-            individual_parameters[name_variable] = []
+        individual_parameters = IndividualParameters()
 
-        for idx in range(data.n_individuals):
-            times = data.get_times_patient(idx)  # torch.Tensor
-            values = data.get_values_patient(idx)  # torch.Tensor
+        p_names = model.get_individual_variable_name()
+
+        if self.algo_parameters['progress_bar']:
+            self.display_progress_bar(-1, data.n_individuals, suffix='subjets')
+
+        # TODO: parallelize here?
+        for it in range(data.n_individuals):
+            times = data.get_times_patient(it)  # torch.Tensor
+            values = data.get_values_patient(it)  # torch.Tensor
+            idx = data.indices[it]
 
             ind_patient, err = self._get_individual_parameters_patient(model, times, values)
+            ind_p = {k: v for k, v in zip(p_names, ind_patient)}
+            individual_parameters.add_individual_parameters(str(idx), ind_p)
 
-            for j, name_variable in enumerate(model.get_individual_variable_name()):
-                individual_parameters[name_variable].append(torch.tensor([ind_patient[j]], dtype=torch.float32))
+            if self.algo_parameters['progress_bar']:
+                self.display_progress_bar(it, data.n_individuals, suffix='subjets')
 
-
-        infos = model.random_variable_informations()
-        # TODO change for cleaner shape update
-
-        out = dict.fromkeys(model.get_individual_variable_name())
-        for variable_ind in model.get_individual_variable_name():
-            out[variable_ind] = torch.stack(individual_parameters[variable_ind]).reshape(
-                shape=(data.n_individuals, infos[variable_ind]['shape'][0]))
-
-        return out
+        return individual_parameters

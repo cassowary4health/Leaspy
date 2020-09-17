@@ -2,13 +2,13 @@ import json
 import os
 import unittest
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 from numpy import allclose
 
-from leaspy import Leaspy, Data, AlgorithmSettings, Plotter
-from leaspy.inputs.data.result import Result
+from leaspy import Leaspy, Data, AlgorithmSettings #, Plotter
+from leaspy.io.outputs.result import Result
 from tests import example_data_path
 from tests import test_data_dir
 
@@ -138,18 +138,19 @@ class LeaspyTest(unittest.TestCase):
 
         # Personalize
         algo_personalize_settings = AlgorithmSettings('mode_real', seed=0)
-        result = leaspy.personalize(data, settings=algo_personalize_settings)
-        self.assertAlmostEqual(result.noise_std, 0.21146, delta=0.01)
+        individual_parameters = leaspy.personalize(data, settings=algo_personalize_settings)
+        # TODO REFORMAT: compute the noise std afterwards
+        #self.assertAlmostEqual(result.noise_std, 0.21146, delta=0.01)
 
-        # Plot TODO
-        path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")
-        plotter = Plotter(path_output)
+        ## Plot TODO
+        #path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")
+        #plotter = Plotter(path_output)
         # plotter.plot_mean_trajectory(leaspy.model, save_as="mean_trajectory_plot")
-        plt.close()
+        #plt.close()
 
         # Simulate
         simulation_settings = AlgorithmSettings('simulation', seed=0)
-        simulation_results = leaspy.simulate(result, simulation_settings)
+        simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)
         self.assertTrue(type(simulation_results) == Result)
         self.assertTrue(simulation_results.data.headers == data.headers)
         n = simulation_settings.parameters['number_of_subjects']

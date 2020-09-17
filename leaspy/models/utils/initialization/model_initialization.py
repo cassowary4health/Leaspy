@@ -10,7 +10,7 @@ def initialize_parameters(model, dataset, method="default"):
     ----------
     model: a leaspy model class object
         The model to initialize.
-    dataset: a leaspy.inputs.data.dataset.Dataset class object
+    dataset: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
         Must be one of:
@@ -47,7 +47,7 @@ def initialize_logistic(model, dataset, method):
     ----------
     model: a leaspy model class object
         The model to initialize.
-    dataset: a leaspy.inputs.data.dataset.Dataset class object
+    dataset: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
         Must be one of:
@@ -113,7 +113,7 @@ def initialize_logistic_parallel(model, dataset, method):
     ----------
     model: a leaspy model class object
         The model to initialize.
-    dataset: a leaspy.inputs.data.dataset.Dataset class object
+    dataset: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores.
     method: `str`
         Must be one of:
@@ -133,7 +133,7 @@ def initialize_logistic_parallel(model, dataset, method):
         betas = torch.zeros((model.dimension - 1, model.source_dimension))
 
         parameters = {
-            'g': torch.tensor([1.], dtype=torch.float32), 
+            'g': torch.tensor([1.], dtype=torch.float32),
             'tau_mean': torch.tensor(70.),
             'tau_std': torch.tensor(2.),
             'xi_mean': torch.tensor(-3.),
@@ -192,7 +192,7 @@ def initialize_linear(model, dataset, method):
     ----------
     model: a leaspy model class object
         The model to initialize.
-    dataset: a leaspy.inputs.data.dataset.Dataset class object
+    dataset: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores.
 
     Returns
@@ -249,7 +249,7 @@ def initialize_linear(model, dataset, method):
         'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
         'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
         'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-        'noise_std': torch.tensor([.1], dtype=torch.float32)
+        'noise_std': torch.tensor([0.1], dtype=torch.float32)
     }
 
     return parameters
@@ -263,7 +263,7 @@ def compute_patient_slopes_distribution(data):
     """
     Linear Regression on each feature to get slopes
 
-    :param data: leaspy.inputs.data.dataset class object
+    :param data: leaspy.io.data.dataset class object
     :return: slopes_mu : list of floats, slopes_sigma : list of floats
     """
 
@@ -310,7 +310,7 @@ def compute_patient_values_distribution(data):
 
     Parameters
     ----------
-    data: a leaspy.inputs.data.dataset.Dataset class object
+    data: a leaspy.io.data.dataset.Dataset class object
         Contains the scores of all the subjects.
 
     Returns
@@ -331,7 +331,7 @@ def compute_patient_time_distribution(data):
 
     Parameters
     ----------
-    data: a leaspy.inputs.data.dataset.Dataset class object
+    data: a leaspy.io.data.dataset.Dataset class object
         Contains the individual scores
 
     Returns
@@ -387,7 +387,7 @@ def initialize_logistic_parallel(model, data, method="default"):
             'tau_mean': t0, 'tau_std': 2.0,
             'xi_mean': float(torch.mean(v0_array).detach().numpy()),'xi_std': 0.1,
             'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': torch.tensor([0.1], dtype=torch.float32), 
+            'noise_std': torch.tensor([0.1], dtype=torch.float32),
             'deltas': torch.tensor([0.0] * (model.dimension - 1)),
             'betas': torch.zeros((model.dimension - 1, model.source_dimension))
         }

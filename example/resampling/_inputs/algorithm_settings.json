@@ -1,0 +1,25 @@
+{
+  "name": "tensor_mcmc_saem",
+  "parameters": {
+    "n_burn_in_iter": 1300,
+    "n_iter": 1600,
+    "eps": 0.001,
+    "L": 10,
+    "sampler_ind": "HMC",
+    "sampler_pop": "Gibbs",
+    "annealing": {
+    "do_annealing": true,
+    "initial_temperature": 300,
+    "n_plateau": 10,
+      "n_iter": 200
+    },
+    "seed": null
+  },
+  "outputs":{
+    "exists": true,
+    "console_print_periodicity": 50,
+    "plot_periodicity": 100,
+    "save_periodicity": 50,
+    "path": "_outputs"
+  }
+}

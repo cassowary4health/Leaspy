@@ -161,7 +161,7 @@ class AttributesAbstract:
         self.betas = values['betas'].clone()
 
     def _compute_deltas(self, values):
-        raise NotImplemented
+        raise NotImplementedError
 
     def _compute_orthonormal_basis(self):
         """

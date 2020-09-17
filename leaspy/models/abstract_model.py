@@ -2,8 +2,8 @@ import math
 
 import torch
 
-from leaspy.utils.realizations.collection_realization import CollectionRealization
-from leaspy.utils.realizations.realization import Realization
+from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.realizations.realization import Realization
 
 TWO_PI = 2 * math.pi
 
@@ -23,13 +23,17 @@ class AbstractModel:
         The model's name
     parameters: dict
         Contains the model's parameters
+    loss : str
+        The loss to optimize (MSE or crossentropy)
 
     Methods
     -------
     compute_individual_attachment_tensorized_mcmc(data, realizations)
         Compute attachment of all subjects? One subject? One visit?
+    compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type=None)
+        Compute the square of the residuals per subject per feature
     compute_sum_squared_tensorized(data, param_ind, attribute_type=None)
-        Compute the square of the residuals. (?) from one subject? Several subjects? All subject?
+        Compute the square of the residuals per subject
     get_individual_variable_name()
         Return list of names of the individual variables from the model.
     load_parameters(parameters)
@@ -41,6 +45,7 @@ class AbstractModel:
         self.name = name
         self.features = None
         self.parameters = None
+        self.loss = 'MSE'  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
 
     def load_parameters(self, parameters):
@@ -81,14 +86,13 @@ class AbstractModel:
 
         return individual_variable_name
 
-    def compute_sum_squared_tensorized(self, data, param_ind, attribute_type=None):
+    def compute_sum_squared_per_ft_tensorized(self, data, param_ind, attribute_type=None):
         """
-        TODO: complete
-        Compute the square of the residuals. (?) from one subject? Several subjects? All subject?
+        Compute the square of the residuals per subject per feature
 
         Parameters
         ----------
-        data : leaspy.inputs.data.dataset.Dataset
+        data : leaspy.io.data.dataset.Dataset
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         param_ind : dict
             Contain the individual parameters
@@ -97,11 +101,33 @@ class AbstractModel:
 
         Returns
         -------
-        torch.Tensor
-            Contain one residuals for each subject? Visit? Sub-score?
+        torch.Tensor, shape (n_individuals,dimension)
+            Contains L2 residual for each subject and each feature
         """
         res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-        return torch.sum((res * data.mask.float() - data.values) ** 2, dim=(1, 2))
+        r1 = data.mask.float() * (res - data.values) # ijk tensor (i=individuals, j=visits, k=features)
+        return torch.sum(r1 * r1, dim=1)
+
+    def compute_sum_squared_tensorized(self, data, param_ind, attribute_type=None):
+        """
+        Compute the square of the residuals per subject
+
+        Parameters
+        ----------
+        data : leaspy.io.data.dataset.Dataset
+            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
+        param_ind : dict
+            Contain the individual parameters
+        attribute_type : str
+            The attribute's type
+
+        Returns
+        -------
+        torch.Tensor, shape (n_individuals,)
+            Contains L2 residual for each subject
+        """
+        L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type)
+        return torch.sum(L2_res_per_ind_per_ft, dim=1) # sum on features
 
     def audit_individual_parameters(self, ips):
         """
@@ -141,7 +167,7 @@ class AbstractModel:
                 return False
 
         # Model supports and needs sources?
-        has_sources = self.name != 'univariate'
+        has_sources = hasattr(self, 'source_dimension') and isinstance(self.source_dimension, int) and self.source_dimension > 0
 
         # Check parameters names
         expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'])
@@ -188,7 +214,7 @@ class AbstractModel:
         # tensorized (2D) version of ips
         t_ips = {k: self._tensorize_2D(v, unsqueeze_dim=unsqueeze_dim) for k,v in ips.items()}
 
-        # construct output
+        # construct logs
         return {
             'nb_inds': n_inds,
             'tensorized_ips': t_ips,
@@ -274,7 +300,7 @@ class AbstractModel:
 
         Parameters
         ----------
-        data: a leaspy.inputs.data.dataset.Dataset class object
+        data: a leaspy.io.data.dataset.Dataset class object
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         realizations: a leaspy realization class object
 
@@ -289,34 +315,54 @@ class AbstractModel:
 
     def compute_individual_attachment_tensorized(self, data, param_ind, attribute_type):
         """
-        TODO: complete
-        Compute attachment of all subjects? One subject? One visit?
+        Compute attachment term (per subject)
 
         Parameters
         ----------
-        data: a leaspy.inputs.data.dataset.Dataset class object
-            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        param_ind
+        data: leaspy.io.data.dataset.Dataset
+            Contains the data of the subjects, in particular the subjects' time-points and the mask for nan values & padded visits
+
+        param_ind: dict
+            Contain the individual parameters
+
         attribute_type: str
 
         Returns
         -------
-        attachment : torch.Tensor
-            Log-likelihood ?
+        attachment : 1D torch.tensor of shape (n_subjects,)
+            Negative Log-likelihood
         """
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-        # res *= data.mask
 
-        r1 = res * data.mask.float() - data.values  # r1.ndim = 3 - r1.shape = [n_subjects, ??, n_features]
-        #r1[1-data.mask] = 0.0 # Set nans to 0
-        squared_sum = torch.sum(r1 * r1, dim=(1, 2))
 
-        # noise_var = self.parameters['noise_std'] ** 2
-        noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
-        attachment = 0.5 * (1. / noise_var) * squared_sum
+        #if self.loss == 'MSE':
+        #    r1 = mask * (res - data.values)  # r1.ndim = 3 - r1.shape = [n_subjects, ??, n_features]
+        #    #r1[1-data.mask] = 0.0 # Set nans to 0
+        #    squared_sum = torch.sum(r1 * r1, dim=(1, 2))
+        #
+        #    # noise_var = self.parameters['noise_std'] ** 2
+        #    noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
+        #    attachment = 0.5 * (1. / noise_var) * squared_sum
+        #    attachment += math.log(math.sqrt(TWO_PI * noise_var)) * torch.tensor(data.nb_observations_per_individuals)
 
-        attachment += math.log(math.sqrt(TWO_PI * noise_var))
-        return attachment
+        if 'MSE' in self.loss:
+            # diagonal noise (squared) [same for all features if it's forced to be a scalar]
+            noise_var = self.parameters['noise_std'] * self.parameters['noise_std'] # slight perf improvement over ** 2, k tensor (or scalar tensor)
+            noise_var = noise_var.expand((1, data.dimension)) # 1,k tensor (for scalar products just after) # <!> this formula works with scalar noise as well
+
+            L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type) # ik tensor
+
+            attachment = (0.5 / noise_var) @ L2_res_per_ind_per_ft.t()
+            attachment += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
+
+        elif self.loss == 'crossentropy':
+            pred = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+            mask = data.mask.float()
+
+            pred = torch.clamp(pred, 1e-38, 1. - 1e-7) # safety before taking the log
+            neg_crossentropy = data.values * torch.log(pred) + (1. - data.values) * torch.log(1. - pred)
+            attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
+
+        return attachment.reshape((data.n_individuals,)) # 1D tensor of shape(n_individuals,)
 
     def update_model_parameters(self, data, suff_stats, burn_in_phase=True):
         # Memoryless part of the algorithm
@@ -340,7 +386,7 @@ class AbstractModel:
         output = "=== MODEL ===\n"
         for key in self.parameters.keys():
             # if type(self.parameters[key]) == float:
-            #    output += "{} : {:.5f}\n".format(key, self.parameters[key])
+            #    logs += "{} : {:.5f}\n".format(key, self.parameters[key])
             # else:
             output += "{} : {}\n".format(key, self.parameters[key])
         return output

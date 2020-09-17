@@ -5,7 +5,10 @@ import torch
 
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.model_factory import ModelFactory
+
 from tests import example_data_path
+from tests import binary_data_path
 from tests import example_logisticmodel_path
 
 
@@ -80,7 +83,32 @@ class AbstractModelTest(unittest.TestCase):
             logistic_leaspy.fit(data, settings)
 
             for method in ('mode_real', 'mean_real', 'scipy_minimize', 'gradient_descent_personalize'):
-                settings = AlgorithmSettings(method, n_iter=100, n_burn_in_iter=90, seed=0)
+                burn_in_kw = dict() # not for all algos
+                if '_real' in method:
+                    burn_in_kw = dict(n_burn_in_iter=90, )
+                settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
+                logistic_result = logistic_leaspy.personalize(data, settings)
+
+    def test_all_model_run_crossentropy(self):
+        """
+        Check if the following models run with the following algorithms.
+        """
+        for model_name in ('linear', 'univariate', 'logistic', 'logistic_parallel'):
+            logistic_leaspy = Leaspy(model_name)
+            settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0, loss="crossentropy")
+
+            df = pd.read_csv(binary_data_path)
+            if model_name == 'univariate':
+                df = df.iloc[:, :3]
+            data = Data.from_dataframe(df)
+
+            logistic_leaspy.fit(data, settings)
+
+            for method in ['scipy_minimize']:
+                burn_in_kw = dict() # not for all algos
+                if '_real' in method:
+                    burn_in_kw = dict(n_burn_in_iter=90, )
+                settings = AlgorithmSettings(method, n_iter=100, seed=0, loss="crossentropy", **burn_in_kw)
                 logistic_result = logistic_leaspy.personalize(data, settings)
 
     def test_tensorize_2D(self):
@@ -101,38 +129,39 @@ class AbstractModelTest(unittest.TestCase):
 
     def test_audit_individual_parameters(self):
 
-        # key: (valid,nb_inds,src_dim,)
-        all_ips = {
+        # tuple: (valid,nb_inds,src_dim), ips_as_dict
+        all_ips = [
             # 0 individual
-            (True, 0, 0): {'tau':[],'xi':[]},
-            (True, 0, 5): {'tau':[],'xi':[],'sources':[]}, # src_dim undefined here...
+            ((True, 0, 0), {'tau':[],'xi':[]}),
+            ((True, 0, 5), {'tau':[],'xi':[],'sources':[]}), # src_dim undefined here...
 
             # 1 individual
-            (True, 1, 0): {'tau':50,'xi':0,},
-            (False, 1, 1): {'tau':50,'xi':0,'sources':0}, # faulty (source should be vector)
-            (True, 1, 1): {'tau':50,'xi':0,'sources':[0]},
-            (True, 1, 2): {'tau':50,'xi':0,'sources':[0,0]},
+            ((True, 1, 0), {'tau':50,'xi':0,}),
+            ((False, 1, 1), {'tau':50,'xi':0,'sources':0}), # faulty (source should be vector)
+            ((True, 1, 1), {'tau':50,'xi':0,'sources':[0]}),
+            ((True, 1, 2), {'tau':50,'xi':0,'sources':[0,0]}),
 
             # 2 individuals
-            (True, 2, 0): {'tau':[50,60],'xi':[0,0.1],},
-            (True, 2, 1): {'tau':[50,60],'xi':[0,0.1],'sources':[0,0.1]}, # accepted even if ambiguous
-            (True, 2, 1): {'tau':[50,60],'xi':[0,0.1],'sources':[[0],[0.1]]}, # cleaner
-            (True, 2, 2): {'tau':[50,60],'xi':[0,0.1],'sources':[[0,-1],[0.1,0]]},
+            ((True, 2, 0), {'tau':[50,60],'xi':[0,0.1],}),
+            ((True, 2, 1), {'tau':[50,60],'xi':[0,0.1],'sources':[0,0.1]}), # accepted even if ambiguous
+            ((True, 2, 1), {'tau':[50,60],'xi':[0,0.1],'sources':[[0],[0.1]]}), # cleaner
+            ((True, 2, 2), {'tau':[50,60],'xi':[0,0.1],'sources':[[0,-1],[0.1,0]]}),
 
             # Faulty
-            (False, 1, 0): {'tau':0,'xi':0,'extra':0},
-            (False, 1, 0): {'tau':0,},
-            (False, None, 0): {'tau':[50,60],'xi':[0]},
-        }
-
-        # univariate
-        mu = AbstractModel('univariate')
+            ((False, 1, 0), {'tau':0,'xi':0,'extra':0}),
+            ((False, 1, 0), {'tau':0,}),
+            ((False, None, 0), {'tau':[50,60],'xi':[0]}),
+        ]
 
         for src_compat, m in [
-            (lambda src_dim: src_dim <= 0, AbstractModel('univariate')),
-            (lambda src_dim: src_dim > 0, AbstractModel('multivariate'))
+            (lambda src_dim: src_dim <= 0, ModelFactory.model('univariate')),
+            (lambda src_dim: src_dim >= 0, ModelFactory.model('logistic'))
         ]:
-            for (valid,n_inds,src_dim), ips in all_ips.items():
+
+            for (valid,n_inds,src_dim), ips in all_ips:
+
+                if m.name == 'logistic':
+                    m.source_dimension = src_dim
 
                 if (not valid) or (not src_compat(src_dim)):
                     with self.assertRaises(ValueError, ):

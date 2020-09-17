@@ -14,6 +14,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         # Algorithm parameters
         self.algo_parameters = settings.parameters
         self.seed = settings.seed
+        self.loss = settings.loss
 
         # Realizations and samplers
         self.realizations = None
@@ -39,6 +40,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         """
         # MCMC toolbox (cache variables for speed-ups + tricks)
         model.initialize_MCMC_toolbox()
+        model.loss = self.loss
         # Samplers
         self._initialize_samplers(model, data)
         self._initialize_sufficient_statistics(data, model, realizations)

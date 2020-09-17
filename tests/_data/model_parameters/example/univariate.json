@@ -1,6 +1,7 @@
 {
   "name": "univariate",
   "features": ["feature"],
+  "loss": "MSE",
   "parameters": {
     "g": 1.0,
     "tau_mean": 70.0,

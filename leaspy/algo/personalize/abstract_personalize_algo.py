@@ -83,7 +83,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
             noise_std = torch.sqrt(squared_diff.detach() / data.n_observations_per_ft.float())
 
             # for displaying only
-            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, noise_std)}
+            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, noise_std.view(-1).tolist())}
             print_noise = repr(noise_map).replace("'", "")
         else:
             squared_diff = model.compute_sum_squared_tensorized(data, dict_pytorch).sum()

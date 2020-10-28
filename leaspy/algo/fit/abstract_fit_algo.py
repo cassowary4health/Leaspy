@@ -41,7 +41,7 @@ class AbstractFitAlgo(AbstractAlgo):
                 self.display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
 
         if 'diag_noise' in model.loss:
-            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'])}
+            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'].view(-1).tolist())}
             print_noise = repr(noise_map).replace("'", "")
         else:
             print_noise = '{:.4f}'.format(model.parameters['noise_std'].item())

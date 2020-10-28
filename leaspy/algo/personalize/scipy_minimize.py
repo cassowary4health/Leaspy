@@ -1,4 +1,5 @@
 import torch
+from joblib import Parallel, delayed
 from scipy.optimize import minimize
 
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
@@ -220,6 +221,36 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return (tau_f, xi_f, sources_f), err_f  # TODO depends on the order
 
+    def _get_individual_parameters_patient_master(self, it, data, model, p_names):
+        """
+        Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
+
+        Parameters
+        ----------
+        it: int
+            The iteration number.
+        model: leaspy model class object
+            Model used to compute the group average parameters.
+        data: leaspy.io.data.dataset.Dataset class object
+            Contains the individual scores.
+        p_names: list of str
+            Contains the individual parameters' names.
+
+        Returns
+        -------
+        leaspy.io.outputs.individual_parameters.IndividualParameters
+            Contains the individual parameters of all patients.
+        """
+        times = data.get_times_patient(it)  # torch.Tensor
+        values = data.get_values_patient(it)  # torch.Tensor
+
+        ind_patient, err = self._get_individual_parameters_patient(model, times, values)
+
+        if self.algo_parameters['progress_bar']:
+            self.display_progress_bar(it, data.n_individuals, suffix='subjets')
+
+        return {k: v for k, v in zip(p_names, ind_patient)}
+
     def _get_individual_parameters(self, model, data):
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
@@ -244,17 +275,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if self.algo_parameters['progress_bar']:
             self.display_progress_bar(-1, data.n_individuals, suffix='subjets')
 
-        # TODO: parallelize here?
-        for it in range(data.n_individuals):
-            times = data.get_times_patient(it)  # torch.Tensor
-            values = data.get_values_patient(it)  # torch.Tensor
+        ind_p_all = Parallel(self.algo_parameters['n_jobs'])(
+            delayed(self._get_individual_parameters_patient_master)(it, data, model, p_names) for it in range(data.n_individuals))
+        for it, ind_p in enumerate(ind_p_all):
             idx = data.indices[it]
-
-            ind_patient, err = self._get_individual_parameters_patient(model, times, values)
-            ind_p = {k: v for k, v in zip(p_names, ind_patient)}
             individual_parameters.add_individual_parameters(str(idx), ind_p)
-
-            if self.algo_parameters['progress_bar']:
-                self.display_progress_bar(it, data.n_individuals, suffix='subjets')
 
         return individual_parameters

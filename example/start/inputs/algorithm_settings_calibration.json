@@ -1,0 +1,17 @@
+{
+  "name": "mcmc_saem",
+  "parameters": {
+    "n_burn_in_iter": 1300,
+    "n_iter": 1600,
+    "eps": 0.001,
+    "L": 10,
+    "progress_bar": false,
+    "annealing": {
+    "do_annealing": false,
+    "initial_temperature": 300,
+    "n_plateau": 10,
+      "n_iter": 200
+    },
+    "seed": null
+  }
+}

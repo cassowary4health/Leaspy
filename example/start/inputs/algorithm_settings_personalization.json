@@ -1,0 +1,17 @@
+{
+  "name": "scipy_minimize",
+  "seed": 0,
+  "parameters": {
+    "n_burn_in_iter": 200,
+    "n_iter": 701,
+    "eps": 0.005,
+    "L": 10,
+    "progress_bar": true,
+    "annealing": {
+    "do_annealing": true,
+    "initial_temperature": 300,
+    "n_plateau": 10,
+      "n_iter": 200
+    }
+  }
+}

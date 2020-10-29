@@ -20,21 +20,36 @@ class OutputsSettings:
         self._create_root_folder(settings)
 
     def _get_console_print_periodicity(self, settings):
-        if 'console_print_periodicity' in settings.keys():
+        if 'console_print_periodicity' not in settings.keys():
+            return
+
+        if settings['console_print_periodicity'] is None:
+            self.console_print_periodicity = None
+        else:
             try:
                 self.console_print_periodicity = int(settings['console_print_periodicity'])
             except ValueError:
                 print("The 'console_print_periodicity' parameters you provided is not an int")
 
     def _get_plot_periodicity(self, settings):
-        if 'plot_periodicity' in settings.keys():
+        if 'plot_periodicity' not in settings.keys():
+            return
+
+        if settings['plot_periodicity'] is None:
+            self.plot_periodicity = None
+        else:
             try:
                 self.plot_periodicity = int(settings['plot_periodicity'])
             except ValueError:
                 print("The 'plot_periodicity' parameters you provided is not an int")
 
     def _get_save_periodicity(self, settings):
-        if 'save_periodicity' in settings.keys():
+        if 'save_periodicity' not in settings.keys():
+            return
+
+        if settings['save_periodicity'] is None:
+            self.save_periodicity = None
+        else:
             try:
                 self.save_periodicity = int(settings['save_periodicity'])
             except ValueError:

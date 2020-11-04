@@ -329,8 +329,8 @@ class AbstractModel:
 
         Returns
         -------
-        attachment : 1D torch.tensor of shape (n_subjects,)
-            Negative Log-likelihood
+        attachment : torch.Tensor
+            Negative Log-likelihood, shape = (n_subjects,)
         """
 
 

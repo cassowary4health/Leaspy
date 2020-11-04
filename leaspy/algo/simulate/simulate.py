@@ -2,9 +2,10 @@ import numpy as np
 import torch
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
-from leaspy.io.outputs.individual_parameters import IndividualParameters
+
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.data.data import Data
+from leaspy.io.data.dataset import Dataset
 from leaspy.io.outputs.result import Result
 
 
@@ -332,9 +333,10 @@ class SimulationAlgorithm(AbstractAlgo):
         """
         if self.noise:
             if self.noise == "default":
-                noise = results.get_error_distribution_dataframe(model)
-                noise = torch.from_numpy(noise[results.data.headers].values)
-                noise = torch.sqrt((noise*noise).mean(dim=0)) #MSE on visits (per feature)
+                dataset = Dataset(results.data)
+                squared_diff_per_ft = model.compute_sum_squared_per_ft_tensorized(
+                    dataset, results.individual_parameters).sum(dim=0)
+                noise = torch.sqrt(squared_diff_per_ft / dataset.n_observations_per_ft.float())
             else:
                 if hasattr(self.noise, '__len__'):
                     if len(self.noise) != len(results.data.headers):
@@ -343,7 +345,7 @@ class SimulationAlgorithm(AbstractAlgo):
                                          "the number of features, here {}.".format(self.noise,
                                                                                    len(results.data.headers)))
                 noise = torch.tensor(self.noise)
-            return torch.distributions.Normal(loc=0., scale=noise) # diagonal noise (per feature)
+            return torch.distributions.Normal(loc=0., scale=noise)  # diagonal noise (per feature)
 
     @staticmethod
     def _get_reparametrized_age(timepoints, tau, xi, tau_mean):

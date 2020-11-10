@@ -341,7 +341,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if self.algo_parameters.get('progress_bar',True):
             self.display_progress_bar(-1, data.n_individuals, suffix='subjects')
 
-        ind_p_all = Parallel(self.algo_parameters['n_jobs'])(
+        ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
             delayed(self._get_individual_parameters_patient_master)(it, data, model, p_names) for it in range(data.n_individuals))
 
         for it, ind_p in enumerate(ind_p_all):

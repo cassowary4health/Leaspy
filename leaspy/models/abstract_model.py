@@ -293,9 +293,6 @@ class AbstractModel:
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         return NotImplementedError
 
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        return NotImplementedError
-
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         """
         TODO: complete

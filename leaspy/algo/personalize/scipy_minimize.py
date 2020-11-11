@@ -20,15 +20,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             # 'tol': 1e-6
         }
 
-        if self.algo_parameters['use_jacobian']:
-            self.minimize_kwargs = {
-                'method': "BFGS",
-                'options': {
-                    'gtol': 1e-4,
-                },
-                # 'tol': 1e-6
-            }
-
     def _set_model_name(self, name):
         """
         Set name attribute.
@@ -215,86 +206,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
             return (regularity + attachment).detach().tolist()
 
-        def jacob(x, *args):
-            """
-            Jacobian of the objective loss function to minimize in order to get patient's individual parameters
-
-            Parameters
-            ----------
-            x: `list` [`float`]
-                Initialization of individual parameters
-                By default x = [xi_mean, tau_mean] (+ [0.] * nber_of_sources if multivariate model)
-            args:
-                - model: leaspy model class object
-                    Model used to compute the group average parameters.
-                - timepoints: `torch.Tensor`
-                    Contains the individual ages corresponding to the given ``values``
-                - values: `torch.Tensor`
-                    Contains the individual true scores corresponding to the given ``times``.
-
-            Returns
-            -------
-            objective: `float`
-                Value of the jacobian of the loss function.
-            """
-            # Parameters
-            model, times, values = args
-
-            # Attachment
-            xi = torch.tensor([x[0]], dtype=torch.float32).unsqueeze(0)
-            tau = torch.tensor([x[1]], dtype=torch.float32).unsqueeze(0)
-
-            if self.model_name == 'univariate':
-                individual_parameters = {'xi': xi, 'tau': tau}
-                attachment = model.compute_individual_tensorized(times, individual_parameters)
-                jacobian = model.compute_jacobian_tensorized(times, individual_parameters)
-                iterates = zip(['xi', 'tau'], (xi, tau))
-            else:
-                sources = torch.tensor(x[2:], dtype=torch.float32).unsqueeze(0)
-                individual_parameters = {'xi': xi, 'tau': tau, 'sources': sources}
-                attachment = model.compute_individual_tensorized(times, individual_parameters)
-                jacobian = model.compute_jacobian_tensorized(times, individual_parameters)
-                iterates = zip(['xi', 'tau', 'sources'], (xi, tau, sources))
-
-            attachment = attachment.unsqueeze(0)
-            diff = attachment - values.unsqueeze(0)
-
-            if self.loss == 'MSE':
-                attachment = diff * jacobian
-                mask = (attachment != attachment)
-                attachment[mask] = 0.
-                # Set nan to zero, not to count in the sum
-                attachment = torch.sum(attachment, dim=(0, 2, 3)) / (model.parameters['noise_std'] ** 2)
-            elif self.loss == 'crossentropy':
-                attachment = torch.clamp(attachment, 1e-38, 1. - 1e-7)  # safety before dividing
-                neg_crossentropy = diff / (attachment * (1. - attachment))
-                neg_crossentropy = neg_crossentropy * jacobian
-                mask = (neg_crossentropy != neg_crossentropy)
-                neg_crossentropy[mask] = 0.  # Set nan to zero, not to count in the sum
-                attachment = torch.sum(neg_crossentropy, dim=(0, 2, 3))
-            # Regularity
-            regularities = []
-            for i, (key, value) in enumerate(iterates):
-                mean = model.parameters["{0}_mean".format(key)]
-                std = model.parameters["{0}_std".format(key)]
-                regularities.append((value - mean) / (std ** 2))
-            regularity = torch.cat(regularities, dim=1).sum(dim=0)
-
-            return (regularity + attachment).detach().tolist()
-
         initial_value = self._initialize_parameters(model)
-        if self.algo_parameters['use_jacobian']:
-            res = minimize(obj, jac=jacob,
-                           x0=initial_value,
-                           args=(model, timepoints, values),
-                           **self.minimize_kwargs
-                           )
-        else:
-            res = minimize(obj,
-                           x0=initial_value,
-                           args=(model, timepoints, values),
-                           **self.minimize_kwargs
-                           )
+        res = minimize(obj,
+                       x0=initial_value,
+                       args=(model, timepoints, values),
+                       **self.minimize_kwargs
+                       )
 
         if res.success is not True:
             print(res.success, res)

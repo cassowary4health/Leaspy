@@ -5,6 +5,7 @@
   "initialization_method": null,
   "parameters": {
     "n_iter": 100,
+    "use_jacobian": false,
     "n_jobs": 1,
     "progress_bar": false
   }

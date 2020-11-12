@@ -131,7 +131,7 @@ class SimulationAlgorithm(AbstractAlgo):
         if self.density == "gmm":
             self.sources_method =="gmm"
 
-        if self.sources_method not in ("full_kde", "normal_sources", "gmm"):
+        if self.sources_method not in ("full_kde", "normal_sources", "gmm", "bgmm"):
             raise ValueError('The "sources_method" parameter must be "full_kde" or "normal_sources"!')
 
         if type(self.features_bounds) not in [bool, dict]:
@@ -422,7 +422,7 @@ class SimulationAlgorithm(AbstractAlgo):
         """
         if self.density == "kde":
             samples = kernel.resample(number_of_simulated_subjects).T
-        elif self.density == "gmm":
+        elif self.density in ["gmm", "bgmm"]:
             samples = kernel.sample(number_of_simulated_subjects)[0]
         samples = ss.inverse_transform(samples)  # A np.ndarray of shape (n_subjects, n_features)
 
@@ -438,7 +438,7 @@ class SimulationAlgorithm(AbstractAlgo):
         simulated_parameters = {'tau': samples[:, 1], 'xi': samples[:, 2]}
         # xi & tau are 1D array - one value per simulated subject
         if get_sources:
-            if self.sources_method in ["full_kde", "gmm"]:
+            if self.sources_method in ["full_kde", "gmm", "bgmm"]:
                 simulated_parameters['sources'] = samples[:, 3:]
             elif self.sources_method == "normal_sources":
                 # Generate sources
@@ -481,7 +481,7 @@ class SimulationAlgorithm(AbstractAlgo):
             observations = model.compute_individual_trajectory(timepoints[i], indiv_param)
             # Add the desired noise
             if noise_generator:
-                observations += noise_generator.sample([observations.shape[0]]) # TODO: Raphaël? test won't pass with observations.shape[1] as you put
+                observations += noise_generator.sample([observations.shape[1]]) # TODO: Raphaël? test won't pass with observations.shape[1] as you put
                 # for logistic models only
                 if model.name in ['logistic','logistic_parallel','univariate']:
                     observations = observations.clamp(0, 1)
@@ -597,6 +597,8 @@ class SimulationAlgorithm(AbstractAlgo):
             kernel = stats.gaussian_kde(distribution, bw_method=self.bandwidth_method)
         elif self.density == "gmm":
             kernel = mixture.GaussianMixture(n_components=self.n_components, covariance_type='full').fit(distribution.T)
+        elif self.density == "bgmm":
+            kernel = mixture.BayesianGaussianMixture(n_components=self.n_components, covariance_type='full').fit(distribution.T)
         else:
             raise ValueError("Density method not known")
 

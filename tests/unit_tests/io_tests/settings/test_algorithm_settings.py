@@ -20,7 +20,12 @@ class AlgorithmSettingsTest(unittest.TestCase):
         settings = AlgorithmSettings(name)
         self.assertEqual(settings.name, name)
         self.assertEqual(settings.parameters, json_data['parameters'])
+        self.assertEqual(settings.parameters['use_jacobian'], False)
         self.assertEqual(settings.seed, None)
+
+    def test_jacobian_personalization(self):
+        settings = AlgorithmSettings('scipy_minimize', use_jacobian=True)
+        self.assertEqual(settings.parameters['use_jacobian'], True)
 
     def test_default_constructor_with_kwargs(self):
         # Default constructor with kwargs

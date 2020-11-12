@@ -24,10 +24,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             self.minimize_kwargs = {
                 'method': "BFGS",
                 'options': {
-                    'gtol': 0.05,
+                    'gtol': 0.01,
                     'maxiter': 200,
                 },
-                # 'tol': 1e-6
+                'tol': 5e-5
             }
 
     def _set_model_name(self, name):

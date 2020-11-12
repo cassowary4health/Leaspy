@@ -148,6 +148,7 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
         tol = 5e-3
+        tol_tau = 0.01
 
         # manually initialize seed since it's not done by algo itself (no call to run afterwards)
         algo._initialize_seed(algo.seed)
@@ -161,7 +162,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 78.93283994514304, delta=tol)
+        self.assertAlmostEqual(individual_parameters[0], 78.93283994514304, delta=tol_tau)
         self.assertAlmostEqual(individual_parameters[1], -0.07679465847751077, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.07733279, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.57428166, delta=tol)
@@ -178,7 +179,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 78.82484683798302, delta=tol)
+        self.assertAlmostEqual(individual_parameters[0], 78.83, delta=tol_tau)
         self.assertAlmostEqual(individual_parameters[1], -0.07808162619234782, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.17007795, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.63483322, delta=tol)
@@ -206,6 +207,7 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
         tol = 5e-3
+        tol_tau = 0.01
 
         # manually initialize seed since it's not done by algo itself (no call to run afterwards)
         algo._initialize_seed(algo.seed)
@@ -219,7 +221,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 69.91258208274421, delta=tol)
+        self.assertAlmostEqual(individual_parameters[0], 69.91258208274421, delta=tol_tau)
         self.assertAlmostEqual(individual_parameters[1], -0.1446537485712681, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.16517799, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.82381726, delta=tol)
@@ -264,6 +266,7 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
         tol = 5e-3
+        tol_tau = 0.01
 
         # manually initialize seed since it's not done by algo itself (no call to run afterwards)
         algo._initialize_seed(algo.seed)
@@ -277,7 +280,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 69.91258208274421, delta=tol)
+        self.assertAlmostEqual(individual_parameters[0], 69.91258208274421, delta=tol_tau)
         self.assertAlmostEqual(individual_parameters[1], -0.1446537485712681, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.16517799, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.82381726, delta=tol)
@@ -294,7 +297,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 76.57318992643758, delta=tol)
+        self.assertAlmostEqual(individual_parameters[0], 76.57318992643758, delta=tol_tau)
         self.assertAlmostEqual(individual_parameters[1], -0.06489393539830259, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.08735905, delta=tol)
         self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.37562645, delta=tol)

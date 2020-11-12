@@ -7,7 +7,7 @@ from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.outputs.result import Result
-
+from sklearn import mixture
 
 class SimulationAlgorithm(AbstractAlgo):
     r"""
@@ -113,7 +113,9 @@ class SimulationAlgorithm(AbstractAlgo):
 
         self._initialize_seed(self.seed)
 
+        self.density = settings.parameters['density']
         self.bandwidth_method = settings.parameters['bandwidth_method']
+        self.n_components = settings.parameters['n_components']
         self.cofactor = settings.parameters['cofactor']
         # TODO: check that the loaded cofactors are converted into strings!
         self.cofactor_state = settings.parameters['cofactor_state']
@@ -124,10 +126,12 @@ class SimulationAlgorithm(AbstractAlgo):
         self.reparametrized_age_bounds = settings.parameters['reparametrized_age_bounds']
         self.sources_method = settings.parameters['sources_method']
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
-
         self.prefix = settings.parameters['prefix']
 
-        if self.sources_method not in ("full_kde", "normal_sources"):
+        if self.density == "gmm":
+            self.sources_method =="gmm"
+
+        if self.sources_method not in ("full_kde", "normal_sources", "gmm"):
             raise ValueError('The "sources_method" parameter must be "full_kde" or "normal_sources"!')
 
         if type(self.features_bounds) not in [bool, dict]:
@@ -415,7 +419,10 @@ class SimulationAlgorithm(AbstractAlgo):
         timepoints : `list` [float]
             Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
         """
-        samples = kernel.resample(number_of_simulated_subjects).T
+        if self.density == "kde":
+            samples = kernel.resample(number_of_simulated_subjects).T
+        elif self.density == "gmm":
+            samples = kernel.sample(number_of_simulated_subjects)[0]
         samples = ss.inverse_transform(samples)  # A np.ndarray of shape (n_subjects, n_features)
 
         # Transform reparametrized baseline age into baseline real age
@@ -430,7 +437,7 @@ class SimulationAlgorithm(AbstractAlgo):
         simulated_parameters = {'tau': samples[:, 1], 'xi': samples[:, 2]}
         # xi & tau are 1D array - one value per simulated subject
         if self.get_sources:
-            if self.sources_method == "full_kde":
+            if self.sources_method in ["full_kde", "gmm"]:
                 simulated_parameters['sources'] = samples[:, 3:]
             elif self.sources_method == "normal_sources":
                 # Generate sources
@@ -590,7 +597,12 @@ class SimulationAlgorithm(AbstractAlgo):
         # fit_transform receive an numpy array of shape (n_samples, n_features)
         distribution = ss.fit_transform(distribution).T
         # gaussian_kde receive an numpy array of shape (n_features, n_samples)
-        kernel = stats.gaussian_kde(distribution, bw_method=self.bandwidth_method)
+        if self.density == "kde":
+            kernel = stats.gaussian_kde(distribution, bw_method=self.bandwidth_method)
+        elif self.density == "gmm":
+            kernel = mixture.GaussianMixture(n_components=self.n_components, covariance_type='full').fit(distribution.T)
+        else:
+            raise ValueError("Density method not known")
 
         # --------- Simulate new subjects - individual parameters, timepoints and features' scores
         if self.features_bounds:

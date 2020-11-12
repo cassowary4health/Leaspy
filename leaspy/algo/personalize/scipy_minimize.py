@@ -24,7 +24,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             self.minimize_kwargs = {
                 'method': "BFGS",
                 'options': {
-                    'gtol': 1e-4,
+                    'gtol': 0.05,
+                    'maxiter': 200,
                 },
                 # 'tol': 1e-6
             }

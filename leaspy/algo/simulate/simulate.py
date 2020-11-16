@@ -1,13 +1,15 @@
 import numpy as np
+import pandas as pd
 import torch
 from scipy import stats
+from sklearn import mixture
 from sklearn.preprocessing import StandardScaler
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.outputs.result import Result
-from sklearn import mixture
+
 
 class SimulationAlgorithm(AbstractAlgo):
     r"""
@@ -127,6 +129,8 @@ class SimulationAlgorithm(AbstractAlgo):
         self.sources_method = settings.parameters['sources_method']
         self.std_number_of_visits = settings.parameters['std_number_of_visits']
         self.prefix = settings.parameters['prefix']
+
+        self._timepoints_generator_option = {'states': None, 'proba': None}
 
         if self.density == "gmm":
             self.sources_method =="gmm"
@@ -306,13 +310,38 @@ class SimulationAlgorithm(AbstractAlgo):
             Contains the subject's time points.
         """
         number_of_visits = self._get_number_of_visits()
-        if number_of_visits == 1:
-            ages = [bl]
-        elif number_of_visits == 2:
-            ages = [bl, bl + 0.5]
-        else:
-            ages = [bl, bl + 0.5] + [bl + j for j in range(1, number_of_visits - 1)]
+        ages = [bl]
+        while len(ages) < number_of_visits:
+            ages.append(ages[-1] + self._generate_delta_t())
         return ages
+
+    def _set_timepoints_generator(self, serie_time):
+        """
+        Set parameters for the `_generate_delta_t` method.
+
+        Parameters
+        ----------
+        serie_time: pandas.Series
+            Contains the ID in index and TIME as values.
+        """
+        idx_list = serie_time.index.unique()
+
+        # ---- Get distributions of time's interval between visits
+        delta_t_between_visit = []
+        for idx in idx_list:
+            tmp = serie_time.loc[idx]
+            for i in range(tmp.shape[0] - 1):
+                delta_t_between_visit.append((idx, round(tmp.iloc[i+1] - tmp.iloc[i], 1)))
+
+        # ---- Set time interval & proba to sample them
+        delta_t_df = pd.DataFrame(data=delta_t_between_visit, columns=['ID', 'DELTA_TIME'])
+        delta_t_counts = delta_t_df['DELTA_TIME'].value_counts()
+        self._timepoints_generator_option['states'] = delta_t_counts.index
+        self._timepoints_generator_option['proba'] = delta_t_counts.values / delta_t_counts.values.sum()
+
+    def _generate_delta_t(self):
+        return np.random.choice(self._timepoints_generator_option['states'],
+                                p=self._timepoints_generator_option['proba'])
 
     def _get_noise_generator(self, model, results):
         """
@@ -563,9 +592,11 @@ class SimulationAlgorithm(AbstractAlgo):
             df_ind_param = df_ind_param[df_ind_param[self.cofactor] == self.cofactor_state]
             # Remove the cofactor column
             df_ind_param = df_ind_param.loc[:, df_ind_param.columns != self.cofactor_state]
+
         # Add the baseline ages
         df_ind_param = results.data.to_dataframe().groupby('ID').first()[['TIME']].join(df_ind_param, how='right')
         # At this point, df_ind_param.columns = ['TIME', 'tau', 'xi', 'sources_0', 'sources_1', ..., 'sources_n']
+
         distribution = df_ind_param.values
         # force order TIME tau xi
         distribution[:, 1] = df_ind_param['tau'].values
@@ -575,6 +606,7 @@ class SimulationAlgorithm(AbstractAlgo):
                                                           tau=distribution[:, 1],
                                                           xi=distribution[:, 2],
                                                           tau_mean=model.parameters['tau_mean'].item())
+
         # If constraints on baseline reparametrized age have been set
         # Select only the subjects who satisfy the constraints
         if self.reparametrized_age_bounds:
@@ -612,6 +644,10 @@ class SimulationAlgorithm(AbstractAlgo):
             # Simulate more subject in order to have enough of them after filtering in order to respect the bounds
         else:
             number_of_simulated_subjects = self.number_of_subjects
+
+        # ---- Set timepoints generator
+        serie_time = data.to_dataframe().set_index('ID')['TIME']
+        self._set_timepoints_generator(serie_time)
 
         simulated_parameters, timepoints = self._simulate_individual_parameters(
             model, number_of_simulated_subjects, kernel, ss, df_mean, df_cov)

@@ -12,6 +12,18 @@ from tests import test_data_dir
 
 class ScipyMinimizeTest(unittest.TestCase):
 
+    def check_individual_parameters(self, ips, *, tau, xi, tol_tau, tol_xi, sources=None, tol_sources=None):
+
+        self.assertAlmostEqual(ips['tau'].item(), tau, delta=tol_tau)
+        self.assertAlmostEqual(ips['xi'].item(), xi, delta=tol_xi)
+
+        if sources is not None:
+            n_sources = len(sources)
+            res_sources = ips['sources'].squeeze().tolist()
+            self.assertEqual( len(res_sources), n_sources )
+            for s, s_expected in zip(res_sources, sources):
+                self.assertAlmostEqual(s, s_expected, delta=tol_sources)
+
     def test_constructor(self):
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
@@ -52,7 +64,9 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         times = torch.tensor([70, 80])
         values = torch.tensor([[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]])
-        individual_parameters = [0.0, 75.2, 0., 0.]
+
+        z = [0.0, 75.2, 0., 0.]
+        individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
 
         err = algo._get_reconstruction_error(leaspy.model, times, values, individual_parameters)
 
@@ -71,7 +85,6 @@ class ScipyMinimizeTest(unittest.TestCase):
         #algo._set_model_name('logistic')
 
         z = [0.0, 75.2, 0., 0.]
-
         individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
 
         reg, reg_grads = algo._get_regularity(leaspy.model, individual_parameters)
@@ -117,10 +130,11 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 78.93283994514304, delta=tol)
-        self.assertAlmostEqual(individual_parameters[1], -0.07679465847751077, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.07733279, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.57428166, delta=tol)
+        self.check_individual_parameters(individual_parameters,
+            tau=78.93283994514304, tol_tau=tol,
+            xi=-0.07679465847751077, tol_xi=tol,
+            sources=[-0.07733279, -0.57428166], tol_sources=tol
+        )
 
         err_expected = torch.tensor([[
             [-0.4958, -0.3619, -0.3537, -0.4497],
@@ -134,10 +148,11 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 78.82484683798302, delta=tol)
-        self.assertAlmostEqual(individual_parameters[1], -0.07808162619234782, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.17007795, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.63483322, delta=tol)
+        self.check_individual_parameters(individual_parameters,
+            tau=78.82484683798302, tol_tau=tol,
+            xi=-0.07808162619234782, tol_xi=tol,
+            sources=[-0.17007795, -0.63483322], tol_sources=tol
+        )
 
         nan_positions = torch.tensor([
             [False, False, False, True],
@@ -176,10 +191,11 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 78.93283994514304, delta=tol_tau)
-        self.assertAlmostEqual(individual_parameters[1], -0.07679465847751077, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.07733279, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.57428166, delta=tol)
+        self.check_individual_parameters(individual_parameters,
+            tau=78.93283994514304, tol_tau=tol_tau,
+            xi=-0.07679465847751077, tol_xi=tol,
+            sources=[-0.07733279, -0.57428166], tol_sources=tol
+        )
 
         err_expected = torch.tensor([[
             [-0.4958, -0.3619, -0.3537, -0.4497],
@@ -193,10 +209,11 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 78.83, delta=tol_tau)
-        self.assertAlmostEqual(individual_parameters[1], -0.07808162619234782, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.17007795, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.63483322, delta=tol)
+        self.check_individual_parameters(individual_parameters,
+            tau=78.83, tol_tau=tol_tau,
+            xi=-0.07808162619234782, tol_xi=tol,
+            sources=[-0.17007795, -0.63483322], tol_sources=tol
+        )
 
         nan_positions = torch.tensor([
             [False, False, False, True],
@@ -235,10 +252,11 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 69.91258208274421, delta=tol_tau)
-        self.assertAlmostEqual(individual_parameters[1], -0.1446537485712681, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.16517799, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.82381726, delta=tol)
+        self.check_individual_parameters(individual_parameters,
+            tau=69.91258208274421, tol_tau=tol_tau,
+            xi=-0.1446537485712681, tol_xi=tol,
+            sources=[-0.16517799, -0.82381726], tol_sources=tol
+        )
 
         err_expected = torch.tensor([[
             [ 0.3184, -0.8266,  0.2943, -0.8065],
@@ -252,10 +270,11 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 76.57318992643758, delta=tol)
-        self.assertAlmostEqual(individual_parameters[1], -0.06489393539830259, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.08735905, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.37562645, delta=tol)
+        self.check_individual_parameters(individual_parameters,
+            tau=76.57318992643758, tol_tau=tol,
+            xi=-0.06489393539830259, tol_xi=tol,
+            sources=[-0.08735905, -0.37562645], tol_sources=tol
+        )
 
         nan_positions = torch.tensor([
             [False, False, False, True],
@@ -294,10 +313,11 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 69.91258208274421, delta=tol_tau)
-        self.assertAlmostEqual(individual_parameters[1], -0.1446537485712681, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.16517799, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.82381726, delta=tol)
+        self.check_individual_parameters(individual_parameters,
+            tau=69.91258208274421, tol_tau=tol_tau,
+            xi=-0.1446537485712681, tol_xi=tol,
+            sources=[-0.16517799, -0.82381726], tol_sources=tol
+        )
 
         err_expected = torch.tensor([[
             [ 0.3184, -0.8266,  0.2943, -0.8065],
@@ -311,10 +331,11 @@ class ScipyMinimizeTest(unittest.TestCase):
         individual_parameters = output[0]
         err = output[1]
 
-        self.assertAlmostEqual(individual_parameters[0], 76.57318992643758, delta=tol_tau)
-        self.assertAlmostEqual(individual_parameters[1], -0.06489393539830259, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[0], -0.08735905, delta=tol)
-        self.assertAlmostEqual(individual_parameters[2].tolist()[1], -0.37562645, delta=tol)
+        self.check_individual_parameters(individual_parameters,
+            tau=76.57318992643758, tol_tau=tol,
+            xi=-0.06489393539830259, tol_xi=tol,
+            sources=[-0.08735905, -0.37562645], tol_sources=tol
+        )
 
         nan_positions = torch.tensor([
             [False, False, False, True],

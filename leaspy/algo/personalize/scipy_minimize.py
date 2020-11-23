@@ -30,6 +30,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 'tol': 5e-5
             }
 
+        # logging function for failures
+        self.logger = print
+
     def _initialize_parameters(self, model):
         """
         Initialize individual parameters of one patient with group average parameter.
@@ -78,7 +81,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return torch.cat(to_cat, dim=-1).squeeze(0) # 1 individual at a time
 
-    def _get_reconstruction_error(self, model, times, values, x):
+    def _get_reconstruction_error(self, model, times, values, individual_parameters):
         """
         Compute model values minus real values of a patient for a given model, timepoints, real values &
         individual parameters.
@@ -91,15 +94,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual ages corresponding to the given ``values``.
         values: `torch.Tensor` [n_tpts,n_fts]
             Contains the individual true scores corresponding to the given ``times``.
-        x: `list` [`float`]
-            The individual parameters.
+        individual_parameters: dict[str, torch.Tensor[1,n_dims_param]]
+            Individual parameters as a dict
 
         Returns
         -------
         err: `torch.Tensor` [n_tpts,n_fts]
             Model values minus real values.
         """
-        individual_parameters = self._pull_individual_parameters(x, model)
+
         # computation for 1 individual (level dropped after calculuus)
         predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters).squeeze(0)
 
@@ -129,7 +132,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Gradient of regularity term with respect to individual parameters.
 
         """
-        #individual_parameters = self._pull_individual_parameters(x, model)
 
         regularity = 0
         regularity_grads = {}
@@ -258,13 +260,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Returns
         -------
-            - tau - `float`
-                Individual time-shift.
-            - xi - `float`
-                Individual log-acceleration.
-            - sources - `list` [`float`]
-                Individual space-shifts.
-            - error - `torch.Tensor`
+        2-tuple:
+            - individual parameters: dict[str, torch.Tensor[1,n_dims_param]]
+                Individual parameters as a dict of tensors.
+            - reconstruction error: `torch.Tensor` [n_tpts, n_features]
                 Model values minus real values.
         """
 
@@ -280,14 +279,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                        )
 
         if res.success is not True:
-            print(res.success, res)
+            self.logger(res.success, res)
 
-        xi_f, tau_f, sources_f = res.x[0], res.x[1], res.x[2:] # TODO? _pull_individual_parameters here instead?
-        err_f = self._get_reconstruction_error(model, times, values, res.x)
+        individual_params_f = self._pull_individual_parameters(res.x, model)
+        err_f = self._get_reconstruction_error(model, times, values, individual_params_f)
 
-        return (tau_f, xi_f, sources_f), err_f  # TODO depends on the order
+        return individual_params_f, err_f
 
-    def _get_individual_parameters_patient_master(self, it, data, model, p_names):
+    def _get_individual_parameters_patient_master(self, it, data, model):
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
@@ -299,8 +298,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Model used to compute the group average parameters.
         data: leaspy.io.data.dataset.Dataset class object
             Contains the individual scores.
-        p_names: list of str
-            Contains the individual parameters' names.
 
         Returns
         -------
@@ -310,12 +307,16 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         times = data.get_times_patient(it)  # torch.Tensor[n_tpts]
         values = data.get_values_patient(it)  # torch.Tensor[n_tpts, n_fts]
 
-        ind_patient, err = self._get_individual_parameters_patient(model, times, values)
+        individual_params_tensorized, err = self._get_individual_parameters_patient(model, times, values)
 
-        if self.algo_parameters.get('progress_bar',True):
+        if self.algo_parameters.get('progress_bar', True):
             self.display_progress_bar(it, data.n_individuals, suffix='subjects')
 
-        return {k: v for k, v in zip(p_names, ind_patient)}
+        #return {k: v for k, v in zip(p_names, ind_patient)}
+        #return individual_params_tensorized
+
+        # transformation is needed because of IndividualParameters expectations...
+        return {k: v.item() if k != 'sources' else v.detach().squeeze(0).tolist() for k,v in individual_params_tensorized.items()}
 
     def _get_individual_parameters(self, model, data):
         """
@@ -336,16 +337,18 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         individual_parameters = IndividualParameters()
 
-        p_names = model.get_individual_variable_name()
+        #p_names = model.get_individual_variable_name()
 
-        if self.algo_parameters.get('progress_bar',True):
+        if self.algo_parameters.get('progress_bar', True):
             self.display_progress_bar(-1, data.n_individuals, suffix='subjects')
 
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
-            delayed(self._get_individual_parameters_patient_master)(it, data, model, p_names) for it in range(data.n_individuals))
+            delayed(self._get_individual_parameters_patient_master)(it, data, model)
+            for it in range(data.n_individuals))
 
         for it, ind_p in enumerate(ind_p_all):
             idx = data.indices[it]
             individual_parameters.add_individual_parameters(str(idx), ind_p)
 
         return individual_parameters
+

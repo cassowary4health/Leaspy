@@ -47,12 +47,12 @@ class ScipyMinimizeTest(unittest.TestCase):
         univariate_model = Leaspy.load(univariate_path)
         param = algo._initialize_parameters(univariate_model.model)
 
-        self.assertEqual(param, [torch.tensor([-1.0]), torch.tensor([70.0])])
+        self.assertEqual(param, [torch.tensor([-1.0/0.01]), torch.tensor([70.0/2.5])])
 
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
         multivariate_model = Leaspy.load(multivariate_path)
         param = algo._initialize_parameters(multivariate_model.model)
-        self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2]), torch.tensor([0.]), torch.tensor([0.])])
+        self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2/7.1]), torch.tensor([0.]), torch.tensor([0.])])
 
     def test_get_reconstruction_error(self):
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
@@ -65,7 +65,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         times = torch.tensor([70, 80])
         values = torch.tensor([[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]])
 
-        z = [0.0, 75.2, 0., 0.]
+        z = [0.0, 75.2/7.1, 0., 0.]
         individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
 
         err = algo._get_reconstruction_error(leaspy.model, times, values, individual_parameters)
@@ -84,7 +84,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         algo = ScipyMinimize(settings)
         #algo._set_model_name('logistic')
 
-        z = [0.0, 75.2, 0., 0.]
+        z = [0.0, 75.2/7.1, 0., 0.]
         individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
 
         reg, reg_grads = algo._get_regularity(leaspy.model, individual_parameters)

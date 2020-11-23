@@ -47,7 +47,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             The individual parameters.
             By default x = [xi_mean, tau_mean] (+ [0.] * nber_of_sources if multivariate model)
         """
-        x = [model.parameters["xi_mean"], model.parameters["tau_mean"]]
+        # rescale parameters to their natural scale so they are comparable (as well as their gradient)
+        x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
+             model.parameters["tau_mean"] / model.parameters["tau_std"]
+            ]
         if model.name != "univariate":
             x += [torch.tensor(0.) for _ in range(model.source_dimension)]
         return x
@@ -60,24 +63,29 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         tensorized_params = torch.tensor(x, dtype=torch.float32).view((1,-1)) # 1 individual
 
-        # <!> order
+        # <!> order + rescaling of parameters
         individual_parameters = {
-            'xi': tensorized_params[:,[0]],
-            'tau': tensorized_params[:,[1]],
+            'xi': tensorized_params[:,[0]] * model.parameters['xi_std'],
+            'tau': tensorized_params[:,[1]] * model.parameters['tau_std'],
         }
         if model.name != 'univariate' and model.source_dimension > 0:
-            individual_parameters['sources'] = tensorized_params[:, 2:]
+            individual_parameters['sources'] = tensorized_params[:, 2:] * model.parameters['sources_std']
 
         return individual_parameters
 
-    def _get_ordered_tensor_from_dict_tensor_per_param(self, dict_tensors, model):
+    def _get_normalized_grad_tensor_from_grad_dict(self, dict_grad_tensors, model):
         """
-        From a dict of tensors (per param), with param_dims being last dimension
-        Return a tensor of grads for all params, concatenated with conventional order of x0.
+        From a dict of gradient tensors per param (without normalization),
+        returns the full tensor of gradients (= for all params, consecutively):
+        - concatenated with conventional order of x0
+        - normalized because we derive w.r.t. "standardized" parameter (adimensional gradient)
         """
-        to_cat = [dict_tensors['xi'], dict_tensors['tau']]
+        to_cat = [
+            dict_grad_tensors['xi'] * model.parameters['xi_std'],
+            dict_grad_tensors['tau'] * model.parameters['tau_std']
+        ]
         if model.name != 'univariate' and model.source_dimension > 0:
-            to_cat.append( dict_tensors['sources'] )
+            to_cat.append( dict_grad_tensors['sources'] * model.parameters['sources_std'] )
 
         return torch.cat(to_cat, dim=-1).squeeze(0) # 1 individual at a time
 
@@ -160,8 +168,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         Parameters
         ----------
         x: array-like [`float`]
-            Initialization of individual parameters
-            By default x = [xi_mean, tau_mean] (+ [0.] * nber_of_sources if multivariate model)
+            Initialization of individual "standardized" parameters
+            By default x = [xi_mean/xi_std, tau_mean/tau_std] (+ [0.] * nber_of_sources if multivariate model)
 
         args:
             - model: leaspy model class object
@@ -201,7 +209,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if with_gradient:
             grads = model.compute_jacobian_tensorized(times, individual_parameters)
             # put derivatives consecutively in the right order: shape [n_tpts,n_fts,n_dims_params]
-            grads = self._get_ordered_tensor_from_dict_tensor_per_param(grads, model)
+            grads = self._get_normalized_grad_tensor_from_grad_dict(grads, model)
 
         # Placeholder for result (objective and, if needed, gradient)
         res = {}
@@ -235,7 +243,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         if with_gradient:
             # add regularity term, shape (n_dims_params, )
-            res['gradient'] += self._get_ordered_tensor_from_dict_tensor_per_param(regularity_grads, model)
+            res['gradient'] += self._get_normalized_grad_tensor_from_grad_dict(regularity_grads, model)
 
             # result tuple (objective, jacobian)
             return (res['objective'].item(), res['gradient'].detach())

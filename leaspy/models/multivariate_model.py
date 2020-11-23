@@ -6,7 +6,7 @@ from .utils.attributes.attributes_factory import AttributesFactory
 
 class MultivariateModel(AbstractMultivariateModel):
     def __init__(self, name):
-        super(MultivariateModel, self).__init__(name)
+        super().__init__(name)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 

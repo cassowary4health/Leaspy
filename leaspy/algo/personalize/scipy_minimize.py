@@ -9,7 +9,7 @@ from ...io.outputs.individual_parameters import IndividualParameters
 class ScipyMinimize(AbstractPersonalizeAlgo):
 
     def __init__(self, settings):
-        super(ScipyMinimize, self).__init__(settings)
+        super().__init__(settings)
 
         self.minimize_kwargs = {
             'method': "Powell",

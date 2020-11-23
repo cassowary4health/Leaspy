@@ -7,7 +7,7 @@ from .utils.attributes.attributes_logistic_parallel import AttributesLogisticPar
 
 class MultivariateParallelModel(AbstractMultivariateModel):
     def __init__(self, name):
-        super(MultivariateParallelModel, self).__init__(name)
+        super().__init__(name)
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None
 

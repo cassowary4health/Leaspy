@@ -10,7 +10,7 @@ from leaspy.models.utils.initialization.model_initialization import initialize_p
 
 class AbstractMultivariateModel(AbstractModel):
     def __init__(self, name):
-        super(AbstractMultivariateModel, self).__init__(name)
+        super().__init__(name)
         self.source_dimension = None
         self.dimension = None
         self.parameters = {

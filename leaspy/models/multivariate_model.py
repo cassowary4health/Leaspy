@@ -61,14 +61,14 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
-        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
-        v0 = v0.reshape(1, 1, -1)
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
+        #v0 = v0.reshape(1, 1, -1) # not needed, automatic broadcast on last dim (n_features)
 
         LL = v0 * reparametrized_time
         if self.source_dimension != 0:
             sources = ind_parameters['sources']
             wi = sources.matmul(a_matrix.t())
-            LL += wi.unsqueeze(-2)
+            LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
         return model
@@ -90,20 +90,8 @@ class MultivariateModel(AbstractMultivariateModel):
         return NotImplementedError()
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
-        '''
+        # cf. AbstractModel.compute_jacobian_tensorized for doc
 
-        Parameters
-        ----------
-        timepoints
-        ind_parameters
-        attribute_type
-
-        Returns
-        -------
-        The Jacobian of the model with parameters order : [xi, tau, sources].
-        This function aims to be used in scipy_minimize.
-
-        '''
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
         g_plus_1 = 1. + g
@@ -115,8 +103,8 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
-        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
-        v0 = v0.reshape(1, 1, -1)
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
+        #v0 = v0.reshape(1, 1, -1) # not needed, automatic broadcast on last dim (n_features)
 
         LL = v0 * reparametrized_time
         if self.source_dimension != 0:
@@ -127,14 +115,17 @@ class MultivariateModel(AbstractMultivariateModel):
         model = 1. / LL
 
         c = model * (1. - model) * b
+        alpha = torch.exp(xi).reshape(-1, 1, 1)
 
-        xi_derivative = (v0 * reparametrized_time).unsqueeze(1)
-        tau_derivative = (-v0 * torch.exp(xi) * torch.ones_like(reparametrized_time)).unsqueeze(1)
-        sources_derivative = a_matrix.t().unsqueeze(1).unsqueeze(0).repeat(xi_derivative.shape[0], 1, xi_derivative.shape[2],1)
+        derivatives = {
+            'xi': (c * v0 * reparametrized_time).unsqueeze(-1),
+            'tau': (c * -v0 * alpha).unsqueeze(-1),
+        }
+        if self.source_dimension > 0:
+            derivatives['sources'] = c.unsqueeze(-1) * a_matrix.expand((1,1,-1,-1))
 
-        jacob = c * torch.cat([xi_derivative, tau_derivative, sources_derivative], 1)
-
-        return jacob
+        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
+        return derivatives
 
     def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError()

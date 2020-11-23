@@ -291,9 +291,38 @@ class AbstractModel:
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+        """
+        Parameters
+        ----------
+        timepoints: torch.Tensor of shape (n_individuals, n_timepoints)
+
+        individual_parameters: dict[param_name: str, torch.Tensor of shape (n_individuals, n_dims_param)]
+
+        attribute_type: Any
+
+        Returns
+        -------
+        torch.Tensor of shape (n_individuals, n_timepoints, n_features)
+        """
         return NotImplementedError
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+        """
+        The Jacobian of the model for each individual parameter.
+        This function aims to be used in scipy_minimize to speed up optimization.
+
+        Parameters
+        ----------
+        timepoints: torch.Tensor of shape (n_individuals, n_timepoints)
+
+        individual_parameters: dict[param_name: str, torch.Tensor of shape (n_individuals, n_dims_param)]
+
+        attribute_type: Any
+
+        Returns
+        -------
+        dict[param_name: str, torch.Tensor of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
+        """
         return NotImplementedError
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
@@ -364,6 +393,9 @@ class AbstractModel:
             pred = torch.clamp(pred, 1e-38, 1. - 1e-7) # safety before taking the log
             neg_crossentropy = data.values * torch.log(pred) + (1. - data.values) * torch.log(1. - pred)
             attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
+
+        else:
+            raise NotImplementedError
 
         return attachment.reshape((data.n_individuals,)) # 1D tensor of shape(n_individuals,)
 

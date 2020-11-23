@@ -20,12 +20,12 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, None)
 
-    def test_get_model_name(self):
-        settings = AlgorithmSettings('scipy_minimize')
-        algo = ScipyMinimize(settings)
-        algo._set_model_name('name')
-
-        self.assertEqual(algo.model_name, 'name')
+    #def test_get_model_name(self):
+    #    settings = AlgorithmSettings('scipy_minimize')
+    #    algo = ScipyMinimize(settings)
+    #    algo._set_model_name('name')
+    #
+    #    self.assertEqual(algo.model_name, 'name')
 
     def test_initialize_parameters(self, ):
         settings = AlgorithmSettings('scipy_minimize')
@@ -42,25 +42,25 @@ class ScipyMinimizeTest(unittest.TestCase):
         param = algo._initialize_parameters(multivariate_model.model)
         self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2]), torch.tensor([0.]), torch.tensor([0.])])
 
-    def test_get_attachment(self):
+    def test_get_reconstruction_error(self):
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
         leaspy = Leaspy.load(multivariate_path)
 
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
-        algo._set_model_name('logistic')
+        #algo._set_model_name('logistic')
 
         times = torch.tensor([70, 80])
         values = torch.tensor([[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]])
         individual_parameters = [0.0, 75.2, 0., 0.]
 
-        err = algo._get_attachment(leaspy.model, times, values, individual_parameters)
+        err = algo._get_reconstruction_error(leaspy.model, times, values, individual_parameters)
 
-        output = torch.tensor([[
+        output = torch.tensor([
             [-0.4705, -0.3278, -0.3103, -0.4477],
-            [0.6059,  0.0709,  0.3537,  0.4523]]])
+            [0.6059,  0.0709,  0.3537,  0.4523]])
         self.assertEqual(torch.is_tensor(err), True)
-        self.assertAlmostEqual(torch.sum((err - output)**2).item(), 0, delta=10e-8)
+        self.assertAlmostEqual(torch.sum((err - output)**2).item(), 0, delta=1e-8)
 
     def test_get_regularity(self):
         multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
@@ -68,14 +68,28 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
-        algo._set_model_name('logistic')
+        #algo._set_model_name('logistic')
 
-        individual_parameters = [0.0, 75.2, 0., 0.]
+        z = [0.0, 75.2, 0., 0.]
 
-        reg = algo._get_regularity(leaspy.model, individual_parameters)
+        individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
+
+        reg, reg_grads = algo._get_regularity(leaspy.model, individual_parameters)
         self.assertEqual(torch.is_tensor(reg), True)
         output = torch.tensor([4.0264])
-        self.assertAlmostEqual(torch.sum((reg - output)**2).item(), 0, delta=10e-9)
+        self.assertAlmostEqual(torch.sum((reg - output)**2).item(), 0, delta=1e-8)
+
+        # gradients
+        self.assertIsInstance(reg_grads, dict)
+        self.assertSetEqual(set(reg_grads.keys()),{'xi','tau','sources'})
+        # types & dimensions
+        self.assertEqual(torch.is_tensor(reg_grads['xi']), True)
+        self.assertEqual(torch.is_tensor(reg_grads['tau']), True)
+        self.assertEqual(torch.is_tensor(reg_grads['sources']), True)
+        self.assertTupleEqual(reg_grads['xi'].shape, (1,1))
+        self.assertTupleEqual(reg_grads['tau'].shape, (1,1))
+        self.assertTupleEqual(reg_grads['sources'].shape, (1,2))
+
 
     def test_get_individual_parameters_patient_univariate(self):
         # TODO

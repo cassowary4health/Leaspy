@@ -13,7 +13,7 @@ class UnivariateModel(AbstractModel):
     ## Initialization
     ###########################
     def __init__(self, name):
-        super(UnivariateModel, self).__init__(name)
+        super().__init__(name)
         self.dimension = 1
         self.source_dimension = 0  # TODO, None ???
         self.parameters = {

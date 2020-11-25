@@ -1,5 +1,5 @@
 import numpy as np
-from ...io.outputs.individual_parameters import IndividualParameters
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 
 class ConstantPredictionAlgorithm():

@@ -1,0 +1,11 @@
+{
+  "name": "lme",
+  "parameters": {
+    "fe_params": null,
+    "cov_re": null,
+    "cov_re_unscaled": null,
+    "bse_fe": null,
+    "bse_re": null
+  }
+}
+

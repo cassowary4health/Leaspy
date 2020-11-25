@@ -71,7 +71,7 @@ class AlgorithmSettings:
         self.logs = None
 
         if name in ['mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize',
-                    'mode_real', 'constant_prediction']:
+                    'mode_real', 'constant_prediction', 'lme_fit', 'lme_personalize']:
             self._load_default_values(os.path.join(default_data_dir, 'default_' + name + '.json'))
         else:
             raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
@@ -248,6 +248,10 @@ class AlgorithmSettings:
 
         if settings['name'] == 'constant_prediction':
             return
+        if settings['name'] == 'lme_fit':
+            return
+        if settings['name'] == 'lme_personalize':
+            return
         self.seed = self._get_seed(settings)
         self.loss = self._get_loss(settings)
 
@@ -261,7 +265,10 @@ class AlgorithmSettings:
 
         if settings['name'] == 'constant_prediction':
             return
-
+        if settings['name'] == 'lme_fit':
+            return
+        if settings['name'] == 'lme_personalize':
+            return
         if 'seed' not in settings.keys():
             raise ValueError("The 'seed' key is missing in the algorithm settings (JSON file) you are loading")
         if 'initialization_method' not in settings.keys():

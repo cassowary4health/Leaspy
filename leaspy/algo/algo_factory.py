@@ -5,6 +5,8 @@ from leaspy.algo.personalize.mode_realisations import ModeReal
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 from leaspy.algo.others.constant_prediction_algo import ConstantPredictionAlgorithm
+from leaspy.algo.others.lme_fit import LMEFitAlgorithm
+from leaspy.algo.others.lme_personalize import LMEPersonalizeAlgorithm
 
 
 class AlgoFactory:
@@ -43,6 +45,9 @@ class AlgoFactory:
         elif name == 'constant_prediction':
             algorithm = ConstantPredictionAlgorithm(settings)
 
+        elif name == 'lme_fit':
+            algorithm = LMEFitAlgorithm(settings)
+
         # Personalize Algorithm
         elif name == 'gradient_descent_personalize':
             algorithm = GradientDescentPersonalize(settings)
@@ -54,6 +59,9 @@ class AlgoFactory:
             algorithm = ModeReal(settings)
         # elif name == 'hmc_saem':
         #    algorithm = HMC_SAEM(settings)
+        elif name == 'lme_personalize':
+            algorithm = LMEPersonalizeAlgorithm(settings)
+
 
         # Simulation agorithm
         elif name == 'simulation':
@@ -94,8 +102,9 @@ class AlgoFactory:
             raise ValueError("The algorithm class you are using should be of class 'fit', 'simulate' or 'personalize'")
 
         compatibility_algorithms = {
-            "fit": ["mcmc_saem"],
-            "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize", "constant_prediction"],
+            "fit": ["mcmc_saem", "lme_fit"],
+            "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize",
+                            "constant_prediction", "lme_personalize"],
             "simulate": ["simulation"],
         }
 

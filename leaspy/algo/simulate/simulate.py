@@ -124,6 +124,7 @@ class SimulationAlgorithm(AbstractAlgo):
         self.features_bounds = settings.parameters['features_bounds']
         self.mean_number_of_visits = settings.parameters['mean_number_of_visits']
         self.noise = settings.parameters['noise']
+        self.result_noise = None
         self.number_of_subjects = settings.parameters['number_of_subjects']
         self.reparametrized_age_bounds = settings.parameters['reparametrized_age_bounds']
         self.sources_method = settings.parameters['sources_method']
@@ -375,7 +376,7 @@ class SimulationAlgorithm(AbstractAlgo):
         ValueError
             If the attribute self.noise is an iterable of float of a length different than the number of features.
         """
-        if self.noise:
+        if self.noise is not None:
             if self.noise == "default":
                 dataset = Dataset(results.data)
                 squared_diff_per_ft = model.compute_sum_squared_per_ft_tensorized(
@@ -388,7 +389,8 @@ class SimulationAlgorithm(AbstractAlgo):
                                          " noise for each feature score, you must give an iterable object of size "
                                          "the number of features, here {}.".format(self.noise,
                                                                                    len(results.data.headers)))
-                noise = torch.tensor(self.noise)
+                noise = torch.tensor(self.noise, dtype=torch.float32)
+            self.result_noise = noise
             return torch.distributions.Normal(loc=0., scale=noise)  # diagonal noise (per feature)
 
     @staticmethod
@@ -724,4 +726,4 @@ class SimulationAlgorithm(AbstractAlgo):
                                                  headers=results.data.headers)
         return kernel, Result(data=simulated_scores,
                       individual_parameters=simulated_parameters,
-                      noise_std=self.noise) # TODO: we could/should convert self.noise into something OK for Result object (in particular "default" is a special flag for SimulationAlgorithm and should be replaced by computed values...)
+                      noise_std=self.result_noise)

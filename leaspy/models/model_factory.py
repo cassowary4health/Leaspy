@@ -1,4 +1,4 @@
-from . import UnivariateModel, MultivariateModel, MultivariateParallelModel
+from . import UnivariateModel, MultivariateModel, MultivariateParallelModel, ConstantModel
 
 
 class ModelFactory:
@@ -39,8 +39,10 @@ class ModelFactory:
             model = MultivariateModel(name, **kwargs)
         elif name == 'logistic_parallel':
             model = MultivariateParallelModel(name, **kwargs)
+        elif name == 'constant':
+            model = ConstantModel(name)
         else:
             raise ValueError("The name of the model you are trying to create does not exist! " +
-                             "It should be `univariate_linear`, `univariate_logsitic, `linear`, `logistic` or `logistic_parallel`")
+                             "It should be `univariate_linear`, `univariate_logsitic, `linear`, `logistic`, `logistic_parallel` or `constant`")
 
         return model

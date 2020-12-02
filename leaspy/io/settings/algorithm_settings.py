@@ -71,7 +71,7 @@ class AlgorithmSettings:
         self.logs = None
 
         if name in ['mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize',
-                    'mode_real']:
+                    'mode_real', 'constant_prediction']:
             self._load_default_values(os.path.join(default_data_dir, 'default_' + name + '.json'))
         else:
             raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
@@ -231,24 +231,39 @@ class AlgorithmSettings:
             if 'n_iter' in kwargs.keys() and 'annealing' not in kwargs.keys():
                 self.parameters['annealing']["n_iter"] = int(0.5 * kwargs['n_iter'])
 
+        if self.name == 'contant_prediction':
+            if 'prediction_type' in kwargs.keys():
+                self.parameters['prediction_type'] = kwargs['prediction_type']
+
     def _load_default_values(self, path_to_algorithm_settings):
         with open(path_to_algorithm_settings) as fp:
             settings = json.load(fp)
 
         AlgorithmSettings._check_default_settings(settings)
+        # TODO: Urgent => The following function should in fact be algorithm-name specific!! As for the constant prediction
+
         self.name = self._get_name(settings)
         self.parameters = self._get_parameters(settings)
+
+
+        if settings['name'] == 'constant_prediction':
+            return
         self.seed = self._get_seed(settings)
         self.loss = self._get_loss(settings)
 
     @staticmethod
     def _check_default_settings(settings):
+        # TODO: This should probably be in the ests
         if 'name' not in settings.keys():
             raise ValueError("The 'name' key is missing in the algorithm settings (JSON file) you are loading")
-        if 'seed' not in settings.keys():
-            raise ValueError("The 'settings' key is missing in the algorithm settings (JSON file) you are loading")
         if 'parameters' not in settings.keys():
             raise ValueError("The 'parameters' key is missing in the algorithm settings (JSON file) you are loading")
+
+        if settings['name'] == 'constant_prediction':
+            return
+
+        if 'seed' not in settings.keys():
+            raise ValueError("The 'seed' key is missing in the algorithm settings (JSON file) you are loading")
         if 'initialization_method' not in settings.keys():
             raise ValueError(
                 "The 'initialization_method' key is missing in the algorithm settings (JSON file) you are loading")

@@ -27,6 +27,16 @@ class AlgorithmSettingsTest(unittest.TestCase):
         settings = AlgorithmSettings('scipy_minimize', use_jacobian=True)
         self.assertEqual(settings.parameters['use_jacobian'], True)
 
+    def test_constant_prediction_algorith(self):
+        settings = AlgorithmSettings('constant_prediction')
+        self.assertEqual(settings.name, 'constant_prediction')
+        self.assertDictEqual(settings.parameters, {'prediction_type': 'last'})
+
+        for prediction_type in ['last', 'last_known', 'max', 'mean']:
+            settings = AlgorithmSettings('constant_prediction', prediction_type=prediction_type)
+            self.assertEqual(settings.name, 'constant_prediction')
+            self.assertDictEqual(settings.parameters, {'prediction_type': prediction_type})
+
     def test_default_constructor_with_kwargs(self):
         # Default constructor with kwargs
         name = 'mcmc_saem'

@@ -214,7 +214,6 @@ class Leaspy:
         for index, time in timepoints.items():
             ip = individual_parameters[index]
             est = self.model.compute_individual_trajectory(time, ip)
-
             estimations[index] = est[0].numpy()
 
         return estimations

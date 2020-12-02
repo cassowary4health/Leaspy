@@ -4,6 +4,7 @@ from leaspy.algo.personalize.mean_realisations import MeanReal
 from leaspy.algo.personalize.mode_realisations import ModeReal
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
+from leaspy.algo.others.constant_prediction_algo import ConstantPredictionAlgorithm
 
 
 class AlgoFactory:
@@ -39,6 +40,8 @@ class AlgoFactory:
         #    algorithm = GradientMCMCSAEM(settings)
         # elif name == 'gradient_descent':
         #    algorithm = GradientDescent(settings)
+        elif name == 'constant_prediction':
+            algorithm = ConstantPredictionAlgorithm(settings)
 
         # Personalize Algorithm
         elif name == 'gradient_descent_personalize':
@@ -92,8 +95,8 @@ class AlgoFactory:
 
         compatibility_algorithms = {
             "fit": ["mcmc_saem"],
-            "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"],
-            "simulate": ["simulation"]
+            "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize", "constant_prediction"],
+            "simulate": ["simulation"],
         }
 
         if name not in compatibility_algorithms[algorithm_class]:

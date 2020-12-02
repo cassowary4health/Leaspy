@@ -4,6 +4,7 @@ from leaspy.models.model_factory import ModelFactory
 from leaspy.models.multivariate_model import MultivariateModel
 from leaspy.models.multivariate_parallel_model import MultivariateParallelModel
 from leaspy.models.univariate_model import UnivariateModel
+from leaspy.models.constant_prediction_model import ConstantModel
 
 
 class ModelFactoryTest(unittest.TestCase):
@@ -18,7 +19,7 @@ class ModelFactoryTest(unittest.TestCase):
             Name of the model
         """
         if model is None:
-            for name in ['univariate_logistic', 'univariate_linear','linear', 'logistic', 'logistic_parallel']:
+            for name in ['univariate_logistic', 'univariate_linear','linear', 'logistic', 'logistic_parallel','constant']:
                 self.test_model_factory_constructor(ModelFactory().model(name))
         else:
             if model.name == 'univariate_logistic':
@@ -29,6 +30,8 @@ class ModelFactoryTest(unittest.TestCase):
                 self.assertEqual(type(model), MultivariateModel)
             elif model.name == 'logistic_parallel':
                 self.assertEqual(type(model), MultivariateParallelModel)
+            elif model.name == 'constant_prediction':
+                self.assertEqual(type(model), ConstantModel)
 
     def test_lower_case(self):
         """Test lower case"""

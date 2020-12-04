@@ -9,9 +9,9 @@ from .utils.attributes.attributes_univariate import AttributesUnivariate
 
 
 class UnivariateModel(AbstractModel):
-    ###########################
-    ## Initialization
-    ###########################
+    """
+    Logistic model for a single variable of interest.
+    """
     def __init__(self, name):
         super().__init__(name)
         self.dimension = 1

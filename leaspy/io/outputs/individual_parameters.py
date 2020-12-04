@@ -1,17 +1,18 @@
-import os
-import json
-import warnings
 import functools
+import json
 import operator
+import os
+import warnings
 
-import torch
-import pandas as pd
 import numpy as np
+import pandas as pd
+import torch
+
 
 class IndividualParameters:
     r"""
+    Ouput of the ``Leaspy.personalize`` method, contains the *random effects*.
     IndividualParameters object class.
-    The object holds a collection of individual parameters, that are outputs of the api personalization.
     There are used as io of the simulation algorithm, to provide an initial distribution of individual parameters.
 
     Attributes

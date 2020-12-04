@@ -8,6 +8,7 @@ from leaspy.io.settings.outputs_settings import OutputsSettings
 
 class AlgorithmSettings:
     """
+    Contains algorithms' settings, user can choose default or personalized settings.
     Read a algo_parameters json file and create the corresponding algo
     """
 

@@ -5,6 +5,9 @@ from .utils.attributes.attributes_factory import AttributesFactory
 
 
 class MultivariateModel(AbstractMultivariateModel):
+    """
+    Logistic model for multiple variables of interest.
+    """
     def __init__(self, name):
         super().__init__(name)
         self.parameters["v0"] = None

@@ -14,6 +14,9 @@ from leaspy.io.data.individual_data import IndividualData
 # TODO or find a good way to say thet there are individual parameters here ???
 
 class Data:
+    """
+    Main data container, initialized from a `csv` file or a ``pandas.DataFrame``.
+    """
     def __init__(self):
 
         self.individuals = {}

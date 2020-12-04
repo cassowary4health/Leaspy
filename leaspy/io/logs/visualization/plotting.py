@@ -1,19 +1,18 @@
 import os
-import numpy as np
-import torch
 
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-
-#import matplotlib.backends.backend_pdf
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+# import matplotlib.backends.backend_pdf
 from matplotlib.lines import Line2D
 
 
+# TODO: outdated -
+class Plotting:
 
-class Plotting():
-
-    def __init__(self, model, output_path = '.', palette = 'Set2', max_colors = 8):
+    def __init__(self, model, output_path='.', palette='Set2', max_colors=8):
         self.update_model(model)
 
         # Default plot parameters
@@ -118,7 +117,6 @@ class Plotting():
 
         return ax
 
-
     def average_trajectory(self, **kwargs):
 
         colors, ax, linestyle, linewidth, alpha = self.handle_kwargs_begin(kwargs)
@@ -142,7 +140,6 @@ class Plotting():
 
         ax = self.handle_kwargs_end(ax, kwargs, colors)
 
-
     def patient_observations(self, result, patient_IDs, **kwargs):
 
         colors, ax, linestyle, linewidth, alpha = self.handle_kwargs_begin(kwargs)
@@ -164,7 +161,6 @@ class Plotting():
                         alpha=alpha['individual_data'],)
 
         ax = self.handle_kwargs_end(ax, kwargs, colors)
-
 
     def patient_trajectories(self, result, patient_IDs, **kwargs):
 

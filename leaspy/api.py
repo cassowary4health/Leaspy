@@ -1,18 +1,14 @@
-import warnings
-
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.data.dataset import Dataset
-#from leaspy.io.outputs.result import Result # not used
+from leaspy.io.logs.visualization.plotting import Plotting
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
-from leaspy.io.logs.visualization.plotting import Plotting
 
 
 class Leaspy:
     r"""
-    Leaspy object class.
-    This is the main class of the Leaspy package. It is used to instantiate a Leaspy class object, fit models,
-    run algorithms and simulations.
+    Main API used to fit models, run algorithms and simulations.
+    This is the main class of the Leaspy package.
 
     Attributes
     ----------
@@ -255,7 +251,6 @@ class Leaspy:
         simulated_data = algorithm.run(self.model, individual_parameters, data)
         return simulated_data
 
-
     def check_if_initialized(self):
         """
         Check if model is initialized.
@@ -302,7 +297,6 @@ class Leaspy:
         leaspy.plotting.update_model(leaspy.model)
 
         return leaspy
-
 
     def save(self, path):
         """

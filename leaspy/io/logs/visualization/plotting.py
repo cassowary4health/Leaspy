@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import matplotlib as mpl
 import matplotlib.cm as cm
@@ -13,22 +14,18 @@ import torch
 # TODO: outdated -
 class Plotting:
 
-    def __init__(self, model, output_path='.', palette='Set2', max_colors=8):
-        self.update_model(model)
+    def __init__(self, model, output_path='.', palette='tab10', max_colors=10):
+        self.model = model
 
-        # Default plot parameters
-        self.set_palette(palette, max_colors)
+        # ---- Graphical options
+        self.color_palette = None
         self.standard_size = (11, 6)
-
-        self.linestyle = {'average_model': '-', 'individual_model': '-', 'individual_data': '--'}
-
-        self.linewidth = {'average_model' : 5,
-                          'individual_model' : 1, 'individual_data': 1}
-
-        self.alpha = {'average_model' : 0.5, 'individual_model' : 1, 'individual_data': 1}
-
-        # Add path for save_as
+        self.linestyle = {'average_model': '-', 'individual_model': '-', 'individual_data': '-'}
+        self.linewidth = {'average_model': 5, 'individual_model': 2, 'individual_data': 2}
+        self.alpha = {'average_model': 0.5, 'individual_model': 1, 'individual_data': 1}
         self.output_path = output_path
+
+        self.set_palette(palette, max_colors)
 
     def update_model(self, model):
         self.model = model
@@ -92,17 +89,18 @@ class Plotting:
 
         return colors, ax, labels
 
-    def handle_kwargs_end(self, ax, kwargs, colors):
+    def handle_kwargs_end(self, ax, kwargs, colors, labels, dimension=None):
         # ---- Legend
-        # custom_lines = [Line2D([0], [0], color=colors[i], lw=4) for i in range(self.model.dimension)]
-        # ax.legend(custom_lines, labels, loc=kwargs.get('legend_loc', 'upper right'))
-        ax.legend(title='Features')
+        if dimension is None:
+            dimension = self.model.dimension
+        custom_lines = [mpl.lines.Line2D([0], [0], color=colors[i], lw=4) for i in range(dimension)]
+        ax.legend(custom_lines, labels, title='Features')
+        # ax.legend(title='Features')
 
         # ---- Title & labels
         title = kwargs.get('title', 'Average trajectories')
         if title is not None:
             ax.set_title(title)
-        ax.set_xlabel('Reparametrized age')
         ax.set_ylabel('Normalized score')
 
         # ---- Save
@@ -165,38 +163,62 @@ class Plotting:
                     c=colors[i],
                     label=labels[i])
 
-        self.handle_kwargs_end(ax, kwargs, colors)
+        self.handle_kwargs_end(ax, kwargs, colors, labels)
+        ax.set_xlabel('Reparametrized age')
 
         return ax
 
-    def patient_observations(self, data, patient_IDs, **kwargs):
+    def patient_observations(self, data, patients_idx='all', **kwargs):
         # ---- Input manager
         alpha = kwargs.get('alpha', self.alpha['individual_data'])
         linestyle = kwargs.get('linestyle', self.linestyle['individual_data'])
         linewidth = kwargs.get('linewidth', self.linewidth['individual_data'])
+        marker = kwargs.get('marker', 'o')
+        markersize = kwargs.get('markersize', '3')
+        if 'patient_IDs' in kwargs.keys():
+            warnings.warn("Keyword argument <patient_IDs> is deprecated! Use <patients_idx> instead.",
+                          warnings.DeprecationWarning)
+            patients_idx = kwargs.get('patient_IDs')
 
-        colors, ax, labels = self.handle_kwargs_begin(kwargs)
+        if patients_idx == 'all':
+            patients_idx = list(data.iter_to_idx.values())
 
-        if type(patient_IDs) is not list:
-            patient_IDs = [patient_IDs]
+        if self.model.is_initialized:
+            assert data.header == self.model.features
+            colors, ax, labels = self.handle_kwargs_begin(kwargs)
+        else:
+            colors = kwargs.get('labels', self.color_palette([i % self.color_palette.N for i in range(data.dimension)]))
+            labels = kwargs.get('labels', data.headers)
+            ax = kwargs.get('ax', None)
+            if ax is None:
+                fig, ax = plt.subplots(1, 1, figsize=kwargs.get('figsize', self.standard_size))
 
-        for idx in patient_IDs:
+        dimension = data.dimension
+
+        if type(patients_idx) is str:
+            patients_idx = [patients_idx]
+
+        # ---- Plot
+        for idx in patients_idx:
             indiv = data.get_by_idx(idx)
             timepoints = indiv.timepoints
             observations = np.array(indiv.observations)
 
-            for dim in range(self.model.dimension):
+            for dim in range(data.dimension):
                 not_nans_idx = np.array(1-np.isnan(observations[:, dim]),dtype=bool)
 
                 ax.plot(np.array(timepoints)[not_nans_idx],
                         observations[:, dim][not_nans_idx],
+                        marker=marker,
+                        markersize=markersize,
                         c=colors[dim],
                         linewidth=linewidth,
                         linestyle=linestyle,
                         alpha=alpha,
                         label=labels[dim])
 
-        self.handle_kwargs_end(ax, kwargs, colors)
+        self.handle_kwargs_end(ax, kwargs, colors, labels, dimension=dimension)
+        ax.set_xlabel('Age')
 
         return ax
 
@@ -221,4 +243,7 @@ class Plotting:
                         )
 
         ax = self.handle_kwargs_end(ax, kwargs, colors)
+        ax.set_xlabel('Reparametrized age')
+
+        return ax
 

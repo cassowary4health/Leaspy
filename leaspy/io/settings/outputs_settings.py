@@ -9,10 +9,14 @@ class OutputsSettings:
     # TODO: ou bien la possibilité d'avoir l'affichage console et/ou logs dans un fold
     # TODO: Aussi, bien définir la création du path
     def __init__(self, settings):
-
         self.console_print_periodicity = None
         self.plot_periodicity = None
         self.save_periodicity = None
+
+        self.root_path = None
+        self.parameter_convergence_path = None
+        self.plot_path = None
+        self.patients_plot_path = None
 
         self._get_console_print_periodicity(settings)
         self._get_plot_periodicity(settings)

@@ -5,8 +5,9 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+
+
 # import matplotlib.backends.backend_pdf
-from matplotlib.lines import Line2D
 
 
 # TODO: outdated -
@@ -19,14 +20,12 @@ class Plotting:
         self.set_palette(palette, max_colors)
         self.standard_size = (11, 6)
 
-        self.linestyle = {'average_model' : '-',
-                          'individual_model' : '-', 'individual_data': '--'}
+        self.linestyle = {'average_model': '-', 'individual_model': '-', 'individual_data': '--'}
 
         self.linewidth = {'average_model' : 5,
                           'individual_model' : 1, 'individual_data': 1}
 
-        self.alpha = {'average_model' : 0.5,
-                          'individual_model' : 1, 'individual_data': 1}
+        self.alpha = {'average_model' : 0.5, 'individual_model' : 1, 'individual_data': 1}
 
         # Add path for save_as
         self.output_path = output_path
@@ -72,95 +71,134 @@ class Plotting:
         return self.color_palette(at)
 
     def handle_kwargs_begin(self, kwargs):
-
-        # Check if model is intialized
-        # Break if model is not initialized
+        # /!\ Break if model is not initialized
         if not self.model.is_initialized:
             raise ValueError("Please initialize the model before plotting")
 
-        # Colors
+        # ---- Colors
         colors = kwargs.get('color', self.colors())
 
-        # linestyle / linewidth / alpha
-        linestyle = kwargs.get('linestyle', self.linestyle)
-        linewidth = kwargs.get('linewidth', self.linewidth)
-        alpha = kwargs.get('alpha', self.alpha)
+        # ---- Labels
+        labels = kwargs.get('labels', self.model.features)
 
-        # Ax
+        # ---- Ax
         ax = kwargs.get('ax', None)
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=kwargs.get('figsize', self.standard_size))
 
-        # Handle ylim
+        # ---- Handle ylim
         if self.model.name in ['logistic', 'logistic_parallel']:
             ax.set_ylim(0, 1)
 
-        return colors, ax, linestyle, linewidth, alpha
+        return colors, ax, labels
 
     def handle_kwargs_end(self, ax, kwargs, colors):
+        # ---- Legend
+        # custom_lines = [Line2D([0], [0], color=colors[i], lw=4) for i in range(self.model.dimension)]
+        # ax.legend(custom_lines, labels, loc=kwargs.get('legend_loc', 'upper right'))
+        ax.legend(title='Features')
 
-        # Labels
-        labels = kwargs.get('labels', self.model.features)
-
-        # Legend
-        custom_lines = [Line2D([0], [0], color=colors[i], lw=4) for i in range(self.model.dimension)]
-        ax.legend(custom_lines, labels, loc=kwargs.get('legend_loc', 'upper right'))
-
-        # Title
-        title = kwargs.get('title', None)
+        # ---- Title & labels
+        title = kwargs.get('title', 'Average trajectories')
         if title is not None:
             ax.set_title(title)
+        ax.set_xlabel('Reparametrized age')
+        ax.set_ylabel('Normalized score')
 
-        # Save
+        # ---- Save
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
-        return ax
-
     def average_trajectory(self, **kwargs):
+        """
+        Plot the population average trajectories. They are parametrized by the population parameters derivated
+        during the calibration.
 
-        colors, ax, linestyle, linewidth, alpha = self.handle_kwargs_begin(kwargs)
+        Parameters
+        ----------
+        kwargs
+            * alpha: float, default 0.6
+                Matplotlib's transparency option. Must be in [0, 1].
+            * linestyle: {'-', '--', '-.', ':', '', (offset, on-off-seq), ...}
+                Matplotlib's linestyle option.
+            * linewidth: float
+                Matplotlib's linewidth option.
+            * colors: list of str
+                Contains matplotlib compatible colors.
+            * labels: list of str
+                Used to rename features in the plot.
+            * ax: matplotlib.axes.Axes
+                Axes object to modify, instead of creating a new one.
+            * figsize: tuple of int
+                The figure's size.
+            * save_as: str, default None
+                Path to save the figure.
+            * title: str
 
-        # Get timepoints
+        Returns
+        -------
+        ax: matplotlib.axes.Axes
+        """
+        # ---- Input manager
+        alpha = kwargs.get('alpha', self.alpha['average_model'])
+        linestyle = kwargs.get('linestyle', self.linestyle['average_model'])
+        linewidth = kwargs.get('linewidth', self.linewidth['average_model'])
+
+        colors, ax, labels = self.handle_kwargs_begin(kwargs)
+
+        # ---- Get timepoints
         mean_time = self.model.parameters['tau_mean']
         std_time = max(self.model.parameters['tau_std'], 4)
         timepoints = np.linspace(mean_time - 3 * std_time, mean_time + 6 * std_time, 100)
-        timepoints = torch.Tensor([timepoints])
+        timepoints = torch.tensor([timepoints])
 
-        # Compute average trajectory
+        # ---- Compute average trajectory
         mean_trajectory = self.model.compute_mean_traj(timepoints).detach().numpy()
 
-        # plot it for each dimension
+        # ---- plot it for each dimension
         for i in range(mean_trajectory.shape[-1]):
-            ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i],
-                    linewidth=linewidth['average_model'],
-                    linestyle=linestyle['average_model'],
-                    alpha=alpha['average_model'],
-                    c=colors[i])  # , c=colors[i])
+            ax.plot(timepoints[0, :].detach().numpy(),
+                    mean_trajectory[0, :, i],
+                    linewidth=linewidth,
+                    linestyle=linestyle,
+                    alpha=alpha,
+                    c=colors[i],
+                    label=labels[i])
 
-        ax = self.handle_kwargs_end(ax, kwargs, colors)
+        self.handle_kwargs_end(ax, kwargs, colors)
 
-    def patient_observations(self, result, patient_IDs, **kwargs):
+        return ax
 
-        colors, ax, linestyle, linewidth, alpha = self.handle_kwargs_begin(kwargs)
+    def patient_observations(self, data, patient_IDs, **kwargs):
+        # ---- Input manager
+        alpha = kwargs.get('alpha', self.alpha['individual_data'])
+        linestyle = kwargs.get('linestyle', self.linestyle['individual_data'])
+        linewidth = kwargs.get('linewidth', self.linewidth['individual_data'])
+
+        colors, ax, labels = self.handle_kwargs_begin(kwargs)
 
         if type(patient_IDs) is not list:
             patient_IDs = [patient_IDs]
 
         for idx in patient_IDs:
-            indiv = result.data.get_by_idx(idx)
+            indiv = data.get_by_idx(idx)
             timepoints = indiv.timepoints
             observations = np.array(indiv.observations)
 
             for dim in range(self.model.dimension):
                 not_nans_idx = np.array(1-np.isnan(observations[:, dim]),dtype=bool)
 
-                ax.plot(np.array(timepoints)[not_nans_idx], observations[:, dim][not_nans_idx], c=colors[dim],
-                        linewidth=linewidth['individual_data'],
-                        linestyle=linestyle['individual_data'],
-                        alpha=alpha['individual_data'],)
+                ax.plot(np.array(timepoints)[not_nans_idx],
+                        observations[:, dim][not_nans_idx],
+                        c=colors[dim],
+                        linewidth=linewidth,
+                        linestyle=linestyle,
+                        alpha=alpha,
+                        label=labels[dim])
 
-        ax = self.handle_kwargs_end(ax, kwargs, colors)
+        self.handle_kwargs_end(ax, kwargs, colors)
+
+        return ax
 
     def patient_trajectories(self, result, patient_IDs, **kwargs):
 

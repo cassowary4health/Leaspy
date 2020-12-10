@@ -10,15 +10,18 @@ class Leaspy:
     Main API used to fit models, run algorithms and simulations.
     This is the main class of the Leaspy package.
 
+    Parameters
+    ----------
+    model_name: str
+        Model's name
+
     Attributes
     ----------
     model: leaspy.models.abstract_model.AbstractModel
         The model used for the computation. The available models are:
-            - 'logistic' - suppose that every modality follow a logistic curves across time. This model performs a dimensionality reduction of the modalities.
-
-            - 'logistic_parallel' - idem & suppose also that every modality have the same slope at inflexion point
-
-            - 'univariate' - a 'logistic' model for a single modality => do not perform a dimensionality reduction.
+            * ``'logistic'`` - suppose that every modality follow a logistic curves across time. This model performs a dimensionality reduction of the modalities.
+            * ``'logistic_parallel'`` - idem & suppose also that every modality have the same slope at inflexion point
+            * ``'univariate'`` - a 'logistic' model for a single modality => do not perform a dimensionality reduction.
     type: str
         Name of the model - must be one of the three listed above.
     plotting: leaspy.utils.output.visualization.plotting.Plotting
@@ -50,11 +53,6 @@ class Leaspy:
     def __init__(self, model_name):
         """
         Instantiate a Leaspy class object.
-
-        Parameters
-        ----------
-        model_name : str
-            Model's name
         """
         self.model = ModelFactory.model(model_name)
         self.type = model_name
@@ -212,7 +210,7 @@ class Leaspy:
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
         This procedure learn the joined distribution of the individual parameters and baseline age of the subjects
-        present in ``individual_parameters`` and ``data``respectively to sample new patients from this joined distribution.
+        present in ``individual_parameters`` and ``data`` respectively to sample new patients from this joined distribution.
         The model is used to compute for each patient their scores from the individual parameters.
         The number of visits per patients is set in ``settings['parameters']['mean_number_of_visits']`` and
         ``settings['parameters']['std_number_of_visits']`` which are set by default to 6 and 3 respectively.

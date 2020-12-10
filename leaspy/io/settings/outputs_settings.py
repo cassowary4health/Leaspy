@@ -1,6 +1,6 @@
 import os
-import warnings
 import shutil
+import warnings
 
 
 class OutputsSettings:
@@ -81,11 +81,13 @@ class OutputsSettings:
         if emptiness_cdt:
             self._create_dedicated_folders(settings['path'])
         else:
-            if self._ask_user_if_erase(settings['path']):
+            if settings['overwrite_logs_folder']:
+                print('\n...overwrite logs folder...')
                 self._clean_folder(settings['path'])
                 self._create_dedicated_folders(settings['path'])
             else:
-                raise ValueError("Please provided a correct path or accept to erase the previous values")
+                raise ValueError("The logs folder already exists! Give an other path of use "
+                                 "keyword argument <overwrite_logs_folder=True>.")
 
     def _clean_folder(self, path):
         shutil.rmtree(path)
@@ -101,12 +103,13 @@ class OutputsSettings:
         os.makedirs(self.plot_path)
         os.makedirs(self.patients_plot_path)
 
-    def _ask_user_if_erase(self, path):
-        user_answer = input("Do you want to erase the existing files "
-                            "in the logs folder {} you provided? [y]/[n]".format(path)).lower().strip()
-        if user_answer == "y":
-            return True
-        elif user_answer == "n":
-            return False
-        else:
-            self._ask_user_if_erase(path)
+    # ---- LEGACY
+    # def _ask_user_if_erase(self, path):
+    #     user_answer = input("Do you want to erase the existing files "
+    #                         "in the logs folder {} you provided? [y]/[n]".format(path)).lower().strip()
+    #     if user_answer == "y":
+    #         return True
+    #     elif user_answer == "n":
+    #         return False
+    #     else:
+    #         self._ask_user_if_erase(path)

@@ -96,15 +96,23 @@ class AlgorithmSettings:
             'path': path,
             'console_print_periodicity': 50,
             'plot_periodicity': 100,
-            'save_periodicity': 50
+            'save_periodicity': 50,
+            'overwrite_logs_folder': False
         }
 
         for k, v in kwargs.items():
             if k in ['console_print_periodicity', 'plot_periodicity', 'save_periodicity']:
-                # Todo : Ca devrait planter si v n'est pas un int!!
+                if (type(v) != int) and (v is not None):
+                    raise TypeError(f'You must provide a integer to the input <{k}>! '
+                                    f'You provide {v} of type {type(v)}.')
+                settings[k] = v
+            elif k in ['overwrite_logs_folder']:
+                if type(v) != bool:
+                    raise TypeError(f'You must provide a boolean to the input <{k}>! '
+                                    f'You provide {v} of type {type(v)}.')
                 settings[k] = v
             else:
-                warnings.warn("The kwargs {} you provided is not correct".format(v))
+                warnings.warn("The kwargs {} you provided is not correct".format(k))
 
         self.logs = OutputsSettings(settings)
 

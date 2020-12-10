@@ -1,5 +1,8 @@
+import time
+
 # from ...utils.logs.fit_output_manager import FitOutputManager
 from ..abstract_algo import AbstractAlgo
+
 
 class AbstractFitAlgo(AbstractAlgo):
 
@@ -14,6 +17,7 @@ class AbstractFitAlgo(AbstractAlgo):
     def run(self, model, data):
 
         # Initialize Model
+        time_beginning = time.time()
         self._initialize_seed(self.seed)
 
         # Initialize first the random variables
@@ -42,10 +46,16 @@ class AbstractFitAlgo(AbstractAlgo):
 
         if 'diag_noise' in model.loss:
             noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'].view(-1).tolist())}
-            print_noise = repr(noise_map).replace("'", "")
+            print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
+            print_noise = '\n'.join(print_noise.split(', '))
         else:
             print_noise = '{:.4f}'.format(model.parameters['noise_std'].item())
-        print("The standard deviation of the noise at the end of the calibration is " + print_noise)
+
+        time_end = time.time()
+        diff_time = (time_end - time_beginning)
+
+        print("\nThe standard deviation of the noise at the end of the calibration is\n" + print_noise)
+        print("\nCalibration took : " + self.convert_timer(diff_time))
 
         return realizations
 

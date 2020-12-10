@@ -70,7 +70,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         self._initialize_seed(self.seed)
 
         # Init the run
-        #print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
+        # print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
         time_beginning = time.time()
 
         # Estimate individual parameters
@@ -79,12 +79,14 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Compute the noise with the estimated individual parameters (per feature or not, depending on model loss)
         _, dict_pytorch = individual_parameters.to_pytorch()
         if 'diag_noise' in model.loss:
-            squared_diff = model.compute_sum_squared_per_ft_tensorized(data, dict_pytorch).sum(dim=0) # k tensor
+            squared_diff = model.compute_sum_squared_per_ft_tensorized(data, dict_pytorch).sum(dim=0)  # k tensor
             noise_std = torch.sqrt(squared_diff.detach() / data.n_observations_per_ft.float())
 
             # for displaying only
-            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, noise_std.view(-1).tolist())}
-            print_noise = repr(noise_map).replace("'", "")
+            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in
+                         zip(model.features, noise_std.view(-1).tolist())}
+            print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
+            print_noise = '\n'.join(print_noise.split(', '))
         else:
             squared_diff = model.compute_sum_squared_tensorized(data, dict_pytorch).sum()
             noise_std = torch.sqrt(squared_diff.detach() / data.n_observations)
@@ -95,8 +97,8 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         time_end = time.time()
         diff_time = (time_end - time_beginning)
 
-        print("The standard deviation of the noise at the end of the personalization is " + print_noise)
-        print("Personalization {} took : {:.1f}s".format(self.name, diff_time))
+        print("\nThe standard deviation of the noise at the end of the personalization is:\n" + print_noise)
+        print(f"\nPersonalization {self.name} took : " + self.convert_timer(diff_time))
 
         return individual_parameters, noise_std
 

@@ -139,7 +139,8 @@ class AbstractAlgo:
         raise NotImplementedError
 
     @staticmethod
-    def display_progress_bar(iteration, n_iter, suffix, n_step=50):
+    def display_progress_bar(iteration, n_iter, suffix, n_step_default=50):
+        n_step = min(n_step_default, n_iter)
         if iteration == -1:
             sys.stdout.write('\r')
             sys.stdout.write('|' + '-' * n_step + '|   0/%d ' % n_iter + suffix)
@@ -153,3 +154,16 @@ class AbstractAlgo:
                 sys.stdout.write(
                     '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration + 1, n_iter) + suffix)
                 sys.stdout.flush()
+
+    @staticmethod
+    def convert_timer(d):
+        s = d % 60
+        m = (d % 3600) // 60
+        h = d // 3600
+
+        res = '%ds' % s
+        if m:
+            res = '%dmin ' % m + res
+        if h:
+            res = '%dh ' % h + res
+        return res

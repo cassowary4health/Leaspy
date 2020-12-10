@@ -296,7 +296,7 @@ class Leaspy:
 
         return leaspy
 
-    def save(self, path):
+    def save(self, path, **kwargs):
         """
         Save Leaspy object as json model parameter file.
 
@@ -304,6 +304,8 @@ class Leaspy:
         ----------
         path: str
             Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
 
         Examples
         --------
@@ -314,7 +316,7 @@ class Leaspy:
         >>> settings = AlgorithmSettings('mcmc_saem', seed=0)
         >>> leaspy_logistic.fit(data, settings)
         The standard deviation of the noise at the end of the calibration is 0.0726
-        >>> leaspy_logistic.save('outputs/leaspy-logistic_model-seed0.json')
+        >>> leaspy_logistic.save('outputs/leaspy-logistic_model-seed0.json', indent=2)
         """
         self.check_if_initialized()
-        self.model.save(path)
+        self.model.save(path, **kwargs)

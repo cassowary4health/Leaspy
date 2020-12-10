@@ -1,11 +1,12 @@
 import json
 import math
+
 import torch
 
-from .abstract_model import AbstractModel
 # from leaspy.utils.realizations.realization import Realization
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+from .abstract_model import AbstractModel
 
 
 class AbstractMultivariateModel(AbstractModel):
@@ -66,7 +67,17 @@ class AbstractMultivariateModel(AbstractModel):
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
 
-    def save(self, path):
+    def save(self, path, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
         model_parameters_save = self.parameters.copy()
         model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
         for key, value in model_parameters_save.items():
@@ -82,7 +93,7 @@ class AbstractMultivariateModel(AbstractModel):
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+            json.dump(model_settings, fp, **kwargs)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         return NotImplementedError

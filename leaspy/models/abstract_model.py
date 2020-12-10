@@ -64,7 +64,17 @@ class AbstractModel:
     def load_hyperparameters(self, hyperparameters):
         raise NotImplementedError
 
-    def save(self, path):
+    def save(self, path, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
         raise NotImplementedError
 
     def get_individual_variable_name(self):

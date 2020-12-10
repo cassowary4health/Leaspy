@@ -33,7 +33,17 @@ class UnivariateModel(AbstractModel):
             }
         }
 
-    def save(self, path):
+    def save(self, path, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
         model_parameters_save = self.parameters.copy()
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
@@ -46,7 +56,7 @@ class UnivariateModel(AbstractModel):
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+            json.dump(model_settings, fp, **kwargs)
 
     def load_hyperparameters(self, hyperparameters):
         if 'features' in hyperparameters.keys():

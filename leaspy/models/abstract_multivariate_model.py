@@ -96,7 +96,7 @@ class AbstractMultivariateModel(AbstractModel):
             json.dump(model_settings, fp, **kwargs)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
-        return NotImplementedError
+        raise NotImplementedError
 
     def compute_mean_traj(self, timepoints):
         individual_parameters = {

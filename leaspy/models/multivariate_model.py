@@ -90,7 +90,7 @@ class MultivariateModel(AbstractMultivariateModel):
             raise ValueError("Mutivariate model > Compute jacobian tensorized")
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-        return NotImplementedError()
+        raise NotImplementedError
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
         # cf. AbstractModel.compute_jacobian_tensorized for doc
@@ -131,7 +131,7 @@ class MultivariateModel(AbstractMultivariateModel):
         return derivatives
 
     def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
     """

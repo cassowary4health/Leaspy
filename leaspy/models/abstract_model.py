@@ -314,7 +314,7 @@ class AbstractModel:
         -------
         torch.Tensor of shape (n_individuals, n_timepoints, n_features)
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         """
@@ -333,7 +333,7 @@ class AbstractModel:
         -------
         dict[param_name: str, torch.Tensor of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         """

@@ -54,8 +54,8 @@ class AbstractFitAlgo(AbstractAlgo):
         time_end = time.time()
         diff_time = (time_end - time_beginning)
 
-        print("\nThe standard deviation of the noise at the end of the calibration is\n" + print_noise)
-        print("\nCalibration took : " + self.convert_timer(diff_time))
+        print("\nThe standard deviation of the noise at the end of the calibration is:\n" + print_noise)
+        print("\nCalibration took: " + self.convert_timer(diff_time))
 
         return realizations
 

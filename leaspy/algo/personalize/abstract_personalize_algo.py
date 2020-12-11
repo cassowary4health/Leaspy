@@ -98,7 +98,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         diff_time = (time_end - time_beginning)
 
         print("\nThe standard deviation of the noise at the end of the personalization is:\n" + print_noise)
-        print(f"\nPersonalization {self.name} took : " + self.convert_timer(diff_time))
+        print(f"\nPersonalization {self.name} took: " + self.convert_timer(diff_time))
 
         return individual_parameters, noise_std
 

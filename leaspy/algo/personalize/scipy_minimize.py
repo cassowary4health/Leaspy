@@ -1,3 +1,5 @@
+from pprint import pformat, pprint
+
 import torch
 from joblib import Parallel, delayed
 from scipy.optimize import minimize
@@ -30,8 +32,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 'tol': 5e-5
             }
 
-        # logging function for failures
-        self.logger = print
+        # logging function for convergence warnings
+        # (patient_id: str, scipy_optiminize_result_dict) -> None
+        if hasattr(settings, 'logger'):
+            self.logger = settings.logger
+        else:
+            self.logger = lambda pat_id, res_dict: \
+                print(f"\n<!> {pat_id}:\n\n{pformat(res_dict, indent=1)}\n")
+
 
     def _initialize_parameters(self, model):
         """
@@ -234,7 +242,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
 
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Algorithm loss {self.loss} is currently not implemented...")
 
         ## Regularity term
         regularity, regularity_grads = self._get_regularity(model, individual_parameters)
@@ -253,7 +261,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             return res['objective'].item()
 
 
-    def _get_individual_parameters_patient(self, model, times, values):
+    def _get_individual_parameters_patient(self, model, times, values, *, patient_id=None):
         """
         Compute the individual parameter by minimizing the objective loss function with scipy solver.
 
@@ -265,6 +273,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual ages corresponding to the given ``values``.
         values: `torch.Tensor` [n_tpts, n_fts]
             Contains the individual true scores corresponding to the given ``times``.
+        patient_id: str (or None)
+            ID of patient (essentially here for logging purposes when no convergence)
 
         Returns
         -------
@@ -286,15 +296,19 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                        **self.minimize_kwargs
                        )
 
-        if res.success is not True:
-            self.logger(res.success, res)
-
         individual_params_f = self._pull_individual_parameters(res.x, model)
         err_f = self._get_reconstruction_error(model, times, values, individual_params_f)
 
+        if not res.success:
+            res['reconstruction_mae'] = round(err_f.abs().mean().item(),5) # all tpts & fts instead of mean?
+            res['individual_parameters'] = individual_params_f
+            #del res['x']
+
+            self.logger(patient_id, res)
+
         return individual_params_f, err_f
 
-    def _get_individual_parameters_patient_master(self, it, data, model):
+    def _get_individual_parameters_patient_master(self, it, data, model, *, patient_id=None):
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
@@ -315,7 +329,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         times = data.get_times_patient(it)  # torch.Tensor[n_tpts]
         values = data.get_values_patient(it)  # torch.Tensor[n_tpts, n_fts]
 
-        individual_params_tensorized, err = self._get_individual_parameters_patient(model, times, values)
+        individual_params_tensorized, err = self._get_individual_parameters_patient(model, times, values, patient_id=patient_id)
 
         if self.algo_parameters.get('progress_bar', True):
             self.display_progress_bar(it, data.n_individuals, suffix='subjects')
@@ -351,12 +365,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             self.display_progress_bar(-1, data.n_individuals, suffix='subjects')
 
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
-            delayed(self._get_individual_parameters_patient_master)(it, data, model)
-            for it in range(data.n_individuals))
+            delayed(self._get_individual_parameters_patient_master)(it_pat, data, model, patient_id=id_pat)
+            for it_pat, id_pat in enumerate(data.indices))
 
-        for it, ind_p in enumerate(ind_p_all):
-            idx = data.indices[it]
-            individual_parameters.add_individual_parameters(str(idx), ind_p)
+        for it_pat, ind_params_pat in enumerate(ind_p_all):
+            id_pat = data.indices[it_pat]
+            individual_parameters.add_individual_parameters(str(id_pat), ind_params_pat)
 
         return individual_parameters
 

@@ -8,8 +8,54 @@ from leaspy.io.settings.outputs_settings import OutputsSettings
 
 class AlgorithmSettings:
     """
-    Contains algorithms' settings, user can choose default or personalized settings.
-    Read a algo_parameters json file and create the corresponding algo
+    Used to set the algorithms' settings.
+    All parameters, except the choice of the algorithm, is set by default.
+    The user can overwrite all default settings.
+
+    Parameters
+    ----------
+    name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
+        The algorithm's name.
+    n_iter: int, optional
+        Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
+    n_burn_in_iter: int, optional
+        Number of iteration during burning phase, used for the MCMC SAEM algorithms.
+    seed: int, optional, default None
+        Used for stochastic algorithms.
+    use_jacobian: bool, optional, default False
+        Used in ``scipy_minimize`` algorithm to perform a `LBFGS` instead of a `Powell` algorithm.
+    n_jobs: int, optional, default 1
+        Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
+    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+        The wanted loss.
+            * MSE: MSE of all features
+            * MSE_diag_noise: MSE per feature
+            * crossentropy: used when the features are binary
+    progress_bar: bool, optional, default False
+        Used to display a progress bar during computation.
+
+    Attributes
+    ----------
+    name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
+        The algorithm's name.
+    seed: int, optional, default None
+        Used for stochastic algorithms.
+    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+        The wanted loss.
+            * MSE: MSE of all features
+            * MSE_diag_noise: MSE per feature
+            * crossentropy: used when the features are binary
+    parameters: dict
+        Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
+    logs: NoneType or leaspy.io.settings.outputs_settings.OutputsSettings
+        Used to create a ``logs`` file during a model calibration containing convergence information.
+
+    Methods
+    -------
+    load(path_to_algorithm_settings)
+        Instantiate a AlgorithmSettings object from a json file.
+    save(self, path, **kwargs):
+        Save an AlgorithmSettings object in a json file.
     """
 
     def __init__(self, name, **kwargs):
@@ -29,6 +75,24 @@ class AlgorithmSettings:
 
     @classmethod
     def load(cls, path_to_algorithm_settings):
+        """
+        Instantiate a AlgorithmSettings object a from json file.
+
+        Parameters
+        ----------
+        path_to_algorithm_settings: str
+            Path of the json file.
+
+        Returns
+        -------
+        leaspy.io.settings.algorithm_settings.AlgorithmSettings
+            An instanced of AlgorithmSettings with specified parameters.
+
+        Examples
+        --------
+        >>> from leaspy import AlgorithmSettings
+        >>> leaspy_univariate = AlgorithmSettings.load('outputs/leaspy-univariate_model-settings.json')
+        """
         with open(path_to_algorithm_settings) as fp:
             settings = json.load(fp)
 
@@ -165,8 +229,23 @@ class AlgorithmSettings:
         else:
             raise ValueError("The loss provided is not recognised. Should be one of ['MSE', 'MSE_diag_noise', 'crossentropy']")
 
-    def save(self, path):
+    def save(self, path, **kwargs):
+        """
+        Save an AlgorithmSettings object in a json file.
 
+        Parameters
+        ----------
+        path: str
+            Path to store the AlgorithmSettings.
+        **kwargs
+            Keyword arguments for json.dump method.
+
+        Examples
+        --------
+        >>> from leaspy import AlgorithmSettings
+        >>> settings = AlgorithmSettings('scipy_minimize', seed=42, loss='MSE_diag_noise', n_jobs=-1, use_jacobian=True, progress_bar=True)
+        >>> settings.save('outputs/scipy_minimize-settings.json', indent=2)
+        """
         json_settings = {
             "name": self.name,
             "seed": self.seed,
@@ -177,6 +256,6 @@ class AlgorithmSettings:
         }
 
         with open(os.path.join(path), "w") as json_file:
-            json.dump(json_settings, json_file)
+            json.dump(json_settings, json_file, **kwargs)
 
 

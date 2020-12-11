@@ -162,14 +162,36 @@ class UnivariateModel(AbstractModel):
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
         # Population parameters
         g = self._get_attributes(attribute_type)
-        # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
         LL = -reparametrized_time.unsqueeze(-1)
         model = (1./(1.+g))-LL
 
         return model
+
+    def compute_jacobian_tensorized(self, timepoints, ind_parameters, MCMC=False):
+        # cf. AbstractModel.compute_jacobian_tensorized for doc
+
+        # Population parameters
+        g = self._get_attributes(MCMC)
+
+        # Individual parameters
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        # Log likelihood computation
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features==1)
+
+        model = 1. / (1. + g * torch.exp(-reparametrized_time))
+
+        c = model * (1. - model)
+        alpha = torch.exp(xi).reshape(-1, 1, 1)
+
+        derivatives = {
+            'xi': (c * reparametrized_time).unsqueeze(-1),
+            'tau': (c * -alpha).unsqueeze(-1),
+        }
+
+        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
+        return derivatives
 
     def compute_sufficient_statistics(self, data, realizations):
         sufficient_statistics = {}

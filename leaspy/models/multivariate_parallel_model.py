@@ -11,8 +11,8 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     """
     Logistic model for multiple variables of interest, imposing same average evolution pace for all variables.
     """
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None
 

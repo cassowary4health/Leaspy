@@ -15,7 +15,7 @@ from leaspy.io.data.individual_data import IndividualData
 
 class Data:
     """
-    Main data container, initialized from a `csv` file or a ``pandas.DataFrame``.
+    Main data container, initialized from a `csv file` or a ``pandas.DataFrame``.
     """
     def __init__(self):
 
@@ -175,12 +175,25 @@ class Data:
     @staticmethod
     def from_individuals(indices, timepoints, values, headers):
         """
-        :param indices: list of indices
-        :param timepoints: list of timepoints (nd array)
-        :param values: list of values (nd array
-        :return:
-        """
+        Create a _Data_ class object from lists of `ID`, `timepoints` and the corresponding `values`.
+        and timepoint.
 
+        Parameters
+        ----------
+        indices: list of str
+            Contains the individuals' ID.
+        timepoints: list of float
+            Array like, of shape = (n_individuals, n_timepoints_i).
+        values: list of float
+            Array like, of shape = (n_individuals, n_timepoints_i, n_features).
+        headers: list of str
+            Contains the features' names.
+
+        Returns
+        -------
+        data: Data
+            Data class object with all ID, timepoints, values and feautures' names.
+        """
         data = Data()
         data.dimension = len(values[0][0])
         data.headers = headers

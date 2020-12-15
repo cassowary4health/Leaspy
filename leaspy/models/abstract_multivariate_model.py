@@ -10,7 +10,7 @@ from .abstract_model import AbstractModel
 
 
 class AbstractMultivariateModel(AbstractModel):
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         super().__init__(name)
         self.source_dimension = None
         self.dimension = None
@@ -33,6 +33,9 @@ class AbstractMultivariateModel(AbstractModel):
                 'betas_std': None
             }
         }
+
+        # load hyperparameters
+        self.load_hyperparameters(kwargs)
 
     def smart_initialization_realizations(self, data, realizations):
         # TODO : Qui a fait ça? A quoi ça sert?
@@ -66,6 +69,10 @@ class AbstractMultivariateModel(AbstractModel):
             self.features = hyperparameters['features']
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
+
+        if any([key not in ('features', 'loss', 'dimension', 'source_dimension') for key in hyperparameters.keys()]):
+            raise ValueError("Only <features>, <loss>, <diension> and <source_dimension> are valid hyperparameters "
+                             f"for an AbstractMultivariateModel! You gave {hyperparameters}.")
 
     def save(self, path, **kwargs):
         """

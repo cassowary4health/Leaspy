@@ -12,7 +12,7 @@ class UnivariateModel(AbstractModel):
     """
     Logistic model for a single variable of interest.
     """
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         super().__init__(name)
         self.dimension = 1
         self.source_dimension = 0  # TODO, None ???
@@ -32,6 +32,9 @@ class UnivariateModel(AbstractModel):
                 'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
             }
         }
+
+        # load hyperparameters
+        self.load_hyperparameters(kwargs)
 
     def save(self, path, **kwargs):
         """
@@ -63,6 +66,9 @@ class UnivariateModel(AbstractModel):
             self.features = hyperparameters['features']
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
+        if any([key not in ('features', 'loss') for key in hyperparameters.keys()]):
+            raise ValueError("Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
+                             f"You gave {hyperparameters}.")
 
     def initialize(self, dataset):
 

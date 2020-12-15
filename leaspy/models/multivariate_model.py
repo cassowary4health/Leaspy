@@ -8,8 +8,8 @@ class MultivariateModel(AbstractMultivariateModel):
     """
     Logistic model for multiple variables of interest.
     """
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 

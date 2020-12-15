@@ -14,10 +14,11 @@ class Leaspy:
     ----------
     model_name: str
         Model's name.
-    source_dimension: int, optional
-        Set the spatial variability degree of freedom.
-        This number MUST BE lower or equal to the number of features.
-        By default, this number is equal to square root of the number of features.
+    **kwargs:
+        source_dimension: int, optional
+            Set the spatial variability degree of freedom.
+            This number MUST BE lower or equal to the number of features.
+            By default, this number is equal to square root of the number of features.
 
     Attributes
     ----------
@@ -55,14 +56,12 @@ class Leaspy:
         Check if model is initialized.
     """
 
-    def __init__(self, model_name, source_dimension=None):
+    def __init__(self, model_name, **kwargs):
         """
         Instantiate a Leaspy class object.
         """
-        self.model = ModelFactory.model(model_name)
+        self.model = ModelFactory.model(model_name, **kwargs)
         self.type = model_name
-        if source_dimension:
-            self.model.load_hyperparameters({'source_dimension': source_dimension})
         self.plotting = Plotting(self.model)
 
     def fit(self, data, algorithm_settings):

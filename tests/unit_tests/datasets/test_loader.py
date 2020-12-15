@@ -9,6 +9,7 @@ class DataTest(unittest.TestCase):
         """
         Check ID and dtype of ID, TIME and values.
         """
+        self.assertEqual(list(paths.keys()), ['alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen'])
         for name in paths.keys():
             df = load_dataset(name)
             self.assertEqual(df.index.names, ['ID', 'TIME'])

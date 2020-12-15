@@ -2,7 +2,7 @@ import os
 
 import pandas as pd
 
-dataset_all = ['parkinson-multivariate', 'parkinson-putamen']
+dataset_all = ['alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen']
 module_path = os.path.dirname(__file__)
 paths = {dataset_name: os.path.join(module_path, 'data/' + dataset_name + '.csv') for dataset_name in dataset_all}
 

@@ -11,8 +11,7 @@ from leaspy.io.outputs.result import Result
 
 class SimulationAlgorithm(AbstractAlgo):
     r"""
-    SimulationAlgorithm object class.
-    This algorithm simulate new data given existing one by learning the individual parameters joined distribution.
+    To simulate new data given existing one by learning the individual parameters joined distribution.
 
     You can choose to only learn the distribution of a group of patient. To do so, choose the cofactor and the cofactor
     state of the wanted patient in the settings. Exemple - For Alzheimer patient, you can load a genetic cofactor

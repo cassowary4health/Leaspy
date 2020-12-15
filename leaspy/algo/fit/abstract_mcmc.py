@@ -1,11 +1,14 @@
 import torch
 
 from .abstract_fit_algo import AbstractFitAlgo
-from ..samplers.hmc_sampler import HMCSampler
 from ..samplers.gibbs_sampler import GibbsSampler
+from ..samplers.hmc_sampler import HMCSampler
 
 
 class AbstractFitMCMC(AbstractFitAlgo):
+    """
+    Abstract class containing common method for all `fit` algorithm classes based on `Monte-Carlo Markov Chains` (MCMC).
+    """
 
     def __init__(self, settings):
 

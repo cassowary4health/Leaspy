@@ -3,6 +3,10 @@ import torch
 
 
 class Dataset:
+    """
+    Data container based on `pytorch Tensors`, used to run algorithms.
+    """
+
     def __init__(self, data, model=None, algo=None):
         # TODO : Change in Pytorch
         self.timepoints = None

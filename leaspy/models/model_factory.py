@@ -3,7 +3,7 @@ from . import UnivariateModel, MultivariateModel, MultivariateParallelModel
 
 class ModelFactory:
     """
-    This class perfomrs the transition from the model's name to model object
+    Return the wanted model given its name.
 
     Methods
     -------

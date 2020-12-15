@@ -5,6 +5,9 @@ from ..abstract_algo import AbstractAlgo
 
 
 class AbstractFitAlgo(AbstractAlgo):
+    """
+    Abstract class containing common method for all `fit` algorithm classes.
+    """
 
     def __init__(self):
         super().__init__()

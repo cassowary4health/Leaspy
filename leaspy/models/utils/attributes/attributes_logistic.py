@@ -4,7 +4,7 @@ from .attributes_abstract import AttributesAbstract
 # TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
 class AttributesLogistic(AttributesAbstract):
     """
-    AttributesLogistic class contains the common attributes & methods to update the LogisticModel's attributes.
+    Contains the common attributes & methods to update the logistic model's attributes.
 
     Attributes
     ----------

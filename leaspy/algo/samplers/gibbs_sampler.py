@@ -6,6 +6,9 @@ from .abstract_sampler import AbstractSampler
 
 
 class GibbsSampler(AbstractSampler):
+    """
+    Gibbs sampler class.
+    """
 
     def __init__(self, info, n_patients):
         super().__init__(info, n_patients)

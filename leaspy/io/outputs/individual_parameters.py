@@ -11,9 +11,11 @@ import torch
 
 class IndividualParameters:
     r"""
+    Data container for individual parameters, contains IDs, timepoints and observations values.
     Ouput of the ``Leaspy.personalize`` method, contains the *random effects*.
     IndividualParameters object class.
-    There are used as io of the simulation algorithm, to provide an initial distribution of individual parameters.
+    There are used as ouput of the `personalization algorithms` and as input/ouput of the `simulation algorithm`,
+    to provide an initial distribution of individual parameters.
 
     Attributes
     ----------

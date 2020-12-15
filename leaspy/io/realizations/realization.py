@@ -2,6 +2,9 @@ import torch
 
 
 class Realization:
+    """
+    Contains the realization of a given parameter.
+    """
     def __init__(self, name, shape, variable_type):
         self.name = name
         self.shape = shape

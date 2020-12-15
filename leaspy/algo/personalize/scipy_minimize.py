@@ -1,14 +1,18 @@
-from pprint import pformat, pprint
+from pprint import pformat
 
 import torch
 from joblib import Parallel, delayed
 from scipy.optimize import minimize
 
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
-from ...io.outputs.individual_parameters import IndividualParameters
 
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
+    """
+    Gradient descent based algorithm to compute individual parameters, `i.e.` personalize a model to a
+    given set of subjects.
+    """
 
     def __init__(self, settings):
         super().__init__(settings)

@@ -4,6 +4,9 @@ import warnings
 
 
 class OutputsSettings:
+    """
+    Used to create the `logs` folder to monitor the convergence of the calibration algorithm.
+    """
     # TODO mettre les variables par défaut à None
     # TODO: Réfléchir aux cas d'usages : est-ce qu'on veut tout ou rien,
     # TODO: ou bien la possibilité d'avoir l'affichage console et/ou logs dans un fold

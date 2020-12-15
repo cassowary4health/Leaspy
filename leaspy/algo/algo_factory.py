@@ -2,14 +2,17 @@
 # from leaspy.algo.fit.gradient_mcmcsaem import GradientMCMCSAEM
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 from leaspy.algo.personalize.gradient_descent_personalize import GradientDescentPersonalize
-from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.algo.personalize.mean_realisations import MeanReal
 from leaspy.algo.personalize.mode_realisations import ModeReal
+from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 # from leaspy.algo.fit.hmc_saem import HMC_SAEM
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 
 
 class AlgoFactory:
+    """
+    Return the wanted algorithm given its name.
+    """
 
     @staticmethod
     def algo(algorithm_class, settings):

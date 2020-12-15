@@ -8,8 +8,8 @@ from leaspy.io.logs.fit_output_manager import FitOutputManager
 
 class AbstractAlgo:
     """
-    AbstractAlgo class object
-    Abstract class containing common method for all algorithm classes. These classes are child classes of AbstractAlgo.
+    Abstract class containing common methods for all algorithm classes.
+    These classes are child classes of `AbstractAlgo`.
 
     Attributes
     ----------

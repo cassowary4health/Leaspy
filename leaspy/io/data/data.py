@@ -15,7 +15,7 @@ from leaspy.io.data.individual_data import IndividualData
 
 class Data:
     """
-    Main data container, initialized from a `csv file` or a ``pandas.DataFrame``.
+    Main data container, initialized from a `csv file` or a :ref:`pandas.DataFrame`.
     """
     def __init__(self):
 

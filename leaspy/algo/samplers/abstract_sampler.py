@@ -3,7 +3,7 @@ import torch
 
 class AbstractSampler:
     """
-    Abstract sampler class -
+    Abstract sampler class.
 
     Attributes
     ----------

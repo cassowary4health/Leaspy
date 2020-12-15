@@ -2,6 +2,9 @@ from leaspy.io.realizations.realization import Realization
 
 
 class CollectionRealization:
+    """
+    Realizations of population and individual parameters.
+    """
     def __init__(self):
         self.realizations = {}
 

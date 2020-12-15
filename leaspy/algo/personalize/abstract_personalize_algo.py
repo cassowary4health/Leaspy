@@ -11,6 +11,11 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
     Estimation of individual parameters of a given `Data` file with
     a frozen model (already estimated, or loaded from known parameters).
 
+    Parameters
+    ----------
+    settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        Settings of the algorithm.
+
     Attributes
     ----------
     algo_parameters: str
@@ -29,11 +34,6 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
     def __init__(self, settings):
         """
         Initialize class object from settings object
-
-        Parameters
-        ----------
-        settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
-            Settings of the algorithm
         """
         super().__init__()
         self.algo_parameters = settings.parameters

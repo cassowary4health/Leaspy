@@ -11,7 +11,7 @@ TWO_PI = 2 * math.pi
 # TODO: Check & complete docstrings
 class AbstractModel:
     """
-    AbstractModel class contains the common attributes & methods of the different models.
+    Contains the common attributes & methods of the different models.
 
     Attributes
     ----------

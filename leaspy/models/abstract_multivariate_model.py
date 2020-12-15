@@ -10,6 +10,9 @@ from .abstract_model import AbstractModel
 
 
 class AbstractMultivariateModel(AbstractModel):
+    """
+    Contains the common attributes & methods of the multivariate models.
+    """
     def __init__(self, name, **kwargs):
         super().__init__(name)
         self.source_dimension = None

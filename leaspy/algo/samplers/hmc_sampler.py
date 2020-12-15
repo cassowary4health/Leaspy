@@ -5,7 +5,7 @@ from .abstract_sampler import AbstractSampler
 
 class HMCSampler(AbstractSampler):
     """
-    Hamiltonian Monte Carlo sampler class - ...
+    Hamiltonian Monte Carlo sampler class.
 
     Attributes
     ----------

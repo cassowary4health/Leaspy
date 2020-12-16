@@ -53,14 +53,15 @@ class ModelFactoryTest(unittest.TestCase):
     def test_load_hyperparameters(self):
         """Test if kwargs are ok"""
         # --- Univariate
-        model = ModelFactory.model('univariate', features='test', loss='test')
-        self.assertEqual(model.features, 'test')
-        self.assertEqual(model.loss, 'test')
-        with self.assertRaises(ValueError) as err:
-            ModelFactory.model('univariate', source_dimension=2, dimension=2)
-            hyperparameters = {'source_dimension': 2, 'dimension': 2}
-            self.assertEqual(str(err), "Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
-                                       f"You gave {hyperparameters}.")
+        for name in ('univariate_linear', 'univariate_logistic'):
+            model = ModelFactory.model(name, features='test', loss='test')
+            self.assertEqual(model.features, 'test')
+            self.assertEqual(model.loss, 'test')
+            with self.assertRaises(ValueError) as err:
+                ModelFactory.model('univariate', source_dimension=2, dimension=2)
+                hyperparameters = {'source_dimension': 2, 'dimension': 2}
+                self.assertEqual(str(err), "Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
+                                           f"You gave {hyperparameters}.")
 
         # -- Multivariate
         for name in ('linear', 'logistic', 'logistic_parallel'):
@@ -72,5 +73,5 @@ class ModelFactoryTest(unittest.TestCase):
             with self.assertRaises(ValueError) as err:
                 ModelFactory.model('univariate', blabla=2)
                 hyperparameters = {'blabla': 2}
-                self.assertEqual(str(err), "Only <features>, <loss>, <diension> and <source_dimension> are valid "
+                self.assertEqual(str(err), "Only <features>, <loss>, <dimension> and <source_dimension> are valid "
                                            f"hyperparameters for an AbstractMultivariateModel! You gave {hyperparameters}.")

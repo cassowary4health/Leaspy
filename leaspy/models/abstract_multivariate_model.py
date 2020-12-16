@@ -74,7 +74,7 @@ class AbstractMultivariateModel(AbstractModel):
             self.loss = hyperparameters['loss']
 
         if any([key not in ('features', 'loss', 'dimension', 'source_dimension') for key in hyperparameters.keys()]):
-            raise ValueError("Only <features>, <loss>, <diension> and <source_dimension> are valid hyperparameters "
+            raise ValueError("Only <features>, <loss>, <dimension> and <source_dimension> are valid hyperparameters "
                              f"for an AbstractMultivariateModel! You gave {hyperparameters}.")
 
     def save(self, path, **kwargs):

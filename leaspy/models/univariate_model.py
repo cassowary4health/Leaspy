@@ -168,6 +168,9 @@ class UnivariateModel(AbstractModel):
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
         # Population parameters
         g = self._get_attributes(attribute_type)
+        # Individual parameters
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
         LL = -reparametrized_time.unsqueeze(-1)
         model = (1./(1.+g))-LL
 

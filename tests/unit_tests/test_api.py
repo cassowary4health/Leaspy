@@ -28,7 +28,7 @@ class LeaspyTest(unittest.TestCase):
         Test attribute's initialization of leaspy univariate model
         :return: exit code
         """
-        for name in ['univariate', 'linear', 'logistic', 'logistic_parallel', 'mixed_linear-logistic']:
+        for name in ['univariate_logistic', 'univariate_linear', 'linear', 'logistic', 'logistic_parallel', 'mixed_linear-logistic']:
             leaspy = Leaspy(name)
             self.assertEqual(leaspy.type, name)
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
@@ -146,16 +146,48 @@ class LeaspyTest(unittest.TestCase):
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
-    def test_load_univariate(self):
+    def test_load_univariate_logistic(self):
         """
         Test the initialization of a linear model from a json file
         """
-        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate.json')
+        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_logistic.json')
         leaspy = Leaspy.load(model_path)
 
         # Test the name
-        self.assertEqual(leaspy.type, 'univariate')
-        self.assertEqual(type(leaspy.model), type(ModelFactory.model('univariate')))
+        self.assertEqual(leaspy.type, 'univariate_logistic')
+        self.assertEqual(type(leaspy.model), type(ModelFactory.model('univariate_logistic')))
+
+        # Test the hyperparameters
+        self.assertEqual(leaspy.model.features, ['feature'])
+        self.assertEqual(leaspy.model.loss, 'MSE')
+
+        # Test the parameters
+        parameters = {
+            "g": 1.0,
+            "tau_mean": 70.0,
+            "tau_std": 2.5,
+            "xi_mean": -1.0,
+            "xi_std": 0.01,
+            "noise_std": 0.2
+        }
+
+        for k, v in parameters.items():
+            equality = torch.all(torch.eq(leaspy.model.parameters[k], tensor(v)))
+            self.assertEqual(equality, True)
+
+        # Test the initialization
+        self.assertEqual(leaspy.model.is_initialized, True)
+
+    def test_load_univariate_linear(self):
+        """
+        Test the initialization of a linear model from a json file
+        """
+        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_linear.json')
+        leaspy = Leaspy.load(model_path)
+
+        # Test the name
+        self.assertEqual(leaspy.type, 'univariate_linear')
+        self.assertEqual(type(leaspy.model), type(ModelFactory.model('univariate_linear')))
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.features, ['feature'])
@@ -267,7 +299,7 @@ class LeaspyTest(unittest.TestCase):
         Test saving the univariate model
         """
         data_path = os.path.join(test_data_dir, 'model_parameters', 'example')
-        model_path = os.path.join(data_path, 'univariate.json')
+        model_path = os.path.join(data_path, 'univariate_logistic.json')
         leaspy = Leaspy.load(model_path)
 
         # Save the file

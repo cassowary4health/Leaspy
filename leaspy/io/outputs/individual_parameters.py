@@ -451,7 +451,7 @@ class IndividualParameters:
         Raises
         ------
         ValueError:
-            If the provided extension is not csv not json
+            If the provided extension is not `csv` or not `json`.
 
         Examples
         --------

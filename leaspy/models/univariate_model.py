@@ -52,7 +52,7 @@ class UnivariateModel(AbstractModel):
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
         model_settings = {
-            'name': 'univariate',
+            'name': self.name,
             'features': self.features,
             #'dimension': 1,
             'loss': self.loss,

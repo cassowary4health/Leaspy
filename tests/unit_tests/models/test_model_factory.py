@@ -18,10 +18,12 @@ class ModelFactoryTest(unittest.TestCase):
             Name of the model
         """
         if model is None:
-            for name in ['univariate', 'linear', 'logistic', 'logistic_parallel']:
+            for name in ['univariate_logistic', 'univariate_linear','linear', 'logistic', 'logistic_parallel']:
                 self.test_model_factory_constructor(ModelFactory().model(name))
         else:
-            if model.name == 'univariate':
+            if model.name == 'univariate_logistic':
+                self.assertEqual(type(model), UnivariateModel)
+            elif model.name == 'univariate_linear':
                 self.assertEqual(type(model), UnivariateModel)
             elif model.name == 'logistic' or model.name == 'linear':
                 self.assertEqual(type(model), MultivariateModel)
@@ -30,7 +32,7 @@ class ModelFactoryTest(unittest.TestCase):
 
     def test_lower_case(self):
         """Test lower case"""
-        name_examples = ['univariate', 'uNIVariaTE', 'UNIVARIATE']
+        name_examples = ['univariate_logistic', 'uNIVariaTE_LogIsTIc', 'UNIVARIATE_LOGISTIC']
         for name in name_examples:
             model = ModelFactory.model(name)
             # Test model type

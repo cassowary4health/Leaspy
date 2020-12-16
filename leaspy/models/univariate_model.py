@@ -129,15 +129,35 @@ class UnivariateModel(AbstractModel):
         plt.close()
         pdf.close()
 
-    def compute_individual_tensorized(self, timepoints, ind_parameters, MCMC=False):
+    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+        if self.name == 'univariate_logistic':
+            return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
+        elif self.name == 'univariate_linear':
+            return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
+        else:
+            raise ValueError("Mutivariate model > Compute individual tensorized")
+
+    def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=False):
         # Population parameters
-        g = self._get_attributes(MCMC)
+        g = self._get_attributes(attribute_type)
         # Individual parameters
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         LL = -reparametrized_time.unsqueeze(-1)
         model = 1. / (1. + g * torch.exp(LL))
+
+        return model
+
+    def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
+        # Population parameters
+        g = self._get_attributes(attribute_type)
+        # Individual parameters
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        LL = -reparametrized_time.unsqueeze(-1)
+        model = (1./(1.+g))-LL
 
         return model
 
@@ -151,7 +171,7 @@ class UnivariateModel(AbstractModel):
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         ind_parameters = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, ind_parameters, MCMC=True)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, ind_parameters, attribute_type=True)
 
         data_reconstruction *= data.mask.float() # speed-up computations
         #norm_0 = data.values * data.values * data.mask.float()

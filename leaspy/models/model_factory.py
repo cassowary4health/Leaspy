@@ -30,7 +30,7 @@ class ModelFactory:
         else:
             raise AttributeError("The `name` argument must be a string!")
 
-        if name == 'univariate':
+        if name == 'univariate_logistic' or name == "univariate_linear":
             return UnivariateModel(name)
         elif name == 'logistic' or name == 'linear' or name == 'mixed_linear-logistic':
             return MultivariateModel(name)
@@ -38,4 +38,4 @@ class ModelFactory:
             return MultivariateParallelModel(name)
         else:
             raise ValueError("The name of the model you are trying to create does not exist! " +
-                             "It should be `univariate`, `logistic` or `logistic_parallel`")
+                             "It should be `univariate_linear`, `univariate_logsitic, `linear`, `logistic` or `logistic_parallel`")

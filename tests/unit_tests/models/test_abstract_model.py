@@ -71,12 +71,12 @@ class AbstractModelTest(unittest.TestCase):
         """
         Check if the following models run with the following algorithms.
         """
-        for model_name in ('linear', 'univariate', 'logistic', 'logistic_parallel'):
+        for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
             logistic_leaspy = Leaspy(model_name)
             settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
 
             df = pd.read_csv(example_data_path)
-            if model_name == 'univariate':
+            if model_name == 'univariate_linear' or model_name == 'univariate_logistic':
                 df = df.iloc[:, :3]
             data = Data.from_dataframe(df)
 
@@ -93,12 +93,12 @@ class AbstractModelTest(unittest.TestCase):
         """
         Check if the following models run with the following algorithms.
         """
-        for model_name in ('linear', 'univariate', 'logistic', 'logistic_parallel'):
+        for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
             logistic_leaspy = Leaspy(model_name)
             settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0, loss="crossentropy")
 
             df = pd.read_csv(binary_data_path)
-            if model_name == 'univariate':
+            if model_name == 'univariate_linear' or model_name == 'univariate_logistic':
                 df = df.iloc[:, :3]
             data = Data.from_dataframe(df)
 
@@ -154,7 +154,7 @@ class AbstractModelTest(unittest.TestCase):
         ]
 
         for src_compat, m in [
-            (lambda src_dim: src_dim <= 0, ModelFactory.model('univariate')),
+            (lambda src_dim: src_dim <= 0, ModelFactory.model('univariate_logistic')),
             (lambda src_dim: src_dim >= 0, ModelFactory.model('logistic'))
         ]:
 

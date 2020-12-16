@@ -123,7 +123,7 @@ class LeaspyFitTest(unittest.TestCase):
         algo_settings = AlgorithmSettings('mcmc_saem', n_iter=10, seed=0)
 
         # Initialize
-        leaspy = Leaspy("univariate")
+        leaspy = Leaspy("univariate_logistic")
 
         # Fit the model on the data
         leaspy.fit(data, algorithm_settings=algo_settings)
@@ -133,7 +133,25 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 2.0974, delta=0.01)
         self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -2.8940, delta=0.001)
         self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.1063, delta=0.001)
-
         self.assertAlmostEqual(leaspy.model.parameters['g'], 0.9939, delta=0.001)
+
+    def test_fit_univariate_linear(self):
+        # Inputs
+        df = pd.read_csv(example_data_path)
+        data = Data.from_dataframe(df.iloc[:,:3]) # one feature column
+        algo_settings = AlgorithmSettings('mcmc_saem', n_iter=10, seed=0)
+
+        # Initialize
+        leaspy = Leaspy("univariate_linear")
+
+        # Fit the model on the data
+        leaspy.fit(data, algorithm_settings=algo_settings)
+
+        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2294, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 70.34, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 2.18, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.2076, delta=0.001)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.2759, delta=0.001)
+        self.assertAlmostEqual(leaspy.model.parameters['g'], 1.0143, delta=0.001)
 
     # TODO HMC, Gradient Descent

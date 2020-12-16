@@ -1,5 +1,5 @@
 {
-  "name": "univariate",
+  "name": "univariate_logistic",
   "features": ["feature"],
   "loss": "MSE",
   "parameters": {

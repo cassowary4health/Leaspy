@@ -15,10 +15,9 @@ class DataTest(unittest.TestCase):
             df = load_dataset(name)
             if 'train_and_test' in name:
                 self.assertEqual(df.index.names, ['ID', 'TIME', 'SPLIT'])
-                self.assertTrue(list(df.dtypes.values == 'float64'), [True, False])
             else:
                 self.assertEqual(df.index.names, ['ID', 'TIME'])
-                self.assertTrue(all(df.dtypes.values == 'float64'))
+            self.assertTrue(all(df.dtypes.values == 'float64'))
             self.assertEqual(df.index.get_level_values('ID').unique().tolist(),
                              ['GS-' + '0'*(3 - len(str(i))) + str(i) for i in range(1, 201)])
             self.assertTrue(df.index.get_level_values('TIME').dtype in ('float64', 'float32'))

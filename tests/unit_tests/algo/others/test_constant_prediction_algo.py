@@ -1,5 +1,6 @@
 import unittest
 import pandas as pd
+import numpy as np
 
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
@@ -13,8 +14,8 @@ class ConstantPredictionAlgorithmTest(unittest.TestCase):
     def setUp(self):
         arr = [
             ['1', 1., 2., 1.],
+            ['1', 3., 3., float('nan')], # non-sorted
             ['1', 2., 4., 3.],
-            ['1', 3., 3., float('nan')]
         ]
 
         df = pd.DataFrame(data=arr, columns=['ID', 'TIME', 'A', 'B']).set_index(['ID', 'TIME'])
@@ -34,12 +35,12 @@ class ConstantPredictionAlgorithmTest(unittest.TestCase):
 
     def test_get_individual_last_values(self):
         times = [31, 32, 34, 33]
-        values = [
+        values = np.array([
             [1., 0.5],
             [2., 0.5],
             [float('nan'), 2.],
             [3., float('nan')]
-        ]
+        ])
 
         results = [
             ('last', {'A': float('nan'), 'B': 2.}),
@@ -86,6 +87,6 @@ class ConstantPredictionAlgorithmTest(unittest.TestCase):
             if pred_type == 'last':
                 self.assertEqual(dict_ip.keys(), {'1': 0}.keys())
                 self.assertEqual(dict_ip['1']['A'], 3.)
-                self.assertTrue(dict_ip['1']['B'] != dict_ip['1']['B'])
+                self.assertTrue(np.isnan(dict_ip['1']['B']))
             else:
                 self.assertDictEqual(ip._individual_parameters, res)

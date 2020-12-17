@@ -4,7 +4,7 @@ from leaspy.models.model_factory import ModelFactory
 from leaspy.models.multivariate_model import MultivariateModel
 from leaspy.models.multivariate_parallel_model import MultivariateParallelModel
 from leaspy.models.univariate_model import UnivariateModel
-from leaspy.models.constant_prediction_model import ConstantModel
+from leaspy.models.constant_model import ConstantModel
 from leaspy.models.lme_model import LMEModel
 
 
@@ -31,7 +31,7 @@ class ModelFactoryTest(unittest.TestCase):
                 self.assertEqual(type(model), MultivariateModel)
             elif model.name == 'logistic_parallel':
                 self.assertEqual(type(model), MultivariateParallelModel)
-            elif model.name == 'constant_prediction':
+            elif model.name == 'constant':
                 self.assertEqual(type(model), ConstantModel)
             elif model.name == 'lme':
                 self.assertEqual(type(model), LMEModel)

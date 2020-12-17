@@ -1,0 +1,522 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>API Documentation &mdash; Leaspy</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="2. Leaspy’s tutorial" href="tutorial_easy.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> Leaspy
+          
+
+          
+            
+            <img src="_static/leaspy_logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation &amp; testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="nutshell.html">Leaspy in a nutshell</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">User guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#leaspy-api-main-api"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.api</span></code>: <strong>Main API</strong></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#leaspy-algo-algorithms"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo</span></code>: <strong>Algorithms</strong></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-algo-fit-fit-algorithms"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo.fit</span></code>: <strong>Fit algorithms</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-algo-fit-personalization-algorithms"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo.fit</span></code>: <strong>Personalization algorithms</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-algo-fit-samplers"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo.fit</span></code>: <strong>Samplers</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-algo-fit-simulation-algorithms"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo.fit</span></code>: <strong>Simulation algorithms</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#leaspy-dataset-datasets"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.dataset</span></code>: <strong>Datasets</strong></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#leaspy-io-inputs-outputs"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io</span></code>: <strong>Inputs / Outputs</strong></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-io-data-data-containers"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io.data</span></code>: <strong>Data containers</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-io-outputs-outputs-class-objects"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io.outputs</span></code>: <strong>Outputs class objects</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-io-outputs-realizations-class-objects"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io.outputs</span></code>: <strong>Realizations class objects</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-io-settings-settings-class-objects"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io.settings</span></code>: <strong>Settings class objects</strong></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#leaspy-models-models"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.models</span></code>: <strong>Models</strong></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-models-utils-attributes-models-attributes"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.models.utils.attributes</span></code>: <strong>Models’ attributes</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#leaspy-models-utils-model-initialization-initialization-methods"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.models.utils.model_initialization</span></code>: <strong>Initialization methods</strong></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Leaspy</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>API Documentation</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            
+              <a href="https://gitlab.com/getleaspy/leaspy/blob/master/doc/api.rst" class="fa fa-gitlab"> Edit on GitLab</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="api-documentation">
+<span id="api"></span><h1>API Documentation<a class="headerlink" href="#api-documentation" title="Permalink to this headline">¶</a></h1>
+<p>Full API documentation of the <em>Leaspy</em> Python package.</p>
+<div class="section" id="leaspy-api-main-api">
+<h2><a class="reference internal" href="leaspy.api.html#module-leaspy.api" title="leaspy.api"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.api</span></code></a>: <strong>Main API</strong><a class="headerlink" href="#leaspy-api-main-api" title="Permalink to this headline">¶</a></h2>
+<p>The main class, from which you can instantiate and calibrate a model, personalize it to
+a given set a subjects, estimate trajectories and simulate synthetic data.</p>
+<span class="target" id="module-leaspy.api"></span><table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.api.html#leaspy.api.Leaspy" title="leaspy.api.Leaspy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Leaspy</span></code></a>(model_name, **kwargs)</p></td>
+<td><p>Main API used to fit models, run algorithms and simulations.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-algo-algorithms">
+<h2><a class="reference internal" href="leaspy.algo.html#module-leaspy.algo" title="leaspy.algo"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo</span></code></a>: <strong>Algorithms</strong><a class="headerlink" href="#leaspy-algo-algorithms" title="Permalink to this headline">¶</a></h2>
+<p>Contains all algorithms used in the package.</p>
+<span class="target" id="module-leaspy.algo"></span><table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.algo.abstract_algo.html#leaspy.algo.abstract_algo.AbstractAlgo" title="leaspy.algo.abstract_algo.AbstractAlgo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abstract_algo.AbstractAlgo</span></code></a>()</p></td>
+<td><p>Abstract class containing common methods for all algorithm classes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.algo.algo_factory.html#leaspy.algo.algo_factory.AlgoFactory" title="leaspy.algo.algo_factory.AlgoFactory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">algo_factory.AlgoFactory</span></code></a>()</p></td>
+<td><p>Return the wanted algorithm given its name.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="leaspy-algo-fit-fit-algorithms">
+<h3><a class="reference internal" href="leaspy.algo.fit.html#module-leaspy.algo.fit" title="leaspy.algo.fit"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo.fit</span></code></a>: <strong>Fit algorithms</strong><a class="headerlink" href="#leaspy-algo-fit-fit-algorithms" title="Permalink to this headline">¶</a></h3>
+<p>Algorithms used to calibrate a model.</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.algo.fit.abstract_fit_algo.html#leaspy.algo.fit.abstract_fit_algo.AbstractFitAlgo" title="leaspy.algo.fit.abstract_fit_algo.AbstractFitAlgo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abstract_fit_algo.AbstractFitAlgo</span></code></a>()</p></td>
+<td><p>Abstract class containing common method for all <cite>fit</cite> algorithm classes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.algo.fit.abstract_mcmc.html#leaspy.algo.fit.abstract_mcmc.AbstractFitMCMC" title="leaspy.algo.fit.abstract_mcmc.AbstractFitMCMC"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abstract_mcmc.AbstractFitMCMC</span></code></a>(settings)</p></td>
+<td><p>Abstract class containing common method for all <cite>fit</cite> algorithm classes based on <cite>Monte-Carlo Markov Chains</cite> (MCMC).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.algo.fit.tensor_mcmcsaem.html#leaspy.algo.fit.tensor_mcmcsaem.TensorMCMCSAEM" title="leaspy.algo.fit.tensor_mcmcsaem.TensorMCMCSAEM"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tensor_mcmcsaem.TensorMCMCSAEM</span></code></a>(settings)</p></td>
+<td><p>Main algorithm for MCMC-SAEM.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-algo-fit-personalization-algorithms">
+<h3><a class="reference internal" href="leaspy.algo.fit.html#module-leaspy.algo.fit" title="leaspy.algo.fit"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo.fit</span></code></a>: <strong>Personalization algorithms</strong><a class="headerlink" href="#leaspy-algo-fit-personalization-algorithms" title="Permalink to this headline">¶</a></h3>
+<p>Algorithms used to personalize a model to a given set of subjects.</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.algo.personalize.abstract_personalize_algo.html#leaspy.algo.personalize.abstract_personalize_algo.AbstractPersonalizeAlgo" title="leaspy.algo.personalize.abstract_personalize_algo.AbstractPersonalizeAlgo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abstract_personalize_algo.AbstractPersonalizeAlgo</span></code></a>(…)</p></td>
+<td><p>Abstract class for <cite>personalize</cite> algorithm.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.algo.personalize.scipy_minimize.html#leaspy.algo.personalize.scipy_minimize.ScipyMinimize" title="leaspy.algo.personalize.scipy_minimize.ScipyMinimize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scipy_minimize.ScipyMinimize</span></code></a>(settings)</p></td>
+<td><p>Gradient descent based algorithm to compute individual parameters, <cite>i.e.</cite> personalize a model to a given set of subjects.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-algo-fit-samplers">
+<h3><a class="reference internal" href="leaspy.algo.fit.html#module-leaspy.algo.fit" title="leaspy.algo.fit"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo.fit</span></code></a>: <strong>Samplers</strong><a class="headerlink" href="#leaspy-algo-fit-samplers" title="Permalink to this headline">¶</a></h3>
+<p>Samplers used by the algorithms.</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.algo.samplers.abstract_sampler.html#leaspy.algo.samplers.abstract_sampler.AbstractSampler" title="leaspy.algo.samplers.abstract_sampler.AbstractSampler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abstract_sampler.AbstractSampler</span></code></a>(info, …)</p></td>
+<td><p>Abstract sampler class.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.algo.samplers.gibbs_sampler.html#leaspy.algo.samplers.gibbs_sampler.GibbsSampler" title="leaspy.algo.samplers.gibbs_sampler.GibbsSampler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gibbs_sampler.GibbsSampler</span></code></a>(info, n_patients)</p></td>
+<td><p>Gibbs sampler class.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.algo.samplers.hmc_sampler.html#leaspy.algo.samplers.hmc_sampler.HMCSampler" title="leaspy.algo.samplers.hmc_sampler.HMCSampler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hmc_sampler.HMCSampler</span></code></a>(info, n_patients, eps)</p></td>
+<td><p>Hamiltonian Monte Carlo sampler class.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-algo-fit-simulation-algorithms">
+<h3><a class="reference internal" href="leaspy.algo.fit.html#module-leaspy.algo.fit" title="leaspy.algo.fit"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.algo.fit</span></code></a>: <strong>Simulation algorithms</strong><a class="headerlink" href="#leaspy-algo-fit-simulation-algorithms" title="Permalink to this headline">¶</a></h3>
+<p>Algorithm to simulate synthetic observations and individual parameters.</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.algo.simulate.simulate.html#leaspy.algo.simulate.simulate.SimulationAlgorithm" title="leaspy.algo.simulate.simulate.SimulationAlgorithm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">simulate.SimulationAlgorithm</span></code></a>(settings)</p></td>
+<td><p>To simulate new data given existing one by learning the individual parameters joined distribution.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="leaspy-dataset-datasets">
+<h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.dataset</span></code>: <strong>Datasets</strong><a class="headerlink" href="#leaspy-dataset-datasets" title="Permalink to this headline">¶</a></h2>
+<p>Give access to some synthetic longitudinal observations mimicking cohort of subjects with neurodegenerative disorders,
+as well as calibrated models and computed individual parameters.</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.datasets.loader.html#leaspy.datasets.loader.Loader" title="leaspy.datasets.loader.Loader"><code class="xref py py-obj docutils literal notranslate"><span class="pre">loader.Loader</span></code></a>()</p></td>
+<td><p>Contains static methods to load synthetic longitudinal dataset, calibrated <cite>Leaspy</cite> instances &amp; <cite>IndividualParameters</cite>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-io-inputs-outputs">
+<h2><a class="reference internal" href="leaspy.io.html#module-leaspy.io" title="leaspy.io"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io</span></code></a>: <strong>Inputs / Outputs</strong><a class="headerlink" href="#leaspy-io-inputs-outputs" title="Permalink to this headline">¶</a></h2>
+<p>Containers class objects used as input / ouputs in the <cite>Leaspy</cite> package.</p>
+<div class="section" id="leaspy-io-data-data-containers">
+<h3><a class="reference internal" href="leaspy.io.data.html#module-leaspy.io.data" title="leaspy.io.data"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io.data</span></code></a>: <strong>Data containers</strong><a class="headerlink" href="#leaspy-io-data-data-containers" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.io.data.csv_data_reader.html#leaspy.io.data.csv_data_reader.CSVDataReader" title="leaspy.io.data.csv_data_reader.CSVDataReader"><code class="xref py py-obj docutils literal notranslate"><span class="pre">csv_data_reader.CSVDataReader</span></code></a>(path)</p></td>
+<td><p>Methods to convert <cite>csv files</cite> to data containers <cite>Leaspy</cite> compliants.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.io.data.data.html#leaspy.io.data.data.Data" title="leaspy.io.data.data.Data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">data.Data</span></code></a>()</p></td>
+<td><p>Main data container, initialized from a <cite>csv file</cite> or a <span class="xref std std-ref">pandas.DataFrame</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.io.data.dataframe_data_reader.html#leaspy.io.data.dataframe_data_reader.DataframeDataReader" title="leaspy.io.data.dataframe_data_reader.DataframeDataReader"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dataframe_data_reader.DataframeDataReader</span></code></a>(df)</p></td>
+<td><p>Methods to convert <span class="xref std std-ref">pandas.DataFrame</span> to data containers <cite>Leaspy</cite> compliants.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.io.data.dataset.html#leaspy.io.data.dataset.Dataset" title="leaspy.io.data.dataset.Dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dataset.Dataset</span></code></a>(data[, model, algo])</p></td>
+<td><p>Data container based on <cite>pytorch Tensors</cite>, used to run algorithms.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.io.data.individual_data.html#leaspy.io.data.individual_data.IndividualData" title="leaspy.io.data.individual_data.IndividualData"><code class="xref py py-obj docutils literal notranslate"><span class="pre">individual_data.IndividualData</span></code></a>(idx)</p></td>
+<td><p>Data container for individual parameters, used to contruct a <cite>Data</cite> container.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-io-outputs-outputs-class-objects">
+<h3><a class="reference internal" href="leaspy.io.outputs.html#module-leaspy.io.outputs" title="leaspy.io.outputs"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io.outputs</span></code></a>: <strong>Outputs class objects</strong><a class="headerlink" href="#leaspy-io-outputs-outputs-class-objects" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.io.outputs.individual_parameters.html#leaspy.io.outputs.individual_parameters.IndividualParameters" title="leaspy.io.outputs.individual_parameters.IndividualParameters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">individual_parameters.IndividualParameters</span></code></a>()</p></td>
+<td><p>Data container for individual parameters, contains IDs, timepoints and observations values.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-io-outputs-realizations-class-objects">
+<h3><a class="reference internal" href="leaspy.io.outputs.html#module-leaspy.io.outputs" title="leaspy.io.outputs"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io.outputs</span></code></a>: <strong>Realizations class objects</strong><a class="headerlink" href="#leaspy-io-outputs-realizations-class-objects" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.io.realizations.collection_realization.html#leaspy.io.realizations.collection_realization.CollectionRealization" title="leaspy.io.realizations.collection_realization.CollectionRealization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">collection_realization.CollectionRealization</span></code></a>()</p></td>
+<td><p>Realizations of population and individual parameters.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.io.realizations.realization.html#leaspy.io.realizations.realization.Realization" title="leaspy.io.realizations.realization.Realization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">realization.Realization</span></code></a>(name, shape, …)</p></td>
+<td><p>Contains the realization of a given parameter.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-io-settings-settings-class-objects">
+<h3><a class="reference internal" href="leaspy.io.settings.html#module-leaspy.io.settings" title="leaspy.io.settings"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.io.settings</span></code></a>: <strong>Settings class objects</strong><a class="headerlink" href="#leaspy-io-settings-settings-class-objects" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.io.settings.algorithm_settings.html#leaspy.io.settings.algorithm_settings.AlgorithmSettings" title="leaspy.io.settings.algorithm_settings.AlgorithmSettings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">algorithm_settings.AlgorithmSettings</span></code></a>(name, …)</p></td>
+<td><p>Used to set the algorithms’ settings.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.io.settings.model_settings.html#leaspy.io.settings.model_settings.ModelSettings" title="leaspy.io.settings.model_settings.ModelSettings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model_settings.ModelSettings</span></code></a>(…)</p></td>
+<td><p>Used in <span class="xref std std-ref">leaspy.api.Leaspy.load</span> to create a <cite>Leaspy</cite> class object from a <cite>json file</cite>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.io.settings.outputs_settings.html#leaspy.io.settings.outputs_settings.OutputsSettings" title="leaspy.io.settings.outputs_settings.OutputsSettings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">outputs_settings.OutputsSettings</span></code></a>(settings)</p></td>
+<td><p>Used to create the <cite>logs</cite> folder to monitor the convergence of the calibration algorithm.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="leaspy-models-models">
+<h2><a class="reference internal" href="leaspy.models.html#module-leaspy.models" title="leaspy.models"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.models</span></code></a>: <strong>Models</strong><a class="headerlink" href="#leaspy-models-models" title="Permalink to this headline">¶</a></h2>
+<p>Available models in <cite>Leaspy</cite>.</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.models.abstract_model.html#leaspy.models.abstract_model.AbstractModel" title="leaspy.models.abstract_model.AbstractModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abstract_model.AbstractModel</span></code></a>(name)</p></td>
+<td><p>Contains the common attributes &amp; methods of the different models.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.models.abstract_multivariate_model.html#leaspy.models.abstract_multivariate_model.AbstractMultivariateModel" title="leaspy.models.abstract_multivariate_model.AbstractMultivariateModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abstract_multivariate_model.AbstractMultivariateModel</span></code></a>(…)</p></td>
+<td><p>Contains the common attributes &amp; methods of the multivariate models.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.models.model_factory.html#leaspy.models.model_factory.ModelFactory" title="leaspy.models.model_factory.ModelFactory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model_factory.ModelFactory</span></code></a>()</p></td>
+<td><p>Return the wanted model given its name.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.models.multivariate_model.html#leaspy.models.multivariate_model.MultivariateModel" title="leaspy.models.multivariate_model.MultivariateModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">multivariate_model.MultivariateModel</span></code></a>(name, …)</p></td>
+<td><p>Logistic model for multiple variables of interest.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.models.multivariate_parallel_model.html#leaspy.models.multivariate_parallel_model.MultivariateParallelModel" title="leaspy.models.multivariate_parallel_model.MultivariateParallelModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">multivariate_parallel_model.MultivariateParallelModel</span></code></a>(…)</p></td>
+<td><p>Logistic model for multiple variables of interest, imposing same average evolution pace for all variables.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.models.univariate_model.html#leaspy.models.univariate_model.UnivariateModel" title="leaspy.models.univariate_model.UnivariateModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">univariate_model.UnivariateModel</span></code></a>(name, **kwargs)</p></td>
+<td><p>Logistic model for a single variable of interest.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="leaspy-models-utils-attributes-models-attributes">
+<h3><a class="reference internal" href="leaspy.models.utils.attributes.html#module-leaspy.models.utils.attributes" title="leaspy.models.utils.attributes"><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.models.utils.attributes</span></code></a>: <strong>Models’ attributes</strong><a class="headerlink" href="#leaspy-models-utils-attributes-models-attributes" title="Permalink to this headline">¶</a></h3>
+<p>Attributes used by the models.</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.models.utils.attributes.attributes_abstract.html#leaspy.models.utils.attributes.attributes_abstract.AttributesAbstract" title="leaspy.models.utils.attributes.attributes_abstract.AttributesAbstract"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attributes_abstract.AttributesAbstract</span></code></a>([…])</p></td>
+<td><p>Contains the common attributes &amp; methods of the different attributes classes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.models.utils.attributes.attributes_factory.html#leaspy.models.utils.attributes.attributes_factory.AttributesFactory" title="leaspy.models.utils.attributes.attributes_factory.AttributesFactory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attributes_factory.AttributesFactory</span></code></a>()</p></td>
+<td><p>Return an <cite>Attributes</cite> class object based on the given parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.models.utils.attributes.attributes_linear.html#leaspy.models.utils.attributes.attributes_linear.AttributesLinear" title="leaspy.models.utils.attributes.attributes_linear.AttributesLinear"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attributes_linear.AttributesLinear</span></code></a>(…)</p></td>
+<td><p>Contains the common attributes &amp; methods to update the linear model’s attributes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.models.utils.attributes.attributes_logistic.html#leaspy.models.utils.attributes.attributes_logistic.AttributesLogistic" title="leaspy.models.utils.attributes.attributes_logistic.AttributesLogistic"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attributes_logistic.AttributesLogistic</span></code></a>(…)</p></td>
+<td><p>Contains the common attributes &amp; methods to update the logistic model’s attributes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="leaspy.models.utils.attributes.attributes_logistic_parallel.html#leaspy.models.utils.attributes.attributes_logistic_parallel.AttributesLogisticParallel" title="leaspy.models.utils.attributes.attributes_logistic_parallel.AttributesLogisticParallel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attributes_logistic_parallel.AttributesLogisticParallel</span></code></a>(…)</p></td>
+<td><p>Contains the common attributes &amp; methods of the logistic parallel models’ attributes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="leaspy.models.utils.attributes.attributes_univariate.html#leaspy.models.utils.attributes.attributes_univariate.AttributesUnivariate" title="leaspy.models.utils.attributes.attributes_univariate.AttributesUnivariate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attributes_univariate.AttributesUnivariate</span></code></a>()</p></td>
+<td><p>Contains the common attributes &amp; methods to update the univariate model’s attributes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="leaspy-models-utils-model-initialization-initialization-methods">
+<h3><code class="xref py py-mod docutils literal notranslate"><span class="pre">leaspy.models.utils.model_initialization</span></code>: <strong>Initialization methods</strong><a class="headerlink" href="#leaspy-models-utils-model-initialization-initialization-methods" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="tutorial_easy.html" class="btn btn-neutral float-left" title="2. Leaspy’s tutorial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2017-2020, Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Benoit Sauty De Chalon, Stanley Durrleman
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

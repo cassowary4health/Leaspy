@@ -1,0 +1,545 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>leaspy.io.outputs.individual_parameters module &mdash; Leaspy</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> Leaspy
+          
+
+          
+            
+            <img src="_static/leaspy_logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation &amp; testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="nutshell.html">Leaspy in a nutshell</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">User guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Leaspy</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>leaspy.io.outputs.individual_parameters module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            
+              <a href="https://gitlab.com/getleaspy/leaspy/blob/master/doc/leaspy.io.outputs.individual_parameters.rst" class="fa fa-gitlab"> Edit on GitLab</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-leaspy.io.outputs.individual_parameters">
+<span id="leaspy-io-outputs-individual-parameters-module"></span><h1>leaspy.io.outputs.individual_parameters module<a class="headerlink" href="#module-leaspy.io.outputs.individual_parameters" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters">
+<em class="property">class </em><code class="sig-prename descclassname">leaspy.io.outputs.individual_parameters.</code><code class="sig-name descname">IndividualParameters</code><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Data container for individual parameters, contains IDs, timepoints and observations values.
+Ouput of the <code class="docutils literal notranslate"><span class="pre">Leaspy.personalize</span></code> method, contains the <em>random effects</em>.
+IndividualParameters object class.
+There are used as ouput of the <cite>personalization algorithms</cite> and as input/ouput of the <cite>simulation algorithm</cite>,
+to provide an initial distribution of individual parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Attributes</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>_indices: list</strong></dt><dd><p>List of the patient indices</p>
+</dd>
+<dt><strong>_individual_parameters: dict</strong></dt><dd><p>Individual indices (key) with their corresponding individual parameters {parameter name: parameter value}</p>
+</dd>
+<dt><strong>_parameters_shape: dict</strong></dt><dd><p>Shape of each individual parameter</p>
+</dd>
+<dt><strong>_default_saving_type: str</strong></dt><dd><p>Default extension for saving when none is provided</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38%" />
+<col style="width: 62%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>add_individual_parameters(index, individual_parameters)</strong></p></td>
+<td><p>Adds the individual parameters of a new patient</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>__getitem__[index]</strong></p></td>
+<td><p>Returns the individual parameters of patient idx</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>subset(indices)</strong></p></td>
+<td><p>Returns a IndividualParameters object containing only the patients in indices</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>get_mean(parameter_name)</strong></p></td>
+<td><p>Returns the mean value of the parameter_name across all patients</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>get_std(parameter_name)</strong></p></td>
+<td><p>Return the standard deviation value of the parameter_name across all patients</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>to_dataframe()</strong></p></td>
+<td><p>Returns the dataframe of individual parameters</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>from_dataframe(df)</strong></p></td>
+<td><p>Static method that returns an IndividualParameters object from the dataframe</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>to_pytorch()</strong></p></td>
+<td><p>Returns the indices, pytorch_dict corresponding to the individual parameters</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>from_pytorch(indices, pytorch_dict)</strong></p></td>
+<td><p>Static method that returns an IndividualParameters object from the indices and pytorch dictionary</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>save(path):</strong></p></td>
+<td><p>Saves the individual parameters (json or csv) at the path location</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>load(path):</strong></p></td>
+<td><p>Static method that loads the individual parameters (json or csv) existing at the path locatio</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.add_individual_parameters">
+<code class="sig-name descname">add_individual_parameters</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">index</span></em>, <em class="sig-param"><span class="n">individual_parameters</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.add_individual_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add the individual parameter of an individual to the IndividualParameters object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>index: str</strong></dt><dd><p>Index of the individual</p>
+</dd>
+<dt><strong>individual_parameters: dict</strong></dt><dd><p>Individual parameters of the individual {name: value}</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ValueError</dt><dd><p>If the index is not a string or has already been added</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Add two individual with tau, xi and sources parameters</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span><span class="o">.</span><span class="n">add_individual_parameters</span><span class="p">(</span><span class="s1">&#39;index-1&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;xi&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;tau&quot;</span><span class="p">:</span> <span class="mi">70</span><span class="p">,</span> <span class="s2">&quot;sources&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.3</span><span class="p">]})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span><span class="o">.</span><span class="n">add_individual_parameters</span><span class="p">(</span><span class="s1">&#39;index-2&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;xi&quot;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span> <span class="s2">&quot;tau&quot;</span><span class="p">:</span> <span class="mi">73</span><span class="p">,</span> <span class="s2">&quot;sources&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.4</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.1</span><span class="p">]})</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.from_dataframe">
+<em class="property">static </em><code class="sig-name descname">from_dataframe</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">df</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.from_dataframe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that returns an IndividualParameters object from the dataframe</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>df: pandas.DataFrame</strong></dt><dd><p>Dataframe of the invidual parameters. Each row must correspond to one individual. The index corresponds
+to the individual index. The columns are the names of the parameters.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>IndividualParameters</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.from_pytorch">
+<em class="property">static </em><code class="sig-name descname">from_pytorch</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">indices</span></em>, <em class="sig-param"><span class="n">dict_pytorch</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.from_pytorch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that returns an IndividualParameters object from the indices and pytorch dictionary</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>indices: list</strong></dt><dd><p>List of the patients indices</p>
+</dd>
+<dt><strong>dict_pytorch: dict</strong></dt><dd><p>Dictionary of the individual parameters</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>IndividualParameters</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;index-1&#39;</span><span class="p">,</span> <span class="s1">&#39;index-2&#39;</span><span class="p">,</span> <span class="s1">&#39;index-3&#39;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip_pytorch</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">&gt;&gt;&gt; </span>   <span class="s2">&quot;xi&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.1</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.2</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.3</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+<span class="gp">&gt;&gt;&gt; </span>   <span class="s2">&quot;tau&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mi">70</span><span class="p">],</span> <span class="p">[</span><span class="mi">73</span><span class="p">],</span> <span class="p">[</span><span class="mf">58.</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+<span class="gp">&gt;&gt;&gt; </span>   <span class="s2">&quot;sources&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.1</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.3</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip_pytorch</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="o">.</span><span class="n">from_pytorch</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">ip_pytorch</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.get_mean">
+<code class="sig-name descname">get_mean</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">parameter</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.get_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the mean value of the parameter_name across all patients</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>parameter: str</strong></dt><dd><p>Name of the parameter</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>list or float</dt><dd><p>Mean value of the parameter</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>ValueError</dt><dd><p>If the parameter is not in the IndividualParameters</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;path/to/individual_parameters&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tau_mean</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">get_mean</span><span class="p">(</span><span class="s2">&quot;tau&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.get_std">
+<code class="sig-name descname">get_std</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">parameter</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.get_std" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the stardard deviation of the parameter_name across all patients</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>parameter: str</strong></dt><dd><p>Name of the parameter</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>list or float</dt><dd><p>Standard value of the parameter</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>ValueError</dt><dd><p>If the parameter is not in the IndividualParameters</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;path/to/individual_parameters&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tau_std</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">get_std</span><span class="p">(</span><span class="s2">&quot;tau&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.load">
+<em class="property">static </em><code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that loads the individual parameters (json or csv) existing at the path locatio</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>path: str</strong></dt><dd><p>Path and file name of the individual parameters.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>IndividualParameters:</dt><dd><p>Individual parameters object load from the file</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>ValueError:</dt><dd><p>If the provided extension is not <cite>csv</cite> or not <cite>json</cite>.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;/path/to/individual_parameters_1.json&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip2</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;/path/to/individual_parameters_2.csv&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves the individual parameters (json or csv) at the path location</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>path: str</strong></dt><dd><p>Path and file name of the individual parameters. The extension can be json or csv.
+If no extension, default extension (csv) is used</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.subset">
+<code class="sig-name descname">subset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">indices</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.subset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns IndividualParameters object with a subset of the initial individuals</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>indices: list</strong></dt><dd><p>List of strings that corresponds to the indices of the individuals to return</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>IndividualParameters</dt><dd><p>An instance of the IndividualParameters object with the selected list of individuals</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>ValueError</dt><dd><p>Raise an error if one of the index is not in the IndividualParameters</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span><span class="o">.</span><span class="n">add_individual_parameters</span><span class="p">(</span><span class="s1">&#39;index-1&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;xi&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;tau&quot;</span><span class="p">:</span> <span class="mi">70</span><span class="p">,</span> <span class="s2">&quot;sources&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.3</span><span class="p">]})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span><span class="o">.</span><span class="n">add_individual_parameters</span><span class="p">(</span><span class="s1">&#39;index-2&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;xi&quot;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span> <span class="s2">&quot;tau&quot;</span><span class="p">:</span> <span class="mi">73</span><span class="p">,</span> <span class="s2">&quot;sources&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.4</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.1</span><span class="p">]})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span><span class="o">.</span><span class="n">add_individual_parameters</span><span class="p">(</span><span class="s1">&#39;index-3&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;xi&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span> <span class="s2">&quot;tau&quot;</span><span class="p">:</span> <span class="mi">58</span><span class="p">,</span> <span class="s2">&quot;sources&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">]})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip_sub</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">subset</span><span class="p">([</span><span class="s1">&#39;index-1&#39;</span><span class="p">,</span> <span class="s1">&#39;index-3&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.to_dataframe">
+<code class="sig-name descname">to_dataframe</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.to_dataframe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the dataframe of individual parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>dataframe: pandas.DataFrame</dt><dd><p>Each row corresponds to one individual. The index corresponds to the individual index. The columns are
+the names of the parameters.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Convert the individual parameters object into a dataframe</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;path/to/individual_parameters&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ip_df</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="leaspy.io.outputs.individual_parameters.IndividualParameters.to_pytorch">
+<code class="sig-name descname">to_pytorch</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.io.outputs.individual_parameters.IndividualParameters.to_pytorch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the indices and pytorch dictionary of individual parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>indices: list</dt><dd><p>List of patient indices</p>
+</dd>
+<dt>pytorch_dict: dict</dt><dd><p>Dictionary of the individual parameters {parameter name: pytorch tensor of values across individuals}</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Convert the individual parameters object into a dataframe</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ip</span> <span class="o">=</span> <span class="n">IndividualParameters</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;path/to/individual_parameters&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">indices</span><span class="p">,</span> <span class="n">ip_pytorch</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">to_pytorch</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2017-2020, Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Benoit Sauty De Chalon, Stanley Durrleman
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,333 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>leaspy.algo.simulate.simulate module &mdash; Leaspy</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> Leaspy
+          
+
+          
+            
+            <img src="_static/leaspy_logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation &amp; testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="nutshell.html">Leaspy in a nutshell</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">User guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Leaspy</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>leaspy.algo.simulate.simulate module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            
+              <a href="https://gitlab.com/getleaspy/leaspy/blob/master/doc/leaspy.algo.simulate.simulate.rst" class="fa fa-gitlab"> Edit on GitLab</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-leaspy.algo.simulate.simulate">
+<span id="leaspy-algo-simulate-simulate-module"></span><h1>leaspy.algo.simulate.simulate module<a class="headerlink" href="#module-leaspy.algo.simulate.simulate" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="leaspy.algo.simulate.simulate.SimulationAlgorithm">
+<em class="property">class </em><code class="sig-prename descclassname">leaspy.algo.simulate.simulate.</code><code class="sig-name descname">SimulationAlgorithm</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">settings</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.algo.simulate.simulate.SimulationAlgorithm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="leaspy.algo.abstract_algo.html#leaspy.algo.abstract_algo.AbstractAlgo" title="leaspy.algo.abstract_algo.AbstractAlgo"><code class="xref py py-class docutils literal notranslate"><span class="pre">leaspy.algo.abstract_algo.AbstractAlgo</span></code></a></p>
+<p>To simulate new data given existing one by learning the individual parameters joined distribution.</p>
+<p>You can choose to only learn the distribution of a group of patient. To do so, choose the cofactor and the cofactor
+state of the wanted patient in the settings. Exemple - For Alzheimer patient, you can load a genetic cofactor
+informative of the APOE4 carriers. Choose cofactor ‘genetic’ and cofactor_state ‘APOE4’ to simulate only
+APOE4 carriers.</p>
+<p class="rubric">Notes</p>
+<p>One can choose to set the interval of the reparametrized baseline age of the simulated subjects. By doing so, the
+baseline age are no more jointly learned with individual parameters. Instead, the baseline ages are derived from
+the simulated individual parameters and the reparametrized baseline age which is sample from an uniform distribution
+in the set interval.</p>
+<p>By definition, the relation between age and reparametrized age is:</p>
+<div class="math">
+<p><img src="_images/math/48f4de7e56d63570e27139b4667016a7d6da1818.svg" alt="\psi_i (t) = e^{\xi_i} (t - \tau_i) + \bar{\tau}"/></p>
+</div><p>with <img class="math" src="_images/math/907a4add6d5db5b7f197f7924f1371b8ac404fe6.svg" alt="t"/> the real age, <img class="math" src="_images/math/c4180979c5c4cfbd94ecd05cf2b1d7a849490138.svg" alt="\psi_i (t)"/> the reparametrized age, <img class="math" src="_images/math/9ec20831b2930336eb5f255c75058b6edf68d1e6.svg" alt="\xi_i"/> the individual
+log-acceleration parameter, <img class="math" src="_images/math/dbc357e9cf742d661bf4941cd0c41ec78cbbe187.svg" alt="\tau_i"/> the individual time-shift parameter and <img class="math" src="_images/math/816669ded82ec7ea0f1cd02ae94982e0e0e38bb7.svg" alt="\bar{\tau}"/> the mean
+conversion age derivated by the <cite>model</cite> object.</p>
+<dl class="field-list">
+<dt class="field-odd">Attributes</dt>
+<dd class="field-odd"><dl>
+<dt><strong>algo_parameters</strong><span class="classifier">dict</span></dt><dd><p>Contains the algorithm’s parameters.</p>
+</dd>
+<dt><strong>bandwidth_method</strong><span class="classifier">float or str or callable, optional</span></dt><dd><p>Bandwidth argument used in scipy.stats.gaussian_kde in order to learn the patients’ distribution.</p>
+</dd>
+<dt><strong>cofactor</strong><span class="classifier">str, optional (default = None)</span></dt><dd><p>The cofactor used to select the wanted group of patients (ex - ‘genes’). It must correspond to an existing
+cofactor in the attribute <cite>Data</cite> of the input <cite>result</cite> of the <code class="docutils literal notranslate"><span class="pre">run</span></code> method. See <code class="docutils literal notranslate"><span class="pre">SimulationAlgorithm.run</span></code>
+documentation.</p>
+</dd>
+<dt><strong>cofactor_state</strong><span class="classifier">str, optional (default None)</span></dt><dd><p>The cofactor state used to select the  wanted group of patients (ex - ‘APOE4’). It must correspond to an
+existing cofactor state in the attribute <cite>Data</cite> of the input <cite>result</cite> of the <code class="docutils literal notranslate"><span class="pre">run</span></code> method. See
+<code class="docutils literal notranslate"><span class="pre">SimulationAlgorithm.run</span></code> documentation.</p>
+</dd>
+<dt><strong>features_bounds</strong><span class="classifier">bool or dict</span></dt><dd><p>Specify if the scores of the generated subjects must be bounded. This parameter can express in two way:
+- <cite>bool</cite> : the bounds are the maximum and minimum scores observed in the <code class="docutils literal notranslate"><span class="pre">results.data</span></code> object.
+- <cite>dict</cite> : the user has to set the min and max bounds for every features. For example:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">{'feature1':</span> <span class="pre">(score_min,</span> <span class="pre">score_max),</span> <span class="pre">'feature2':</span> <span class="pre">(score_min,</span> <span class="pre">score_max),</span> <span class="pre">...}</span></code></p>
+</div></blockquote>
+</dd>
+<dt><strong>mean_number_of_visits</strong><span class="classifier">int (default 6)</span></dt><dd><p>Average number of visits of the simulated patients.
+Examples - choose 5 =&gt; in average, a simulated patient will have 5 visits.</p>
+</dd>
+<dt><strong>name</strong><span class="classifier"><code class="docutils literal notranslate"><span class="pre">&quot;simulation&quot;</span></code></span></dt><dd><p>Algorithm’s name.</p>
+</dd>
+<dt><strong>noise</strong><span class="classifier">str or float or list or None, (default “default”)</span></dt><dd><dl>
+<dt>Wanted level of gaussian noise in the generated scores.</dt><dd><ul class="simple">
+<li><p>Set to “default”, the noise added to each feature score correspond to the reconstruction error for each</p></li>
+</ul>
+<p>feature (MSE on all visits, per feature).
+- Set noise to <code class="docutils literal notranslate"><span class="pre">None</span></code> will lead to patients having “perfect progression” of their scores, i.e.
+following exactly a logistic curve.
+- Set a float will add for each feature’s scores a noise of standard deviation the given float.
+- Set a iterable will add for the feature j a noise of standard deviation noise[j]. Then, noise must be
+of length the number of features’ scores.</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>number_of_subjects</strong><span class="classifier">int</span></dt><dd><p>Number of subject to simulate.</p>
+</dd>
+<dt><strong>reparametrized_age_bounds</strong><span class="classifier">list [float], optional (default None), length = 2</span></dt><dd><p>Set the minimum and maximum age of the generated reparametrized subjects’ ages. See Notes section.
+Example - reparametrized_age_bounds = (65, 70)</p>
+</dd>
+<dt><strong>seed</strong><span class="classifier">int</span></dt><dd><p>Used by numpy.random &amp; torch.random for reproducibility.</p>
+</dd>
+<dt><strong>sources_method</strong><span class="classifier">str, {‘full_kde’, ‘normal_sources’}</span></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;full_kde&quot;</span></code> : the sources are also learned with the gaussian kernel density estimation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;normal_sources&quot;</span></code> : the sources are generated as multivariate normal distribution linked with the other</p></li>
+</ul>
+<p>individual parameters.</p>
+</dd>
+<dt><strong>std_number_of_visits</strong><span class="classifier">int</span></dt><dd><p>Standard deviation used into the generation of the number of visits per simulated patient.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 69%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>run(model, individual_parameters, data)</strong></p></td>
+<td><p>Run the simulation of new patients for some given leaspy model, individual parameters and data.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt id="leaspy.algo.simulate.simulate.SimulationAlgorithm.run">
+<code class="sig-name descname">run</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">individual_parameters</span></em>, <em class="sig-param"><span class="n">data</span></em><span class="sig-paren">)</span><a class="headerlink" href="#leaspy.algo.simulate.simulate.SimulationAlgorithm.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run simulation - learn joined distribution of patients’ individual parameters and return a results object
+containing the simulated individual parameters and the simulated scores.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>model</strong><span class="classifier">leaspy.models.abstract_model.AbstractModel</span></dt><dd><p>Subclass object of AbstractModel. Model used to compute the population &amp; individual parameters.
+It contains the population parameters.</p>
+</dd>
+<dt><strong>individual_parameters</strong><span class="classifier">leaspy.io.outputs.individual_parameters.IndividualParameters</span></dt><dd><p>Object containing the computed individual parameters.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>leaspy.io.outputs.result.Result</dt><dd><p>Contains the simulated individual parameters &amp; individual scores.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>In simulation_settings, one can specify in the parameters the cofactor &amp; cofactor_state. By doing so,
+one can simulate based only on the subject for the given cofactor &amp; cofactor’s state.</p>
+<p>By default, all the subject in results.data are used to estimate the joined distribution.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2017-2020, Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Benoit Sauty De Chalon, Stanley Durrleman
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

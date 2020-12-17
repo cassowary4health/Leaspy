@@ -7,8 +7,8 @@ import torch
 
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
-from tests import example_data_path, test_data_dir
 from leaspy.io.outputs.result import Result
+from tests import example_data_path, test_data_dir
 
 
 class SimulationAlgorithmTest(unittest.TestCase):
@@ -152,5 +152,26 @@ class SimulationAlgorithmTest(unittest.TestCase):
                         "Generated scores contain scores outside the bounds")
         self.assertTrue(all(new_results_min_bounds >= results_min_bounds),
                         "Generated scores contain scores outside the bounds")
+
+    def test_simulate_univariate(self):
+        from leaspy import AlgorithmSettings, Data
+        from leaspy.datasets import Loader
+
+        putamen_df = Loader.load_dataset('parkinson-putamen-train_and_test')
+        data = Data.from_dataframe(putamen_df.xs('train', level='SPLIT'))
+        leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
+        individual_parameters = Loader.load_individual_parameters('parkinson-putamen-train')
+
+        simulation_settings = AlgorithmSettings('simulation', seed=0)
+        simulated_data = leaspy_logistic.simulate(individual_parameters, data, simulation_settings)
+
+        simu_df = simulated_data.data.to_dataframe()
+        self.assertEqual(['ID', 'TIME', 'PUTAMEN'], list(simu_df.columns))
+        simu_df.set_index('ID', inplace=True)
+        self.assertTrue(list(simu_df.dtypes) == ['float64']*2)
+        self.assertTrue(all(simu_df['PUTAMEN'].values <= 1))
+        self.assertTrue(all(simu_df['PUTAMEN'].values >= 0))
+        self.assertTrue(all(simu_df['TIME'].values <= 150))
+        self.assertTrue(all(simu_df['TIME'].values >= 10))
 
     # global behaviour of SimulationAlgorithm class is tested in the functional test test_api.py

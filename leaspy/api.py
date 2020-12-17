@@ -257,12 +257,31 @@ class Leaspy:
         --------
         Use a calibrated model & individual parameters to simulate new subjects similar to the ones you have:
 
-        >>> from leaspy import AlgorithmSettings
+        >>> from leaspy import AlgorithmSettings, Data
         >>> from leaspy.datasets import Loader
+        >>> putamen_df = Loader.load_dataset('parkinson-putamen-train_and_test')
+        >>> data = Data.from_dataframe(putamen_df.xs('train', level='SPLIT'))
         >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
         >>> individual_parameters = Loader.load_individual_parameters('parkinson-putamen-train')
         >>> simulation_settings = AlgorithmSettings('simulation', seed=0)
         >>> simulated_data = leaspy_logistic.simulate(individual_parameters, data, simulation_settings)
+         ==> Setting seed to 0
+        >>> print(simulated_data.data.to_dataframe().set_index(['ID', 'TIME']).head())
+                                                  PUTAMEN
+        ID                    TIME
+        Generated_subject_001 63.611107  0.556399
+                              64.111107  0.571381
+                              64.611107  0.586279
+                              65.611107  0.615718
+                              66.611107  0.644518
+        >>> print(simulated_data.get_dataframe_individual_parameters().tail())
+                                     tau        xi
+        ID
+        Generated_subject_096  46.771028 -2.483644
+        Generated_subject_097  73.189964 -2.513465
+        Generated_subject_098  57.874967 -2.175362
+        Generated_subject_099  54.889400 -2.069300
+        Generated_subject_100  50.046972 -2.259841
 
         By default, you have simulate 100 subjects, with an average number of visit at 6 & and standard deviation
         is the number of visits equal to 3. Let's say you want to simulate 200 subjects, everyone of them having
@@ -270,7 +289,16 @@ class Leaspy:
 
         >>> simulation_settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=200, \
         mean_number_of_visits=10, std_number_of_visits=0)
+         ==> Setting seed to 0
         >>> simulated_data = leaspy_logistic.simulate(individual_parameters, data, simulation_settings)
+        >>> print(simulated_data.data.to_dataframe().set_index(['ID', 'TIME']).tail())
+                                          PUTAMEN
+        ID                    TIME
+        Generated_subject_200 72.119949  0.829185
+                              73.119949  0.842113
+                              74.119949  0.854271
+                              75.119949  0.865680
+                              76.119949  0.876363
 
         By default, the generated subjects are named `'Generated_subject_001'`, `'Generated_subject_002'` and so on.
         Let's say you want a shorter name, for exemple `'GS-001'`. Furthermore, you want to set the level of noise
@@ -278,6 +306,15 @@ class Leaspy:
 
         >>> simulation_settings = AlgorithmSettings('simulation', seed=0, prefix='GS-', noise=.2)
         >>> simulated_data = leaspy_logistic.simulate(individual_parameters, data, simulation_settings)
+         ==> Setting seed to 0
+        >>> print(simulated_data.get_dataframe_individual_parameters().tail())
+                      tau        xi
+        ID
+        GS-096  46.771028 -2.483644
+        GS-097  73.189964 -2.513465
+        GS-098  57.874967 -2.175362
+        GS-099  54.889400 -2.069300
+        GS-100  50.046972 -2.259841
         """
         # Check if model has been initialized
         self.check_if_initialized()

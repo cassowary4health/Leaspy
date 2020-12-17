@@ -14,7 +14,7 @@ class AbstractAlgo(ABC):
 
     Attributes
     ----------
-    algo_parameters: dict
+    algo_parameters: `dict`
         Contains the algorithm's parameters. These ones are set by a
         leaspy.intputs.settings.algorithm_settings.AlgorithmSettings class object.
     name: str
@@ -34,6 +34,8 @@ class AbstractAlgo(ABC):
     convert_timer(d)
         Convert a float representing computation time in seconds to a string giving time in hour, minutes and
         seconds ``%h %min %s``.
+    _initialize_seed(seed)
+        Set numpy and torch seeds and display it (static method).
     """
 
     def __init__(self):
@@ -51,8 +53,7 @@ class AbstractAlgo(ABC):
     @staticmethod
     def _initialize_seed(seed):
         """
-        @staticmethod
-        Set numpy and torch seeds and display it.
+        Set numpy and torch seeds and display it (static method).
 
         Notes - numpy seed is needed for reproducibility for the simulation algorithm which use the scipy kernel
         density estimation function. Indeed, scipy use numpy random seed.

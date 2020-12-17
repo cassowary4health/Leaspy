@@ -109,6 +109,7 @@ class SimulationAlgorithm(AbstractAlgo):
         self.algo_parameters = settings.parameters
         self.name = settings.name
         self.seed = settings.seed
+        self.get_sources = None  # instantiate in run, depend if model is univariate
 
         self._initialize_seed(self.seed)
 
@@ -390,7 +391,7 @@ class SimulationAlgorithm(AbstractAlgo):
         """
         return np.exp(-xi) * (repam_ages - tau_mean) + tau
 
-    def _simulate_individual_parameters(self, model, number_of_simulated_subjects, kernel, ss, get_sources,
+    def _simulate_individual_parameters(self, model, number_of_simulated_subjects, kernel, ss,
                                         df_mean, df_cov):
         """
         Compute the simulated individual parameters and timepoints.
@@ -402,7 +403,6 @@ class SimulationAlgorithm(AbstractAlgo):
         number_of_simulated_subjects : int
         kernel : scipy.stats.gaussian_kde
         ss : sklearn.preprocessing.StandardScaler
-        get_sources : bool
         df_mean : torch.Tensor, shape = (n_individual_parameters,)
             Mean values per individual parameter type.
         df_cov : torch.Tensor, shape = (n_individual_parameters, n_individual_parameters)
@@ -429,7 +429,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         simulated_parameters = {'tau': samples[:, 1], 'xi': samples[:, 2]}
         # xi & tau are 1D array - one value per simulated subject
-        if get_sources:
+        if self.get_sources:
             if self.sources_method == "full_kde":
                 simulated_parameters['sources'] = samples[:, 3:]
             elif self.sources_method == "normal_sources":
@@ -469,7 +469,8 @@ class SimulationAlgorithm(AbstractAlgo):
         # TODO : parallelize this for loop
         for i in range(len(timepoints)):
             indiv_param = {key: val[i] for key, val in simulated_parameters.items()}
-            indiv_param['sources'] = indiv_param['sources'].tolist()
+            if 'univariate' not in model.name:
+                indiv_param['sources'] = indiv_param['sources'].tolist()
             observations = model.compute_individual_trajectory(timepoints[i], indiv_param)
             # Add the desired noise
             if noise_generator:
@@ -539,6 +540,7 @@ class SimulationAlgorithm(AbstractAlgo):
         leaspy.io.outputs.result.Result
             Contains the simulated individual parameters & individual scores.
         """
+        self.get_sources = ('univariate' not in model.name)
 
         _, dict_pytorch = individual_parameters.to_pytorch()
         results = Result(data, dict_pytorch)
@@ -558,6 +560,9 @@ class SimulationAlgorithm(AbstractAlgo):
         df_ind_param = results.data.to_dataframe().groupby('ID').first()[['TIME']].join(df_ind_param, how='right')
         # At this point, df_ind_param.columns = ['TIME', 'tau', 'xi', 'sources_0', 'sources_1', ..., 'sources_n']
         distribution = df_ind_param.values
+        # force order TIME tau xi
+        distribution[:, 1] = df_ind_param['tau'].values
+        distribution[:, 2] = df_ind_param['xi'].values
         # Transform baseline age into reparametrized baseline age
         distribution[:, 0] = self._get_reparametrized_age(timepoints=distribution[:, 0],
                                                           tau=distribution[:, 1],
@@ -568,9 +573,9 @@ class SimulationAlgorithm(AbstractAlgo):
         if self.reparametrized_age_bounds:
             distribution = np.array([ind for ind in distribution if
                                      min(self.reparametrized_age_bounds) < ind[0] < max(self.reparametrized_age_bounds)])
+
         # Get sources according the selected sources_method
-        get_sources = (model.name != 'univariate')
-        if get_sources & (self.sources_method == "normal_sources"):
+        if self.get_sources & (self.sources_method == "normal_sources"):
             # Sources are not learned with a kernel density estimator
             distribution = distribution[:, :3]
             # Get mean by variable & covariance matrix
@@ -595,7 +600,7 @@ class SimulationAlgorithm(AbstractAlgo):
             number_of_simulated_subjects = self.number_of_subjects
 
         simulated_parameters, timepoints = self._simulate_individual_parameters(
-            model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
+            model, number_of_simulated_subjects, kernel, ss, df_mean, df_cov)
 
         noise_generator = self._get_noise_generator(model, results)
 
@@ -619,7 +624,7 @@ class SimulationAlgorithm(AbstractAlgo):
                 number_of_simulated_subjects *= self.number_of_subjects / len(indices_of_accepted_simulated_subjects)
 
                 simulated_parameters_bis, timepoints_bis = self._simulate_individual_parameters(
-                    model, number_of_simulated_subjects, kernel, ss, get_sources, df_mean, df_cov)
+                    model, number_of_simulated_subjects, kernel, ss, df_mean, df_cov)
 
                 features_values_bis = self._simulate_subjects(simulated_parameters_bis, timepoints_bis,
                                                               model, noise_generator)

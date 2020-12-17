@@ -26,6 +26,14 @@ version = find_version("leaspy", "__init__.py")
 with open("requirements.txt") as f:
     requirements = f.read().splitlines()
 
+EXTRAS_REQUIRE = {
+    'docs': [
+        'sphinx==3.3.1',
+        'sphinx-gallery',
+        'numpydoc'
+    ]
+}
+
 setup(name="leaspy",
       version=version,
 
@@ -83,8 +91,11 @@ setup(name="leaspy",
       test_suite='test',
 
       classifiers=[
+          "Intended Audience :: Science/Research",
+          "Intended Audience :: Developers",
           "Programming Language :: Python :: 3",
           # "License :: OSI Approved :: MIT License",
           "Operating System :: OS Independent",
       ],
+      extras_require=EXTRAS_REQUIRE
       )

@@ -19,7 +19,7 @@ class Plotting:
 
         # ---- Graphical options
         self.color_palette = None
-        self.standard_size = (11, 6)
+        self.standard_size = (8, 4)
         self.linestyle = {'average_model': '-', 'individual_model': '-', 'individual_data': '-'}
         self.linewidth = {'average_model': 5, 'individual_model': 2, 'individual_data': 2}
         self.alpha = {'average_model': 0.5, 'individual_model': 1, 'individual_data': 1}
@@ -96,11 +96,6 @@ class Plotting:
         custom_lines = [mpl.lines.Line2D([0], [0], color=colors[i], lw=4) for i in range(dimension)]
         ax.legend(custom_lines, labels, title='Features')
         # ax.legend(title='Features')
-
-        # ---- Title & labels
-        title = kwargs.get('title', 'Average trajectories')
-        if title is not None:
-            ax.set_title(title)
         ax.set_ylabel('Normalized score')
 
         # ---- Save
@@ -164,6 +159,9 @@ class Plotting:
                     label=labels[i])
 
         self.handle_kwargs_end(ax, kwargs, colors, labels)
+
+        # ---- Title & labels
+        ax.set_title('Average trajectories')
         ax.set_xlabel('Reparametrized age')
 
         return ax
@@ -184,7 +182,7 @@ class Plotting:
             patients_idx = list(data.iter_to_idx.values())
 
         if self.model.is_initialized:
-            assert data.header == self.model.features
+            assert data.headers == self.model.features
             colors, ax, labels = self.handle_kwargs_begin(kwargs)
         else:
             colors = kwargs.get('labels', self.color_palette([i % self.color_palette.N for i in range(data.dimension)]))
@@ -218,32 +216,127 @@ class Plotting:
                         label=labels[dim])
 
         self.handle_kwargs_end(ax, kwargs, colors, labels, dimension=dimension)
+
+        # ---- Title & labels
+        ax.set_title('Observations')
         ax.set_xlabel('Age')
 
         return ax
 
-    def patient_trajectories(self, result, patient_IDs, **kwargs):
+    def patient_observations_reparametrized(self, data, individual_parameters, patients_idx='all', **kwargs):
+        # ---- Input manager
+        alpha = kwargs.get('alpha', self.alpha['individual_data'])
+        linestyle = kwargs.get('linestyle', self.linestyle['individual_data'])
+        linewidth = kwargs.get('linewidth', self.linewidth['individual_data'])
+        marker = kwargs.get('marker', 'o')
+        markersize = kwargs.get('markersize', '3')
+        if 'patient_IDs' in kwargs.keys():
+            warnings.warn("Keyword argument <patient_IDs> is deprecated! Use <patients_idx> instead.",
+                          warnings.DeprecationWarning)
+            patients_idx = kwargs.get('patient_IDs')
 
-        colors, ax, linestyle, linewidth, alpha = self.handle_kwargs_begin(kwargs)
+        if patients_idx == 'all':
+            patients_idx = list(data.iter_to_idx.values())
 
-        if type(patient_IDs) is not list:
-            patient_IDs = [patient_IDs]
+        if self.model.is_initialized:
+            assert data.headers == self.model.features
+            colors, ax, labels = self.handle_kwargs_begin(kwargs)
+        else:
+            colors = kwargs.get('labels', self.color_palette([i % self.color_palette.N for i in range(data.dimension)]))
+            labels = kwargs.get('labels', data.headers)
+            ax = kwargs.get('ax', None)
+            if ax is None:
+                fig, ax = plt.subplots(1, 1, figsize=kwargs.get('figsize', self.standard_size))
 
-        for idx in patient_IDs:
-            indiv = result.data.get_by_idx(idx)
+        dimension = data.dimension
+
+        if type(patients_idx) is str:
+            patients_idx = [patients_idx]
+
+        # ---- Plot
+        t0 = self.model.parameters['tau_mean'].item()
+        ip_df = individual_parameters.to_dataframe()
+        ip_df = ip_df.join(data.to_dataframe().reset_index()[['TIME']])
+        ip_df['TIME_rep'] = np.exp(ip_df['xi'].values) * (ip_df['TIME'].values - ip_df['tau'].values) + t0
+
+        for idx in patients_idx:
+            indiv = data.get_by_idx(idx)
+            timepoints = ip_df.loc[idx, 'TIME_rep'].values
+            observations = np.array(indiv.observations)
+
+            for dim in range(dimension):
+                not_nans_idx = np.array(1-np.isnan(observations[:, dim]), dtype=bool)
+
+                ax.plot(np.array(timepoints)[not_nans_idx],
+                        observations[:, dim][not_nans_idx],
+                        marker=marker,
+                        markersize=markersize,
+                        c=colors[dim],
+                        linewidth=linewidth,
+                        linestyle=linestyle,
+                        alpha=alpha,
+                        label=labels[dim])
+
+        self.handle_kwargs_end(ax, kwargs, colors, labels, dimension=dimension)
+
+        # ---- Title & labels
+        ax.set_title('Observations')
+        ax.set_xlabel('Age')
+
+        return ax
+
+    def patient_trajectories(self, data, individual_parameters, patients_idx, **kwargs):
+        # ---- Input manager
+        alpha = kwargs.get('alpha', self.alpha['individual_model'])
+        linestyle = kwargs.get('linestyle', self.linestyle['individual_model'])
+        linewidth = kwargs.get('linewidth', self.linewidth['individual_model'])
+
+        if 'patient_IDs' in kwargs.keys():
+            warnings.warn("Keyword argument <patient_IDs> is deprecated! Use <patients_idx> instead.",
+                          warnings.DeprecationWarning)
+            patients_idx = kwargs.get('patient_IDs')
+
+        if patients_idx == 'all':
+            patients_idx = list(data.iter_to_idx.values())
+
+        if self.model.is_initialized:
+            assert data.headers == self.model.features
+            colors, ax, labels = self.handle_kwargs_begin(kwargs)
+        else:
+            colors = kwargs.get('labels', self.color_palette([i % self.color_palette.N for i in range(data.dimension)]))
+            labels = kwargs.get('labels', data.headers)
+            ax = kwargs.get('ax', None)
+            if ax is None:
+                fig, ax = plt.subplots(1, 1, figsize=kwargs.get('figsize', self.standard_size))
+
+        dimension = data.dimension
+
+        if type(patients_idx) is str:
+            patients_idx = [patients_idx]
+
+        for idx in patients_idx:
+            indiv = data.get_by_idx(idx)
             timepoints = indiv.timepoints
-            t = torch.Tensor(timepoints).unsqueeze(0)
-            indiv_parameters = result.get_torch_individual_parameters(idx)
-            trajectory = self.model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
-            for dim in range(self.model.dimension):
-                ax.plot(np.array(timepoints), trajectory.detach().numpy()[:, dim], c=colors[dim],
-                        linewidth=linewidth['individual_model'],
-                        linestyle=linestyle['individual_model'],
-                        alpha=alpha['individual_model'],
+            min_t, max_t = min(timepoints), max(timepoints)
+            timepoints = np.linspace(min_t - (max_t - min_t) / 2, max_t + (max_t - min_t) / 2, 100)
+            t = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
+            ip = {key: torch.tensor(val).unsqueeze(0) for key, val in
+                  individual_parameters._individual_parameters[idx].items()}
+            trajectory = self.model.compute_individual_tensorized(t, ip).squeeze(0)
+            for dim in range(dimension):
+                ax.plot(timepoints,
+                        trajectory.detach().numpy()[:, dim],
+                        c=colors[dim],
+                        linewidth=linewidth,
+                        linestyle=linestyle,
+                        alpha=alpha,
                         )
 
-        ax = self.handle_kwargs_end(ax, kwargs, colors)
-        ax.set_xlabel('Reparametrized age')
+        self.handle_kwargs_end(ax, kwargs, colors, labels, dimension=dimension)
+
+        # ---- Title & labels
+        ax.set_title('Individual trajectories')
+        ax.set_xlabel('Age')
 
         return ax
 

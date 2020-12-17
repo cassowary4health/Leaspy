@@ -20,10 +20,8 @@ ip_paths = {ip_name: os.path.join(module_path, 'individual_parameters/' + ip_nam
 
 class Loader:
     """
-    Loader class contains static methods to load:
-     * Synthetic longitudinal dataset.
-     * `Leaspy` calibrated on these dataset.
-     * `IndividualParameters` of these synthetic subjects computed with the corresponding `Leaspy` instance.
+    Contains static methods to load synthetic longitudinal dataset, calibrated `Leaspy` instances &
+    `IndividualParameters`.
 
     Attributes
     ----------

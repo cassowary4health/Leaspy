@@ -51,7 +51,7 @@ class TestLeaspyParallel(unittest.TestCase):
             with self.subTest(i=i):
                 self.assertEqual(i, j)  # order outputs
                 self.assertIsInstance(leaspy, Leaspy)  # leaspy object
-                leaspy._check_if_initialized()  # raises an error otherwise
+                leaspy.check_if_initialized()  # raises an error otherwise
 
         leaspys = [out[0] for out in outs_fit_cb]  # iterable of leaspy fitted models
         outs_perso_cb = leaspy_parallel_personalize(leaspys, self.datas, self.settings_algos_perso,

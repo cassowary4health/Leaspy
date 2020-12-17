@@ -31,7 +31,7 @@ class Leaspy:
             * ``'univariate_logisitic'`` - idem with a 'logistic' model.
     type: str
         Name of the model - must be one of the ones listed above.
-    plotting: leaspy.utils.output.visualization.plotting.Plotting
+    plotting: leaspy.io.logs.visualization.plotting.Plotting
         Main class for visualization.
 
     Methods
@@ -54,6 +54,8 @@ class Leaspy:
         Instantiate a Leaspy object from json model parameter file.
     save(path)
         Save Leaspy object as json model parameter file.
+    check_if_initialized()
+        Check if model is initialized.
     """
 
     def __init__(self, model_name, **kwargs):
@@ -155,21 +157,20 @@ class Leaspy:
         >>> from leaspy import AlgorithmSettings, Data
         >>> from leaspy.datasets import Loader
         >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
-        >>> putamen_df = Loader.load_dataset('parkinson-putamen-train_and_test')
-        >>> data = Data.from_dataframe(putamen_df.xs('train', level='SPLIT'))
+        >>> putamen_df = Loader.load_dataset('parkinson-putamen')
+        >>> data = Data.from_dataframe(putamen_df)
         >>> personalize_settings = AlgorithmSettings('scipy_minimize', progress_bar=True, use_jacobian=True, seed=0)
         >>> individual_parameters = leaspy_logistic.personalize(data, personalize_settings)
          ==> Setting seed to 0
         |##################################################|   200/200 subjects
         The standard deviation of the noise at the end of the personalization is:
         0.0191
-
         Personalization scipy_minimize took: 5s
         >>> ip_df = individual_parameters.to_dataframe()
         >>> ip_df.[['xi']].hist()
         """
         # Check if model has been initialized
-        self._check_if_initialized()
+        self.check_if_initialized()
 
         algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
@@ -279,7 +280,7 @@ class Leaspy:
         >>> simulated_data = leaspy_logistic.simulate(individual_parameters, data, simulation_settings)
         """
         # Check if model has been initialized
-        self._check_if_initialized()
+        self.check_if_initialized()
 
         algorithm = AlgoFactory.algo("simulate", settings)
         simulated_data = algorithm.run(self.model, individual_parameters, data)
@@ -342,7 +343,7 @@ class Leaspy:
 
         Examples
         --------
-        Load the univariate dataset ``'parkinson-putamen-train_and_test'``, calibrate the model & save it:
+        Load the univariate dataset ``'parkinson-putamen'``, calibrate the model & save it:
 
         >>> from leaspy import AlgorithmSettings, Data, Leaspy
         >>> from leaspy.datasets import Loader
@@ -358,10 +359,10 @@ class Leaspy:
         Calibration took: 30s
         >>> leaspy_logistic.save('leaspy-logistic-model_parameters-seed0.json', indent=2)
         """
-        self._check_if_initialized()
+        self.check_if_initialized()
         self.model.save(path, **kwargs)
 
-    def _check_if_initialized(self):
+    def check_if_initialized(self):
         """
         Check if model is initialized.
 

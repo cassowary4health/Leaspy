@@ -1,8 +1,12 @@
 import torch
+
 from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
 
 
 class GradientDescent(AbstractFitAlgo):
+    """
+    /!\\ Currently deprecated
+    """
 
     def __init__(self, settings):
 

@@ -13,14 +13,18 @@ class LMEPersonalizeAlgorithmTest(unittest.TestCase):
     def setUp(self):
         # Leaspy
         self.model = LMEModel('lme')
-        self.parameters = {"fe_params": np.array([0.3333016, 1.]),
+        # TODO? redo test with realistic values...?
+        self.parameters = {
+                           "ages_mean": 0.,
+                           "ages_std": 1.,
+                           "fe_params": np.array([0.3333016, 1.]),
                            "cov_re": np.array([[0.4523892]]),
-                           "cov_re_unscaled": np.array([[1.41324825e+10]])}
+                           "cov_re_unscaled_inv": np.array([[1/1.41324825e+10]])}
         self.model.features = ['feat1']
         self.model.load_parameters(self.parameters)
         self.settings = AlgorithmSettings('lme_personalize')
         self.algo = LMEPersonalizeAlgorithm(self.settings)
-        self.algo.features = ['A']
+        #self.algo.features = ['A']
         self.times = torch.tensor([0, 2, 4, 6])
         self.values = np.array([
             [2.],
@@ -38,7 +42,7 @@ class LMEPersonalizeAlgorithmTest(unittest.TestCase):
         self.assertTrue((new_times.numpy() == np.array([0, 2, 6])).all())
 
     def test_get_individual_random_effect(self):
-        ind_ip = self.algo._get_individual_random_effect(self.model, self.times, self.values)
+        ind_ip, res = self.algo._get_individual_random_effects_and_residuals(self.model, self.times, self.values)
         self.assertAlmostEqual(ind_ip['random_intercept'], 2, 0)
 
     def test_run(self):

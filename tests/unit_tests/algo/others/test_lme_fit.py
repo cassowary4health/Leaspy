@@ -10,6 +10,7 @@ import pandas as pd
 
 class LMEFitAlgorithmTest(unittest.TestCase):
     def setUp(self):
+        # TODO? redo test with realistic values...?
         df = pd.DataFrame.from_records((np.arange(3, 3 + 10, 1),
                                         np.arange(15, 15 + 10, 1),
                                         np.arange(6, 6 + 10, 1)),
@@ -44,10 +45,18 @@ class LMEFitAlgorithmTest(unittest.TestCase):
 
     def test_run(self):
         self.algo.run(self.model, self.dataset)
-        self.assertAlmostEqual(self.model.parameters["fe_params"][0], 8, 0)
-        self.assertAlmostEqual(self.model.parameters["fe_params"][1], 1., 0)
+
+        ages_mean = 4.6551723
+        ages_std = 2.7950184
+
+        self.assertAlmostEqual(self.model.parameters["ages_mean"], ages_mean)
+        self.assertAlmostEqual(self.model.parameters["ages_std"], ages_std)
+
+        self.assertAlmostEqual(self.model.parameters["fe_params"][0], 8 + ages_mean*1., 0)
+        self.assertAlmostEqual(self.model.parameters["fe_params"][1], 1. * ages_std, 0)
+        self.assertAlmostEqual(self.model.parameters["noise_std"], 1.3220877080541017e-05)
         self.assertAlmostEqual(self.model.parameters["cov_re"][0][0], 2.8888, 3)
-        self.assertAlmostEqual(self.model.parameters["cov_re_unscaled"][0][0], 14e9, -9)
+        self.assertAlmostEqual(self.model.parameters["cov_re_unscaled_inv"][0][0], 1/14e9, -9)
         self.assertAlmostEqual(self.model.parameters["bse_fe"][0], 1, 0)
         self.assertAlmostEqual(self.model.parameters["bse_fe"][1], 0, 0)
-        self.assertAlmostEqual(self.model.parameters["bse_re"][0], 57140, -3)
+        self.assertAlmostEqual(self.model.parameters["bse_re"][0], 61806.329294854615, -3)

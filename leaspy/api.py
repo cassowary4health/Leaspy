@@ -82,24 +82,25 @@ class Leaspy:
         group average trajectory.
 
         >>> from leaspy import AlgorithmSettings, Data, Leaspy
-        >>> from leaspy.datasets import load_dataset
-        >>> putamen_df = load_dataset('parkinson-putamen-train_and_test')
-        >>> data = Data.from_dataframe(putamen_df.xs('train', level='SPLIT'))
+        >>> from leaspy.datasets import Loader
+        >>> putamen_df = Loader.load_dataset('parkinson-putamen')
+        >>> data = Data.from_dataframe(putamen_df)
         >>> leaspy_logistic = Leaspy('univariate_logistic')
         >>> settings = AlgorithmSettings('mcmc_saem', progress_bar=True, seed=0)
         >>> leaspy_logistic.fit(data, settings)
-        ==> Setting seed to 0
+         ==> Setting seed to 0
         |##################################################|   10000/10000 iterations
         The standard deviation of the noise at the end of the calibration is:
         0.0213
-        Calibration took: 41s
-        >>> leaspy_logistic.model.parameters
-        {'g': tensor([-1.1744]),
-         'tau_mean': tensor(68.5679),
-         'tau_std': tensor(10.1278),
-         'xi_mean': tensor(-2.3397),
-         'xi_std': tensor(0.5421),
-         'noise_std': tensor(0.0213)}
+        Calibration took: 30s
+        >>> print(str(leaspy_logistic.model))
+        === MODEL ===
+        g : tensor([-1.1744])
+        tau_mean : 68.56787872314453
+        tau_std : 10.12782096862793
+        xi_mean : -2.3396952152252197
+        xi_std : 0.5421289801597595
+        noise_std : 0.021265486255288124
         >>> leaspy_logistic.plotting.average_trajectory()
         """
         algorithm = AlgoFactory.algo("fit", algorithm_settings)
@@ -152,16 +153,18 @@ class Leaspy:
         display the histogram of the log-acceleration:
 
         >>> from leaspy import AlgorithmSettings, Data
-        >>> from leaspy.datasets import load_dataset, load_leaspy_instance
-        >>> leaspy_logistic = load_leaspy_instance('parkinson-putamen-train')
-        >>> putamen_df = load_dataset('parkinson-putamen-train_and_test')
+        >>> from leaspy.datasets import Loader
+        >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
+        >>> putamen_df = Loader.load_dataset('parkinson-putamen-train_and_test')
         >>> data = Data.from_dataframe(putamen_df.xs('train', level='SPLIT'))
-        >>> personalize_settings = AlgorithmSettings('scipy_minimize', progress_bar=True, seed=0)
+        >>> personalize_settings = AlgorithmSettings('scipy_minimize', progress_bar=True, use_jacobian=True, seed=0)
         >>> individual_parameters = leaspy_logistic.personalize(data, personalize_settings)
+         ==> Setting seed to 0
         |##################################################|   200/200 subjects
         The standard deviation of the noise at the end of the personalization is:
-        0.0183
-        Personalization scipy_minimize took: 25s
+        0.0191
+
+        Personalization scipy_minimize took: 5s
         >>> ip_df = individual_parameters.to_dataframe()
         >>> ip_df.[['xi']].hist()
         """
@@ -199,10 +202,10 @@ class Leaspy:
         Given the individual parameters of two subjects, estimate the features of the first
         at 70, 74 and 80 years old and at 71 and 72 years old for the second.
 
-        >>> from leaspy.datasets import load_leaspy_instance, load_individual_parameters
-        >>> leaspy_logistic = load_leaspy_instance('parkinson-putamen-train')
-        >>> individual_parameters = load_individual_parameters('parkinson-putamen-train')
-        >>> timepoints = { 'index_1': (70, 74, 80), 'index_2': (71, 72) }
+        >>> from leaspy.datasets import Loader
+        >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
+        >>> individual_parameters = Loader.load_individual_parameters('parkinson-putamen-train')
+        >>> timepoints = {'GS-001': (70, 74, 80), 'GS-002': (71, 72)}
         >>> estimations = leaspy_logistic.estimate(timepoints, individual_parameters)
         """
         estimations = {}
@@ -254,9 +257,9 @@ class Leaspy:
         Use a calibrated model & individual parameters to simulate new subjects similar to the ones you have:
 
         >>> from leaspy import AlgorithmSettings
-        >>> from leaspy.datasets import load_leaspy_instance, load_individual_parameters
-        >>> leaspy_logistic = load_leaspy_instance('parkinson-putamen-train')
-        >>> individual_parameters = load_individual_parameters('parkinson-putamen-train')
+        >>> from leaspy.datasets import Loader
+        >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
+        >>> individual_parameters = Loader.load_individual_parameters('parkinson-putamen-train')
         >>> simulation_settings = AlgorithmSettings('simulation', seed=0)
         >>> simulated_data = leaspy_logistic.simulate(individual_parameters, data, simulation_settings)
 
@@ -305,6 +308,14 @@ class Leaspy:
         >>> from leaspy import Leaspy
         >>> from leaspy.datasets.loader import model_paths
         >>> leaspy_logistic = Leaspy.load(model_paths['parkinson-putamen-train'])
+        >>> print(str(leaspy_logistic.model))
+        === MODEL ===
+        g : tensor([-0.7901])
+        tau_mean : 64.18125915527344
+        tau_std : 10.199116706848145
+        xi_mean : -2.346343994140625
+        xi_std : 0.5663877129554749
+        noise_std : 0.021229960024356842
         """
         reader = ModelSettings(path_to_model_settings)
         leaspy = cls(reader.name)
@@ -334,18 +345,18 @@ class Leaspy:
         Load the univariate dataset ``'parkinson-putamen-train_and_test'``, calibrate the model & save it:
 
         >>> from leaspy import AlgorithmSettings, Data, Leaspy
-        >>> from leaspy.datasets import load_dataset
-        >>> putamen_df = load_dataset('parkinson-putamen-train_and_test')
-        >>> data = Data.from_dataframe(putamen_df.xs('train', level='SPLIT'))
+        >>> from leaspy.datasets import Loader
+        >>> putamen_df = Loader.load_dataset('parkinson-putamen')
+        >>> data = Data.from_dataframe(putamen_df)
         >>> leaspy_logistic = Leaspy('univariate_logistic')
         >>> settings = AlgorithmSettings('mcmc_saem', progress_bar=True, seed=0)
         >>> leaspy_logistic.fit(data, settings)
-        ==> Setting seed to 0
+         ==> Setting seed to 0
         |##################################################|   10000/10000 iterations
         The standard deviation of the noise at the end of the calibration is:
         0.0213
-        Calibration took: 41s
-        >>> leaspy_logistic.save('outputs/leaspy-logistic-model_parameters-seed0.json', indent=2)
+        Calibration took: 30s
+        >>> leaspy_logistic.save('leaspy-logistic-model_parameters-seed0.json', indent=2)
         """
         self._check_if_initialized()
         self.model.save(path, **kwargs)

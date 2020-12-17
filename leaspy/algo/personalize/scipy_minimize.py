@@ -44,7 +44,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             self.logger = lambda pat_id, res_dict: \
                 print(f"\n<!> {pat_id}:\n\n{pformat(res_dict, indent=1)}\n")
 
-
     def _initialize_parameters(self, model):
         """
         Initialize individual parameters of one patient with group average parameter.
@@ -172,7 +171,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return (regularity, regularity_grads)
 
-
     def obj(self, x, *args):
         """
         Objective loss function to minimize in order to get patient's individual parameters
@@ -264,7 +262,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             # result is objective only
             return res['objective'].item()
 
-
     def _get_individual_parameters_patient(self, model, times, values, *, patient_id=None):
         """
         Compute the individual parameter by minimizing the objective loss function with scipy solver.
@@ -304,11 +301,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         err_f = self._get_reconstruction_error(model, times, values, individual_params_f)
 
         if not res.success:
-            res['reconstruction_mae'] = round(err_f.abs().mean().item(),5) # all tpts & fts instead of mean?
-            res['individual_parameters'] = individual_params_f
-            #del res['x']
+            if not self.algo_parameters['use_jacobian']:
+                res['reconstruction_mae'] = round(err_f.abs().mean().item(),5) # all tpts & fts instead of mean?
+                res['individual_parameters'] = individual_params_f
+                #del res['x']
 
-            self.logger(patient_id, res)
+                self.logger(patient_id, res)
 
         return individual_params_f, err_f
 

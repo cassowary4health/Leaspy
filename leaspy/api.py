@@ -358,7 +358,11 @@ class Leaspy:
         leaspy = cls(reader.name)
         leaspy.model.load_hyperparameters(reader.hyperparameters)
         leaspy.model.load_parameters(reader.parameters)
-        leaspy.model.initialize_MCMC_toolbox()
+
+        # dirty... logic should be changed to be compatible with models without MCMC toolbox (constant model or LME model)
+        if hasattr(leaspy.model, 'initialize_MCMC_toolbox'):
+            leaspy.model.initialize_MCMC_toolbox()
+
         leaspy.model.is_initialized = True
 
         # Update plotting

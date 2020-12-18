@@ -1,3 +1,5 @@
+import pandas as pd
+
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.logs.visualization.plotting import Plotting
@@ -181,20 +183,23 @@ class Leaspy:
         else:  # default
             return individual_parameters
 
-    def estimate(self, timepoints, individual_parameters):
+    def estimate(self, timepoints, individual_parameters, *, to_dataframe=None):
         r"""
         Description
 
         Parameters
         ----------
-        timepoints: dictionary {string/int: array_like[numeric]
+        timepoints: dictionary {string/int: array_like[numeric]} or pandas.MultiIndex
             Contains, for each individual, the time-points to estimate.
         individual_parameters: IndividualParameters object
             Corresponds to the individual parameters of individuals.
+        to_dataframe: bool or None (default)
+            Whether to output a dataframe of estimations?
+            If None: default is to be True if and only if timepoints is a pandas.MultiIndex
 
         Returns
         -------
-        individual_trajectory: dict
+        individual_trajectory: dict or pandas.DataFrame (depending on `to_dataframe` flag)
             Key: patient indices. Value : Numpy array of the estimated value, in the shape
             (number of timepoints, number of features)
 
@@ -211,10 +216,32 @@ class Leaspy:
         """
         estimations = {}
 
+        ix = None
+        # get timepoints to estimate from index
+        if isinstance(timepoints, pd.MultiIndex):
+
+            # default output is pd.DataFrame when input as pd.MultiIndex
+            if to_dataframe is None:
+                to_dataframe = True
+
+            ix = timepoints # keep for future
+            timepoints = {pat_id: ages.values for pat_id, ages in timepoints.to_frame()['TIME'].groupby('ID')}
+
         for index, time in timepoints.items():
             ip = individual_parameters[index]
             est = self.model.compute_individual_trajectory(time, ip)
-            estimations[index] = est[0].numpy()
+            estimations[index] = est[0].numpy() # 1 individual at a time (first dimension of tensor)
+
+        # convert to proper dataframe
+        if to_dataframe:
+            estimations = pd.concat({
+                pat_id: pd.DataFrame(ests, index=timepoints[pat_id], columns=self.model.features)
+                for pat_id, ests in estimations.items()
+            }, names=['ID','TIME'])
+
+            # reindex back to given index being careful to index order (join so to handle multi-levels cases)
+            if ix is not None:
+                estimations = pd.DataFrame([], index=ix).join(estimations)
 
         return estimations
 

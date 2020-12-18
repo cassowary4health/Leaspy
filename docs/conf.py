@@ -14,7 +14,7 @@ import os
 import sys
 import warnings
 import sphinx_gallery
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 
 # -- Project information -----------------------------------------------------
@@ -174,11 +174,11 @@ latex_elements = {
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
-    'numpy': ('http://docs.scipy.org/doc/numpy/', None),
-    'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
-    'matplotlib': ('http://matplotlib.org/', None),
+    'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+    'matplotlib': ('https://matplotlib.org/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
-    'statsmodels': ('http://www.statsmodels.org/stable/', None),
+    'statsmodels': ('https://www.statsmodels.org/stable/', None),
     'seaborn': ('https://seaborn.pydata.org/', None),
-    'sklearn': ('http://scikit-learn.org/stable', None),
+    'sklearn': ('https://scikit-learn.org/stable', None),
     'torch': ('https://pytorch.org/docs/stable/', None)}

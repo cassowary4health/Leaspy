@@ -40,7 +40,7 @@ setup(name="leaspy",
       description='Leaspy is a software package for the statistical analysis of longitudinal data.',
       long_description=readme(),
       long_description_content_type='text/markdown',
-      # license='MIT',  # TODO
+      license='MIT',  # TODO
 
       url='https://gitlab.com/icm-institute/aramislab/leaspy',
       project_urls={
@@ -48,8 +48,8 @@ setup(name="leaspy",
           'Source': 'https://gitlab.com/icm-institute/aramislab/leaspy',
       },
 
-      # author='',  # TODO
-      # author_email='',    # TODO
+      author='Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Benoit Sauty De Chalon, Stanley Durrleman',  # TODO
+      author_email='igor.koval@icm-institute.org',
 
       python_requires='>=3.5',
 
@@ -94,7 +94,7 @@ setup(name="leaspy",
           "Intended Audience :: Science/Research",
           "Intended Audience :: Developers",
           "Programming Language :: Python :: 3",
-          # "License :: OSI Approved :: MIT License",
+          "License :: OSI Approved :: MIT License",
           "Operating System :: OS Independent",
       ],
       extras_require=EXTRAS_REQUIRE

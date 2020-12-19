@@ -16,6 +16,7 @@ in the main `leaspy Data container`, then we plot them with the main API `Leaspy
     Index(['E-Cog Subject', 'E-Cog Study-partner', 'MMSE', 'RAVLT', 'FAQ',
        'FDG PET', 'Hippocampus volume ratio'],
       dtype='object')
+    >>> alzheimer_df = alzheimer_df[['MMSE', 'RAVLT', 'FAQ', 'FDG PET']]
     >>> print(alzheimer_df.head())
                           MMSE     RAVLT       FAQ   FDG PET
     ID     TIME

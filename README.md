@@ -2,12 +2,13 @@
 
 
 [![pipeline status](https://gitlab.com/icm-institute/aramislab/leaspy/badges/master/pipeline.svg)](https://gitlab.com/icm-institute/aramislab/leaspy/commits/master)
+[![Documentation Status](https://readthedocs.org/projects/leaspy/badge/?version=latest)](https://leaspy.readthedocs.io/en/latest/?badge=latest)
 
 
 
 ## Description
-Leaspy is a software package for the statistical analysis of **longitudinal data**, particularly **medical** data that comes in a form of **repeated observations** of patients at different time-points. 
-Considering these series of short-term data, the software aims at : 
+Leaspy is a software package for the statistical analysis of **longitudinal data**, particularly **medical** data that comes in a form of **repeated observations** of patients at different time-points.
+Considering these series of short-term data, the software aims at :
 - recombining them to reconstruct the long-term spatio-temporal trajectory of evolution
 - positioning each patient observations relatively to the group-average timeline, in term of both temporal differences (time shift and acceleration factor) and spatial differences (diffent sequences of events, spatial pattern of progression, ...)
 - quantifying impact of cofactors (gender, genetic mutation, environmental factors, ...) on the evolution of the signal
@@ -23,7 +24,7 @@ This includes, for instance, clinical scores, cognitive assessments, physiologic
 
 
 #### Further information
-More detailed explanations about the models themselves and  about the estimation procedure can be found in the following articles : 
+More detailed explanations about the models themselves and  about the estimation procedure can be found in the following articles :
 
 - **Mathematical framework**: *A Bayesian mixed-effects model to learn trajectories of changes from repeated manifold-valued observations*. Jean-Baptiste Schiratti, Stéphanie Allassonnière, Olivier Colliot, and Stanley Durrleman.  The Journal of Machine Learning Research, 18:1–33, December 2017. [Open Access PDF](https: //hal.archives-ouvertes.fr/hal-01540367).
 - **Application to imaging data**: *Statistical learning of spatiotemporal patterns from longitudinal manifold-valued networks*. I. Koval, J.-B. Schiratti, A. Routier, M. Bacci, O. Colliot, S. Allassonnière and S. Durrleman. MICCAI, September 2017. [Open Access PDF](https://arxiv.org/pdf/1709.08491.pdf)

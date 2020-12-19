@@ -1,5 +1,6 @@
-from setuptools import setup
 import os
+
+from setuptools import setup
 
 
 def find_version(*file_paths):
@@ -57,11 +58,14 @@ setup(name="leaspy",
 
       packages=['leaspy',
                 'leaspy.algo',
-                # 'leaspy.algo.data',
+                'leaspy.algo.data',
                 'leaspy.algo.fit',
                 'leaspy.algo.personalize',
                 'leaspy.algo.samplers',
                 'leaspy.algo.simulate',
+
+                'leaspy.datasets',
+                'leaspy.datasets.data',
 
                 'leaspy.io',
                 'leaspy.io.data',
@@ -72,7 +76,7 @@ setup(name="leaspy",
                 'leaspy.io.logs.visualization',
 
                 'leaspy.models',
-                # 'leaspy.models.data',
+                'leaspy.models.data',
                 'leaspy.models.utils',
                 'leaspy.models.utils.attributes',
                 'leaspy.models.utils.initialization',

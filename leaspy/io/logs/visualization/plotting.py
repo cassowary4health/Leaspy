@@ -162,7 +162,7 @@ class Plotting:
 
         # ---- Title & labels
         ax.set_title('Average trajectories')
-        ax.set_xlabel('Reparametrized age')
+        ax.set_xlabel('Age')
 
         return ax
 
@@ -281,7 +281,7 @@ class Plotting:
 
         # ---- Title & labels
         ax.set_title('Observations')
-        ax.set_xlabel('Age')
+        ax.set_xlabel('Reparametrized age')
 
         return ax
 

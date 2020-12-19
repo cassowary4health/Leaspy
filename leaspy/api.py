@@ -167,7 +167,7 @@ class Leaspy:
         0.0191
         Personalization scipy_minimize took: 5s
         >>> ip_df = individual_parameters.to_dataframe()
-        >>> ip_df.[['xi']].hist()
+        >>> ip_df[['xi']].hist()
         """
         # Check if model has been initialized
         self.check_if_initialized()

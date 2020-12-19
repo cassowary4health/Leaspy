@@ -6,7 +6,7 @@ Installation & testing
 Dependencies
 ------------
 
-Leaspy requires:
+`leaspy` requires:
 
 - Python (>= 3.5)
 - numpy (>=1.16.2)
@@ -20,20 +20,21 @@ Leaspy requires:
 User installation
 -----------------
 
-You can get the latest version of leaspy by cloning the repository::
+1. (Optional) Create a dedicated conda environment::
 
-    git clone https://gitlab.com/icm-institute/aramislab/leaspy.git
-    cd leaspy
-    pip install -r requirements.txt
+    conda create --name leaspy python=3.7
+    conda activate leaspy
+
+
+2. You can get the latest version of `leaspy` by cloning the repository::
+
+    pip install leaspy
 
 
 Testing
 -------
 
-After installation, you can launch the test suite from inside the source
-directory using ``unittest``::
-
-    python -m unittest discover
+After installation, you can run the examples in :ref:`nutshell` and in :ref:`the Leaspi API <leaspy_api>`.
 
 
 .. Development

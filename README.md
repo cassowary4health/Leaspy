@@ -1,8 +1,34 @@
-# Leaspy - LEArning Spatiotemporal Patterns in Python
-
-
 [![pipeline status](https://gitlab.com/icm-institute/aramislab/leaspy/badges/master/pipeline.svg)](https://gitlab.com/icm-institute/aramislab/leaspy/commits/master)
 [![Documentation Status](https://readthedocs.org/projects/leaspy/badge/?version=latest)](https://leaspy.readthedocs.io/en/latest/?badge=latest)
+[![PyPI version](https://badge.fury.io/py/leaspy.svg)](https://badge.fury.io/py/leaspy)
+
+# Leaspy - LEArning Spatiotemporal Patterns in Python
+Leaspy is a software package for the statistical analysis of **longitudinal data**, particularly **medical** data that comes in a form of **repeated observations** of patients at different time-points.
+
+## Get started Leaspy
+#### OS
+- Mac and Linux - check for windows
+
+#### Dependencies
+
+- Python (>= 3.5)
+- numpy (>=1.16.2)
+- scipy (>=1.2.1)
+- scikit-learn (>=0.21.3)
+- pandas (==0.24.2)
+- torch (>=1.1.0, <1.5)
+- joblib (>=0.10)
+
+#### Installation
+
+1. (Optional) Create a dedicated conda environment:
+```
+conda create --name leaspy python=3.7
+conda activate leaspy
+```
+
+2. Install leaspy
+`pip install leaspy`
 
 
 
@@ -38,30 +64,13 @@ More detailed explanations about the models themselves and  about the estimation
 - `estimate` : evaluate the biomarker values of a patient at any age, either for missing value imputation or future prediction
 - `simulate` : generate synthetic data from the model
 
-## Get started Leaspy
-#### Requirements
-- Mac and Linux - check for windows
-
-#### Installation
-1. Obtain the sources by :
-`git clone https://gitlab.com/icm-institute/aramislab/leaspy.git`
-
-2. (Optional) Create a dedicated conda environment:
-```
-conda create --name leaspy python=3.7
-conda activate leaspy
-```
-
-3. Install the dependencies
-`pip install -r requirements.txt`
-
 
 ### Examples & Tutorials
 The `example/start/` folder contains a starting point if you want to launch your first scipts and notebook with the Leaspy package.
 You can find additional description in this [Medium post](https://medium.com/@igoroa/analysis-of-longitudinal-data-made-easy-with-leaspy-f8d529fcb5f8) (Warning: The plotter and the individual parameters described there have been deprecated since then)
 
 ### Documentation
-[Coming soon]
+https://leaspy.readthedocs.io/en/latest/
 
 ### Website
 [Coming soon]

@@ -5,8 +5,11 @@ from .utils.attributes.attributes_factory import AttributesFactory
 
 
 class MultivariateModel(AbstractMultivariateModel):
-    def __init__(self, name):
-        super().__init__(name)
+    """
+    Logistic model for multiple variables of interest.
+    """
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 
@@ -87,7 +90,7 @@ class MultivariateModel(AbstractMultivariateModel):
             raise ValueError("Mutivariate model > Compute jacobian tensorized")
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-        return NotImplementedError()
+        raise NotImplementedError
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
         # cf. AbstractModel.compute_jacobian_tensorized for doc
@@ -128,7 +131,7 @@ class MultivariateModel(AbstractMultivariateModel):
         return derivatives
 
     def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
     """

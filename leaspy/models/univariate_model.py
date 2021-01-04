@@ -9,10 +9,10 @@ from .utils.attributes.attributes_univariate import AttributesUnivariate
 
 
 class UnivariateModel(AbstractModel):
-    ###########################
-    ## Initialization
-    ###########################
-    def __init__(self, name):
+    """
+    Logistic model for a single variable of interest.
+    """
+    def __init__(self, name, **kwargs):
         super().__init__(name)
         self.dimension = 1
         self.source_dimension = 0  # TODO, None ???
@@ -33,26 +33,42 @@ class UnivariateModel(AbstractModel):
             }
         }
 
-    def save(self, path):
+        # load hyperparameters
+        self.load_hyperparameters(kwargs)
+
+    def save(self, path, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
         model_parameters_save = self.parameters.copy()
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
         model_settings = {
-            'name': 'univariate',
+            'name': self.name,
             'features': self.features,
             #'dimension': 1,
             'loss': self.loss,
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+            json.dump(model_settings, fp, **kwargs)
 
     def load_hyperparameters(self, hyperparameters):
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
+        if any([key not in ('features', 'loss') for key in hyperparameters.keys()]):
+            raise ValueError("Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
+                             f"You gave {hyperparameters}.")
 
     def initialize(self, dataset):
 
@@ -155,11 +171,36 @@ class UnivariateModel(AbstractModel):
         # Individual parameters
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
         LL = -reparametrized_time.unsqueeze(-1)
         model = (1./(1.+g))-LL
 
         return model
+
+    def compute_jacobian_tensorized(self, timepoints, ind_parameters, MCMC=False):
+        # cf. AbstractModel.compute_jacobian_tensorized for doc
+
+        # Population parameters
+        g = self._get_attributes(MCMC)
+
+        # Individual parameters
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        # Log likelihood computation
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features==1)
+
+        model = 1. / (1. + g * torch.exp(-reparametrized_time))
+
+        c = model * (1. - model)
+        alpha = torch.exp(xi).reshape(-1, 1, 1)
+
+        derivatives = {
+            'xi': (c * reparametrized_time).unsqueeze(-1),
+            'tau': (c * -alpha).unsqueeze(-1),
+        }
+
+        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
+        return derivatives
 
     def compute_sufficient_statistics(self, data, realizations):
         sufficient_statistics = {}

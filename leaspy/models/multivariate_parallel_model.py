@@ -2,12 +2,17 @@ import torch
 
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
+
+
 #from .utils.initialization.model_initialization import initialize_logistic_parallel # not used
 
 
 class MultivariateParallelModel(AbstractMultivariateModel):
-    def __init__(self, name):
-        super().__init__(name)
+    """
+    Logistic model for multiple variables of interest, imposing same average evolution pace for all variables.
+    """
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None
 

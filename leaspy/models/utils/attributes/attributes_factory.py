@@ -2,6 +2,9 @@ from . import AttributesLogisticParallel, AttributesLogistic, AttributesLinear, 
 
 
 class AttributesFactory:
+    """
+    Return an `Attributes` class object based on the given parameters.
+    """
 
     @staticmethod
     def attributes(name, dimension, source_dimension):

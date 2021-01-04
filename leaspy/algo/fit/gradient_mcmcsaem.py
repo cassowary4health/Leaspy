@@ -4,6 +4,9 @@ from .abstract_mcmc import AbstractFitMCMC
 
 
 class GradientMCMCSAEM(AbstractFitMCMC):
+    """
+    /!\\ Currently deprecated
+    """
 
     def __init__(self, settings):
         super().__init__(settings)

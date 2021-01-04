@@ -1,18 +1,33 @@
-# from leaspy.algo.fit.gradient_descent import GradientDescent
-# from leaspy.algo.fit.gradient_mcmcsaem import GradientMCMCSAEM
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 from leaspy.algo.personalize.gradient_descent_personalize import GradientDescentPersonalize
-from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.algo.personalize.mean_realisations import MeanReal
 from leaspy.algo.personalize.mode_realisations import ModeReal
-# from leaspy.algo.fit.hmc_saem import HMC_SAEM
+from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 
 
 class AlgoFactory:
+    """
+    Return the wanted algorithm given its name.
+    """
 
     @staticmethod
     def algo(algorithm_class, settings):
+        """
+        Return the wanted algorithm given its name.
+
+        Parameters
+        ----------
+        algorithm_class: {'fit', 'simulate', 'personalize'}
+            Task name, used to check if the algorithm within the input `settings` is compatible with this task.
+        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
+            The algorithm settings.
+
+        Returns
+        -------
+        algorithm: child class of AbstractAlgo
+            The wanted algorithm.
+        """
         name = settings.name
 
         AlgoFactory._check_compatibility(algorithm_class, name)
@@ -61,9 +76,9 @@ class AlgoFactory:
             Name of the algorithm to run
         algorithm_class: str
             Must be one of the following api's name:
-                'fit' - compatible with 'mcm_saem'
-                'personalize' - compatible with "mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"
-                'simulate' - compatible with "simulation"
+                * 'fit' - compatible with 'mcm_saem'
+                * 'personalize' - compatible with "mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"
+                * 'simulate' - compatible with "simulation"
 
         Raises
         ------
@@ -80,7 +95,6 @@ class AlgoFactory:
             "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"],
             "simulate": ["simulation"]
         }
-
 
         if name not in compatibility_algorithms[algorithm_class]:
             raise ValueError("Chosen algorithm is not compatible with method : {0} \n"

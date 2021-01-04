@@ -1,4 +1,5 @@
 import sys
+from abc import ABC
 
 import numpy as np
 import torch
@@ -6,14 +7,14 @@ import torch
 from leaspy.io.logs.fit_output_manager import FitOutputManager
 
 
-class AbstractAlgo:
+class AbstractAlgo(ABC):
     """
-    AbstractAlgo class object
-    Abstract class containing common method for all algorithm classes. These classes are child classes of AbstractAlgo.
+    Abstract class containing common methods for all algorithm classes.
+    These classes are child classes of `AbstractAlgo`.
 
     Attributes
     ----------
-    algo_parameters: dict
+    algo_parameters: `dict`
         Contains the algorithm's parameters. These ones are set by a
         leaspy.intputs.settings.algorithm_settings.AlgorithmSettings class object.
     name: str
@@ -28,6 +29,13 @@ class AbstractAlgo:
         belong to the algorithm's parameters keys are ignored.
     set_output_manager(output_settings)
         Set a FitOutputManager class object for the run of the algorithm.
+    display_progress_bar(iteration, n_iter, suffix, n_step_default=50)
+        Display a progression bar while running algorithm, simply based on `sys.stdout`.
+    convert_timer(d)
+        Convert a float representing computation time in seconds to a string giving time in hour, minutes and
+        seconds ``%h %min %s``.
+    _initialize_seed(seed)
+        Set numpy and torch seeds and display it (static method).
     """
 
     def __init__(self):
@@ -40,13 +48,12 @@ class AbstractAlgo:
         self.seed = None
 
     ###########################
-    ## Initialization
+    # Initialization
     ###########################
     @staticmethod
     def _initialize_seed(seed):
         """
-        @staticmethod
-        Set numpy and torch seeds and display it.
+        Set numpy and torch seeds and display it (static method).
 
         Notes - numpy seed is needed for reproducibility for the simulation algorithm which use the scipy kernel
         density estimation function. Indeed, scipy use numpy random seed.
@@ -62,7 +69,7 @@ class AbstractAlgo:
             print(" ==> Setting seed to {0}".format(seed))
 
     ###########################
-    ## Getters / Setters
+    # Getters / Setters
     ###########################
 
     def load_parameters(self, parameters):
@@ -122,24 +129,38 @@ class AbstractAlgo:
         Examples
         --------
         >>> from leaspy import AlgorithmSettings
+        >>> from leaspy.io.settings.outputs_settings import OutputsSettings
         >>> from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
         >>> algo_settings = AlgorithmSettings("mcmc_saem")
         >>> my_algo = TensorMCMCSAEM(algo_settings)
-        >>> settings = {'path': 'brouillons',
-                        'console_print_periodicity': 50,
-                        'plot_periodicity': 100,
-                        'save_periodicity': 50
+        >>> settings = {'path': 'brouillons',\
+                        'console_print_periodicity': 50,\
+                        'plot_periodicity': 100,\
+                        'save_periodicity': 50\
                         }
         >>> my_algo.set_output_manager(OutputsSettings(settings))
         """
         if output_settings is not None:
             self.output_manager = FitOutputManager(output_settings)
 
-    def iteration(self, data, model, realizations):
-        raise NotImplementedError
-
     @staticmethod
-    def display_progress_bar(iteration, n_iter, suffix, n_step=50):
+    def display_progress_bar(iteration, n_iter, suffix, n_step_default=50):
+        """
+        Display a progression bar while running algorithm, simply based on `sys.stdout`.
+
+        Parameters
+        ----------
+        iteration: int
+            Current iteration of the algorithm.
+        n_iter: int
+            Total iterations' number of the algorithm.
+        suffix: str
+            Used to differentiate calibration algorithms, for which `suffix = ` ``'iterations'`` and personalization
+            algorithms for which `suffix = ` ``'subjects'``.
+        n_step_default: int, default 50
+            The size of the progression bar.
+        """
+        n_step = min(n_step_default, n_iter)
         if iteration == -1:
             sys.stdout.write('\r')
             sys.stdout.write('|' + '-' * n_step + '|   0/%d ' % n_iter + suffix)
@@ -153,3 +174,31 @@ class AbstractAlgo:
                 sys.stdout.write(
                     '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration + 1, n_iter) + suffix)
                 sys.stdout.flush()
+
+    @staticmethod
+    def convert_timer(d):
+        """
+        Convert a float representing computation time in seconds to a string giving time in hour, minutes and
+        seconds ``%h %min %s``.
+        If less than one hour, do not return hours. If less than a minute, do not return minuts.
+
+        Parameters
+        ----------
+        d: float
+            Computation time
+
+        Returns
+        -------
+        res: str
+            Time formating in hour, minutes and seconds.
+        """
+        s = d % 60
+        m = (d % 3600) // 60
+        h = d // 3600
+
+        res = '%ds' % s
+        if m:
+            res = '%dmin ' % m + res
+        if h:
+            res = '%dh ' % h + res
+        return res

@@ -1,13 +1,15 @@
-from .abstract_personalize_algo import AbstractPersonalizeAlgo
-from ..samplers.hmc_sampler import HMCSampler
-from ..samplers.gibbs_sampler import GibbsSampler
-from ...io.outputs.individual_parameters import IndividualParameters
-
 import torch
-# import time
+
+from .abstract_personalize_algo import AbstractPersonalizeAlgo
+from ..samplers.gibbs_sampler import GibbsSampler
+from ..samplers.hmc_sampler import HMCSampler
+from ...io.outputs.individual_parameters import IndividualParameters
 
 
 class MeanReal(AbstractPersonalizeAlgo):
+    """
+    Sampler based algorithm, individual parameters are derivated as the mean realization for `n_samples` samplings.
+    """
 
     def __init__(self, settings):
 

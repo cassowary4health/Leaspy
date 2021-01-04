@@ -1,5 +1,6 @@
-from setuptools import setup
 import os
+
+from setuptools import setup
 
 
 def find_version(*file_paths):
@@ -26,13 +27,22 @@ version = find_version("leaspy", "__init__.py")
 with open("requirements.txt") as f:
     requirements = f.read().splitlines()
 
+EXTRAS_REQUIRE = {
+    'docs': [
+        # TODO: read docs/requirements.txt instead?
+        'sphinx==3.3.1',
+        'sphinx-gallery',
+        'numpydoc'
+    ]
+}
+
 setup(name="leaspy",
       version=version,
 
       description='Leaspy is a software package for the statistical analysis of longitudinal data.',
       long_description=readme(),
       long_description_content_type='text/markdown',
-      # license='MIT',  # TODO
+      license='GNU GPL v3',  # TODO
 
       url='https://gitlab.com/icm-institute/aramislab/leaspy',
       project_urls={
@@ -40,20 +50,23 @@ setup(name="leaspy",
           'Source': 'https://gitlab.com/icm-institute/aramislab/leaspy',
       },
 
-      # author='',  # TODO
-      # author_email='',    # TODO
+      author='Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman',  # TODO
+      author_email='igor.koval@icm-institute.org',
 
-      python_requires='>=3.5',
+      python_requires='>=3.7',
 
       keywords='leaspy longitudinal',
 
       packages=['leaspy',
                 'leaspy.algo',
-                # 'leaspy.algo.data',
+                'leaspy.algo.data',
                 'leaspy.algo.fit',
                 'leaspy.algo.personalize',
                 'leaspy.algo.samplers',
                 'leaspy.algo.simulate',
+
+                'leaspy.datasets',
+                'leaspy.datasets.data',
 
                 'leaspy.io',
                 'leaspy.io.data',
@@ -64,7 +77,7 @@ setup(name="leaspy",
                 'leaspy.io.logs.visualization',
 
                 'leaspy.models',
-                # 'leaspy.models.data',
+                'leaspy.models.data',
                 'leaspy.models.utils',
                 'leaspy.models.utils.attributes',
                 'leaspy.models.utils.initialization',
@@ -83,8 +96,11 @@ setup(name="leaspy",
       test_suite='test',
 
       classifiers=[
+          "Intended Audience :: Science/Research",
+          "Intended Audience :: Developers",
           "Programming Language :: Python :: 3",
-          # "License :: OSI Approved :: MIT License",
+          "License :: OSI Approved :: MIT License",
           "Operating System :: OS Independent",
       ],
+      extras_require=EXTRAS_REQUIRE
       )

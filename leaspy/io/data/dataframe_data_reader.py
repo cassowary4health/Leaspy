@@ -2,6 +2,9 @@ from leaspy.io.data.individual_data import IndividualData
 
 
 class DataframeDataReader:
+    """
+    Methods to convert :ref:`pandas.DataFrame` to data containers `Leaspy` compliants.
+    """
     def __init__(self, df):
         self.individuals = {}
         self.iter_to_idx = {}

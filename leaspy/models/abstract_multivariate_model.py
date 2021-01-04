@@ -1,15 +1,19 @@
 import json
 import math
+
 import torch
 
-from .abstract_model import AbstractModel
 # from leaspy.utils.realizations.realization import Realization
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+from .abstract_model import AbstractModel
 
 
 class AbstractMultivariateModel(AbstractModel):
-    def __init__(self, name):
+    """
+    Contains the common attributes & methods of the multivariate models.
+    """
+    def __init__(self, name, **kwargs):
         super().__init__(name)
         self.source_dimension = None
         self.dimension = None
@@ -32,6 +36,9 @@ class AbstractMultivariateModel(AbstractModel):
                 'betas_std': None
             }
         }
+
+        # load hyperparameters
+        self.load_hyperparameters(kwargs)
 
     def smart_initialization_realizations(self, data, realizations):
         # TODO : Qui a fait ça? A quoi ça sert?
@@ -66,7 +73,21 @@ class AbstractMultivariateModel(AbstractModel):
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
 
-    def save(self, path):
+        if any([key not in ('features', 'loss', 'dimension', 'source_dimension') for key in hyperparameters.keys()]):
+            raise ValueError("Only <features>, <loss>, <dimension> and <source_dimension> are valid hyperparameters "
+                             f"for an AbstractMultivariateModel! You gave {hyperparameters}.")
+
+    def save(self, path, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
         model_parameters_save = self.parameters.copy()
         model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
         for key, value in model_parameters_save.items():
@@ -82,10 +103,10 @@ class AbstractMultivariateModel(AbstractModel):
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+            json.dump(model_settings, fp, **kwargs)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
-        return NotImplementedError
+        raise NotImplementedError
 
     def compute_mean_traj(self, timepoints):
         individual_parameters = {

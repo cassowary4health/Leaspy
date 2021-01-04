@@ -29,10 +29,18 @@ class LeaspyTest(unittest.TestCase):
         :return: exit code
         """
         for name in ['univariate_logistic', 'univariate_linear', 'linear', 'logistic', 'logistic_parallel', 'mixed_linear-logistic']:
-            leaspy = Leaspy(name)
+            leaspy = Leaspy(name, loss='MSE')
             self.assertEqual(leaspy.type, name)
+            self.assertEqual(leaspy.model.loss, 'MSE')
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
             ModelFactoryTest().test_model_factory_constructor(leaspy.model)
+
+        for name in ['linear', 'logistic', 'logistic_parallel', 'mixed_linear-logistic']:
+            leaspy = Leaspy(name, source_dimension=2)
+            self.assertEqual(leaspy.model.source_dimension, 2)
+
+        with self.assertRaises(ValueError):
+            Leaspy('univariate', source_dimension=2)
 
     def test_load_logistic(self):
         """

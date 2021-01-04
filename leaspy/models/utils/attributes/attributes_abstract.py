@@ -4,24 +4,29 @@ import torch
 # TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
 class AttributesAbstract:
     """
-    AttributesAbstract class contains the common attributes & methods of the different attributes classes.
+    Contains the common attributes & methods of the different attributes classes.
     Such classes are used to update the models' attributes.
+
+    Parameters
+    ----------
+    dimension: `int` (default None)
+    source_dimension: `int` (default None)
 
     Attributes
     ----------
     dimension: `int`
     source_dimension: `int`
-    betas: `torch.Tensor` (default None)
-    mixing_matrix: `torch.Tensor` (default None)
+    betas: `torch.Tensor`, (default None)
+    mixing_matrix: `torch.Tensor`, (default None)
         Matrix A such that w_i = A * s_i.
-    positions: `torch.Tensor` (default None)
+    positions: `torch.Tensor`, (default None)
         Previously noted "g".
-    orthonormal_basis: `torch.Tensor` (default None)
-    velocities: `torch.Tensor` (default None)
+    orthonormal_basis: `torch.Tensor`, (default None)
+    velocities: `torch.Tensor`, (default None)
         Previously noted "v0".
     name: `str` (default None)
         Name of the associated leaspy model. Used by ``update`` method.
-    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'v0', 'betas') )
+    update_possibilities: `tuple` [`str`], (default ('all', 'g', 'v0', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
 
     Methods
@@ -35,11 +40,6 @@ class AttributesAbstract:
     def __init__(self, dimension=None, source_dimension=None):
         """
         Instantiate a AttributesAbstract class object.
-
-        Parameters
-        ----------
-        dimension: `int` (default None)
-        source_dimension: `int` (default None)
         """
         self.dimension = dimension
         self.source_dimension = source_dimension

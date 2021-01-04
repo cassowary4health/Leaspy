@@ -8,7 +8,58 @@ from leaspy.io.settings.outputs_settings import OutputsSettings
 
 class AlgorithmSettings:
     """
-    Read a algo_parameters json file and create the corresponding algo
+    Used to set the algorithms' settings.
+    All parameters, except the choice of the algorithm, is set by default.
+    The user can overwrite all default settings.
+
+    Parameters
+    ----------
+    name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
+        The algorithm's name.
+    n_iter: int, optional
+        Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
+    n_burn_in_iter: int, optional
+        Number of iteration during burning phase, used for the MCMC SAEM algorithms.
+    seed: int, optional, default None
+        Used for stochastic algorithms.
+    use_jacobian: bool, optional, default False
+        Used in ``scipy_minimize`` algorithm to perform a `LBFGS` instead of a `Powell` algorithm.
+    n_jobs: int, optional, default 1
+        Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
+    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+        The wanted loss.
+            * MSE: MSE of all features
+            * MSE_diag_noise: MSE per feature
+            * crossentropy: used when the features are binary
+    progress_bar: bool, optional, default False
+        Used to display a progress bar during computation.
+
+    Attributes
+    ----------
+    name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
+        The algorithm's name.
+    **kwargs:
+        * seed: int, optional, default None
+            Used for stochastic algorithms.
+        * loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+            The wanted loss.
+                * MSE: MSE of all features
+                * MSE_diag_noise: MSE per feature
+                * crossentropy: used when the features are binary
+        * parameters: dict
+            Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
+        * logs: NoneType or leaspy.io.settings.outputs_settings.OutputsSettings
+            Used to create a ``logs`` file during a model calibration containing convergence information.
+
+    Methods
+    -------
+    load(path_to_algorithm_settings)
+        Instantiate a AlgorithmSettings object from a json file.
+    save(self, path, **kwargs):
+        Save an AlgorithmSettings object in a json file.
+    set_logs(path, **kwargs):
+        Use this method to monitor the convergence of a model callibration. It create graphs and csv files of the
+        values of the population parameters (fixed effects) during the callibration
     """
 
     def __init__(self, name, **kwargs):
@@ -28,6 +79,24 @@ class AlgorithmSettings:
 
     @classmethod
     def load(cls, path_to_algorithm_settings):
+        """
+        Instantiate a AlgorithmSettings object a from json file.
+
+        Parameters
+        ----------
+        path_to_algorithm_settings: str
+            Path of the json file.
+
+        Returns
+        -------
+        leaspy.io.settings.algorithm_settings.AlgorithmSettings
+            An instanced of AlgorithmSettings with specified parameters.
+
+        Examples
+        --------
+        >>> from leaspy import AlgorithmSettings
+        >>> leaspy_univariate = AlgorithmSettings.load('outputs/leaspy-univariate_model-settings.json')
+        """
         with open(path_to_algorithm_settings) as fp:
             settings = json.load(fp)
 
@@ -52,6 +121,88 @@ class AlgorithmSettings:
         algorithm_settings.loss = cls._get_loss(settings)
 
         return algorithm_settings
+
+    def save(self, path, **kwargs):
+        """
+        Save an AlgorithmSettings object in a json file.
+
+        Parameters
+        ----------
+        path: str
+            Path to store the AlgorithmSettings.
+        **kwargs
+            Keyword arguments for json.dump method.
+
+        Examples
+        --------
+        >>> from leaspy import AlgorithmSettings
+        >>> settings = AlgorithmSettings('scipy_minimize', seed=42, loss='MSE_diag_noise', n_jobs=-1, use_jacobian=True, progress_bar=True)
+        >>> settings.save('outputs/scipy_minimize-settings.json', indent=2)
+        """
+        json_settings = {
+            "name": self.name,
+            "seed": self.seed,
+            "parameters": self.parameters,
+            "initialization_method": self.initialization_method,
+            "loss": self.loss,
+            "logs": self.logs
+        }
+
+        with open(os.path.join(path), "w") as json_file:
+            json.dump(json_settings, json_file, **kwargs)
+
+    def set_logs(self, path, **kwargs):
+        """
+        Use this method to monitor the convergence of a model callibration. It create graphs and csv files of the
+        values of the population parameters (fixed effects) during the callibration
+
+        Parameters
+        ----------
+        path: str
+            The path of the folder to store the graphs and csv files.
+        **kwargs:
+            * console_print_periodicity: int or NoneType, optional, default 50
+                Display logs in the console/terminal every N iterations.
+            * plot_periodicity: int or NoneType, optional, default 100
+                Saves the values to display in pdf every N iterations.
+            * save_periodicity: int or NoneType, optional, default 50
+                Saves the values in csv files every N iterations.
+            * overwrite_logs_folder: bool, optionl, default False
+                Set it to ``True`` to overwrite the content of the folder in ``path``.
+
+        Notes
+        -----
+        By default, if the folder given in ``path`` allready exists, the method will raise an error.
+        To overwrite the content of the folder, set ``overwrite_logs_folder`` it to ``True``.
+
+        Raises
+        ------
+        ValueError
+            If the folder given in ``path`` allready exists and if ``overwrite_logs_folder`` is set to ``False``.
+        """
+        settings = {
+            'path': path,
+            'console_print_periodicity': 50,
+            'plot_periodicity': 100,
+            'save_periodicity': 50,
+            'overwrite_logs_folder': False
+        }
+
+        for k, v in kwargs.items():
+            if k in ['console_print_periodicity', 'plot_periodicity', 'save_periodicity']:
+                if (type(v) != int) and (v is not None):
+                    raise TypeError(f'You must provide a integer to the input <{k}>! '
+                                    f'You provide {v} of type {type(v)}.')
+                settings[k] = v
+            elif k in ['overwrite_logs_folder']:
+                if type(v) != bool:
+                    raise TypeError(f'You must provide a boolean to the input <{k}>! '
+                                    f'You provide {v} of type {type(v)}.')
+                settings[k] = v
+            else:
+                warnings.warn("The kwargs {} you provided is not correct".format(k))
+
+        self.logs = OutputsSettings(settings)
 
     def _manage_kwargs(self, kwargs):
         if 'seed' in kwargs.keys():
@@ -89,23 +240,6 @@ class AlgorithmSettings:
         self.parameters = self._get_parameters(settings)
         self.seed = self._get_seed(settings)
         self.loss = self._get_loss(settings)
-
-    def set_logs(self, path, **kwargs):
-        settings = {
-            'path': path,
-            'console_print_periodicity': 50,
-            'plot_periodicity': 100,
-            'save_periodicity': 50
-        }
-
-        for k, v in kwargs.items():
-            if k in ['console_print_periodicity', 'plot_periodicity', 'save_periodicity']:
-                # Todo : Ca devrait planter si v n'est pas un int!!
-                settings[k] = v
-            else:
-                warnings.warn("The kwargs {} you provided is not correct".format(v))
-
-        self.logs = OutputsSettings(settings)
 
     @staticmethod
     def _check_default_settings(settings):
@@ -155,19 +289,5 @@ class AlgorithmSettings:
             return settings['loss']
         else:
             raise ValueError("The loss provided is not recognised. Should be one of ['MSE', 'MSE_diag_noise', 'crossentropy']")
-
-    def save(self, path):
-
-        json_settings = {
-            "name": self.name,
-            "seed": self.seed,
-            "parameters": self.parameters,
-            "initialization_method": self.initialization_method,
-            "loss": self.loss,
-            "logs": self.logs
-        }
-
-        with open(os.path.join(path), "w") as json_file:
-            json.dump(json_settings, json_file)
 
 

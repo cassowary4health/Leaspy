@@ -143,7 +143,7 @@ html_context = {
     "gitlab_user": "getleaspy",  # Username
     "gitlab_repo": "leaspy",  # Repo name
     "gitlab_version": "master",  # Version
-    "conf_py_path": "/doc/",  # Path in the checkout to the docs root
+    "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
 
 # Custom CSS files

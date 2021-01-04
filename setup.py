@@ -58,15 +58,17 @@ setup(name="leaspy",
       keywords='leaspy longitudinal',
 
       packages=['leaspy',
+
                 'leaspy.algo',
-                'leaspy.algo.data',
+                #'leaspy.algo.data',
                 'leaspy.algo.fit',
                 'leaspy.algo.personalize',
                 'leaspy.algo.samplers',
                 'leaspy.algo.simulate',
+                'leaspy.algo.others',
 
                 'leaspy.datasets',
-                'leaspy.datasets.data',
+                #'leaspy.datasets.data',
 
                 'leaspy.io',
                 'leaspy.io.data',
@@ -77,7 +79,7 @@ setup(name="leaspy",
                 'leaspy.io.logs.visualization',
 
                 'leaspy.models',
-                'leaspy.models.data',
+                #'leaspy.models.data',
                 'leaspy.models.utils',
                 'leaspy.models.utils.attributes',
                 'leaspy.models.utils.initialization',

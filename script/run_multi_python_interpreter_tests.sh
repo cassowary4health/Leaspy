@@ -14,7 +14,7 @@ done
 cd $(pyenv root) && git pull && cd -
 
 # setup multiple python versions
-PYTHON_VERSIONS=(3.6.10 3.7.6)
+PYTHON_VERSIONS=(3.6.12 3.7.9) # TODO: 3.8 & 3.9 also?
 for PYTHON_VERSION in "${PYTHON_VERSIONS[@]}"; do
     echo "Setting pyenv python version ${PYTHON_VERSION}";
     pyenv install -s ${PYTHON_VERSION}

@@ -8,13 +8,15 @@ Dependencies
 
 `leaspy` requires:
 
-- Python (>= 3.5)
+- Python (>=3.6)
 - numpy (>=1.16.2)
 - scipy (>=1.2.1)
 - scikit-learn (>=0.21.3)
-- pandas (==0.24.2)
+- pandas (>=1.0.5)
 - torch (>=1.1.0, <1.5)
 - joblib (>=0.10)
+- matplotlib>=3.0.0
+- statsmodels (>=0.12.1)
 
 
 User installation
@@ -38,7 +40,7 @@ After installation, you can run the examples in :ref:`nutshell` and in :ref:`the
 To do so, in your `leaspy environment`, you can download ``ipykernel`` to use `leaspy` with `jupyter`::
 
     conda install -c anaconda ipykernel
-    python -m ipykernel install --user --name=leaspy_tutorial
+    python -m ipykernel install --user --name=leaspy
 
 Now, you can open `jupyter lab` or `jupyter notebook` and select the `leaspy kernel`.
 

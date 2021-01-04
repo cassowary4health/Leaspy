@@ -11,13 +11,15 @@ Leaspy is a software package for the statistical analysis of **longitudinal data
 
 #### Dependencies
 
-- Python (>= 3.5)
+- Python (>=3.6)
 - numpy (>=1.16.2)
 - scipy (>=1.2.1)
 - scikit-learn (>=0.21.3)
-- pandas (==0.24.2)
+- pandas (>=1.0.5)
 - torch (>=1.1.0, <1.5)
 - joblib (>=0.10)
+- matplotlib (>=3.0.0)
+- statsmodels (>=0.12.1)
 
 #### Installation
 
@@ -81,7 +83,7 @@ The development of this software has been supported by the European Union H2020 
 
 ## Licence
 
-The package is distributed under the GNU GENERAL PUBLIC LICENSE.
+The package is distributed under the GNU GENERAL PUBLIC LICENSE v3.
 
 ## Contacts
 http://www.aramislab.fr/

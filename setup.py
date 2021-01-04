@@ -53,7 +53,7 @@ setup(name="leaspy",
       author='Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman',  # TODO
       author_email='igor.koval@icm-institute.org',
 
-      python_requires='>=3.7',
+      python_requires='>=3.6',
 
       keywords='leaspy longitudinal',
 

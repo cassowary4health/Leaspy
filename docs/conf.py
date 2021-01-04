@@ -20,11 +20,11 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 # -- Project information -----------------------------------------------------
 
 project = 'Leaspy'
-copyright = '2017-2020, Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Benoit Sauty De Chalon, Stanley Durrleman'
-author = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Benoit Sauty De Chalon, Stanley Durrleman'
+author = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman'
+copyright = '2017-2021, ' + author
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.0rc1'
+release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -167,7 +167,7 @@ latex_elements = {
     'pointsize': '10pt',
     'preamble': '',
     'figure_align': 'htbp'
-# Additional stuff for the LaTeX preamble.
+    # Additional stuff for the LaTeX preamble.
 }
 
 # -- Intersphinx ------------------------------------------------

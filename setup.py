@@ -29,6 +29,7 @@ with open("requirements.txt") as f:
 
 EXTRAS_REQUIRE = {
     'docs': [
+        # TODO: read docs/requirements.txt instead?
         'sphinx==3.3.1',
         'sphinx-gallery',
         'numpydoc'
@@ -41,7 +42,7 @@ setup(name="leaspy",
       description='Leaspy is a software package for the statistical analysis of longitudinal data.',
       long_description=readme(),
       long_description_content_type='text/markdown',
-      license='MIT',  # TODO
+      license='GNU GPL v3',  # TODO
 
       url='https://gitlab.com/icm-institute/aramislab/leaspy',
       project_urls={
@@ -49,10 +50,10 @@ setup(name="leaspy",
           'Source': 'https://gitlab.com/icm-institute/aramislab/leaspy',
       },
 
-      author='Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Benoit Sauty De Chalon, Stanley Durrleman',  # TODO
+      author='Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman',  # TODO
       author_email='igor.koval@icm-institute.org',
 
-      python_requires='>=3.5',
+      python_requires='>=3.7',
 
       keywords='leaspy longitudinal',
 

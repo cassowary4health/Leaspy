@@ -1,5 +1,5 @@
-recursive-include leaspy/*.json
-recursive-include leaspy/*.csv
+recursive-include leaspy *.json
+recursive-include leaspy *.csv
 
 include leaspy/algo/data/*.json
 include leaspy/models/data/*.json

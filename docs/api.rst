@@ -53,7 +53,7 @@ Algorithms used to calibrate a model.
     abstract_mcmc.AbstractFitMCMC
     tensor_mcmcsaem.TensorMCMCSAEM
 
-:mod:`leaspy.algo.fit`: **Personalization algorithms**
+:mod:`leaspy.algo.personalize`: **Personalization algorithms**
 ------------------------------------------------------
 Algorithms used to personalize a model to a given set of subjects.
 
@@ -66,7 +66,7 @@ Algorithms used to personalize a model to a given set of subjects.
     abstract_personalize_algo.AbstractPersonalizeAlgo
     scipy_minimize.ScipyMinimize
 
-:mod:`leaspy.algo.fit`: **Samplers**
+:mod:`leaspy.algo.samplers`: **Samplers**
 ------------------------------------
 Samplers used by the algorithms.
 
@@ -80,7 +80,7 @@ Samplers used by the algorithms.
     gibbs_sampler.GibbsSampler
     hmc_sampler.HMCSampler
 
-:mod:`leaspy.algo.fit`: **Simulation algorithms**
+:mod:`leaspy.algo.simulate`: **Simulation algorithms**
 --------------------------------------------------
 Algorithm to simulate synthetic observations and individual parameters.
 
@@ -91,6 +91,20 @@ Algorithm to simulate synthetic observations and individual parameters.
     :template: class.rst
 
     simulate.SimulationAlgorithm
+
+:mod:`leaspy.algo.others`: **Other algorithms**
+--------------------------------------------------
+Reference algorithms to use with reference models (for benchmarks).
+
+.. currentmodule:: leaspy.algo.others
+
+.. autosummary::
+    :toctree: generated/
+    :template: class.rst
+
+    constant_prediction_algo.ConstantPredictionAlgorithm
+    lme_fit.LMEFitAlgorithm
+    lme_personalize.LMEPersonalizeAlgorithm
 
 :mod:`leaspy.dataset`: **Datasets**
 ==========================================
@@ -135,7 +149,7 @@ Containers class objects used as input / ouputs in the `Leaspy` package.
 
     individual_parameters.IndividualParameters
 
-:mod:`leaspy.io.outputs`: **Realizations class objects**
+:mod:`leaspy.io.realizations`: **Realizations class objects**
 --------------------------------------------------------
 
 .. currentmodule:: leaspy.io.realizations
@@ -144,8 +158,8 @@ Containers class objects used as input / ouputs in the `Leaspy` package.
     :toctree: generated/
     :template: class.rst
 
-    collection_realization.CollectionRealization
     realization.Realization
+    collection_realization.CollectionRealization
 
 :mod:`leaspy.io.settings`: **Settings class objects**
 -----------------------------------------------------
@@ -156,8 +170,8 @@ Containers class objects used as input / ouputs in the `Leaspy` package.
     :toctree: generated/
     :template: class.rst
 
-    algorithm_settings.AlgorithmSettings
     model_settings.ModelSettings
+    algorithm_settings.AlgorithmSettings
     outputs_settings.OutputsSettings
 
 :mod:`leaspy.models`: **Models**
@@ -172,10 +186,12 @@ Available models in `Leaspy`.
 
     abstract_model.AbstractModel
     abstract_multivariate_model.AbstractMultivariateModel
-    model_factory.ModelFactory
     multivariate_model.MultivariateModel
     multivariate_parallel_model.MultivariateParallelModel
     univariate_model.UnivariateModel
+    lme_model.LMEModel
+    constant_model.ConstantModel
+    model_factory.ModelFactory
 
 :mod:`leaspy.models.utils.attributes`: **Models' attributes**
 -------------------------------------------------------------
@@ -194,9 +210,9 @@ Attributes used by the models.
     attributes_logistic_parallel.AttributesLogisticParallel
     attributes_univariate.AttributesUnivariate
 
-:mod:`leaspy.models.utils.model_initialization`: **Initialization methods**
+:mod:`leaspy.models.utils.initialization`: **Initialization methods**
 ---------------------------------------------------------------------------
-.. currentmodule:: leaspy.models.utils.model_initialization
+.. currentmodule:: leaspy.models.utils.initialization
 
 .. autosummary::
   :toctree: generated/

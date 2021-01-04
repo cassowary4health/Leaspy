@@ -4,21 +4,24 @@ from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 
 class ConstantPredictionAlgorithm(): # AbstractAlgo
+    """
+    Personalization algorithm associated to leaspy.models.constant_model
+
+    It could predict:
+        * `last_known`: last non NaN value seen during calibration*§,
+        * `last`: last value seen during calibration (even if NaN),
+        * `max`: maximum (=worst) value seen during calibration*§,
+        * `mean`: average of values seen during calibration§.
+
+    | \* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
+    | § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
+    """
 
     _prediction_types = {'last', 'last_known', 'max', 'mean'}
 
     def __init__(self, settings):
         """
         ConstantPredictionAlgorithm is the algorithm that outputs a constant prediction
-
-        It could predict:
-        - `last_known`: last non NaN value seen during calibration*§,
-        - `last`: last value seen during calibration (even if NaN),
-        - `max`: maximum (=worst) value seen during calibration*§,
-        - `mean`: average of values seen during calibration§.
-
-        * <!> depending on features, the `last_known` / `max` value may correspond to different visits.
-        § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
         """
         self.name = 'constant_prediction'
         assert settings.name == self.name

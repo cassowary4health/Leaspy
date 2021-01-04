@@ -7,6 +7,9 @@ import statsmodels.api as sm
 
 
 class LMEPersonalizeAlgorithm(AbstractAlgo):
+    """
+    Personalization algorithm associated to leaspy.models.lme_model
+    """
 
     def __init__(self, settings):
         self.name = 'lme_personalize'

@@ -53,20 +53,14 @@ class AlgoFactory:
         """
         Return the wanted algorithm given its name.
 
-        algorithm_class: str
-            Must be one of the following api's name:
-            - 'fit'
-            - 'personalize'
-            - 'simulate'
-
         Parameters
         ----------
         algorithm_class: str
             Task name, used to check if the algorithm within the input `settings` is compatible with this task.
             Must be one of the following api's name:
-            - 'fit'
-            - 'personalize'
-            - 'simulate'
+                * `fit`
+                * `personalize`
+                * `simulate`
 
         settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
             The algorithm settings.
@@ -79,8 +73,8 @@ class AlgoFactory:
         Raises
         ------
         ValueError
-            - if the algorithm class is unknown
-            - if the algorithm name is unknown / does not belong to the wanted algorithm class
+            * if the algorithm class is unknown
+            * if the algorithm name is unknown / does not belong to the wanted algorithm class
         """
         name = settings.name
 

@@ -11,6 +11,7 @@ Subpackages
    leaspy.algo.personalize
    leaspy.algo.samplers
    leaspy.algo.simulate
+   leaspy.algo.others
 
 Submodules
 ----------

@@ -28,9 +28,11 @@ class Leaspy:
         The model used for the computation. The available models are:
             * ``'logistic'`` - suppose that every modality follow a logistic curve across time. This model performs a dimensionality reduction of the modalities.
             * ``'logistic_parallel'`` - idem & suppose also that every modality have the same slope at inflexion point
-            * ``'logistic'`` - suppose that every modality follow a linear curve across time. This model performs a dimensionality reduction of the modalities.
+            * ``'linear'`` - suppose that every modality follow a linear curve across time. This model performs a dimensionality reduction of the modalities.
             * ``'univariate_logisitic'`` - a 'logistic' model for a single modality => do not perform a dimensionality reduction.
-            * ``'univariate_logisitic'`` - idem with a 'logistic' model.
+            * ``'univariate_linear'`` - idem with a 'linear' model.
+            * ``'constant_model'`` - benchmark model for constant predictions.
+            * ``'lme_model'`` - benchmark model for classical linear mixed-effects model.
     type: str
         Name of the model - must be one of the ones listed above.
     plotting: leaspy.io.logs.visualization.plotting.Plotting

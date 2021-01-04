@@ -6,11 +6,13 @@ from leaspy.models.generic_model import GenericModel
 
 class LMEModel(GenericModel): # should inherit from AbstractModel?
     """
-    LMEModel is a benchmark model that fits and personalize the following linear mixed-effects model :
-    y_ij ~ fixed_intercept + random_intercept_i + (fixed_slope + random_slope_age_i) * ages_ij
-    With:
-    y_ij: feature array of the i-th patient (n_i visits),
-    ages_ij : ages array of the i-th patient (n_i visits),
+    LMEModel is a benchmark model that fits and personalize a linear mixed-effects model
+
+    The model specification is the following:
+    :math:`y_{ij} = fixed_{intercept} + random_{intercept_i} + (fixed_{slope} + random_{slope_{age_i}}) * ages_{ij}`
+    with:
+        * y_ij: feature array of the i-th patient (n_i visits),
+        * ages_ij: ages array of the i-th patient (n_i visits)
 
     This model must be fitted on one feature only (univariate model).
 

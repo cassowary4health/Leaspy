@@ -14,8 +14,21 @@ class AlgorithmSettings:
 
     Parameters
     ----------
-    name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
-        The algorithm's name.
+    name: str
+        The algorithm's name. Must be in:
+            * For `fit` algorithms:
+                * `mcmc_saem`
+                * `lme_fit`
+            * For `personalize` algorithms:
+                * `scipy_minimize`
+                * `mean_real`
+                * `mode_real`
+                * `gradient_descent_personalize`
+                * `constant_prediction`
+                * `lme_personalize`
+            * For `simulate` algorithms:
+                * `simulation`
+
     n_iter: int, optional
         Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
     n_burn_in_iter: int, optional

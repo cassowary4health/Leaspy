@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 
 class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
+    """
+    Calibration algorithm associated to leaspy.models.lme_model
+    """
 
     def __init__(self, settings):
 

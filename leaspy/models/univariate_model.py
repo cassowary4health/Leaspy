@@ -167,16 +167,62 @@ class UnivariateModel(AbstractModel):
 
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
         # Population parameters
-        g = self._get_attributes(attribute_type)
+        positions = self._get_attributes(attribute_type)
         # Individual parameters
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
         LL = -reparametrized_time.unsqueeze(-1)
-        model = (1./(1.+g))-LL
+        model = positions - LL
 
         return model
 
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, MCMC=False):
+    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+        if self.name in ['logistic', 'univariate_logistic']:
+            return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
+        elif self.name in ['linear', 'univariate_linear']:
+            return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
+        elif self.name == 'mixed_linear-logistic':
+            return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
+        else:
+            raise ValueError("Mutivariate model > Compute jacobian tensorized")
+
+    def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
+        '''
+
+                Parameters
+                ----------
+                timepoints
+                ind_parameters
+                attribute_type
+
+                Returns
+                -------
+                The Jacobian of the model with parameters order : [xi, tau, sources].
+                This function aims to be used in scipy_minimize.
+
+                '''
+        # Population parameters
+        positions = self._get_attributes(attribute_type)
+
+        # Individual parameters
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        # Log likelihood computation
+        reparametrized_time = reparametrized_time.unsqueeze(-1)
+
+        LL = reparametrized_time + positions
+
+        alpha = torch.exp(xi).unsqueeze(-1)
+
+        derivatives = {
+            'xi' : (reparametrized_time).unsqueeze(-1),
+            'tau' : (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
+        }
+        return derivatives
+
+    def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, MCMC=False):
         # cf. AbstractModel.compute_jacobian_tensorized for doc
 
         # Population parameters

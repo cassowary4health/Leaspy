@@ -1,0 +1,9 @@
+{
+  "name": "lme_fit",
+  "seed": null,
+  "parameters": {
+    "with_random_slope_age": false,
+    "force_independent_random_effects": false,
+    "method": ["lbfgs","bfgs","powell"]
+  }
+}

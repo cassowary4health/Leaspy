@@ -60,21 +60,66 @@ class AlgorithmSettings:
     set_logs(path, **kwargs):
         Use this method to monitor the convergence of a model callibration. It create graphs and csv files of the
         values of the population parameters (fixed effects) during the callibration
+
+    For developpers
+    ---------------
+    Use `_dynamic_default_parameters` to dynamically set some default parameters,
+    depending on other parameters that were set, while these "dynamic" parameters were not set.
+
+        Example:
+        --------
+        you could want to set burn in iterations or annealing iterations
+        as fractions of non-default number of iterations given.
+
+        Format:
+        -------
+            {algo_name: [
+                (functional_condition_to_trigger_dynamic_setting(kwargs),
+                {
+                    nested_keys_of_dynamic_setting: dynamic_value(kwargs)
+                })
+            ]}
     """
+
+    _dynamic_default_parameters = {
+        'mcmc_saem': [
+            (
+                # a number of iteration is given
+                lambda kw: 'n_iter' in kw,
+                {
+                    # burn-in: 90% of iterations given
+                    ('n_burn_in_iter',): lambda kw: int(0.9 * kw['n_iter']),
+                    # annealing: 50% of iterations given
+                    ('annealing', 'n_iter'): lambda kw: int(0.5 * kw['n_iter'])
+                }
+            )
+        ],
+
+        'lme_fit': [
+            (
+                lambda kw: 'force_independent_random_effects' in kw and kw['force_independent_random_effects'],
+                {
+                    ('method',): lambda kw: ['lbfgs','bfgs'] # powell & nm methods cannot ensure respect of "free"
+                }
+            )
+        ]
+    }
 
     def __init__(self, name, **kwargs):
         self.name = name
-        self.parameters = None
+        self.parameters = None # {}
         self.seed = None
         self.initialization_method = None
         self.loss = None
         self.logs = None
 
-        if name in ['mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize',
-                    'mode_real']:
-            self._load_default_values(os.path.join(default_data_dir, 'default_' + name + '.json'))
+        default_algo_settings_path = os.path.join(default_data_dir, 'default_' + name + '.json')
+
+        if os.path.isfile(default_algo_settings_path):
+            self._load_default_values(default_algo_settings_path)
         else:
             raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
+
         self._manage_kwargs(kwargs)
 
     @classmethod
@@ -102,6 +147,7 @@ class AlgorithmSettings:
 
         if 'name' not in settings.keys():
             raise ValueError("Your json file must contain a 'name' attribute!")
+
         algorithm_settings = cls(settings['name'])
 
         if 'parameters' in settings.keys():
@@ -205,56 +251,128 @@ class AlgorithmSettings:
         self.logs = OutputsSettings(settings)
 
     def _manage_kwargs(self, kwargs):
-        if 'seed' in kwargs.keys():
-            self.seed = self._get_seed(kwargs)
-        if 'initialization_method' in kwargs.keys():
-            self.initialization_method = self._get_initialization_method(kwargs)
-        if 'loss' in kwargs.keys():
-            self.loss = self._get_loss(kwargs)
+
+        _special_kwargs = {
+            'seed': self._get_seed,
+            'initialization_method': self._get_initialization_method,
+            'loss': self._get_loss,
+        }
 
         for k, v in kwargs.items():
-            if k in ['seed', 'initialization_method', 'loss']:
-                continue
 
-            if k in self.parameters.keys():
+            if k in _special_kwargs:
+                k_getter = _special_kwargs[k]
+                setattr(self, k, k_getter(kwargs))
+
+            elif k in self.parameters:
                 self.parameters[k] = v
+
             else:
                 warning_message = "The parameter key : >>>{0}<<< you provided is unknown".format(k)
                 warnings.warn(warning_message)
 
-        if self.name == 'mcmc_saem':
-            if 'n_iter' in kwargs.keys() and ('n_burn_in_iter' not in kwargs.keys() or kwargs['n_burn_in_iter'] is None):
-                self.parameters['n_burn_in_iter'] = int(0.9 * kwargs['n_iter'])
+        # dynamic default parameters
+        if self.name in self._dynamic_default_parameters:
 
-            # TODO : For Raphael : what does it mean? Because there are already default value.
-            # TODO : Thus, either default value for annealing/iter in the json, either here. Not both.
-            if 'n_iter' in kwargs.keys() and 'annealing' not in kwargs.keys():
-                self.parameters['annealing']["n_iter"] = int(0.5 * kwargs['n_iter'])
+            for func_condition, associated_defaults in self._dynamic_default_parameters[self.name]:
+
+                if not func_condition(kwargs):
+                    continue
+
+                # loop on dynamic defaults
+                for nested_levels, val_getter in associated_defaults.items():
+                    # check that the dynamic default that we want to set is not already overwritten
+                    if self._get_nested_dict(kwargs, nested_levels) is None:
+                        self._set_nested_dict(self.parameters, nested_levels, val_getter(kwargs))
+
+    @staticmethod
+    def _get_nested_dict(nested_dict: dict, nested_levels, default = None):
+        """
+        Get a nested key of a dict or default if any previous level is missing.
+
+        Examples:
+        ---------
+        _get_nested_dict(d, ('a','b'), -1)
+            -> -1 if 'a' not in d
+            -> -1 if 'b' not in d['a']
+            -> d['a']['b'] else
+
+        _get_nested_dict(d, [], ...) = d
+        """
+        it_levels = iter(nested_levels)
+
+        while isinstance(nested_dict, dict):
+            try:
+                next_lvl = next(it_levels)
+            except StopIteration:
+                break
+
+            # get next level dict
+            nested_dict = nested_dict.get(next_lvl, default)
+
+        return nested_dict
+
+    @classmethod
+    def _set_nested_dict(cls, nested_dict: dict, nested_levels, val):
+        """
+        Set a nested key of a dict.
+        Precondition: all intermediate levels must exist.
+        """
+        *nested_top_levels, last_level = nested_levels
+        dict_to_set = cls._get_nested_dict(nested_dict, nested_top_levels, default=None)
+        assert isinstance(dict_to_set, dict)
+        dict_to_set[last_level] = val # inplace
 
     def _load_default_values(self, path_to_algorithm_settings):
+
         with open(path_to_algorithm_settings) as fp:
             settings = json.load(fp)
 
-        AlgorithmSettings._check_default_settings(settings)
+        self._check_default_settings(settings)
+        # TODO: Urgent => The following function should in fact be algorithm-name specific!! As for the constant prediction
+        # Etienne: I'd advocate for putting all non-generic / parametric stuff in special methods / attributes of corresponding algos... so that everything is generic here
+
         self.name = self._get_name(settings)
         self.parameters = self._get_parameters(settings)
+
+        if settings['name'] == 'constant_prediction':
+            return
+        if settings['name'] == 'lme_personalize':
+            return
+
         self.seed = self._get_seed(settings)
+
+        if settings['name'] == 'lme_fit':
+            return
+
         self.loss = self._get_loss(settings)
 
     @staticmethod
     def _check_default_settings(settings):
+        # TODO: This should probably be in the ests
         if 'name' not in settings.keys():
             raise ValueError("The 'name' key is missing in the algorithm settings (JSON file) you are loading")
-        if 'seed' not in settings.keys():
-            raise ValueError("The 'settings' key is missing in the algorithm settings (JSON file) you are loading")
         if 'parameters' not in settings.keys():
             raise ValueError("The 'parameters' key is missing in the algorithm settings (JSON file) you are loading")
-        if 'initialization_method' not in settings.keys():
-            raise ValueError(
-                "The 'initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
+
+        if settings['name'] == 'constant_prediction':
+            return
+        if settings['name'] == 'lme_personalize':
+            return
+
+        if 'seed' not in settings.keys():
+            raise ValueError("The 'seed' key is missing in the algorithm settings (JSON file) you are loading")
+
+        if settings['name'] == 'lme_fit':
+            return
+
         if 'loss' not in settings.keys():
             warnings.warn("The 'loss' key is missing in the algorithm settings (JSON file) you are loading. \
             Its value will be 'MSE' by default")
+
+        if 'initialization_method' not in settings.keys():
+            raise ValueError(
+                "The 'initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
 
     @staticmethod
     def _get_name(settings):
@@ -270,8 +388,9 @@ class AlgorithmSettings:
             return None
         try:
             return int(settings['seed'])
-        except ValueError:
-            print("The 'seed' parameter you provided cannot be converted to int")
+        except Exception:
+            warnings.warn(f"The 'seed' parameter you provided ({settings['seed']}) cannot be converted to int, using None instead.")
+            return None
 
     @staticmethod
     def _get_initialization_method(settings):

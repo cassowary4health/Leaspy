@@ -1,5 +1,4 @@
-from . import UnivariateModel, MultivariateModel, MultivariateParallelModel
-
+from . import all_models
 
 class ModelFactory:
     """
@@ -33,14 +32,9 @@ class ModelFactory:
         else:
             raise AttributeError("The `name` argument must be a string!")
 
-        if name == 'univariate_logistic' or name == "univariate_linear":
-            model = UnivariateModel(name, **kwargs)
-        elif name == 'logistic' or name == 'linear' or name == 'mixed_linear-logistic':
-            model = MultivariateModel(name, **kwargs)
-        elif name == 'logistic_parallel':
-            model = MultivariateParallelModel(name, **kwargs)
-        else:
-            raise ValueError("The name of the model you are trying to create does not exist! " +
-                             "It should be `univariate_linear`, `univariate_logsitic, `linear`, `logistic` or `logistic_parallel`")
+        if name not in all_models:
+            raise ValueError("The name of the model you are trying to create does not exist! "
+                             f"It should be in {{{repr(tuple(all_models.keys()))[1:-1]}}}")
 
-        return model
+        # instantiate model with optional keyword arguments
+        return all_models[name](name, **kwargs)

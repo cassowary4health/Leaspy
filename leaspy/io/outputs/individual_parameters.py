@@ -143,6 +143,9 @@ class IndividualParameters:
             raise ValueError(f'The index should be a string ({type(item)} provided instead)')
         return self._individual_parameters[item]
 
+    def items(self):
+        return self._individual_parameters.items()
+
     def subset(self, indices):
         r"""
         Returns IndividualParameters object with a subset of the initial individuals

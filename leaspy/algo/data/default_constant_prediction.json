@@ -1,0 +1,7 @@
+{
+  "name": "constant_prediction",
+  "parameters": {
+    "prediction_type": "last"
+  }
+
+}

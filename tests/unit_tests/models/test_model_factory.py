@@ -1,9 +1,7 @@
 import unittest
 
+from leaspy.models import all_models, UnivariateModel
 from leaspy.models.model_factory import ModelFactory
-from leaspy.models.multivariate_model import MultivariateModel
-from leaspy.models.multivariate_parallel_model import MultivariateParallelModel
-from leaspy.models.univariate_model import UnivariateModel
 
 
 class ModelFactoryTest(unittest.TestCase):
@@ -18,17 +16,11 @@ class ModelFactoryTest(unittest.TestCase):
             Name of the model
         """
         if model is None:
-            for name in ['univariate_logistic', 'univariate_linear','linear', 'logistic', 'logistic_parallel']:
-                self.test_model_factory_constructor(ModelFactory().model(name))
+            for name, klass in all_models.items():
+                self.test_model_factory_constructor(ModelFactory.model(name))
         else:
-            if model.name == 'univariate_logistic':
-                self.assertEqual(type(model), UnivariateModel)
-            elif model.name == 'univariate_linear':
-                self.assertEqual(type(model), UnivariateModel)
-            elif model.name == 'logistic' or model.name == 'linear':
-                self.assertEqual(type(model), MultivariateModel)
-            elif model.name == 'logistic_parallel':
-                self.assertEqual(type(model), MultivariateParallelModel)
+            # valid name (preconditon)
+            self.assertEqual(type(model), all_models[model.name])
 
     def test_lower_case(self):
         """Test lower case"""
@@ -46,8 +38,8 @@ class ModelFactoryTest(unittest.TestCase):
             self.assertRaises(ValueError, ModelFactory.model, wrong_arg)
 
         # Test if raise AttributeError if wrong object in name (not a string)
-        wrong_ara_examples = [3.8, {'truc': .1}]
-        for wrong_arg in wrong_ara_examples:
+        wrong_arg_examples = [3.8, {'truc': .1}]
+        for wrong_arg in wrong_arg_examples:
             self.assertRaises(AttributeError, ModelFactory.model, wrong_arg)
 
     def test_load_hyperparameters(self):

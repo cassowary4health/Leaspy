@@ -1,0 +1,14 @@
+{
+  "name": "lme",
+  "with_random_slope_age": null,
+  "parameters": {
+    "ages_mean": null,
+    "ages_std": null,
+    "fe_params": null,
+    "cov_re": null,
+    "cov_re_unscaled_inv": null,
+    "noise_std": null,
+    "bse_fe": null,
+    "bse_re": null
+  }
+}

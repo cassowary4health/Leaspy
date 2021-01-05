@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 from scipy import stats
 
@@ -23,16 +25,17 @@ def initialize_parameters(model, dataset, method="default"):
         Contains the initialized model's group parameters.
     """
     name = model.name
-    if name == 'logistic':
+    if name in ['logistic', 'univariate_logistic']:
         parameters = initialize_logistic(model, dataset, method)
     elif name == 'logistic_parallel':
         parameters = initialize_logistic_parallel(model, dataset, method)
-    elif name == 'linear':
+    elif name in ['linear', 'univariate_linear']:
         parameters = initialize_linear(model, dataset, method)
-    elif name == 'univariate':
-        parameters = initialize_univariate(dataset, method)
+    #elif name == 'univariate':
+    #    parameters = initialize_univariate(dataset, method)
     elif name == 'mixed_linear-logistic':
-        parameters = initialize_logistic(model, dataset, method)
+        raise NotImplementedError
+        #parameters = initialize_logistic(model, dataset, method)
     else:
         raise ValueError("There is no initialization method for the parameter of the model {}".format(name))
 
@@ -86,21 +89,30 @@ def initialize_logistic(model, dataset, method):
     t0 = time.clone()
     slopes = slopes.mean() * torch.ones_like(slopes)
     v0_array = slopes.log()
-    g_array = torch.exp(1. / (1. + values))
+    g_array = torch.exp(1. / (1. + values)) # TODO: check need to be exp'ed here?
     betas = torch.zeros((model.dimension - 1, model.source_dimension))
     # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 
     # Create smart initialization dictionary
-    parameters = {
-        'g': g_array,
-        'v0': v0_array,
-        'betas': betas,
-        'tau_mean': t0, 'tau_std': torch.tensor(1.),
-        'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
-        'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-        'noise_std': torch.tensor([0.1], dtype=torch.float32)
-    }
+    if 'univariate' in model.name:
+        xi_mean = v0_array.squeeze() # already log'ed
+        parameters = {
+            'g': g_array.squeeze(),
+            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
+            'xi_mean': xi_mean, 'xi_std': torch.tensor(.05),
+            'noise_std': torch.tensor(0.1, dtype=torch.float32)
+        }
+    else:
+        parameters = {
+            'g': g_array,
+            'v0': v0_array,
+            'betas': betas,
+            'tau_mean': t0, 'tau_std': torch.tensor(1.),
+            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
+            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
+            'noise_std': torch.tensor([0.1], dtype=torch.float32)
+        }
 
     return parameters
 
@@ -165,7 +177,7 @@ def initialize_logistic_parallel(model, dataset, method):
         # Do transformations
         t0 = time.clone()
         v0_array = slopes.log()
-        g_array = torch.exp(1. / (1. + values))
+        g_array = torch.exp(1. / (1. + values)) # TODO: check need to be exp'ed here?
         betas = torch.distributions.normal.Normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 
         parameters = {
@@ -242,21 +254,36 @@ def initialize_linear(model, dataset, method):
     velocities = [torch.tensor(_) for _ in velocities]
     velocities = torch.tensor([torch.mean(_) for _ in velocities], dtype=torch.float32)
 
-    parameters = {
-        'g': positions,
-        'v0': velocities,
-        'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-        'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
-        'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
-        'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-        'noise_std': torch.tensor([0.1], dtype=torch.float32)
-    }
+    if 'univariate' in model.name:
+        if (velocities <= 0).item():
+            warnings.warn("Individual linear regressions made at initialization has a mean slope which is negative: not properly handled in case of an univariate linear model...")
+            xi_mean = torch.tensor(-3.) # default...
+        else:
+            xi_mean = torch.log(velocities).squeeze()
+
+        parameters = {
+            'g': positions.squeeze(),
+            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0), # TODO: increase all std?
+            'xi_mean': xi_mean, 'xi_std': torch.tensor(.05), # TODO: increase all std?
+            'noise_std': torch.tensor(0.1, dtype=torch.float32)
+        }
+    else:
+        parameters = {
+            'g': positions,
+            'v0': velocities,
+            'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
+            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
+            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
+            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
+            'noise_std': torch.tensor([0.1], dtype=torch.float32)
+        }
 
     return parameters
 
 
-def initialize_univariate(dataset, method):
-    return 0
+#def initialize_univariate(dataset, method):
+#    # TODO?
+#    return 0
 
 
 def compute_patient_slopes_distribution(data):

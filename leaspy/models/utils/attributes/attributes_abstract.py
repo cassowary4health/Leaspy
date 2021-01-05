@@ -2,6 +2,7 @@ import torch
 
 
 # TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
+# TODO: refact, this is not abstract but multivariate & logistic oriented (cf. exp ...)
 class AttributesAbstract:
     """
     Contains the common attributes & methods of the different attributes classes.
@@ -37,21 +38,37 @@ class AttributesAbstract:
         Update model group average parameter(s).
     """
 
-    def __init__(self, dimension=None, source_dimension=None):
+    def __init__(self, name, dimension=None, source_dimension=None):
         """
         Instantiate a AttributesAbstract class object.
         """
-        self.dimension = dimension
-        self.source_dimension = source_dimension
+        self.name = name
 
-        self.betas = None
-        self.mixing_matrix = None
-        self.orthonormal_basis = None
+        if not isinstance(dimension, int):
+            raise ValueError("In AttributesAbstract you must provide integer for the parameters `dimension`.")
+
+        self.dimension = dimension
+        self.univariate = dimension == 1
+
+        self.source_dimension = source_dimension
+        self.has_sources = bool(source_dimension) # False iff None or == 0
+
         self.positions = None
         self.velocities = None
 
-        self.name = None
-        self.update_possibilities = ('all', 'g', 'v0', 'betas')
+        if self.univariate:
+            assert not self.has_sources
+
+            self.update_possibilities = ('all', 'g', 'xi_mean')
+        else:
+            if not isinstance(source_dimension, int):
+                raise ValueError("In AttributesAbstract you must provide integer for the parameters `source_dimension` for non univariate models.")
+
+            self.betas = None
+            self.mixing_matrix = None
+            self.orthonormal_basis = None
+
+            self.update_possibilities = ('all', 'g', 'v0', 'betas')
 
     def get_attributes(self):
         """
@@ -63,7 +80,10 @@ class AttributesAbstract:
         - velocities: `torch.Tensor`
         - mixing_matrix: `torch.Tensor`
         """
-        return self.positions, self.velocities, self.mixing_matrix
+        if self.univariate:
+            return self.positions
+        else:
+            return self.positions, self.velocities, self.mixing_matrix
 
     def update(self, names_of_changed_values, values):
         """
@@ -107,9 +127,9 @@ class AttributesAbstract:
             self._compute_velocities(values)
 
         # TODO : Check if the condition is enough
-        if (compute_positions or compute_velocities) and (self.name != 'univariate'):
+        if self.has_sources and (compute_positions or compute_velocities):
             self._compute_orthonormal_basis()
-        if (compute_positions or compute_velocities or compute_betas) and (self.name != 'univariate'):
+        if self.has_sources and (compute_positions or compute_velocities or compute_betas):
             self._compute_mixing_matrix()
 
     def _check_names(self, names_of_changed_values):
@@ -124,9 +144,9 @@ class AttributesAbstract:
         -------
         ValueError
         """
-        def raise_err(name):
-            raise ValueError("The name {} is not in the attributes that are used to be updated".format(name))
-        [raise_err(n) for n in names_of_changed_values if n not in self.update_possibilities]
+        unknown_update_possibilities = set(names_of_changed_values).difference(self.update_possibilities)
+        if len(unknown_update_possibilities) > 0:
+            raise ValueError(f"{unknown_update_possibilities} not in the attributes that can be updated")
 
     def _compute_positions(self, values):
         """
@@ -136,7 +156,12 @@ class AttributesAbstract:
         ----------
         values: `dict` [`str`, `torch.Tensor`]
         """
-        self.positions = torch.exp(values['g'])
+        if 'linear' in self.name:
+            self.positions = values['g'].clone()
+        elif 'logistic' in self.name:
+            self.positions = torch.exp(values['g'])
+        else:
+            raise ValueError
 
     def _compute_velocities(self, values):
         """
@@ -146,7 +171,15 @@ class AttributesAbstract:
         ----------
         values: `dict` [`str`, `torch.Tensor`]
         """
-        self.velocities = torch.exp(values['v0'])
+        if self.univariate:
+            self.velocities = torch.exp(values['xi_mean'])
+        else:
+            if 'linear' in self.name:
+                self.velocities = values['v0'].clone()
+            elif 'logistic' in self.name:
+                self.velocities = torch.exp(values['v0'])
+            else:
+                raise ValueError
 
     def _compute_betas(self, values):
         """
@@ -156,7 +189,7 @@ class AttributesAbstract:
         ----------
         values: `dict` [`str`, `torch.Tensor`]
         """
-        if self.source_dimension == 0:
+        if not self.has_sources:
             return
         self.betas = values['betas'].clone()
 
@@ -209,6 +242,6 @@ class AttributesAbstract:
         """
         Update the attribute ``mixing_matrix``.
         """
-        if self.source_dimension == 0:
+        if not self.has_sources:
             return
         self.mixing_matrix = self._mixing_matrix_utils(self.betas, self.orthonormal_basis)

@@ -91,19 +91,18 @@ class MultivariateModel(AbstractMultivariateModel):
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
         '''
+        Parameters
+        ----------
+        timepoints
+        ind_parameters
+        attribute_type
 
-                Parameters
-                ----------
-                timepoints
-                ind_parameters
-                attribute_type
+        Returns
+        -------
+        The Jacobian of the model with parameters order : [xi, tau, sources].
+        This function aims to be used in scipy_minimize.
 
-                Returns
-                -------
-                The Jacobian of the model with parameters order : [xi, tau, sources].
-                This function aims to be used in scipy_minimize.
-
-                '''
+        '''
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
 

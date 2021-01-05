@@ -203,12 +203,11 @@ Attributes used by the models.
     :toctree: generated/
     :template: class.rst
 
-    attributes_abstract.AttributesAbstract
     attributes_factory.AttributesFactory
+    attributes_abstract.AttributesAbstract
     attributes_linear.AttributesLinear
     attributes_logistic.AttributesLogistic
     attributes_logistic_parallel.AttributesLogisticParallel
-    attributes_univariate.AttributesUnivariate
 
 :mod:`leaspy.models.utils.initialization`: **Initialization methods**
 ---------------------------------------------------------------------------

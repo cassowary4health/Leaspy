@@ -198,7 +198,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         err = output[1]
 
         self.check_individual_parameters(individual_parameters,
-            tau=80.9962, tol_tau=tol,
+            tau=76.36462, tol_tau=tol,
             xi=-1.0169, tol_xi=tol,
           tol_sources=tol
         )
@@ -233,7 +233,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         err = output[1]
 
         self.check_individual_parameters(individual_parameters,
-            tau=80.9962, tol_tau=tol,
+            tau=76.36460, tol_tau=tol,
             xi=-1.0169, tol_xi=tol,
           tol_sources=tol
         )

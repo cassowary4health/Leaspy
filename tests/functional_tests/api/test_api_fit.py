@@ -147,11 +147,11 @@ class LeaspyFitTest(unittest.TestCase):
         # Fit the model on the data
         leaspy.fit(data, algorithm_settings=algo_settings)
 
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 2.58, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 70.29, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 2.07, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.07, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.12, delta=0.01)
-        self.assertAlmostEqual(leaspy.model.parameters['g'], 0.99, delta=0.001)
+        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.2129, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 77.9435, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 1.035, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.2615, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.0925, delta=0.01)
+        self.assertAlmostEqual(leaspy.model.parameters['g'], 0.4812, delta=0.001)
 
     # TODO HMC, Gradient Descent

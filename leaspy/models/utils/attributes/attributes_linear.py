@@ -16,7 +16,7 @@ class AttributesLinear(AttributesAbstract):
     orthonormal_basis: `torch.Tensor` (default None)
     positions: `torch.Tensor` (default None)
     velocities: `torch.Tensor` (default None)
-    name: `str` (default 'univariate')
+    name: `str` (default 'linear')
         Name of the associated leaspy model. Used by ``update`` method.
     update_possibilities: `tuple` [`str`] (default ('all', 'g', 'v0', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
@@ -29,7 +29,7 @@ class AttributesLinear(AttributesAbstract):
         Update model group average parameter(s).
     """
 
-    def __init__(self, dimension, source_dimension):
+    def __init__(self, name, dimension, source_dimension):
         """
         Instantiate a AttributesLinear class object.
 
@@ -38,41 +38,7 @@ class AttributesLinear(AttributesAbstract):
         dimension: `int`
         source_dimension: `int`
         """
-        super().__init__(dimension, source_dimension)
-        self.name = 'linear'
-        if (type(dimension) != int) & (type(source_dimension) != int):
-            raise ValueError("For AttributesLinear you must provide integer io for the parameters"
-                             " `dimension` and `source_dimension`!")
-
-    def _compute_positions(self, values):
-        """
-        Update the attribute ``positions``.
-
-        Parameters
-        ----------
-        values: `dict` [`str`, `torch.Tensor`]
-        """
-        self.positions = values['g'].clone()
-
-    def _compute_velocities(self, values):
-        """
-        Update the attribute ``velocities``.
-
-        Parameters
-        ----------
-        values: `dict` [`str`, `torch.Tensor`]
-        """
-        self.velocities = values['v0'].clone()
-
-    def _compute_betas(self, values):
-        """
-        Update the attribute ``betas``.
-
-        Parameters
-        ----------
-        values: `dict` [`str`, `torch.Tensor`]
-        """
-        self.betas = values['betas'].clone()
+        super().__init__(name, dimension, source_dimension)
 
     def _compute_orthonormal_basis(self):
         """

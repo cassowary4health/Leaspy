@@ -79,7 +79,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             'xi': tensorized_params[:,[0]] * model.parameters['xi_std'],
             'tau': tensorized_params[:,[1]] * model.parameters['tau_std'],
         }
-        if model.name != 'univariate' and model.source_dimension > 0:
+        if 'univariate' not in model.name and model.source_dimension > 0:
             individual_parameters['sources'] = tensorized_params[:, 2:] * model.parameters['sources_std']
 
         return individual_parameters
@@ -95,7 +95,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             dict_grad_tensors['xi'] * model.parameters['xi_std'],
             dict_grad_tensors['tau'] * model.parameters['tau_std']
         ]
-        if model.name != 'univariate' and model.source_dimension > 0:
+        if 'univariate' not in model.name and model.source_dimension > 0:
             to_cat.append( dict_grad_tensors['sources'] * model.parameters['sources_std'] )
 
         return torch.cat(to_cat, dim=-1).squeeze(0) # 1 individual at a time

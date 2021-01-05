@@ -20,15 +20,15 @@ class TestUtilsGeneral(unittest.TestCase):
         #TODO : the above test just check  that it runs, not the results!
 
     def test_get_reparametrized_ages(self):
-        leaspy = Leaspy.load(os.path.join(test_data_dir, 'model_parameters', 'test_api.json'))
+        leaspy = Leaspy.load(os.path.join(test_data_dir, 'model_parameters', 'test_api.json')) # TODO: hardcode some values instead (not functional test)
         ip = IndividualParameters.load(os.path.join(test_data_dir, 'io', 'outputs',  'ip_save.json'))
 
         ages = {'idx1': [70, 80], 'idx3': [100]}
         reparametrized_ages = get_reparametrized_ages(ages, ip, leaspy)
 
         self.assertEqual(reparametrized_ages.keys(), ages.keys())
-        self.assertEqual(reparametrized_ages['idx1'], [78.02704620361328, 89.0787582397461])
-        self.assertEqual(reparametrized_ages['idx3'], [134.7211151123047])
+        self.assertEqual(reparametrized_ages['idx1'], [78.7451400756836, 89.7968521118164])
+        self.assertEqual(reparametrized_ages['idx3'], [135.439208984375])
 
     def test_compute_trajectory_of_population(self):
         leaspy = Leaspy.load(os.path.join(test_data_dir, 'model_parameters', 'test_api.json'))

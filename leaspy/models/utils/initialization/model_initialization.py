@@ -3,6 +3,10 @@ import warnings
 import torch
 from scipy import stats
 
+xi_std = .5
+tau_std = 5.
+noise_std = .1
+sources_std = 1.
 
 def initialize_parameters(model, dataset, method="default"):
     """
@@ -89,7 +93,7 @@ def initialize_logistic(model, dataset, method):
     t0 = time.clone()
     slopes = slopes.mean() * torch.ones_like(slopes)
     v0_array = slopes.log()
-    g_array = torch.exp(1. / (1. + values)) # TODO: check need to be exp'ed here?
+    g_array = torch.log(1. / values - 1.) # cf. Igor thesis; <!> exp is done in Attributes class for logisitic models
     betas = torch.zeros((model.dimension - 1, model.source_dimension))
     # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
@@ -99,19 +103,19 @@ def initialize_logistic(model, dataset, method):
         xi_mean = v0_array.squeeze() # already log'ed
         parameters = {
             'g': g_array.squeeze(),
-            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
-            'xi_mean': xi_mean, 'xi_std': torch.tensor(.05),
-            'noise_std': torch.tensor(0.1, dtype=torch.float32)
+            'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
+            'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
+            'noise_std': torch.tensor(noise_std, dtype=torch.float32)
         }
     else:
         parameters = {
             'g': g_array,
             'v0': v0_array,
             'betas': betas,
-            'tau_mean': t0, 'tau_std': torch.tensor(1.),
-            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
-            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-            'noise_std': torch.tensor([0.1], dtype=torch.float32)
+            'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
+            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
+            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
+            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
         }
 
     return parameters
@@ -138,62 +142,46 @@ def initialize_logistic_parallel(model, dataset, method):
         Contains the initialized model's group parameters. The parameters' keys are 'g',  'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'delta' and 'beta'.
     """
-    if method == "default":
 
-        # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
-        # betas =normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
-        betas = torch.zeros((model.dimension - 1, model.source_dimension))
+    # Get the slopes / values / times mu and sigma
+    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
+    values_mu, values_sigma = compute_patient_values_distribution(dataset)
+    time_mu, time_sigma = compute_patient_time_distribution(dataset)
 
-        parameters = {
-            'g': torch.tensor([1.], dtype=torch.float32),
-            'tau_mean': torch.tensor(70.),
-            'tau_std': torch.tensor(2.),
-            'xi_mean': torch.tensor(-3.),
-            'xi_std': torch.tensor(.1),
-            'sources_mean': torch.tensor(0.),
-            'sources_std': torch.tensor(1.),
-            'noise_std': torch.tensor([0.1], dtype=torch.float32),
-            'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
-            'betas': betas
-        }
-
-    elif method == "random":
-        # Get the slopes / values / times mu and sigma
-        slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
-        values_mu, values_sigma = compute_patient_values_distribution(dataset)
-        time_mu, time_sigma = compute_patient_time_distribution(dataset)
-
+    if method == 'default':
         # Get random variations
         slopes = torch.normal(slopes_mu, slopes_sigma)
         values = torch.normal(values_mu, values_sigma)
         time = torch.normal(time_mu, time_sigma)
-        # betas = torch.zeros((model.dimension - 1, model.source_dimension))
-
-        # Check that slopes are >0, values between 0 and 1
-        slopes[slopes < 0] = 0.01
-        values[values < 0] = 0.01
-        values[values > 1] = 0.99
-
-        # Do transformations
-        t0 = time.clone()
-        v0_array = slopes.log()
-        g_array = torch.exp(1. / (1. + values)) # TODO: check need to be exp'ed here?
+        betas = torch.zeros((model.dimension - 1, model.source_dimension))
+    elif method == 'random':
+        # Get random variations
+        slopes = torch.normal(slopes_mu, slopes_sigma)
+        values = torch.normal(values_mu, values_sigma)
+        time = torch.normal(time_mu, time_sigma)
         betas = torch.distributions.normal.Normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
-
-        parameters = {
-            'g': torch.tensor([torch.mean(g_array)], dtype=torch.float32),
-            'tau_mean': t0, 'tau_std': torch.tensor(2.0, dtype=torch.float32),
-            'xi_mean': torch.mean(v0_array).detach(), 'xi_std': torch.tensor(0.1, dtype=torch.float32),
-            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-            'noise_std': torch.tensor([0.1], dtype=torch.float32),
-            'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
-            'betas': betas
-        }
-
     else:
         raise ValueError("Initialization method not known")
 
-    return parameters
+    # Check that slopes are >0, values between 0 and 1
+    slopes[slopes < 0] = 0.01
+    values[values < 0] = 0.01
+    values[values > 1] = 0.99
+
+    # Do transformations
+    t0 = time.clone()
+    v0_array = slopes.log()
+    g_array = torch.log(1. / values - 1.) # cf. Igor thesis; <!> exp is done in Attributes class for logisitic models
+
+    return {
+        'g': torch.tensor([torch.mean(g_array)], dtype=torch.float32),
+        'tau_mean': t0, 'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+        'xi_mean': torch.mean(v0_array).detach(), 'xi_std': torch.tensor(xi_std, dtype=torch.float32),
+        'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
+        'noise_std': torch.tensor([noise_std], dtype=torch.float32),
+        'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
+        'betas': betas
+    }
 
 
 def initialize_linear(model, dataset, method):
@@ -263,19 +251,19 @@ def initialize_linear(model, dataset, method):
 
         parameters = {
             'g': positions.squeeze(),
-            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0), # TODO: increase all std?
-            'xi_mean': xi_mean, 'xi_std': torch.tensor(.05), # TODO: increase all std?
-            'noise_std': torch.tensor(0.1, dtype=torch.float32)
+            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(tau_std),
+            'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
+            'noise_std': torch.tensor(noise_std, dtype=torch.float32)
         }
     else:
         parameters = {
             'g': positions,
             'v0': velocities,
             'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(1.0),
-            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(.05),
-            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(1.),
-            'noise_std': torch.tensor([0.1], dtype=torch.float32)
+            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(tau_std),
+            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
+            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
+            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
         }
 
     return parameters

@@ -49,33 +49,35 @@ def dict_compare_and_display(d, e):
     bool
         Answer to ``d`` == ``e`` up to the standard tolerance of ``numpy.allclose``.
     """
-    try:
-        assert d == e
+    if d == e:
         return True
-    except AssertionError:
-        try:
-            assert d.keys() == e.keys()
-            for k in d.keys():
-                if type(d[k]) == dict:
-                    return dict_compare_and_display(d[k], e[k])
-                try:
-                    if not allclose(d[k], e[k]):
-                        print("The following values are different for `numpy.allclose`!")
-                        print("{0}: {1}".format(k, d[k]))
-                        print("{0}: {1}".format(k, e[k]))
-                        return False
-                except TypeError:
-                    if d[k] != e[k]:
-                        print("The following values are different!")
-                        print("{0}: {1}".format(k, d[k]))
-                        print("{0}: {1}".format(k, e[k]))
-                        return False
-                return True
-        except AssertionError:
-            print("The following keys are different!")
-            print(d.keys() ^ e.keys())
-            return False
 
+    if d.keys() != e.keys():
+        print("The following keys are different!")
+        print(d.keys() ^ e.keys())
+        return False
+
+    # loop on keys
+    for k in d.keys():
+        if type(d[k]) == dict:
+            if not dict_compare_and_display(d[k], e[k]):
+                return False # return now only if False ;)
+        else:
+            try:
+                if not allclose(d[k], e[k]):
+                    print("The following values are different for `numpy.allclose`!")
+                    print("{0}: {1}".format(k, d[k]))
+                    print("{0}: {1}".format(k, e[k]))
+                    return False
+            except TypeError:
+                if d[k] != e[k]:
+                    print("The following values are different!")
+                    print("{0}: {1}".format(k, d[k]))
+                    print("{0}: {1}".format(k, e[k]))
+                    return False
+
+    # return at last if no return (False) before
+    return True
 
 class LeaspyTest(unittest.TestCase):
 
@@ -89,13 +91,13 @@ class LeaspyTest(unittest.TestCase):
         """
         self.assertEqual(model.name, "logistic")
         self.assertEqual(model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
-        self.assertAlmostEqual(model.parameters['noise_std'], 0.2986, delta=0.01)
-        self.assertAlmostEqual(model.parameters['tau_mean'], 78.0270, delta=0.01)
-        self.assertAlmostEqual(model.parameters['tau_std'], 0.9494, delta=0.01)
+        self.assertAlmostEqual(model.parameters['noise_std'], 0.1503, delta=0.01)
+        self.assertAlmostEqual(model.parameters['tau_mean'], 78.7451, delta=0.01)
+        self.assertAlmostEqual(model.parameters['tau_std'], 4.4030, delta=0.01)
         self.assertAlmostEqual(model.parameters['xi_mean'], 0.0, delta=0.001)
-        self.assertAlmostEqual(model.parameters['xi_std'], 0.1317, delta=0.001)
-        diff_g = model.parameters['g'] - torch.tensor([1.9557, 2.5899, 2.5184, 2.2369])
-        diff_v = model.parameters['v0'] - torch.tensor([-3.5714, -3.5820, -3.5811, -3.5886])
+        self.assertAlmostEqual(model.parameters['xi_std'], 0.6343, delta=0.001)
+        diff_g = model.parameters['g'] - torch.tensor([0.0230, 2.9281, 2.5348, 1.1416])
+        diff_v = model.parameters['v0'] - torch.tensor([-4.3988, -4.5022, -4.4267, -4.4193])
         self.assertAlmostEqual(torch.sum(diff_g ** 2).item(), 0.0, delta=0.01)
         self.assertAlmostEqual(torch.sum(diff_v ** 2).item(), 0.0, delta=0.02)
 
@@ -113,17 +115,22 @@ class LeaspyTest(unittest.TestCase):
         data = Data.from_csv_file(example_data_path)
 
         # Fit
-        algo_settings = AlgorithmSettings('mcmc_saem', n_iter=10, seed=0)
+        algo_settings = AlgorithmSettings('mcmc_saem', n_iter=100, seed=0)
         leaspy = Leaspy("logistic")
         leaspy.model.load_hyperparameters({'source_dimension': 2})
         leaspy.fit(data, algorithm_settings=algo_settings)
+        print(leaspy.model.parameters)
+
         self.model_values_test(leaspy.model)
 
         # Save parameters and check its consistency
         path_to_saved_model = os.path.join(test_data_dir, 'model_parameters', 'test_api-copy.json')
         leaspy.save(path_to_saved_model)
 
-        with open(os.path.join(test_data_dir, "model_parameters", 'test_api.json'), 'r') as f1:
+        path_to_backup_model = os.path.join(test_data_dir, "model_parameters", 'test_api.json')
+        #leaspy.save(path_to_backup_model)
+
+        with open(path_to_backup_model, 'r') as f1:
             model_parameters = json.load(f1)
         with open(path_to_saved_model) as f2:
             model_parameters_new = json.load(f2)
@@ -158,8 +165,8 @@ class LeaspyTest(unittest.TestCase):
         self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
         self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
-        # simulation_results.data.to_dataframe().to_csv(os.path.join(
-        #     test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"), index=False)
+        #simulation_results.data.to_dataframe().to_csv(os.path.join(
+        #    test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"), index=False)
         # Test the reproducibility of simulate
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
         # BUT ON DIFFERENT MACHINE I CAN SEE ERROR OF MAGNITUDE 1e-5 !!!

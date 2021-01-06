@@ -40,7 +40,11 @@ class LeaspyTest(unittest.TestCase):
             self.assertEqual(leaspy.model.source_dimension, 2)
 
         with self.assertRaises(ValueError):
-            Leaspy('univariate', source_dimension=2)
+            Leaspy('univariate_logistic', source_dimension=2)
+        with self.assertRaises(ValueError):
+            Leaspy('univariate_linear', source_dimension=1)
+        with self.assertRaises(ValueError):
+            Leaspy('univariate') # old name
 
     def test_load_logistic(self):
         """

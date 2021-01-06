@@ -476,7 +476,7 @@ class SimulationAlgorithm(AbstractAlgo):
             if noise_generator:
                 observations += noise_generator.sample([observations.shape[0]]) # TODO: Raphaël? test won't pass with observations.shape[1] as you put
                 # for logistic models only
-                if model.name in ['logistic','logistic_parallel','univariate']:
+                if 'logistic' in model.name:
                     observations = observations.clamp(0, 1)
 
             observations = observations.squeeze(0).detach().numpy()

@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import torch
 
 from .abstract_model import AbstractModel
-from .utils.attributes.attributes_univariate import AttributesUnivariate
+from .utils.attributes.attributes_factory import AttributesFactory
+from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 
 
 class UnivariateModel(AbstractModel):
@@ -70,31 +71,40 @@ class UnivariateModel(AbstractModel):
             raise ValueError("Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
                              f"You gave {hyperparameters}.")
 
-    def initialize(self, dataset):
+    def initialize(self, dataset, method="default"):
 
         # "Smart" initialization : may be improved
         # TODO !
         self.features = dataset.headers
+
+        """
         self.parameters = {
             'g': [1.],
             'tau_mean': 70., 'tau_std': 2.,
             'xi_mean': -3., 'xi_std': .1,
             'noise_std': [.1]}
         self.parameters = {key: torch.tensor(val) for key, val in self.parameters.items()}
-        self.attributes = AttributesUnivariate()
+        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
+        """
+
+        self.parameters = initialize_parameters(self, dataset, method)
+
+        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
+        self.attributes.update(['all'], self.parameters)
+
         self.is_initialized = True
 
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
             self.parameters[k] = torch.tensor(parameters[k])
-        self.attributes = AttributesUnivariate()
+        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
         self.attributes.update(['all'], self.parameters)
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 1.},
-            'attributes': AttributesUnivariate()
+            'attributes': AttributesFactory.attributes(self.name, dimension=1)
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()
@@ -167,16 +177,60 @@ class UnivariateModel(AbstractModel):
 
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
         # Population parameters
-        g = self._get_attributes(attribute_type)
+        positions = self._get_attributes(attribute_type)
         # Individual parameters
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
         LL = -reparametrized_time.unsqueeze(-1)
-        model = (1./(1.+g))-LL
+        model = positions - LL
 
         return model
 
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, MCMC=False):
+    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+        if self.name in ['logistic', 'univariate_logistic']:
+            return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
+        elif self.name in ['linear', 'univariate_linear']:
+            return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
+        elif self.name == 'mixed_linear-logistic':
+            return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
+        else:
+            raise ValueError("Mutivariate model > Compute jacobian tensorized")
+
+    def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
+        '''
+        Parameters
+        ----------
+        timepoints
+        ind_parameters
+        attribute_type
+
+        Returns
+        -------
+        The Jacobian of the model with parameters order : [xi, tau, sources].
+        This function aims to be used in scipy_minimize.
+        '''
+        # Population parameters
+        positions = self._get_attributes(attribute_type)
+
+        # Individual parameters
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        # Log likelihood computation
+        reparametrized_time = reparametrized_time.unsqueeze(-1)
+
+        LL = reparametrized_time + positions
+
+        alpha = torch.exp(xi).unsqueeze(-1)
+
+        derivatives = {
+            'xi' : (reparametrized_time).unsqueeze(-1),
+            'tau' : (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
+        }
+        return derivatives
+
+    def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, MCMC=False):
         # cf. AbstractModel.compute_jacobian_tensorized for doc
 
         # Population parameters

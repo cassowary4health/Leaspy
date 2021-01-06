@@ -24,7 +24,7 @@ class AbstractMultivariateModelTest(unittest.TestCase):
             self.assertEqual(model.name, 'dummy')
 
         # Test common initialization with univariate
-        UnivariateModelTest().test_univariate_constructor(model)
+        UnivariateModelTest().check_common_attrs(model)
 
         # Test specific multivariate initialization
         self.assertEqual(model.dimension, None)

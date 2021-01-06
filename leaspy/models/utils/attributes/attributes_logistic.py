@@ -30,7 +30,7 @@ class AttributesLogistic(AttributesAbstract):
         Update model group average parameter(s).
     """
 
-    def __init__(self, dimension, source_dimension):
+    def __init__(self, name, dimension, source_dimension):
         """
         Instantiate a AttributesLogistic class object.
 
@@ -39,11 +39,7 @@ class AttributesLogistic(AttributesAbstract):
         dimension: `int`
         source_dimension: `int`
         """
-        super().__init__(dimension, source_dimension)
-        self.name = 'logistic'
-        if (type(dimension) != int) & (type(source_dimension) != int):
-            raise ValueError("For AttributesLogistic you must provide integer io for the parameters"
-                             " `dimension` and `source_dimension`!")
+        super().__init__(name, dimension, source_dimension)
 
     def _compute_orthonormal_basis(self):
         """

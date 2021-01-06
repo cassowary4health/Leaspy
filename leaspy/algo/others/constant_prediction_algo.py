@@ -83,9 +83,6 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
 
                 values_sorted_desc = values[sorted_indices]
 
-                print(np.array(times)[sorted_indices])
-                print(values[sorted_indices])
-
                 # get first index of values being non nan, with visits ordered by more recent
                 last_non_nan_ix_per_ft = (~np.isnan(values_sorted_desc)).argmax(axis=0)
                 # 1 feature value will be nan iff feature was nan at all visits

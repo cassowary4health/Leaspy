@@ -2,6 +2,10 @@ from bisect import bisect
 
 
 class IndividualData:
+    """
+    Data container for individual parameters, used to contruct a `Data` container.
+    """
+
     def __init__(self, idx):
         self.idx = idx
         self.timepoints = None

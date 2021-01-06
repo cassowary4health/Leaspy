@@ -7,14 +7,14 @@ from leaspy.models.utils.attributes.attributes_logistic import AttributesLogisti
 class AttributesLogisticTest(unittest.TestCase):
 
     def test_constructor(self):
-        attributes = AttributesLogistic(6, 2)
+        attributes = AttributesLogistic('logistic', 6, 2)
         self.assertEqual(attributes.dimension, 6)
         self.assertEqual(attributes.positions, None)
         self.assertEqual(attributes.orthonormal_basis, None)
         self.assertEqual(attributes.mixing_matrix, None)
         self.assertEqual(attributes.name, 'logistic')
         self.assertEqual(attributes.update_possibilities, ('all', 'g', 'v0', 'betas'))
-        self.assertRaises(ValueError, AttributesLogistic, '4', 3.2)  # with bad type arguments
+        self.assertRaises(ValueError, AttributesLogistic, 'name', '4', 3.2)  # with bad type arguments
         self.assertRaises(TypeError, AttributesLogistic)  # without argument
 
     def test_compute_orthonormal_basis(self):
@@ -24,7 +24,7 @@ class AttributesLogisticTest(unittest.TestCase):
             'betas': torch.tensor([[1, 2, 3], [0.1, 0.2, 0.3], [-1, -2, -3]], dtype=torch.float32),
             'v0': torch.tensor([-3, 1, 0, -1], dtype=torch.float32)
         }
-        attributes = AttributesLogistic(4, 2)
+        attributes = AttributesLogistic('logistic', 4, 2)
         attributes.update(names, values)
 
         # Test the orthogonality condition
@@ -43,7 +43,7 @@ class AttributesLogisticTest(unittest.TestCase):
             'betas': torch.tensor([[1, 2, 3], [0.1, 0.2, 0.3], [-1, -2, -3]], dtype=torch.float32),
             'v0': torch.tensor([-3, 1, 0, -1], dtype=torch.float32)
         }
-        attributes = AttributesLogistic(4, 2)
+        attributes = AttributesLogistic('logistic', 4, 2)
         attributes.update(names, values)
 
         metric_normalization = attributes.positions.pow(2) / (1 + attributes.positions).pow(2)

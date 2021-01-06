@@ -1,89 +1,92 @@
+from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 # from leaspy.algo.fit.gradient_descent import GradientDescent
 # from leaspy.algo.fit.gradient_mcmcsaem import GradientMCMCSAEM
-from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
-from leaspy.algo.personalize.gradient_descent_personalize import GradientDescentPersonalize
+# from leaspy.algo.fit.hmc_saem import HMC_SAEM
+from leaspy.algo.others.lme_fit import LMEFitAlgorithm
+
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.algo.personalize.mean_realisations import MeanReal
 from leaspy.algo.personalize.mode_realisations import ModeReal
-# from leaspy.algo.fit.hmc_saem import HMC_SAEM
+from leaspy.algo.personalize.gradient_descent_personalize import GradientDescentPersonalize
+
+from leaspy.algo.others.constant_prediction_algo import ConstantPredictionAlgorithm
+from leaspy.algo.others.lme_personalize import LMEPersonalizeAlgorithm
+
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 
 
 class AlgoFactory:
+    """
+    Return the wanted algorithm given its name.
 
-    @staticmethod
-    def algo(algorithm_class, settings):
-        name = settings.name
+    For developpers
+    ---------------
+    Add your new algorithm in corresponding category of `_algos` dictionary.
+    """
 
-        AlgoFactory._check_compatibility(algorithm_class, name)
+    _algos = {
+        'fit': {
+            'mcmc_saem': TensorMCMCSAEM,
+            #'mcmc_gradient_descent': GradientMCMCSAEM,
+            #'gradient_descent': GradientDescent,
+            # 'hmc_saem': HMC_SAEM,
+            'lme_fit': LMEFitAlgorithm,
+        },
 
-        # Fit Algorithm
-        if name == 'mcmc_saem':
-            algorithm = TensorMCMCSAEM(settings)
-        # elif name == 'mcmc_gradient_descent':
-        #    algorithm = GradientMCMCSAEM(settings)
-        # elif name == 'gradient_descent':
-        #    algorithm = GradientDescent(settings)
+        'personalize': {
+            'scipy_minimize': ScipyMinimize,
+            'mean_real': MeanReal,
+            'mode_real': ModeReal,
+            'gradient_descent_personalize': GradientDescentPersonalize, # deprecated?
 
-        # Personalize Algorithm
-        elif name == 'gradient_descent_personalize':
-            algorithm = GradientDescentPersonalize(settings)
-        elif name == 'scipy_minimize':
-            algorithm = ScipyMinimize(settings)
-        elif name == 'mean_real':
-            algorithm = MeanReal(settings)
-        elif name == 'mode_real':
-            algorithm = ModeReal(settings)
-        # elif name == 'hmc_saem':
-        #    algorithm = HMC_SAEM(settings)
+            'constant_prediction': ConstantPredictionAlgorithm,
+            'lme_personalize': LMEPersonalizeAlgorithm,
+        },
 
-        # Simulation agorithm
-        elif name == 'simulation':
-            algorithm = SimulationAlgorithm(settings)
+        'simulate': {
+            'simulation': SimulationAlgorithm
+        }
+    }
 
-        # Error
-        else:
-            raise ValueError("The name of your algorithm is unknown")
-
-        algorithm.set_output_manager(settings.logs)
-        return algorithm
-
-
-    @staticmethod
-    def _check_compatibility(algorithm_class, name):
+    @classmethod
+    def algo(cls, algorithm_class, settings):
         """
-        Check compatibility of algorithms and API methods.
+        Return the wanted algorithm given its name.
 
         Parameters
         ----------
-        name: str
-            Must be 'fit', 'simulate' or 'personalize'
-            Name of the algorithm to run
         algorithm_class: str
+            Task name, used to check if the algorithm within the input `settings` is compatible with this task.
             Must be one of the following api's name:
-                'fit' - compatible with 'mcm_saem'
-                'personalize' - compatible with "mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"
-                'simulate' - compatible with "simulation"
+                * `fit`
+                * `personalize`
+                * `simulate`
+
+        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
+            The algorithm settings.
+
+        Returns
+        -------
+        algorithm: child class of AbstractAlgo
+            The wanted algorithm if it exists and is compatible with algorithm class.
 
         Raises
         ------
         ValueError
-            Raise an error if the settings' name does not belong to the wanted api methods & display the possible
-            methods for that api.
+            * if the algorithm class is unknown
+            * if the algorithm name is unknown / does not belong to the wanted algorithm class
         """
+        name = settings.name
 
-        if algorithm_class not in ['fit', 'simulate', 'personalize']:
-            raise ValueError("The algorithm class you are using should be of class 'fit', 'simulate' or 'personalize'")
+        if algorithm_class not in cls._algos:
+            raise ValueError(f"Algorithm class '{algorithm_class}' is unknown: it must be in {set(cls._algos.keys())}.")
 
-        compatibility_algorithms = {
-            "fit": ["mcmc_saem"],
-            "personalize": ["mode_real", "mean_real", "scipy_minimize", "gradient_descent_personalize"],
-            "simulate": ["simulation"]
-        }
+        if name not in cls._algos[algorithm_class]:
+            raise ValueError(f"Algorithm '{name}' is unknown or does not belong to '{algorithm_class}' algorithms: it must be in {set(cls._algos[algorithm_class].keys())}.")
 
+        # instantiate algorithm with settings and set output manager
+        algorithm = cls._algos[algorithm_class][name](settings)
+        algorithm.set_output_manager(settings.logs)
 
-        if name not in compatibility_algorithms[algorithm_class]:
-            raise ValueError("Chosen algorithm is not compatible with method : {0} \n"
-                             "please choose one in the following method list : {1}".format(name,
-                                                                                           compatibility_algorithms[algorithm_class]))
+        return algorithm
 

@@ -5,7 +5,7 @@ import time
 from leaspy.io.logs.visualization.plotter import Plotter
 
 
-class FitOutputManager():
+class FitOutputManager:
     """
     FitOutputManager class object
     Class used by AbstractAlgo (and its child classes) to display plots and statistics and to save

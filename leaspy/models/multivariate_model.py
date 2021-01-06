@@ -5,8 +5,11 @@ from .utils.attributes.attributes_factory import AttributesFactory
 
 
 class MultivariateModel(AbstractMultivariateModel):
-    def __init__(self, name):
-        super().__init__(name)
+    """
+    Logistic model for multiple variables of interest.
+    """
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 
@@ -87,7 +90,48 @@ class MultivariateModel(AbstractMultivariateModel):
             raise ValueError("Mutivariate model > Compute jacobian tensorized")
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-        return NotImplementedError()
+        '''
+        Parameters
+        ----------
+        timepoints
+        ind_parameters
+        attribute_type
+
+        Returns
+        -------
+        The Jacobian of the model with parameters order : [xi, tau, sources].
+        This function aims to be used in scipy_minimize.
+
+        '''
+        # Population parameters
+        positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
+
+        # Individual parameters
+        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        # Log likelihood computation
+        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
+        v0 = velocities.reshape(1, 1, -1)
+
+        LL = v0 * reparametrized_time + positions
+        if self.source_dimension != 0:
+            sources = ind_parameters['sources']
+            wi = sources.matmul(mixing_matrix.t())
+            LL += wi.unsqueeze(-2)
+
+        alpha = torch.exp(xi).reshape(-1, 1, 1)
+
+        derivatives = {
+            'xi' : (v0 * reparametrized_time).unsqueeze(1),
+            'tau' : (-v0 * alpha).unsqueeze(1),
+        }
+
+        if self.source_dimension > 0:
+            derivatives['sources'] = mixing_matrix.expand((1,1,-1,-1))
+
+        return derivatives
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
         # cf. AbstractModel.compute_jacobian_tensorized for doc
@@ -128,7 +172,7 @@ class MultivariateModel(AbstractMultivariateModel):
         return derivatives
 
     def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
     """

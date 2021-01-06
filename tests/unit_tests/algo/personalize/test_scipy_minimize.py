@@ -43,7 +43,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
 
-        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate.json')
+        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_logistic.json')
         univariate_model = Leaspy.load(univariate_path)
         param = algo._initialize_parameters(univariate_model.model)
 
@@ -104,8 +104,145 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertTupleEqual(reg_grads['sources'].shape, (1,2))
 
 
-    def test_get_individual_parameters_patient_univariate(self):
-        # TODO
+    def test_get_individual_parameters_patient_univariate_logistic(self):
+        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_logistic.json')
+        leaspy = Leaspy.load(univariate_path)
+
+        settings = AlgorithmSettings('scipy_minimize', seed=0)
+        algo = ScipyMinimize(settings)
+
+        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
+        tol = 5e-3
+
+        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
+        algo._initialize_seed(algo.seed)
+        self.assertEqual(algo.seed, np.random.get_state()[1][0])
+
+        times = torch.tensor([70, 80])
+
+        # Test without nan
+        values = torch.tensor([[0.5], [0.4]])
+        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
+        individual_parameters = output[0]
+        err = output[1]
+
+        self.check_individual_parameters(individual_parameters,
+            tau=69.2868, tol_tau=tol,
+            xi=-1.0002, tol_xi=tol,
+          tol_sources=tol
+        )
+
+        err_expected = torch.tensor([[-0.1765],
+                                    [ 0.5498]])
+
+        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+
+        return 0
+
+    def test_get_individual_parameters_patient_univariate_logistic_with_jacobian(self):
+        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_logistic.json')
+        leaspy = Leaspy.load(univariate_path)
+
+        settings = AlgorithmSettings('scipy_minimize', use_jacobian=True, seed=0)
+        algo = ScipyMinimize(settings)
+
+        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
+        tol = 5e-2
+
+        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
+        algo._initialize_seed(algo.seed)
+        self.assertEqual(algo.seed, np.random.get_state()[1][0])
+
+        times = torch.tensor([70, 80])
+
+        # Test without nan
+        values = torch.tensor([[0.5], [0.4]])
+        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
+        individual_parameters = output[0]
+        err = output[1]
+
+        self.check_individual_parameters(individual_parameters,
+            tau=69.2868, tol_tau=tol,
+            xi=-1.0002, tol_xi=tol,
+          tol_sources=tol
+        )
+
+        err_expected = torch.tensor([[-0.1765],
+                                    [ 0.5498]])
+
+        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+
+        return 0
+
+
+    def test_get_individual_parameters_patient_univariate_linear(self):
+        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_linear.json')
+        leaspy = Leaspy.load(univariate_path)
+
+        settings = AlgorithmSettings('scipy_minimize', seed=0)
+        algo = ScipyMinimize(settings)
+
+        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
+        tol = 1e-2
+
+        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
+        algo._initialize_seed(algo.seed)
+        self.assertEqual(algo.seed, np.random.get_state()[1][0])
+
+        times = torch.tensor([70, 80])
+
+        # Test without nan
+        values = torch.tensor([[0.5], [0.4]])
+        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
+        individual_parameters = output[0]
+        err = output[1]
+
+        self.check_individual_parameters(individual_parameters,
+            tau=76.36462, tol_tau=tol,
+            xi=-1.0169, tol_xi=tol,
+          tol_sources=tol
+        )
+
+        err_expected = torch.tensor([[-1.8200],
+        [ 1.8973]])
+
+        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+
+        return 0
+
+    def test_get_individual_parameters_patient_univariate_linear_with_jacobian(self):
+        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_linear.json')
+        leaspy = Leaspy.load(univariate_path)
+
+        settings = AlgorithmSettings('scipy_minimize', use_jacobian=True, seed=0)
+        algo = ScipyMinimize(settings)
+
+        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
+        tol = 1e-2
+
+        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
+        algo._initialize_seed(algo.seed)
+        self.assertEqual(algo.seed, np.random.get_state()[1][0])
+
+        times = torch.tensor([70, 80])
+
+        # Test without nan
+        values = torch.tensor([[0.5], [0.4]])
+        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
+        individual_parameters = output[0]
+        err = output[1]
+
+        self.check_individual_parameters(individual_parameters,
+            tau=76.36460, tol_tau=tol,
+            xi=-1.0169, tol_xi=tol,
+          tol_sources=tol
+        )
+
+        err_expected = torch.tensor([[-1.8200],
+        [ 1.8973]])
+
+        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+
         return 0
 
     def test_get_individual_parameters_patient_multivariate(self):

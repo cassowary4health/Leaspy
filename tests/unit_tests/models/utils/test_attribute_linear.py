@@ -8,7 +8,7 @@ class AttributesLinearTest(unittest.TestCase):
 
     def setUp(self):
         """Set up the object for all the tests"""
-        self.attributes = AttributesLinear(4, 2)
+        self.attributes = AttributesLinear('linear', 4, 2)
 
     def test_constructor(self):
         """Test the initialization"""
@@ -20,12 +20,12 @@ class AttributesLinearTest(unittest.TestCase):
         self.assertEqual(self.attributes.mixing_matrix, None)
         self.assertEqual(self.attributes.name, 'linear')
         self.assertEqual(self.attributes.update_possibilities, ('all', 'g', 'v0', 'betas'))
-        self.assertRaises(ValueError, AttributesLinear, '4', 3.2)  # with bad type arguments
+        self.assertRaises(ValueError, AttributesLinear, 'name', '4', 3.2)  # with bad type arguments
         self.assertRaises(TypeError, AttributesLinear)  # without argument
 
     def test_check_names(self):
         """Test if raise a ValueError if wrong arg"""
-        wrong_arg_exemples = ['blabla1', 3.8, {'truc': 0.1}]
+        wrong_arg_exemples = ['blabla1', 3.8, None]
         # for wrong_arg in wrong_arg_exemples:
         #     self.assertRaises(ValueError, self.attributes._check_names, wrong_arg)
         self.assertRaises(ValueError, self.attributes._check_names, wrong_arg_exemples)

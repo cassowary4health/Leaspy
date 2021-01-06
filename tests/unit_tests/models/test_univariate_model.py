@@ -6,18 +6,7 @@ from leaspy.models.univariate_model import UnivariateModel
 
 class UnivariateModelTest(unittest.TestCase):
 
-    def test_univariate_constructor(self, model=None):
-        """
-        Test attribute's initialization of leaspy univariate model
-        """
-        print('\nUnit-test UnivariateModel\n')
-
-        if model is None:
-            model = UnivariateModel('univariate')
-            self.assertEqual(type(model), UnivariateModel)
-            self.assertEqual(model.dimension, 1)
-            self.assertEqual(model.source_dimension, 0)
-
+    def check_common_attrs(self, model):
         self.assertTrue(issubclass(model.__class__, AbstractModel))
 
         self.assertEqual(model.attributes, None)
@@ -32,3 +21,21 @@ class UnivariateModelTest(unittest.TestCase):
 
         self.assertEqual(model.MCMC_toolbox['attributes'], None)
         self.assertEqual(model.MCMC_toolbox['priors']['g_std'], None)
+
+    def test_univariate_constructor(self):
+        """
+        Test attribute's initialization of leaspy univariate model
+        """
+        print('\nUnit-test UnivariateModel\n')
+
+        for name in ['univariate_linear', 'univariate_logistic']:
+
+            model = UnivariateModel(name)
+            self.assertIsInstance(model, UnivariateModel)
+            self.assertEqual(model.name, name)
+            self.assertEqual(model.dimension, 1)
+            self.assertEqual(model.source_dimension, 0)
+
+            self.check_common_attrs(model)
+
+

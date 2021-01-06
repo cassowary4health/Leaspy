@@ -2,6 +2,9 @@ import json
 
 
 class ModelSettings:
+    """
+    Used in :ref:`leaspy.api.load` to create a `Leaspy` class object from a `json file`.
+    """
     def __init__(self, path_to_model_settings):
         if type(path_to_model_settings) is dict:
             settings = path_to_model_settings

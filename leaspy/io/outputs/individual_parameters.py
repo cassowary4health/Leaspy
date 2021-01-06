@@ -1,18 +1,21 @@
-import os
-import json
-import warnings
 import functools
+import json
 import operator
+import os
+import warnings
 
-import torch
-import pandas as pd
 import numpy as np
+import pandas as pd
+import torch
+
 
 class IndividualParameters:
     r"""
+    Data container for individual parameters, contains IDs, timepoints and observations values.
+    Ouput of the ``Leaspy.personalize`` method, contains the *random effects*.
     IndividualParameters object class.
-    The object holds a collection of individual parameters, that are outputs of the api personalization.
-    There are used as io of the simulation algorithm, to provide an initial distribution of individual parameters.
+    There are used as ouput of the `personalization algorithms` and as input/ouput of the `simulation algorithm`,
+    to provide an initial distribution of individual parameters.
 
     Attributes
     ----------
@@ -139,6 +142,9 @@ class IndividualParameters:
         if type(item) != str:
             raise ValueError(f'The index should be a string ({type(item)} provided instead)')
         return self._individual_parameters[item]
+
+    def items(self):
+        return self._individual_parameters.items()
 
     def subset(self, indices):
         r"""
@@ -448,7 +454,7 @@ class IndividualParameters:
         Raises
         ------
         ValueError:
-            If the provided extension is not csv not json
+            If the provided extension is not `csv` or not `json`.
 
         Examples
         --------

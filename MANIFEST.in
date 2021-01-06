@@ -1,0 +1,14 @@
+recursive-include leaspy *.json
+recursive-include leaspy *.csv
+
+include leaspy/algo/data/*.json
+include leaspy/models/data/*.json
+
+
+include leaspy/datasets/data/*.csv
+include leaspy/datasets/model_parameters/*.json
+include leaspy/datasets/individual_parameters/*.json
+include leaspy/datasets/individual_parameters/*.csv
+
+include *.md
+include *.txt

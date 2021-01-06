@@ -11,7 +11,7 @@ TWO_PI = 2 * math.pi
 # TODO: Check & complete docstrings
 class AbstractModel:
     """
-    AbstractModel class contains the common attributes & methods of the different models.
+    Contains the common attributes & methods of the different models.
 
     Attributes
     ----------
@@ -64,7 +64,17 @@ class AbstractModel:
     def load_hyperparameters(self, hyperparameters):
         raise NotImplementedError
 
-    def save(self, path):
+    def save(self, path, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
         raise NotImplementedError
 
     def get_individual_variable_name(self):
@@ -304,7 +314,7 @@ class AbstractModel:
         -------
         torch.Tensor of shape (n_individuals, n_timepoints, n_features)
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         """
@@ -323,7 +333,7 @@ class AbstractModel:
         -------
         dict[param_name: str, torch.Tensor of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         """

@@ -1,0 +1,13 @@
+{
+  "name": "univariate_linear",
+  "features": ["feature"],
+  "loss": "MSE",
+  "parameters": {
+    "g": 1.0,
+    "tau_mean": 70.0,
+    "tau_std": 2.5,
+    "xi_mean": -1.0,
+    "xi_std": 0.01,
+    "noise_std": 0.2
+  }
+}

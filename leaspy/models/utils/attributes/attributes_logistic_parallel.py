@@ -6,7 +6,7 @@ from .attributes_abstract import AttributesAbstract
 # TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
 class AttributesLogisticParallel(AttributesAbstract):
     """
-    AttributesAbstract class contains the common attributes & methods of the LogisticParallelModels' attributes.
+    Contains the common attributes & methods of the logistic parallel models' attributes.
 
     Attributes
     ----------
@@ -23,7 +23,7 @@ class AttributesLogisticParallel(AttributesAbstract):
     velocities: `torch.Tensor` (default None)
     name: `str` (default 'logistic_parallel')
         Name of the associated leaspy model. Used by ``update`` method.
-    update_possibilities: `tuple` [`str`] (default ('g', 'deltas', 'betas', 'xi_mean', 'all') )
+    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'xi_mean', 'betas', 'deltas') )
         Contains the available parameters to update. Different models have different parameters.
 
     Methods
@@ -34,7 +34,7 @@ class AttributesLogisticParallel(AttributesAbstract):
         Update model group average parameter(s).
     """
 
-    def __init__(self, dimension, source_dimension):
+    def __init__(self, name, dimension, source_dimension):
         """
         Instantiate a AttributesLogisticParallel class object.
 
@@ -43,13 +43,11 @@ class AttributesLogisticParallel(AttributesAbstract):
         dimension: `int`
         source_dimension: `int`
         """
-        super().__init__(dimension, source_dimension)
+        super().__init__(name, dimension, source_dimension)
+        assert self.dimension >= 2
+
         self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
-        self.update_possibilities = ('g', 'deltas', 'betas', 'xi_mean', 'all')
-        self.name = 'logistic_parallel'
-        if (type(dimension) != int) & (type(source_dimension) != int):
-            raise ValueError("For AttributesLogisticParallel you must provide integer io for the parameters"
-                             " `dimension` and `source_dimension`!")
+        self.update_possibilities = ('all', 'g', 'xi_mean', 'betas', 'deltas')
 
     def get_attributes(self):
         """

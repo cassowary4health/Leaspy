@@ -45,9 +45,9 @@ class Dataset:
         for i, d in enumerate(x_len):
             indiv_values = torch.tensor(data[i].observations, dtype=torch.float32)
             values[i, 0:d, :] = indiv_values
-            padding_mask[i, 0:d, :] = 1
+            padding_mask[i, 0:d, :] = 1.
 
-        mask_missingvalues = (~torch.isnan(values)).int()
+        mask_missingvalues = (~torch.isnan(values)).float()
         # mask should be 0 on visits outside individual's existing visits (he may have fewer visits than the individual with maximum nb of visits)
         # (we need to enforce it here because we padded values with 0, not with nan, so actual mask is 1 on these fictive values)
         mask = padding_mask * mask_missingvalues

@@ -23,10 +23,18 @@ Leaspy is a software package for the statistical analysis of **longitudinal data
 
 #### Installation
 
-1. (Optional) Create a dedicated conda environment:
+1. Create a dedicated environment (optional):
+
+Using `conda`
 ```
 conda create --name leaspy python=3.7
 conda activate leaspy
+```
+
+Or using `pyenv`
+```
+pyenv virtualenv leaspy
+pyenv local leaspy
 ```
 
 2. Install leaspy
@@ -57,7 +65,7 @@ More detailed explanations about the models themselves and  about the estimation
 - **Mathematical framework**: *A Bayesian mixed-effects model to learn trajectories of changes from repeated manifold-valued observations*. Jean-Baptiste Schiratti, Stéphanie Allassonnière, Olivier Colliot, and Stanley Durrleman.  The Journal of Machine Learning Research, 18:1–33, December 2017. [Open Access PDF](https: //hal.archives-ouvertes.fr/hal-01540367).
 - **Application to imaging data**: *Statistical learning of spatiotemporal patterns from longitudinal manifold-valued networks*. I. Koval, J.-B. Schiratti, A. Routier, M. Bacci, O. Colliot, S. Allassonnière and S. Durrleman. MICCAI, September 2017. [Open Access PDF](https://arxiv.org/pdf/1709.08491.pdf)
 - **Application to imaging data**: *Spatiotemporal Propagation of the Cortical Atrophy: Population and Individual Patterns*. Igor Koval, Jean-Baptiste Schiratti, Alexandre Routier, Michael Bacci, Olivier Colliot, Stéphanie Allassonnière, and Stanley Durrleman. Front Neurol. 2018 May 4;9:235. Open Access PDF
-- **Intensive application for Alzheimer's Disease progression**: *Simulating Alzheimer’s disease progression with personalised digital brain models*, I. Koval, A. Bone, M. Louis, S. Bottani, A. Marcoux, J. Samper-Gonzalez, N. Burgos, B. Charlier, A. Bertrand, S. Epelbaum, O. Colliot, S. Allassonniere & S. Durrleman, Under review [Open Access PDF](https://hal.inria.fr/hal-01964821/file/SimulatingAlzheimer_low_resolution%20%281%29.pdf)
+- **Intensive application for Alzheimer's Disease progression**: *AD Course Map charts Alzheimer's disease progression*, I. Koval, A. Bone, M. Louis, S. Bottani, A. Marcoux, J. Samper-Gonzalez, N. Burgos, B. Charlier, A. Bertrand, S. Epelbaum, O. Colliot, S. Allassonniere & S. Durrleman, Under review [Open Access PDF](https://hal.inria.fr/hal-01964821/document)
 - www.digital-brain.org: website related to the application of the model for Alzheimer's disease
 
 ## Supported features

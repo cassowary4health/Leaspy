@@ -310,9 +310,20 @@ class SimulationAlgorithm(AbstractAlgo):
             Contains the subject's time points.
         """
         number_of_visits = self._get_number_of_visits()
-        ages = [bl]
-        while len(ages) < number_of_visits:
-            ages.append(ages[-1] + self._generate_delta_t())
+        #ages = [bl]
+        #while len(ages) < number_of_visits:
+        #    ages.append(ages[-1] + self._generate_delta_t())
+
+        deltas = [0.125, 0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 0.5, 0.5,
+         0.5, 0.5, 0.5, 0.5, 1., 1., 1.]
+
+        deltas_from_bl = [0., 0.125, 0.375, 0.625, 0.875, 1.125, 1.625, 2.125, 2.625,
+       3.125, 3.625, 4.125, 4.625, 5.125, 6.125, 7.125, 8.125]
+
+        ages = bl+np.array(deltas_from_bl)
+
+        ages = ages[:number_of_visits]
+
         return ages
 
     def _set_timepoints_generator(self, serie_time):
@@ -708,6 +719,6 @@ class SimulationAlgorithm(AbstractAlgo):
                                                  timepoints=timepoints,
                                                  values=features_values,
                                                  headers=results.data.headers)
-        return Result(data=simulated_scores,
+        return kernel, Result(data=simulated_scores,
                       individual_parameters=simulated_parameters,
                       noise_std=self.noise) # TODO: we could/should convert self.noise into something OK for Result object (in particular "default" is a special flag for SimulationAlgorithm and should be replaced by computed values...)

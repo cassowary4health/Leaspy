@@ -478,8 +478,9 @@ class SimulationAlgorithm(AbstractAlgo):
 
         simulated_parameters = {'tau': samples[:, 1], 'xi': samples[:, 2]}
         # xi & tau are 1D array - one value per simulated subject
+
         if self.get_sources:
-            if self.sources_method in ["full_kde", "gmm"]:
+            if self.sources_method in ["full_kde", "gmm", "bgmm"]:
                 simulated_parameters['sources'] = samples[:, 3:]
             elif self.sources_method == "normal_sources":
                 # Generate sources

@@ -323,7 +323,7 @@ class SimulationAlgorithm(AbstractAlgo):
         deltas_from_bl = [0., 0.125, 0.375, 0.625, 0.875, 1.125, 1.625, 2.125, 2.625,
        3.125, 3.625, 4.125, 4.625, 5.125, 6.125, 7.125, 8.125]
 
-        ages = bl+np.array(deltas_from_bl)
+        ages = bl+np.array(deltas_from_bl)#-np.mean(deltas_from_bl)
 
         ages = ages[:number_of_visits]
 
@@ -496,6 +496,7 @@ class SimulationAlgorithm(AbstractAlgo):
         get_sources = simulate_parameter.get_sources
         sources_method = simulate_parameter.sources_method
         density = simulate_parameter.density_type
+        tau_mean = simulate_parameter.tau_mean
 
         if mean_num_visits is None:
             mean_num_visits = simulate_parameter.mean_num_visits
@@ -513,7 +514,7 @@ class SimulationAlgorithm(AbstractAlgo):
         samples[:, 0] = self._get_real_age(repam_ages=samples[:, 0],
                                            tau=samples[:, 1],
                                            xi=samples[:, 2],
-                                           tau_mean=model.parameters['tau_mean'].item())
+                                           tau_mean=tau_mean)
 
         timepoints = list(map(lambda x: self._get_timepoints(x, mean_num_visits, std_num_visits), samples[:, 0]))
         # timempoints is a 2D list - one row per simulated subject
@@ -682,6 +683,8 @@ class SimulationAlgorithm(AbstractAlgo):
 
         features_values = self._simulate_subjects(simulated_parameters, timepoints, model, noise_generator)
 
+
+
         # --------- If one wants to select generated subjects based on their baseline scores
         if features_bounds:
             # Handle bounds on the generated features
@@ -744,6 +747,9 @@ class SimulationAlgorithm(AbstractAlgo):
 
     def learn_kernels(self, model, individual_parameters, data):
 
+        mean_age = data.to_dataframe().groupby("ID").apply(lambda x: x["TIME"].mean()).mean()
+        std_age = data.to_dataframe().groupby("ID").apply(lambda x: x["TIME"].mean()).std()
+
         self.get_sources = ('univariate' not in model.name)
 
         _, dict_pytorch = individual_parameters.to_pytorch()
@@ -761,7 +767,12 @@ class SimulationAlgorithm(AbstractAlgo):
             # Remove the cofactor column
             df_ind_param = df_ind_param.loc[:, df_ind_param.columns != self.cofactor_state]
 
+        # Can be different with the ont from model parameters
+        #t0 = model.parameters['tau_mean'].item()
+        tau_mean = df_ind_param['tau'].values.mean()
+
         # Add the baseline ages
+        #df_ind_param = results.data.to_dataframe().groupby('ID').mean()[['TIME']].join(df_ind_param, how='right')
         df_ind_param = results.data.to_dataframe().groupby('ID').first()[['TIME']].join(df_ind_param, how='right')
         # At this point, df_ind_param.columns = ['TIME', 'tau', 'xi', 'sources_0', 'sources_1', ..., 'sources_n']
 
@@ -773,14 +784,16 @@ class SimulationAlgorithm(AbstractAlgo):
         distribution[:, 0] = self._get_reparametrized_age(timepoints=distribution[:, 0],
                                                           tau=distribution[:, 1],
                                                           xi=distribution[:, 2],
-                                                          tau_mean=model.parameters['tau_mean'].item())
+                                                          tau_mean=tau_mean)
 
-        # If constraints on baseline reparametrized age have been set
+        # If constraints on average reparametrized age have been set
         # Select only the subjects who satisfy the constraints
         if self.reparametrized_age_bounds:
             distribution = np.array([ind for ind in distribution if
                                      min(self.reparametrized_age_bounds) < ind[0] < max(
                                          self.reparametrized_age_bounds)])
+
+
 
         # Get sources according the selected sources_method
         if self.get_sources & (self.sources_method == "normal_sources"):
@@ -816,4 +829,4 @@ class SimulationAlgorithm(AbstractAlgo):
         std_num_visits = data.to_dataframe().groupby('ID').count().std()[0]
 
         return SimulateParameter(kernel, ss, df_mean, df_cov, noise_generator, data.headers, self.get_sources, self.sources_method, self.density,\
-                                 mean_num_visits, std_num_visits)
+                                 mean_num_visits, std_num_visits, tau_mean, mean_age, std_age)

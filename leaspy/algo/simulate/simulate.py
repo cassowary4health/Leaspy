@@ -716,8 +716,8 @@ class SimulationAlgorithm(AbstractAlgo):
                 features_values += features_values_bis
                 timepoints += timepoints_bis
                 for key in simulated_parameters:
-                    simulated_parameters[key] = np.concatenate(simulated_parameters[key],
-                                                               simulated_parameters_bis[key])
+                    simulated_parameters[key] = np.concatenate([simulated_parameters[key],
+                                                               simulated_parameters_bis[key]])
 
         # --------- Take only the `number_of_simulated_subjects` first generated subjects
         n = number_of_subjects

@@ -12,7 +12,7 @@
     "std_number_of_visits": 3,
     "cofactor": null,
     "cofactor_state": null,
-    "sources_method": "null",
+    "sources_method": "full_kde",
     "reparametrized_age_bounds": null,
     "features_bounds": false,
     "prefix":"Generated_subject_",

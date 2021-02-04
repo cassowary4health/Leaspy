@@ -351,6 +351,24 @@ class Leaspy:
         simulated_data = algorithm.run(self.model, individual_parameters, data)
         return simulated_data
 
+    def learn_kernels(self, individual_parameters, data, settings):
+        # Check if model has been initialized
+        self.check_if_initialized()
+
+        algorithm = AlgoFactory.algo("simulate", settings)
+        simulation_parameter = algorithm.learn_kernels(self.model, individual_parameters, data)
+        return simulation_parameter
+
+    def simulate_from_kernel(self, kernel, number_of_subjects, features_bounds=None, features_min=None, features_max=None, headers=None):
+        # Check if model has been initialized
+        from .io.settings.algorithm_settings import AlgorithmSettings
+        self.check_if_initialized()
+        settings = AlgorithmSettings('simulation')
+        algorithm = AlgoFactory.algo("simulate", settings) # TODO change that, all simulation should be decoupled from simulate
+        simulation = algorithm.simulate_from_kernel(kernel, self.model, number_of_subjects,
+                                                              features_bounds=features_bounds, features_min=features_min, features_max=features_max, headers=headers)
+        return simulation
+
     @classmethod
     def load(cls, path_to_model_settings):
         """

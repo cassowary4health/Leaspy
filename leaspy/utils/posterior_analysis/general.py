@@ -113,11 +113,10 @@ def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
     """
 
     warnings.warn('compute_trajectory_of_population function is deprecated. Please use the one in Leaspype')
-    ip_dict = {
-        'xi': individual_parameters.get_mean('xi'),
-        'tau': individual_parameters.get_mean('tau'),
-        'sources': individual_parameters.get_mean('sources')
-    }
+    if 'univariate' not in leaspy.model.name:
+        ip_dict = {k : individual_parameters.get_mean(k) for k in ['xi','tau','sources']}
+    else:
+        ip_dict = {k : individual_parameters.get_mean(k) for k in ['xi','tau']}
 
     ip = IndividualParameters()
     ip.add_individual_parameters('mean', ip_dict)

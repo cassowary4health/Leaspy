@@ -2,6 +2,7 @@ import warnings
 
 import torch
 from scipy import stats
+from numpy import exp
 
 xi_std = .5
 tau_std = 5.
@@ -242,12 +243,16 @@ def initialize_linear(model, dataset, method):
     velocities = [torch.tensor(_) for _ in velocities]
     velocities = torch.tensor([torch.mean(_) for _ in velocities], dtype=torch.float32)
 
+    neg_velocities = velocities <= 0
+    if neg_velocities.any():
+        warnings.warn(f"Mean slope of individual linear regressions made at initialization is negative for {[f for f, vel in zip(model.features, velocities) if vel <= 0]}: not properly handled in model...")
+        velocities = velocities.clamp(min=exp(-3.))
+
+    # always take the log (even in non univariate model!)
+    velocities = torch.log(velocities)
+
     if 'univariate' in model.name:
-        if (velocities <= 0).item():
-            warnings.warn("Individual linear regressions made at initialization has a mean slope which is negative: not properly handled in case of an univariate linear model...")
-            xi_mean = torch.tensor(-3.) # default...
-        else:
-            xi_mean = torch.log(velocities).squeeze()
+        xi_mean = velocities.squeeze()
 
         parameters = {
             'g': positions.squeeze(),

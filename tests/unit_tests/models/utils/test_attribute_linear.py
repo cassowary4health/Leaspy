@@ -35,7 +35,7 @@ class AttributesLinearTest(unittest.TestCase):
         names = ['all']
         values = {
             'g': torch.tensor([0.]),
-            'v0': torch.tensor([1., 0., 2., 1.]),
+            'v0': torch.tensor([-3., 1, 0, -1]), # as for logistic (too high v0values [exp'd] implies a precision a bit coarser)
             'betas': torch.tensor([[1., 2., 3., 4.], [.1, .2, .3, .4], [-1., -2., -3., -4.]])
         }
         self.attributes.update(names, values)
@@ -55,7 +55,7 @@ class AttributesLinearTest(unittest.TestCase):
         names = ['all']
         values = {
             'g': torch.tensor([0.]),
-            'v0': torch.tensor([1., 0., 2., 1.]),
+            'v0': torch.tensor([-3., 1, 0, -1]),
             'betas': torch.tensor([[1., 2., 3., 4.], [.1, .2, .3, .4], [-1., -2., -3., -4.]])
         }
         self.attributes.update(names, values)

@@ -174,11 +174,13 @@ latex_elements = {
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://docs.scipy.org/doc/numpy/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
-    'matplotlib': ('https://matplotlib.org/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+    'torch': ('https://pytorch.org/docs/stable/', None),
     'statsmodels': ('https://www.statsmodels.org/stable/', None),
+    'matplotlib': ('https://matplotlib.org/stable/', None),
     'seaborn': ('https://seaborn.pydata.org/', None),
     'sklearn': ('https://scikit-learn.org/stable', None),
-    'torch': ('https://pytorch.org/docs/stable/', None)}
+    'joblib': ('https://joblib.readthedocs.io/en/latest/', None)
+}

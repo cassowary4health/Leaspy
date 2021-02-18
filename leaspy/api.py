@@ -31,8 +31,8 @@ class Leaspy:
             * ``'linear'`` - suppose that every modality follow a linear curve across time. This model performs a dimensionality reduction of the modalities.
             * ``'univariate_logisitic'`` - a 'logistic' model for a single modality => do not perform a dimensionality reduction.
             * ``'univariate_linear'`` - idem with a 'linear' model.
-            * ``'constant_model'`` - benchmark model for constant predictions.
-            * ``'lme_model'`` - benchmark model for classical linear mixed-effects model.
+            * ``'constant'`` - benchmark model for constant predictions.
+            * ``'lme'`` - benchmark model for classical linear mixed-effects model.
     type: str
         Name of the model - must be one of the ones listed above.
     plotting: leaspy.io.logs.visualization.plotting.Plotting

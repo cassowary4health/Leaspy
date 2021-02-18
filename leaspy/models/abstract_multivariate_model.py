@@ -42,7 +42,7 @@ class AbstractMultivariateModel(AbstractModel):
 
     def smart_initialization_realizations(self, data, realizations):
         # TODO : Qui a fait ça? A quoi ça sert?
-        # means_time = torch.Tensor([torch.mean(data.get_times_patient(i)) for
+        # means_time = torch.tensor([torch.mean(data.get_times_patient(i)) for
         # i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
         # realizations['tau'].tensor_realizations = means_time
         return realizations
@@ -112,7 +112,7 @@ class AbstractMultivariateModel(AbstractModel):
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
             'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
-            'sources': torch.zeros(self.source_dimension)
+            'sources': torch.zeros(self.source_dimension, dtype=torch.float32)
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)

@@ -104,8 +104,10 @@ def initialize_logistic(model, dataset, method):
         xi_mean = v0_array.squeeze() # already log'ed
         parameters = {
             'g': g_array.squeeze(),
-            'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
-            'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
+            'tau_mean': t0,
+            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'xi_mean': xi_mean,
+            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
             'noise_std': torch.tensor(noise_std, dtype=torch.float32)
         }
     else:
@@ -113,9 +115,12 @@ def initialize_logistic(model, dataset, method):
             'g': g_array,
             'v0': v0_array,
             'betas': betas,
-            'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
-            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
-            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
+            'tau_mean': t0,
+            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'xi_mean': torch.tensor(0., dtype=torch.float32),
+            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
+            'sources_mean': torch.tensor(0., dtype=torch.float32),
+            'sources_std': torch.tensor(sources_std, dtype=torch.float32),
             'noise_std': torch.tensor([noise_std], dtype=torch.float32)
         }
 
@@ -176,9 +181,12 @@ def initialize_logistic_parallel(model, dataset, method):
 
     return {
         'g': torch.tensor([torch.mean(g_array)], dtype=torch.float32),
-        'tau_mean': t0, 'tau_std': torch.tensor(tau_std, dtype=torch.float32),
-        'xi_mean': torch.mean(v0_array).detach(), 'xi_std': torch.tensor(xi_std, dtype=torch.float32),
-        'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
+        'tau_mean': t0,
+        'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+        'xi_mean': torch.mean(v0_array).detach(),
+        'xi_std': torch.tensor(xi_std, dtype=torch.float32),
+        'sources_mean': torch.tensor(0., dtype=torch.float32),
+        'sources_std': torch.tensor(sources_std, dtype=torch.float32),
         'noise_std': torch.tensor([noise_std], dtype=torch.float32),
         'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
         'betas': betas
@@ -256,8 +264,10 @@ def initialize_linear(model, dataset, method):
 
         parameters = {
             'g': positions.squeeze(),
-            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(tau_std),
-            'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
+            'tau_mean': torch.tensor(t0, dtype=torch.float32),
+            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'xi_mean': xi_mean,
+            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
             'noise_std': torch.tensor(noise_std, dtype=torch.float32)
         }
     else:
@@ -265,9 +275,12 @@ def initialize_linear(model, dataset, method):
             'g': positions,
             'v0': velocities,
             'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(tau_std),
-            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
-            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
+            'tau_mean': torch.tensor(t0, dtype=torch.float32),
+            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'xi_mean': torch.tensor(0., dtype=torch.float32),
+            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
+            'sources_mean': torch.tensor(0., dtype=torch.float32),
+            'sources_std': torch.tensor(sources_std, dtype=torch.float32),
             'noise_std': torch.tensor([noise_std], dtype=torch.float32)
         }
 
@@ -398,9 +411,9 @@ def initialize_logistic_parallel(model, data, method="default"):
         values[values > 1] = 0.99
 
         # Do transformations
-        t0 = torch.Tensor(time)
-        v0_array = torch.Tensor(np.log((np.array(slopes))))
-        g_array = torch.Tensor(np.exp(1 / (1 + values)))
+        t0 = torch.tensor(time)
+        v0_array = torch.tensor(np.log((np.array(slopes))))
+        g_array = torch.tensor(np.exp(1 / (1 + values)))
 
         model.parameters = {
             'g': torch.tensor([torch.mean(g_array)]),
@@ -453,9 +466,9 @@ def initialize_logistic(model, data, method="default"):
     values[values > 1] = 0.99
 
     # Do transformations
-    t0 = torch.Tensor(time)
-    v0_array = torch.Tensor(np.log((np.array(slopes))))
-    g_array = torch.Tensor(np.exp(1/(1+values)))
+    t0 = torch.tensor(time)
+    v0_array = torch.tensor(np.log((np.array(slopes))))
+    g_array = torch.tensor(np.exp(1/(1+values)))
 
     # Create smart initialization dictionnary
     SMART_INITIALIZATION = {

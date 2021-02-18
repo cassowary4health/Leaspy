@@ -1,6 +1,5 @@
 import warnings
 import numpy as np
-import torch
 
 
 from leaspy.utils.posterior_analysis.general import compute_trajectory_of_population

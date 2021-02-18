@@ -23,14 +23,14 @@ class GradientMCMCSAEM(AbstractFitMCMC):
             if self.algo_parameters['annealing']['do_annealing']:
                 self._update_temperature()
         else:
-            # Torch variable
+            # set autograd
             for key in realizations.keys():
-                realizations[key].to_torch_Variable()
+                realizations[key].set_autograd()
             self._gradient_population_update(data, model, realizations)
 
-            # back to tensors
+            # unset autograd
             for key in realizations.keys():
-                realizations[key].to_torch_Tensor()
+                realizations[key].unset_autograd()
 
         # Maximization step
         self._maximization_step(data, model, realizations)

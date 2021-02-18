@@ -97,7 +97,7 @@ class UnivariateModel(AbstractModel):
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
-            self.parameters[k] = torch.tensor(parameters[k])
+            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
         self.attributes = AttributesFactory.attributes(self.name, dimension=1)
         self.attributes.update(['all'], self.parameters)
 
@@ -334,8 +334,8 @@ class UnivariateModel(AbstractModel):
         for key, item in individual_parameters.items():
             xi.append(item['xi'])
             tau.append(item['tau'])
-        xi = torch.tensor(xi).unsqueeze(1)
-        tau = torch.tensor(tau).unsqueeze(1)
+        xi = torch.tensor(xi, dtype=torch.float32).unsqueeze(1)
+        tau = torch.tensor(tau, dtype=torch.float32).unsqueeze(1)
         return (xi, tau)
 
     def get_xi_tau(self, param_ind):

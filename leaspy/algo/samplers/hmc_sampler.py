@@ -124,7 +124,7 @@ class HMCSampler(AbstractSampler):
         """
 
         # this returns a tensor with values for each indiv
-        realizations[self.name].to_torch_Variable()
+        realizations[self.name].set_autograd()
         old_real = realizations[self.name].tensor_realizations.clone()
         p = self._initialize_momentum(old_real)
 
@@ -139,7 +139,7 @@ class HMCSampler(AbstractSampler):
         with torch.no_grad():
             realizations[self.name].tensor_realizations = realizations[self.name].tensor_realizations * accepted + (
                     1. - accepted) * old_real
-        realizations[self.name].to_torch_Tensor()
+        realizations[self.name].unset_autograd()
         model.update_MCMC_toolbox([self.name], realizations)
 
     def _sample_individual_realizations(self, data, model, realizations, temperature_inv):
@@ -159,7 +159,7 @@ class HMCSampler(AbstractSampler):
         """
 
         # this returns a tensor with values for each indiv
-        realizations[self.name].to_torch_Variable()
+        realizations[self.name].set_autograd()
         old_real = realizations[self.name].tensor_realizations.clone()
         p = self._initialize_momentum(old_real)
         old_H = self._compute_ind_hamiltonian(model, data, p, realizations, temperature_inv)
@@ -171,7 +171,7 @@ class HMCSampler(AbstractSampler):
         with torch.no_grad():
             realizations[self.name].tensor_realizations = realizations[self.name].tensor_realizations * accepted + (
                     1. - accepted) * old_real
-        realizations[self.name].to_torch_Tensor()
+        realizations[self.name].unset_autograd()
 
     def _compute_U(self, realizations, data, model, temperature_inv):
         """

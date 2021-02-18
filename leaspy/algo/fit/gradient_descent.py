@@ -31,7 +31,7 @@ class GradientDescent(AbstractFitAlgo):
 
     def _initialize_torchvariables(self, realizations):
         for name, realization in realizations.realizations.items():
-            realization.to_torch_Variable()
+            realization.set_autograd()
 
     ###########################
     ## Core

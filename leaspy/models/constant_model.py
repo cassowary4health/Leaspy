@@ -37,5 +37,5 @@ class ConstantModel(GenericModel):
 
     def compute_individual_trajectory(self, timepoints, ip):
         values = [ip[f] for f in self.features]
-        return torch.tensor([[values] * len(timepoints)])
+        return torch.tensor([[values] * len(timepoints)], dtype=torch.float32)
 

@@ -27,7 +27,7 @@ def leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, lea
     `list`
         Contains the `leaspy_obj_cb` return of each job.
     """
-    warnings.warn('leaspy_parallel_calibrate function is deprecated. Please use the one in Leaspype')
+    warnings.warn('leaspy_parallel_calibrate function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     # unitary job
     @delayed
@@ -74,7 +74,7 @@ def leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_iter, leas
     `list`
         Contains the `leaspy_ips_cb` return of each job.
     """
-    warnings.warn('leaspy_parallel_personalize function is deprecated. Please use the one in Leaspype')
+    warnings.warn('leaspy_parallel_personalize function is deprecated. Please use the one in Leaspype', DeprecationWarning)
     # unitary job
 
     @delayed

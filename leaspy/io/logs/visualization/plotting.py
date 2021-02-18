@@ -259,8 +259,8 @@ class Plotting:
 
         # ---- Patients sublist
         if 'patient_IDs' in kwargs.keys():
-            warnings.warn("Keyword argument <patient_IDs> is deprecated! Use <patients_idx> instead.",
-                          warnings.DeprecationWarning)
+            warnings.warn("Keyword argument <patient_IDs> is deprecated! "
+                          "Use <patients_idx> instead.", DeprecationWarning)
             patients_idx = kwargs.get('patient_IDs')
 
         if isinstance(patients_idx, str):

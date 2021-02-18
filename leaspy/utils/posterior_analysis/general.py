@@ -21,7 +21,8 @@ def append_spaceshifts_to_individual_parameters_dataframe(df_individual_paramete
         Copy of the initial dataframe with additional columns being the space shifts of the individuals.
 
     """
-    warnings.warn('append_spaceshifts_to_individual_parameters_dataframe function is deprecated. Please use the one in Leaspype')
+    warnings.warn('append_spaceshifts_to_individual_parameters_dataframe function is deprecated. Please use the one in Leaspype', DeprecationWarning)
+
     df_ip = df_individual_parameters.copy()
 
     sources = df_ip [['sources_' + str(i) for i in range(leaspy.model.source_dimension)]].values.T
@@ -65,7 +66,8 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
     >>> repametrized_ages = get_reparametrized_ages(ages, individual_parameters, leaspy)
     """
 
-    warnings.warn('get_reparametrized_ages function is deprecated. Please use the one in Leaspype')
+    warnings.warn('get_reparametrized_ages function is deprecated. Please use the one in Leaspype', DeprecationWarning)
+
     tau_mean = leaspy.model.parameters['tau_mean']
     indices = individual_parameters._indices
     reparametrized_ages = {}
@@ -112,7 +114,8 @@ def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
     >>> trajectory = compute_trajectory_of_population(timepoints, ip, leaspy)
     """
 
-    warnings.warn('compute_trajectory_of_population function is deprecated. Please use the one in Leaspype')
+    warnings.warn('compute_trajectory_of_population function is deprecated. Please use the one in Leaspype', DeprecationWarning)
+
     if 'univariate' not in leaspy.model.name:
         ip_dict = {k : individual_parameters.get_mean(k) for k in ['xi','tau','sources']}
     else:

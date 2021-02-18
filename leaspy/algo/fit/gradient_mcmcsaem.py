@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from .abstract_mcmc import AbstractFitMCMC
@@ -9,6 +11,9 @@ class GradientMCMCSAEM(AbstractFitMCMC):
     """
 
     def __init__(self, settings):
+
+        warnings.warn("Gradient MCMC SAEM algorithm is deprecated. Please use `mcmc_saem` for your fits.", DeprecationWarning)
+
         super().__init__(settings)
         self.name = "MCMC_SAEM (tensor)"
 

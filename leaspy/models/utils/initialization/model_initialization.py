@@ -155,10 +155,9 @@ def initialize_logistic_parallel(model, dataset, method):
     time_mu, time_sigma = compute_patient_time_distribution(dataset)
 
     if method == 'default':
-        # Get random variations
-        slopes = torch.normal(slopes_mu, slopes_sigma)
-        values = torch.normal(values_mu, values_sigma)
-        time = torch.normal(time_mu, time_sigma)
+        slopes = slopes_mu
+        values = values_mu
+        time = time_mu
         betas = torch.zeros((model.dimension - 1, model.source_dimension))
     elif method == 'random':
         # Get random variations

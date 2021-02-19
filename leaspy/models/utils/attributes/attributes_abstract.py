@@ -119,11 +119,19 @@ class AttributesAbstract:
         if compute_velocities:
             self._compute_velocities(values)
 
-        # TODO : Check if the condition is enough
-        if self.has_sources and (compute_positions or compute_velocities):
-            self._compute_orthonormal_basis()
-        if self.has_sources and (compute_positions or compute_velocities or compute_betas):
-            self._compute_mixing_matrix()
+        if self.has_sources:
+            # TODO more generic: add a method `should_recompute_ortho_basis(names_of_changed_values) -> bool` in sub-classes?
+            if 'linear' in self.name:
+                # Euclidean inner prod so only velocities count (not positions unlike logist)
+                recompute_ortho_basis = compute_velocities
+            else:
+                # add deltas for logistic parallel
+                recompute_ortho_basis = compute_positions or compute_velocities or compute_deltas
+
+            if recompute_ortho_basis:
+                self._compute_orthonormal_basis()
+            if recompute_ortho_basis or compute_betas:
+                self._compute_mixing_matrix()
 
     def _check_names(self, names_of_changed_values):
         """

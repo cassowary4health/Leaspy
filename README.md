@@ -12,7 +12,7 @@ Leaspy is a software package for the statistical analysis of **longitudinal data
 #### Dependencies
 
 - Python (>=3.6)
-- torch (>=1.3.1, <1.5)
+- torch (>=1.2.0, <1.7)
 - numpy (>=1.16.6)
 - pandas (>=1.0.5)
 - scipy (>=1.5.4)

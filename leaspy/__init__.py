@@ -17,23 +17,17 @@ from .io.outputs.result import Result
 from .io.settings.algorithm_settings import AlgorithmSettings
 
 # add a watermark with all pkg versions (for trace)
-from torch import __version__ as v_torch
-from numpy import __version__ as v_numpy
-from pandas import __version__ as v_pandas
-from scipy import __version__ as v_scipy
-from sklearn import __version__ as v_sklearn
-from joblib import __version__ as v_joblib
-from statsmodels import __version__ as v_statsmodels # for LME only
-from matplotlib import __version__ as v_matplotlib
+from importlib import import_module
+
+pkg_deps = ['torch', 'numpy', 'pandas', 'scipy', # core
+            'sklearn', 'joblib', # parallelization / ML utils
+            'statsmodels', # LME benchmark only
+            'matplotlib' # plots
+            ]
 
 __watermark__ = {
     'leaspy': __version__,
-    'torch': v_torch,
-    'numpy': v_numpy,
-    'pandas': v_pandas,
-    'scipy': v_scipy,
-    'sklearn': v_sklearn,
-    'joblib': v_joblib,
-    'statsmodels': v_statsmodels,
-    'matplotlib': v_matplotlib,
+    **{pkg_name: import_module(pkg_name).__version__ for pkg_name in pkg_deps}
 }
+
+del pkg_deps

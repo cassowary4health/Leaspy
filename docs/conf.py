@@ -12,7 +12,8 @@
 #
 import os
 import sys
-import warnings
+import ast
+
 import sphinx_gallery
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
@@ -20,11 +21,18 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 # -- Project information -----------------------------------------------------
 
 project = 'Leaspy'
-author = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman'
-copyright = '2017-2021, ' + author
+authors = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman' # TODO read from setup?
+copyright = '2017-2021, ' + authors
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.3-dev'
+def find_version(*py_file_with_version_paths):
+    with open(os.path.join(*py_file_with_version_paths), 'r') as f:
+        for line in f:
+            if line.startswith('__version__'):
+                return ast.parse(line).body[0].value.s # string
+    raise RuntimeError("Unable to find version string.")
+
+release = find_version("..", "leaspy", "__init__.py")
 
 
 # -- General configuration ---------------------------------------------------

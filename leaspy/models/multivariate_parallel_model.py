@@ -68,14 +68,16 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, -> n_features)
+
         # Log likelihood computation
         LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
-        k = (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
+        k = (g * deltas_exp + 1) ** 2 / (g * deltas_exp) # (n_features, )
         if self.source_dimension != 0:
             sources = ind_parameters['sources']
             wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
             LL += wi * k
-        LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)
+        LL = -reparametrized_time - LL.unsqueeze(-2)
         model = 1. / (1. + g * torch.exp(LL))
 
         c = model * (1. - model)
@@ -87,6 +89,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             'tau': (c * -alpha).unsqueeze(-1),
         }
         if self.source_dimension > 0:
+            k = k.reshape((1, 1, -1, 1)) # n_features is third
             derivatives['sources'] = c.unsqueeze(-1) * k * a_matrix.expand((1, 1, -1, -1))
 
         return derivatives

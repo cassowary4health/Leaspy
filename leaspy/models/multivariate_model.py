@@ -38,19 +38,19 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
-        a = tuple([1] * reparametrized_time.ndimension())
-        velocities = velocities.unsqueeze(0).repeat(*tuple(reparametrized_time.shape), 1)
-        positions = positions.unsqueeze(0).repeat(*tuple(reparametrized_time.shape), 1)
-        reparametrized_time = reparametrized_time.unsqueeze(-1).repeat(*a, velocities.shape[-1])
+        velocities = velocities.reshape(1, 1, -1) # not needed in fact (automatic broadcasting on last dimension)
+        positions = positions.reshape(1, 1, -1) # same
+        reparametrized_time = reparametrized_time.unsqueeze(-1)
 
         # Computation
         LL = velocities * reparametrized_time + positions
 
         if self.source_dimension != 0:
             sources = ind_parameters['sources']
-            wi = torch.nn.functional.linear(sources, mixing_matrix, bias=None)
+            wi = sources.matmul(mixing_matrix.t())
             LL += wi.unsqueeze(-2)
-        return LL
+
+        return LL # (n_individuals, n_timepoints, n_features)
 
     def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
         # Population parameters
@@ -74,7 +74,8 @@ class MultivariateModel(AbstractMultivariateModel):
             LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
-        return model
+
+        return model # (n_individuals, n_timepoints, n_features)
 
     def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError
@@ -112,25 +113,26 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
-        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
-        v0 = velocities.reshape(1, 1, -1)
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
+        v0 = velocities.reshape(1, 1, -1) * torch.ones_like(reparametrized_time) # broadcast
 
         LL = v0 * reparametrized_time + positions
         if self.source_dimension != 0:
             sources = ind_parameters['sources']
             wi = sources.matmul(mixing_matrix.t())
-            LL += wi.unsqueeze(-2)
+            LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
 
         alpha = torch.exp(xi).reshape(-1, 1, 1)
 
         derivatives = {
-            'xi' : (v0 * reparametrized_time).unsqueeze(1),
-            'tau' : (-v0 * alpha).unsqueeze(1),
+            'xi': (v0 * reparametrized_time).unsqueeze(-1), # add a last dimension for len param
+            'tau': (-v0 * alpha).unsqueeze(-1), # same
         }
 
         if self.source_dimension > 0:
-            derivatives['sources'] = mixing_matrix.expand((1,1,-1,-1))
+            derivatives['sources'] = mixing_matrix.expand((1,1,-1,-1)) * torch.ones_like(reparametrized_time).unsqueeze(-1) # broadcast on n_timepoints
 
+        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):

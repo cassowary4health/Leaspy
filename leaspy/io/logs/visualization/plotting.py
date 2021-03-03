@@ -212,7 +212,7 @@ class Plotting:
             # both observations & model will be displayed
             p_obs = dict(
                 marker = kwargs.get('marker', 'o'), # None not to display obs
-                markersize = kwargs.get('markersize', '3'),
+                markersize = kwargs.get('markersize', '4'),
                 alpha = kwargs.get('obs_alpha', self.alpha['individual_data']),
                 linestyle = kwargs.get('obs_ls', ''),
                 linewidth = kwargs.get('obs_lw', self.linewidth['individual_data']),
@@ -276,7 +276,9 @@ class Plotting:
         ax, features, features_ix, labels, colors = self._handle_kwargs_begin(kwargs, data.headers)
 
         # Data to dataframe (only selected patients)
-        df = data.to_dataframe().reset_index().set_index('ID').loc[patients_idx]
+        df = data.to_dataframe().reset_index()
+        df['ID'] = df['ID'].astype(str) # needed because of IndividualParameters converting ID int -> str
+        df = df.set_index('ID').loc[patients_idx]
 
         if reparametrized_ages:
             assert ip_df is not None

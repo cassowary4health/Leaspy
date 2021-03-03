@@ -74,34 +74,39 @@ class AttributesLogisticParallel(AttributesAbstract):
         """
         self.deltas = torch.cat((torch.tensor([0], dtype=torch.float32), values['deltas']))
 
-    def _compute_dgamma_t0(self):
+    def _compute_gamma_dgamma_t0(self):
         """
-        Computes the derivative of gamma_0 at time t0.
+        Computes both gamma:
+        - value at t0
+        - derivative w.r.t. time at time t0
 
         Returns
         -------
-        dgamma_t0: `torch.Tensor`
+        2-tuple:
+            gamma_t0: `torch.Tensor` 1D
+            dgamma_t0: `torch.Tensor` 1D
         """
         exp_d = torch.exp(-self.deltas)
-        sub = 1. + self.positions * exp_d
-        dgamma_t0 = self.velocities * self.positions * exp_d / (sub * sub)
-        return dgamma_t0
+        denom = 1. + self.positions * exp_d
+        gamma_t0 = 1. / denom
+
+        dgamma_t0 = self.velocities * self.positions * exp_d / (denom * denom)
+
+        return gamma_t0, dgamma_t0
 
     def _compute_orthonormal_basis(self):
         """
-        Compute the attribute ``orthonormal_basis`` which is a basis orthogonal to velocities for the inner product implied by
-        the metric. It is equivalent to be a base orthogonal to velocities / (p0^2 (1-p0)^2 for the euclidean norm.
+        Compute the attribute ``orthonormal_basis`` which is a basis of the sub-space orthogonal,
+        w.r.t the inner product implied by the metric, to the time-differentiate of the geodesic at initial time.
         """
-        if self.source_dimension == 0:
+        if not self.has_sources:
             return
 
-        # Compute the derivative of gamma_0 at t0
-        dgamma_t0 = self._compute_dgamma_t0()
+        # Compute value and time-derivative of gamma at t0
+        gamma_t0, dgamma_t0 = self._compute_gamma_dgamma_t0()
 
-        # Compute regularizer to work in the euclidean space
-        gamma_t0 = 1. / (1 + self.positions * torch.exp(-self.deltas))
-        metric_normalization = gamma_t0.pow(2) * (1 - gamma_t0).pow(2)
-        dgamma_t0 = dgamma_t0 / metric_normalization
+        # Compute vector of "metric normalization"  (not squared, cf. `_compute_Q`)
+        v_metric_normalization = gamma_t0 * (1 - gamma_t0)
 
-        # Compute Q
-        self._compute_Q(dgamma_t0)
+        # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
+        self._compute_Q(dgamma_t0, v_metric_normalization)

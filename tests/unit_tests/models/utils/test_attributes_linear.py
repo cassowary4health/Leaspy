@@ -36,19 +36,22 @@ class AttributesLinearTest(unittest.TestCase):
         values = {
             'g': torch.tensor([0.]),
             'v0': torch.tensor([-3., 1, 0, -1]), # as for logistic (too high v0values [exp'd] implies a precision a bit coarser)
-            'betas': torch.tensor([[1., 2., 3., 4.], [.1, .2, .3, .4], [-1., -2., -3., -4.]])
+            'betas': torch.tensor([[1, 2, 3], [-0.1, 0.2, 0.3], [-1, 2, -3]]), # dim=4, nb_source=3
         }
         self.attributes.update(names, values)
 
         # Test the orthonormality condition
         dgamma_t0 = self.attributes.velocities
         orthonormal_basis = self.attributes.orthonormal_basis
-
-        for orthonormal_vector in orthonormal_basis.permute(1, 0):
-            # Test normality
+        for i in range(4-1):
+            orthonormal_vector = orthonormal_basis[:, i] # column vector
+            # Test normality (canonical inner-product)
             self.assertAlmostEqual(torch.norm(orthonormal_vector).item(), 1, delta=1e-6)
-            # Test orthogonality
+            # Test orthogonality to dgamma_t0 (canonical inner-product)
             self.assertAlmostEqual(torch.dot(orthonormal_vector, dgamma_t0).item(), 0, delta=1e-6)
+            # Test orthogonality to other vectors (canonical inner-product)
+            for j in range(i+1, 4-1):
+                self.assertAlmostEqual(torch.dot(orthonormal_vector, orthonormal_basis[:, j]).item(), 0, delta=1e-6)
 
     def test_mixing_matrix_utils(self):
         """Test the orthogonality condition"""
@@ -56,11 +59,12 @@ class AttributesLinearTest(unittest.TestCase):
         values = {
             'g': torch.tensor([0.]),
             'v0': torch.tensor([-3., 1, 0, -1]),
-            'betas': torch.tensor([[1., 2., 3., 4.], [.1, .2, .3, .4], [-1., -2., -3., -4.]])
+            'betas': torch.tensor([[1, 2, 3], [-0.1, 0.2, 0.3], [-1, 2, -3]]), # dim=4, nb_source=3
         }
         self.attributes.update(names, values)
         dgamma_t0 = self.attributes.velocities
         mixing_matrix = self.attributes.mixing_matrix
 
         for mixing_column in mixing_matrix.permute(1, 0):
+            # Test orthogonality to dgamma_t0 (canonical inner-product)
             self.assertAlmostEqual(torch.dot(mixing_column, dgamma_t0).item(), 0, delta=1e-6)

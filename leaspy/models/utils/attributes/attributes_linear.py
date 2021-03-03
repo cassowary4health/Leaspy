@@ -35,8 +35,14 @@ class AttributesLinear(AttributesAbstract):
 
     def _compute_orthonormal_basis(self):
         """
-        Compute the attribute ``orthonormal_basis`` which is a basis orthogonal to velocities v0 for the inner product
-        implied by the metric. It is equivalent to be a base orthogonal to v0 / (p0^2 (1-p0)^2) for the euclidean norm.
+        Compute the attribute ``orthonormal_basis`` which is a basis of the sub-space orthogonal,
+        w.r.t the inner product implied by the metric, to the time-differentiate of the geodesic at initial time.
+        In linear case, this inner product corresponds to canonical Euclidean one.
         """
+        if not self.has_sources:
+            return
+
         dgamma_t0 = self.velocities
-        self._compute_Q(dgamma_t0)
+
+        # Householder decomposition in Euclidean case, updates `orthonormal_basis` in-place
+        self._compute_Q(dgamma_t0, 1.)

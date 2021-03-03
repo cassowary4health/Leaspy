@@ -69,9 +69,13 @@ class AttributesAbstract:
 
         Returns
         -------
-        positions: `torch.Tensor`
-        velocities: `torch.Tensor`
-        mixing_matrix: `torch.Tensor`
+        For univariate models:
+            positions: `torch.Tensor`
+
+        For not univariate models:
+            * positions: `torch.Tensor`
+            * velocities: `torch.Tensor`
+            * mixing_matrix: `torch.Tensor`
         """
         if self.univariate:
             return self.positions
@@ -197,29 +201,84 @@ class AttributesAbstract:
 
     def _compute_orthonormal_basis(self):
         """
-        Compute the attribute ``orthonormal_basis`` which is a basis orthogonal to velocities v0 for the inner product
-        implied by the metric. It is equivalent to be a base orthogonal to v0 / (p0^2 (1-p0)^2 for the euclidean norm.
+        Compute the attribute ``orthonormal_basis`` which is a basis of the sub-space orthogonal,
+        w.r.t the inner product implied by the metric, to the time-differentiate of the geodesic at initial time.
         """
         raise NotImplementedError
 
-    def _compute_Q(self, dgamma_t0):
+    def _compute_Q(self, dgamma_t0, v_metric_normalization, strip_col=0):
         """
-        Used in non-abstract attributes classes to compute the ``orthonormal_basis`` attribute given the
-        differentiation of the geodesic at initial time.
+        Householder decomposition, adapted for a non-Euclidean inner product defined by:
+        (1) < x, y >Metric = < x / m, y / m >Euclidean
+        where:
+        - `m` is a vector of "metric normalization" (all of its components are > 0)
+        - u / v is the component-wise division of vectors
+        The Euclidean case is the special case where `m` is a vector full of 1.
+
+        It is used in child classes to compute and set in-place the ``orthonormal_basis`` attribute
+        given the time-derivative of the geodesic at initial time and the "metric normalization" vector.
+        The first component of the full orthonormal basis is a vector collinear `dgamma_t0` that we get rid of.
+
+        [We could do otherwise if we didn't want a full orthonormal basis w.r.t. the non-Euclidean inner product
+        but only: < dgamma_t0, Q_i >Metric = 0 and (Q_i)i=1..d-1 orthonormal basis w.r.t. Euclidean norm
+        (that is what we were doing before but it is a bit confusing, computationally just as expensive,
+         and may induce biases between centered/shifted features?)]
 
         Parameters
         ----------
-        dgamma_t0: `torch.Tensor`
-        """
-        e1 = torch.zeros(self.dimension)
-        e1[0] = 1
-        alpha = torch.sign(dgamma_t0[0]) * torch.norm(dgamma_t0)
-        u_vector = dgamma_t0 - alpha * e1
-        v_vector = u_vector / torch.norm(u_vector)
-        v_vector = v_vector.reshape(1, -1)
+        dgamma_t0: `torch.Tensor` 1D
+            Time-derivative of the geodesic at initial time
 
-        q_matrix = torch.eye(self.dimension) - 2 * v_vector.permute(1, 0) * v_vector
-        self.orthonormal_basis = q_matrix[:, 1:]
+        v_metric_normalization: `torch.Tensor` 1D or scalar
+            The vector `m` as refered in equation (1) just before.
+
+        strip_col: int in 0..model_dimension-1 (default 0)
+            Which column of the basis should be the one collinear to `dgamma_t0` (that we get rid of)
+        """
+
+        # enforce `v_metric_normalization` to be a 1D tensor (vector) for compat. with all formulas below
+        if not isinstance(v_metric_normalization, torch.Tensor):
+            v_metric_normalization = torch.tensor(v_metric_normalization) # convert from scalar...
+        if v_metric_normalization.numel() == 1: # scalar like
+            v_metric_normalization = v_metric_normalization.item() * torch.ones(self.dimension)
+        assert v_metric_normalization.shape == (self.dimension,)
+        assert (v_metric_normalization > 0).all()
+
+        # component-wise division before using standard Euclidean norm
+        dgamma_t0 = dgamma_t0 / v_metric_normalization
+
+        """
+        Automatically choose the best column to strip?
+        <!> Not a good idea because it could fluctuate over iterations making mixing_matrix unstable!
+            (betas should slowly readapt to the permutation...)
+        #strip_col = dgamma_t0.abs().argmax().item()
+        #strip_col = v_metric_normalization.argmin().item()
+        """
+
+        assert 0 <= strip_col < self.dimension
+        ej = torch.zeros(self.dimension, dtype=torch.float32)
+        ej[strip_col] = 1.
+
+        alpha = -torch.sign(dgamma_t0[strip_col]) * torch.norm(dgamma_t0)
+        u_vector = dgamma_t0 - alpha * ej
+        v_vector = u_vector / torch.norm(u_vector)
+
+        ## Euclidean case
+        # Q = I_n - 2 v • v'
+        #q_matrix = torch.eye(self.dimension) - 2 * v_vector.view(-1,1) * v_vector
+
+        ## General case
+        # H = diag(v_metric_normalization) - 2 (v_metric_normalization*v) • v'
+        q_matrix = torch.diag(v_metric_normalization) - 2 * (v_metric_normalization * v_vector).view(-1,1) * v_vector
+
+        # first component of basis is a unit vector (for metric norm) collinear to `dgamma_t0`
+        #self.orthonormal_basis = q_matrix[:, 1:]
+
+        # concat columns (get rid of the one collinear to `dgamma_t0`)
+        self.orthonormal_basis = torch.cat((
+            q_matrix[:, :strip_col],
+            q_matrix[:, strip_col+1:]
+        ), dim=1)
 
     @staticmethod
     def _mixing_matrix_utils(linear_combination_values, matrix):

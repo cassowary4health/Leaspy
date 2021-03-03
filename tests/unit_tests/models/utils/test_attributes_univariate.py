@@ -1,4 +1,3 @@
-from leaspy.models.utils.attributes.attributes_logistic import AttributesLogistic
 import unittest
 
 from leaspy.models.utils.attributes import AttributesLinear, AttributesLogistic
@@ -6,9 +5,10 @@ from leaspy.models.utils.attributes import AttributesLinear, AttributesLogistic
 
 class AttributesUnivariateTest(unittest.TestCase):
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Set up the object for all the tests"""
-        self.to_test = {
+        cls.to_test = {
             'univariate_logistic': AttributesLogistic,
             'univariate_linear': AttributesLinear
         }

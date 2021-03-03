@@ -23,7 +23,7 @@ class AttributesLogisticParallelTest(unittest.TestCase):
         values = {
             'g': torch.tensor([0.]),
             'deltas': torch.tensor([-1., 0., 2.]),
-            'betas': torch.tensor([[1., 2., 3.], [0.1, 0.2, 0.3], [-1., -2., -3.]]),
+            'betas': torch.tensor([[1, 2, 3], [-0.1, 0.2, 0.3], [-1, 2, -3]]),
             'xi_mean': torch.tensor([-3.])
         }
         attributes = AttributesLogisticParallel('logistic_parallel', 4, 2)
@@ -32,31 +32,38 @@ class AttributesLogisticParallelTest(unittest.TestCase):
         # Test the first value of the derivative of gamma at t0
         p0 = 1. / (1. + torch.exp(values['g']))
         standard_v0 = torch.exp(values['xi_mean']) * p0 * (1 - p0)
-        dgamma_t0 = attributes._compute_dgamma_t0()
+        gamma_t0, dgamma_t0 = attributes._compute_gamma_dgamma_t0()
 
         # Test the orthogonality condition
-        gamma_t0 = 1. / (1 + attributes.positions * torch.exp(-attributes.deltas))
-        metric_normalization = gamma_t0.pow(2) * (1 - gamma_t0).pow(2)
+        #gamma_t0 = 1. / (1 + attributes.positions * torch.exp(-attributes.deltas))
+        sqrt_metric_normalization = gamma_t0 * (1 - gamma_t0) # not squared
 
-        return attributes, dgamma_t0, metric_normalization, standard_v0
+        return attributes, dgamma_t0, sqrt_metric_normalization, standard_v0
 
     def test_compute_orthonormal_basis(self):
-        attributes, dgamma_t0, metric_normalization, standard_v0 = self.compute_instance_and_variables()
+        attributes, dgamma_t0, sqrt_metric_norm, standard_v0 = self.compute_instance_and_variables()
 
         self.assertEqual(dgamma_t0[0], standard_v0)
         self.assertEqual(dgamma_t0[2], standard_v0)
 
         orthonormal_basis = attributes.orthonormal_basis
-        for orthonormal_vector in orthonormal_basis.permute(1, 0):
-            # Test normality
-            self.assertAlmostEqual(torch.norm(orthonormal_vector).item(), 1, delta=1e-6)
-            # Test orthogonality
-            self.assertAlmostEqual(torch.dot(orthonormal_vector, dgamma_t0 / metric_normalization).item(),
-                                   0, delta=1e-6)
+        for i in range(4-1):
+            orthonormal_vector = orthonormal_basis[:, i] # column vector
+            # Test normality (metric inner-product)
+            self.assertAlmostEqual(torch.norm(orthonormal_vector/sqrt_metric_norm).item(), 1, delta=1e-6)
+            # Test orthogonality to dgamma_t0 (metric inner-product)
+            self.assertAlmostEqual(torch.dot(orthonormal_vector / sqrt_metric_norm,
+                                             dgamma_t0 / sqrt_metric_norm).item(), 0, delta=1e-6)
+            # Test orthogonality to other vectors (metric inner-product)
+            for j in range(i+1, 4-1):
+                self.assertAlmostEqual(torch.dot(orthonormal_vector / sqrt_metric_norm,
+                                                 orthonormal_basis[:, j] / sqrt_metric_norm).item(), 0, delta=1e-6)
+
 
     def test_mixing_matrix_utils(self):
-        attributes, dgamma_t0, metric_normalization, _ = self.compute_instance_and_variables()
+        attributes, dgamma_t0, sqrt_metric_norm, _ = self.compute_instance_and_variables()
 
         mixing_matrix = attributes.mixing_matrix
         for mixing_column in mixing_matrix.permute(1, 0):
-            self.assertAlmostEqual(torch.dot(mixing_column, dgamma_t0 / metric_normalization).item(), 0, delta=1e-6)
+            # Test orthogonality to dgamma_t0 (metric inner-product)
+            self.assertAlmostEqual(torch.dot(mixing_column, dgamma_t0 / sqrt_metric_norm**2).item(), 0, delta=1e-6)

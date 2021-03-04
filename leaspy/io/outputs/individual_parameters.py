@@ -389,16 +389,22 @@ class IndividualParameters:
 
         return self._indices, ips_pytorch
 
-    def save(self, path):
+    def save(self, path, **kwargs):
         r"""
         Saves the individual parameters (json or csv) at the path location
+
+        TODO? save leaspy version as well for retro/future-compatibility issues?
 
         Parameters
         ----------
         path: str
             Path and file name of the individual parameters. The extension can be json or csv.
             If no extension, default extension (csv) is used
-
+        **kwargs:
+            Additional keyword arguments argument to pass to either:
+            - pandas.to_csv
+            - json.dump
+            depending on saving format requested
         """
         extension = IndividualParameters._check_and_get_extension(path)
         if not extension:
@@ -408,11 +414,11 @@ class IndividualParameters:
             path = path+'.'+extension
 
         if extension == 'csv':
-            self._save_csv(path)
+            self._save_csv(path, **kwargs)
         elif extension == 'json':
-            self._save_json(path)
+            self._save_json(path, **kwargs)
         else:
-            raise ValueError(f"Something bad happened: extension is {extension}")
+            raise ValueError(f"Something bad happened: extension {extension} is not handled.")
 
     @staticmethod
     def load(path):
@@ -461,11 +467,11 @@ class IndividualParameters:
         else:
             return ext[1:]
 
-    def _save_csv(self, path):
+    def _save_csv(self, path, **kwargs):
         df = self.to_dataframe()
-        df.to_csv(path)
+        df.to_csv(path, **kwargs)
 
-    def _save_json(self, path):
+    def _save_json(self, path, **kwargs):
         json_data = {
             'indices': self._indices,
             'individual_parameters': self._individual_parameters,
@@ -473,7 +479,7 @@ class IndividualParameters:
         }
 
         with open(path, 'w') as f:
-            json.dump(json_data, f)
+            json.dump(json_data, f, **kwargs)
 
     @staticmethod
     def _load_csv(path):

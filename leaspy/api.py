@@ -61,7 +61,7 @@ class Leaspy:
     def type(self) -> str:
         return self.model.name
 
-    def fit(self, data, algorithm_settings):
+    def fit(self, data, algorithm_settings, initialization_method='default'):
         r"""
         Estimate the model's parameters :math:`\theta` for a given dataset and a given algorithm.
         These model's parameters correspond to the fixed-effects of the mixed-effects model.
@@ -103,17 +103,20 @@ class Leaspy:
         algorithm = AlgoFactory.algo("fit", algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
-            self.model.initialize(dataset)
+            # at this point randomness is not yet fixed even if seed was set in AlgoSettings
+            # it will only be set at the beginning of `algorithm.run` just afterwards
+            # so a `initialization_method='random'` won't be reproducible for now, TODO?
+            self.model.initialize(dataset, initialization_method)
         algorithm.run(self.model, dataset)
 
         # Update plotting
         self.plotting.update_model(self.model)
 
-    def calibrate(self, data, algorithm_settings):
+    def calibrate(self, data, algorithm_settings, initialization_method='default'):
         r"""
         Duplicates of the :meth:`~.Leaspy.fit` method.
         """
-        self.fit(data, algorithm_settings)
+        self.fit(data, algorithm_settings, initialization_method)
 
     def personalize(self, data, settings, return_noise=False):
         r"""

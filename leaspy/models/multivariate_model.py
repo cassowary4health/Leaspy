@@ -221,9 +221,9 @@ class MultivariateModel(AbstractMultivariateModel):
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self):
+    def initialize_MCMC_toolbox(self, set_v0_prior = True):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},
+            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
             'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         }
 
@@ -232,8 +232,9 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # TODO maybe not here
         # Initialize priors
-        self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone()
-        self.MCMC_toolbox['priors']['s_v0'] = 0.1
+        if set_v0_prior:
+            self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
+            self.MCMC_toolbox['priors']['s_v0'] = 0.1
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
@@ -297,7 +298,7 @@ class MultivariateModel(AbstractMultivariateModel):
         # Memoryless part of the algorithm
         self.parameters['g'] = realizations['g'].tensor_realizations
 
-        if self.MCMC_toolbox['priors']['v0_mean'] is not None:
+        if self.MCMC_toolbox['priors'].get('v0_mean', None) is not None:
             v0_mean = self.MCMC_toolbox['priors']['v0_mean']
             v0_emp = realizations['v0'].tensor_realizations
             s_v0 = self.MCMC_toolbox['priors']['s_v0']

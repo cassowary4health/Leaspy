@@ -111,7 +111,7 @@ class UnivariateModel(AbstractModel):
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 1.},
+            'priors': {'g_std': 0.01}, # population parameter
             'attributes': AttributesFactory.attributes(self.name, dimension=1)
         }
 

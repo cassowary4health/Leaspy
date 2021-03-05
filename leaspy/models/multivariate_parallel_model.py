@@ -100,7 +100,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 1., 'deltas_std': 0.1, 'betas_std': 0.1},
+            'priors': {'g_std': 0.01, 'deltas_std': 0.01, 'betas_std': 0.01}, # population parameters
             'attributes': AttributesLogisticParallel(self.name, self.dimension, self.source_dimension)
         }
 

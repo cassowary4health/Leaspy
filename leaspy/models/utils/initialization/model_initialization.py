@@ -99,10 +99,9 @@ def initialize_logistic(model, dataset, method):
     values[values > 1] = 0.99
 
     # Do transformations
-    t0 = time.clone()
-    slopes = slopes.mean() * torch.ones_like(slopes)
-    v0_array = slopes.log()
-    g_array = torch.log(1. / values - 1.) # cf. Igor thesis; <!> exp is done in Attributes class for logisitic models
+    t0 = time.clone().detach()
+    v0_array = slopes.log().detach()
+    g_array = torch.log(1. / values - 1.).detach() # cf. Igor thesis; <!> exp is done in Attributes class for logisitic models
     betas = torch.zeros((model.dimension - 1, model.source_dimension))
     # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
@@ -183,19 +182,21 @@ def initialize_logistic_parallel(model, dataset, method):
 
     # Do transformations
     t0 = time.clone()
-    v0_array = slopes.log()
-    g_array = torch.log(1. / values - 1.) # cf. Igor thesis; <!> exp is done in Attributes class for logisitic models
+    v0 = slopes.log().mean().detach()
+    #v0 = slopes.mean().log().detach() # mean before log
+    g = torch.log(1. / values - 1.).mean().detach() # cf. Igor thesis; <!> exp is done in Attributes class for logisitic models
+    #g = torch.log(1. / values.mean() - 1.).detach() # mean before transfo
 
     return {
-        'g': torch.tensor([torch.mean(g_array)], dtype=torch.float32),
+        'g': g,
         'tau_mean': t0,
         'tau_std': torch.tensor(tau_std, dtype=torch.float32),
-        'xi_mean': torch.mean(v0_array).detach(),
+        'xi_mean': v0,
         'xi_std': torch.tensor(xi_std, dtype=torch.float32),
         'sources_mean': torch.tensor(0., dtype=torch.float32),
         'sources_std': torch.tensor(sources_std, dtype=torch.float32),
         'noise_std': torch.tensor([noise_std], dtype=torch.float32),
-        'deltas': torch.tensor([0.0] * (model.dimension - 1), dtype=torch.float32),
+        'deltas': torch.zeros((model.dimension - 1,), dtype=torch.float32),
         'betas': betas
     }
 
@@ -264,7 +265,7 @@ def initialize_linear(model, dataset, method):
         velocities = velocities.clamp(min=exp(-3.))
 
     # always take the log (even in non univariate model!)
-    velocities = torch.log(velocities)
+    velocities = torch.log(velocities).detach()
 
     if 'univariate' in model.name:
         xi_mean = velocities.squeeze()
@@ -299,7 +300,7 @@ def initialize_linear(model, dataset, method):
 #    return 0
 
 
-def compute_patient_slopes_distribution(data):
+def compute_patient_slopes_distribution(data, max_inds=None):
     """
     Linear Regression on each feature to get slopes
 
@@ -340,12 +341,12 @@ def compute_patient_slopes_distribution(data):
             slope_dim_patients.append(slope)
             count += 1
 
-            # Stop at 50
-            if count > 50:
+            # Stop at `max_inds`
+            if max_inds and count > max_inds:
                 break
 
         slopes_mu.append(torch.mean(torch.tensor(slope_dim_patients)).item())
-        slopes_sigma.append(torch.mean(torch.tensor(slope_dim_patients)).item())
+        slopes_sigma.append(torch.std(torch.tensor(slope_dim_patients)).item())
 
     return torch.tensor(slopes_mu), torch.tensor(slopes_sigma)
 

@@ -1,16 +1,15 @@
 import json
 import os
 import unittest
+from glob import glob
 
 import numpy as np
 import torch
-from torch import tensor
 
 from leaspy.api import Leaspy
 from leaspy.models.model_factory import ModelFactory
-from tests import test_data_dir
 from tests.unit_tests.models.test_model_factory import ModelFactoryTest
-
+from tests import hardcoded_model_path, hardcoded_models_folder, from_fit_models_folder
 
 def ordered(obj):
     if isinstance(obj, dict):
@@ -27,7 +26,8 @@ class LeaspyTest(unittest.TestCase):
         """
         Test attribute's initialization of leaspy univariate model
         """
-        for name in ['univariate_logistic', 'univariate_linear', 'linear', 'logistic', 'logistic_parallel', 'mixed_linear-logistic']:
+        for name in ['univariate_logistic', 'univariate_linear', 'linear', 'logistic', 'logistic_parallel',
+                     'mixed_linear-logistic']:
             leaspy = Leaspy(name, loss='MSE')
             self.assertEqual(leaspy.type, name)
             self.assertEqual(leaspy.model.loss, 'MSE')
@@ -49,8 +49,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a logistic model from a json file
         """
-        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
-        leaspy = Leaspy.load(model_path)
+        leaspy = Leaspy.load(hardcoded_model_path('logistic'))
 
         # Test the name
         self.assertEqual(leaspy.type, 'logistic')
@@ -66,7 +65,7 @@ class LeaspyTest(unittest.TestCase):
         parameters = {
             "g": [0.5, 1.5, 1.0, 2.0],
             "v0": [-2.0, -3.5, -3.0, -2.5],
-            "betas": [[0.01, 0.06], [-0.01, 0.04], [0.03, 0.08]],
+            "betas": [[0.1, 0.6], [-0.1, 0.4], [0.3, 0.8]],
             "tau_mean": 75.2,
             "tau_std": 7.1,
             "xi_mean": 0.0,
@@ -76,8 +75,8 @@ class LeaspyTest(unittest.TestCase):
             "noise_std": 0.2
         }
         for k, v in parameters.items():
-            equality = torch.all(torch.eq(leaspy.model.parameters[k], tensor(v)))
-            self.assertEqual(equality, True)
+            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
+            self.assertTrue(equality)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -86,8 +85,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a logistic parallel model from a json file
         """
-        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic_parallel.json')
-        leaspy = Leaspy.load(model_path)
+        leaspy = Leaspy.load(hardcoded_model_path('logistic_parallel'))
 
         # Test the name
         self.assertEqual(leaspy.type, 'logistic_parallel')
@@ -113,8 +111,8 @@ class LeaspyTest(unittest.TestCase):
             "betas": [[0.1, -0.1], [0.5, -0.3], [0.3, 0.4]],
         }
         for k, v in parameters.items():
-            equality = torch.all(torch.eq(leaspy.model.parameters[k], tensor(v)))
-            self.assertEqual(equality, True)
+            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
+            self.assertTrue(equality)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -123,8 +121,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a linear model from a json file
         """
-        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'linear.json')
-        leaspy = Leaspy.load(model_path)
+        leaspy = Leaspy.load(hardcoded_model_path('linear'))
 
         # Test the name
         self.assertEqual(leaspy.type, 'linear')
@@ -140,19 +137,18 @@ class LeaspyTest(unittest.TestCase):
         parameters = {
             "g": [0.5, 0.06, 0.1, 0.3],
             "v0": [-0.5, -0.5, -0.5, -0.5],
-            "betas": [[0.01, -0.05], [-0.01, 0.01], [-0.001, -0.01]],
+            "betas": [[0.1, -0.5], [-0.1, 0.1], [-0.8, -0.1]],
             "tau_mean": 75.2,
             "tau_std": 0.9,
             "xi_mean": 0.0,
             "xi_std": 0.3,
             "sources_mean": 0.0,
             "sources_std": 1.0,
-            "noise_std": 3.3,
-
+            "noise_std": 0.1,
         }
         for k, v in parameters.items():
-            equality = torch.all(torch.eq(leaspy.model.parameters[k], tensor(v)))
-            self.assertEqual(equality, True)
+            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
+            self.assertTrue(equality)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -161,8 +157,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a linear model from a json file
         """
-        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_logistic.json')
-        leaspy = Leaspy.load(model_path)
+        leaspy = Leaspy.load(hardcoded_model_path('univariate_logistic'))
 
         # Test the name
         self.assertEqual(leaspy.type, 'univariate_logistic')
@@ -183,8 +178,8 @@ class LeaspyTest(unittest.TestCase):
         }
 
         for k, v in parameters.items():
-            equality = torch.all(torch.eq(leaspy.model.parameters[k], tensor(v)))
-            self.assertEqual(equality, True)
+            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
+            self.assertTrue(equality)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -193,8 +188,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a linear model from a json file
         """
-        model_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_linear.json')
-        leaspy = Leaspy.load(model_path)
+        leaspy = Leaspy.load(hardcoded_model_path('univariate_linear'))
 
         # Test the name
         self.assertEqual(leaspy.type, 'univariate_linear')
@@ -206,32 +200,30 @@ class LeaspyTest(unittest.TestCase):
 
         # Test the parameters
         parameters = {
-            "g": 1.0,
-            "tau_mean": 70.0,
-            "tau_std": 2.5,
-            "xi_mean": -1.0,
-            "xi_std": 0.01,
-            "noise_std": 0.2
+            "g": 0.5,
+            "tau_mean": 78.0,
+            "tau_std": 5.0,
+            "xi_mean": -4.0,
+            "xi_std": 0.5,
+            "noise_std": 0.15
         }
 
         for k, v in parameters.items():
-            equality = torch.all(torch.eq(leaspy.model.parameters[k], tensor(v)))
-            self.assertEqual(equality, True)
+            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
+            self.assertTrue(equality)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
-    def test_save_logistic(self):
+    def generic_check_load_save_load(self, model_path):
         """
-        Test saving the logistic model
+        Test load model from file, save model and load model again from new file and that parameters are matching
         """
-        data_path = os.path.join(test_data_dir, 'model_parameters', 'example')
-        model_path = os.path.join(data_path, 'logistic.json')
         leaspy = Leaspy.load(model_path)
 
         # Save the file
-        save_path = os.path.join(data_path, 'logistic-copy.json')
-        leaspy.save(save_path)
+        save_path = model_path + '-copy.json'
+        leaspy.save(save_path, indent=2)
 
         # Check that the files are the same
         with open(model_path, 'r') as f1:
@@ -244,91 +236,23 @@ class LeaspyTest(unittest.TestCase):
 
         for k, v in model_parameters['parameters'].items():
             diff = np.array(v) - np.array(model_parameters_new['parameters'][k])
-            self.assertAlmostEqual(np.sum(diff**2).item(), 0, delta=10e-7)
+            with self.subTest(param=k):
+                self.assertAlmostEqual(np.sum(diff**2).item(), 0, delta=1e-8)
 
         # Remove the created file
         os.remove(save_path)
 
-    def test_save_logistic_parallel(self):
+    def test_load_save_load(self):
         """
-        Test saving the logistic parallel model
+        Test loading, saving and loading again all models (hardcoded and functional)
         """
-        data_path = os.path.join(test_data_dir, 'model_parameters', 'example')
-        model_path = os.path.join(data_path, 'logistic_parallel.json')
-        leaspy = Leaspy.load(model_path)
 
-        # Save the file
-        save_path = os.path.join(data_path, 'logistic_parallel-copy.json')
-        leaspy.save(save_path)
+        # hardcoded models
+        for model_path in glob(os.path.join(hardcoded_models_folder, '*.json')):
+            with self.subTest(model_path=model_path):
+                self.generic_check_load_save_load(model_path)
 
-        # Check that the files are the same
-        with open(model_path, 'r') as f1:
-            model_parameters = json.load(f1)
-        with open(save_path, 'r') as f2:
-            model_parameters_new = json.load(f2)
-
-        self.assertEqual(model_parameters.keys(), model_parameters_new.keys())
-        self.assertEqual(model_parameters['parameters'].keys(), model_parameters_new['parameters'].keys())
-
-        for k, v in model_parameters['parameters'].items():
-            diff = np.array(v) - np.array(model_parameters_new['parameters'][k])
-            self.assertAlmostEqual(np.sum(diff**2).item(), 0, delta=10e-7)
-
-        # Remove the created file
-        os.remove(save_path)
-
-    def test_save_linear(self):
-        """
-        Test saving the logistic model
-        """
-        data_path = os.path.join(test_data_dir, 'model_parameters', 'example')
-        model_path = os.path.join(data_path, 'linear.json')
-        leaspy = Leaspy.load(model_path)
-
-        # Save the file
-        save_path = os.path.join(data_path, 'linear-copy.json')
-        leaspy.save(save_path)
-
-        # Check that the files are the same
-        with open(model_path, 'r') as f1:
-            model_parameters = json.load(f1)
-        with open(save_path, 'r') as f2:
-            model_parameters_new = json.load(f2)
-
-        self.assertEqual(model_parameters.keys(), model_parameters_new.keys())
-        self.assertEqual(model_parameters['parameters'].keys(), model_parameters_new['parameters'].keys())
-
-        for k, v in model_parameters['parameters'].items():
-            diff = np.array(v) - np.array(model_parameters_new['parameters'][k])
-            self.assertAlmostEqual(np.sum(diff**2).item(), 0, delta=10e-8)
-
-        # Remove the created file
-        os.remove(save_path)
-
-    def test_save_univariate(self):
-        """
-        Test saving the univariate model
-        """
-        data_path = os.path.join(test_data_dir, 'model_parameters', 'example')
-        model_path = os.path.join(data_path, 'univariate_logistic.json')
-        leaspy = Leaspy.load(model_path)
-
-        # Save the file
-        save_path = os.path.join(data_path, 'univariate-copy.json')
-        leaspy.save(save_path)
-
-        # Check that the files are the same
-        with open(model_path, 'r') as f1:
-            model_parameters = json.load(f1)
-        with open(save_path, 'r') as f2:
-            model_parameters_new = json.load(f2)
-
-        self.assertEqual(model_parameters.keys(), model_parameters_new.keys())
-        self.assertEqual(model_parameters['parameters'].keys(), model_parameters_new['parameters'].keys())
-
-        for k, v in model_parameters['parameters'].items():
-            diff = np.array(v) - np.array(model_parameters_new['parameters'][k])
-            self.assertAlmostEqual(np.sum(diff**2).item(), 0, delta=10e-8)
-
-        # Remove the created file
-        os.remove(save_path)
+        # functional models (OK because no direct test on values)
+        for model_path in glob(os.path.join(from_fit_models_folder, '*.json')):
+            with self.subTest(model_path=model_path):
+                self.generic_check_load_save_load(model_path)

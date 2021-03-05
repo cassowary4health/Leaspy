@@ -7,7 +7,7 @@ from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.model_factory import ModelFactory
 
-from tests import example_data_path, binary_data_path, example_logisticmodel_path
+from tests import example_data_path, binary_data_path, hardcoded_model_path
 from tests import allow_abstract_class_init
 
 
@@ -42,29 +42,25 @@ class AbstractModelTest(unittest.TestCase):
         """
         Test the method load_parameters.
         """
-        leaspy_object = Leaspy.load(example_logisticmodel_path)
+        leaspy_object = Leaspy.load(hardcoded_model_path('logistic'))
 
         abstract_model = AbstractModel("dummy_model")
 
         abstract_model.load_parameters(leaspy_object.model.parameters)
 
         self.assertTrue(torch.equal(abstract_model.parameters['g'],
-                                    torch.tensor([1.8669992685317993, 2.4921786785125732,
-                                                  2.471605062484741, 2.1240732669830322])))
+                                    torch.tensor([0.5, 1.5, 1.0, 2.0])))
         self.assertTrue(torch.equal(abstract_model.parameters['v0'],
-                                    torch.tensor([-2.8300716876983643, -3.3241398334503174,
-                                                  -3.4701175689697266, -2.6136295795440674])))
+                                    torch.tensor([-2.0, -3.5, -3.0, -2.5])))
         self.assertTrue(torch.equal(abstract_model.parameters['betas'],
-                                    torch.tensor([[0.011530596762895584, 0.06039918214082718],
-                                                  [0.008324957452714443, 0.048168670386075974],
-                                                  [0.01144738681614399, 0.0822334811091423]])))
-        self.assertTrue(torch.equal(abstract_model.parameters['tau_mean'], torch.tensor(75.30111694335938)))
-        self.assertTrue(torch.equal(abstract_model.parameters['tau_std'], torch.tensor(7.103002071380615)))
+                                    torch.tensor([[0.1, 0.6], [-0.1, 0.4], [0.3, 0.8]])))
+        self.assertTrue(torch.equal(abstract_model.parameters['tau_mean'], torch.tensor(75.2)))
+        self.assertTrue(torch.equal(abstract_model.parameters['tau_std'], torch.tensor(7.1)))
         self.assertTrue(torch.equal(abstract_model.parameters['xi_mean'], torch.tensor(0.0)))
-        self.assertTrue(torch.equal(abstract_model.parameters['xi_std'], torch.tensor(0.2835913300514221)))
+        self.assertTrue(torch.equal(abstract_model.parameters['xi_std'], torch.tensor(0.2)))
         self.assertTrue(torch.equal(abstract_model.parameters['sources_mean'], torch.tensor(0.0)))
         self.assertTrue(torch.equal(abstract_model.parameters['sources_std'], torch.tensor(1.0)))
-        self.assertTrue(torch.equal(abstract_model.parameters['noise_std'], torch.tensor(0.1988248974084854)))
+        self.assertTrue(torch.equal(abstract_model.parameters['noise_std'], torch.tensor(0.2)))
 
     def test_all_model_run(self):
         """

@@ -4,11 +4,14 @@ import unittest
 import numpy as np
 import torch
 
-from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.api import Leaspy
+from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
-from tests import test_data_dir
+from tests import hardcoded_model_path
 
+# test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
+tol = 3e-3
+tol_tau = 1e-2
 
 class ScipyMinimizeTest(unittest.TestCase):
 
@@ -39,23 +42,23 @@ class ScipyMinimizeTest(unittest.TestCase):
     #
     #    self.assertEqual(algo.model_name, 'name')
 
-    def test_initialize_parameters(self, ):
+    def test_initialize_parameters(self):
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
 
-        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_logistic.json')
+        univariate_path = hardcoded_model_path('univariate_logistic')
         univariate_model = Leaspy.load(univariate_path)
         param = algo._initialize_parameters(univariate_model.model)
 
         self.assertEqual(param, [torch.tensor([-1.0/0.01]), torch.tensor([70.0/2.5])])
 
-        multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
+        multivariate_path = hardcoded_model_path('logistic')
         multivariate_model = Leaspy.load(multivariate_path)
         param = algo._initialize_parameters(multivariate_model.model)
         self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2/7.1]), torch.tensor([0.]), torch.tensor([0.])])
 
     def test_get_reconstruction_error(self):
-        multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
+        multivariate_path = hardcoded_model_path('logistic')
         leaspy = Leaspy.load(multivariate_path)
 
         settings = AlgorithmSettings('scipy_minimize')
@@ -77,7 +80,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertAlmostEqual(torch.sum((err - output)**2).item(), 0, delta=1e-8)
 
     def test_get_regularity(self):
-        multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
+        multivariate_path = hardcoded_model_path('logistic')
         leaspy = Leaspy.load(multivariate_path)
 
         settings = AlgorithmSettings('scipy_minimize')
@@ -103,387 +106,209 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertTupleEqual(reg_grads['tau'].shape, (1,1))
         self.assertTupleEqual(reg_grads['sources'].shape, (1,2))
 
+    def get_individual_parameters_patient(self, model_name, times, values, **algo_kwargs):
+        # already a functional test in fact...
+        leaspy = Leaspy.load(hardcoded_model_path(model_name))
 
-    def test_get_individual_parameters_patient_univariate_logistic(self):
-        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_logistic.json')
-        leaspy = Leaspy.load(univariate_path)
-
-        settings = AlgorithmSettings('scipy_minimize', seed=0)
+        settings = AlgorithmSettings('scipy_minimize', seed=0, **algo_kwargs)
         algo = ScipyMinimize(settings)
-
-        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
-        tol = 5e-3
 
         # manually initialize seed since it's not done by algo itself (no call to run afterwards)
         algo._initialize_seed(algo.seed)
         self.assertEqual(algo.seed, np.random.get_state()[1][0])
 
-        times = torch.tensor([70, 80])
-
         # Test without nan
-        values = torch.tensor([[0.5], [0.4]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
+        output = algo._get_individual_parameters_patient(leaspy.model,
+                                torch.tensor(times, dtype=torch.float32),
+                                torch.tensor(values, dtype=torch.float32))
 
-        self.check_individual_parameters(individual_parameters,
-            tau=69.2868, tol_tau=tol,
-            xi=-1.0002, tol_xi=tol,
-          tol_sources=tol
-        )
+        return output
 
-        err_expected = torch.tensor([[-0.1765],
-                                    [ 0.5498]])
+    def test_get_individual_parameters_patient_univariate_models(self, tol=tol, tol_tau=tol_tau):
 
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+        times = [70, 80]
+        values = [[0.5], [0.4]] # no test with nans (done in multivariate models)
 
-        return 0
+        for (model_name, use_jacobian), expected_dict in {
 
-    def test_get_individual_parameters_patient_univariate_logistic_with_jacobian(self):
-        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_logistic.json')
-        leaspy = Leaspy.load(univariate_path)
+            ('univariate_logistic', False): {'tau': 69.2868, 'xi': -1.0002, 'err': [[-0.1765], [0.5498]]},
+            ('univariate_logistic', True ): {'tau': 69.2868, 'xi': -1.0002, 'err': [[-0.1765], [0.5498]]},
+            ('univariate_linear',   False): {'tau': 78.1131, 'xi': -4.2035, 'err': [[-0.1212], [0.1282]]},
+            ('univariate_linear',   True ): {'tau': 78.0821, 'xi': -4.2016, 'err': [[-0.1210], [0.1287]]},
 
-        settings = AlgorithmSettings('scipy_minimize', use_jacobian=True, seed=0)
-        algo = ScipyMinimize(settings)
+        }.items():
 
-        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
-        tol = 5e-2
+            individual_parameters, err = self.get_individual_parameters_patient(model_name,
+                                                    times, values, use_jacobian=use_jacobian)
 
-        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
-        algo._initialize_seed(algo.seed)
-        self.assertEqual(algo.seed, np.random.get_state()[1][0])
+            self.check_individual_parameters(individual_parameters,
+                tau=expected_dict['tau'], tol_tau=tol_tau,
+                xi=expected_dict['xi'], tol_xi=tol
+            )
 
-        times = torch.tensor([70, 80])
+            self.assertAlmostEqual(torch.sum((err - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
 
-        # Test without nan
-        values = torch.tensor([[0.5], [0.4]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
+    def test_get_individual_parameters_patient_multivariate_models(self, tol=tol, tol_tau=tol_tau):
 
-        self.check_individual_parameters(individual_parameters,
-            tau=69.2868, tol_tau=tol,
-            xi=-1.0002, tol_xi=tol,
-          tol_sources=tol
-        )
+        times = [70, 80]
+        values = [[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]] # no nans (separate test)
 
-        err_expected = torch.tensor([[-0.1765],
-                                    [ 0.5498]])
+        for (model_name, use_jacobian), expected_dict in {
 
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+            ('logistic', False): {
+                'tau': 78.6033,
+                'xi': -0.0919,
+                'sources': [0.2967, 0.7069],
+                'err': [[-0.4966, -0.3381, -0.3447, -0.4496],
+                        [ 0.0969, -0.0049,  0.1711, -0.0611]]
+            },
+            ('logistic', True): {
+                'tau': 78.6033,
+                'xi': -0.0918,
+                'sources': [0.2997, 0.7000],
+                'err': [[-0.4966, -0.3383, -0.3448, -0.4496],
+                        [ 0.0981, -0.0056,  0.1706, -0.0616]]
+            },
 
-        return 0
+            # TODO? linear, logistic_parallel
 
+        }.items():
 
-    def test_get_individual_parameters_patient_univariate_linear(self):
-        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_linear.json')
-        leaspy = Leaspy.load(univariate_path)
+            individual_parameters, err = self.get_individual_parameters_patient(model_name,
+                                                    times, values, use_jacobian=use_jacobian)
 
-        settings = AlgorithmSettings('scipy_minimize', seed=0)
-        algo = ScipyMinimize(settings)
+            self.check_individual_parameters(individual_parameters,
+                tau=expected_dict['tau'], tol_tau=tol_tau,
+                xi=expected_dict['xi'], tol_xi=tol,
+                sources=expected_dict['sources'], tol_sources=tol,
+            )
 
-        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
-        tol = 1e-2
+            self.assertAlmostEqual(torch.sum((err - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
 
-        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
-        algo._initialize_seed(algo.seed)
-        self.assertEqual(algo.seed, np.random.get_state()[1][0])
+    def test_get_individual_parameters_patient_multivariate_models_with_nans(self, tol=tol, tol_tau=tol_tau):
 
-        times = torch.tensor([70, 80])
-
-        # Test without nan
-        values = torch.tensor([[0.5], [0.4]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
-
-        self.check_individual_parameters(individual_parameters,
-            tau=76.36462, tol_tau=tol,
-            xi=-1.0169, tol_xi=tol,
-          tol_sources=tol
-        )
-
-        err_expected = torch.tensor([[-1.8200],
-        [ 1.8973]])
-
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
-
-        return 0
-
-    def test_get_individual_parameters_patient_univariate_linear_with_jacobian(self):
-        univariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'univariate_linear.json')
-        leaspy = Leaspy.load(univariate_path)
-
-        settings = AlgorithmSettings('scipy_minimize', use_jacobian=True, seed=0)
-        algo = ScipyMinimize(settings)
-
-        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
-        tol = 1e-2
-
-        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
-        algo._initialize_seed(algo.seed)
-        self.assertEqual(algo.seed, np.random.get_state()[1][0])
-
-        times = torch.tensor([70, 80])
-
-        # Test without nan
-        values = torch.tensor([[0.5], [0.4]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
-
-        self.check_individual_parameters(individual_parameters,
-            tau=76.36460, tol_tau=tol,
-            xi=-1.0169, tol_xi=tol,
-          tol_sources=tol
-        )
-
-        err_expected = torch.tensor([[-1.8200],
-        [ 1.8973]])
-
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
-
-        return 0
-
-    def test_get_individual_parameters_patient_multivariate(self):
-        multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
-        leaspy = Leaspy.load(multivariate_path)
-
-        settings = AlgorithmSettings('scipy_minimize', seed=0)
-        algo = ScipyMinimize(settings)
-
-        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
-        tol = 5e-3
-
-        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
-        algo._initialize_seed(algo.seed)
-        self.assertEqual(algo.seed, np.random.get_state()[1][0])
-
-        times = torch.tensor([70, 80])
-
-        # Test without nan
-        values = torch.tensor([[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
-
-        self.check_individual_parameters(individual_parameters,
-            tau=78.93283994514304, tol_tau=tol,
-            xi=-0.07679465847751077, tol_xi=tol,
-            sources=[-0.07733279, -0.57428166], tol_sources=tol
-        )
-
-        err_expected = torch.tensor([[
-            [-0.4958, -0.3619, -0.3537, -0.4497],
-            [0.1650, -0.0948,  0.1361, -0.1050]]])
-
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
-
-        # Test with nan
-        values = torch.tensor([[0.5, 0.4, 0.4, float('nan')], [0.3, float('nan'), float('nan'), 0.4]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
-
-        self.check_individual_parameters(individual_parameters,
-            tau=78.82484683798302, tol_tau=tol,
-            xi=-0.07808162619234782, tol_xi=tol,
-            sources=[-0.17007795, -0.63483322], tol_sources=tol
-        )
+        times = [70, 80]
+        values = [[0.5, 0.4, 0.4, np.nan], [0.3, np.nan, np.nan, 0.4]]
 
         nan_positions = torch.tensor([
             [False, False, False, True],
             [False, True, True, False]
         ])
 
-        self.assertEqual(torch.all(torch.eq(torch.isnan(err), nan_positions)), True)
+        for (model_name, use_jacobian), expected_dict in {
 
-        err[err != err] = 0.
-        err_expected = torch.tensor([[
-            [-0.4957, -0.3613, -0.3516, 0.],
-            [0.1718, 0., 0., -0.0796]]])
+            ('logistic', False): {
+                'tau': 78.3085,
+                'xi': -0.1001,
+                'sources': [0.1031, 0.9085],
+                'err': [[-0.4963, -0.3286, -0.3354, 0.    ],
+                        [ 0.1026,  0.,      0.,    -0.0047]]
+            },
+            ('logistic', True):  {
+                'tau': 78.3124,
+                'xi': -0.0998,
+                'sources': [0.1073, 0.8990],
+                'err': [[-0.4963, -0.3289, -0.3357, 0.    ],
+                        [ 0.1039,  0.,      0.,    -0.0060]]
+            },
 
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+            # TODO? linear, logistic_parallel
 
-    def test_get_individual_parameters_patient_multivariate_with_jacobian(self):
-        multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
-        leaspy = Leaspy.load(multivariate_path)
+        }.items():
 
-        settings = AlgorithmSettings('scipy_minimize', seed=0, use_jacobian=True)
-        algo = ScipyMinimize(settings)
+            individual_parameters, err = self.get_individual_parameters_patient(model_name,
+                                                    times, values, use_jacobian=use_jacobian)
 
-        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
-        tol = 5e-3
-        tol_tau = 0.01
+            self.check_individual_parameters(individual_parameters,
+                tau=expected_dict['tau'], tol_tau=tol_tau,
+                xi=expected_dict['xi'], tol_xi=tol,
+                sources=expected_dict['sources'], tol_sources=tol,
+            )
 
-        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
-        algo._initialize_seed(algo.seed)
-        self.assertEqual(algo.seed, np.random.get_state()[1][0])
+            self.assertTrue(torch.eq(torch.isnan(err), nan_positions).all())
+            err[torch.isnan(err)] = 0.
 
-        times = torch.tensor([70, 80])
+            self.assertAlmostEqual(torch.sum((err - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
 
-        # Test without nan
-        values = torch.tensor([[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
 
-        self.check_individual_parameters(individual_parameters,
-            tau=78.93283994514304, tol_tau=tol_tau,
-            xi=-0.07679465847751077, tol_xi=tol,
-            sources=[-0.07733279, -0.57428166], tol_sources=tol
-        )
+    def test_get_individual_parameters_patient_multivariate_models_crossentropy(self, tol=tol, tol_tau=tol_tau):
 
-        err_expected = torch.tensor([[
-            [-0.4958, -0.3619, -0.3537, -0.4497],
-            [0.1650, -0.0948,  0.1361, -0.1050]]])
+        times = [70, 80]
+        values = [[0, 1, 0, 1], [0, 1, 1, 1]] # no nans (separate test)
 
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+        for (model_name, use_jacobian), expected_dict in {
 
-        # Test with nan
-        values = torch.tensor([[0.5, 0.4, 0.4, float('nan')], [0.3, float('nan'), float('nan'), 0.4]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
+            ('logistic', False): {
+                'tau': 69.9151,
+                'xi': -0.1544,
+                'sources': [0.4803, 1.6090],
+                'err': [[0.1302, -0.6580,  0.3511, -0.7714],
+                        [0.9542, -0.2534, -0.1742, -0.0041]]
+            },
+            ('logistic', True): {
+                'tau': 69.9204,
+                'xi': -0.1544,
+                'sources': [0.4799, 1.6079],
+                'err': [[0.1300, -0.6583,  0.3508, -0.7721],
+                        [0.9541, -0.2536, -0.1744, -0.0042]]
+            },
 
-        self.check_individual_parameters(individual_parameters,
-            tau=78.83, tol_tau=tol_tau,
-            xi=-0.07808162619234782, tol_xi=tol,
-            sources=[-0.17007795, -0.63483322], tol_sources=tol
-        )
+        }.items():
 
-        nan_positions = torch.tensor([
-            [False, False, False, True],
-            [False, True, True, False]
-        ])
+            individual_parameters, err = self.get_individual_parameters_patient(model_name,
+                                                    times, values, use_jacobian=use_jacobian,
+                                                    loss='crossentropy')
 
-        self.assertEqual(torch.all(torch.eq(torch.isnan(err), nan_positions)), True)
+            self.check_individual_parameters(individual_parameters,
+                tau=expected_dict['tau'], tol_tau=tol_tau,
+                xi=expected_dict['xi'], tol_xi=tol,
+                sources=expected_dict['sources'], tol_sources=tol,
+            )
 
-        err[err != err] = 0.
-        err_expected = torch.tensor([[
-            [-0.4957, -0.3613, -0.3516, 0.],
-            [0.1718, 0., 0., -0.0796]]])
+            self.assertAlmostEqual(torch.sum((err - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
 
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+    def test_get_individual_parameters_patient_multivariate_models_with_nans_crossentropy(self, tol=tol, tol_tau=tol_tau):
 
-    def test_get_individual_parameters_patient_crossentropy(self):
-        multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
-        leaspy = Leaspy.load(multivariate_path)
-
-        settings = AlgorithmSettings('scipy_minimize', seed=0, loss="crossentropy")
-        algo = ScipyMinimize(settings)
-
-        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
-        tol = 5e-3
-        tol_tau = 0.01
-
-        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
-        algo._initialize_seed(algo.seed)
-        self.assertEqual(algo.seed, np.random.get_state()[1][0])
-
-        times = torch.tensor([70, 80])
-
-        # Test without nan
-        values = torch.tensor([[0., 1., 0., 1.], [0., 1., 1., 1.]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
-
-        self.check_individual_parameters(individual_parameters,
-            tau=69.91258208274421, tol_tau=tol_tau,
-            xi=-0.1446537485712681, tol_xi=tol,
-            sources=[-0.16517799, -0.82381726], tol_sources=tol
-        )
-
-        err_expected = torch.tensor([[
-            [ 0.3184, -0.8266,  0.2943, -0.8065],
-            [ 0.9855, -0.4526, -0.2114, -0.0048]]])
-
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
-
-        # Test with nan
-        values = torch.tensor([[0., 1., 0., float('nan')], [0., float('nan'), float('nan'), 1.]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
-
-        self.check_individual_parameters(individual_parameters,
-            tau=76.57318992643758, tol_tau=tol,
-            xi=-0.06489393539830259, tol_xi=tol,
-            sources=[-0.08735905, -0.37562645], tol_sources=tol
-        )
+        times = [70, 80]
+        values = [[0, 1, 0, np.nan], [0, np.nan, np.nan, 1]]
 
         nan_positions = torch.tensor([
             [False, False, False, True],
             [False, True, True, False]
         ])
 
-        self.assertEqual(torch.all(torch.eq(torch.isnan(err), nan_positions)), True)
+        for (model_name, use_jacobian), expected_dict in {
 
-        err[err != err] = 0.
-        err_expected = torch.tensor([[
-            [ 0.0150, -0.9417,  0.0752,     0.],
-            [ 0.7702,    0.,     0., -0.3218]]])
+            ('logistic', False): {
+                'tau': 76.3459,
+                'xi': -0.0610,
+                'sources': [0.2667, 1.0468],
+                'err': [[0.0077, -0.8976, 0.0939, 0.    ],
+                        [0.6348,  0.,     0.,    -0.2401]]
+            },
+            ('logistic', True): {
+                'tau': 76.3430,
+                'xi': -0.0614,
+                'sources': [0.2665, 1.0460],
+                'err': [[0.0077, -0.8976, 0.0940, 0.    ],
+                        [0.6351,  0.,     0.,    -0.2400]]
+            },
 
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+            # TODO? linear, logistic_parallel
 
-    def test_get_individual_parameters_patient_crossentropy_with_jacobian(self):
-        multivariate_path = os.path.join(test_data_dir, 'model_parameters', 'example', 'logistic.json')
-        leaspy = Leaspy.load(multivariate_path)
+        }.items():
 
-        settings = AlgorithmSettings('scipy_minimize', seed=0, loss="crossentropy", use_jacobian=True)
-        algo = ScipyMinimize(settings)
+            individual_parameters, err = self.get_individual_parameters_patient(model_name,
+                                                    times, values, use_jacobian=use_jacobian,
+                                                    loss='crossentropy')
 
-        # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
-        tol = 5e-3
-        tol_tau = 0.01
+            self.check_individual_parameters(individual_parameters,
+                tau=expected_dict['tau'], tol_tau=tol_tau,
+                xi=expected_dict['xi'], tol_xi=tol,
+                sources=expected_dict['sources'], tol_sources=tol,
+            )
 
-        # manually initialize seed since it's not done by algo itself (no call to run afterwards)
-        algo._initialize_seed(algo.seed)
-        self.assertEqual(algo.seed, np.random.get_state()[1][0])
+            self.assertTrue(torch.eq(torch.isnan(err), nan_positions).all())
+            err[torch.isnan(err)] = 0.
 
-        times = torch.tensor([70, 80])
-
-        # Test without nan
-        values = torch.tensor([[0., 1., 0., 1.], [0., 1., 1., 1.]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
-
-        self.check_individual_parameters(individual_parameters,
-            tau=69.91258208274421, tol_tau=tol_tau,
-            xi=-0.1446537485712681, tol_xi=tol,
-            sources=[-0.16517799, -0.82381726], tol_sources=tol
-        )
-
-        err_expected = torch.tensor([[
-            [ 0.3184, -0.8266,  0.2943, -0.8065],
-            [ 0.9855, -0.4526, -0.2114, -0.0048]]])
-
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
-
-        # Test with nan
-        values = torch.tensor([[0., 1., 0., float('nan')], [0., float('nan'), float('nan'), 1.]])
-        output = algo._get_individual_parameters_patient(leaspy.model, times, values)
-        individual_parameters = output[0]
-        err = output[1]
-
-        self.check_individual_parameters(individual_parameters,
-            tau=76.57318992643758, tol_tau=tol,
-            xi=-0.06489393539830259, tol_xi=tol,
-            sources=[-0.08735905, -0.37562645], tol_sources=tol
-        )
-
-        nan_positions = torch.tensor([
-            [False, False, False, True],
-            [False, True, True, False]
-        ])
-
-        self.assertEqual(torch.all(torch.eq(torch.isnan(err), nan_positions)), True)
-
-        err[err != err] = 0.
-        err_expected = torch.tensor([[
-            [ 0.0150, -0.9417,  0.0752,     0.],
-            [ 0.7702,    0.,     0., -0.3218]]])
-
-        self.assertAlmostEqual(torch.sum((err - err_expected)**2).item(), 0, delta=tol)
+            self.assertAlmostEqual(torch.sum((err - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)

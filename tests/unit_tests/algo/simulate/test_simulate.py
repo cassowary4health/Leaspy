@@ -8,7 +8,7 @@ import torch
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 from leaspy.io.outputs.result import Result
-from tests import example_data_path, test_data_dir
+from tests import example_data_path, test_data_dir, hardcoded_model_path
 
 
 class SimulationAlgorithmTest(unittest.TestCase):
@@ -72,7 +72,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         cofactors = cofactors.set_index("ID")
         data.load_cofactors(cofactors, ["Treatments"])
 
-        model = Leaspy.load(os.path.join(test_data_dir, "model_parameters/multivariate_model_sampler.json"))
+        model = Leaspy.load(hardcoded_model_path('logistic'))
         settings = AlgorithmSettings('mode_real')
         individual_parameters = model.personalize(data, settings)
 

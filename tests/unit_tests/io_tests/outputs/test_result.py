@@ -8,7 +8,7 @@ import torch
 from numpy import allclose
 
 from leaspy import Data, Leaspy, Result
-from tests import example_data_path, test_data_dir
+from tests import example_data_path, test_data_dir, hardcoded_model_path
 
 
 class ResultTest(unittest.TestCase):
@@ -151,9 +151,7 @@ class ResultTest(unittest.TestCase):
         self.test_load_individual_parameters(ind_param=results.individual_parameters)
 
     def test_get_error_distribution_dataframe(self):
-        model_path = os.path.join(test_data_dir, "model_parameters",
-                                  "fitted_multivariate_model.json")
-        leaspy_session = Leaspy.load(model_path)
+        leaspy_session = Leaspy.load(hardcoded_model_path('logistic'))
         self.results.get_error_distribution_dataframe(leaspy_session.model)
 
     ###############################################################

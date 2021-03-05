@@ -1,0 +1,21 @@
+{
+  "leaspy_version": "1.1",
+  "name": "logistic_parallel",
+  "features": ["feature_0", "feature_1", "feature_2", "feature_3"],
+  "dimension": 4,
+  "source_dimension": 2,
+  "loss": "MSE",
+  "parameters": {
+    "g": 0.0,
+    "tau_mean": 75.0,
+    "tau_std": 8.0,
+    "deltas": [0.0, 0.0, 0.0],
+    "xi_mean": -3.0,
+    "xi_std": 0.5,
+    "sources_mean": 0.0,
+    "sources_std": 1.0,
+    "noise_std": 0.1,
+    "betas": [[1.0, 0.0], [0.0, 1.0], [0.7, -0.7]],
+    "mixing_matrix": [[-0.2125, -0.0375], [0.1792, -0.0125], [-0.0708, 0.2375], [0.1042, -0.1875]]
+  }
+}

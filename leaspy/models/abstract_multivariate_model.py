@@ -4,9 +4,11 @@ import math
 
 import torch
 
+from leaspy import __version__
+
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
-from .abstract_model import AbstractModel
+from leaspy.models.abstract_model import AbstractModel
 
 
 class AbstractMultivariateModel(AbstractModel):
@@ -76,11 +78,13 @@ class AbstractMultivariateModel(AbstractModel):
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
 
-        if any([key not in ('features', 'loss', 'dimension', 'source_dimension') for key in hyperparameters.keys()]):
-            raise ValueError("Only <features>, <loss>, <dimension> and <source_dimension> are valid hyperparameters "
-                             f"for an AbstractMultivariateModel! You gave {hyperparameters}.")
+        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension')
+        unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
+        if len(unexpected_hyperparameters) > 0:
+            raise ValueError(f"Only {', '.join([f'<{p}>' for p in expected_hyperparameters])} are valid hyperparameters "
+                             f"for an AbstractMultivariateModel! Unknown hyperparameters: {unexpected_hyperparameters}.")
 
-    def save(self, path, **kwargs):
+    def save(self, path, with_mixing_matrix=True, **kwargs):
         """
         Save Leaspy object as json model parameter file.
 
@@ -88,16 +92,25 @@ class AbstractMultivariateModel(AbstractModel):
         ----------
         path: str
             Path to store the model's parameters.
+        with_mixing_matrix: bool (default True)
+            Save the mixing matrix in the exported file in its 'parameters' section.
+            <!> It is not a real parameter and its value will be overwritten at model loading
+                (orthonormal basis is recomputed from other "true" parameters and mixing matrix is then deduced from this orthonormal basis and the betas)!
+            It was integrated historically because it is used for convenience in browser webtool and only there...
         **kwargs
             Keyword arguments for json.dump method.
         """
         model_parameters_save = self.parameters.copy()
-        model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
+
+        if with_mixing_matrix:
+            model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
+
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
 
         model_settings = {
+            'leaspy_version': __version__,
             'name': self.name,
             'features': self.features,
             'dimension': self.dimension,

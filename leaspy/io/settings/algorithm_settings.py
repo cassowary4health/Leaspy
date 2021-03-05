@@ -179,6 +179,8 @@ class AlgorithmSettings:
         """
         Save an AlgorithmSettings object in a json file.
 
+        TODO? save leaspy version as well for retro/future-compatibility issues?
+
         Parameters
         ----------
         path: str

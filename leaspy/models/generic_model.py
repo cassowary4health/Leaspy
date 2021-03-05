@@ -7,6 +7,8 @@ import json
 import torch
 import numpy as np
 
+from leaspy import __version__
+
 KwargsType = Dict[str, Any]
 
 class GenericModel(ABC):
@@ -192,6 +194,7 @@ class GenericModel(ABC):
                 model_parameters_save[param_name] = param_val.tolist()
 
         model_settings = {
+            'leaspy_version': __version__,
             'name': self.name,
             **self.get_hyperparameters(with_properties=True),
             'parameters': model_parameters_save

@@ -4,8 +4,10 @@ import matplotlib.backends.backend_pdf
 import matplotlib.pyplot as plt
 import torch
 
-from .abstract_model import AbstractModel
-from .utils.attributes.attributes_factory import AttributesFactory
+from leaspy import __version__
+
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 
 
@@ -55,12 +57,16 @@ class UnivariateModel(AbstractModel):
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
         model_settings = {
+            'leaspy_version': __version__,
             'name': self.name,
             'features': self.features,
             #'dimension': 1,
             'loss': self.loss,
             'parameters': model_parameters_save
         }
+        # TODO : in leaspy models there should be a method to only return the dict describing the model
+        # and then another generic method (inherited) should save this dict
+        # (with extra standard fields such as 'leaspy_version' for instance)
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 

@@ -87,6 +87,7 @@ class FitOutputManager:
 
         if self.periodicity_print is not None:
             if iteration % self.periodicity_print == 0:
+                print() # newline
                 self.print_algo_statistics(algo)
                 self.print_model_statistics(model)
                 self.print_time()

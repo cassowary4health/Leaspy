@@ -147,6 +147,8 @@ class AbstractModel(ABC):
         Perform various consistency and compatibility (with current model) checks
         on an individual parameters dict and outputs qualified information about it.
 
+        TODO? move to IndividualParameters class?
+
         Parameters
         ----------
         ips: dict
@@ -385,17 +387,6 @@ class AbstractModel(ABC):
         attachment : :class:`torch.Tensor`
             Negative Log-likelihood, shape = (n_subjects,)
         """
-
-
-        #if self.loss == 'MSE':
-        #    r1 = mask * (res - data.values)  # r1.ndim = 3 - r1.shape = [n_subjects, ??, n_features]
-        #    #r1[1-data.mask] = 0.0 # Set nans to 0
-        #    squared_sum = torch.sum(r1 * r1, dim=(1, 2))
-        #
-        #    # noise_var = self.parameters['noise_std'] ** 2
-        #    noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
-        #    attachment = 0.5 * (1. / noise_var) * squared_sum
-        #    attachment += math.log(math.sqrt(TWO_PI * noise_var)) * torch.tensor(data.nb_observations_per_individuals)
 
         if 'MSE' in self.loss:
             # diagonal noise (squared) [same for all features if it's forced to be a scalar]

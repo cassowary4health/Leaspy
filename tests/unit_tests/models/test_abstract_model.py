@@ -18,8 +18,6 @@ class AbstractModelTest(unittest.TestCase):
         """
         Test initialization of abstract model class object.
         """
-        print("\nUnit-test AbstractModel\n")
-
         model = AbstractModel("dummy_abstractmodel")
         self.assertFalse(model.is_initialized)
         self.assertEqual(model.name, "dummy_abstractmodel")

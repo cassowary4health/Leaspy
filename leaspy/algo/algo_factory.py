@@ -1,7 +1,6 @@
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 # from leaspy.algo.fit.gradient_descent import GradientDescent
 # from leaspy.algo.fit.gradient_mcmcsaem import GradientMCMCSAEM
-# from leaspy.algo.fit.hmc_saem import HMC_SAEM
 from leaspy.algo.others.lme_fit import LMEFitAlgorithm
 
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
@@ -29,7 +28,6 @@ class AlgoFactory:
             'mcmc_saem': TensorMCMCSAEM,
             #'mcmc_gradient_descent': GradientMCMCSAEM,
             #'gradient_descent': GradientDescent,
-            # 'hmc_saem': HMC_SAEM,
             'lme_fit': LMEFitAlgorithm,
         },
 

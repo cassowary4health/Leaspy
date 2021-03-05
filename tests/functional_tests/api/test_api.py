@@ -66,14 +66,12 @@ def dict_compare_and_display(d, e):
             try:
                 if not allclose(d[k], e[k]):
                     print("The following values are different for `numpy.allclose`!")
-                    print("{0}: {1}".format(k, d[k]))
-                    print("{0}: {1}".format(k, e[k]))
+                    print(f"{k}: {d[k]} != {e[k]}")
                     return False
             except TypeError:
                 if d[k] != e[k]:
                     print("The following values are different!")
-                    print("{0}: {1}".format(k, d[k]))
-                    print("{0}: {1}".format(k, e[k]))
+                    print(f"{k}: {d[k]} != {e[k]}")
                     return False
 
     # return at last if no return (False) before

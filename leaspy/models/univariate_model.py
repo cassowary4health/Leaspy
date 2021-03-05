@@ -1,7 +1,5 @@
 import json
 
-import matplotlib.backends.backend_pdf
-import matplotlib.pyplot as plt
 import torch
 
 from leaspy import __version__
@@ -81,19 +79,7 @@ class UnivariateModel(AbstractModel):
 
     def initialize(self, dataset, method="default"):
 
-        # "Smart" initialization : may be improved
-        # TODO !
         self.features = dataset.headers
-
-        """
-        self.parameters = {
-            'g': [1.],
-            'tau_mean': 70., 'tau_std': 2.,
-            'xi_mean': -3., 'xi_std': .1,
-            'noise_std': [.1]}
-        self.parameters = {key: torch.tensor(val) for key, val in self.parameters.items()}
-        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
-        """
 
         self.parameters = initialize_parameters(self, dataset, method)
 
@@ -138,11 +124,6 @@ class UnivariateModel(AbstractModel):
             g = self.attributes.positions
         return g
 
-    # def compute_sum_squared_tensorized(self, data, param_ind, attribute_type):
-    #    res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-    #    res *= data.mask
-    #    return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
-
     # TODO generalize in abstract
     def compute_mean_traj(self, timepoints):
         individual_parameters = {
@@ -152,24 +133,13 @@ class UnivariateModel(AbstractModel):
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
-    def plot_param_ind(self, path, param_ind):
-        pdf = matplotlib.backends.backend_pdf.PdfPages(path)
-        fig, ax = plt.subplots(1, 1)
-        xi, tau = param_ind
-        ax.plot(xi.squeeze(1).detach().tolist(), tau.squeeze(1).detach().tolist(), 'x')
-        plt.xlabel('xi')
-        plt.ylabel('tau')
-        pdf.savefig(fig)
-        plt.close()
-        pdf.close()
-
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         if self.name == 'univariate_logistic':
             return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
         elif self.name == 'univariate_linear':
             return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
         else:
-            raise ValueError("Mutivariate model > Compute individual tensorized")
+            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported. You gave {self.name}")
 
     def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=False):
         # Population parameters
@@ -202,7 +172,7 @@ class UnivariateModel(AbstractModel):
         elif self.name == 'mixed_linear-logistic':
             return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
         else:
-            raise ValueError("Mutivariate model > Compute jacobian tensorized")
+            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported. You gave {self.name}")
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
         '''
@@ -332,23 +302,6 @@ class UnivariateModel(AbstractModel):
         if self.loss == 'crossentropy':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
 
-    # def get_param_from_real(self,realizations):
-    #    xi = realizations['xi'].tensor_realizations
-    #    tau = realizations['tau'].tensor_realizations
-    #    return (xi,tau)
-
-    def param_ind_from_dict(self, individual_parameters):
-        xi, tau = [], []
-        for key, item in individual_parameters.items():
-            xi.append(item['xi'])
-            tau.append(item['tau'])
-        xi = torch.tensor(xi, dtype=torch.float32).unsqueeze(1)
-        tau = torch.tensor(tau, dtype=torch.float32).unsqueeze(1)
-        return (xi, tau)
-
-    def get_xi_tau(self, param_ind):
-        xi, tau = param_ind
-        return xi, tau
 
     def random_variable_informations(self):
 

@@ -176,7 +176,6 @@ class MultivariateModel(AbstractMultivariateModel):
     def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError
 
-
     """
     def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
 
@@ -216,7 +215,9 @@ class MultivariateModel(AbstractMultivariateModel):
         # Concat
         model = torch.cat([model_linear, model_logistic], dim=2)
 
-        return model"""
+        return model
+    """
+
     ##############################
     ### MCMC-related functions ###
     ##############################

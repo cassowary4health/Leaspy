@@ -17,8 +17,6 @@ class AbstractMultivariateModelTest(unittest.TestCase):
         model : :class:`~.models.abstract_model.AbstractModel`, optional (default None)
             An instance of a subclass of leaspy AbstractModel.
         """
-        print('\nUnit-test AbstractMultivariateModel\n')
-
         if model is None:
             # Abstract Multivariate Model
             model = AbstractMultivariateModel('dummy')

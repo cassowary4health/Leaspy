@@ -180,7 +180,6 @@ class LMEModelAPITest(unittest.TestCase):
         del lsp
 
         lsp = Leaspy.load('./tmp_lme_model_1.lock.json')
-        print(lsp)
         os.unlink('./tmp_lme_model_1.lock.json')
 
         # Personalize

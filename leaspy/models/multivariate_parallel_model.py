@@ -1,10 +1,7 @@
 import torch
 
-from .abstract_multivariate_model import AbstractMultivariateModel
-from .utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
-
-
-#from .utils.initialization.model_initialization import initialize_logistic_parallel # not used
+from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
+from leaspy.models.utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
 
 
 class MultivariateParallelModel(AbstractMultivariateModel):

@@ -88,6 +88,7 @@ class AlgorithmSettings:
             ]}
     """
 
+    # TODO should be in the each algo class directly?
     _dynamic_default_parameters = {
         'mcmc_saem': [
             (

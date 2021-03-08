@@ -1,8 +1,13 @@
 import warnings
 
 import torch
-from scipy import stats
 from numpy import exp
+from scipy import stats
+
+# <!> circular imports
+import leaspy
+
+#from joblib import Parallel, delayed
 
 xi_std = .5
 tau_std = 5.
@@ -36,6 +41,10 @@ def initialize_parameters(model, dataset, method="default"):
     parameters: dict [str, :class:`torch.Tensor`]
         Contains the initialized model's group parameters.
     """
+
+    if method == 'lme':
+        return lme_init(model, dataset) # support kwargs?
+
     name = model.name
     if name in ['logistic', 'univariate_logistic']:
         parameters = initialize_logistic(model, dataset, method)
@@ -52,6 +61,139 @@ def initialize_parameters(model, dataset, method="default"):
         raise ValueError("There is no initialization method for the parameter of the model {}".format(name))
 
     return parameters
+
+
+def get_lme_results(dataset, n_jobs=-1, **lme_fit_kwargs):
+    """
+    Fit a LME on univariate (per feature) time-series (feature vs. patients' ages with varying intercept & slope)
+
+    Parameters
+    ----------
+    dataset: leaspy.io.data.dataset.Dataset
+        Contains all the data wrapped into a leaspy Dataset object
+    n_jobs: int
+        Number of jobs in parallel when multiple features to init
+        Not used, buggy
+    **lme_fit_kwargs:
+        Other kwargs passed to 'lme_fit' (such as `force_independent_random_effects`, default True)
+
+    Returns
+    -------
+    dict:
+        {param: str -> param_values_for_ft: torch.Tensor(nb_fts, *shape_param)}
+    """
+
+    lme_fit_kwargs = {
+        'with_random_slope_age': True,
+        'force_independent_random_effects': True,
+        **lme_fit_kwargs} # defaults
+
+    #@delayed
+    def fit_one_ft(df_ft):
+        data_ft = leaspy.Data.from_dataframe(df_ft)
+        lsp_lme_ft = leaspy.Leaspy('lme')
+        algo = leaspy.AlgorithmSettings('lme_fit', **lme_fit_kwargs) # seed=seed
+
+        lsp_lme_ft.fit(data_ft, algo)
+
+        return lsp_lme_ft.model.parameters
+
+    df = dataset.to_pandas().set_index(['ID','TIME'])
+    #res = Parallel(n_jobs=n_jobs)(delayed(fit_one_ft)(df.loc[:, [ft]].dropna().copy()) for ft in dataset.headers)
+    res = list(fit_one_ft(df.loc[:, [ft]].dropna()) for ft in dataset.headers)
+
+    # output a dict of tensor stacked by feature, indexed by param
+    param_names = next(iter(res)).keys()
+
+    return {
+        param_name: torch.stack([torch.tensor(res_ft[param_name], dtype=torch.float32)
+                                 for res_ft in res])
+        for param_name in param_names
+    }
+
+def lme_init(model, dataset, fact_std=1., **kwargs):
+
+    name = model.name
+    loss = model.loss # has to be set directly at model init and not in algosettings step to be available here
+    assert dataset.headers == model.features
+
+    multiv = 'univariate' not in name
+
+    print('Initialization with linear mixed-effects model...')
+    lme = get_lme_results(dataset, **kwargs)
+    print()
+
+    # init
+    params = {}
+
+    v0_lin = (lme['fe_params'][:, 1] / lme['ages_std']).clamp(min=1e-2) # > exp(-4.6)
+
+    if 'linear' in name:
+        # global tau mean (arithmetic mean of ages mean)
+        params['tau_mean'] = lme['ages_mean'].mean()
+
+        params['g'] = lme['fe_params'][:, 0] + v0_lin * (params['tau_mean'] - lme['ages_mean'])
+        params['v0' if multiv else 'xi_mean'] = v0_lin.log()
+
+    #elif name in ['logistic_parallel']:
+    #    # deltas = torch.zeros((model.dimension - 1,), dtype=torch.float32) ?
+    #    pass # TODO...
+    elif name in ['logistic', 'univariate_logistic']:
+
+        """
+        # global tau mean (arithmetic mean of inflexion point per feature)
+        t0_ft = lme['ages_mean'] + (.5 - lme['fe_params'][:, 0]) / v0_lin # inflexion pt
+        params['tau_mean'] = t0_ft.mean()
+        """
+
+        # global tau mean (arithmetic mean of ages mean)
+        params['tau_mean'] = lme['ages_mean'].mean()
+
+        # positions at this tau mean
+        pos_ft = lme['fe_params'][:, 0] + v0_lin * (params['tau_mean'] - lme['ages_mean'])
+
+        # parameters under leaspy logistic formulation
+        g = 1/pos_ft.clamp(min=1e-2, max=1-1e-2) - 1
+        params['g'] = g.log() # -4.6 ... 4.6
+
+        v0 = g/(1+g)**2 * 4 * v0_lin # slope from lme at inflexion point
+
+        #if name == 'logistic_parallel':
+        #    # a common speed for all features!
+        #    params['xi_mean'] = v0.log().mean() # or log of fts-mean?
+        #else:
+        params['v0' if multiv else 'xi_mean'] = v0.log()
+
+    else:
+        raise ValueError(f"Model {name} is not supported in `lme` initialization.")
+
+    ## Dispersion of individual parameters
+    # approx. dispersion on tau (-> on inflexion point when logistic)
+    tau_var_ft = lme['cov_re'][:, 0,0] / v0_lin ** 2
+    params['tau_std'] = fact_std * (1/tau_var_ft).mean() ** -.5  # harmonic mean on variances per ft
+
+    # approx dispersion on alpha and then xi
+    alpha_var_ft = lme['cov_re'][:, 1,1] / lme['fe_params'][:, 1]**2
+    xi_var_ft = (1/2+(1/4+alpha_var_ft)**.5).log() # because alpha = exp(xi) so var(alpha) = exp(2*var_xi) - exp(var_xi)
+    params['xi_std'] = fact_std * (1/xi_var_ft).mean() ** -.5
+
+    # Residual gaussian noise
+    if 'diag_noise' in loss:
+        params['noise_std'] = fact_std * lme['noise_std']
+    else:
+        # arithmetic mean on variances
+        params['noise_std'] = fact_std * (lme['noise_std'] ** 2).mean().reshape((1,)) ** .5 # 1D tensor
+
+    # For multivariate models, xi_mean == 0.
+    if name in ['linear', 'logistic']: # isinstance(model, MultivariateModel)
+        params['xi_mean'] = torch.tensor(0., dtype=torch.float32)
+
+    if multiv: # including logistic_parallel
+        params['betas'] = torch.zeros((model.dimension - 1, model.source_dimension), dtype=torch.float32)
+        params['sources_mean'] = torch.tensor(0., dtype=torch.float32)
+        params['sources_std'] = torch.tensor(sources_std, dtype=torch.float32)
+
+    return params
 
 
 def initialize_logistic(model, dataset, method):

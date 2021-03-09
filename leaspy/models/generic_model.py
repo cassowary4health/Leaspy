@@ -137,8 +137,19 @@ class GenericModel(ABC):
         if dynamic_hps_provided != dynamic_hps_expected:
             raise ValueError(f"Dynamic hyperparameters provided do not correspond to the expected ones:\n{dynamic_hps_provided} != {dynamic_hps_expected}")
 
-    def save(self, path):
-        # default save, can be overwritten but should be generic...
+    def save(self, path, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Default save method: it can be overwritten in child class but should be generic...
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
         model_parameters_save = self.parameters.copy() # <!> shallow copy
         for param_name, param_val in model_parameters_save.items():
             if isinstance(param_val, (torch.Tensor, np.ndarray)):
@@ -150,7 +161,7 @@ class GenericModel(ABC):
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+            json.dump(model_settings, fp, **kwargs)
 
     @abstractmethod
     def compute_individual_trajectory(self, timepoints, individual_parameters, **kws) -> torch.Tensor:

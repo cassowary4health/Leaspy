@@ -11,7 +11,7 @@ from leaspy.models.utils.initialization.model_initialization import initialize_p
 
 class UnivariateModel(AbstractModel):
     """
-    Logistic model for a single variable of interest.
+    Univariate (logistic or linear) model for a single variable of interest.
     """
     def __init__(self, name, **kwargs):
         super().__init__(name)
@@ -30,7 +30,9 @@ class UnivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
+                # for linear: "p0" = g
+                'g_std': None,
             }
         }
 

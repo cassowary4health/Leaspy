@@ -32,7 +32,9 @@ class AbstractMultivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
+                # for linear: "p0" = g
+                'g_std': None,
                 'betas_std': None
             }
         }

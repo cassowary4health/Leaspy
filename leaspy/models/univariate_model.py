@@ -11,7 +11,7 @@ from leaspy.models.utils.initialization.model_initialization import initialize_p
 
 class UnivariateModel(AbstractModel):
     """
-    Logistic model for a single variable of interest.
+    Univariate (logistic or linear) model for a single variable of interest.
     """
     def __init__(self, name, **kwargs):
         super().__init__(name)
@@ -30,7 +30,9 @@ class UnivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
+                # for linear: "p0" = g
+                'g_std': None,
             }
         }
 
@@ -97,7 +99,7 @@ class UnivariateModel(AbstractModel):
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
-            self.parameters[k] = torch.tensor(parameters[k])
+            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
         self.attributes = AttributesFactory.attributes(self.name, dimension=1)
         self.attributes.update(['all'], self.parameters)
 
@@ -334,8 +336,8 @@ class UnivariateModel(AbstractModel):
         for key, item in individual_parameters.items():
             xi.append(item['xi'])
             tau.append(item['tau'])
-        xi = torch.tensor(xi).unsqueeze(1)
-        tau = torch.tensor(tau).unsqueeze(1)
+        xi = torch.tensor(xi, dtype=torch.float32).unsqueeze(1)
+        tau = torch.tensor(tau, dtype=torch.float32).unsqueeze(1)
         return (xi, tau)
 
     def get_xi_tau(self, param_ind):

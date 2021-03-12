@@ -47,7 +47,7 @@ class Plotter:
             mean_time = model.parameters['tau_mean']
             std_time = max(model.parameters['tau_std'], 4)
             timepoints = np.linspace(mean_time - 3 * std_time, mean_time + 6 * std_time, 100)
-            timepoints = torch.Tensor([timepoints])
+            timepoints = torch.tensor([timepoints], dtype=torch.float32)
 
             mean_trajectory = model.compute_mean_traj(timepoints).detach().numpy()
 
@@ -69,7 +69,7 @@ class Plotter:
             timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
                                      model[0].parameters['tau_mean'] + 6 * np.sqrt(model[0].parameters['tau_std']),
                                      100)
-            timepoints = torch.Tensor([timepoints])
+            timepoints = torch.tensor([timepoints], dtype=torch.float32)
 
             for j, el in enumerate(model):
                 mean_trajectory = el.compute_mean_traj(timepoints).detach().numpy()
@@ -129,7 +129,7 @@ class Plotter:
             indiv = results.data.get_by_idx(idx)
             timepoints = indiv.timepoints
             observations = np.array(indiv.observations)
-            t = torch.Tensor(timepoints).unsqueeze(0)
+            t = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
             indiv_parameters = results.get_patient_individual_parameters(idx)
 
             trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
@@ -214,7 +214,7 @@ class Plotter:
         timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
                                  model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
                                  100)
-        timepoints = torch.Tensor([timepoints])
+        timepoints = torch.tensor([timepoints], dtype=torch.float32)
         xi = results.individual_parameters['xi']
         tau = results.individual_parameters['tau']
 
@@ -304,7 +304,7 @@ class Plotter:
         timepoints = np.linspace(min_time,
                                  max_time,
                                  100)
-        timepoints = torch.Tensor([timepoints])
+        timepoints = torch.tensor([timepoints], dtype=torch.float32)
         patient_values = model.compute_mean_traj(timepoints)
         for i in range(patient_values.shape[-1]):
             ax.plot(timepoints[0, :].detach().numpy(), patient_values[0, :, i].detach().numpy(),

@@ -344,7 +344,7 @@ class SimulationAlgorithm(AbstractAlgo):
                                          " noise for each feature score, you must give an iterable object of size "
                                          "the number of features, here {}.".format(self.noise,
                                                                                    len(results.data.headers)))
-                noise = torch.tensor(self.noise)
+                noise = torch.tensor(self.noise, dtype=torch.float32)
             return torch.distributions.Normal(loc=0., scale=noise)  # diagonal noise (per feature)
 
     @staticmethod

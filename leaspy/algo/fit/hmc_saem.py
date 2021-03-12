@@ -19,7 +19,7 @@
 #         # realizations.reals_ind_variable_names
 #         # realizations.reals_pop_variable_names
 #         for key in realizations.reals_ind_variable_names:
-#             realizations[key].to_torch_Variable()
+#             realizations[key].set_autograd()
 #         self._hmc_sample_individual_realizations(data, model, realizations)
 #         self._sample_population_realizations(data, model, realizations)
 #
@@ -32,7 +32,7 @@
 #             self._update_temperature()
 #
 #         for key in realizations.reals_ind_variable_names:
-#             realizations[key].to_torch_Tensor()
+#             realizations[key].unset_autograd()
 #
 #     def _metropolisacceptation_step(self, new_regularity, previous_regularity, new_attachment, previous_attachment,
 #                                     key):

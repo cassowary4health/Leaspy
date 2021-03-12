@@ -142,7 +142,7 @@ class GibbsSampler(AbstractSampler):
                 self.previous_attachment = new_attachment
                 self.previous_regularity = new_regularity
 
-        self._update_acceptation_rate(torch.Tensor([accepted_array]))
+        self._update_acceptation_rate(torch.tensor([accepted_array], dtype=torch.float32))
         self._update_std()
 
         # Reset previous attachment and regularity !!!

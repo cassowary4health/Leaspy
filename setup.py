@@ -1,39 +1,28 @@
 import os
-
+import ast
 from setuptools import setup
 
-
-def find_version(*file_paths):
-    def read(*parts):
-        here = os.path.abspath(os.path.dirname(__file__))
-        with open(os.path.join(here, *parts)) as fp:
-            return fp.read().strip()
-
-    import re
-    version_file = read(*file_paths)
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M)
-    if version_match:
-        return version_match.group(1)
+def find_version(*py_file_with_version_paths):
+    with open(os.path.join(*py_file_with_version_paths), 'r') as f:
+        for line in f:
+            if line.startswith('__version__'):
+                return ast.parse(line).body[0].value.s # string
     raise RuntimeError("Unable to find version string.")
-
 
 def readme():
     with open('README.md', 'r') as f:
         return f.read()
 
-
 version = find_version("leaspy", "__init__.py")
 
-with open("requirements.txt") as f:
+with open("requirements.txt", 'r') as f:
     requirements = f.read().splitlines()
 
+with open("docs/requirements.txt", 'r') as f:
+    docs_requirements = f.read().splitlines()
+
 EXTRAS_REQUIRE = {
-    'docs': [
-        # TODO: read docs/requirements.txt instead?
-        'sphinx==3.3.1',
-        'sphinx-gallery',
-        'numpydoc'
-    ]
+    'docs': docs_requirements
 }
 
 setup(name="leaspy",
@@ -92,7 +81,7 @@ setup(name="leaspy",
 
       install_requires=requirements,
       include_package_data=True,
-      data_files=[('', ['requirements.txt'])],
+      data_files=[('requirements', ['requirements.txt', 'docs/requirements.txt'])],
 
       # tests_require=["unittest"],
       test_suite='test',

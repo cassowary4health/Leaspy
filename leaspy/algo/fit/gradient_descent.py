@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
@@ -9,6 +11,8 @@ class GradientDescent(AbstractFitAlgo):
     """
 
     def __init__(self, settings):
+
+        warnings.warn("Gradient descent algorithm is deprecated. Please use `mcmc_saem` for your fits.", DeprecationWarning)
 
         super().__init__()
 
@@ -31,7 +35,7 @@ class GradientDescent(AbstractFitAlgo):
 
     def _initialize_torchvariables(self, realizations):
         for name, realization in realizations.realizations.items():
-            realization.to_torch_Variable()
+            realization.set_autograd()
 
     ###########################
     ## Core

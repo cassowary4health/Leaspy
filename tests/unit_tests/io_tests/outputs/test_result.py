@@ -1,6 +1,7 @@
 import filecmp
 import os
 import unittest
+import inspect
 
 import pandas as pd
 import torch
@@ -13,6 +14,14 @@ from tests import example_data_path, test_data_dir
 class ResultTest(unittest.TestCase):
 
     def setUp(self, get=False):
+
+        # Starting from Torch 1.6.0 a new serialization method is used
+        sig = inspect.signature(torch.save).parameters
+        if '_use_new_zipfile_serialization' in sig and sig['_use_new_zipfile_serialization'].default is True:
+            self.torch_save_suffix = '_v2.pt'
+        else:
+            self.torch_save_suffix = '.pt' #'_v1.pt'
+
         # Inputs
         data = Data.from_csv_file(example_data_path)
 
@@ -82,17 +91,20 @@ class ResultTest(unittest.TestCase):
                               individual_parameters_path, idx=idx)
 
     def test_save_individual_parameters_torch(self):
-        path_original = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters.pt")
-        path_copy = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters-copy.pt")
+
+        path_original = os.path.join(test_data_dir, "individual_parameters",
+                                     f"data_tiny-individual_parameters{self.torch_save_suffix}")
+        path_copy = os.path.join(test_data_dir, "individual_parameters",
+                                 f"data_tiny-individual_parameters-copy{self.torch_save_suffix}")
         self.results.save_individual_parameters_torch(path_copy)
         self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
 
         # Test to save only several subjects
         idx = ['116', '142', '169']
         path_original = os.path.join(test_data_dir, "individual_parameters",
-                                     "data_tiny-individual_parameters-3subjects.pt")
+                                     f"data_tiny-individual_parameters-3subjects{self.torch_save_suffix}")
         path_copy = os.path.join(test_data_dir, "individual_parameters",
-                                 "data_tiny-individual_parameters-3subjects-copy.pt")
+                                 f"data_tiny-individual_parameters-3subjects-copy{self.torch_save_suffix}")
         self.results.save_individual_parameters_torch(path_copy, idx)
         self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
 
@@ -113,7 +125,7 @@ class ResultTest(unittest.TestCase):
         ind_param_path_csv = os.path.join(test_data_dir, "individual_parameters",
                                           "data_tiny-individual_parameters.csv")
         ind_param_path_torch = os.path.join(test_data_dir, "individual_parameters",
-                                            "data_tiny-individual_parameters.pt")
+                                            f"data_tiny-individual_parameters{self.torch_save_suffix}")
 
         cofactors_path = os.path.join(test_data_dir,
                                       "io",

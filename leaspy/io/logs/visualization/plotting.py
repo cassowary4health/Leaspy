@@ -169,7 +169,7 @@ class Plotting:
         mean_time = self.model.parameters['tau_mean'].item()
         std_time = max(self.model.parameters['tau_std'].item(), 4)
         timepoints = mean_time + std_time * np.linspace(-kwargs.get('n_std_left', 3), kwargs.get('n_std_right', 6), kwargs.get('n_tpts', 100))
-        timepoints = torch.tensor([timepoints])
+        timepoints = torch.tensor([timepoints], dtype=torch.float32)
 
         # ---- Compute average trajectory
         mean_trajectory = self.model.compute_mean_traj(timepoints).detach().numpy()
@@ -259,8 +259,8 @@ class Plotting:
 
         # ---- Patients sublist
         if 'patient_IDs' in kwargs.keys():
-            warnings.warn("Keyword argument <patient_IDs> is deprecated! Use <patients_idx> instead.",
-                          warnings.DeprecationWarning)
+            warnings.warn("Keyword argument <patient_IDs> is deprecated! "
+                          "Use <patients_idx> instead.", DeprecationWarning)
             patients_idx = kwargs.get('patient_IDs')
 
         if isinstance(patients_idx, str):

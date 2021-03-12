@@ -63,7 +63,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
              model.parameters["tau_mean"] / model.parameters["tau_std"]
             ]
         if model.name != "univariate":
-            x += [torch.tensor(0.) for _ in range(model.source_dimension)]
+            x += [torch.tensor(0., dtype=torch.float32)
+                  for _ in range(model.source_dimension)]
         return x
 
     def _pull_individual_parameters(self, x, model):

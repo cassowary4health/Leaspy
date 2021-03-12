@@ -70,4 +70,4 @@ class LMEModel(GenericModel): # should inherit from AbstractModel?
 
         y = X @ (self.parameters['fe_params'] + re_params)
 
-        return torch.tensor(y).reshape((1, -1, 1))
+        return torch.tensor(y, dtype=torch.float32).reshape((1, -1, 1))

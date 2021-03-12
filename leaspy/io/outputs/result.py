@@ -461,7 +461,7 @@ class Result:
                     print("Load from json file ... conversion to torch")
                 for key in individual_parameters.keys():
                     # Convert every list in torch.tensor
-                    individual_parameters[key] = torch.tensor(individual_parameters[key])
+                    individual_parameters[key] = torch.tensor(individual_parameters[key], dtype=torch.float32)
                     # If tensor is 1-dimensional tensor([1, 2, 3]) => reshape it in tensor([[1], [2], [3]])
                     if individual_parameters[key].dim() == 1:
                         individual_parameters[key] = individual_parameters[key].view(-1, 1)
@@ -505,7 +505,7 @@ class Result:
         individual_parameters = torch.load(path, **args)
         for key, val in individual_parameters.items():
             if type(val) != torch.Tensor:
-                individual_parameters[key] = torch.tensor(val)
+                individual_parameters[key] = torch.tensor(val, dtype=torch.float32)
             if individual_parameters[key].ndim != 2:
                 individual_parameters[key] = individual_parameters[key].unsqueeze(-1)
         return individual_parameters

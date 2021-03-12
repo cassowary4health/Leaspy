@@ -5,7 +5,6 @@ import statsmodels.api as sm
 from statsmodels.regression.mixed_linear_model import MixedLM, MixedLMParams
 import torch
 import numpy as np
-import pandas as pd
 
 class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
     """

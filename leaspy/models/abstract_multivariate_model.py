@@ -32,7 +32,9 @@ class AbstractMultivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
+                # for linear: "p0" = g
+                'g_std': None,
                 'betas_std': None
             }
         }
@@ -42,7 +44,7 @@ class AbstractMultivariateModel(AbstractModel):
 
     def smart_initialization_realizations(self, data, realizations):
         # TODO : Qui a fait ça? A quoi ça sert?
-        # means_time = torch.Tensor([torch.mean(data.get_times_patient(i)) for
+        # means_time = torch.tensor([torch.mean(data.get_times_patient(i)) for
         # i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
         # realizations['tau'].tensor_realizations = means_time
         return realizations
@@ -112,7 +114,7 @@ class AbstractMultivariateModel(AbstractModel):
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
             'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
-            'sources': torch.zeros(self.source_dimension)
+            'sources': torch.zeros(self.source_dimension, dtype=torch.float32)
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)

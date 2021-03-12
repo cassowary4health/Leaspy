@@ -13,7 +13,7 @@ class ConstantModel(GenericModel):
         * `max`: maximum (=worst) value seen during calibration*§,
         * `mean`: average of values seen during calibration§.
 
-    | \* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
+    | \\* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
     | § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
 
     Attributes
@@ -37,5 +37,5 @@ class ConstantModel(GenericModel):
 
     def compute_individual_trajectory(self, timepoints, ip):
         values = [ip[f] for f in self.features]
-        return torch.tensor([[values] * len(timepoints)])
+        return torch.tensor([[values] * len(timepoints)], dtype=torch.float32)
 

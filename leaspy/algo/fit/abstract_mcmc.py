@@ -86,7 +86,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
     def _initialize_sufficient_statistics(self, data, model, realizations):
         suff_stats = model.compute_sufficient_statistics(data, realizations)
-        self.sufficient_statistics = {k: torch.zeros(v.shape) for k, v in suff_stats.items()}
+        self.sufficient_statistics = {k: torch.zeros(v.shape, dtype=torch.float32) for k, v in suff_stats.items()}
 
     ###########################
     ## Getters / Setters

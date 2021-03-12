@@ -29,7 +29,8 @@ class ModelSettings:
         # check leaspy_version attribute for compatibility purposes
         if 'leaspy_version' not in settings.keys():
             raise ValueError("The model you are trying to load was generated with a leaspy version < 1.1"
-                    f" and is not compatible with your current version of leaspy == {__version__}.\n"
+                    f" and is not compatible with your current version of leaspy == {__version__}"
+                    " because of a bug in the multivariate model which lead to under-optimal results.\n"
                     "Please consider re-calibrating your model with your current leaspy version.\n"
                     "If you really want to load it as is (at your own risk) please use leaspy == 1.0.*")
         else:

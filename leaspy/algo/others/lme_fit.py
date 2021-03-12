@@ -8,7 +8,21 @@ import numpy as np
 
 class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
     """
-    Calibration algorithm associated to leaspy.models.lme_model
+    Calibration algorithm associated to :class:`~.models.lme_model.LMEModel`
+
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        * with_random_slope_age : bool
+            If False: only varying intercepts
+            If True: random intercept & random slope w.r.t ages
+        * force_independent_random_effects : bool
+            Force independence of random intercept & random slope
+        * other keyword arguments passed to :meth:`statsmodels.regression.mixed_linear_model.MixedLM.fit`
+
+    See also
+    --------
+    :class:`statsmodels.regression.mixed_linear_model.MixedLM`
     """
 
     def __init__(self, settings):
@@ -32,6 +46,18 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         self.seed = settings.seed
 
     def run(self, model, dataset):
+        """
+        Main method, refer to abstract definition in :meth:`~.algo.fit.abstract_fit_algo.AbstractFitAlgo.run`.
+
+        TODO fix proper inheritance
+
+        Parameters
+        ----------
+        model : :class:`~.models.lme_model.LMEModel`
+            A subclass object of leaspy `LMEModel`.
+        dataset : :class:`.Dataset`
+            Dataset object build with leaspy class objects Data, algo & model
+        """
 
         # Initialize Model
         self._initialize_seed(self.seed)
@@ -122,4 +148,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         return subjects_with_repeat
 
     def set_output_manager(self, settings):
+        """
+        Not implemented.
+        """
         return

@@ -7,13 +7,13 @@ from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.model_factory import ModelFactory
 
-from tests import example_data_path
-from tests import binary_data_path
-from tests import example_logisticmodel_path
+from tests import example_data_path, binary_data_path, example_logisticmodel_path
+from tests import allow_abstract_class_init
 
 
 class AbstractModelTest(unittest.TestCase):
 
+    @allow_abstract_class_init(AbstractModel)
     def test_abstract_model_constructor(self):
         """
         Test initialization of abstract model class object.
@@ -39,6 +39,7 @@ class AbstractModelTest(unittest.TestCase):
             self.assertTrue(attribute in present_attributes)
         # TODO: use python's hasattr and issubclass
 
+    @allow_abstract_class_init(AbstractModel)
     def test_load_parameters(self):
         """
         Test the method load_parameters.
@@ -165,10 +166,10 @@ class AbstractModelTest(unittest.TestCase):
 
                 if (not valid) or (not src_compat(src_dim)):
                     with self.assertRaises(ValueError, ):
-                        ips_info = m.audit_individual_parameters(ips)
+                        ips_info = m._audit_individual_parameters(ips)
                     continue
 
-                ips_info = m.audit_individual_parameters(ips)
+                ips_info = m._audit_individual_parameters(ips)
 
                 keys = set(ips_info.keys()).symmetric_difference({'nb_inds','tensorized_ips','tensorized_ips_gen'})
                 self.assertEqual(len(keys), 0)

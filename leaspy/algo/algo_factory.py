@@ -62,12 +62,12 @@ class AlgoFactory:
                 * `personalize`
                 * `simulate`
 
-        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        settings : :class:`.AlgorithmSettings`
             The algorithm settings.
 
         Returns
         -------
-        algorithm: child class of AbstractAlgo
+        algorithm : child class of :class:`.AbstractAlgo`
             The wanted algorithm if it exists and is compatible with algorithm class.
 
         Raises

@@ -10,8 +10,8 @@ class AttributesLogisticParallel(AttributesAbstract):
 
     Attributes
     ----------
-    dimension: `int`
-    source_dimension: `int`
+    dimension: int
+    source_dimension: int
     betas: `torch.Tensor` (default None)
     deltas: `torch.Tensor` (default None)
         deltas = [0, delta_2_realization, ..., delta_n_realization]
@@ -21,27 +21,20 @@ class AttributesLogisticParallel(AttributesAbstract):
     positions: `torch.Tensor` (default None)
         positions = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
     velocities: `torch.Tensor` (default None)
-    name: `str` (default 'logistic_parallel')
+    name: str (default 'logistic_parallel')
         Name of the associated leaspy model. Used by ``update`` method.
-    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'xi_mean', 'betas', 'deltas') )
+    update_possibilities: tuple [str] (default ('all', 'g', 'xi_mean', 'betas', 'deltas') )
         Contains the available parameters to update. Different models have different parameters.
-
-    Methods
-    -------
-    get_attributes()
-        Returns the following attributes: ``positions``, ``deltas`` & ``mixing_matrix``.
-    update(names_of_changed_values, values)
-        Update model group average parameter(s).
     """
 
     def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a AttributesLogisticParallel class object.
+        Instantiate a `AttributesLogisticParallel` class object.
 
         Parameters
         ----------
-        dimension: `int`
-        source_dimension: `int`
+        dimension: int
+        source_dimension: int
         """
         super().__init__(name, dimension, source_dimension)
         assert self.dimension >= 2
@@ -55,9 +48,9 @@ class AttributesLogisticParallel(AttributesAbstract):
 
         Returns
         -------
-        - positions: `torch.Tensor`
-        - deltas: `torch.Tensor`
-        - mixing_matrix: `torch.Tensor`
+        positions: `torch.Tensor`
+        deltas: `torch.Tensor`
+        mixing_matrix: `torch.Tensor`
         """
         return self.positions, self.deltas, self.mixing_matrix
 
@@ -67,7 +60,7 @@ class AttributesLogisticParallel(AttributesAbstract):
 
         Parameters
         ----------
-        values: `dict` [`str`, `torch.Tensor`]
+        values: dict [str, `torch.Tensor`]
         """
         self.velocities = torch.exp(values['xi_mean'])
 
@@ -77,7 +70,7 @@ class AttributesLogisticParallel(AttributesAbstract):
 
         Parameters
         ----------
-        values: `dict` [`str`, `torch.Tensor`]
+        values: dict [str, `torch.Tensor`]
         """
         self.deltas = torch.cat((torch.tensor([0], dtype=torch.float32), values['deltas']))
 

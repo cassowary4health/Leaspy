@@ -13,7 +13,14 @@ class CollectionRealization:
 
     def initialize(self, n_individuals, model):
         """
-        Idem that initialize_from_values method except it calls realization.initialize with scale_individual=1.
+        Initialize the Collection Realization with a model.
+
+        Idem that :meth:`.initialize_from_values` method except it calls :meth:`.Realization.initialize` with ``scale_individual=1.``
+
+        Parameters
+        ----------
+        n_individuals : int
+        model : :class:`.AbstractModel`
         """
         # Indices
         infos = model.random_variable_informations()
@@ -32,6 +39,16 @@ class CollectionRealization:
         return self.realizations[variable_name]
 
     def to_dict(self):
+        """
+        Returns 2 dictionaries with realizations
+
+        Returns
+        -------
+        reals_pop : dict[var_name: str, :class:`.Realization`]
+            Realizations of population variables
+        reals_ind : dict[var_name: str, :class:`.Realization`]
+            Realizations of individual variables
+        """
         reals_pop = {}
         for pop_var in self.reals_pop_variable_names:
             reals_pop[pop_var] = self.realizations[pop_var].tensor_realizations
@@ -45,9 +62,19 @@ class CollectionRealization:
         return reals_pop, reals_ind
 
     def keys(self):
+        """
+        Return all variable names
+        """
         return self.realizations.keys()
 
     def copy(self):
+        """
+        Copy of self instance
+
+        Returns
+        -------
+        `CollectionRealization`
+        """
         new_realizations = CollectionRealization()
 
         for key in self.keys():
@@ -57,7 +84,7 @@ class CollectionRealization:
 
     def initialize_from_values(self, n_individuals, model):
         """
-        Idem that initialize method except it calls realization.initialize with scale_individual=.01
+        Idem that :meth:`.initialize` method except it calls :meth:`.Realization.initialize` with ``scale_individual=.01``
         """
         # Indices
         infos = model.random_variable_informations()

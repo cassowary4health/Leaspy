@@ -62,8 +62,8 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         Returns
         -------
-        model : leaspy.Leaspy
-        results : leaspy.io.outputs.result.Result
+        model : :class:`.Leaspy`
+        results : :class:`~.io.outputs.result.Result`
         """
         data = Data.from_csv_file(example_data_path)
         cofactors = pd.read_csv(os.path.join(test_data_dir, "io/data/data_tiny_covariate.csv"))
@@ -127,9 +127,9 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         Parameters
         ----------
-        leaspy_session : leaspy.api.Leaspy
-        results : leaspy.io.outputs.result.Result
-        settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        leaspy_session : :class:`.Leaspy`
+        results : :class:`~.io.outputs.result.Result`
+        settings : :class:`.AlgorithmSettings`
             Contains the ``features_bounds`` parameter.
         """
 

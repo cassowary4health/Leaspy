@@ -20,11 +20,6 @@ class HMCSampler(AbstractSampler):
     type: str
         = 'pop' for population variable
         = 'ind' for individual variable
-
-    Methods
-    -------
-    sample(data, model, realizations, temperature_inv)
-        ...
     """
 
     def __init__(self, info, n_patients, eps):
@@ -32,8 +27,8 @@ class HMCSampler(AbstractSampler):
         Parameters
         ----------
         info: dict
-            Information concerning the given variable to sample (defined in the leaspy model class object)
-            Exemple : v0_infos = {
+            Information concerning the given variable to sample (defined in the leaspy model)
+            Example : v0_infos = {
                                     "name": "v0",
                                     "shape": torch.Size([self.dimension]),
                                     "type": "population",
@@ -64,13 +59,13 @@ class HMCSampler(AbstractSampler):
 
         Parameters
         ----------
-        data: leaspy Dataset class object
+        data : :class:`.Dataset`
             Dataset class object build with leaspy class object Data, model & algo
-        model: leaspy model class object
+        model : :class:`.AbstractModel`
             Model used by the algorithm
-        realizations: leaspy CollectionRealization class object
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Contain the current state & informations of all the variables of interest
-        temperature_inv: float
+        temperature_inv: float > 0
             Inverse of the temperature used in tempered MCMC-SAEM
         """
 
@@ -88,20 +83,20 @@ class HMCSampler(AbstractSampler):
 
         Parameters
         ---------
-        p: torch tensor
+        p : :class:`torch.Tensor`
             Current momenta
-        realizations: leaspy CollectionRealization class object
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Contain the current state & informations of all the variables of interest
-        model: leaspy model class object
+        model : :class:`.AbstractModel`
             Model used by the algorithm
-        data: leaspy Dataset class object
+        data : :class:`~.Dataset`
             Dataset class object build with leaspy class object Data, model & algo
-        temperature_inv: float
+        temperature_inv: float > 0
             Inverse of the temperature used in tempered MCMC-SAEM
 
         Returns
         -------
-        torch tensor
+        :class:`torch.Tensor`
         """
 
         for l in range(self.L + torch.randint(low=-5, high=5, size=(1,)).item()):
@@ -113,13 +108,13 @@ class HMCSampler(AbstractSampler):
 
         Parameters
         ----------
-        data: leaspy Dataset class object
+        data : :class:`~.Dataset`
             Dataset class object build with leaspy class object Data, model & algo
-        model: leaspy model class object
+        model : :class:`.AbstractModel`
             Model used by the algorithm
-        realizations: leaspy CollectionRealization class object
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Contain the current state & informations of all the variables of interest
-        temperature_inv: float
+        temperature_inv: float > 0
             Inverse of the temperature used in tempered MCMC-SAEM
         """
 
@@ -152,10 +147,6 @@ class HMCSampler(AbstractSampler):
         model
         realizations
         temperature_inv
-
-        Returns
-        -------
-        ...
         """
 
         # this returns a tensor with values for each indiv
@@ -205,6 +196,7 @@ class HMCSampler(AbstractSampler):
         Returns
         -------
         bool
+            Always True
         """
         a = realizations[self.name].tensor_realizations.grad
         if ((a != a).byte().any()):
@@ -227,10 +219,6 @@ class HMCSampler(AbstractSampler):
         model
         data
         temperature_inv
-
-        Returns
-        -------
-        ...
         """
         U = self._compute_U(realizations, data, model, temperature_inv)
         U.backward()
@@ -265,7 +253,7 @@ class HMCSampler(AbstractSampler):
 
         Returns
         -------
-        torch tensor
+        :class:`torch.Tensor`
         """
 
         p = torch.randn(old_real.shape)
@@ -285,7 +273,7 @@ class HMCSampler(AbstractSampler):
 
         Returns
         -------
-        ...
+        :class:`torch.Tensor`
         """
 
         H = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
@@ -309,7 +297,7 @@ class HMCSampler(AbstractSampler):
 
         Returns
         -------
-        ...
+        :class:`torch.Tensor`
         """
 
         H = torch.sum(model.compute_individual_attachment_tensorized_mcmc(data, realizations))

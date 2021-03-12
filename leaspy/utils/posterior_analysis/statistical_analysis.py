@@ -6,7 +6,9 @@ from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
-
+    """
+    .. deprecated:: 1.0
+    """
     warnings.warn('append_spaceshifts_to_individual_parameters_dataframe function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     # TODO: Igor test
@@ -26,7 +28,9 @@ def compute_subgroup_statistics(leaspy,
                                  individual_parameters,
                                  df_cofactors,
                                  idx_group):
-
+    """
+    .. deprecated:: 1.0
+    """
     warnings.warn('compute_subgroup_statistics function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     df_indparam = append_spaceshifts_to_individual_parameters_dataframe(individual_parameters.to_dataframe(),
@@ -39,7 +43,9 @@ def compute_subgroup_statistics(leaspy,
 
 
 def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pearson"):
-
+    """
+    .. deprecated:: 1.0
+    """
     warnings.warn('compute_correlation function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     df_indparam = append_spaceshifts_to_individual_parameters_dataframe(individual_parameters.to_dataframe(), leaspy)

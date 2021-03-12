@@ -19,12 +19,12 @@ from tests import test_data_dir
 #
 #     Parameters
 #     ----------
-#     obj: `dict` or `list`
+#     obj: dict or list
 #         Object to be ordered.
 #
 #     Returns
 #     -------
-#     obj: `dict` or `list`
+#     obj: dict or list
 #         Ordered object.
 #     """
 #     if isinstance(obj, dict):
@@ -87,7 +87,7 @@ class LeaspyTest(unittest.TestCase):
 
         Parameters
         ----------
-        model: leaspy.models.abstract_model.AbstractModel
+        model : :class:`~.models.abstract_model.AbstractModel`
         """
         self.assertEqual(model.name, "logistic")
         self.assertEqual(model.features, ['Y0', 'Y1', 'Y2', 'Y3'])

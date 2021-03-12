@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import time
 
 import torch
@@ -13,22 +14,23 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
     Parameters
     ----------
-    settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
+    settings : :class:`.AlgorithmSettings`
         Settings of the algorithm.
 
     Attributes
     ----------
-    algo_parameters: str
+    algo_parameters: dict
         Algorithm's parameters.
-     name: str
+    name: str
         Algorithm's name.
-     seed: int
+    seed: int, optional
         Algorithm's seed (default None).
+    loss: str
+        Loss to used during algo
 
-    Methods
-    -------
-    run(model, data)
-        Main personalize function, wraps the _get_individual_parameters.
+    See also
+    --------
+    :meth:`.Leaspy.personalize`
     """
 
     def __init__(self, settings):
@@ -43,25 +45,25 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
     def run(self, model, data):
         r"""
-        Main personalize function, wraps the `_get_individual_parameters` method.
+        Main personalize function, wraps the abstract :meth:`._get_individual_parameters` method.
 
         Parameters
         ----------
-        model: leaspy.models.abstract_model.AbstractModel
-            A subclass object of leaspy AbstractModel.
-        data : leaspy.io.data.dataset.Dataset
+        model : :class:`~.models.abstract_model.AbstractModel`
+            A subclass object of leaspy `AbstractModel`.
+        data : :class:`.Dataset`
             Dataset object build with leaspy class objects Data, algo & model
 
         Returns
         -------
-        individual_parameters: dict [str, torch.Tensor]
+        individual_parameters : :class:`.IndividualParameters`
             Contains individual parameters.
-        noise_std: float
-            The estimated noise
+        noise_std: float or :class:`torch.FloatTensor`
+            The estimated noise (is a tensor if ``'diag_noise'`` in `model.loss`)
 
             .. math:: = \frac{1}{n_{visits} \times n_{dim}} \sqrt{\sum_{i, j \in [1, n_{visits}] \times [1, n_{dim}]} \varepsilon_{i,j}}
 
-            where :math:`\varepsilon_{i,j} = \left( f(\theta, (z_{i,j}), (t_{i,j})) - (y_{i,j}) \right)^2` , were
+            where :math:`\varepsilon_{i,j} = \left( f(\theta, (z_{i,j}), (t_{i,j})) - (y_{i,j}) \right)^2` , where
             :math:`\theta` are the model's fixed effect, :math:`(z_{i,j})` the model's random effects,
             :math:`(t_{i,j})` the time-points and :math:`f` the model's estimator.
         """
@@ -102,26 +104,20 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         return individual_parameters, noise_std
 
+    @abstractmethod
     def _get_individual_parameters(self, model, data):
         """
-        Estimate individual parameters from a `Data`.
+        Estimate individual parameters from a `Dataset`.
 
         Parameters
         ----------
-        model : leaspy.models.abstract_model.AbstractModel
+        model : :class:`~.models.abstract_model.AbstractModel`
             A subclass object of leaspy AbstractModel.
-        data : leaspy.io.data.dataset.Dataset
+        data : :class:`.Dataset`
             Dataset object build with leaspy class objects Data, algo & model
 
-        Raises
-        ------
-        NotImplementedError
-            Method only implemented in child class of AbstractPersonalizeAlgo.
-
-        Should return
-        ------
-        leaspy.io.outputs.individual_parameters.IndividualParameters
-
+        Returns
+        -------
+        :class:`.IndividualParameters`
         """
-
         raise NotImplementedError('This algorithm does not present a personalization procedure')

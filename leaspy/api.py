@@ -15,17 +15,8 @@ class Leaspy:
     Parameters
     ----------
     model_name: str
-        Model's name.
-    **kwargs:
-        source_dimension: int, optional
-            Set the spatial variability degree of freedom.
-            This number MUST BE lower or equal to the number of features.
-            By default, this number is equal to square root of the number of features.
-
-    Attributes
-    ----------
-    model: leaspy.models.abstract_model.AbstractModel
-        The model used for the computation. The available models are:
+        The name of the model that will be used for the computations.
+        The available models are:
             * ``'logistic'`` - suppose that every modality follow a logistic curve across time. This model performs a dimensionality reduction of the modalities.
             * ``'logistic_parallel'`` - idem & suppose also that every modality have the same slope at inflexion point
             * ``'linear'`` - suppose that every modality follow a linear curve across time. This model performs a dimensionality reduction of the modalities.
@@ -33,33 +24,29 @@ class Leaspy:
             * ``'univariate_linear'`` - idem with a 'linear' model.
             * ``'constant'`` - benchmark model for constant predictions.
             * ``'lme'`` - benchmark model for classical linear mixed-effects model.
-    type: str
-        Name of the model - must be one of the ones listed above.
-    plotting: leaspy.io.logs.visualization.plotting.Plotting
+
+    **kwargs:
+        Keyword arguments directly passed to the model for its initialization (through :meth:`.ModelFactory.model`).
+        Refer to the corresponding model to know possible arguments.
+
+        source_dimension: int, optional
+            `For multivariate models only`.
+            Set the spatial variability degree of freedom.
+            This number MUST BE lower than the number of features.
+            By default, this number is equal to square root of the number of features.
+
+    Attributes
+    ----------
+    model : :class:`~.models.abstract_model.AbstractModel`
+        Model used for computations, is an instance of `AbstractModel`.
+    type : str (read-only)
+        Name of the model - will be one of the names listed above.
+    plotting : :class:`~.io.logs.visualization.plotting.Plotting`
         Main class for visualization.
 
-    Methods
-    -------
-    fit(data, algorithm_settings)
-        Estimate the model's parameters for a given dataset, a given model and a given algorithm.
-        These model's parameters correspond to the fixed-effects of the mixed effect model.
-    calibrate(data, algorithm_settings)
-        Duplicates of the ``fit`` function.
-    personalize(data, settings)
-        From a model, estimate individual parameters for each ID of a given dataset.
-        These individual parameters correspond to the random-effects of the mixed effect model.
-    simulate(individual_parameters, data, settings)
-        Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
-        and some given settings.
-    estimate(timepoints, individual_parameters)
-        Return the value of the features for an individual who is characterized by its individual parameters :math:`z_i`
-        at time-points :math:`(t_{i,j})` that can be a unique time-point or a list of time-points.
-    load(path_to_model_settings)
-        Instantiate a Leaspy object from json model parameter file.
-    save(path)
-        Save Leaspy object as json model parameter file.
-    check_if_initialized()
-        Check if model is initialized.
+    See also
+    --------
+    leaspy.models
     """
 
     def __init__(self, model_name, **kwargs):
@@ -67,19 +54,23 @@ class Leaspy:
         Instantiate a Leaspy class object.
         """
         self.model = ModelFactory.model(model_name, **kwargs)
-        self.type = model_name
+        #self.type = model_name # is a property instead
         self.plotting = Plotting(self.model)
+
+    @property
+    def type(self) -> str:
+        return self.model.name
 
     def fit(self, data, algorithm_settings):
         r"""
-        Estimate the model's parameters :math:`\theta` for a given dataset, a given model and a given algorithm.
-        These model's parameters correspond to the fixed-effects of the mixed effect model.
+        Estimate the model's parameters :math:`\theta` for a given dataset and a given algorithm.
+        These model's parameters correspond to the fixed-effects of the mixed-effects model.
 
         Parameters
         ----------
-        data: leaspy.io.data.data.Data
+        data : :class:`.Data`
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        algorithm_settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        algorithm_settings : :class:`.AlgorithmSettings`
             Contains the algorithm's settings.
 
         Examples
@@ -120,38 +111,32 @@ class Leaspy:
 
     def calibrate(self, data, algorithm_settings):
         r"""
-        Duplicates of the ``fit`` method. Refer to the ``fit`` documentation.
-
-        Parameters
-        ----------
-        data: leaspy.io.data.data.Data
-            Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        algorithm_settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
-            Contains the algorithm's settings.
+        Duplicates of the :meth:`~.Leaspy.fit` method.
         """
         self.fit(data, algorithm_settings)
 
     def personalize(self, data, settings, return_noise=False):
         r"""
         From a model, estimate individual parameters for each `ID` of a given dataset.
-        These individual parameters correspond to the random-effects :math:`(z_{i,j})` of the mixed effect model.
+        These individual parameters correspond to the random-effects :math:`(z_{i,j})` of the mixed-effects model.
 
         Parameters
         ----------
-        data: leaspy.io.data.data.Data
+        data : :class:`.Data`
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        settings : :class:`.AlgorithmSettings`
             Contains the algorithm's settings.
-        return_noise: boolean (default False)
+        return_noise: bool (default False)
             Returns a tuple (individual_parameters, noise_std) if True
 
         Returns
         -------
-        ips: leaspy.io.outputs.individual_parameters.IndividualParameters
+        ips : :class:`.IndividualParameters`
             Contains individual parameters
 
         if return_noise is True:
-            tuple(ips, noise_std: torch.FloatTensor)
+            ips : :class:`.IndividualParameters`
+            noise_std : :class:`torch.Tensor`
 
         Examples
         --------
@@ -187,22 +172,24 @@ class Leaspy:
 
     def estimate(self, timepoints, individual_parameters, *, to_dataframe=None):
         r"""
-        Description
+        Return the model values for individuals characterized by their individual parameters :math:`z_i` at time-points :math:`(t_{i,j})_j`
 
         Parameters
         ----------
-        timepoints: dictionary {string/int: array_like[numeric]} or pandas.MultiIndex
+        timepoints : dictionary {string/int: array_like[numeric]} or :class:`pandas.MultiIndex`
             Contains, for each individual, the time-points to estimate.
-        individual_parameters: IndividualParameters object
+            It can be a unique time-point or a list of time-points.
+        individual_parameters : :class:`.IndividualParameters`
             Corresponds to the individual parameters of individuals.
-        to_dataframe: bool or None (default)
+        to_dataframe : bool or None (default)
             Whether to output a dataframe of estimations?
-            If None: default is to be True if and only if timepoints is a pandas.MultiIndex
+            If None: default is to be True if and only if timepoints is a `pandas.MultiIndex`
 
         Returns
         -------
-        individual_trajectory: dict or pandas.DataFrame (depending on `to_dataframe` flag)
-            Key: patient indices. Value : Numpy array of the estimated value, in the shape
+        individual_trajectory : dict or :class:`pandas.DataFrame` (depending on `to_dataframe` flag)
+            Key: patient indices.
+            Value: :class:`numpy.ndarray` of the estimated value, in the shape
             (number of timepoints, number of features)
 
         Examples
@@ -251,6 +238,7 @@ class Leaspy:
         r"""
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
+
         This procedure learn the joined distribution of the individual parameters and baseline age of the subjects
         present in ``individual_parameters`` and ``data`` respectively to sample new patients from this joined distribution.
         The model is used to compute for each patient their scores from the individual parameters.
@@ -259,16 +247,16 @@ class Leaspy:
 
         Parameters
         ----------
-        individual_parameters: leaspy.io.outputs.individual_parameters.IndividualParameters
+        individual_parameters : :class:`.IndividualParameters`
             Contains the individual parameters.
-        data: leaspy.io.data.data.Data
+        data : :class:`.Data`
             Data object
-        settings: leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        settings : :class:`.AlgorithmSettings`
             Contains the algorithm's settings.
 
         Returns
         -------
-        simulated_data: leaspy.io.outputs.result.Result
+        simulated_data : :class:`~.io.outputs.result.Result`
             Contains the generated individual parameters & the corresponding generated scores.
 
         Notes
@@ -353,18 +341,19 @@ class Leaspy:
 
     @classmethod
     def load(cls, path_to_model_settings):
-        """
+        r"""
         Instantiate a Leaspy object from json model parameter file or the corresponding dictionary
+
         This function can be used to load a pre-trained model.
 
         Parameters
         ----------
-        path_to_model_settings: str of dict
-            Path of the model's settings of loaded json in a dictionary
+        path_to_model_settings: str or dict
+            Path to the model's settings json file or dictionary of model parameters
 
         Returns
         -------
-        leaspy.Leaspy
+        :class:`.Leaspy`
             An instanced Leaspy object with the given population parameters :math:`\theta`.
 
         Examples

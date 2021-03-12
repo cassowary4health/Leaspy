@@ -8,8 +8,8 @@ class AttributesLogistic(AttributesAbstract):
 
     Attributes
     ----------
-    dimension: `int`
-    source_dimension: `int`
+    dimension: int
+    source_dimension: int
     betas: `torch.Tensor` (default None)
     positions: `torch.Tensor` (default None)
         positions = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
@@ -17,27 +17,20 @@ class AttributesLogistic(AttributesAbstract):
         Matrix A such that w_i = A * s_i
     orthonormal_basis: `torch.Tensor` (default None)
     velocities: `torch.Tensor` (default None)
-    name: `str` (default 'logistic')
+    name: str (default 'logistic')
         Name of the associated leaspy model. Used by ``update`` method.
-    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'v0', 'betas') )
+    update_possibilities: tuple [str] (default ('all', 'g', 'v0', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
-
-    Methods
-    -------
-    get_attributes()
-        Returns the following attributes: ``positions``, ``deltas`` & ``mixing_matrix``.
-    update(names_of_changed_values, values)
-        Update model group average parameter(s).
     """
 
     def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a AttributesLogistic class object.
+        Instantiate a `AttributesLogistic` class object.
 
         Parameters
         ----------
-        dimension: `int`
-        source_dimension: `int`
+        dimension: int
+        source_dimension: int
         """
         super().__init__(name, dimension, source_dimension)
 

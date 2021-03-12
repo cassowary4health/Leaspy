@@ -8,6 +8,21 @@ from ..samplers.hmc_sampler import HMCSampler
 class AbstractFitMCMC(AbstractFitAlgo):
     """
     Abstract class containing common method for all `fit` algorithm classes based on `Monte-Carlo Markov Chains` (MCMC).
+
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        MCMC fit algorithm settings
+
+    Attributes
+    ----------
+    samplers : dict[ str, :class:`~.algo.samplers.abstract_sampler.AbstractSampler` ]
+        Dictionary of samplers per each variable
+    TODO add missing
+
+    See also
+    --------
+    :mod:`.algo.samplers`
     """
 
     def __init__(self, settings):
@@ -36,10 +51,12 @@ class AbstractFitMCMC(AbstractFitAlgo):
     def _initialize_algo(self, data, model, realizations):
         """
         Initialize the samplers, annealing, MCMC toolbox and sufficient statistics.
-        :param data:
-        :param model:
-        :param realizations:
-        :return: realizations
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        model : :class:`~.models.abstract_model.AbstractModel`
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
         # MCMC toolbox (cache variables for speed-ups + tricks)
         model.initialize_MCMC_toolbox()
@@ -54,7 +71,6 @@ class AbstractFitMCMC(AbstractFitAlgo):
     def _initialize_annealing(self):
         """
         Initialize annealing, setting initial temperature and number of iterations.
-        :return:
         """
         if self.algo_parameters['annealing']['do_annealing']:
             if self.algo_parameters['annealing']['n_iter'] is None:
@@ -65,10 +81,12 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
     def _initialize_samplers(self, model, data):
         """
-        Instanciate samplers for Gibbs / HMC sampling as a dictionnary samplers {name: sampler}
-        :param model:
-        :param data:
-        :return:
+        Instanciate samplers for Gibbs / HMC sampling as a dictionnary samplers {variable_name: sampler}
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        model : :class:`~.models.abstract_model.AbstractModel`
         """
         infos_variables = model.random_variable_informations()
         self.samplers = dict.fromkeys(infos_variables.keys())
@@ -85,6 +103,15 @@ class AbstractFitMCMC(AbstractFitAlgo):
                     self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
 
     def _initialize_sufficient_statistics(self, data, model, realizations):
+        """
+        Initialize the sufficient statistics.
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        model : :class:`~.models.abstract_model.AbstractModel`
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        """
         suff_stats = model.compute_sufficient_statistics(data, realizations)
         self.sufficient_statistics = {k: torch.zeros(v.shape, dtype=torch.float32) for k, v in suff_stats.items()}
 
@@ -99,12 +126,15 @@ class AbstractFitMCMC(AbstractFitAlgo):
     def iteration(self, data, model, realizations):
         """
         MCMC-SAEM iteration.
+
         1. Sample : MC sample successively of the populatin and individual variales
         2. Maximization step : update model parameters from current population/individual variables values.
-        :param data:
-        :param model:
-        :param realizations:
-        :return:
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        model : :class:`~.models.abstract_model.AbstractModel`
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
 
         # Sample step
@@ -129,7 +159,6 @@ class AbstractFitMCMC(AbstractFitAlgo):
     def _update_temperature(self):
         """
         Update the temperature according to a plateau annealing scheme.
-        :return:
         """
         if self.current_iteration <= self.algo_parameters['annealing']['n_iter']:
             # If we cross a plateau step

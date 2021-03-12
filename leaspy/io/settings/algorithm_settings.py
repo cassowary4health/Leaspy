@@ -41,9 +41,9 @@ class AlgorithmSettings:
         Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
     loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
         The wanted loss.
-            * MSE: MSE of all features
-            * MSE_diag_noise: MSE per feature
-            * crossentropy: used when the features are binary
+            * ``'MSE'``: MSE of all features
+            * ``'MSE_diag_noise'``: MSE per feature
+            * ``'crossentropy'``: used when the features are binary
     progress_bar: bool, optional, default False
         Used to display a progress bar during computation.
 
@@ -56,23 +56,17 @@ class AlgorithmSettings:
             Used for stochastic algorithms.
         * loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
             The wanted loss.
-                * MSE: MSE of all features
-                * MSE_diag_noise: MSE per feature
-                * crossentropy: used when the features are binary
+                * ``'MSE'``: MSE of all features
+                * ``'MSE_diag_noise'``: MSE per feature
+                * ``'crossentropy'``: used when the features are binary
         * parameters: dict
             Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
-        * logs: NoneType or leaspy.io.settings.outputs_settings.OutputsSettings
+        * logs: :class:`.OutputsSettings`, optional
             Used to create a ``logs`` file during a model calibration containing convergence information.
 
-    Methods
-    -------
-    load(path_to_algorithm_settings)
-        Instantiate a AlgorithmSettings object from a json file.
-    save(self, path, **kwargs):
-        Save an AlgorithmSettings object in a json file.
-    set_logs(path, **kwargs):
-        Use this method to monitor the convergence of a model callibration. It create graphs and csv files of the
-        values of the population parameters (fixed effects) during the callibration
+    See also
+    --------
+    leaspy.algo
 
     For developpers
     ---------------
@@ -147,7 +141,7 @@ class AlgorithmSettings:
 
         Returns
         -------
-        leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        :class:`.AlgorithmSettings`
             An instanced of AlgorithmSettings with specified parameters.
 
         Examples
@@ -212,19 +206,20 @@ class AlgorithmSettings:
 
     def set_logs(self, path, **kwargs):
         """
-        Use this method to monitor the convergence of a model callibration. It create graphs and csv files of the
-        values of the population parameters (fixed effects) during the callibration
+        Use this method to monitor the convergence of a model callibration.
+
+        It create graphs and csv files of the values of the population parameters (fixed effects) during the callibration
 
         Parameters
         ----------
         path: str
             The path of the folder to store the graphs and csv files.
         **kwargs:
-            * console_print_periodicity: int or NoneType, optional, default 50
+            * console_print_periodicity: int, optional, default 50
                 Display logs in the console/terminal every N iterations.
-            * plot_periodicity: int or NoneType, optional, default 100
+            * plot_periodicity: int, optional, default 100
                 Saves the values to display in pdf every N iterations.
-            * save_periodicity: int or NoneType, optional, default 50
+            * save_periodicity: int, optional, default 50
                 Saves the values in csv files every N iterations.
             * overwrite_logs_folder: bool, optionl, default False
                 Set it to ``True`` to overwrite the content of the folder in ``path``.

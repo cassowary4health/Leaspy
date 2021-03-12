@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add support for new torch versions (1.2.* and >1.4 but <1.7)
 - Tiny fixes on starter notebook
 - Tiny fix on `Plotting`
+- Clean-up in documentation
 
 # [1.0.2] - 2021-01-05
 - Jacobian for all models

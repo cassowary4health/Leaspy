@@ -8,6 +8,13 @@ from .abstract_sampler import AbstractSampler
 class GibbsSampler(AbstractSampler):
     """
     Gibbs sampler class.
+
+    Parameters
+    ----------
+    info: dict
+        Informations on variable to be sampled
+    n_patients: int > 0
+        Number of individual (used for variable with ``info['type'] == 'individual'``)
     """
 
     def __init__(self, info, n_patients):
@@ -23,6 +30,8 @@ class GibbsSampler(AbstractSampler):
             # TODO : gérer les shapes !!! Necessary for sources
             self.std = torch.tensor([0.1] * n_patients * int(self.shape[0]),
                                     dtype=torch.float32).reshape(n_patients,int(self.shape[0]))
+        else:
+            raise NotImplementedError
 
         # Acceptation rate
         self.counter_acceptation = 0
@@ -33,16 +42,21 @@ class GibbsSampler(AbstractSampler):
         self.previous_attachment = None
         self.previous_regularity = None
 
-    def sample(self, data, model, realizations, temperature_inv): #TODO is data / model / realizations supposed to be in sampler ????
+    def sample(self, data, model, realizations, temperature_inv):
         """
         Sample either as population or individual.
-        Modifies the realizations object.
-        :param data:
-        :param model:
-        :param realizations:
-        :param temperature_inv:
-        :return:
+
+        Modifies in-place the realizations object.
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        model : :class:`~.models.abstract_model.AbstractModel`
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        temperature_inv : float > 0
         """
+        # TODO is data / model / realizations supposed to be in sampler ????
+
         if self.type == 'pop':
             self._sample_population_realizations(data, model, realizations, temperature_inv)
         else:
@@ -51,8 +65,14 @@ class GibbsSampler(AbstractSampler):
     def _proposal(self, val):
         """
         Proposal value around the current value with sampler standard deviation.
-        :param val:
-        :return:
+
+        Parameters
+        ----------
+        val
+
+        Returns
+        -------
+        value around `val`
         """
         # return val+self.distribution.sample(sample_shape=val.shape)
         return val + self.distribution.sample()
@@ -60,10 +80,10 @@ class GibbsSampler(AbstractSampler):
     def _update_std(self):
         """
         Update standard deviation of sampler according to current frequency of acceptation.
+
         Adaptative std is known to improve sampling performances.
         Std is increased if frequency of acceptation > 40%, and decreased if <20%, so as
         to stay close to 30%.
-        :return:
         """
 
         self.counter_acceptation += 1
@@ -90,12 +110,15 @@ class GibbsSampler(AbstractSampler):
         Propose a new value for the given dimension of the given population variable,
         and compute new attachment and regularity.
         Do a MH step, keeping if better, or if worse with a probability.
-        :param data:
-        :param model:
-        :param realizations:
-        :param temperature_inv:
-        :return:
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        model : :class:`~.models.abstract_model.AbstractModel`
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        temperature_inv : float > 0
         """
+
         realization = realizations[self.name]
         shape_current_variable = realization.shape
         index = [e for e in itertools.product(*[range(s) for s in shape_current_variable])]
@@ -154,12 +177,15 @@ class GibbsSampler(AbstractSampler):
         Propose a new value for the individual variable,
         and compute new patient-batched attachment and regularity.
         Do a MH step, keeping if better, or if worse with a probability.
-        :param data:
-        :param model:
-        :param realizations:
-        :param temperature_inv:
-        :return:
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        model : :class:`~.models.abstract_model.AbstractModel`
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        temperature_inv : float > 0
         """
+
         # Compute the attachment and regularity
         realization = realizations[self.name]
 

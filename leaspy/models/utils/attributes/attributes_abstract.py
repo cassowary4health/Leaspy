@@ -10,32 +10,25 @@ class AttributesAbstract:
 
     Parameters
     ----------
-    dimension: `int` (default None)
-    source_dimension: `int` (default None)
+    dimension: int (default None)
+    source_dimension: int (default None)
 
     Attributes
     ----------
-    dimension: `int`
-    source_dimension: `int`
-    betas: `torch.Tensor`, (default None)
-    mixing_matrix: `torch.Tensor`, (default None)
+    dimension: int
+    source_dimension: int
+    betas : :class:`torch.Tensor` (default None)
+    mixing_matrix : :class:`torch.Tensor` (default None)
         Matrix A such that w_i = A * s_i.
-    positions: `torch.Tensor`, (default None)
+    positions : :class:`torch.Tensor` (default None)
         Previously noted "g".
-    orthonormal_basis: `torch.Tensor`, (default None)
-    velocities: `torch.Tensor`, (default None)
+    orthonormal_basis : :class:`torch.Tensor` (default None)
+    velocities : :class:`torch.Tensor` (default None)
         Previously noted "v0".
-    name: `str` (default None)
+    name: str (default None)
         Name of the associated leaspy model. Used by ``update`` method.
-    update_possibilities: `tuple` [`str`], (default ('all', 'g', 'v0', 'betas') )
+    update_possibilities: tuple [str], (default ('all', 'g', 'v0', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
-
-    Methods
-    -------
-    get_attributes()
-        Returns the following attributes: ``positions``, ``velocities`` & ``mixing_matrix``.
-    update(names_of_changed_values, values)
-        Update model group average parameter(s).
     """
 
     def __init__(self, name, dimension=None, source_dimension=None):
@@ -76,9 +69,9 @@ class AttributesAbstract:
 
         Returns
         -------
-        - positions: `torch.Tensor`
-        - velocities: `torch.Tensor`
-        - mixing_matrix: `torch.Tensor`
+        positions: `torch.Tensor`
+        velocities: `torch.Tensor`
+        mixing_matrix: `torch.Tensor`
         """
         if self.univariate:
             return self.positions
@@ -91,11 +84,11 @@ class AttributesAbstract:
 
         Parameters
         ----------
-        names_of_changed_values: `list` [`str`]
+        names_of_changed_values: list [str]
             Must be one of - "all", "g", "v0", "betas". Raise an error otherwise.
             "g" correspond to the attribute ``positions``.
             "v0" correspond to the attribute ``velocities``.
-        values: `dict` [`str`, `torch.Tensor`]
+        values: dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
         """
         self._check_names(names_of_changed_values)
@@ -138,7 +131,7 @@ class AttributesAbstract:
 
         Parameters
         ----------
-        names_of_changed_values: `list` [`str`]
+        names_of_changed_values: list [str]
 
         Raises
         -------
@@ -154,7 +147,7 @@ class AttributesAbstract:
 
         Parameters
         ----------
-        values: `dict` [`str`, `torch.Tensor`]
+        values: dict [str, `torch.Tensor`]
         """
         if 'linear' in self.name:
             self.positions = values['g'].clone()
@@ -169,7 +162,7 @@ class AttributesAbstract:
 
         Parameters
         ----------
-        values: `dict` [`str`, `torch.Tensor`]
+        values: dict [str, `torch.Tensor`]
         """
         if self.univariate:
             self.velocities = torch.exp(values['xi_mean'])
@@ -185,7 +178,7 @@ class AttributesAbstract:
 
         Parameters
         ----------
-        values: `dict` [`str`, `torch.Tensor`]
+        values: dict [str, `torch.Tensor`]
         """
         if not self.has_sources:
             return

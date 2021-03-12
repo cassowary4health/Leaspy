@@ -6,18 +6,19 @@ from leaspy import IndividualParameters
 
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
     r"""
+    .. deprecated:: 1.0
     Returns a new dataframe with space shift columns
 
     Parameters
     ----------
-    df_individual_parameters: pandas.Dataframe
+    df_individual_parameters: :class:`pandas.DataFrame`
         Dataframe of the individual parameters. Each row corresponds to an individual. The index is the index of the patient.
     leaspy: Leaspy
         Initialize model
 
     Returns
     -------
-    dataframe: pandas.Dataframe
+    :class:`pandas.DataFrame`
         Copy of the initial dataframe with additional columns being the space shifts of the individuals.
 
     """
@@ -36,6 +37,7 @@ def append_spaceshifts_to_individual_parameters_dataframe(df_individual_paramete
 
 def get_reparametrized_ages(ages, individual_parameters, leaspy):
     r"""
+    .. deprecated:: 1.0
     Reparametrize the real ages of the patients onto the pathological timeline
 
     Parameters
@@ -54,7 +56,7 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
     reparametrized_ages: dict {patient_idx: [reparametrized_ages]}
         Contains the reparametrized ages
 
-    Raise:
+    Raises
     ------
     ValueError:
         If one of the index not in the individual parameters
@@ -88,6 +90,7 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
 
 def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
     r"""
+    .. deprecated:: 1.0
     Compute the trajectory of a population at some timepoints
 
     Parameters

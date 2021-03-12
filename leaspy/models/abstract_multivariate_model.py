@@ -1,9 +1,9 @@
+from abc import abstractmethod
 import json
 import math
 
 import torch
 
-# from leaspy.utils.realizations.realization import Realization
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from .abstract_model import AbstractModel
@@ -62,6 +62,7 @@ class AbstractMultivariateModel(AbstractModel):
         self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
 
+    @abstractmethod
     def initialize_MCMC_toolbox(self):
         raise NotImplementedError
 
@@ -107,6 +108,7 @@ class AbstractMultivariateModel(AbstractModel):
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 
+    @abstractmethod
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         raise NotImplementedError
 

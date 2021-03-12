@@ -8,3 +8,12 @@ example_data_path = os.path.join(os.path.dirname(__file__), "_data/io/data/data_
 binary_data_path = os.path.join(os.path.dirname(__file__), "_data/io/data/binary_data.csv")
 example_logisticmodel_path = os.path.join(os.path.dirname(__file__), "_data/model_parameters/fitted_multivariate_model.json")
 example_logisticmodel_diag_noise_path = os.path.join(os.path.dirname(__file__), "_data/model_parameters/fitted_multivariate_model_diag_noise.json")
+
+
+from unittest.mock import patch
+
+def allow_abstract_class_init(abc_klass):
+    """
+    Decorator to allow to instantiate an abstract class (for testing only)
+    """
+    return patch.multiple(abc_klass, __abstractmethods__=set())

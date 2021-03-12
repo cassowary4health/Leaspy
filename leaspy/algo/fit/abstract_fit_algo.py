@@ -13,19 +13,20 @@ class AbstractFitAlgo(AbstractAlgo):
     ----------
     current_iteration: int, default 0
         The number of the current iteration
+    Inherited attributes
+        From :class:`.AbstractAlgo`
 
-    Methods
-    -------
-    run(model, data)
-        Main method, run the algorithm. Basically, it initializes the `CollectionRealisation` object, updates it using
-        the `iteration` method then returns it.
-    iteration(dataset, model, realizations)
-        Update the parameters (abstract method).
+    See also
+    --------
+    :meth:`.Leaspy.fit`
     """
 
     def __init__(self):
+
         super().__init__()
         self.current_iteration = 0  # TODO change to None ?
+
+        # TODO? init from settings instead of doing it in subclasses like `AbstractFitMCMC`
 
     ###########################
     # Core
@@ -33,21 +34,25 @@ class AbstractFitAlgo(AbstractAlgo):
 
     def run(self, model, dataset):
         """
-        Main method, run the algorithm. Basically, it initializes the `
-        `leaspy.io.realizations.collection_realization.CollectionRealisation` object, updates it using the
-        `iteration` method then returns it.
+        Main method, run the algorithm.
+
+        Basically, it initializes the :class:`~.io.realizations.collection_realization.CollectionRealization` object,
+        updates it using the `iteration` method then returns it.
+
+        TODO fix proper abstract class
 
         Parameters
         ----------
-        model: a child class of leaspy.model.abstract_model.AbstractModel
+        model : :class:`~.models.abstract_model.AbstractModel`
             The used model.
-        dataset: leaspy.io.data.dataset.Dataset
-            Contains the subjects' obersvations in torch format to speed up computation.
+        dataset : :class:`.Dataset`
+            Contains the subjects' observations in torch format to speed up computation.
 
         Returns
         -------
-        realizations: leaspy.io.realizations.collection_realization.CollectionRealisation
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             The optimized parameters.
+
         """
         # Initialize Model
         time_beginning = time.time()
@@ -95,25 +100,30 @@ class AbstractFitAlgo(AbstractAlgo):
     @abstractmethod
     def iteration(self, dataset, model, realizations):
         """
-        Update the parameters.
+        Update the parameters (abstract method).
 
         Parameters
         ----------
-        dataset: leaspy.io.data.dataset.Dataset
+        dataset : :class:`.Dataset`
             Contains the subjects' obersvations in torch format to speed up computation.
-        model: a child class of leaspy.model.abstract_model.AbstractModel
+        model : :class:`~.models.abstract_model.AbstractModel`
             The used model.
-        realizations: leaspy.io.realizations.collection_realization.CollectionRealisation
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             The parameters.
-
-        Raises
-        -------
-        NotImplementedError
         """
         raise NotImplementedError
 
     @abstractmethod
     def _initialize_algo(self, dataset, model, realizations):
+        """
+        Initialize the fit algorithm (abstract method).
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+        model : :class:`~.models.abstract_model.AbstractModel`
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        """
         raise NotImplementedError
 
     def _maximization_step(self, dataset, model, realizations):
@@ -123,9 +133,9 @@ class AbstractFitAlgo(AbstractAlgo):
 
         Parameters
         ----------
-        dataset
-        model
-        realizations
+        dataset : :class:`.Dataset`
+        model : :class:`.AbstractModel`
+        realizations : :class:`.CollectionRealization`
         """
         burn_in_phase = self._is_burn_in()  # The burn_in is true when the maximization step is memoryless
         if burn_in_phase:
@@ -140,7 +150,10 @@ class AbstractFitAlgo(AbstractAlgo):
     def _is_burn_in(self):
         """
         Check if current iteration is in burn-in phase.
-        :return:
+
+        Returns
+        -------
+        bool
         """
         return self.current_iteration < self.algo_parameters['n_burn_in_iter']
 

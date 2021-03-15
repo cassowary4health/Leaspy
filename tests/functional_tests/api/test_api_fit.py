@@ -63,7 +63,7 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.9043, delta=tol_tau)
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.2539, delta=tol_tau)
         self.assertEqual(leaspy.model.parameters['xi_mean'], 0.0)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.7010, delta=tol)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.730, delta=tol)
 
         diff_g = leaspy.model.parameters['g'] - torch.tensor([0.0963, 2.8176, 2.5137, 1.1444])
         diff_v = leaspy.model.parameters['v0'] - torch.tensor([-4.5411, -5.2473, -5.3571, -4.3723])

@@ -107,18 +107,17 @@ class Leaspy:
             # it will only be set at the beginning of `algorithm.run` just afterwards
             # so a `initialization_method='random'` won't be reproducible for now, TODO?
             initialization_method = algorithm_settings.model_initialization_method
-            print(initialization_method)
             self.model.initialize(dataset, initialization_method)
         algorithm.run(self.model, dataset)
 
         # Update plotting
         self.plotting.update_model(self.model)
 
-    def calibrate(self, data, algorithm_settings, initialization_method='default'):
+    def calibrate(self, data, algorithm_settings):
         r"""
         Duplicates of the :meth:`~.Leaspy.fit` method.
         """
-        self.fit(data, algorithm_settings, initialization_method)
+        self.fit(data, algorithm_settings)
 
     def personalize(self, data, settings, return_noise=False):
         r"""

@@ -42,9 +42,9 @@ class LeaspyEstimateTest(unittest.TestCase):
         # first batch of tests same logistic model but with / without diag noise (no impact in estimation!)
         models = ('logistic', 'logistic_diag_noise_id', 'logistic_diag_noise')
         expected_ests = {
-            'idx1': [[0.99198, 0.53711, 0.75853, 0.99194],
-                     [0.99880, 0.69424, 0.87913, 0.99939]],
-            'idx2': [[0.13011, 0.12199, 0.17690, 0.01896]]
+            'idx1': [[0.99641526, 0.34549406, 0.67467   , 0.98959327],
+                     [0.9994672 , 0.5080943 , 0.8276345 , 0.99921334]],
+            'idx2': [[0.13964376, 0.1367586 , 0.23170303, 0.01551363]]
         }
 
         self.batch_checks(ip, timepoints, models, expected_ests)

@@ -26,7 +26,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         algo_personalize_settings = AlgorithmSettings.load(path_settings)
         _, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
 
-        self.assertAlmostEqual(noise_std.item(), 0.1124, delta=tol_noise)
+        self.assertAlmostEqual(noise_std.item(), 0.11631, delta=tol_noise)
 
     def test_personalize_modereal_logistic(self, tol_noise=1e-3):
         """
@@ -43,7 +43,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         algo_personalize_settings = AlgorithmSettings.load(path_settings)
         _, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
 
-        self.assertAlmostEqual(noise_std.item(), 0.1364, delta=tol_noise)
+        self.assertAlmostEqual(noise_std.item(), 0.11711, delta=tol_noise)
 
     def test_personalize_scipy_models(self, tol_noise=1e-3):
         """
@@ -56,14 +56,14 @@ class LeaspyPersonalizeTest(unittest.TestCase):
 
         for (model_name, use_jacobian), expected_noise_std in {
 
-            ('logistic', False):               0.145389,
-            ('logistic', True):                0.145386,
-            ('logistic_diag_noise_id', False): [0.1476, 0.1062, 0.1430, 0.1762],
-            ('logistic_diag_noise_id', True):  [0.1476, 0.1062, 0.1430, 0.1762],
-            ('logistic_diag_noise', False):    [0.2120, 0.0705, 0.1086, 0.1763],
-            ('logistic_diag_noise', True):     [0.2120, 0.0705, 0.1086, 0.1763],
-            ('logistic_parallel', False):      0.090429,
-            ('logistic_parallel', True):       0.090423,
+            ('logistic', False):               0.118869,
+            ('logistic', True):                0.118774,
+            ('logistic_diag_noise_id', False): [0.1414, 0.0806, 0.0812, 0.1531],
+            ('logistic_diag_noise_id', True):  [0.1414, 0.0804, 0.0811, 0.1529],
+            ('logistic_diag_noise', False):    [0.1542, 0.0597, 0.0827, 0.1509],
+            ('logistic_diag_noise', True):     [0.1543, 0.0597, 0.0827, 0.1509],
+            ('logistic_parallel', False):      0.0960,
+            ('logistic_parallel', True):       0.0956,
             ('univariate_logistic', False):    0.134107,
             ('univariate_logistic', True):     0.134116,
             ('univariate_linear', False):      0.081208,

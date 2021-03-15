@@ -1,9 +1,9 @@
 import torch
 
+from .abstract_attributes import AbstractAttributes
 
-# TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
-# TODO: refact, this is not abstract but multivariate & logistic oriented (cf. exp ...)
-class AttributesAbstract:
+
+class AbstractManifoldModelAttributes(AbstractAttributes):
     """
     Contains the common attributes & methods of the different attributes classes.
     Such classes are used to update the models' attributes.
@@ -31,20 +31,16 @@ class AttributesAbstract:
         Contains the available parameters to update. Different models have different parameters.
     """
 
-    def __init__(self, name, dimension=None, source_dimension=None):
+    def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a AttributesAbstract class object.
+        Instantiate a AttributesLinear class object.
+
+        Parameters
+        ----------
+        dimension: int
+        source_dimension: int
         """
-        self.name = name
-
-        if not isinstance(dimension, int):
-            raise ValueError("In AttributesAbstract you must provide integer for the parameters `dimension`.")
-
-        self.dimension = dimension
-        self.univariate = dimension == 1
-
-        self.source_dimension = source_dimension
-        self.has_sources = bool(source_dimension) # False iff None or == 0
+        super().__init__(name, dimension, source_dimension)
 
         self.positions = None
         self.velocities = None
@@ -60,7 +56,6 @@ class AttributesAbstract:
             self.betas = None
             self.mixing_matrix = None
             self.orthonormal_basis = None
-
             self.update_possibilities = ('all', 'g', 'v0', 'betas')
 
     def get_attributes(self):
@@ -81,92 +76,6 @@ class AttributesAbstract:
             return self.positions
         else:
             return self.positions, self.velocities, self.mixing_matrix
-
-    def update(self, names_of_changed_values, values):
-        """
-        Update model group average parameter(s).
-
-        Parameters
-        ----------
-        names_of_changed_values: list [str]
-            Must be one of - "all", "g", "v0", "betas". Raise an error otherwise.
-            "g" correspond to the attribute ``positions``.
-            "v0" correspond to the attribute ``velocities``.
-        values: dict [str, `torch.Tensor`]
-            New values used to update the model's group average parameters
-        """
-        self._check_names(names_of_changed_values)
-
-        compute_betas = False
-        compute_deltas = False
-        compute_positions = False
-        compute_velocities = False
-
-        if 'all' in names_of_changed_values:
-            names_of_changed_values = self.update_possibilities  # make all possible updates
-
-        if 'betas' in names_of_changed_values:
-            compute_betas = True
-        if 'deltas' in names_of_changed_values:
-            compute_deltas = True
-        if 'g' in names_of_changed_values:
-            compute_positions = True
-        if ('v0' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
-            compute_velocities = True
-
-        if compute_betas:
-            self._compute_betas(values)
-        if compute_deltas:
-            self._compute_deltas(values)
-        if compute_positions:
-            self._compute_positions(values)
-        if compute_velocities:
-            self._compute_velocities(values)
-
-        if self.has_sources:
-            # TODO more generic: add a method `should_recompute_ortho_basis(names_of_changed_values) -> bool` in sub-classes?
-            if 'linear' in self.name:
-                # Euclidean inner prod so only velocities count (not positions unlike logist)
-                recompute_ortho_basis = compute_velocities
-            else:
-                # add deltas for logistic parallel
-                recompute_ortho_basis = compute_positions or compute_velocities or compute_deltas
-
-            if recompute_ortho_basis:
-                self._compute_orthonormal_basis()
-            if recompute_ortho_basis or compute_betas:
-                self._compute_mixing_matrix()
-
-    def _check_names(self, names_of_changed_values):
-        """
-        Check if the name of the parameter(s) to update are in the possibilities allowed by the model.
-
-        Parameters
-        ----------
-        names_of_changed_values: list [str]
-
-        Raises
-        -------
-        ValueError
-        """
-        unknown_update_possibilities = set(names_of_changed_values).difference(self.update_possibilities)
-        if len(unknown_update_possibilities) > 0:
-            raise ValueError(f"{unknown_update_possibilities} not in the attributes that can be updated")
-
-    def _compute_positions(self, values):
-        """
-        Update the attribute ``positions``.
-
-        Parameters
-        ----------
-        values: dict [str, `torch.Tensor`]
-        """
-        if 'linear' in self.name:
-            self.positions = values['g'].clone()
-        elif 'logistic' in self.name:
-            self.positions = torch.exp(values['g'])
-        else:
-            raise ValueError
 
     def _compute_velocities(self, values):
         """
@@ -196,15 +105,6 @@ class AttributesAbstract:
             return
         self.betas = values['betas'].clone()
 
-    def _compute_deltas(self, values):
-        raise NotImplementedError
-
-    def _compute_orthonormal_basis(self):
-        """
-        Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
-        of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
-        """
-        raise NotImplementedError
 
     def _compute_Q(self, dgamma_t0, G_metric, strip_col=0):
         """

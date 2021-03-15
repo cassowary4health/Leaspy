@@ -1,21 +1,21 @@
 import torch
 import unittest
 
-from leaspy.models.utils.attributes.attributes_logistic import AttributesLogistic
+from leaspy.models.utils.attributes.logistic_attributes import LogisticAttributes
 
 
 class AttributesLogisticTest(unittest.TestCase):
 
     def test_constructor(self):
-        attributes = AttributesLogistic('logistic', 6, 2)
+        attributes = LogisticAttributes('logistic', 6, 2)
         self.assertEqual(attributes.dimension, 6)
         self.assertEqual(attributes.positions, None)
         self.assertEqual(attributes.orthonormal_basis, None)
         self.assertEqual(attributes.mixing_matrix, None)
         self.assertEqual(attributes.name, 'logistic')
         self.assertEqual(attributes.update_possibilities, ('all', 'g', 'v0', 'betas'))
-        self.assertRaises(ValueError, AttributesLogistic, 'name', '4', 3.2)  # with bad type arguments
-        self.assertRaises(TypeError, AttributesLogistic)  # without argument
+        self.assertRaises(ValueError, LogisticAttributes, 'name', '4', 3.2)  # with bad type arguments
+        self.assertRaises(TypeError, LogisticAttributes)  # without argument
 
     def test_compute_orthonormal_basis(self, tol=5e-5):
         names = ['all']
@@ -24,7 +24,7 @@ class AttributesLogisticTest(unittest.TestCase):
             'betas': torch.tensor([[1, 2, 3], [-0.1, 0.2, 0.3], [-1, 2, -3]], dtype=torch.float32),
             'v0': torch.tensor([-3, 1, 0, -1], dtype=torch.float32)
         }
-        attributes = AttributesLogistic('logistic', 4, 2)
+        attributes = LogisticAttributes('logistic', 4, 2)
         attributes.update(names, values)
 
         # Test the orthogonality condition
@@ -52,7 +52,7 @@ class AttributesLogisticTest(unittest.TestCase):
             'betas': torch.tensor([[1, 2, 3], [-0.1, 0.2, 0.3], [-1, 2, -3]], dtype=torch.float32),
             'v0': torch.tensor([-3, 1, 0, -1], dtype=torch.float32)
         }
-        attributes = AttributesLogistic('logistic', 4, 2)
+        attributes = LogisticAttributes('logistic', 4, 2)
         attributes.update(names, values)
 
         gamma_t0 = 1/(1 + attributes.positions)

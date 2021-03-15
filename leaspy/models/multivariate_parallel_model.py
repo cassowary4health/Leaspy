@@ -1,7 +1,7 @@
 import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from leaspy.models.utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
+from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
 
 
 class MultivariateParallelModel(AbstractMultivariateModel):
@@ -19,7 +19,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
-        self.attributes = AttributesLogisticParallel(self.name, self.dimension, self.source_dimension)
+        self.attributes = LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
@@ -98,7 +98,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'deltas_std': 0.01, 'betas_std': 0.01}, # population parameters
-            'attributes': AttributesLogisticParallel(self.name, self.dimension, self.source_dimension)
+            'attributes': LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()

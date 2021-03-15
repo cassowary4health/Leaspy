@@ -1,14 +1,14 @@
 import torch
 import unittest
 
-from leaspy.models.utils.attributes.attributes_linear import AttributesLinear
+from leaspy.models.utils.attributes.linear_attributes import LinearAttributes
 
 
 class AttributesLinearTest(unittest.TestCase):
 
     def setUp(self):
         """Set up the object for all the tests"""
-        self.attributes = AttributesLinear('linear', 4, 2)
+        self.attributes = LinearAttributes('linear', 4, 2)
 
     def test_constructor(self):
         """Test the initialization"""
@@ -20,8 +20,8 @@ class AttributesLinearTest(unittest.TestCase):
         self.assertEqual(self.attributes.mixing_matrix, None)
         self.assertEqual(self.attributes.name, 'linear')
         self.assertEqual(self.attributes.update_possibilities, ('all', 'g', 'v0', 'betas'))
-        self.assertRaises(ValueError, AttributesLinear, 'name', '4', 3.2)  # with bad type arguments
-        self.assertRaises(TypeError, AttributesLinear)  # without argument
+        self.assertRaises(ValueError, LinearAttributes, 'name', '4', 3.2)  # with bad type arguments
+        self.assertRaises(TypeError, LinearAttributes)  # without argument
 
     def test_check_names(self):
         """Test if raise a ValueError if wrong arg"""

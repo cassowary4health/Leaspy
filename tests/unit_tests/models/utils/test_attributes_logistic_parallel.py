@@ -1,13 +1,13 @@
 import torch
 import unittest
 
-from leaspy.models.utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
+from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
 
 
 class AttributesLogisticParallelTest(unittest.TestCase):
 
     def test_constructor(self):
-        attributes = AttributesLogisticParallel('logistic_parallel', 6, 2)
+        attributes = LogisticParallelAttributes('logistic_parallel', 6, 2)
         self.assertEqual(attributes.dimension, 6)
         self.assertEqual(attributes.positions, None)
         self.assertEqual(attributes.deltas, None)
@@ -15,8 +15,8 @@ class AttributesLogisticParallelTest(unittest.TestCase):
         self.assertEqual(attributes.mixing_matrix, None)
         self.assertEqual(attributes.name, 'logistic_parallel')
         self.assertEqual(attributes.update_possibilities, ('all', 'g', 'xi_mean', 'betas', 'deltas'))
-        self.assertRaises(ValueError, AttributesLogisticParallel, 'name', '4', 3.2)  # with bad type arguments
-        self.assertRaises(TypeError, AttributesLogisticParallel)  # without argument
+        self.assertRaises(ValueError, LogisticParallelAttributes, 'name', '4', 3.2)  # with bad type arguments
+        self.assertRaises(TypeError, LogisticParallelAttributes)  # without argument
 
     def compute_instance_and_variables(self):
         names = ['all']
@@ -26,7 +26,7 @@ class AttributesLogisticParallelTest(unittest.TestCase):
             'betas': torch.tensor([[1, 2, 3], [-0.1, 0.2, 0.3], [-1, 2, -3]]),
             'xi_mean': torch.tensor([-3.])
         }
-        attributes = AttributesLogisticParallel('logistic_parallel', 4, 2)
+        attributes = LogisticParallelAttributes('logistic_parallel', 4, 2)
         attributes.update(names, values)
 
         # Test the first value of the derivative of gamma at t0

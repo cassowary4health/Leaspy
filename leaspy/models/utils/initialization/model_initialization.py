@@ -236,9 +236,8 @@ def initialize_logistic(model, dataset, method):
         raise ValueError("Initialization method not known")
 
     # Check that slopes are >0, values between 0 and 1
-    slopes[slopes < 0] = 0.01
-    values[values < 0] = 0.01
-    values[values > 1] = 0.99
+    slopes = slopes.clamp(min=1e-2)
+    values = values.clamp(min=1e-2, max=1-1e-2)
 
     # Do transformations
     t0 = time.clone().detach()
@@ -318,9 +317,8 @@ def initialize_logistic_parallel(model, dataset, method):
         raise ValueError("Initialization method not known")
 
     # Check that slopes are >0, values between 0 and 1
-    slopes[slopes < 0] = 0.01
-    values[values < 0] = 0.01
-    values[values > 1] = 0.99
+    slopes = slopes.clamp(min=1e-2)
+    values = values.clamp(min=1e-2, max=1-1e-2)
 
     # Do transformations
     t0 = time.clone()
@@ -404,7 +402,7 @@ def initialize_linear(model, dataset, method):
     neg_velocities = velocities <= 0
     if neg_velocities.any():
         warnings.warn(f"Mean slope of individual linear regressions made at initialization is negative for {[f for f, vel in zip(model.features, velocities) if vel <= 0]}: not properly handled in model...")
-        velocities = velocities.clamp(min=exp(-3.))
+    velocities = velocities.clamp(min=1e-2)
 
     # always take the log (even in non univariate model!)
     velocities = torch.log(velocities).detach()
@@ -562,9 +560,8 @@ def initialize_logistic_parallel(model, data, method="default"):
         time = np.array(np.random.normal(loc=time_mu, scale=time_sigma))
 
         # Check that slopes are >0, values between 0 and 1
-        slopes[slopes < 0] = 0.01
-        values[values < 0] = 0.01
-        values[values > 1] = 0.99
+        slopes = slopes.clamp(min=1e-2)
+        values = values.clamp(min=1e-2, max=1-1e-2)
 
         # Do transformations
         t0 = torch.tensor(time)
@@ -617,9 +614,8 @@ def initialize_logistic(model, data, method="default"):
         raise ValueError("Initialization method not known")
 
     # Check that slopes are >0, values between 0 and 1
-    slopes[slopes < 0] = 0.01
-    values[values < 0] = 0.01
-    values[values > 1] = 0.99
+    slopes = slopes.clamp(min=1e-2)
+    values = values.clamp(min=1e-2, max=1-1e-2)
 
     # Do transformations
     t0 = torch.tensor(time)

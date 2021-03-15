@@ -17,7 +17,7 @@ class AttributesLogisticTest(unittest.TestCase):
         self.assertRaises(ValueError, AttributesLogistic, 'name', '4', 3.2)  # with bad type arguments
         self.assertRaises(TypeError, AttributesLogistic)  # without argument
 
-    def test_compute_orthonormal_basis(self):
+    def test_compute_orthonormal_basis(self, tol=5e-5):
         names = ['all']
         values = {
             'g': torch.tensor([-3, 2, 0, 3], dtype=torch.float32),
@@ -36,20 +36,19 @@ class AttributesLogisticTest(unittest.TestCase):
         orthonormal_basis = attributes.orthonormal_basis
         for i in range(4-1):
             orthonormal_vector = orthonormal_basis[:, i] # column vector
-            # Test normality (metric inner-product)
-            self.assertAlmostEqual(torch.norm(orthonormal_vector/sqrt_metric_norm).item(), 1, delta=1e-5)
             # Test orthogonality to dgamma_t0 (metric inner-product)
-            self.assertAlmostEqual(torch.dot(orthonormal_vector / sqrt_metric_norm,
-                                             dgamma_t0 / sqrt_metric_norm).item(), 0, delta=1e-5)
-            # Test orthogonality to other vectors (metric inner-product)
+            self.assertAlmostEqual(torch.dot(orthonormal_vector,
+                                             dgamma_t0 / sqrt_metric_norm**2).item(), 0, delta=tol)
+            # Test normality (canonical inner-product)
+            self.assertAlmostEqual(torch.norm(orthonormal_vector).item(), 1, delta=tol) # /sqrt_metric_norm
+            # Test orthogonality to other vectors (canonical inner-product)
             for j in range(i+1, 4-1):
-                self.assertAlmostEqual(torch.dot(orthonormal_vector / sqrt_metric_norm,
-                                                 orthonormal_basis[:, j] / sqrt_metric_norm).item(), 0, delta=1e-5)
-
-    def test_mixing_matrix_utils(self):
+                self.assertAlmostEqual(torch.dot(orthonormal_vector,
+                                                 orthonormal_basis[:, j]).item(), 0, delta=tol) # / sqrt_metric_norm
+    def test_mixing_matrix_utils(self, tol=5e-5):
         names = ['all']
         values = {
-            'g': torch.tensor([-3, 2, 0, 3], dtype=torch.float32),
+            'g': torch.tensor([-3., 2., 0., 1.], dtype=torch.float32),
             'betas': torch.tensor([[1, 2, 3], [-0.1, 0.2, 0.3], [-1, 2, -3]], dtype=torch.float32),
             'v0': torch.tensor([-3, 1, 0, -1], dtype=torch.float32)
         }
@@ -60,9 +59,9 @@ class AttributesLogisticTest(unittest.TestCase):
         dgamma_t0 = attributes.velocities
         #sqrt_metric_norm = attributes.positions / (1 + attributes.positions).pow(2)
         sqrt_metric_norm = gamma_t0 * (1 - gamma_t0)
-        self.assertAlmostEqual(torch.norm(sqrt_metric_norm - attributes.positions / (1 + attributes.positions).pow(2)), 0, delta=1e-6)
+        self.assertAlmostEqual(torch.norm(sqrt_metric_norm - attributes.positions / (1 + attributes.positions).pow(2)), 0, delta=tol)
 
         mixing_matrix = attributes.mixing_matrix
-        for mixing_column in mixing_matrix.permute(1, 0):
+        for mixing_column in mixing_matrix.T:
             self.assertAlmostEqual(torch.dot(mixing_column, dgamma_t0 / sqrt_metric_norm**2).item(),
-                                   0, delta=1e-5)
+                                   0, delta=tol)

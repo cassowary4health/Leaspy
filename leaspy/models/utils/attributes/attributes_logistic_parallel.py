@@ -96,8 +96,8 @@ class AttributesLogisticParallel(AttributesAbstract):
 
     def _compute_orthonormal_basis(self):
         """
-        Compute the attribute ``orthonormal_basis`` which is a basis of the sub-space orthogonal,
-        w.r.t the inner product implied by the metric, to the time-differentiate of the geodesic at initial time.
+        Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
+        of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         """
         if not self.has_sources:
             return
@@ -105,8 +105,8 @@ class AttributesLogisticParallel(AttributesAbstract):
         # Compute value and time-derivative of gamma at t0
         gamma_t0, dgamma_t0 = self._compute_gamma_dgamma_t0()
 
-        # Compute vector of "metric normalization"  (not squared, cf. `_compute_Q`)
-        v_metric_normalization = gamma_t0 * (1 - gamma_t0)
+        # Compute the diagonal of metric matrix (cf. `_compute_Q`)
+        G_metric = ( gamma_t0 * (1 - gamma_t0) )** -2
 
         # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
-        self._compute_Q(dgamma_t0, v_metric_normalization)
+        self._compute_Q(dgamma_t0, G_metric)

@@ -49,15 +49,15 @@ class AttributesLogisticParallelTest(unittest.TestCase):
         orthonormal_basis = attributes.orthonormal_basis
         for i in range(4-1):
             orthonormal_vector = orthonormal_basis[:, i] # column vector
-            # Test normality (metric inner-product)
-            self.assertAlmostEqual(torch.norm(orthonormal_vector/sqrt_metric_norm).item(), 1, delta=1e-6)
             # Test orthogonality to dgamma_t0 (metric inner-product)
-            self.assertAlmostEqual(torch.dot(orthonormal_vector / sqrt_metric_norm,
-                                             dgamma_t0 / sqrt_metric_norm).item(), 0, delta=1e-6)
-            # Test orthogonality to other vectors (metric inner-product)
+            self.assertAlmostEqual(torch.dot(orthonormal_vector,
+                                             dgamma_t0 / sqrt_metric_norm**2).item(), 0, delta=1e-6) # / sqrt_metric_norm
+            # Test normality (canonical inner-product)
+            self.assertAlmostEqual(torch.norm(orthonormal_vector).item(), 1, delta=1e-6) # /sqrt_metric_norm
+            # Test orthogonality to other vectors (canonical inner-product)
             for j in range(i+1, 4-1):
-                self.assertAlmostEqual(torch.dot(orthonormal_vector / sqrt_metric_norm,
-                                                 orthonormal_basis[:, j] / sqrt_metric_norm).item(), 0, delta=1e-6)
+                self.assertAlmostEqual(torch.dot(orthonormal_vector,
+                                                 orthonormal_basis[:, j]).item(), 0, delta=1e-6) # / sqrt_metric_norm
 
 
     def test_mixing_matrix_utils(self):

@@ -36,15 +36,16 @@ class AttributesLogistic(AttributesAbstract):
 
     def _compute_orthonormal_basis(self):
         """
-        Compute the attribute ``orthonormal_basis`` which is a basis of the sub-space orthogonal,
-        w.r.t the inner product implied by the metric, to the time-differentiate of the geodesic at initial time.
+        Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
+        of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         """
         if not self.has_sources:
             return
 
-        # Compute vector of "metric normalization"  (not squared, cf. `_compute_Q`)
-        v_metric_normalization = self.positions / (1 + self.positions).pow(2) # = p0 * (1-p0)
+        # Compute the diagonal of metric matrix (cf. `_compute_Q`)
+        G_metric = (1 + self.positions).pow(4) / self.positions.pow(2) # = "1/(p0 * (1-p0))**2"
+
         dgamma_t0 = self.velocities
 
         # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
-        self._compute_Q(dgamma_t0, v_metric_normalization)
+        self._compute_Q(dgamma_t0, G_metric)

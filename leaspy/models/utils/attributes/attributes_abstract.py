@@ -201,51 +201,67 @@ class AttributesAbstract:
 
     def _compute_orthonormal_basis(self):
         """
-        Compute the attribute ``orthonormal_basis`` which is a basis of the sub-space orthogonal,
-        w.r.t the inner product implied by the metric, to the time-differentiate of the geodesic at initial time.
+        Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
+        of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         """
         raise NotImplementedError
 
-    def _compute_Q(self, dgamma_t0, v_metric_normalization, strip_col=0):
+    def _compute_Q(self, dgamma_t0, G_metric, strip_col=0):
         """
         Householder decomposition, adapted for a non-Euclidean inner product defined by:
-        (1) < x, y >Metric = < x / m, y / m >Euclidean
-        where:
-        - `m` is a vector of "metric normalization" (all of its components are > 0)
-        - u / v is the component-wise division of vectors
-        The Euclidean case is the special case where `m` is a vector full of 1.
+        (1) :math:`< x, y >Metric(p) = < x, G(p) y >Eucl = xT G(p) y`, where:
+        :math:`G(p)` is the symmetric positive-definite (SPD) matrix defining the metric at point `p`.
+
+        The Euclidean case is the special case where `G` is the identity matrix.
+        Product-metric is a special case where `G(p)` is a diagonal matrix (identified to a vector) whose components are all > 0.
 
         It is used in child classes to compute and set in-place the ``orthonormal_basis`` attribute
-        given the time-derivative of the geodesic at initial time and the "metric normalization" vector.
-        The first component of the full orthonormal basis is a vector collinear `dgamma_t0` that we get rid of.
+        given the time-derivative of the geodesic at initial time and the `G_metric`.
+        The first component of the full orthonormal basis is a vector collinear `G_metric x dgamma_t0` that we get rid of.
 
-        [We could do otherwise if we didn't want a full orthonormal basis w.r.t. the non-Euclidean inner product
-        but only: < dgamma_t0, Q_i >Metric = 0 and (Q_i)i=1..d-1 orthonormal basis w.r.t. Euclidean norm
-        (that is what we were doing before but it is a bit confusing, computationally just as expensive,
-         and may induce biases between centered/shifted features?)]
+        The orthonormal basis we construct is always orthonormal for the Euclidean canonical inner product.
+        But all (but first) vectors of it lie in the sub-space orthogonal (for canonical inner product) to `G_metric * dgamma_t0`
+        which is the same thing that being orthogonal to `dgamma_t0` for the inner product implied by the metric.
+
+        [We could do otherwise if we'd like a full orthonormal basis, w.r.t. the non-Euclidean inner product.
+         But it'd imply to compute G^(-1/2) & G^(1/2) which may be computationally costly in case we don't have direct access to them
+         (for the special case of product-metric it is easy - just the component-wise inverse (sqrt'ed) of diagonal)
+         TODO are there any advantages/drawbacks of one method over the other except this one?
+              are there any biases between features when only considering Euclidean orthonormal basis?]
 
         Parameters
         ----------
         dgamma_t0: `torch.Tensor` 1D
             Time-derivative of the geodesic at initial time
 
-        v_metric_normalization: `torch.Tensor` 1D or scalar
-            The vector `m` as refered in equation (1) just before.
+        G_metric: scalar, `torch.Tensor` 0D, 1D or 2D-square
+            The `G(p)` defining the metric as refered in equation (1) just before.
+            If 0D / scalar: `G` is proportional to the identity matrix
+            If 1D (vector): `G` is a diagonal matrix (diagonal components > 0)
+            If 2D (square matrix): `G` is general (SPD)
 
         strip_col: int in 0..model_dimension-1 (default 0)
             Which column of the basis should be the one collinear to `dgamma_t0` (that we get rid of)
         """
 
-        # enforce `v_metric_normalization` to be a 1D tensor (vector) for compat. with all formulas below
-        if not isinstance(v_metric_normalization, torch.Tensor):
-            v_metric_normalization = torch.tensor(v_metric_normalization) # convert from scalar...
-        if v_metric_normalization.numel() == 1: # scalar like
-            v_metric_normalization = v_metric_normalization.item() * torch.ones(self.dimension)
-        assert v_metric_normalization.shape == (self.dimension,)
-        assert (v_metric_normalization > 0).all()
+        # enforce `G_metric` to be a tensor
+        if not isinstance(G_metric, torch.Tensor):
+            G_metric = torch.tensor(G_metric) # convert from scalar...
 
-        # component-wise division before using standard Euclidean norm
-        dgamma_t0 = dgamma_t0 / v_metric_normalization
+        # compute the vector that others columns should be orthogonal to, w.r.t canonical inner product
+        G_shape = G_metric.shape
+        if len(G_shape) == 0: # 0D
+            assert G_metric.item() > 0
+            dgamma_t0 = G_metric.item() * dgamma_t0 # homothetic
+        elif len(G_shape) == 1: # 1D
+            assert (G_metric > 0).all()
+            assert len(G_metric) == self.dimension
+            dgamma_t0 = G_metric * dgamma_t0 # component-wise multiplication of vectors
+        elif len(G_shape) == 2: # matrix (general case)
+            assert G_shape == (self.dimension, self.dimension)
+            dgamma_t0 = G_metric @ dgamma_t0 # matrix multiplication
+        else:
+            raise NotImplementedError
 
         """
         Automatically choose the best column to strip?
@@ -263,13 +279,9 @@ class AttributesAbstract:
         u_vector = dgamma_t0 - alpha * ej
         v_vector = u_vector / torch.norm(u_vector)
 
-        ## Euclidean case
-        # Q = I_n - 2 v • v'
-        #q_matrix = torch.eye(self.dimension) - 2 * v_vector.view(-1,1) * v_vector
-
-        ## General case
-        # H = diag(v_metric_normalization) - 2 (v_metric_normalization*v) • v'
-        q_matrix = torch.diag(v_metric_normalization) - 2 * (v_metric_normalization * v_vector).view(-1,1) * v_vector
+        ## Classical Householder method (to get an orthonormal basis for the canonical inner product)
+        ## Q = I_n - 2 v • v'
+        q_matrix = torch.eye(self.dimension) - 2 * v_vector.view(-1,1) * v_vector
 
         # first component of basis is a unit vector (for metric norm) collinear to `dgamma_t0`
         #self.orthonormal_basis = q_matrix[:, 1:]

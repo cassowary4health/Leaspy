@@ -35,8 +35,8 @@ class AttributesLinear(AttributesAbstract):
 
     def _compute_orthonormal_basis(self):
         """
-        Compute the attribute ``orthonormal_basis`` which is a basis of the sub-space orthogonal,
-        w.r.t the inner product implied by the metric, to the time-differentiate of the geodesic at initial time.
+        Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
+        of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         In linear case, this inner product corresponds to canonical Euclidean one.
         """
         if not self.has_sources:

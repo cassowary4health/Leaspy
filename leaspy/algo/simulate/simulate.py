@@ -148,6 +148,8 @@ class SimulationAlgorithm(AbstractAlgo):
             raise ValueError("The parameter 'reparametrized_age_bounds' must contain exactly two elements, "
                              "its lower bound and its upper bound. You gave {0}".format(self.reparametrized_age_bounds))
 
+        self.age_bounds = settings.parameters['age_bounds']
+
     def _check_cofactors(self, data):
         """
         Check the value.
@@ -793,7 +795,10 @@ class SimulationAlgorithm(AbstractAlgo):
                                      min(self.reparametrized_age_bounds) < ind[0] < max(
                                          self.reparametrized_age_bounds)])
 
-
+        if self.age_bounds:
+            distribution = np.array([ind for ind, t in zip(distribution, df_ind_param["TIME"]) if
+                                     min(self.age_bounds) < t < max(
+                                         self.age_bounds)])
 
         # Get sources according the selected sources_method
         if self.get_sources & (self.sources_method == "normal_sources"):

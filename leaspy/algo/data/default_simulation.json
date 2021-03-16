@@ -16,6 +16,7 @@
     "reparametrized_age_bounds": null,
     "features_bounds": false,
     "prefix":"Generated_subject_",
-    "n_components":1
+    "n_components":1,
+    "age_bounds":false
   }
 }

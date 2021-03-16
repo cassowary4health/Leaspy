@@ -103,7 +103,11 @@ class Leaspy:
         algorithm = AlgoFactory.algo("fit", algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
-            self.model.initialize(dataset)
+            # at this point randomness is not yet fixed even if seed was set in AlgoSettings
+            # it will only be set at the beginning of `algorithm.run` just afterwards
+            # so a `initialization_method='random'` won't be reproducible for now, TODO?
+            initialization_method = algorithm_settings.model_initialization_method
+            self.model.initialize(dataset, initialization_method)
         algorithm.run(self.model, dataset)
 
         # Update plotting

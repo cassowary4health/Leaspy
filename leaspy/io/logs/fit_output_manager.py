@@ -86,7 +86,8 @@ class FitOutputManager:
         iteration = algo.current_iteration
 
         if self.periodicity_print is not None:
-            if iteration % self.periodicity_print == 0:
+            if iteration == 1 or iteration % self.periodicity_print == 0:
+                print() # newline
                 self.print_algo_statistics(algo)
                 self.print_model_statistics(model)
                 self.print_time()
@@ -95,12 +96,12 @@ class FitOutputManager:
             return
 
         if self.periodicity_save is not None:
-            if iteration % self.periodicity_save == 0:
+            if iteration == 1 or iteration % self.periodicity_save == 0:
                 self.save_model_parameters_convergence(iteration, model)
                 # self.save_model(model)
 
         if self.periodicity_plot is not None:
-            if iteration % self.periodicity_plot == 0:
+            if iteration == 1 or iteration % self.periodicity_plot == 0:
                 self.plot_patient_reconstructions(iteration, data, model, realizations)
                 self.plot_convergence_model_parameters(model)
 

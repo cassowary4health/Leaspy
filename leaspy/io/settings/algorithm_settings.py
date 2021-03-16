@@ -88,6 +88,7 @@ class AlgorithmSettings:
             ]}
     """
 
+    # TODO should be in the each algo class directly?
     _dynamic_default_parameters = {
         'mcmc_saem': [
             (
@@ -116,7 +117,8 @@ class AlgorithmSettings:
         self.name = name
         self.parameters = None # {}
         self.seed = None
-        self.initialization_method = None
+        self.algorithm_initialization_method = None # Initialization of the algorithm itself
+        self.model_initialization_method = None # Initialization of the model parameters (independantly of the algorithm)
         self.loss = None
         self.logs = None
 
@@ -126,7 +128,6 @@ class AlgorithmSettings:
             self._load_default_values(default_algo_settings_path)
         else:
             raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
-
         self._manage_kwargs(kwargs)
 
     @classmethod
@@ -165,9 +166,13 @@ class AlgorithmSettings:
             print("You overwrote the algorithm default seed")
             algorithm_settings.seed = cls._get_seed(settings)
 
-        if 'initialization_method' in settings.keys():
+        if 'algorithm_initialization_method' in settings.keys():
             print("You overwrote the algorithm default initialization method")
-            algorithm_settings.initialization_method = cls._get_initialization_method(settings)
+            algorithm_settings.algorithm_initialization_method = cls._get_algorithm_initialization_method(settings)
+
+        if 'model_initialization_method' in settings.keys():
+            print("You overwrote the model default initialization method")
+            algorithm_settings.model_initialization_method = cls._get_model_initialization_method(settings)
 
         if 'loss' in settings.keys():
             print('You overwrote the algorithm default loss')
@@ -178,6 +183,8 @@ class AlgorithmSettings:
     def save(self, path, **kwargs):
         """
         Save an AlgorithmSettings object in a json file.
+
+        TODO? save leaspy version as well for retro/future-compatibility issues?
 
         Parameters
         ----------
@@ -196,7 +203,8 @@ class AlgorithmSettings:
             "name": self.name,
             "seed": self.seed,
             "parameters": self.parameters,
-            "initialization_method": self.initialization_method,
+            "algorithm_initialization_method": self.algorithm_initialization_method,
+            "model_initialization_method": self.model_initialization_method,
             "loss": self.loss,
             "logs": self.logs
         }
@@ -262,7 +270,8 @@ class AlgorithmSettings:
 
         _special_kwargs = {
             'seed': self._get_seed,
-            'initialization_method': self._get_initialization_method,
+            'algorithm_initialization_method': self._get_algorithm_initialization_method,
+            'model_initialization_method': self._get_model_initialization_method,
             'loss': self._get_loss,
         }
 
@@ -339,6 +348,7 @@ class AlgorithmSettings:
         self._check_default_settings(settings)
         # TODO: Urgent => The following function should in fact be algorithm-name specific!! As for the constant prediction
         # Etienne: I'd advocate for putting all non-generic / parametric stuff in special methods / attributes of corresponding algos... so that everything is generic here
+        # Igor : Agreed. This class became a real mess.
 
         self.name = self._get_name(settings)
         self.parameters = self._get_parameters(settings)
@@ -354,6 +364,11 @@ class AlgorithmSettings:
             return
 
         self.loss = self._get_loss(settings)
+        self.algorithm_initialization_method = self._get_algorithm_initialization_method(settings)
+
+        if settings['name'] not in ['mcmc_saem']:
+            return
+        self.model_initialization_method = self._get_model_initialization_method(settings)
 
     @staticmethod
     def _check_default_settings(settings):
@@ -378,9 +393,9 @@ class AlgorithmSettings:
             warnings.warn("The 'loss' key is missing in the algorithm settings (JSON file) you are loading. \
             Its value will be 'MSE' by default")
 
-        if 'initialization_method' not in settings.keys():
+        if 'algorithm_initialization_method' not in settings.keys():
             raise ValueError(
-                "The 'initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
+                "The 'algorithm_initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
 
     @staticmethod
     def _get_name(settings):
@@ -401,11 +416,18 @@ class AlgorithmSettings:
             return None
 
     @staticmethod
-    def _get_initialization_method(settings):
-        if settings['initialization_method'] is None:
+    def _get_algorithm_initialization_method(settings):
+        if settings['algorithm_initialization_method'] is None:
             return None
         # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
-        return settings['initialization_method']
+        return settings['algorithm_initialization_method']
+
+    @staticmethod
+    def _get_model_initialization_method(settings):
+        if settings['model_initialization_method'] is None:
+            return None
+        # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
+        return settings['model_initialization_method']
 
     @staticmethod
     def _get_loss(settings):

@@ -1,7 +1,7 @@
 import unittest
 
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
-from leaspy.models.utils.attributes.attributes_logistic import AttributesLogistic
+from leaspy.models.utils.attributes.logistic_attributes import LogisticAttributes
 
 
 class AttributesFactoryTest(unittest.TestCase):
@@ -25,4 +25,4 @@ class AttributesFactoryTest(unittest.TestCase):
         # Test if lower name:
         name_exemples = ['logistic', 'LogIStiC', 'LOGISTIC']
         for name in name_exemples:
-            self.assertTrue(type(AttributesFactory.attributes(name, 4, 2)) == AttributesLogistic)
+            self.assertTrue(type(AttributesFactory.attributes(name, 4, 2)) == LogisticAttributes)

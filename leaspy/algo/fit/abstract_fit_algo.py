@@ -75,10 +75,15 @@ class AbstractFitAlgo(AbstractAlgo):
 
         # Iterate
         for it in range(self.algo_parameters['n_iter']):
+
             self.iteration(dataset, model, realizations)
-            if self.output_manager is not None:  # TODO better this, should work with nones
-                self.output_manager.iteration(self, dataset, model, realizations)
             self.current_iteration += 1
+
+            if self.output_manager is not None:  # TODO better this, should work with nones
+                # do not print iteration 0 because of noise_std init pb
+                # but print first & last iteration!
+                self.output_manager.iteration(self, dataset, model, realizations)
+
             if self.algo_parameters['progress_bar']:
                 self.display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
 

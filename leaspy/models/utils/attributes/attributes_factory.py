@@ -1,4 +1,4 @@
-from . import AttributesLogisticParallel, AttributesLogistic, AttributesLinear
+from . import LogisticParallelAttributes, LogisticAttributes, LinearAttributes
 
 
 class AttributesFactory:
@@ -7,13 +7,13 @@ class AttributesFactory:
     """
 
     _attributes = {
-        'logistic': AttributesLogistic,
-        'univariate_logistic': AttributesLogistic,
+        'logistic': LogisticAttributes,
+        'univariate_logistic': LogisticAttributes,
 
-        'logistic_parallel': AttributesLogisticParallel,
+        'logistic_parallel': LogisticParallelAttributes,
 
-        'linear': AttributesLinear,
-        'univariate_linear': AttributesLinear,
+        'linear': LinearAttributes,
+        'univariate_linear': LinearAttributes,
 
         #'mixed_linear-logistic': AttributesLogistic # TODO mixed check
     }

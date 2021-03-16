@@ -2,7 +2,7 @@
   "name": "simulation",
   "seed": null,
   "loss": "MSE",
-  "initialization_method": null,
+  "algorithm_initialization_method": null,
   "parameters": {
     "number_of_subjects": 100,
     "bandwidth_method": 0.2,

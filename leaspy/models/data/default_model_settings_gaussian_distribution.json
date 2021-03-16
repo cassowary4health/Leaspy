@@ -1,4 +1,5 @@
 {
+  "leaspy_version": "1.1",
   "name": "gaussian_distribution",
   "dimension": null,
   "source_dimension": null,

@@ -1,0 +1,18 @@
+{
+  "leaspy_version": "1.1.0-dev",
+  "name": "univariate_logistic",
+  "features": [
+    "Y0"
+  ],
+  "loss": "MSE",
+  "parameters": {
+    "g": [
+      0.11021632701158524
+    ],
+    "tau_mean": 78.22456359863281,
+    "tau_std": 5.592746257781982,
+    "xi_mean": -3.172964096069336,
+    "xi_std": 0.4895657002925873,
+    "noise_std": 0.13071167469024658
+  }
+}

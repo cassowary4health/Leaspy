@@ -146,7 +146,7 @@ class Plotter:
 
         from matplotlib.lines import Line2D
         custom_lines = [Line2D([0], [0], color=colors[i%8], lw=4) for i in range((model.dimension))]
-        print(custom_lines)
+
         ax.legend(custom_lines, labels, loc='upper right')
 
         if 'ax' not in kwargs.keys():
@@ -320,7 +320,13 @@ class Plotter:
 
         pdf = matplotlib.backends.backend_pdf.PdfPages(path)
         fig, ax = plt.subplots(1, 1)
-        xi, tau, sources = param_ind
+        if len(param_ind) == 2:
+            # no sources
+            xi, tau = param_ind
+            sources = torch.zeros((0,0))
+        else:
+            # with sources
+            xi, tau, sources = param_ind
         ax.plot(xi.squeeze(1).detach().numpy(), tau.squeeze(1).detach().numpy(), 'x')
         plt.xlabel('xi')
         plt.ylabel('tau')

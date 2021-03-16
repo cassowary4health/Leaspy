@@ -176,7 +176,6 @@ class MultivariateModel(AbstractMultivariateModel):
     def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError
 
-
     """
     def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
 
@@ -216,14 +215,16 @@ class MultivariateModel(AbstractMultivariateModel):
         # Concat
         model = torch.cat([model_linear, model_logistic], dim=2)
 
-        return model"""
+        return model
+    """
+
     ##############################
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self):
+    def initialize_MCMC_toolbox(self, set_v0_prior = True):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},
+            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
             'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         }
 
@@ -232,8 +233,9 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # TODO maybe not here
         # Initialize priors
-        self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone()
-        self.MCMC_toolbox['priors']['s_v0'] = 0.1
+        if set_v0_prior:
+            self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
+            self.MCMC_toolbox['priors']['s_v0'] = 0.1
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
@@ -252,11 +254,13 @@ class MultivariateModel(AbstractMultivariateModel):
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
         realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
 
-        self.update_MCMC_toolbox(['all'], realizations)
+        self.update_MCMC_toolbox(['v0'], realizations)
         return realizations
 
     def compute_sufficient_statistics(self, data, realizations):
-        # if self.name == 'logistic':
+
+        # <!> by doing this here, we change v0 and thus orthonormal basis and mixing matrix,
+        #     the betas / sources are not related to the previous orthonormal basis...
         realizations = self._center_xi_realizations(realizations)
 
         sufficient_statistics = {
@@ -278,8 +282,8 @@ class MultivariateModel(AbstractMultivariateModel):
 
         data_reconstruction *= data.mask.float()  # speed-up computations
 
-        norm_1 = data.values * data_reconstruction  # * data.mask.float()
-        norm_2 = data_reconstruction * data_reconstruction  # * data.mask.float()
+        norm_1 = data.values * data_reconstruction
+        norm_2 = data_reconstruction * data_reconstruction
 
         sufficient_statistics['obs_x_reconstruction'] = norm_1  # .sum(dim=2) # no sum on features...
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2) # no sum on features...
@@ -291,28 +295,30 @@ class MultivariateModel(AbstractMultivariateModel):
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
-        # if self.name == 'logistic':
+
+        # <!> by doing this here, we change v0 and thus orthonormal basis and mixing matrix,
+        #     the betas / sources are not related to the previous orthonormal basis...
         realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm
-        self.parameters['g'] = realizations['g'].tensor_realizations
+        self.parameters['g'] = realizations['g'].tensor_realizations.detach()
 
-        if self.MCMC_toolbox['priors']['v0_mean'] is not None:
+        v0_emp = realizations['v0'].tensor_realizations.detach()
+        if self.MCMC_toolbox['priors'].get('v0_mean', None) is not None:
             v0_mean = self.MCMC_toolbox['priors']['v0_mean']
-            v0_emp = realizations['v0'].tensor_realizations
             s_v0 = self.MCMC_toolbox['priors']['s_v0']
             sigma_v0 = self.MCMC_toolbox['priors']['v0_std']
             self.parameters['v0'] = (1 / (1 / (s_v0 ** 2) + 1 / (sigma_v0 ** 2))) * (
                         v0_emp / (sigma_v0 ** 2) + v0_mean / (s_v0 ** 2))
         else:
-            self.parameters['v0'] = realizations['v0'].tensor_realizations
+            self.parameters['v0'] = v0_emp
 
         if self.source_dimension != 0:
-            self.parameters['betas'] = realizations['betas'].tensor_realizations
-        xi = realizations['xi'].tensor_realizations
+            self.parameters['betas'] = realizations['betas'].tensor_realizations.detach()
+        xi = realizations['xi'].tensor_realizations.detach()
         # self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
-        tau = realizations['tau'].tensor_realizations
+        tau = realizations['tau'].tensor_realizations.detach()
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 

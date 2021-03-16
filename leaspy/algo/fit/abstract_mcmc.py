@@ -58,9 +58,20 @@ class AbstractFitMCMC(AbstractFitAlgo):
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
+
+        # handling loss, a bit dirty...
+        if model.loss != 'MSE': # non default loss from model
+            assert self.loss in ['MSE', model.loss], \
+                f"You provided inconsistent loss: '{model.loss}' for model and '{self.loss}' for algo."
+            # set algo loss to the one from model
+            self.loss = model.loss
+        else:
+            # set model loss from algo
+            model.loss = self.loss
+
         # MCMC toolbox (cache variables for speed-ups + tricks)
         model.initialize_MCMC_toolbox()
-        model.loss = self.loss
+
         # Samplers
         self._initialize_samplers(model, data)
         self._initialize_sufficient_statistics(data, model, realizations)

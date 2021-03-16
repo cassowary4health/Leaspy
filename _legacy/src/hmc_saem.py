@@ -1,6 +1,3 @@
-# ##### NE SERT PLUS A RIEN, A SUPPRIMER dans un futur très proche
-#
-#
 # import torch
 # from leaspy.algo.fit.abstract_mcmc import AbstractFitMCMC
 # import numpy as np

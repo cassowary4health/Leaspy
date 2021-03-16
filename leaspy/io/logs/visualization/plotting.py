@@ -37,9 +37,9 @@ class Plotting:
 
         Parameters
         ----------
-        palette : string (palette name) or matplotlib.colors.Colormap (ListedColormap or LinearSegmentedColormap)
+        palette : str (palette name) or :class:`matplotlib.colors.Colormap` (`ListedColormap` or `LinearSegmentedColormap`)
 
-        max_colors : positive int or None (default, corresponding to model nb of features)
+        max_colors : int > 0, optional (default, corresponding to model nb of features)
             Only used if palette is a string
         """
 
@@ -134,13 +134,13 @@ class Plotting:
                 Matplotlib's linestyle option.
             * linewidth: float
                 Matplotlib's linewidth option.
-            * features: list of str
+            * features: list[str]
                 Name of features (if set it must be a subset of model features)
                 Default: all model features.
-            * colors: list of str
+            * colors: list[str]
                 Contains matplotlib compatible colors.
                 At least as many as number of features.
-            * labels: list of str
+            * labels: list[str]
                 Used to rename features in the plot.
                 Exactly as many as number of features.
                 Default: raw variable name of each feature
@@ -322,7 +322,7 @@ class Plotting:
         Parameters
         ----------
         ax: matplotlib ax
-        df: pandas.DataFrame
+        df : :class:`pandas.DataFrame`
             Data to plot
         features: list[str]
             Which features to plot (subset of model features / data features)
@@ -362,7 +362,7 @@ class Plotting:
         Parameters
         ----------
         ax: matplotlib ax
-        df: pandas.DataFrame
+        df : :class:`pandas.DataFrame`
             Data (TODO: could be the MultiIndex [ID,TIME] instead...)
         individual_parameters: tuple[list, dict]
             <!> in pytorch dict format: tuple(indices:list, dict{ip_name: vals})
@@ -375,9 +375,9 @@ class Plotting:
         plot_kws: dict
             Plot kwargs
         kwargs:
-            - "factor_past", "factor_future": float (default 0.5)
+            * "factor_past", "factor_future": float (default 0.5)
                 past/future padding to plot (as fraction of total follow-up duration of subjects)
-            - "n_tpts": int (default 100)
+            * "n_tpts": int (default 100)
                 nb of tpts in trajectory
         """
 
@@ -415,10 +415,10 @@ class Plotting:
 
         Parameters
         ----------
-        data: leaspy.io.data.Data
+        data : :class:`.Data`
         patients_idx: 'all' (default), str or list[str]
             Patients to display (by their ID).
-        individual_parameters: leaspy.io.outputs.IndividualParameters or pandas.DataFrame (as may be outputed by ip.to_dataframe()) or dict (Pytorch ip format) or None (default)
+        individual_parameters : :class:`.IndividualParameters` or :class:`pandas.DataFrame` (as may be outputed by ip.to_dataframe()) or dict (Pytorch ip format) or None (default)
             If not None, observations are plotted with respect to reparametrized ages.
         """
 
@@ -440,8 +440,8 @@ class Plotting:
 
         Parameters
         ----------
-        data: leaspy.io.data.Data
-        individual_parameters: leaspy.io.outputs.IndividualParameters or pandas.DataFrame (as may be outputed by ip.to_dataframe()) or dict (Pytorch ip format)
+        data : :class:`.Data`
+        individual_parameters : :class:`.IndividualParameters` or :class:`pandas.DataFrame` (as may be outputed by ip.to_dataframe()) or dict (Pytorch ip format)
         patients_idx: 'all' (default), str or list[str]
             Patients to display (by their ID).
         reparametrized_ages: bool (default False)

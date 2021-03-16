@@ -26,7 +26,6 @@ class LeaspyTest(unittest.TestCase):
     def test_constructor(self):
         """
         Test attribute's initialization of leaspy univariate model
-        :return: exit code
         """
         for name in ['univariate_logistic', 'univariate_linear', 'linear', 'logistic', 'logistic_parallel', 'mixed_linear-logistic']:
             leaspy = Leaspy(name, loss='MSE')

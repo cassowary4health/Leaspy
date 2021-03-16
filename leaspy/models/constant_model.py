@@ -26,6 +26,10 @@ class ConstantModel(GenericModel):
         Number of features (read-only)
     parameters: dict
         Population parameters: empty dictionary.
+
+    See also
+    --------
+    leaspy.algo.others.constant_prediction_algo.ConstantPredictionAlgorithm
     """
 
     def __init__(self, name):
@@ -36,6 +40,9 @@ class ConstantModel(GenericModel):
         self.is_initialized = True
 
     def compute_individual_trajectory(self, timepoints, ip):
+        """
+        Compute scores values at the given timepoints given a subject's individual parameters.
+        """
         values = [ip[f] for f in self.features]
         return torch.tensor([[values] * len(timepoints)], dtype=torch.float32)
 

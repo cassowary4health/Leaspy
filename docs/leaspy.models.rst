@@ -21,6 +21,7 @@ Submodules
    leaspy.models.multivariate_model
    leaspy.models.multivariate_parallel_model
    leaspy.models.univariate_model
+   leaspy.models.generic_model
    leaspy.models.lme_model
    leaspy.models.constant_model
 

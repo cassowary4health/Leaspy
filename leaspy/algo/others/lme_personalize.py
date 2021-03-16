@@ -7,8 +7,13 @@ import statsmodels.api as sm
 
 
 class LMEPersonalizeAlgorithm(AbstractAlgo):
-    """
-    Personalization algorithm associated to leaspy.models.lme_model
+    r"""
+    Personalization algorithm associated to :class:`~.models.lme_model.LMEModel`
+
+    Attributes
+    ----------
+    name : ``'lme_personalize'``
+
     """
 
     def __init__(self, settings):
@@ -16,6 +21,25 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
         assert settings.name == self.name
 
     def run(self, model, dataset):
+        """
+        Main method, refer to abstract definition in :meth:`~.algo.personalize.abstract_personalize_algo.AbstractPersonalizeAlgo.run`.
+
+        TODO fix proper inheritance
+
+        Parameters
+        ----------
+        model : :class:`~.models.lme_model.LMEModel`
+            A subclass object of leaspy `LMEModel`.
+        dataset : :class:`.Dataset`
+            Dataset object build with leaspy class objects Data, algo & model
+
+        Returns
+        -------
+        individual_parameters : :class:`.IndividualParameters`
+            Contains individual parameters.
+        noise_std: float
+            The estimated noise
+        """
 
         if model.features != dataset.headers:
             raise ValueError(
@@ -87,14 +111,16 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        resid: endog - fixed_effects * exog (n_i,)
-        Z: exog_re (n_i, k_re)
-        cov_re_unscaled_inv: (k_re, k_re)
+        resid : :class:`numpy.ndarray` (n_i,)
+            endog - fixed_effects * exog
+        Z : :class:`numpy.ndarray` (n_i, k_re)
+            exog_re
+        cov_re_unscaled_inv : :class:`numpy.ndarray` (k_re, k_re)
             inverse
 
         Returns
         -------
-        random_effects : np.array (k_re,)
+        random_effects : :class:`numpy.ndarray` (k_re,)
             For a given individual
         """
 
@@ -103,4 +129,7 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
         return np.dot(G, np.dot(Z.T, resid)) # less costly to multiply in this order
 
     def set_output_manager(self, settings):
+        """
+        Not implemented.
+        """
         return

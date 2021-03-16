@@ -20,6 +20,19 @@ class AttributesFactory:
 
     @classmethod
     def attributes(cls, name, dimension, source_dimension=None):
+        """
+        Class method to build correct model attributes depending on model `name`.
+
+        Parameters
+        ----------
+        name: str
+        dimension : int
+        source_dimension : int, optional (default None)
+
+        Returns
+        -------
+        :class:`.AttributesAbstract`
+        """
         if type(name) == str:
             name = name.lower()
         else:

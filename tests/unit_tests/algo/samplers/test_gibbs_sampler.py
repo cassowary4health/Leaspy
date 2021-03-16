@@ -16,7 +16,6 @@ class SamplerTest(unittest.TestCase):
     def test_sample(self):
         """
         Test if samples values are the one expected
-        :return:
         """
         # TODO change this instanciation
         n_patients = 17

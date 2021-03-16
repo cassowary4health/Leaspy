@@ -9,9 +9,21 @@ import numpy as np
 
 KwargsType = Dict[str, Any]
 
-# NEW: generic abstract base model
-# TODO: change naming after AbstractModel was renamed?
 class GenericModel(ABC):
+    """
+    Generic model (temporary until :class:`.AbstractModel` is really **abstract**).
+
+    TODO: change naming after AbstractModel was renamed?
+
+    Attributes
+    ----------
+    name: str
+    features: list[str]
+    dimension: int (read-only)
+        Number of features
+    parameters: dict
+    is_initialized: bool
+    """
 
     # to be changed in sub-classes so to benefit from automatic methods
 
@@ -41,6 +53,14 @@ class GenericModel(ABC):
     """
 
     def get_hyperparameters(self, *, with_properties = True, default = None):
+        """
+        Get all model hyperparameters
+
+        Returns
+        -------
+        dict
+        """
+
         all_hp_names = self._hyperparameters
         if with_properties:
             all_hp_names = itertools.chain(all_hp_names, self._properties)
@@ -50,6 +70,14 @@ class GenericModel(ABC):
         }
 
     def hyperparameters_ok(self) -> bool:
+        """
+        Check all model hyperparameters are ok
+
+        Returns
+        -------
+        bool
+        """
+
         d_ok = {
             hp_name: hp_val is not None #and check hp_val compatible with hp_type_hint
             #for hp_name, hp_type_hint in self._hyperparameters.items()
@@ -106,6 +134,14 @@ class GenericModel(ABC):
                 self.parameters[k] = list_converter(v)
 
     def load_hyperparameters(self, hyperparameters) -> None:
+        """
+        Load model hyperparameters from a dict
+
+        Parameters
+        ----------
+        hyperparameters: dict
+            Contains the model's hyperparameters
+        """
 
         # no total reset of hyperparameters here unlike in load_parameters...
 
@@ -170,7 +206,7 @@ class GenericModel(ABC):
 
         Parameters
         ----------
-        timepoints: scalar or array_like[scalar] (list, tuple, np.array)
+        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
         individual_parameters: dict
             Contains the individual parameters.
@@ -180,7 +216,7 @@ class GenericModel(ABC):
 
         Returns
         -------
-        torch.Tensor
+        :class:`torch.Tensor`
             Contains the subject's scores computed at the given age(s)
             Shape of tensor is (1, n_tpts, n_features)
         """

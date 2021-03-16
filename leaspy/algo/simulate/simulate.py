@@ -14,7 +14,7 @@ class SimulationAlgorithm(AbstractAlgo):
     To simulate new data given existing one by learning the individual parameters joined distribution.
 
     You can choose to only learn the distribution of a group of patient. To do so, choose the cofactor and the cofactor
-    state of the wanted patient in the settings. Exemple - For Alzheimer patient, you can load a genetic cofactor
+    state of the wanted patient in the settings. For instance, for an Alzheimer's disease patient, you can load a genetic cofactor
     informative of the APOE4 carriers. Choose cofactor 'genetic' and cofactor_state 'APOE4' to simulate only
     APOE4 carriers.
 
@@ -26,49 +26,42 @@ class SimulationAlgorithm(AbstractAlgo):
         Bandwidth argument used in scipy.stats.gaussian_kde in order to learn the patients' distribution.
     cofactor : str, optional (default = None)
         The cofactor used to select the wanted group of patients (ex - 'genes'). It must correspond to an existing
-        cofactor in the attribute `Data` of the input `result` of the ``run`` method. See ``SimulationAlgorithm.run``
-        documentation.
+        cofactor in the attribute `Data` of the input `result` of the :meth:`~.SimulationAlgorithm.run` method.
     cofactor_state : str, optional (default None)
         The cofactor state used to select the  wanted group of patients (ex - 'APOE4'). It must correspond to an
-        existing cofactor state in the attribute `Data` of the input `result` of the ``run`` method. See
-        ``SimulationAlgorithm.run`` documentation.
-    features_bounds : bool or dict : [`str`, `float`, `float`], (default False)
-        Specify if the scores of the generated subjects must be bounded. This parameter can express in two way:
-        - `bool` : the bounds are the maximum and minimum scores observed in the ``results.data`` object.
-        - `dict` : the user has to set the min and max bounds for every features. For example:
-                    ``{'feature1': (score_min, score_max), 'feature2': (score_min, score_max), ...}``
+        existing cofactor state in the attribute `Data` of the input `result` of the :meth:`~.SimulationAlgorithm.run` method.
+    features_bounds : bool or dict[str, (float, float)] (default False)
+        Specify if the scores of the generated subjects must be bounded.
+        This parameter can express in two way:
+            * `bool` : the bounds are the maximum and minimum scores observed in the ``results.data`` object.
+            * `dict` : the user has to set the min and max bounds for every features. For example:
+              ``{'feature1': (score_min, score_max), 'feature2': (score_min, score_max), ...}``
     mean_number_of_visits : int (default 6)
         Average number of visits of the simulated patients.
         Examples - choose 5 => in average, a simulated patient will have 5 visits.
-    name : ``"simulation"``
+    name : ``'simulation'``
         Algorithm's name.
-    noise : str or float or list or None, (default "default")
+    noise : 'default' (default) or float or array-like[float], optional
         Wanted level of gaussian noise in the generated scores.
-            - Set to "default", the noise added to each feature score correspond to the reconstruction error for each
-            feature (MSE on all visits, per feature).
-            - Set noise to ``None`` will lead to patients having "perfect progression" of their scores, i.e.
-            following exactly a logistic curve.
-            - Set a float will add for each feature's scores a noise of standard deviation the given float.
-            - Set a iterable will add for the feature j a noise of standard deviation noise[j]. Then, noise must be
-            of length the number of features' scores.
+            * Set to ``'default'``, the noise added to each feature score correspond to the reconstruction error for each
+              feature (MSE on all visits, per feature).
+            * Set noise to ``None`` will lead to patients having "perfect progression" of their scores, i.e.
+              following exactly a logistic curve.
+            * Set a float will add for each feature's scores a noise of standard deviation the given float.
+            * Set an array-like[float] (1D of length `n_features`) will add for the feature `j` a noise of standard deviation ``noise[j]``.
     number_of_subjects : int
         Number of subject to simulate.
-    reparametrized_age_bounds : list [float], optional (default None), length = 2
+    reparametrized_age_bounds : tuple[float, float], optional (default None)
         Set the minimum and maximum age of the generated reparametrized subjects' ages. See Notes section.
         Example - reparametrized_age_bounds = (65, 70)
     seed : int
-        Used by numpy.random & torch.random for reproducibility.
-    sources_method : str, {'full_kde', 'normal_sources'}
-        - ``"full_kde"`` : the sources are also learned with the gaussian kernel density estimation.
-        - ``"normal_sources"`` : the sources are generated as multivariate normal distribution linked with the other
-        individual parameters.
+        Used by :mod:`numpy.random` & :mod:`torch.random` for reproducibility.
+    sources_method : str in {'full_kde', 'normal_sources'}
+        * ``'full_kde'`` : the sources are also learned with the gaussian kernel density estimation.
+        * ``'normal_sources'`` : the sources are generated as multivariate normal distribution linked with the other
+          individual parameters.
     std_number_of_visits : int
         Standard deviation used into the generation of the number of visits per simulated patient.
-
-    Methods
-    -------
-    run(model, individual_parameters, data)
-        Run the simulation of new patients for some given leaspy model, individual parameters and data.
 
     Notes
     -----
@@ -92,7 +85,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        settings : :class:`.AlgorithmSettings`
             Set the class attributes.
 
         Raises
@@ -144,7 +137,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        data : leaspy.io.data.data.Data
+        data : :class:`.Data`
             Contains the cofactors and cofactors' states.
 
         Raises
@@ -185,14 +178,14 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        m : torch.Tensor, shape = (n_individual_parameters, n_subjects)
+        m : :class:`torch.Tensor`, shape = (n_individual_parameters, n_subjects)
             Input matrix - one row per individual parameter distribution (xi, tau etc).
 
         Returns
         -------
-        mean : torch.Tensor
+        mean : :class:`torch.Tensor`
             Mean by variable, shape = (n_individual_parameters,).
-        covariance :  torch.Tensor
+        covariance :  :class:`torch.Tensor`
             Covariance matrix, shape = (n_individual_parameters, n_individual_parameters).
         """
         m_exp = torch.mean(m, dim=0)
@@ -215,14 +208,14 @@ class SimulationAlgorithm(AbstractAlgo):
             Log-acceleration of the simulated patient.
         source_dimension : int
             Sources' dimension of the simulated patient.
-        df_mean : torch.Tensor, shape = (n_individual_parameters,)
+        df_mean : :class:`torch.Tensor`, shape = (n_individual_parameters,)
             Mean values per individual parameter type (bl_mean, tau_mean, xi_mean & sources_means) (1-dimensional).
-        df_cov : torch.Tensor, shape = (n_individual_parameters, n_individual_parameters)
+        df_cov : :class:`torch.Tensor`r, shape = (n_individual_parameters, n_individual_parameters)
             Empirical covariance matrix of the individual parameters (2-dimensional).
 
         Returns
         -------
-        torch.Tensor
+        t:class:`torch.Tensor`
             Sources of the simulated patient, shape = (n_sources, ).
         """
         x_1 = torch.tensor([bl, tau, xi], dtype=torch.float32)
@@ -263,13 +256,13 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        results_object : leaspy.io.outputs.result.Result
+        results_object : :class:`~.io.outputs.result.Result`
 
         Returns
         -------
-        features_min : numpy.ndarray
+        features_min : :class:`numpy.ndarray`
             Lowest score allowed per feature - sorted accordingly to the features in ``result.data.headers``.
-        features_max : numpy.ndarray
+        features_max : :class:`numpy.ndarray`
             Highest score allowed per feature - sorted accordingly to the features in ``result.data.headers``.
         """
         features_min = np.zeros(len(results_object.data.headers))
@@ -298,7 +291,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Returns
         -------
-        ages : `list` [`float`]
+        ages : list [float]
             Contains the subject's time points.
         """
         number_of_visits = self._get_number_of_visits()
@@ -316,14 +309,14 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        model : leaspy.models.abstract_model.AbstractModel
-            Subclass object of AbstractModel.
-        results : leaspy.io.outputs.result.Result
+        model : :class:`~.models.abstract_model.AbstractModel`
+            Subclass object of `AbstractModel`.
+        results : :class:`~.io.outputs.result.Result`
             Object containing the computed individual parameters.
 
         Returns
         -------
-        torch.distributions.Normal or None
+        :class:`torch.distributions.Normal` or None
             A gaussian noise generator. If self.noise is None, the function returns None.
 
         Raises
@@ -354,18 +347,18 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        timepoints : np.ndarray, shape = (n_subjects,)
+        timepoints : :class:`numpy.ndarray`, shape = (n_subjects,)
             Real ages of the subjects.
-        tau : np.ndarray, shape = (n_subjects,)
+        tau : :class:`numpy.ndarray`, shape = (n_subjects,)
             Individual time-shifts.
-        xi : np.ndarray, shape = (n_subjects,)
+        xi : :class:`numpy.ndarray`, shape = (n_subjects,)
             Individual log-acceleration.
         tau_mean : float
             The mean conversion age derivated by the model.
 
         Returns
         -------
-        np.ndarray, shape = (n_subjects,)
+        :class:`numpy.ndarray`, shape = (n_subjects,)
         """
         return np.exp(xi) * (timepoints - tau) + tau_mean
 
@@ -376,18 +369,18 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        repam_ages : np.ndarray, shape = (n_subjects,)
+        repam_ages : :class:`numpy.ndarray`, shape = (n_subjects,)
             Reparametrized ages of the subjects.
-        tau : np.ndarray, shape = (n_subjects,)
+        tau : :class:`numpy.ndarray`, shape = (n_subjects,)
             Individual time-shifts.
-        xi : np.ndarray, shape = (n_subjects,)
+        xi : :class:`numpy.ndarray`, shape = (n_subjects,)
             Individual log-acceleration.
         tau_mean : float
             The mean conversion age derivated by the model.
 
         Returns
         -------
-        np.ndarray, shape = (n_subjects,)
+        :class:`numpy.ndarray`, shape = (n_subjects,)
         """
         return np.exp(-xi) * (repam_ages - tau_mean) + tau
 
@@ -398,21 +391,21 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        model : leaspy.models.abstract_model.AbstractModel
-            A subclass object of leaspy AbstractModel.
+        model : :class:`~.models.abstract_model.AbstractModel`
+            A subclass object of leaspy `AbstractModel`.
         number_of_simulated_subjects : int
         kernel : scipy.stats.gaussian_kde
-        ss : sklearn.preprocessing.StandardScaler
-        df_mean : torch.Tensor, shape = (n_individual_parameters,)
+        ss : :class:`sklearn.preprocessing.StandardScaler`
+        df_mean : :class:`torch.Tensor`, shape = (n_individual_parameters,)
             Mean values per individual parameter type.
-        df_cov : torch.Tensor, shape = (n_individual_parameters, n_individual_parameters)
+        df_cov : :class:`torch.Tensor`, shape = (n_individual_parameters, n_individual_parameters)
             Empirical covariance matrix of the individual parameters.
 
         Returns
         -------
-        simulated_parameters : dict [str, numpy.ndarray]
+        simulated_parameters : dict [str, :class:`numpy.ndarray`]
             Contains the simulated parameters.
-        timepoints : `list` [float]
+        timepoints : list [float]
             Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
         """
         samples = kernel.resample(number_of_simulated_subjects).T
@@ -449,21 +442,21 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        model : leaspy.models.abstract_model.AbstractModel
-            A subclass object of leaspy AbstractModel.
-        simulated_parameters : dict [str, numpy.ndarray]
+        model : :class:`~.models.abstract_model.AbstractModel`
+            A subclass object of leaspy `AbstractModel`.
+        simulated_parameters : dict [str, :class:`numpy.ndarray`]
             Contains the simulated parameters.
-        timepoints : `list` [float]
+        timepoints : list [float]
             Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
-        noise_generator : torch.distributions.Normal or None
+        noise_generator : :class:`torch.distributions.Normal`, optional
             A gaussian noise generator. If self.noise is None, the features' score are exactly the ones derived from
             the individual parameters by the model.
 
         Returns
         -------
-        features_values : `list` [numpy.ndarray]
-            Contains the scores of all the subjects for all their visits. Contains one entry per subject, each of
-            them is a 2D-numpy.ndarray of shape n_visits x n_features.
+        features_values : list [:class:`numpy.ndarray`]
+            Contains the scores of all the subjects for all their visits.
+            One entry per subject, each of them is a 2D `numpy.ndarray` of shape (n_visits, n_features).
         """
         features_values = []
         # TODO : parallelize this for loop
@@ -491,18 +484,20 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        features_values : `list` [np.ndarray]
+        features_values : list [:class:`numpy.ndarray`]
             Contains the scores of all the subjects of all their visits. Each element correspond to a simulated
             subject, these elements are of shape n_vists x n_features.
-        features_min : np.ndarray
+        features_min : :class:`numpy.ndarray`
             Lowest score allowed per feature - sorted accordingly to the features in ``result.data.headers``.
-        features_max : np.ndarray
+        features_max : :class:`numpy.ndarray`
             Highest score allowed per feature - sorted accordingly to the features in ``result.data.headers``.
 
         Returns
         -------
-        indices_of_accepted_simulated_subjects : `list` [float]
-        `list` [np.ndarray]
+        list [int]
+            Indices of accepted simulated subjects
+
+        list [:class:`numpy.ndarray`]
             Contains the scores of all the subjects whose scores are within the features boundaries.
         """
 
@@ -522,10 +517,10 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        model : leaspy.models.abstract_model.AbstractModel
-            Subclass object of AbstractModel. Model used to compute the population & individual parameters.
+        model : :class:`~.models.abstract_model.AbstractModel`
+            Subclass object of `AbstractModel`. Model used to compute the population & individual parameters.
             It contains the population parameters.
-        individual_parameters : leaspy.io.outputs.individual_parameters.IndividualParameters
+        individual_parameters : :class:`.IndividualParameters`
             Object containing the computed individual parameters.
 
         Notes
@@ -537,7 +532,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Returns
         -------
-        leaspy.io.outputs.result.Result
+        :class:`~.io.outputs.result.Result`
             Contains the simulated individual parameters & individual scores.
         """
         self.get_sources = ('univariate' not in model.name)

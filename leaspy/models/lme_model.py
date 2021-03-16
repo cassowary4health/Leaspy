@@ -4,7 +4,7 @@ import torch
 
 from leaspy.models.generic_model import GenericModel
 
-class LMEModel(GenericModel): # should inherit from AbstractModel?
+class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
     """
     LMEModel is a benchmark model that fits and personalize a linear mixed-effects model
 
@@ -24,6 +24,11 @@ class LMEModel(GenericModel): # should inherit from AbstractModel?
         Contains the model parameters
     features: list[str]
         List of the model features
+
+    See Also
+    --------
+    leaspy.algo.others.lme_fit.LMEFitAlgorithm
+    leaspy.algo.others.lme_personalize.LMEPersonalizeAlgorithm
     """
 
     _hyperparameters = ('features', 'with_random_slope_age')
@@ -39,6 +44,8 @@ class LMEModel(GenericModel): # should inherit from AbstractModel?
 
     def compute_individual_trajectory(self, timepoints, ip):
         """
+        Compute scores values at the given time-point(s) given a subject's individual parameters.
+
         Parameters
         ----------
         timepoints: array-like of ages (not normalized)
@@ -46,12 +53,12 @@ class LMEModel(GenericModel): # should inherit from AbstractModel?
 
         ip: dict
             Individual parameters:
-            - random_intercept
-            (- random_slope_age)
+                * random_intercept
+                * random_slope_age (if ``with_random_slope_age == True``)
 
         Returns
         -------
-        torch.Tensor of float of shape (n_individuals == 1, n_tpts == len(timepoints), n_features == 1)
+        :class:`torch.Tensor` of float of shape (n_individuals == 1, n_tpts == len(timepoints), n_features == 1)
         """
 
         # normalize ages (np.ndarray of float, 1D)

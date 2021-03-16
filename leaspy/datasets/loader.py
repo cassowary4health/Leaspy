@@ -20,8 +20,8 @@ ip_paths = {ip_name: os.path.join(module_path, 'individual_parameters/' + ip_nam
 
 class Loader:
     """
-    Contains static methods to load synthetic longitudinal dataset, calibrated `Leaspy` instances &
-    `IndividualParameters`.
+    Contains static methods to load synthetic longitudinal dataset, calibrated :class:`.Leaspy` instances &
+    :class:`.IndividualParameters`.
 
     Attributes
     ----------
@@ -31,17 +31,6 @@ class Loader:
         Contains the `Leaspy` instances' names and their respective path within ``leaspy.datasets`` subpackage.
     ip_paths: dict [str, str]
         Contains the individual parameters' names and their respective path within ``leaspy.datasets`` subpackage.
-
-    Methods
-    -------
-    load_dataset(dataset_name)
-        Load synthetic longitudinal observations mimicking cohort of subjects with neurodegenerative disorders.
-    load_leaspy_instance(instance_name)
-        Load a Leaspy instance with a model allready calibrated on the synthetic dataset corresponding to the name
-        of the instance.
-    load_individual_parameters(ip_name)
-        Load a Leaspy instance with a model allready calibrated on the synthetic dataset corresponding to the name
-        of the instance.
 
     Notes
     -----
@@ -69,14 +58,14 @@ class Loader:
 
         Returns
         -------
-        df: pandas.DataFrame
+        :class:`pandas.DataFrame`
             DataFrame containing the IDs, timepoints and observations.
 
         Notes
         -----
         All `DataFrames` have the same structures.
 
-        * Index: a `MultiIndex` - ``['ID', 'TIME']`` which contain IDs and timepoints. The `DataFrame` is sorted by index.
+        * Index: a :class:`pandas.MultiIndex` - ``['ID', 'TIME']`` which contain IDs and timepoints. The `DataFrame` is sorted by index.
           So, one line corresponds to one visit for one subject. The `DataFrame` having `'train_and_test'` in their name
           also have ``'SPLIT'`` as the third index level. It differenciate `train` and `test` data.
 
@@ -102,7 +91,7 @@ class Loader:
 
         Returns
         -------
-        leaspy.Leaspy
+        :class:`.Leaspy`
             Leaspy instance with a model allready calibrated.
         """
         return Leaspy.load(model_paths[instance_name])
@@ -120,7 +109,7 @@ class Loader:
 
         Returns
         -------
-        leaspy.IndividualParameters
+        :class:`.IndividualParameters`
             Leaspy instance with a model allready calibrated.
         """
         return IndividualParameters.load(ip_paths[ip_name])

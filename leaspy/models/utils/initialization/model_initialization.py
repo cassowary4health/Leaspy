@@ -13,20 +13,27 @@ def initialize_parameters(model, dataset, method="default"):
     """
     Initialize the model's group parameters given its name & the scores of all subjects.
 
+    Under-the-hood it calls an initialization function dedicated for the `model`:
+        * :func:`.initialize_linear` (including when `univariate`)
+        * :func:`.initialize_logistic` (including when `univariate`)
+        * :func:`.initialize_logistic_parallel`
+
+    It is automatically called during :meth:`.Leaspy.fit`.
+
     Parameters
     ----------
-    model: a leaspy model class object
+    model : :class:`.AbstractModel`
         The model to initialize.
-    dataset: a leaspy.io.data.dataset.Dataset class object
+    dataset : :class:`.Dataset`
         Contains the individual scores.
-    method: `str`
+    method: str
         Must be one of:
-        - "default": initialize at mean.
-        - "random":  initialize with a gaussian realization with same mean and variance.
+            * ``'default'``: initialize at mean.
+            * ``'random'``:  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
-    parameters: `dict` [`str`, `torch.Tensor`]
+    parameters: dict [str, :class:`torch.Tensor`]
         Contains the initialized model's group parameters.
     """
     name = model.name
@@ -53,19 +60,20 @@ def initialize_logistic(model, dataset, method):
 
     Parameters
     ----------
-    model: a leaspy model class object
+    model : :class:`.AbstractModel`
         The model to initialize.
-    dataset: a leaspy.io.data.dataset.Dataset class object
+    dataset : :class:`.Dataset`
         Contains the individual scores.
-    method: `str`
+    method: str
         Must be one of:
-        - "default": initialize at mean.
-        - "random":  initialize with a gaussian realization with same mean and variance.
+            * ``'default'``: initialize at mean.
+            * ``'random'``:  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
-    parameters: `dict` [`str`, `torch.Tensor`]
-        Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
+    parameters: dict [str, `torch.Tensor`]
+        Contains the initialized model's group parameters.
+        The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
     """
     # Get the slopes / values / times mu and sigma
@@ -133,18 +141,18 @@ def initialize_logistic_parallel(model, dataset, method):
 
     Parameters
     ----------
-    model: a leaspy model class object
+    model : :class:`.AbstractModel`
         The model to initialize.
-    dataset: a leaspy.io.data.dataset.Dataset class object
+    dataset : :class:`.Dataset`
         Contains the individual scores.
-    method: `str`
+    method: str
         Must be one of:
-        - "default": initialize at mean.
-        - "random":  initialize with a gaussian realization with same mean and variance.
+            * ``'default'``: initialize at mean.
+            * ``'random'``:  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
-    parameters: `dict` [`str`, `torch.Tensor`]
+    parameters: dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters. The parameters' keys are 'g',  'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'delta' and 'beta'.
     """
@@ -198,14 +206,14 @@ def initialize_linear(model, dataset, method):
 
     Parameters
     ----------
-    model: a leaspy model class object
+    model : :class:`.AbstractModel`
         The model to initialize.
-    dataset: a leaspy.io.data.dataset.Dataset class object
+    dataset : :class:`.Dataset`
         Contains the individual scores.
 
     Returns
     -------
-    parameters: `dict` [`str`, `torch.Tensor`]
+    parameters: dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
     """
@@ -295,8 +303,14 @@ def compute_patient_slopes_distribution(data):
     """
     Linear Regression on each feature to get slopes
 
-    :param data: leaspy.io.data.dataset class object
-    :return: slopes_mu : list of floats, slopes_sigma : list of floats
+    Parameters
+    ----------
+    data : :class:`.Dataset`
+
+    Returns
+    -------
+    slopes_mu : :class:`torch.Tensor` [n_features,]
+    slopes_sigma : :class:`torch.Tensor` [n_features,]
     """
 
     # To Pandas
@@ -342,14 +356,14 @@ def compute_patient_values_distribution(data):
 
     Parameters
     ----------
-    data: a leaspy.io.data.dataset.Dataset class object
+    data : :class:`.Dataset`
         Contains the scores of all the subjects.
 
     Returns
     -------
-    - means: `torch.Tensor`
+    means : :class:`torch.Tensor` [n_features,]
         One mean per feature.
-    - std: `torch.Tensor`
+    std : :class:`torch.Tensor` [n_features,]
         One standard deviation per feature.
     """
     df = data.to_pandas()
@@ -363,13 +377,13 @@ def compute_patient_time_distribution(data):
 
     Parameters
     ----------
-    data: a leaspy.io.data.dataset.Dataset class object
+    data : :class:`.Dataset`
         Contains the individual scores
 
     Returns
     -------
-    - mean: `torch.Tensor`
-    - sigma: `torch.Tensor`
+    mean : :class:`torch.Tensor` scalar
+    sigma : :class:`torch.Tensor` scalar
     """
     df = data.to_pandas()
     df.set_index(["ID", "TIME"], inplace=True)

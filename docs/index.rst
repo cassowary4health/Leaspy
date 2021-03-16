@@ -11,15 +11,15 @@ Welcome to Leaspy's documentation!
 
    install
    nutshell
-   contribute
+..   contribute
 
 .. toctree::
    :maxdepth: 2
    :hidden:
    :caption: Documentation
 
-   user_guide
    api
+   user_guide
 
 .. toctree::
 ..   :maxdepth: 2
@@ -78,6 +78,15 @@ The exact API of all functions and classes, as given in the
 docstrings. The API documents expected types and allowed features for
 all functions, and all parameters available for the algorithms.
 
+`License <license.html>`_
+-------------------------
+
+.. * :ref:`license`
+.. * :ref:`genindex`
+.. * :ref:`modindex`
+.. * :ref:`search`
+
+
 Further information
 -------------------
 More detailed explanations about the models themselves and  about the estimation procedure can be found in the following articles :
@@ -106,11 +115,3 @@ More detailed explanations about the models themselves and  about the estimation
 .. See the `README <https://github.com/johannfaouzi/pyts/blob/master/README.md>`_
 .. for more information.
 ..
-
-Indices and tables
-------------------
-
-* :ref:`license`
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

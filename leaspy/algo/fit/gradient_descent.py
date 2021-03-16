@@ -7,7 +7,7 @@ from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
 
 class GradientDescent(AbstractFitAlgo):
     """
-    /!\\ Currently deprecated
+    .. deprecated:: 1.0
     """
 
     def __init__(self, settings):

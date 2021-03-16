@@ -36,7 +36,7 @@ User installation
 Testing
 -------
 
-After installation, you can run the examples in :ref:`nutshell` and in :ref:`the Leaspi API <leaspy_api>`.
+After installation, you can run the examples in :ref:`nutshell` and in :ref:`the Leaspy API <api>`.
 To do so, in your `leaspy environment`, you can download ``ipykernel`` to use `leaspy` with `jupyter`::
 
     conda install -c anaconda ipykernel

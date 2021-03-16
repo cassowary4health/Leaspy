@@ -9,7 +9,9 @@ def get_age_at_abnormality_conversion(abnormality_thresholds,
                                       individual_parameter,
                                       timepoints,
                                       leaspy):
-
+    """
+    .. deprecated:: 1.0
+    """
     warnings.warn('get_age_at_abnormality_conversion function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     features = leaspy.model.features

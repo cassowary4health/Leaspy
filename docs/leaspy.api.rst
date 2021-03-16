@@ -1,5 +1,3 @@
-.. _leaspy_api:
-
 leaspy.api module
 =================
 

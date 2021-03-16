@@ -15,7 +15,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
     def test_personalize_meanrealization(self):
         """
         Load logistic model from file, and personalize it to data from ...
-        :return:
         """
         # Inputs
         data = Data.from_csv_file(example_data_path)
@@ -34,7 +33,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
     def test_personalize_scipy(self):
         """
         Load logistic model from file, and personalize it to data from ...
-        :return:
         """
         # Inputs
         data = Data.from_csv_file(example_data_path)
@@ -51,7 +49,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
     def test_personalize_scipy_diag_noise(self):
         """
         Load logistic model (diag noise) from file, and personalize it to data from ...
-        :return:
         """
         # Inputs
         data = Data.from_csv_file(example_data_path)
@@ -70,7 +67,6 @@ class LeaspyPersonalizeTest(unittest.TestCase):
     def test_personalize_modereal(self):
         """
         Load logistic model from file, and personalize it to data from ...
-        :return:
         """
         # Inputs
         data = Data.from_csv_file(example_data_path)

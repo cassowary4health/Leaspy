@@ -3,17 +3,14 @@ from . import all_models
 class ModelFactory:
     """
     Return the wanted model given its name.
-
-    Methods
-    -------
-    model(name)
-        Return the model object corresponding to 'name' arg
     """
 
     @staticmethod
     def model(name, **kwargs):
         """
-        Return the model object corresponding to 'name' arg - check name type and value.
+        Return the model object corresponding to 'name' arg with possible `kwargs`
+
+        Check name type and value.
 
         Parameters
         ----------
@@ -24,8 +21,12 @@ class ModelFactory:
 
         Returns
         -------
-        model: leaspy.model.AbstractModel
-            A child class object of leaspy.model.AbstractModel class object determined by 'name'.
+        :class:`.AbstractModel`
+            A child class object of :class:`.models.AbstractModel` class object determined by 'name'.
+
+        See also
+        --------
+        leaspy.api.Leaspy
         """
         if type(name) == str:
             name = name.lower()

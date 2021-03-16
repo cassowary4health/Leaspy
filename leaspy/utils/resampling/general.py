@@ -10,7 +10,9 @@ import pandas as pd
 def compute_trajectory_of_population_resampling(timepoints,
                                                 individual_parameters,
                                                 leaspy_iter):
-
+    """
+    .. deprecated:: 1.0
+    """
     warnings.warn('compute_trajectory_of_population_resampling function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     assert len(leaspy_iter)==len(individual_parameters)
@@ -27,7 +29,9 @@ def get_age_at_abnormality_conversion_resampling(leaspy_iter,
                             individual_parameters,
                             timepoints,
                            cutoffs):
-
+    """
+    .. deprecated:: 1.0
+    """
     warnings.warn('get_age_at_abnormality_conversion_resampling function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     assert len(leaspy_iter)==len(individual_parameters)
@@ -48,7 +52,9 @@ def compute_subgroup_statistics_resampling(leaspy_iter,
                                  individual_parameters_iter,
                                  df_cofactors,
                                  idx_group):
-
+    """
+    .. deprecated:: 1.0
+    """
     warnings.warn('compute_subgroup_statistics_resampling function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     difference_subgroups_resampling = {}
@@ -70,7 +76,9 @@ def compute_subgroup_statistics_resampling(leaspy_iter,
 
 
 def compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_cofactors_dummy):
-
+    """
+    .. deprecated:: 1.0
+    """
     warnings.warn('compute_correlation_resampling function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
     assert len(leaspy_iter) == len(individual_parameters_iter)

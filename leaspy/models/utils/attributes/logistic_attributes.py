@@ -38,7 +38,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
 
     def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a `AttributesLogistic` class object.
+        Instantiate a `LogisticAttributes` class object.
 
         Parameters
         ----------

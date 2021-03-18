@@ -7,7 +7,7 @@ import torch
 from leaspy import __version__
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
+from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 
 

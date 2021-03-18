@@ -39,12 +39,12 @@ class AbstractAttributes:
 
     def __init__(self, name, dimension=None, source_dimension=None):
         """
-        Instantiate a AttributesAbstract class object.
+        Instantiate a AbstractAttributes class object.
         """
         self.name = name
 
         if not isinstance(dimension, int):
-            raise ValueError("In AttributesAbstract you must provide integer for the parameters `dimension`.")
+            raise ValueError("In AbstractAttributes you must provide integer for the parameters `dimension`.")
 
         self.dimension = dimension
         self.univariate = dimension == 1

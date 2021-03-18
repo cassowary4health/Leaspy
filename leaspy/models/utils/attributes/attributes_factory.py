@@ -15,7 +15,7 @@ class AttributesFactory:
         'linear': LinearAttributes,
         'univariate_linear': LinearAttributes,
 
-        #'mixed_linear-logistic': AttributesLogistic # TODO mixed check
+        #'mixed_linear-logistic': ... # TODO
     }
 
     @classmethod
@@ -31,7 +31,7 @@ class AttributesFactory:
 
         Returns
         -------
-        :class:`.AttributesAbstract`
+        :class:`.AbstractAttributes`
         """
         if type(name) == str:
             name = name.lower()

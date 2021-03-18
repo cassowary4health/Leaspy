@@ -1,7 +1,7 @@
 import torch
 
 from .abstract_multivariate_model import AbstractMultivariateModel
-from .utils.attributes.attributes_factory import AttributesFactory
+from .utils.attributes import AttributesFactory
 
 
 class MultivariateModel(AbstractMultivariateModel):

@@ -36,7 +36,7 @@ class LinearAttributes(AbstractManifoldModelAttributes):
 
     def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a AttributesLinear class object.
+        Instantiate a LinearAttributes class object.
 
         Parameters
         ----------

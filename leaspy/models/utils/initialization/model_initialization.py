@@ -582,7 +582,7 @@ def initialize_logistic_parallel(model, data, method="default"):
         raise ValueError("Initialization method not known")
 
     # Initialize the attribute
-    model.attributes = AttributesLogisticParallel(model.dimension, model.source_dimension)
+    model.attributes = LogisticParallelAttributes(model.dimension, model.source_dimension)
     model.attributes.update(['all'], model.parameters) # TODO : why is this not needed ???
     model.is_initialized = True
 
@@ -641,7 +641,7 @@ def initialize_logistic(model, data, method="default"):
             print('ok')
 
     # Initialize the attribute
-    model.attributes = AttributesLogistic(model.dimension, model.source_dimension)
+    model.attributes = LogisticAttributes(model.dimension, model.source_dimension)
     model.attributes.update(['all'], model.parameters)
     model.is_initialized = True
 

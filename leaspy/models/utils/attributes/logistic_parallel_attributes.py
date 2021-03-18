@@ -37,7 +37,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
     def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a `AttributesLogisticParallel` class object.
+        Instantiate a `LogisticParallelAttributes` class object.
 
         Parameters
         ----------

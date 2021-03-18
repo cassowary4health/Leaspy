@@ -205,10 +205,11 @@ Attributes used by the models.
     :template: class.rst
 
     attributes_factory.AttributesFactory
-    attributes_abstract.AttributesAbstract
-    attributes_linear.AttributesLinear
-    attributes_logistic.AttributesLogistic
-    attributes_logistic_parallel.AttributesLogisticParallel
+    abstract_attributes.AbstractAttributes
+    abstract_manifold_model_attributes.AbstractManifoldModelAttributes
+    linear_attributes.LinearAttributes
+    logistic_attributes.LogisticAttributes
+    logistic_parallel_attributes.LogisticParallelAttributes
 
 :mod:`leaspy.models.utils.initialization`: **Initialization methods**
 ---------------------------------------------------------------------

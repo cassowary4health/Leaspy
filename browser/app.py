@@ -7,8 +7,8 @@ import json
 
 
 
-application = Flask('leaspy', template_folder='templates')
-application._static_folder = 'static/'
+application = Flask(__name__, template_folder='templates')
+application._static_folder = 'static'
 
 @application.route("/")
 def index():

@@ -1,33 +1,46 @@
 from .abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 
 
-
 class LinearAttributes(AbstractManifoldModelAttributes):
     """
+    Attributes of leaspy linear models.
+
     Contains the common attributes & methods to update the linear model's attributes.
 
     Attributes
     ----------
+    name: str (default 'linear')
+        Name of the associated leaspy model.
     dimension: int
     source_dimension: int
-    betas: `torch.Tensor` (default None)
-    mixing_matrix: `torch.Tensor` (default None)
-        Matrix A such that w_i = A * s_i
-    orthonormal_basis: `torch.Tensor` (default None)
-    positions: `torch.Tensor` (default None)
-    velocities: `torch.Tensor` (default None)
-    name: str (default 'linear')
-        Name of the associated leaspy model. Used by ``update`` method.
+    univariate: bool
+        Whether model is univariate or not (i.e. dimension == 1)
+    has_sources: bool
+        Whether model has sources or not (not univariate and source_dimension >= 1)
     update_possibilities: tuple [str] (default ('all', 'g', 'v0', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
+    positions: :class:`torch.Tensor` [dimension] (default None)
+        positions = realizations['g'] such that "p0" = positions
+    velocities: :class:`torch.Tensor` [dimension] (default None)
+        Always positive: exp(realizations['v0'])
+    orthonormal_basis : :class:`torch.Tensor` [dimension, dimension - 1] (default None)
+    betas : :class:`torch.Tensor` [dimension - 1, source_dimension] (default None)
+    mixing_matrix : :class:`torch.Tensor` [dimension, source_dimension] (default None)
+        Matrix A such that w_i = A * s_i.
+
+    See also
+    --------
+    leaspy.models.univariate_model.UnivariateModel
+    leaspy.models.multivariate_model.MultivariateModel
     """
 
     def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a AttributesLinear class object.
+        Instantiate a LinearAttributes class object.
 
         Parameters
         ----------
+        name: str
         dimension: int
         source_dimension: int
         """
@@ -41,11 +54,19 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         Parameters
         ----------
         names_of_changed_values: list [str]
-            Must be one of - "all", "g", "v0", "betas". Raise an error otherwise.
-            "g" correspond to the attribute ``positions``.
-            "v0" correspond to the attribute ``velocities``.
+            Elements of list must be either:
+                * ``all`` (update everything)
+                * ``g`` correspond to the attribute :attr:`positions`.
+                * ``v0`` (``xi_mean`` if univariate) correspond to the attribute :attr:`velocities`.
+                * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
+                  to derive the :attr:`mixing_matrix`.
         values: dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
+
+        Raises
+        ------
+        ValueError
+            If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)
 

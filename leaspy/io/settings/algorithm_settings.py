@@ -4,7 +4,7 @@ import warnings
 
 from leaspy.io.settings import default_data_dir
 from leaspy.io.settings.outputs_settings import OutputsSettings
-
+from leaspy.algo.algo_factory import AlgoFactory
 
 class AlgorithmSettings:
     """
@@ -29,6 +29,12 @@ class AlgorithmSettings:
             * For `simulate` algorithms:
                 * `simulation`
 
+    model_initialization_method: str, optional
+        For fit algorithms, give a model initialization method,
+        according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
+    algo_initialization_method: str, optional
+        Personalize the algorithm initialization method,
+        according to those possible for the given algorithm (refer to its documentation in :mod:`.algo`).
     n_iter: int, optional
         Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
     n_burn_in_iter: int, optional
@@ -51,18 +57,23 @@ class AlgorithmSettings:
     ----------
     name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
         The algorithm's name.
-    **kwargs:
-        * seed: int, optional, default None
-            Used for stochastic algorithms.
-        * loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
-            The wanted loss.
-                * ``'MSE'``: MSE of all features
-                * ``'MSE_diag_noise'``: MSE per feature
-                * ``'crossentropy'``: used when the features are binary
-        * parameters: dict
-            Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
-        * logs: :class:`.OutputsSettings`, optional
-            Used to create a ``logs`` file during a model calibration containing convergence information.
+    model_initialization_method: str, optional
+      For fit algorithms, give a model initialization method,
+      according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
+    algo_initialization_method: str, optional
+      Personalize the algorithm initialization method,
+      according to those possible for the given algorithm (refer to its documentation in :mod:`.algos`).
+    seed: int, optional, default None
+      Used for stochastic algorithms.
+    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+      The wanted loss.
+          * ``'MSE'``: MSE of all features
+          * ``'MSE_diag_noise'``: MSE per feature
+          * ``'crossentropy'``: used when the features are binary
+    parameters: dict
+      Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
+    logs: :class:`.OutputsSettings`, optional
+      Used to create a ``logs`` file during a model calibration containing convergence information.
 
     See also
     --------
@@ -366,9 +377,8 @@ class AlgorithmSettings:
         self.loss = self._get_loss(settings)
         self.algorithm_initialization_method = self._get_algorithm_initialization_method(settings)
 
-        if settings['name'] not in ['mcmc_saem']:
-            return
-        self.model_initialization_method = self._get_model_initialization_method(settings)
+        if settings['name'] in AlgoFactory._algos['fit']:
+            self.model_initialization_method = self._get_model_initialization_method(settings)
 
     @staticmethod
     def _check_default_settings(settings):

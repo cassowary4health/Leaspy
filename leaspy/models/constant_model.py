@@ -1,7 +1,10 @@
 import torch
 
 from leaspy.models.generic_model import GenericModel
+from leaspy.utils.docs import doc_with_super
 
+
+@doc_with_super()
 class ConstantModel(GenericModel):
     """
     `ConstantModel` is a benchmark model that predicts constant values no matter of the patient's ages.
@@ -40,9 +43,7 @@ class ConstantModel(GenericModel):
         self.is_initialized = True
 
     def compute_individual_trajectory(self, timepoints, ip):
-        """
-        Compute scores values at the given timepoints given a subject's individual parameters.
-        """
+
         values = [ip[f] for f in self.features]
         return torch.tensor([[values] * len(timepoints)], dtype=torch.float32)
 

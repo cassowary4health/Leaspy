@@ -5,10 +5,15 @@ import torch
 from leaspy import __version__
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
+from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+from leaspy.utils.docs import doc_with_super, doc_with_
 
+# TODO refact? implement a single function
+# compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
+# TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
 
+@doc_with_super()
 class UnivariateModel(AbstractModel):
     """
     Univariate (logistic or linear) model for a single variable of interest.
@@ -40,16 +45,7 @@ class UnivariateModel(AbstractModel):
         self.load_hyperparameters(kwargs)
 
     def save(self, path, **kwargs):
-        """
-        Save Leaspy object as json model parameter file.
 
-        Parameters
-        ----------
-        path: str
-            Path to store the model's parameters.
-        **kwargs
-            Keyword arguments for json.dump method.
-        """
         model_parameters_save = self.parameters.copy()
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
@@ -69,6 +65,7 @@ class UnivariateModel(AbstractModel):
             json.dump(model_settings, fp, **kwargs)
 
     def load_hyperparameters(self, hyperparameters):
+
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
         if 'loss' in hyperparameters.keys():
@@ -96,6 +93,11 @@ class UnivariateModel(AbstractModel):
         self.attributes.update(['all'], self.parameters)
 
     def initialize_MCMC_toolbox(self):
+        """
+        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
+
+        TODO to move in a "MCMC-model interface"
+        """
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01}, # population parameter
             'attributes': AttributesFactory.attributes(self.name, dimension=1)
@@ -108,6 +110,18 @@ class UnivariateModel(AbstractModel):
     # CORE
     ##########
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+        """
+        Update the MCMC toolbox with a collection of realizations of model population parameters.
+
+        TODO to move in a "MCMC-model interface"
+
+        Parameters
+        ----------
+        name_of_the_variables_that_have_been_changed: container[str] (list, tuple, ...)
+            Names of the population parameters to update in MCMC toolbox
+        realizations : :class:`.CollectionRealization`
+            All the realizations to update MCMC toolbox with
+        """
         L = name_of_the_variables_that_have_been_changed
         values = {}
         if any(c in L for c in ('g', 'all')):
@@ -124,8 +138,22 @@ class UnivariateModel(AbstractModel):
             g = self.attributes.positions
         return g
 
-    # TODO generalize in abstract
     def compute_mean_traj(self, timepoints):
+        """
+        Compute trajectory of the model with individual parameters being the group-average ones.
+
+        TODO check dimensions of io?
+        TODO generalize in abstract manifold model
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor` [1, n_timepoints]
+
+        Returns
+        -------
+        :class:`torch.Tensor` [1, n_timepoints, dimension]
+            The group-average values at given timepoints
+        """
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
             'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
@@ -142,6 +170,7 @@ class UnivariateModel(AbstractModel):
             raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported. You gave {self.name}")
 
     def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=False):
+
         # Population parameters
         g = self._get_attributes(attribute_type)
         # Individual parameters
@@ -154,6 +183,7 @@ class UnivariateModel(AbstractModel):
         return model
 
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
+
         # Population parameters
         positions = self._get_attributes(attribute_type)
         # Individual parameters
@@ -169,24 +199,11 @@ class UnivariateModel(AbstractModel):
             return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
         elif self.name in ['linear', 'univariate_linear']:
             return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
         else:
             raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported. You gave {self.name}")
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-        '''
-        Parameters
-        ----------
-        timepoints
-        ind_parameters
-        attribute_type
 
-        Returns
-        -------
-        The Jacobian of the model with parameters order : [xi, tau, sources].
-        This function aims to be used in scipy_minimize.
-        '''
         # Population parameters
         positions = self._get_attributes(attribute_type)
 
@@ -209,7 +226,6 @@ class UnivariateModel(AbstractModel):
         return derivatives
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, MCMC=False):
-        # cf. AbstractModel.compute_jacobian_tensorized for doc
 
         # Population parameters
         g = self._get_attributes(MCMC)
@@ -335,3 +351,10 @@ class UnivariateModel(AbstractModel):
         }
 
         return variables_infos
+
+# document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
+doc_with_(UnivariateModel.compute_individual_tensorized_linear, UnivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (linear)'})
+doc_with_(UnivariateModel.compute_individual_tensorized_logistic, UnivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (logistic)'})
+
+doc_with_(UnivariateModel.compute_jacobian_tensorized_linear, UnivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (linear)'})
+doc_with_(UnivariateModel.compute_jacobian_tensorized_logistic, UnivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (logistic)'})

@@ -3,36 +3,45 @@ import torch
 from .abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 
 
-
 class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     """
+    Attributes of leaspy logistic parallel models.
+
     Contains the common attributes & methods of the logistic parallel models' attributes.
 
     Attributes
     ----------
+    name: str (default 'logistic_parallel')
+        Name of the associated leaspy model.
     dimension: int
     source_dimension: int
-    betas: `torch.Tensor` (default None)
-    deltas: `torch.Tensor` (default None)
-        deltas = [0, delta_2_realization, ..., delta_n_realization]
-    mixing_matrix: `torch.Tensor` (default None)
-        Matrix A such that w_i = A * s_i
-    orthonormal_basis: `torch.Tensor` (default None)
-    positions: `torch.Tensor` (default None)
-        positions = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
-    velocities: `torch.Tensor` (default None)
-    name: str (default 'logistic_parallel')
-        Name of the associated leaspy model. Used by ``update`` method.
-    update_possibilities: tuple [str] (default ('all', 'g', 'xi_mean', 'betas', 'deltas') )
+    has_sources: bool
+        Whether model has sources or not (source_dimension >= 1)
+    update_possibilities: tuple [str] (default ('all', 'g', 'xi_mean', 'deltas', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
+    positions: :class:`torch.Tensor` (scalar) (default None)
+        positions = exp(realizations['g']) such that "p0" = 1 / (1 + positions * exp(-deltas))
+    deltas: :class:`torch.Tensor` [dimension] (default None)
+        deltas = [0, delta_2_realization, ..., delta_n_realization]
+    velocities: :class:`torch.Tensor` (scalar) (default None)
+        Always positive: exp(realizations['xi_mean'])
+    orthonormal_basis : :class:`torch.Tensor` [dimension, dimension - 1] (default None)
+    betas : :class:`torch.Tensor` [dimension - 1, source_dimension] (default None)
+    mixing_matrix : :class:`torch.Tensor` [dimension, source_dimension] (default None)
+        Matrix A such that w_i = A * s_i.
+
+    See also
+    --------
+    leaspy.models.multivariate_parallel_model.MultivariateParallelModel
     """
 
     def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a `AttributesLogisticParallel` class object.
+        Instantiate a `LogisticParallelAttributes` class object.
 
         Parameters
         ----------
+        name: str
         dimension: int
         source_dimension: int
         """
@@ -61,11 +70,20 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         Parameters
         ----------
         names_of_changed_values: list [str]
-            Must be one of - "all", "g", "v0", "betas". Raise an error otherwise.
-            "g" correspond to the attribute ``positions``.
-            "v0" correspond to the attribute ``velocities``.
+            Elements of list must be either:
+                * ``all`` (update everything)
+                * ``g`` correspond to the attribute :attr:`positions`.
+                * ``xi_mean`` correspond to the attribute :attr:`velocities`.
+                * ``deltas`` correspond to the attribute :attr:`deltas`.
+                * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
+                  to derive the :attr:`mixing_matrix`.
         values: dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
+
+        Raises
+        ------
+        ValueError
+            If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)
 
@@ -82,7 +100,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
             compute_deltas = True
         if 'g' in names_of_changed_values:
             compute_positions = True
-        if ('v0' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
+        if 'xi_mean' in names_of_changed_values:
             compute_velocities = True
 
         if compute_betas:

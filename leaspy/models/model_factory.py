@@ -6,7 +6,7 @@ class ModelFactory:
     """
 
     @staticmethod
-    def model(name, **kwargs):
+    def model(name, **kwargs): # -> AbstractModel
         """
         Return the model object corresponding to 'name' arg with possible `kwargs`
 

@@ -7,10 +7,12 @@ import torch
 from leaspy import __version__
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
+from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+from leaspy.utils.docs import doc_with_super
 
 
+@doc_with_super()
 class AbstractMultivariateModel(AbstractModel):
     """
     Contains the common attributes & methods of the multivariate models.
@@ -44,12 +46,14 @@ class AbstractMultivariateModel(AbstractModel):
         # load hyperparameters
         self.load_hyperparameters(kwargs)
 
+    """
     def smart_initialization_realizations(self, data, realizations):
         # TODO : Qui a fait ça? A quoi ça sert?
         # means_time = torch.tensor([torch.mean(data.get_times_patient(i)) for
         # i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
         # realizations['tau'].tensor_realizations = means_time
         return realizations
+    """
 
     def initialize(self, dataset, method="default"):
         self.dimension = dataset.dimension
@@ -66,7 +70,28 @@ class AbstractMultivariateModel(AbstractModel):
 
     @abstractmethod
     def initialize_MCMC_toolbox(self):
-        raise NotImplementedError
+        """
+        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
+
+        TODO to move in a "MCMC-model interface"
+        """
+        pass
+
+    @abstractmethod
+    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+        """
+        Update the MCMC toolbox with a collection of realizations of model population parameters.
+
+        TODO to move in a "MCMC-model interface"
+
+        Parameters
+        ----------
+        name_of_the_variables_that_have_been_changed: container[str] (list, tuple, ...)
+            Names of the population parameters to update in MCMC toolbox
+        realizations : :class:`.CollectionRealization`
+            All the realizations to update MCMC toolbox with
+        """
+        pass
 
     def load_hyperparameters(self, hyperparameters):
         if 'dimension' in hyperparameters.keys():
@@ -123,9 +148,23 @@ class AbstractMultivariateModel(AbstractModel):
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
-        raise NotImplementedError
+        pass
 
     def compute_mean_traj(self, timepoints):
+        """
+        Compute trajectory of the model with individual parameters being the group-average ones.
+
+        TODO check dimensions of io?
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor` [1, n_timepoints]
+
+        Returns
+        -------
+        :class:`torch.Tensor` [1, n_timepoints, dimension]
+            The group-average values at given timepoints
+        """
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
             'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),

@@ -5,6 +5,8 @@ from .abstract_attributes import AbstractAttributes
 
 class AbstractManifoldModelAttributes(AbstractAttributes):
     """
+    Abstract base class for attributes of leaspy manifold models.
+
     Contains the common attributes & methods of the different attributes classes.
     Such classes are used to update the models' attributes.
 
@@ -15,28 +17,33 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
     Attributes
     ----------
+    name: str (default None)
+        Name of the associated leaspy model.
     dimension: int
     source_dimension: int
-    betas : :class:`torch.Tensor` (default None)
-    mixing_matrix : :class:`torch.Tensor` (default None)
-        Matrix A such that w_i = A * s_i.
-    positions : :class:`torch.Tensor` (default None)
-        Previously noted "g".
-    orthonormal_basis : :class:`torch.Tensor` (default None)
-    velocities : :class:`torch.Tensor` (default None)
-        Previously noted "v0".
-    name: str (default None)
-        Name of the associated leaspy model. Used by ``update`` method.
+    univariate: bool
+        Whether model is univariate or not (i.e. dimension == 1)
+    has_sources: bool
+        Whether model has sources or not (not univariate and source_dimension >= 1)
     update_possibilities: tuple [str], (default ('all', 'g', 'v0', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
+    positions : :class:`torch.Tensor` [dimension] (default None)
+        <!> Depending on the submodel it does not correspond to the same thing.
+    velocities : :class:`torch.Tensor` [dimension] (default None)
+        Vector of velocities for each feature (positive components).
+    orthonormal_basis : :class:`torch.Tensor` [dimension, dimension - 1] (default None)
+    betas : :class:`torch.Tensor` [dimension - 1, source_dimension] (default None)
+    mixing_matrix : :class:`torch.Tensor` [dimension, source_dimension] (default None)
+        Matrix A such that w_i = A * s_i.
     """
 
     def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a AttributesLinear class object.
+        Instantiate a AbstractManifoldModelAttributes class object.
 
         Parameters
         ----------
+        name: str
         dimension: int
         source_dimension: int
         """
@@ -51,7 +58,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             self.update_possibilities = ('all', 'g', 'xi_mean')
         else:
             if not isinstance(source_dimension, int):
-                raise ValueError("In AttributesAbstract you must provide integer for the parameters `source_dimension` for non univariate models.")
+                raise ValueError("In `AbstractManifoldModelAttributes` you must provide integer for the parameters `source_dimension` for non univariate models.")
 
             self.betas = None
             self.mixing_matrix = None

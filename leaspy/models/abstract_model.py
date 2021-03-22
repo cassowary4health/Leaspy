@@ -8,8 +8,7 @@ from leaspy.io.realizations.realization import Realization
 
 TWO_PI = 2 * math.pi
 
-
-# TODO: Check & complete docstrings
+# TODO? refact so to only contain methods needed for the Leaspy api + add another abstract class (interface) on top of it for MCMC fittable models + one for "manifold models"
 class AbstractModel(ABC):
     """
     Contains the common attributes & methods of the different models.
@@ -30,13 +29,29 @@ class AbstractModel(ABC):
         Gaussian distribution object to compute variables regularization
     """
 
-    def __init__(self, name):
-        self.is_initialized = False
+    def __init__(self, name: str):
+        self.is_initialized: bool = False
         self.name = name
         self.features = None
         self.parameters = None
-        self.loss = 'MSE'  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
+        self.loss: str = 'MSE'  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
+
+    @abstractmethod
+    def initialize(self, dataset, method = 'default'):
+        """
+        Initialize the model given a dataset and an initialization method.
+
+        After calling this method :attr:`is_initialized` should be True and model should be ready for use.
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            The dataset we want to initialize from.
+        method : str
+            A custom method to initialize the model
+        """
+        ...
 
     def load_parameters(self, parameters):
         """
@@ -328,7 +343,7 @@ class AbstractModel(ABC):
     @abstractmethod
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         """
-        The Jacobian of the model for each individual parameter.
+        Compute the jacobian of the model w.r.t. each individual parameter.
 
         This function aims to be used in :class:`.ScipyMinimize` to speed up optimization.
 

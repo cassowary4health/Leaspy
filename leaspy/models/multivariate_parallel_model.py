@@ -3,10 +3,13 @@ import torch
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
 
+from leaspy.utils.docs import doc_with_super
 
+
+@doc_with_super()
 class MultivariateParallelModel(AbstractMultivariateModel):
     """
-    Logistic model for multiple variables of interest, imposing same average evolution pace for all variables.
+    Logistic model for multiple variables of interest, imposing same average evolution pace for all variables (logistic curves are only time-shifted).
     """
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
@@ -43,20 +46,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         return model
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        '''
 
-        Parameters
-        ----------
-        timepoints
-        ind_parameters
-        attribute_type
-
-        Returns
-        -------
-        The Jacobian of the model with parameters order : [xi, tau, sources].
-        This function aims to be used in scipy_minimize.
-
-        '''
         # Population parameters
         g, deltas, a_matrix = self._get_attributes(attribute_type)
         deltas_exp = torch.exp(-deltas)
@@ -215,6 +205,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     ###################################
 
     def random_variable_informations(self):
+
         ## Population variables
         g_infos = {
             "name": "g",

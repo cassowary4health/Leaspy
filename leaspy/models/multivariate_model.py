@@ -3,10 +3,16 @@ import torch
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes import AttributesFactory
 
+from leaspy.utils.docs import doc_with_super, doc_with_
 
+# TODO refact? implement a single function
+# compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
+# TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
+
+@doc_with_super()
 class MultivariateModel(AbstractMultivariateModel):
     """
-    Logistic model for multiple variables of interest.
+    Manifold model for multiple variables of interest (logistic or linear formulation).
     """
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
@@ -33,6 +39,8 @@ class MultivariateModel(AbstractMultivariateModel):
             raise ValueError("Mutivariate model > Compute individual tensorized")
 
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
+
+        # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
@@ -53,6 +61,7 @@ class MultivariateModel(AbstractMultivariateModel):
         return LL # (n_individuals, n_timepoints, n_features)
 
     def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
+
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
         g_plus_1 = 1. + g
@@ -77,10 +86,8 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return model # (n_individuals, n_timepoints, n_features)
 
-    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        raise NotImplementedError
-
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+
         if self.name == 'logistic':
             return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
         elif self.name == 'linear':
@@ -91,19 +98,7 @@ class MultivariateModel(AbstractMultivariateModel):
             raise ValueError("Mutivariate model > Compute jacobian tensorized")
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-        '''
-        Parameters
-        ----------
-        timepoints
-        ind_parameters
-        attribute_type
 
-        Returns
-        -------
-        The Jacobian of the model with parameters order : [xi, tau, sources].
-        This function aims to be used in scipy_minimize.
-
-        '''
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
 
@@ -136,7 +131,6 @@ class MultivariateModel(AbstractMultivariateModel):
         return derivatives
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
-        # cf. AbstractModel.compute_jacobian_tensorized for doc
 
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
@@ -173,7 +167,16 @@ class MultivariateModel(AbstractMultivariateModel):
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
 
+    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
+        """
+        Not implemented.
+        """
+        raise NotImplementedError
+
     def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
+        """
+        Not implemented.
+        """
         raise NotImplementedError
 
     """
@@ -450,4 +453,14 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             variables_infos['sources'] = sources_infos
             variables_infos['betas'] = betas_infos
+
         return variables_infos
+
+# document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
+doc_with_(MultivariateModel.compute_individual_tensorized_linear, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (linear)'})
+doc_with_(MultivariateModel.compute_individual_tensorized_logistic, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (logistic)'})
+doc_with_(MultivariateModel.compute_individual_tensorized_mixed, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})
+
+doc_with_(MultivariateModel.compute_jacobian_tensorized_linear, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (linear)'})
+doc_with_(MultivariateModel.compute_jacobian_tensorized_logistic, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (logistic)'})
+doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})

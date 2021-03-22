@@ -1,7 +1,6 @@
 import warnings
 
 import torch
-from numpy import exp
 from scipy import stats
 
 # <!> circular imports
@@ -69,7 +68,7 @@ def get_lme_results(dataset, n_jobs=-1, **lme_fit_kwargs):
 
     Parameters
     ----------
-    dataset: leaspy.io.data.dataset.Dataset
+    dataset : :class:`.Dataset`
         Contains all the data wrapped into a leaspy Dataset object
     n_jobs: int
         Number of jobs in parallel when multiple features to init
@@ -112,6 +111,25 @@ def get_lme_results(dataset, n_jobs=-1, **lme_fit_kwargs):
     }
 
 def lme_init(model, dataset, fact_std=1., **kwargs):
+    """
+    Initialize the model's group parameters.
+
+    Parameters
+    ----------
+    model : :class:`.AbstractModel`
+        The model to initialize (must be an univariate or multivariate linear or logistic manifold model).
+    dataset : :class:`.Dataset`
+        Contains the individual scores.
+    fact_std : float
+        Multiplicative factor to apply on std-dev (tau, xi, noise) found naively with LME
+    **kwargs :
+        Additional kwargs passed to :func:`.get_lme_results`
+
+    Returns
+    -------
+    parameters: dict [str, `torch.Tensor`]
+        Contains the initialized model's group parameters.
+    """
 
     name = model.name
     loss = model.loss # has to be set directly at model init and not in algosettings step to be available here
@@ -119,9 +137,9 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
 
     multiv = 'univariate' not in name
 
-    print('Initialization with linear mixed-effects model...')
+    #print('Initialization with linear mixed-effects model...')
     lme = get_lme_results(dataset, **kwargs)
-    print()
+    #print()
 
     # init
     params = {}

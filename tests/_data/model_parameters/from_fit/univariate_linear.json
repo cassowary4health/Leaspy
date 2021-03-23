@@ -1,5 +1,5 @@
 {
-  "leaspy_version": "1.1.0-dev",
+  "leaspy_version": "1.1.1-dev",
   "name": "univariate_linear",
   "features": [
     "Y0"

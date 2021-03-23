@@ -225,7 +225,7 @@ class MultivariateModel(AbstractMultivariateModel):
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self, set_v0_prior = True):
+    def initialize_MCMC_toolbox(self, set_v0_prior = False):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
             'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
@@ -234,11 +234,11 @@ class MultivariateModel(AbstractMultivariateModel):
         population_dictionary = self._create_dictionary_of_population_realizations()
         self.update_MCMC_toolbox(["all"], population_dictionary)
 
-        # TODO maybe not here
-        # Initialize priors
+        # Initialize hyperpriors
         if set_v0_prior:
             self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
             self.MCMC_toolbox['priors']['s_v0'] = 0.1
+            # same on g?
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
@@ -314,6 +314,7 @@ class MultivariateModel(AbstractMultivariateModel):
             self.parameters['v0'] = (1 / (1 / (s_v0 ** 2) + 1 / (sigma_v0 ** 2))) * (
                         v0_emp / (sigma_v0 ** 2) + v0_mean / (s_v0 ** 2))
         else:
+            # new default
             self.parameters['v0'] = v0_emp
 
         if self.source_dimension != 0:

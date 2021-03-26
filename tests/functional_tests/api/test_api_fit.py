@@ -32,7 +32,7 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.8212, delta=tol_tau)
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 4.5039, delta=tol_tau)
         self.assertEqual(leaspy.model.parameters['xi_mean'], 0.0)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.9753, delta=tol)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.9220, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1314, delta=tol)
 
         diff_g = leaspy.model.parameters['g'] - torch.tensor([0.1262, 2.8975, 2.5396, 1.0504])
@@ -100,8 +100,8 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.parameters['g'], 1.6102, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 77.9064, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.3658, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.6736, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.5963, delta=tol)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.6563, delta=tol)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.5822, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1576, delta=tol)
 
         diff_deltas = leaspy.model.parameters['deltas'] - torch.tensor([-0.0848, -0.0065, -0.0105])
@@ -125,7 +125,7 @@ class LeaspyFitTest(unittest.TestCase):
 
         self.assertAlmostEqual(leaspy.model.parameters['g'], 1.6642, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.9500, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.1243, delta=tol)
+        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.0987, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.3786, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.7675, delta=tol)
 
@@ -180,7 +180,7 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.8314, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1114, delta=tol)
 
-    def test_fit_linear(self, tol=7e-2, tol_tau=2e-1):
+    def test_fit_linear(self, tol=1e-1, tol_tau=2e-1):
 
         # Inputs
         data = Data.from_csv_file(example_data_path)
@@ -200,7 +200,7 @@ class LeaspyFitTest(unittest.TestCase):
         self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.7079, delta=tol_tau)
         self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 4.8328, delta=tol_tau)
         self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], 0.0, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.9677, delta=tol)
+        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 1.04, delta=tol)
         self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1401, delta=tol)
 
         diff_g = leaspy.model.parameters['g'] - torch.tensor([0.4539, 0.0515, 0.0754, 0.2751])

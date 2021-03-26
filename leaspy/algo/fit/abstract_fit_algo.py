@@ -147,7 +147,11 @@ class AbstractFitAlgo(AbstractAlgo):
             model.update_model_parameters(dataset, realizations, burn_in_phase)
         else:
             sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
-            burn_in_step = 1. / (self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1)
+            # The algorithm is proven to converge if the sequence `burn_in_step` is positive, with an infinite sum \sum
+            # (\sum_k \epsilon_k = + \infty) but a finite sum of the squares (\sum_k \epsilon_k^2 < \infty )
+            # cf page 657 of the book that contains the paper
+            # "Construction of Bayesian deformable models via a stochastic approximation algorithm: a convergence study"
+            burn_in_step = 1. / (self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1)**0.8
             self.sufficient_statistics = {k: v + burn_in_step * (sufficient_statistics[k] - v)
                                           for k, v in self.sufficient_statistics.items()}
             model.update_model_parameters(dataset, self.sufficient_statistics, burn_in_phase)

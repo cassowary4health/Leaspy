@@ -3,6 +3,7 @@ from .multivariate_model import MultivariateModel
 from .multivariate_parallel_model import MultivariateParallelModel
 from .constant_model import ConstantModel
 from .lme_model import LMEModel
+from .linear_B import LinearB
 
 # flexible dictionary to have a simpler and more maintainable ModelFactory
 all_models = {
@@ -15,8 +16,9 @@ all_models = {
     'linear': MultivariateModel,
     'mixed_linear-logistic': MultivariateModel,
     'logistic_parallel': MultivariateParallelModel,
-
+    'linearB': LinearB,
     # naive models (for benchmarks)
     'lme': LMEModel,
     'constant': ConstantModel,
+    
 }

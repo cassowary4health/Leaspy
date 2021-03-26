@@ -17,7 +17,7 @@ class LinearB(AbstractMultivariateModel):
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters["v0"] = None
-        self.B= lambda x:x
+        self.B= lambda x :x
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 
     def load_parameters(self, parameters):

@@ -1,7 +1,9 @@
 import pandas as pd
+import torch
 
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.data.dataset import Dataset
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.io.logs.visualization.plotting import Plotting
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
@@ -237,6 +239,38 @@ class Leaspy:
                 estimations = pd.DataFrame([], index=ix).join(estimations)
 
         return estimations
+
+    def fit_B(self,data,algorithm_settings,personalize_settings,meta_settings):
+        """
+        Prend en entrée les données "data', le settings d'un fit classique "algorithm_settings" et le settings d'un fit pour 
+        retrouve les paramètres individuels "personalize settings", ainsi que le settings pour faire l'optimisation alternée
+        "meta_settings".
+        On retrouve dans meta_settings:
+        -nb_alter, le nombre d'optimisation alternée
+        -kernel, le noyau d'apprentissage codé en fonction pytorch
+        -C, la contrainte associée pour l'optimisation
+
+        """
+        self.model.B=lambda x:x#On initialise avec une fonction linéaire
+
+        nb_alter=meta_settings["nb_alter"]
+        init=torch.tensor([])#permettra de stocker les poids w afin d'initialiser intelligement
+        for i in range(nb_alter):
+            self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
+            ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
+            tps=data.timepoints
+            X=self.model.compute_individual_tensorized_latent(tps,ip)#On récupère les points de contrôle
+
+            self.model.B,init=self.update_B(X,data,meta_settings,init)#On met à jour la fonction B
+    
+    def update_B(self,X,data,meta_settings,init):
+        """
+        Update la valeur de B en fonction des nouveaux points de contrôle X pour fit les données. Init sert d'initialisation pour 
+        les poids w, meta_settings permet de donner les infos complémentaires, voir fitB
+        TODO à implémenter avec le bon solver, tester différentes approximations
+        """
+        raise NotImplementedError
+
 
     def simulate(self, individual_parameters, data, settings):
         r"""

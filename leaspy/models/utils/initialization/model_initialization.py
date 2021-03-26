@@ -51,6 +51,8 @@ def initialize_parameters(model, dataset, method="default"):
         parameters = initialize_logistic_parallel(model, dataset, method)
     elif name in ['linear', 'univariate_linear']:
         parameters = initialize_linear(model, dataset, method)
+    elif name == 'linearB':
+        parameters = initialize_linearB(model, dataset, method)
     #elif name == 'univariate':
     #    parameters = initialize_univariate(dataset, method)
     elif name == 'mixed_linear-logistic':
@@ -357,6 +359,105 @@ def initialize_logistic_parallel(model, dataset, method):
         'deltas': torch.zeros((model.dimension - 1,), dtype=torch.float32),
         'betas': betas
     }
+
+def initialize_linearB(model, dataset, method):
+    """
+    Initialize the linear model's group parameters.
+
+    Parameters
+    ----------
+    model : :class:`.AbstractModel`
+        The model to initialize.
+    dataset : :class:`.Dataset`
+        Contains the individual scores.
+
+    Returns
+    -------
+    parameters: dict [str, `torch.Tensor`]
+        Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
+    """
+   
+        
+    sum_ages = torch.sum(dataset.timepoints).item()
+    nb_nonzeros = (dataset.timepoints != 0).sum()
+
+    t0 = float(sum_ages) / float(nb_nonzeros)
+
+    df = dataset.to_pandas()
+    df.set_index(["ID", "TIME"], inplace=True)
+
+    positions, velocities = [[] for _ in range(model.dimension)], [[] for _ in range(model.dimension)]
+   
+    for idx in dataset.indices:
+        indiv_df = df.loc[idx]
+        ages = indiv_df.index.values
+        features = indiv_df.values
+
+        if len(ages) == 1:
+            continue
+
+        for dim in range(model.dimension):
+
+            ages_list, feature_list = [], []
+            for i, f in enumerate(features[:, dim]):
+                if f == f:
+                    feature_list.append(f)
+                    ages_list.append(ages[i])
+
+            if len(ages_list) < 2:
+                break
+            else:
+                slope, intercept, _, _, _ = stats.linregress(ages_list, feature_list)
+
+                value = intercept + t0 * slope
+
+                velocities[dim].append(slope)
+                positions[dim].append(value)
+
+    positions = [torch.tensor(_) for _ in positions]
+    positions = torch.tensor([torch.mean(_) for _ in positions], dtype=torch.float32)
+    velocities = [torch.tensor(_) for _ in velocities]
+    velocities = torch.tensor([torch.mean(_) for _ in velocities], dtype=torch.float32)
+
+    neg_velocities = velocities <= 0
+    if neg_velocities.any():
+        warnings.warn(f"Mean slope of individual linear regressions made at initialization is negative for {[f for f, vel in zip(model.features, velocities) if vel <= 0]}: not properly handled in model...")
+    velocities = velocities.clamp(min=1e-2)
+
+    # always take the log (even in non univariate model!)
+    velocities = torch.log(velocities).detach()
+
+    if 'univariate' in model.name:
+        xi_mean = velocities.squeeze()
+
+        parameters = {
+            'g': positions.squeeze(),
+            'tau_mean': torch.tensor(t0, dtype=torch.float32),
+            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'xi_mean': xi_mean,
+            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
+            'noise_std': torch.tensor(noise_std, dtype=torch.float32)
+        }
+    else:
+        parameters = {
+            'g': positions,
+            'v0': velocities,
+            'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
+            'tau_mean': torch.tensor(t0, dtype=torch.float32),
+            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'xi_mean': torch.tensor(0., dtype=torch.float32),
+            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
+            'sources_mean': torch.tensor(0., dtype=torch.float32),
+            'sources_std': torch.tensor(sources_std, dtype=torch.float32),
+            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
+        }
+
+    return parameters
+
+
+
+
 
 
 def initialize_linear(model, dataset, method):

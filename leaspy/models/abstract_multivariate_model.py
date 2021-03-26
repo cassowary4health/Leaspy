@@ -102,8 +102,10 @@ class AbstractMultivariateModel(AbstractModel):
             self.features = hyperparameters['features']
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
+        if 'B' in hyperparameters.keys():
+            self.B = hyperparameters['B']
 
-        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension')
+        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension','B')
         unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
         if len(unexpected_hyperparameters) > 0:
             raise ValueError(f"Only {', '.join([f'<{p}>' for p in expected_hyperparameters])} are valid hyperparameters "

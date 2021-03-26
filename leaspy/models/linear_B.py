@@ -17,6 +17,7 @@ class LinearB(AbstractMultivariateModel):
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters["v0"] = None
+        self.B= lambda x:x
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 
     def load_parameters(self, parameters):
@@ -28,18 +29,11 @@ class LinearB(AbstractMultivariateModel):
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
+    
+       
+
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        if self.name == 'logistic':
-            return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'linear':
-            return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_individual_tensorized_mixed(timepoints, ind_parameters, attribute_type)
-        else:
-            raise ValueError("Mutivariate model > Compute individual tensorized")
-
-    def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-
+        
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
@@ -58,47 +52,15 @@ class LinearB(AbstractMultivariateModel):
             wi = sources.matmul(mixing_matrix.t())
             LL += wi.unsqueeze(-2)
 
-        return LL # (n_individuals, n_timepoints, n_features)
+        if self.B== lambda x:x:
+            return LL # (n_individuals, n_timepoints, n_features)
+        else:#à voir en fonction de B
+            return self.B(LL)
 
-    def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
 
-        # Population parameters
-        g, v0, a_matrix = self._get_attributes(attribute_type)
-        g_plus_1 = 1. + g
-        b = g_plus_1 * g_plus_1 / g
-
-        # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
-
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
-        # Log likelihood computation
-        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
-        #v0 = v0.reshape(1, 1, -1) # not needed, automatic broadcast on last dim (n_features)
-
-        LL = v0 * reparametrized_time
-        if self.source_dimension != 0:
-            sources = ind_parameters['sources']
-            wi = sources.matmul(a_matrix.t())
-            LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
-        LL = 1. + g * torch.exp(-LL * b)
-        model = 1. / LL
-
-        return model # (n_individuals, n_timepoints, n_features)
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-
-        if self.name == 'logistic':
-            return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'linear':
-            return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
-        else:
-            raise ValueError("Mutivariate model > Compute jacobian tensorized")
-
-    def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-
+        #à modifier
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
 
@@ -130,54 +92,9 @@ class LinearB(AbstractMultivariateModel):
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
+    
 
-        # Population parameters
-        g, v0, a_matrix = self._get_attributes(attribute_type)
-        g_plus_1 = 1. + g
-        b = g_plus_1 * g_plus_1 / g
-
-        # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
-
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
-        # Log likelihood computation
-        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
-        #v0 = v0.reshape(1, 1, -1) # not needed, automatic broadcast on last dim (n_features)
-
-        LL = v0 * reparametrized_time
-        if self.source_dimension != 0:
-            sources = ind_parameters['sources']
-            wi = sources.matmul(a_matrix.t())
-            LL += wi.unsqueeze(-2)
-        LL = 1. + g * torch.exp(-LL * b)
-        model = 1. / LL
-
-        c = model * (1. - model) * b
-        alpha = torch.exp(xi).reshape(-1, 1, 1)
-
-        derivatives = {
-            'xi': (c * v0 * reparametrized_time).unsqueeze(-1),
-            'tau': (c * -v0 * alpha).unsqueeze(-1),
-        }
-        if self.source_dimension > 0:
-            derivatives['sources'] = c.unsqueeze(-1) * a_matrix.expand((1,1,-1,-1))
-
-        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
-        return derivatives
-
-    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        """
-        Not implemented.
-        """
-        raise NotImplementedError
-
-    def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        """
-        Not implemented.
-        """
-        raise NotImplementedError
+    
 
     """
     def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):

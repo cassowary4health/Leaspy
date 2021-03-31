@@ -17,7 +17,7 @@ class LinearB(AbstractMultivariateModel):
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters["v0"] = None
-        self.B= lambda x :x
+        self.B= lambda x : x
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 
     def load_parameters(self, parameters):
@@ -52,10 +52,7 @@ class LinearB(AbstractMultivariateModel):
             wi = sources.matmul(mixing_matrix.t())
             LL += wi.unsqueeze(-2)
 
-        if self.B== lambda x:x:
-            return LL # (n_individuals, n_timepoints, n_features)
-        else:#à voir en fonction de B
-            return self.B(LL)
+        return self.B(LL)
 
     def compute_individual_tensorized_latent(self, timepoints, ind_parameters, attribute_type=None):
         
@@ -397,12 +394,3 @@ class LinearB(AbstractMultivariateModel):
             variables_infos['betas'] = betas_infos
 
         return variables_infos
-
-# document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
-doc_with_(MultivariateModel.compute_individual_tensorized_linear, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (linear)'})
-doc_with_(MultivariateModel.compute_individual_tensorized_logistic, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (logistic)'})
-doc_with_(MultivariateModel.compute_individual_tensorized_mixed, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})
-
-doc_with_(MultivariateModel.compute_jacobian_tensorized_linear, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (linear)'})
-doc_with_(MultivariateModel.compute_jacobian_tensorized_logistic, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (logistic)'})
-doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})

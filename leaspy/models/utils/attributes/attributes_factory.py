@@ -1,4 +1,4 @@
-from . import LogisticParallelAttributes, LogisticAttributes, LinearAttributes, linearB_attributes
+from . import LogisticParallelAttributes, LogisticAttributes, LinearAttributes, LinearBAttributes
 
 
 class AttributesFactory:
@@ -13,7 +13,7 @@ class AttributesFactory:
         'logistic_parallel': LogisticParallelAttributes,
 
         'linear': LinearAttributes,
-        'linearB': LinearBAttributes,
+        'linearb': LinearBAttributes,
         'univariate_linear': LinearAttributes,
 
         #'mixed_linear-logistic': ... # TODO

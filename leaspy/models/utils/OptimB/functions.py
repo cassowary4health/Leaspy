@@ -70,15 +70,11 @@ def FiltreNanHomogène(XT):
     Si un vecteur contient un Nan dans ses coordonnées on le retire
 
     """
-    dim=XT.shape[2]
 
 
-    A=XT[XT==XT]
-    nb_visit=len(A)//dim
+    Select=(XT==XT).all(axis=2)#fonctionne bien voir notebook test pour se convaincre
     
-    X=A.reshape(nb_visit,dim)
-    
-    return X
+    return XT[Select]
 
 def FiltreNanInHomogène(XT):
     """
@@ -86,18 +82,19 @@ def FiltreNanInHomogène(XT):
 
     Si un vecteur contient un Nan dans ses coordonnées on fait ????
 
-    à voir ensemble
+    à voir ensemble Sam + PE
 
     """
-    dim=XT.shape[2]
+    Select1=(XT==XT).all(axis=2)
 
+    PartHomo=XT[Select1]
+    
+    Select2=(XT!=XT).any(axis=2)*(XT==XT).any(axis=2)#voir test pour se convaincre
 
-    A=XT[XT==XT]
-    nb_visit=len(A)//dim
+    PartInHomo=XT[Select2]
     
-    X=A.reshape(nb_visit,dim)
-    
-    return X
+    #Pour l'instant on ne fait rien de la partie inhomogène
+    return PartHomo
 
 
 

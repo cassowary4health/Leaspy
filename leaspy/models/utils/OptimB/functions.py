@@ -1,6 +1,114 @@
 import torch
 
 
+def dist(data, centers):
+    distance = np.sum((np.array(centers) - data[:, None, :])**2, axis = 2)
+    return distance
+def kmeans_plus_plus(X, k, pdf_method = True):
+    '''Initialize one point at random.
+    loop for k - 1 iterations:
+        Next, calculate for each point the distance of the point from its nearest center. Sample a point with a 
+        probability proportional to the square of the distance of the point from its nearest center.'''
+    centers = []
+    
+    
+    # Sample the first point
+    initial_index = np.random.choice(range(X.shape[0]), )
+    centers.append(X[initial_index, :].tolist())
+    
+    print('max: ', np.max(np.sum((X - np.array(centers))**2)))
+    
+    # Loop and select the remaining points
+    for i in range(k - 1):
+        print(i)
+        distance = dist(X, np.array(centers))
+        
+        if i == 0:
+            pdf = distance/np.sum(distance)
+            centroid_new = X[np.random.choice(range(X.shape[0]), replace = False, p = pdf.flatten())]
+        else:
+            # Calculate the distance of each point from its nearest centroid
+            dist_min = np.min(distance, axis = 1)
+            if pdf_method == True:
+                pdf = dist_min/np.sum(dist_min)
+# Sample one point from the given distribution
+                centroid_new = X[np.random.choice(range(X.shape[0]), replace = False, p = pdf)]
+            else:
+                index_max = np.argmax(dist_min, axis = 0)
+                centroid_new = X[index_max, :]
+
+        centers.append(centroid_new.tolist())
+        
+    return np.array(centers)
+
+def Sub_sampling(X,k):
+    """
+    Prend X le tensor (nb_visite,dim) et sélectionne k points bien espacé renvoyé dans un tensor (k,dim)
+
+
+    """
+    Center=kmeans_plus_plus(X.numpy(), k)
+    return torch.from_numpy(Center)
+
+"""
+Pour filtrer les Nan, il faut réfléchir. Si on a des Nan réparti de manière inhomogène par exemple : [[Nan,Nan],[1,2]]
+on peut se permettre de supprimer le vecteur avec que des Nan, et supposer qu'on a plus de Nan ailleurs, on supprime aussi
+le label Y_i,j associé pour déterminer les poids.
+En revanche, si, comme dans la plupart des cas, on a des Nan répartis de manière inhomogène[[1,Nan],[NaN,2]], on se retrouve
+pas bien. En effet il ne suffit pas s'intéresser à chacune des composantes pour apprendre le noyau car si on veut calculer
+un noyau on est amener à calculer |x_i-x_j|, dans cette expression on se retrouve possiblement à avoir x_i=(Nan,1) et x_j=(1,2)
+dans ce cas, on peut supprimer les calculs avec Nan de telsorte que |x_i-x_j|=|1-2+ 0|. Cependant dans le cas x_i=[1,Nan] et
+x_j=[NaN,2], c'est inexploitable, on se retrouverai avec |x_i-x_j|=0
+
+
+"""
+
+def FiltreNanHomogène(XT):
+    """
+    Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
+
+    Si un vecteur contient un Nan dans ses coordonnées on le retire
+
+    """
+    dim=XT.shape[2]
+
+
+    A=XT[XT==XT]
+    nb_visit=len(A)//dim
+    
+    X=A.reshape(nb_visit,dim)
+    
+    return X
+
+def FiltreNanInHomogène(XT):
+    """
+    Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
+
+    Si un vecteur contient un Nan dans ses coordonnées on fait ????
+
+    à voir ensemble
+
+    """
+    dim=XT.shape[2]
+
+
+    A=XT[XT==XT]
+    nb_visit=len(A)//dim
+    
+    X=A.reshape(nb_visit,dim)
+    
+    return X
+
+
+
+
+
+
+
+
+
+
+
 def Matrix(X,meta_settings):
 """
 X est la donnée des points de controles un tensor de la forme (nb_pts,nb_dim), kernelname le nom du noyau à utiliser
@@ -9,13 +117,11 @@ cette fonction renvoie la matrice K_X
 """
     kernelname=meta_settings["kernelname"]
     sigma=meta_settings["sigma"]
-    nb_ind,nb_tp,nb_dim=X.shape
-    n=nb_ind*nb_tp
-    X1=X.reshape((n,nb_dim))
     
-    if kernelname="RBF":#le calcul est fait sans approximations
+    
+    if kernelname=="RBF":#le calcul est fait sans approximations
         sigma=meta_settings["sigma"]
-        Z=X1.unsqueeze(-2)
+        Z=X.unsqueeze(-2).numpy()
         L1=np.ones((n,1))
 
         PA1=np.kron(L1,Z)
@@ -35,7 +141,7 @@ def TransformationB(W,Control,meta_settings):
     Prend en entrée la matrice des poids, et les points de contrôles "Control" ainsi que meta_settings pour avoir des
     informations sur le noyau, W de forme (nb_controle,nb_features). On renvoie la fonction associée pour update B.
     """
-    if meta_settings[kernelname]="RBF":
+    if meta_settings[kernelname]=="RBF":
         sigma=meta_settings["sigma"]
         def function(x):
 

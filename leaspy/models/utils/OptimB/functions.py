@@ -17,11 +17,11 @@ def kmeans_plus_plus(X, k):
     index.append(initial_index)
     centers.append(X[initial_index, :].tolist())
     
-    print('max: ', np.max(np.sum((X - np.array(centers))**2)))
+    
     
     # Loop and select the remaining points
     for i in range(k - 1):
-        print(i)
+        
         distance = dist(X, np.array(centers))
         
         if i == 0:
@@ -42,16 +42,18 @@ def kmeans_plus_plus(X, k):
 
         centers.append(centroid_new.tolist())
         
-    return np.array(centers),index
+    return index.sort()
 
-def Sub_sampling(X,Y,k):
+def Sub_sampling(X,k):
     """
     Prend X le tensor (nb_visite,dim) et sélectionne k points bien espacé renvoyé dans un tensor (k,dim)
 
+    testé approuvé
+
 
     """
-    Center,index=kmeans_plus_plus(X.numpy(), k)
-    return torch.from_numpy(Center),index
+    index=kmeans_plus_plus(X.numpy(), k)
+    return index
 
 """
 Pour filtrer les Nan, il faut réfléchir. Si on a des Nan réparti de manière inhomogène par exemple : [[Nan,Nan],[1,2]]
@@ -71,6 +73,8 @@ def FiltreNanHomogène(XT,Y):
     Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
 
     Si un vecteur contient un Nan dans ses coordonnées on le retire
+
+    testé approuvé
 
     """
 
@@ -109,26 +113,28 @@ def FiltreNanInHomogène(XT):
 
 
 
-def Matrix(X,meta_settings):
+def Matrix(X,Xgrand,meta_settings):
     """
-    X est la donnée des points de controles un tensor de la forme (nb_pts,nb_dim), kernelname le nom du noyau à utiliser
-    cette fonction renvoie la matrice K_X
+    X est la donnée des points de controles un tensor de la forme (k,nb_dim) (k nombre de visite après subsampling), kernelname le nom du noyau à utiliser
+    cette fonction renvoie la matrice K_X=(k(x_i,x_j)) i <nb_visit+1, j<k+1
+    On a Xgrand (nb_visit,nb_dim) les points de controle sans subsampling
     """
     kernelname=meta_settings["kernelname"]
     sigma=meta_settings["sigma"]
+    k=len(X)
+    nb_visit=len(Xgrand)
     
     
     if kernelname=="RBF":#le calcul est fait sans approximations
         sigma=meta_settings["sigma"]
-        Z=X.unsqueeze(-2).numpy()
-        L1=np.ones((n,1))
+        
 
-        PA1=np.kron(L1,Z)
-        PA2=np.transpose(PA1,axes=(1,0,2))
+        PA1=Xgrand.repeat(k,1,1)
+        PA2=X.repeat(nb_visit,1,1).permute(1,0,2)
 
-        Y=torch.from_numpy(PA1-PA2)
+        PA3=PA1-PA2
 
-        K_X=torch.exp(-torch.norm(Y,dim=2)**2/(2*sigma**2))
+        K_X=torch.exp(-torch.norm(PA3,dim=2)**2/(2*sigma**2))
     else:
         raise ValueError("Le nom de noyau est mauvais ! ")
 
@@ -153,4 +159,8 @@ def TransformationB(W,Control,meta_settings):
 
 
 def solver(Matrice,Constante,meta_settings):
+    """
+    Prend en entrée les paramètres du problème quadratique (Matrice kxk + Constante vecteur de taille k)
+
+    """
     raise ValueError(("not implemented"))

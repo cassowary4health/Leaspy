@@ -278,11 +278,14 @@ class Leaspy:
         """
         k=meta_settings["k"]
         X1,Y1=FiltreNanHomogène(X,Y)
-        X_filtre,index=Sub_sampling(X1,k)
-        Y_filtre=Y[index]
+        index=Sub_sampling(X1,k)
 
-        Constante=X_filtre-Y_filtre
-        Mat=Matrix(X_filtre,meta_settings)
+        #Y_filtre=Y1[index] on est pas obligé de subsampler sur Y, on perd de l'info
+        X_filtre=X1[index]
+
+        Constante=X1-Y1
+        Mat=Matrix(X_filtre,X1,meta_settings)
+        #cette matrice est de taille (nb_visit,k), elle s'applique à chacun des poids w sur chacune des dimension
 
         W=solver(Mat,Constante,meta_settings)
         FonctionTensor=TransformationB(W, X_filtre, meta_settings)

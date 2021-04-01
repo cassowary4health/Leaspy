@@ -4,16 +4,17 @@ import torch
 def dist(data, centers):
     distance = np.sum((np.array(centers) - data[:, None, :])**2, axis = 2)
     return distance
-def kmeans_plus_plus(X, k, pdf_method = True):
+def kmeans_plus_plus(X, k):
     '''Initialize one point at random.
     loop for k - 1 iterations:
         Next, calculate for each point the distance of the point from its nearest center. Sample a point with a 
         probability proportional to the square of the distance of the point from its nearest center.'''
     centers = []
-    
+    index=[]
     
     # Sample the first point
     initial_index = np.random.choice(range(X.shape[0]), )
+    index.append(initial_index)
     centers.append(X[initial_index, :].tolist())
     
     print('max: ', np.max(np.sum((X - np.array(centers))**2)))
@@ -25,30 +26,32 @@ def kmeans_plus_plus(X, k, pdf_method = True):
         
         if i == 0:
             pdf = distance/np.sum(distance)
-            centroid_new = X[np.random.choice(range(X.shape[0]), replace = False, p = pdf.flatten())]
+            indexcour=np.random.choice(range(X.shape[0]), replace = False, p = pdf.flatten())
+            centroid_new = X[indexcour]
+            index.append(indexcour)
         else:
             # Calculate the distance of each point from its nearest centroid
             dist_min = np.min(distance, axis = 1)
-            if pdf_method == True:
-                pdf = dist_min/np.sum(dist_min)
+            
+            pdf = dist_min/np.sum(dist_min)
 # Sample one point from the given distribution
-                centroid_new = X[np.random.choice(range(X.shape[0]), replace = False, p = pdf)]
-            else:
-                index_max = np.argmax(dist_min, axis = 0)
-                centroid_new = X[index_max, :]
+            indexcour=np.random.choice(range(X.shape[0]), replace = False, p = pdf)
+            centroid_new = X[indexcour]
+            index.append(indexcour)
+            
 
         centers.append(centroid_new.tolist())
         
-    return np.array(centers)
+    return np.array(centers),index
 
-def Sub_sampling(X,k):
+def Sub_sampling(X,Y,k):
     """
     Prend X le tensor (nb_visite,dim) et sélectionne k points bien espacé renvoyé dans un tensor (k,dim)
 
 
     """
-    Center=kmeans_plus_plus(X.numpy(), k)
-    return torch.from_numpy(Center)
+    Center,index=kmeans_plus_plus(X.numpy(), k)
+    return torch.from_numpy(Center),index
 
 """
 Pour filtrer les Nan, il faut réfléchir. Si on a des Nan réparti de manière inhomogène par exemple : [[Nan,Nan],[1,2]]
@@ -63,7 +66,7 @@ x_j=[NaN,2], c'est inexploitable, on se retrouverai avec |x_i-x_j|=0
 
 """
 
-def FiltreNanHomogène(XT):
+def FiltreNanHomogène(XT,Y):
     """
     Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
 
@@ -72,9 +75,9 @@ def FiltreNanHomogène(XT):
     """
 
 
-    Select=(XT==XT).all(axis=2)#fonctionne bien voir notebook test pour se convaincre
+    Select=((XT==XT).all(axis=2))*(Y==Y).all(axis=2)#fonctionne bien voir notebook test pour se convaincre
     
-    return XT[Select]
+    return XT[Select],Y[Select]
 
 def FiltreNanInHomogène(XT):
     """
@@ -107,11 +110,10 @@ def FiltreNanInHomogène(XT):
 
 
 def Matrix(X,meta_settings):
-"""
-X est la donnée des points de controles un tensor de la forme (nb_pts,nb_dim), kernelname le nom du noyau à utiliser
-
-cette fonction renvoie la matrice K_X
-"""
+    """
+    X est la donnée des points de controles un tensor de la forme (nb_pts,nb_dim), kernelname le nom du noyau à utiliser
+    cette fonction renvoie la matrice K_X
+    """
     kernelname=meta_settings["kernelname"]
     sigma=meta_settings["sigma"]
     
@@ -148,3 +150,7 @@ def TransformationB(W,Control,meta_settings):
         return function
     else:
         raise ValueError("Le nom de noyau est mauvais ! ")
+
+
+def solver(Matrice,Constante,meta_settings):
+    raise ValueError(("not implemented"))

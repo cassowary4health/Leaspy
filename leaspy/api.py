@@ -7,6 +7,7 @@ from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.io.logs.visualization.plotting import Plotting
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
+from leaspy.models.utils.OptimB.functions import Matrix,Sub_sampling,FiltreNanHomogène,solver,TransformationB
 
 
 class Leaspy:
@@ -254,22 +255,39 @@ class Leaspy:
         self.model.B=lambda x:x#On initialise avec une fonction linéaire
 
         nb_alter=meta_settings["nb_alter"]
-        init=torch.tensor([])#permettra de stocker les poids w afin d'initialiser intelligement
+        #init=torch.tensor([]) permettra de stocker les poids w afin d'initialiser intelligement, pas forcément besoin au début
         for i in range(nb_alter):
             self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
             ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
-            tps=data.timepoints
+            
+            dataset=Dataset(data)
+            
+            tps=dataset.timepoints
+
+            Y=dataset.values
             X=self.model.compute_individual_tensorized_latent(tps,ip)#On récupère les points de contrôle
 
-            self.model.B,init=self.update_B(X,data,meta_settings,init)#On met à jour la fonction B
+            self.model.B=self.update_B(X,Y,meta_settings)#On met à jour la fonction B
+            #On peut imaginer rajouter une initialisation spécifique du solver en fonction d'avant, on le ferai dans meta_setings
     
-    def update_B(self,X,data,meta_settings,init):
+    def update_B(self,X,Y,meta_settings):
         """
         Update la valeur de B en fonction des nouveaux points de contrôle X pour fit les données. Init sert d'initialisation pour 
         les poids w, meta_settings permet de donner les infos complémentaires, voir fitB
         TODO à implémenter avec le bon solver, tester différentes approximations
         """
-        raise NotImplementedError
+        k=meta_settings["k"]
+        X1,Y1=FiltreNanHomogène(X,Y)
+        X_filtre,index=Sub_sampling(X1,k)
+        Y_filtre=Y[index]
+
+        Constante=X_filtre-Y_filtre
+        Mat=Matrix(X_filtre,meta_settings)
+
+        W=solver(Mat,Constante,meta_settings)
+        FonctionTensor=TransformationB(W, X_filtre, meta_settings)
+
+        return FonctionTensor
 
 
     def simulate(self, individual_parameters, data, settings):

@@ -29,6 +29,43 @@ class LinearB(AbstractMultivariateModel):
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
+    def save(self, path, with_mixing_matrix=True, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        with_mixing_matrix: bool (default True)
+            Save the mixing matrix in the exported file in its 'parameters' section.
+            <!> It is not a real parameter and its value will be overwritten at model loading
+                (orthonormal basis is recomputed from other "true" parameters and mixing matrix is then deduced from this orthonormal basis and the betas)!
+            It was integrated historically because it is used for convenience in browser webtool and only there...
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
+        model_parameters_save = self.parameters.copy()
+
+        if with_mixing_matrix:
+            model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
+
+        for key, value in model_parameters_save.items():
+            if type(value) in [torch.Tensor]:
+                model_parameters_save[key] = value.tolist()
+
+        model_settings = {
+            'leaspy_version': __version__,
+            'name': self.name,
+            'features': self.features,
+            'dimension': self.dimension,
+            'source_dimension': self.source_dimension,
+            'loss': self.loss,
+            'parameters': model_parameters_save,
+            'B':self.B
+        }
+        with open(path, 'w') as fp:
+            json.dump(model_settings, fp, **kwargs)
     
        
 

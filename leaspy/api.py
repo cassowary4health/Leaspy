@@ -288,7 +288,8 @@ class Leaspy:
         #Matvalue (nb_visit,k), elle permet de calculer la loss
         #MatContrainte (k,k), elle permet de calculer la contrainte
 
-        W=solver(MatValue,MatContrainte,Constante,meta_settings)
+        W=solver(MatValue,MatContrainte,Constante,meta_settings)#On peut trouver les coefficients de W associé à chaque features
+        #indépenfants grâce à la tensorisation, les calculs peuvent être mené en parallèle
         FonctionTensor=TransformationB(W, X_filtre, meta_settings)
 
         return FonctionTensor

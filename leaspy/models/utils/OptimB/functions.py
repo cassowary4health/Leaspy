@@ -159,10 +159,34 @@ def TransformationB(W,Control,meta_settings):
     if meta_settings["kernelname"]=="RBF":
         sigma=meta_settings["sigma"]
         def function(x):
+            """
+            x doit être de la forme (n1,n2,n_dim) ou (n_1,n_dim)
 
-            KK=torch.exp(-torch.norm(Control-x,dim=1)**2/(2*sigma**2))
-            Fin=torch.matmul(KK,W).numpy()
-            return torch.from_numpy(np.sum(Fin,axis=1))
+            """
+            nb_dim=len(x.shape)
+            if nb_dim==3:
+                Control1=Control.repeat(x.shape[0],x.shape[1],1,1)
+                x1=x.unsqueeze(2)
+                
+                KK=torch.exp(-torch.norm(Control1-x1,dim=nb_dim)**2/(2*sigma**2))
+                
+                W1=W.double()
+                Fin=torch.matmul(KK,W1)
+                return Fin
+            elif nb_dim==2:
+                Control1=Control.repeat(x.shape[0],1,1)
+                x1=x.unsqueeze(1)
+                
+                
+                KK=torch.exp(-torch.norm(Control1-x1,dim=nb_dim)**2/(2*sigma**2))
+                
+
+                W1=W.double()
+                Fin=torch.matmul(KK,W1)
+                return Fin#de même dimension que x
+            else:
+                raise ValueError("La valeur de x a une mauvaise shape, les formats acceptés sont (n,dim) ou (n1,n2 ,dim) ")
+
         return function
     else:
         raise ValueError("Le nom de noyau est mauvais ! ")

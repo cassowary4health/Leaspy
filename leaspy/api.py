@@ -284,10 +284,11 @@ class Leaspy:
         X_filtre=X1[index]
 
         Constante=X1-Y1
-        Mat=Matrix(X_filtre,X1,meta_settings)
-        #cette matrice est de taille (nb_visit,k), elle s'applique à chacun des poids w sur chacune des dimension
+        MatValue,MatContrainte=Matrix(X_filtre,X1,meta_settings)
+        #Matvalue (nb_visit,k), elle permet de calculer la loss
+        #MatContrainte (k,k), elle permet de calculer la contrainte
 
-        W=solver(Mat,Constante,meta_settings)
+        W=solver(MatValue,MatContrainte,Constante,meta_settings)
         FonctionTensor=TransformationB(W, X_filtre, meta_settings)
 
         return FonctionTensor

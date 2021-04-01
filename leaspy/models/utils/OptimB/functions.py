@@ -134,11 +134,21 @@ def Matrix(X,Xgrand,meta_settings):
 
         PA3=PA1-PA2
 
-        K_X=torch.exp(-torch.norm(PA3,dim=2)**2/(2*sigma**2))
+        K_value=torch.exp(-torch.norm(PA3,dim=2)**2/(2*sigma**2)).copy()
+
+        PA1=X.repeat(k,1,1)
+        PA2=X.repeat(k,1,1).permute(1,0,2)
+
+        PA3=PA1-PA2
+
+        K_contrainte=torch.exp(-torch.norm(PA3,dim=2)**2/(2*sigma**2)).copy()
+
+
+
     else:
         raise ValueError("Le nom de noyau est mauvais ! ")
 
-    return K_X
+    return K_value,K_contrainte
 
 
 def TransformationB(W,Control,meta_settings):
@@ -146,7 +156,7 @@ def TransformationB(W,Control,meta_settings):
     Prend en entrée la matrice des poids, et les points de contrôles "Control" ainsi que meta_settings pour avoir des
     informations sur le noyau, W de forme (nb_controle,nb_features). On renvoie la fonction associée pour update B.
     """
-    if meta_settings[kernelname]=="RBF":
+    if meta_settings["kernelname"]=="RBF":
         sigma=meta_settings["sigma"]
         def function(x):
 
@@ -158,9 +168,18 @@ def TransformationB(W,Control,meta_settings):
         raise ValueError("Le nom de noyau est mauvais ! ")
 
 
-def solver(Matrice,Constante,meta_settings):
+def solver(MatValue,MatContrainte,Constante,meta_settings):
     """
-    Prend en entrée les paramètres du problème quadratique (Matrice kxk + Constante vecteur de taille k)
+    Prend en entrée les paramètres du problème permettant de reconstruire le problème quadratique 
 
     """
+    Hess=torch.matmul(MatValue.transpose(0,1),MatValue)/2
+
+    LinConstnate=torch.matmul(MatValue.transpose(0,1),Constante)
+
+
+
+
+
+
     raise ValueError(("not implemented"))

@@ -1,9 +1,10 @@
 import torch
-
+import numpy as np
 
 def dist(data, centers):
     distance = np.sum((np.array(centers) - data[:, None, :])**2, axis = 2)
     return distance
+
 def kmeans_plus_plus(X, k):
     '''Initialize one point at random.
     loop for k - 1 iterations:
@@ -42,9 +43,11 @@ def kmeans_plus_plus(X, k):
 
         centers.append(centroid_new.tolist())
         
-    return index.sort()
+    index.sort()
 
-def Sub_sampling(X,k):
+    return index
+
+def sub_sampling(X,k):
     """
     Prend X le tensor (nb_visite,dim) et sélectionne k points bien espacé renvoyé dans un tensor (k,dim)
 
@@ -52,7 +55,7 @@ def Sub_sampling(X,k):
 
 
     """
-    index=kmeans_plus_plus(X.numpy(), k)
+    index = kmeans_plus_plus(X.numpy(), k)
     return index
 
 """
@@ -68,7 +71,7 @@ x_j=[NaN,2], c'est inexploitable, on se retrouverai avec |x_i-x_j|=0
 
 """
 
-def FiltreNanHomogène(XT,Y):
+def filtre_nan_homogene(XT,Y):
     """
     Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
 
@@ -83,7 +86,7 @@ def FiltreNanHomogène(XT,Y):
     
     return XT[Select],Y[Select]
 
-def FiltreNanInHomogène(XT):
+def filtre_nan_inhomogene(XT):
     """
     Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
 
@@ -109,88 +112,99 @@ def FiltreNanInHomogène(XT):
 
 
 
+class KernelFactory:
+
+    @staticmethod
+    def rbf_kernel(X_points, meta_settings, X_control = None):
+        '''
+
+        Parameters
+        ----------
+        X_points : torch vector (N, features_dimension) or (n_ind, n_visits, features_dimension)
+        with N points used for which we want kernel estimation
+        meta_settings : dictionary with all settings
+        X_control : optional, torch vector with control points used for kernel estimation
+
+        Returns
+        The matrix K(X_points_i, X_control_j) with the kernel K being the RBF with sigma given in the meta settings
+        If X_control is None, compute The matrix K(X_points_i, X_points_j)
+        -------
+
+        '''
+        sigma = meta_settings["sigma"]
+        if X_control is None:
+            X_control = X_points
+        k = len(X_control)
+
+        ndim = len(X_points.shape)
+
+        if ndim == 2:
+            nb_visit = len(X_points)
+
+            PA1 = X_points.unsqueeze(0).repeat(k, 1, 1).permute(1, 0, 2)
+            PA2 = X_control.unsqueeze(0).repeat(nb_visit, 1, 1)
+
+        elif ndim == 3:
+            n_ind = X_points.shape[0]
+            n_visits = X_points.shape[1]
+
+            PA1 = X_points.unsqueeze(0).repeat(k, 1, 1, 1).permute(1, 2, 0, 3)
+            PA2 = X_control.unsqueeze(0).unsqueeze(0).repeat(n_ind, n_visits, 1, 1)
+
+        PA3 = PA1 - PA2
+
+        K_value = torch.exp(-torch.norm(PA3, dim=-1) ** 2 / (2 * sigma ** 2))
+
+        return K_value
+
+    @staticmethod
+    def get_kernel(name, meta_settings):
+        if name in ["RBF", "gaussian"]:
+            return lambda x, X_control=None: KernelFactory.rbf_kernel(x, meta_settings, X_control=X_control)
+        else:
+            raise NotImplementedError("Your kernel {} is not available".format(name))
 
 
 
 
-def Matrix(X,Xgrand,meta_settings):
-    """
-    X est la donnée des points de controles un tensor de la forme (k,nb_dim) (k nombre de visite après subsampling), kernelname le nom du noyau à utiliser
-    cette fonction renvoie la matrice K_X=(k(x_i,x_j)) i <nb_visit+1, j<k+1
-    On a Xgrand (nb_visit,nb_dim) les points de controle sans subsampling
-    """
-    kernelname=meta_settings["kernelname"]
-    sigma=meta_settings["sigma"]
-    k=len(X)
-    nb_visit=len(Xgrand)
-    
-    
-    if kernelname=="RBF":#le calcul est fait sans approximations
-        sigma=meta_settings["sigma"]
-        
+def compute_kernel_matrix(X_points, meta_settings, X_control = None):
+    '''
 
-        PA1=Xgrand.repeat(k,1,1)
-        PA2=X.repeat(nb_visit,1,1).permute(1,0,2)
+        Parameters
+        ----------
+        X_points : torch vector (N, features_dimension) or (n_ind, n_visits, features_dimension)
+        with N points used for which we want kernel estimation
+        meta_settings : dictionary with all settings
+        X_control : optional, torch vector with control points used for kernel estimation
 
-        PA3=PA1-PA2
+        Returns
+        The matrix K(x_i, x_j) with the kernel K specified by meta_settings["kernelname"]
+        -------
 
-        K_value=torch.exp(-torch.norm(PA3,dim=2)**2/(2*sigma**2)).copy()
+        '''
+    kernel_name = meta_settings["kernel_name"]
+    kernel = KernelFactory.get_kernel(kernel_name, meta_settings)
 
-        PA1=X.repeat(k,1,1)
-        PA2=X.repeat(k,1,1).permute(1,0,2)
-
-        PA3=PA1-PA2
-
-        K_contrainte=torch.exp(-torch.norm(PA3,dim=2)**2/(2*sigma**2)).copy()
+    return kernel(X_points, X_control = X_control)
 
 
+def transformation_B(X_control, W, meta_settings):
+    '''
 
-    else:
-        raise ValueError("Le nom de noyau est mauvais ! ")
+    Parameters
+    ----------
+    X_control : torch vector (N, features_dimension) with N points used for which we want kernel estimation
+    W : torch vector (N, features_dimension) of the weights associated with control points for kernel estimation
+    meta_settings : dictionary with all settings
 
-    return K_value,K_contrainte
+    Returns
+    -------
+    The function B computing the geodesics, taking as arguments :
+    X_points : torch vector (n_points, features_dimension) of points for which we want to compute B(X_points)
+    and returns the application of B to X_points of size (n_points, features_dimension)
+    '''
 
-
-def TransformationB(W,Control,meta_settings):
-    """
-    Prend en entrée la matrice des poids, et les points de contrôles "Control" ainsi que meta_settings pour avoir des
-    informations sur le noyau, W de forme (nb_controle,nb_features). On renvoie la fonction associée pour update B.
-    """
-    if meta_settings["kernelname"]=="RBF":
-        sigma=meta_settings["sigma"]
-        def function(x):
-            """
-            x doit être de la forme (n1,n2,n_dim) ou (n_1,n_dim)
-
-            """
-            nb_dim=len(x.shape)
-            if nb_dim==3:
-                Control1=Control.repeat(x.shape[0],x.shape[1],1,1)
-                x1=x.unsqueeze(2)
-                
-                KK=torch.exp(-torch.norm(Control1-x1,dim=nb_dim)**2/(2*sigma**2))
-                
-                W1=W.double()
-                Fin=torch.matmul(KK,W1)
-                return Fin
-            elif nb_dim==2:
-                Control1=Control.repeat(x.shape[0],1,1)
-                x1=x.unsqueeze(1)
-                
-                
-                KK=torch.exp(-torch.norm(Control1-x1,dim=nb_dim)**2/(2*sigma**2))
-                
-
-                W1=W.double()
-                Fin=torch.matmul(KK,W1)
-                return Fin#de même dimension que x
-            else:
-                raise ValueError("La valeur de x a une mauvaise shape, les formats acceptés sont (n,dim) ou (n1,n2 ,dim) ")
-
-        return function
-    else:
-        raise ValueError("Le nom de noyau est mauvais ! ")
-
+    return lambda X_points : (X_points + compute_kernel_matrix(X_points, meta_settings, X_control = X_control) @ W).float()
 
 def solver(MatValue,MatContrainte,Constante,meta_settings):
     """

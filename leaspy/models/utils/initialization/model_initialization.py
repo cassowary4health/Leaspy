@@ -51,7 +51,7 @@ def initialize_parameters(model, dataset, method="default"):
         parameters = initialize_logistic_parallel(model, dataset, method)
     elif name in ['linear', 'univariate_linear']:
         parameters = initialize_linear(model, dataset, method)
-    elif name == 'linearB':
+    elif name == 'linearb':
         parameters = initialize_linearB(model, dataset, method)
     #elif name == 'univariate':
     #    parameters = initialize_univariate(dataset, method)

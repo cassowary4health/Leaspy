@@ -66,32 +66,8 @@ class LinearB(AbstractMultivariateModel):
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
-    
-       
 
-    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        
-        # Population parameters
-        positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
-        # Reshaping
-        velocities = velocities.reshape(1, 1, -1) # not needed in fact (automatic broadcasting on last dimension)
-        positions = positions.reshape(1, 1, -1) # same
-        reparametrized_time = reparametrized_time.unsqueeze(-1)
-
-        # Computation
-        LL = velocities * reparametrized_time + positions
-
-        if self.source_dimension != 0:
-            sources = ind_parameters['sources']
-            wi = sources.matmul(mixing_matrix.t())
-            LL += wi.unsqueeze(-2)
-
-        return self.B(LL)
-
-    def compute_individual_tensorized_latent(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
         
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
@@ -113,9 +89,10 @@ class LinearB(AbstractMultivariateModel):
 
         
         return LL # (n_individuals, n_timepoints, n_features)
-       
 
+    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
 
+        return self.B(self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type=attribute_type))
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         #à modifier

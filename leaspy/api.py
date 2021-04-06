@@ -7,7 +7,7 @@ from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.io.logs.visualization.plotting import Plotting
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
-from leaspy.models.utils.OptimB.functions import Matrix,Sub_sampling,FiltreNanHomogène,solver,TransformationB
+import leaspy.models.utils.OptimB as OptimB
 
 
 class Leaspy:
@@ -277,20 +277,20 @@ class Leaspy:
         TODO à implémenter avec le bon solver, tester différentes approximations
         """
         k=meta_settings["k"]
-        X1,Y1=FiltreNanHomogène(X,Y)
-        index=Sub_sampling(X1,k)
+        X1,Y1=OptimB.filtre_nan_homogene(X,Y)
+        index=OptimB.sub_sampling(X1,k)
 
         #Y_filtre=Y1[index] on est pas obligé de subsampler sur Y, on perd de l'info
         X_filtre=X1[index]
 
         Constante=X1-Y1
-        MatValue,MatContrainte=Matrix(X_filtre,X1,meta_settings)
+        MatValue,MatContrainte=OptimB.compute_kernel_matrix(X_filtre,X1,meta_settings)
         #Matvalue (nb_visit,k), elle permet de calculer la loss
         #MatContrainte (k,k), elle permet de calculer la contrainte
 
-        W=solver(MatValue,MatContrainte,Constante,meta_settings)#On peut trouver les coefficients de W associé à chaque features
+        W=OptimB.solver(MatValue,MatContrainte,Constante,meta_settings)#On peut trouver les coefficients de W associé à chaque features
         #indépenfants grâce à la tensorisation, les calculs peuvent être mené en parallèle
-        FonctionTensor=TransformationB(W, X_filtre, meta_settings)
+        FonctionTensor=OptimB.transformation_B(W, X_filtre, meta_settings)
 
         return FonctionTensor
 

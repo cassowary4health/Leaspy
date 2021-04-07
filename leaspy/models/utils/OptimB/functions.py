@@ -5,7 +5,7 @@ def dist(data, centers):
     distance = np.sum((np.array(centers) - data[:, None, :])**2, axis = 2)
     return distance
 
-def kmeans_plus_plus(X, k):
+def kmeans_plus_plus(X, k,select=10**(-5)):
     '''Initialize one point at random.
     loop for k - 1 iterations:
         Next, calculate for each point the distance of the point from its nearest center. Sample a point with a 
@@ -19,9 +19,9 @@ def kmeans_plus_plus(X, k):
     centers.append(X[initial_index, :].tolist())
     
     
-    
+    i=0
     # Loop and select the remaining points
-    for i in range(k - 1):
+    while i<k:
         
         distance = dist(X, np.array(centers))
         
@@ -30,6 +30,7 @@ def kmeans_plus_plus(X, k):
             indexcour=np.random.choice(range(X.shape[0]), replace = False, p = pdf.flatten())
             centroid_new = X[indexcour]
             index.append(indexcour)
+            i=i+1
         else:
             # Calculate the distance of each point from its nearest centroid
             dist_min = np.min(distance, axis = 1)
@@ -38,7 +39,13 @@ def kmeans_plus_plus(X, k):
 # Sample one point from the given distribution
             indexcour=np.random.choice(range(X.shape[0]), replace = False, p = pdf)
             centroid_new = X[indexcour]
-            index.append(indexcour)
+            distance = dist(centroid_new.reshape((1,-1)), np.array(centers))
+            dist_min = np.min(distance, axis = 1)
+            if dist_min>select:
+                index.append(indexcour)
+                i=i+1
+            
+
             
 
         centers.append(centroid_new.tolist())
@@ -47,7 +54,7 @@ def kmeans_plus_plus(X, k):
 
     return index
 
-def sub_sampling(X,k):
+def sub_sampling(X,k,select=10**(-5)):
     """
     Prend X le tensor (nb_visite,dim) et sélectionne k points bien espacé renvoyé dans un tensor (k,dim)
 
@@ -55,7 +62,7 @@ def sub_sampling(X,k):
 
 
     """
-    index = kmeans_plus_plus(X.numpy(), k)
+    index = kmeans_plus_plus(X.numpy(), k,select)
     return index
 
 """
@@ -205,6 +212,30 @@ def transformation_B(X_control, W, meta_settings):
     '''
 
     return lambda X_points : (X_points + compute_kernel_matrix(X_points, meta_settings, X_control = X_control) @ W).float()
+
+
+def transformation_B_compose(X_control, W, meta_settings,oldB):
+    '''
+
+    Parameters
+    ----------
+    X_control : torch vector (N, features_dimension) with N points used for which we want kernel estimation
+    W : torch vector (N, features_dimension) of the weights associated with control points for kernel estimation
+    meta_settings : dictionary with all settings
+    oldB: last transformatio,
+
+    Returns
+    -------
+    The function B computing the geodesics, taking as arguments :
+    X_points : torch vector (n_points, features_dimension) of points for which we want to compute B(X_points)
+    and returns the application of B to X_points of size (n_points, features_dimension)
+    composed with oldB
+    '''
+    def func(X_pts):
+        X_points=oldB(X_pts)
+        return (X_points + compute_kernel_matrix(X_points, meta_settings, X_control = X_control) @ W).float()
+
+    return func
 
 def solver(MatValue,MatContrainte,Constante,meta_settings):
     """

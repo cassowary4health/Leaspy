@@ -252,46 +252,46 @@ class Leaspy:
         -C, la contrainte associée pour l'optimisation
 
         """
-        self.model.B=lambda x:x#On initialise avec une fonction linéaire
+        if "B_init" in meta_settings.keys():
+            self.model.B=meta_settings["B_init"]
 
-        nb_alter=meta_settings["nb_alter"]
+        nb_compose=meta_settings["nb_compose"]
         #init=torch.tensor([]) permettra de stocker les poids w afin d'initialiser intelligement, pas forcément besoin au début
         for i in range(nb_alter):
             self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
             ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
             
             dataset=Dataset(data)
+            mask=dataset.mask
             
             tps=dataset.timepoints
 
             Y=dataset.values
             X=self.model.compute_individual_tensorized_latent(tps,ip)#On récupère les points de contrôle
 
-            self.model.B=self.update_B(X,Y,meta_settings)#On met à jour la fonction B
+            self.model.B=self.update_B(X,Y,mask,meta_settings)#On met à jour la fonction B
             #On peut imaginer rajouter une initialisation spécifique du solver en fonction d'avant, on le ferai dans meta_setings
     
-    def update_B(self,X,Y,meta_settings):
+    def update_B(self,X,Y,mask,meta_settings):
         """
         Update la valeur de B en fonction des nouveaux points de contrôle X pour fit les données. Init sert d'initialisation pour 
         les poids w, meta_settings permet de donner les infos complémentaires, voir fitB
         TODO à implémenter avec le bon solver, tester différentes approximations
         """
         k=meta_settings["k"]
-        X1,Y1=OptimB.filtre_nan_homogene(X,Y)
+        X1,Y1=OptimB.filtre_nan_homogene(X,Y,mask)
         index=OptimB.sub_sampling(X1,k)
 
         #Y_filtre=Y1[index] on est pas obligé de subsampler sur Y, on perd de l'info
         X_filtre=X1[index]
 
-        Constante=X1-Y1
-        MatValue,MatContrainte=OptimB.compute_kernel_matrix(X_filtre,X1,meta_settings)
-        #Matvalue (nb_visit,k), elle permet de calculer la loss
-        #MatContrainte (k,k), elle permet de calculer la contrainte
+        KG=OptimB.compute_kernel_matrix(X_points=X1,meta_settings=meta_settings,X_control=X_filtre)
+        #KG (nb_visit,k), elle permet de calculer la loss
+        #KG[index] la matrice de contraintes
 
-        W=OptimB.solver(MatValue,MatContrainte,Constante,meta_settings)#On peut trouver les coefficients de W associé à chaque features
-        #indépenfants grâce à la tensorisation, les calculs peuvent être mené en parallèle
-        FonctionTensor=OptimB.transformation_B(W, X_filtre, meta_settings)
-
+        W=OptimB.solver(X1,Y1,KG,index,self.model.dimension,meta_settings)
+        FonctionTensor=OptimB.transformation_B_compose(W, X_filtre, meta_settings,self.model.B)
+        self.model.saveB.append((W,X_filtre))
         return FonctionTensor
 
 

@@ -18,6 +18,7 @@ class LinearB(AbstractMultivariateModel):
         super().__init__(name, **kwargs)
         self.parameters["v0"] = None
         self.B= lambda x : x
+        self.saveB= []
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 
     def load_parameters(self, parameters):
@@ -62,7 +63,7 @@ class LinearB(AbstractMultivariateModel):
             'source_dimension': self.source_dimension,
             'loss': self.loss,
             'parameters': model_parameters_save,
-            'B':self.B
+            'saveB':self.saveB#faire une fonction pour recontruire B à partir de save B
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)

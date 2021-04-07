@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import cvxpy as cp
+from tqdm import tqdm
 
 def dist(data, centers):
     distance = np.sum((np.array(centers) - data[:, None, :])**2, axis = 2)
@@ -54,7 +56,7 @@ def kmeans_plus_plus(X, k,select=10**(-5)):
 
     return index
 
-def sub_sampling(X,k,select=10**(-5)):
+def sub_sampling(X,k):
     """
     Prend X le tensor (nb_visite,dim) et sélectionne k points bien espacé renvoyé dans un tensor (k,dim)
 
@@ -62,7 +64,7 @@ def sub_sampling(X,k,select=10**(-5)):
 
 
     """
-    index = kmeans_plus_plus(X.numpy(), k,select)
+    index = kmeans_plus_plus(X.numpy(), k)
     return index
 
 """
@@ -78,7 +80,7 @@ x_j=[NaN,2], c'est inexploitable, on se retrouverai avec |x_i-x_j|=0
 
 """
 
-def filtre_nan_homogene(XT,Y):
+def filtre_nan_homogene(XT,Y,mask):
     """
     Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
 
@@ -237,18 +239,107 @@ def transformation_B_compose(X_control, W, meta_settings,oldB):
 
     return func
 
-def solver(MatValue,MatContrainte,Constante,meta_settings):
+def solver(X, Y, K, indices, dim,meta_settings):
     """
     Prend en entrée les paramètres du problème permettant de reconstruire le problème quadratique 
 
     """
-    Hess=torch.matmul(MatValue.transpose(0,1),MatValue)/2
-
-    LinConstnate=torch.matmul(MatValue.transpose(0,1),Constante)
-
-
-
+    if meta_settings["solver_quad"]=="cvxpy":
+        W=optim_solver1(X, Y, K, indices, dim, meta_settings)
+    else:
+        W=optim_solver2(X, Y, K, indices, dim, meta_settings)
 
 
 
-    raise ValueError(("not implemented"))
+    return W
+
+
+
+def kernelreg(meta_settings,dim):
+    if meta_settings["kernel_name"]in ["RBF", "gaussian"]:
+        concon=meta_settings["sigma"]**2/dim
+        return concon
+    else:
+        raise NotImplementedError("Your kernel {} is not available".format(name))
+    
+
+
+def optim_solver1(X, Y, K, indices, dim, meta_settings):
+
+    convalue= kernelreg(meta_settings,dim)
+    W = cp.Variable((K.shape[1], dim))
+    K_ = cp.Parameter((K.shape[1], K.shape[1]), PSD=True)
+    K_.value = K[indices].detach().numpy()
+    X_ = X.detach().numpy()
+    Y_ = Y.detach().numpy()
+
+    constraints = [cp.atoms.sum([cp.atoms.quad_form(W[:,k], K_) for k in range(dim)]) <= convalue]
+    prob = cp.Problem(cp.Minimize(cp.atoms.norm(Y - (X + K.detach().numpy()@W),"fro")), constraints)
+    
+    prob.solve()
+    
+    return W.value
+
+import time
+import scipy.linalg as LA
+def optim_solver2(X, Y, K, indices, dim, meta_settings):
+    t1=time.clock()
+    KCC = K[indices].detach().numpy()
+    KG=K.detach().numpy()
+
+    Kred=KG.transpose()@KG
+    
+    X_ = X.detach().numpy()
+    Y_ = Y.detach().numpy()
+
+    Const=Y_-X_
+    DD=KG.transpose()@Const
+    lambd=1
+    lambdmin=1
+    Mat=lambd*KCC+Kred
+    
+    w,V=LA.eigh(Mat)
+    delta = np.abs(Mat - (V * w).dot(V.T))
+    print("erreur projection")
+    print(LA.norm(delta, ord=2))
+
+    W=np.linalg.solve(Mat,DD)
+
+    contrainte=kernelreg(meta_settings,dim)
+
+
+    g=lambda w: np.trace(w.transpose()@KCC@w)
+
+    while g(W)>contrainte:
+        print(lambd)
+        lambd,lambdmin=lambd*2,lambd
+        Mat=lambd*KCC+Kred
+        W=np.linalg.solve(Mat,DD)
+    #rajouter ensuite une recherche dicotomique du lambda optimal
+    f=lambda l: np.trace(np.linalg.solve(l*KCC+Kred,DD).transpose()@KCC@np.linalg.solve(l*KCC+Kred,DD))
+    lopt=dicho(lambdmin,lambd,contrainte,f)
+    Mat=lopt*KCC+Kred
+    W=np.linalg.solve(Mat,DD)
+    t2=time.clock()
+    print("temps opti quadra")
+    print(t2-t1)
+    return W
+
+
+def dicho(a,b,c,f,err=10**(-2)):
+    mi=a
+    ma=b
+    pivot=(mi+ma)/2
+    dec=abs(f(pivot)-c)
+    k=0
+    while dec>err and k<20:
+        k=k+1
+        comp=f(pivot)
+        if comp>c:
+            mi=pivot
+        else:
+            ma=pivot
+        pivot=(mi+ma)/2
+        dec=abs(f(pivot)-c)
+    return pivot
+        

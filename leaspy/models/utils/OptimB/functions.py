@@ -367,7 +367,7 @@ def optim_solver2(X, Y, K, indices, dim, meta_settings):
 
     W=np.linalg.solve(Mat,DD)
 
-    contrainte=kernelreg(meta_settings,dim)
+    contrainte=kernelreg(meta_settings,dim)-2*10**(-3)
 
 
     g=lambda w: np.trace(w.transpose()@KCC@w)
@@ -388,7 +388,7 @@ def optim_solver2(X, Y, K, indices, dim, meta_settings):
     return W
 
 
-def dicho(a,b,c,f,err=10**(-2)):
+def dicho(a,b,c,f,err=10**(-3)):
     """
      Parameters
     -----

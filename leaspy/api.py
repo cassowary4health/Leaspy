@@ -257,12 +257,14 @@ class Leaspy:
 
         Returns
         ----
-        None
+        the last individual parameters learned
         Update model.B
 
         """
         if "B_init" in meta_settings:
             self.model.B=meta_settings["B_init"]
+        else:
+            self.model.B=lambda x:x
         if "nb_compose" in meta_settings:
             nb_compose=meta_settings["nb_compose"]
         else:
@@ -271,17 +273,18 @@ class Leaspy:
         for i in range(nb_compose):
             self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
             ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
-            
+            _, ind_params = ip.to_pytorch()
             dataset=Dataset(data)
             mask=dataset.mask
             
             tps=dataset.timepoints
 
             Y=dataset.values.clone()
-            X=self.model.compute_individual_tensorized_latent(tps,ip)#On récupère les points de contrôle
+            X=self.model.compute_individual_tensorized(tps,ind_params)#On récupère les points de contrôle
 
             self.model.B=self.update_B(X,Y,mask,meta_settings)#On met à jour la fonction B
             #On peut imaginer rajouter une initialisation spécifique du solver en fonction d'avant, on le ferai dans meta_setings
+        return ip
     
     def update_B(self,X,Y,mask,meta_settings):
         """

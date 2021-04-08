@@ -268,14 +268,15 @@ def solver(X, Y, K, indices, dim,meta_settings):
         W: numpy.array (nb_control,dim), the solution of the constrained quadratic problem
 
     """
-    if meta_settings["solver_quad"]=="cvxpy":
-        W=optim_solver1(X, Y, K, indices, dim, meta_settings)
+    if "solver_quad" in meta_settings:
+        if meta_settings["solver_quad"]=="cvxpy":
+            W=optim_solver1(X, Y, K, indices, dim, meta_settings)
+        else:
+            W=optim_solver2(X, Y, K, indices, dim, meta_settings)
     else:
         W=optim_solver2(X, Y, K, indices, dim, meta_settings)
 
-
-
-    return W
+    return torch.from_numpy(W)
 
 
 

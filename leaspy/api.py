@@ -269,17 +269,16 @@ class Leaspy:
             nb_compose=meta_settings["nb_compose"]
         else:
             nb_compose=3
-        #init=torch.tensor([]) permettra de stocker les poids w afin d'initialiser intelligement, pas forcément besoin au début
+        
+        dataset=Dataset(data)
+        mask=dataset.mask
+            
+        tps=dataset.timepoints
+        Y=dataset.values.clone()
         for i in range(nb_compose):
             self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
             ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
             _, ind_params = ip.to_pytorch()
-            dataset=Dataset(data)
-            mask=dataset.mask
-            
-            tps=dataset.timepoints
-
-            Y=dataset.values.clone()
             X=self.model.compute_individual_tensorized(tps,ind_params)#On récupère les points de contrôle
 
             self.model.B=self.update_B(X,Y,mask,meta_settings)#On met à jour la fonction B
@@ -313,7 +312,7 @@ class Leaspy:
         #KG[index] la matrice de contraintes
 
         W=OptimB.solver(X1,Y1,KG,index,self.model.dimension,meta_settings)
-        FonctionTensor=OptimB.transformation_B_compose(W, X_filtre, meta_settings,self.model.B)
+        FonctionTensor=OptimB.transformation_B_compose( X_filtre,W, meta_settings,self.model.B)
         self.model.saveB.append((W,X_filtre))
         return FonctionTensor
 

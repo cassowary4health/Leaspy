@@ -58,9 +58,16 @@ def kmeans_plus_plus(X, k,select=10**(-5)):
 
 def sub_sampling(X,k):
     """
-    Prend X le tensor (nb_visite,dim) et sélectionne k points bien espacé renvoyé dans un tensor (k,dim)
+    Parameters
+    ----------
+        X: torch.tensor (nb_visite,dim) 
+        k: int (number of control points)
+    Returns:
+    ---------
+        index list of int, the indices of control points selected in X
+    We use kmeans_plus_plus to take points not so close in order to have a kernel matrix well specified
+    
 
-    testé approuvé
 
 
     """
@@ -82,14 +89,21 @@ x_j=[NaN,2], c'est inexploitable, on se retrouverai avec |x_i-x_j|=0
 
 def filtre_nan_homogene(XT,Y,mask):
     """
-    Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
+    Parameters
+    ----------
+        XT: torch tensor (nb_patient,nb_visit_max,dim) (latent points) et 
+        Y:  torch tensoir (nb_patient,nb_visit_max,dim) (tensors)
+        mask: torch tensor (nb_patient,nb_visit_max,dim) filled with 0 when there is no visit and 1 otherwise
 
-    Si un vecteur contient un Nan dans ses coordonnées on le retire
-
-    testé approuvé
+    Return:
+    -------
+        X,Y torch tensor (nb_visit,dim)
+    
 
     """
-
+    maskbool=mask.bool().logical_not()
+    XT[maskbool]=float("Nan")
+    Y[maskbool]=float("Nan")
 
     Select=((XT==XT).all(axis=2))*(Y==Y).all(axis=2)#fonctionne bien voir notebook test pour se convaincre
     
@@ -224,7 +238,7 @@ def transformation_B_compose(X_control, W, meta_settings,oldB):
     X_control : torch vector (N, features_dimension) with N points used for which we want kernel estimation
     W : torch vector (N, features_dimension) of the weights associated with control points for kernel estimation
     meta_settings : dictionary with all settings
-    oldB: last transformatio,
+    oldB: last transformation tensor -> tensor
 
     Returns
     -------
@@ -241,7 +255,17 @@ def transformation_B_compose(X_control, W, meta_settings,oldB):
 
 def solver(X, Y, K, indices, dim,meta_settings):
     """
-    Prend en entrée les paramètres du problème permettant de reconstruire le problème quadratique 
+    Parameters
+    -----
+        X: torch.tensor (nb_visit,dim) The points of the lattent space
+        Y: torch.tensor (nb_visit,dim)  to match with the kernel
+        K: torch.tensor(nb_visit,nb_control) kernel matrix associated to the kernel
+        indices: list of int, enables to select the control points
+        dim: int, dimension of the model
+        meta_settings: dict, containing information about the kernel
+    Returns
+    -----
+        W: numpy.array (nb_control,dim), the solution of the constrained quadratic problem
 
     """
     if meta_settings["solver_quad"]=="cvxpy":
@@ -256,6 +280,16 @@ def solver(X, Y, K, indices, dim,meta_settings):
 
 
 def kernelreg(meta_settings,dim):
+    """
+    Parameters
+    -----
+        meta_settings: Dict
+        dim: int, dimension of the model
+    Returns
+    -----
+        concon: Float, the constraint to respect associated to the kernel selected
+
+    """
     if meta_settings["kernel_name"]in ["RBF", "gaussian"]:
         concon=meta_settings["sigma"]**2/dim
         return concon
@@ -265,6 +299,20 @@ def kernelreg(meta_settings,dim):
 
 
 def optim_solver1(X, Y, K, indices, dim, meta_settings):
+    """
+    Parameters
+    -----
+        X: torch.tensor (nb_visit,dim) The points of the lattent space
+        Y: torch.tensor (nb_visit,dim)  to match with the kernel
+        K: torch.tensor(nb_visit,nb_control) kernel matrix associated to the kernel
+        indices: list of int, enables to select the control points
+        dim: int, dimension of the model
+        meta_settings: dict, containing information about the kernel
+    Returns
+    -----
+        W: numpy.array (nb_control,dim), the solution of the constrained quadratic problem
+
+    """
 
     convalue= kernelreg(meta_settings,dim)
     W = cp.Variable((K.shape[1], dim))
@@ -283,6 +331,19 @@ def optim_solver1(X, Y, K, indices, dim, meta_settings):
 import time
 import scipy.linalg as LA
 def optim_solver2(X, Y, K, indices, dim, meta_settings):
+    """
+    Parameters
+    -----
+        X: torch.tensor (nb_visit,dim) The points of the lattent space
+        Y: torch.tensor (nb_visit,dim)  to match with the kernel
+        indices: list of int, enables to select the control points
+        dim: int, dimension of the model
+        meta_settings: dict, containing information about the kernel
+    Returns
+    -----
+         W: numpy.array (nb_control,dim), the solution of the constrained quadratic problem
+
+    """
     t1=time.clock()
     KCC = K[indices].detach().numpy()
     KG=K.detach().numpy()
@@ -327,6 +388,19 @@ def optim_solver2(X, Y, K, indices, dim, meta_settings):
 
 
 def dicho(a,b,c,f,err=10**(-2)):
+    """
+     Parameters
+    -----
+        X: torch.tensor (nb_visit,dim) The points of the lattent space
+        Y: torch.tensor (nb_visit,dim)  to match with the kernel
+        indices: list of int, enables to select the control points
+        dim: int, dimension of the model
+        meta_settings: dict, containing information about the kernel
+    Returns
+    -----
+        concon: Float, the constraint to respect associated to the kernel selected
+
+    """
     mi=a
     ma=b
     pivot=(mi+ma)/2

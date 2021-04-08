@@ -243,21 +243,32 @@ class Leaspy:
 
     def fit_B(self,data,algorithm_settings,personalize_settings,meta_settings):
         """
-        Prend en entrée les données "data', le settings d'un fit classique "algorithm_settings" et le settings d'un fit pour 
-        retrouve les paramètres individuels "personalize settings", ainsi que le settings pour faire l'optimisation alternée
-        "meta_settings".
-        On retrouve dans meta_settings:
-        -nb_alter, le nombre d'optimisation alternée
-        -kernel, le noyau d'apprentissage codé en fonction pytorch
-        -C, la contrainte associée pour l'optimisation
+        Parameters
+        -----
+            ->data, LeaspydataObject
+            ->algorithm_settings, settings to optimize the leaspy model and find the global parameters
+            ->personalize_settings, settings to determine the individual parameters
+            ->meta_settings
+            -----
+                nb_compose, number of composition of transformation (id+f) with f in RKHS, default 3
+                kernel_name, the name of the kernel selected
+                nb_control_points, the number of control points to choose, default 10
+                B_init, function torch->torch, the initialisation
+
+        Returns
+        ----
+        None
+        Update model.B
 
         """
-        if "B_init" in meta_settings.keys():
+        if "B_init" in meta_settings:
             self.model.B=meta_settings["B_init"]
-
-        nb_compose=meta_settings["nb_compose"]
+        if "nb_compose" in meta_settings:
+            nb_compose=meta_settings["nb_compose"]
+        else:
+            nb_compose=3
         #init=torch.tensor([]) permettra de stocker les poids w afin d'initialiser intelligement, pas forcément besoin au début
-        for i in range(nb_alter):
+        for i in range(nb_compose):
             self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
             ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
             
@@ -266,7 +277,7 @@ class Leaspy:
             
             tps=dataset.timepoints
 
-            Y=dataset.values
+            Y=dataset.values.clone()
             X=self.model.compute_individual_tensorized_latent(tps,ip)#On récupère les points de contrôle
 
             self.model.B=self.update_B(X,Y,mask,meta_settings)#On met à jour la fonction B
@@ -274,11 +285,20 @@ class Leaspy:
     
     def update_B(self,X,Y,mask,meta_settings):
         """
-        Update la valeur de B en fonction des nouveaux points de contrôle X pour fit les données. Init sert d'initialisation pour 
-        les poids w, meta_settings permet de donner les infos complémentaires, voir fitB
-        TODO à implémenter avec le bon solver, tester différentes approximations
+        Parameters
+        ------
+            X torch.tensor (nb_patient,nb_max_visits,dim), the latent points
+            Y torch.tensor (nb_patient,nb_max_visits,dim), the features
+            mask torch.tensor (nb_patient,nb_max_visits,dim), filled with 0 to place the Nan
+            meta_settings, dict
+        Returns
+        ----
+        The fonction B to update, function tensor->tensor
         """
-        k=meta_settings["k"]
+        if "nb_control_points" in meta_settings:
+            k=meta_settings["nb_control_points"]
+        else:
+            k=min(10,len(X))
         X1,Y1=OptimB.filtre_nan_homogene(X,Y,mask)
         index=OptimB.sub_sampling(X1,k)
 

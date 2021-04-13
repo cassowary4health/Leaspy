@@ -242,6 +242,8 @@ class Plotting:
         else:
             raise ValueError("`individual_parameters` should be an IndividualParameters object, a pandas.DataFrame or a dict.")
 
+        assert ip_df.index.names == ['ID']
+
         return ip_df, ip_torch
 
     def _plot_patients_generic(self, case, data, patients_idx='all', individual_parameters=None, reparametrized_ages=False, **kwargs):
@@ -276,7 +278,7 @@ class Plotting:
         ax, features, features_ix, labels, colors = self._handle_kwargs_begin(kwargs, data.headers)
 
         # Data to dataframe (only selected patients)
-        df = data.to_dataframe().reset_index()
+        df = data.to_dataframe()
         df['ID'] = df['ID'].astype(str) # needed because of IndividualParameters converting ID int -> str
         df = df.set_index('ID').loc[patients_idx]
 
@@ -341,17 +343,18 @@ class Plotting:
         else:
             time_col = 'TIME'
 
-        for ind_id, ind_df in df.groupby('ID'):
+        df_with_time = df.set_index(df[time_col].rename('T'), append=True).sort_index()
+        df_with_time = df_with_time[features].dropna(how='all') # selected features only
 
-            timepoints = ind_df[time_col] # reparametrized before if needed
-            observations = ind_df[features] # selected features only
+        for ind_id, ind_df in df_with_time.groupby('ID'):
 
-            for (ft_name, s_ind_ft), ft_color in zip(observations.items(), colors):
+            for (ft_name, s_ind_ft), ft_color in zip(ind_df.items(), colors):
 
-                ft_not_nans = s_ind_ft.notnull()
+                s_ind_ft = s_ind_ft.dropna()
 
-                ax.plot(timepoints[ft_not_nans],
-                        s_ind_ft[ft_not_nans],
+                # TODO? use a cycle of markers to better distinguish individuals?
+                ax.plot(s_ind_ft.reset_index('T')['T'],
+                        s_ind_ft,
                         c=ft_color,
                         #label=ft_lbl, # legend is done afterwards
                         **plot_kws)

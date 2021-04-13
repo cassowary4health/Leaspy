@@ -5,7 +5,7 @@ from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 class ConstantPredictionAlgorithm(): # AbstractAlgo
     """
-    Personalization algorithm associated to leaspy.models.constant_model
+    Personalization algorithm associated to :class:`~.models.constant_model.ConstantModel`
 
     It could predict:
         * `last_known`: last non NaN value seen during calibration*§,
@@ -13,7 +13,7 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         * `max`: maximum (=worst) value seen during calibration*§,
         * `mean`: average of values seen during calibration§.
 
-    | \* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
+    | \\* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
     | § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
     """
 
@@ -31,6 +31,25 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         self.prediction_type = settings.parameters['prediction_type']
 
     def run(self, model, dataset):
+        """
+        Main method, refer to abstract definition in :meth:`~.algo.personalize.abstract_personalize_algo.AbstractPersonalizeAlgo.run`.
+
+        TODO fix proper inheritance
+
+        Parameters
+        ----------
+        model : :class:`~.models.constant_model.ConstantModel`
+            A subclass object of leaspy `ConstantModel`.
+        dataset : :class:`.Dataset`
+            Dataset object build with leaspy class objects Data, algo & model
+
+        Returns
+        -------
+        individual_parameters : :class:`.IndividualParameters`
+            Contains individual parameters.
+        noise_std: float
+            TODO: always 0 for now
+        """
         # TODO? we could fit the model before, only to recover model features, and then check at personalize that is the same (as in others personalize algos...)
         self.features = dataset.headers
         model.features = dataset.headers
@@ -50,15 +69,15 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         """
         Parameters
         ----------
-        times: np.ndarray[float]
+        times : :class:`numpy.ndarray` [float]
             shape (n_visits,)
 
-        values: np.ndarray[float]
+        values : :class:`numpy.ndarray` [float]
             shape (n_visits, n_features)
 
         Returns
         -------
-        dict[ft_name: constant_value_to_be_padded]
+        dict[ft_name: str, constant_value_to_be_padded]
         """
 
         # Return the maximum value
@@ -93,4 +112,7 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
 
 
     def set_output_manager(self, settings):
+        """
+        Not implemented.
+        """
         return

@@ -3,20 +3,20 @@ import unittest
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from .test_univariate_model import UnivariateModelTest
 
+from tests import allow_abstract_class_init
 
 class AbstractMultivariateModelTest(unittest.TestCase):
 
+    @allow_abstract_class_init(AbstractMultivariateModel)
     def test_constructor_abstract_multivariate(self, model=None):
         """
         Test attribute's initialization of leaspy abstract multivariate model
 
         Parameters
         ----------
-        model : leaspy.models.abstract_model.AbstractModel, optional (default None)
+        model : :class:`~.models.abstract_model.AbstractModel`, optional (default None)
             An instance of a subclass of leaspy AbstractModel.
         """
-        print('\nUnit-test AbstractMultivariateModel\n')
-
         if model is None:
             # Abstract Multivariate Model
             model = AbstractMultivariateModel('dummy')

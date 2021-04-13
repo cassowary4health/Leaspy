@@ -7,11 +7,25 @@ import json
 import torch
 import numpy as np
 
+from leaspy import __version__
+
 KwargsType = Dict[str, Any]
 
-# NEW: generic abstract base model
-# TODO: change naming after AbstractModel was renamed?
 class GenericModel(ABC):
+    """
+    Generic model (temporary until :class:`.AbstractModel` is really **abstract**).
+
+    TODO: change naming after AbstractModel was renamed?
+
+    Attributes
+    ----------
+    name: str
+    features: list[str]
+    dimension: int (read-only)
+        Number of features
+    parameters: dict
+    is_initialized: bool
+    """
 
     # to be changed in sub-classes so to benefit from automatic methods
 
@@ -41,6 +55,14 @@ class GenericModel(ABC):
     """
 
     def get_hyperparameters(self, *, with_properties = True, default = None):
+        """
+        Get all model hyperparameters
+
+        Returns
+        -------
+        dict
+        """
+
         all_hp_names = self._hyperparameters
         if with_properties:
             all_hp_names = itertools.chain(all_hp_names, self._properties)
@@ -50,6 +72,14 @@ class GenericModel(ABC):
         }
 
     def hyperparameters_ok(self) -> bool:
+        """
+        Check all model hyperparameters are ok
+
+        Returns
+        -------
+        bool
+        """
+
         d_ok = {
             hp_name: hp_val is not None #and check hp_val compatible with hp_type_hint
             #for hp_name, hp_type_hint in self._hyperparameters.items()
@@ -106,6 +136,14 @@ class GenericModel(ABC):
                 self.parameters[k] = list_converter(v)
 
     def load_hyperparameters(self, hyperparameters) -> None:
+        """
+        Load model hyperparameters from a dict
+
+        Parameters
+        ----------
+        hyperparameters: dict
+            Contains the model's hyperparameters
+        """
 
         # no total reset of hyperparameters here unlike in load_parameters...
 
@@ -137,20 +175,32 @@ class GenericModel(ABC):
         if dynamic_hps_provided != dynamic_hps_expected:
             raise ValueError(f"Dynamic hyperparameters provided do not correspond to the expected ones:\n{dynamic_hps_provided} != {dynamic_hps_expected}")
 
-    def save(self, path):
-        # default save, can be overwritten but should be generic...
+    def save(self, path, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        Default save method: it can be overwritten in child class but should be generic...
+
+        Parameters
+        ----------
+        path: str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for json.dump method.
+        """
         model_parameters_save = self.parameters.copy() # <!> shallow copy
         for param_name, param_val in model_parameters_save.items():
             if isinstance(param_val, (torch.Tensor, np.ndarray)):
                 model_parameters_save[param_name] = param_val.tolist()
 
         model_settings = {
+            'leaspy_version': __version__,
             'name': self.name,
             **self.get_hyperparameters(with_properties=True),
             'parameters': model_parameters_save
         }
         with open(path, 'w') as fp:
-            json.dump(model_settings, fp)
+            json.dump(model_settings, fp, **kwargs)
 
     @abstractmethod
     def compute_individual_trajectory(self, timepoints, individual_parameters, **kws) -> torch.Tensor:
@@ -159,7 +209,7 @@ class GenericModel(ABC):
 
         Parameters
         ----------
-        timepoints: scalar or array_like[scalar] (list, tuple, np.array)
+        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
         individual_parameters: dict
             Contains the individual parameters.
@@ -169,7 +219,7 @@ class GenericModel(ABC):
 
         Returns
         -------
-        torch.Tensor
+        :class:`torch.Tensor`
             Contains the subject's scores computed at the given age(s)
             Shape of tensor is (1, n_tpts, n_features)
         """

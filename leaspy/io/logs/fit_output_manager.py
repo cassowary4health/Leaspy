@@ -7,8 +7,12 @@ from leaspy.io.logs.visualization.plotter import Plotter
 
 class FitOutputManager:
     """
-    FitOutputManager class object
-    Class used by AbstractAlgo (and its child classes) to display plots and statistics and to save
+    Class used by :class:`.AbstractAlgo` (and its child classes) to display & save plots and statistics during algorithm execution.
+
+    Parameters
+    ----------
+    outputs : :class:`~.io.settings.outputs_settings.OutputsSettings`
+        Initialize the `FitOuputManager` class attributes, like the logs paths, the console print periodicity and so forth.
 
     Attributes
     ----------
@@ -34,45 +38,17 @@ class FitOutputManager:
     plot_options: dict
         Contain all the additional information (for now contain only the number of displayed patients by the method
         plot_patient_reconstructions - which is 5 by default)
-    plotter: a leaspy.utils.logs.visualisation.plotter.Plotter class object
+    plotter: :class:`~.utils.logs.visualisation.plotter.Plotter`
         class object used to call visualization methods
-    time: scalar
-        Used to display the duration between two visualization prints
+    time: float
+        Last timestamp (to display the duration between two visualization prints)
 
-    Methods
-    -------
-    iteration(algo, data, model, realizations)
-        Call methods to save state of the running computation, display statistics & plots if the current iteration
-        is a multiple of periodicity_print, periodicity_plot or periodicity_save
-    plot_convergence_model_parameters(model)
-        Plot the convergence of the model parameters (calling the Plotter class object)
-    plot_patient_reconstructions(iteration, data, model, realizations)
-        Plot on the same graph for several patients their real longitudinal values and their reconstructions by the model
-    print_algo_statistics(algo)
-        Print algorithm's statistics
-    print_model_statistics(model)
-        Print model's statistics
-    print_time()
-        Display duration since last print
-    save_model_parameters_convergence(iteration, model)
-        Save the current state of the model's parameters.
-        The path is given by the attribute path_save_model_parameters_convergence
-    save_realizations(iteration, realizations)
-        Save the current realizations.
-        The path is given by the attribute path_save_model_parameters_convergence
     """
 
     # TODO: add a loading bar for a run
 
     def __init__(self, outputs):
-        """
-        Process initializer function that is called by class FitOutputManager
 
-        Parameters
-        ----------
-        outputs: a leaspy.io.settings.outputs_settings.OutputsSettings class object
-            Initialize the FitOuputManager class attributes, like the logs paths, the console print periodicity and so forth.
-        """
         self.path_output = outputs.root_path
         self.path_plot = outputs.plot_path
         self.path_plot_patients = outputs.patients_plot_path
@@ -94,23 +70,24 @@ class FitOutputManager:
     def iteration(self, algo, data, model, realizations):
         """
         Call methods to save state of the running computation, display statistics & plots if the current iteration
-        is a multiple of periodicity_print, periodicity_plot or periodicity_save
+        is a multiple of `periodicity_print`, `periodicity_plot` or `periodicity_save`
 
         Parameters
         ----------
-        algo: a leaspy.algo.abstract_algo.AbstractAlgo class object (or one of its child class)
+        algo : :class:`.AbstractAlgo`
             The running algorithm
-        data: a leaspy.io.data.data.Data leaspy class object
+        data : :class:`.Data`
             The data used by the computation
-        model: a leaspy.model.abstract_model.AbstractModel class object (or one of its child class)
+        model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
-        realizations: a leaspy.utils.realizations.collection_realization.CollectionRealization class object
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
         iteration = algo.current_iteration
 
         if self.periodicity_print is not None:
-            if iteration % self.periodicity_print == 0:
+            if iteration == 1 or iteration % self.periodicity_print == 0:
+                print() # newline
                 self.print_algo_statistics(algo)
                 self.print_model_statistics(model)
                 self.print_time()
@@ -119,12 +96,12 @@ class FitOutputManager:
             return
 
         if self.periodicity_save is not None:
-            if iteration % self.periodicity_save == 0:
+            if iteration == 1 or iteration % self.periodicity_save == 0:
                 self.save_model_parameters_convergence(iteration, model)
                 # self.save_model(model)
 
         if self.periodicity_plot is not None:
-            if iteration % self.periodicity_plot == 0:
+            if iteration == 1 or iteration % self.periodicity_plot == 0:
                 self.plot_patient_reconstructions(iteration, data, model, realizations)
                 self.plot_convergence_model_parameters(model)
 
@@ -149,7 +126,7 @@ class FitOutputManager:
 
         Parameters
         ----------
-        model: a leaspy.model.abstract_model.AbstractModel class object (or one of its child class)
+        model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
         """
         print(model)
@@ -160,7 +137,7 @@ class FitOutputManager:
 
         Parameters
         ----------
-        algo: a leaspy.algo.abstract_algo.AbstractAlgo class object (or one of its child class)
+        algo : :class:`.AbstractAlgo`
             The running algorithm
         """
         print(algo)
@@ -177,7 +154,7 @@ class FitOutputManager:
         ----------
         iteration: int
             The current iteration
-        model: a leaspy.model.abstract_model.AbstractModel class object (or one of its child class)
+        model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
         """
         model_parameters = model.parameters
@@ -218,7 +195,7 @@ class FitOutputManager:
         ----------
         iteration: int
             The current iteration
-        realizations: a leaspy.utils.realizations.collection_realization.CollectionRealization class object
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
         for name in ['xi', 'tau']:
@@ -243,11 +220,11 @@ class FitOutputManager:
 
     def plot_convergence_model_parameters(self, model):
         """
-        Plot the convergence of the model parameters (calling the Plotter class object)
+        Plot the convergence of the model parameters (calling the `Plotter`)
 
         Parameters
         ----------
-        model: a leaspy.model.abstract_model.AbstractModel class object (or one of its child class)
+        model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
         """
         self.plotter.plot_convergence_model_parameters(self.path_save_model_parameters_convergence,
@@ -266,11 +243,11 @@ class FitOutputManager:
         ----------
         iteration: int
             The current iteration
-        data: a leaspy.io.data.data.Data leaspy class object
+        data: :class:`.Data`
             The data used by the computation
-        model: a leaspy.model.abstract_model.AbstractModel class object (or one of its child class)
+        model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
-        realizations: a leaspy.utils.realizations.collection_realization.CollectionRealization class object
+        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
         path_iteration = os.path.join(self.path_plot_patients, 'plot_patients_{0}.pdf'.format(iteration))
@@ -295,7 +272,7 @@ class FitOutputManager:
                 break
 
         # Plot average model
-        tensor_timepoints = torch.Tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1,1))
+        tensor_timepoints = torch.tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1,1), dtype=torch.float32)
         model_average = model.compute_average(tensor_timepoints)
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
 

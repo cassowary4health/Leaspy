@@ -8,7 +8,7 @@ import torch
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 from leaspy.io.outputs.result import Result
-from tests import example_data_path, test_data_dir
+from tests import example_data_path, test_data_dir, hardcoded_model_path
 
 
 class SimulationAlgorithmTest(unittest.TestCase):
@@ -62,8 +62,8 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         Returns
         -------
-        model : leaspy.Leaspy
-        results : leaspy.io.outputs.result.Result
+        model : :class:`.Leaspy`
+        results : :class:`~.io.outputs.result.Result`
         """
         data = Data.from_csv_file(example_data_path)
         cofactors = pd.read_csv(os.path.join(test_data_dir, "io/data/data_tiny_covariate.csv"))
@@ -72,7 +72,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         cofactors = cofactors.set_index("ID")
         data.load_cofactors(cofactors, ["Treatments"])
 
-        model = Leaspy.load(os.path.join(test_data_dir, "model_parameters/multivariate_model_sampler.json"))
+        model = Leaspy.load(hardcoded_model_path('logistic'))
         settings = AlgorithmSettings('mode_real')
         individual_parameters = model.personalize(data, settings)
 
@@ -127,9 +127,9 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         Parameters
         ----------
-        leaspy_session : leaspy.api.Leaspy
-        results : leaspy.io.outputs.result.Result
-        settings : leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        leaspy_session : :class:`.Leaspy`
+        results : :class:`~.io.outputs.result.Result`
+        settings : :class:`.AlgorithmSettings`
             Contains the ``features_bounds`` parameter.
         """
 

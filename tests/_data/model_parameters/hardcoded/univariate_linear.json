@@ -1,0 +1,14 @@
+{
+  "leaspy_version": "1.1",
+  "name": "univariate_linear",
+  "features": ["feature"],
+  "loss": "MSE",
+  "parameters": {
+    "g": 0.5,
+    "tau_mean": 78.0,
+    "tau_std": 5.0,
+    "xi_mean": -4.0,
+    "xi_std": 0.5,
+    "noise_std": 0.15
+  }
+}

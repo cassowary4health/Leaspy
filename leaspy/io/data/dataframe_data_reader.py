@@ -3,7 +3,7 @@ from leaspy.io.data.individual_data import IndividualData
 
 class DataframeDataReader:
     """
-    Methods to convert :ref:`pandas.DataFrame` to data containers `Leaspy` compliants.
+    Methods to convert :class:`pandas.DataFrame` to data containers `Leaspy` compliants.
     """
     def __init__(self, df):
         self.individuals = {}

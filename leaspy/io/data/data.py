@@ -15,7 +15,7 @@ from leaspy.io.data.individual_data import IndividualData
 
 class Data:
     """
-    Main data container, initialized from a `csv file` or a :ref:`pandas.DataFrame`.
+    Main data container, initialized from a `csv file` or a :class:`pandas.DataFrame`.
     """
     def __init__(self):
 
@@ -30,6 +30,13 @@ class Data:
         self.iter = 0
 
     def get_by_idx(self, idx):
+        """
+        Get the :class:`~leaspy.io.data.individual_data.IndividualData` of a an individual identified by its ID.
+
+        Returns
+        -------
+        :class:`~leaspy.io.data.individual_data.IndividualData`
+        """
         return self.individuals[idx]
 
     def __getitem__(self, iter):
@@ -47,6 +54,16 @@ class Data:
             return self.__getitem__(self.iter - 1)
 
     def load_cofactors(self, df, cofactors):
+        """
+        Load cofactors from a `pandas.DataFrame` to the `Data` object
+
+        Parameters
+        ----------
+        df : :class:`pandas.DataFrame`
+            the index is the list of subject ids
+        cofactors: list[str]
+            names of the column(s) of df which shall be loaded as cofactors
+        """
 
         df = df.copy(deep=True)
 
@@ -72,44 +89,21 @@ class Data:
             self.individuals[idx].add_cofactors(cof)
         self.cofactors += cofactors
 
-    """
-    def load_cofactors(self, df, cofactors):
-
-        Load cofactors from a pandas dataframe to leaspy.data class object
-
-        :param df: pandas.DataFrame class object - the index is the list of subject ids
-        :param cofactors: list of string - names of the column(s) of df which shall be loaded as cofactors
-        :return: None
-
-        from .result import Result
-        df = df.copy(deep=True)
-
-        for iter, idx in self.iter_to_idx.items():
-
-            # Get the cofactors and check that it is unique
-            cof = df.loc[[idx]][cofactors].to_dict(orient='list')
-
-            for c in cofactors:
-                v = Result.get_cofactor_states(cof[c])
-                # v = [_ for _ in v if _ == _]
-                if len(v) > 1:
-                    raise ValueError("Multiples values of the cofactor {} for patient {} : {}".format(c, idx, v))
-                elif len(v) == 0:
-                    cof[c] = None
-                else:
-                    cof[c] = v[0]
-
-            # Add these cofactor to the individual
-            self.individuals[idx].add_cofactors(cof)"""
-
     @staticmethod
     def from_csv_file(path):
+        """
+        Create a `Data` object from a CSV file.
+
+        Returns
+        -------
+        `Data`
+        """
         reader = CSVDataReader(path)
         return Data._from_reader(reader)
 
     def to_dataframe(self, cofactors=None):
         """
-        Return the subjects' observations in a pandas.DataFrame along their ID and ages at all visits.
+        Return the subjects' observations in a :class:`pandas.DataFrame` along their ID and ages at all visits.
 
         Parameters
         ----------
@@ -119,7 +113,7 @@ class Data:
 
         Returns
         -------
-        pandas.DataFrame
+        :class:`pandas.DataFrame`
             Contains the subjects's ID, age and scores (optional - and cofactors) for each timepoint.
         """
         indices = []
@@ -132,7 +126,7 @@ class Data:
             for j, age in enumerate(ages):
                 indices.append(indiv.idx)
                 timepoints[iteration] = age
-                arr[iteration] = torch.tensor(indiv.observations[j])
+                arr[iteration] = torch.tensor(indiv.observations[j], dtype=torch.float32)
 
                 iteration += 1
 
@@ -156,6 +150,13 @@ class Data:
 
     @staticmethod
     def from_dataframe(df):
+        """
+        Create a `Data` object from a :class:`pandas.DataFrame`.
+
+        Returns
+        -------
+        `Data`
+        """
         reader = DataframeDataReader(df)
         return Data._from_reader(reader)
 
@@ -175,23 +176,24 @@ class Data:
     @staticmethod
     def from_individuals(indices, timepoints, values, headers):
         """
-        Create a _Data_ class object from lists of `ID`, `timepoints` and the corresponding `values`.
-        and timepoint.
+        Create a `Data` class object from lists of `ID`, `timepoints` and the corresponding `values`.
 
         Parameters
         ----------
-        indices: list of str
+        indices: list[str]
             Contains the individuals' ID.
-        timepoints: list of float
-            Array like, of shape = (n_individuals, n_timepoints_i).
-        values: list of float
-            Array like, of shape = (n_individuals, n_timepoints_i, n_features).
-        headers: list of str
+        timepoints: list[array-like 1D]
+            For each individual ``i``, list of ages at visits.
+            Number of timepoints is refered below as ``n_timepoints_i``
+        values: list[array-like 2D]
+            For each individual ``i``, all values at visits.
+            Shape is ``(n_timepoints_i, n_features)``.
+        headers: list[str]
             Contains the features' names.
 
         Returns
         -------
-        data: Data
+        `Data`
             Data class object with all ID, timepoints, values and feautures' names.
         """
         data = Data()

@@ -12,8 +12,8 @@ import torch
 class IndividualParameters:
     r"""
     Data container for individual parameters, contains IDs, timepoints and observations values.
-    Ouput of the ``Leaspy.personalize`` method, contains the *random effects*.
-    IndividualParameters object class.
+    Ouput of the :meth:`.Leaspy.personalize` method, contains the *random effects*.
+
     There are used as ouput of the `personalization algorithms` and as input/ouput of the `simulation algorithm`,
     to provide an initial distribution of individual parameters.
 
@@ -27,31 +27,6 @@ class IndividualParameters:
         Shape of each individual parameter
     _default_saving_type: str
         Default extension for saving when none is provided
-
-    Methods
-    ----------
-    add_individual_parameters(index, individual_parameters)
-        Adds the individual parameters of a new patient
-    __getitem__[index]
-        Returns the individual parameters of patient idx
-    subset(indices)
-        Returns a IndividualParameters object containing only the patients in indices
-    get_mean(parameter_name)
-        Returns the mean value of the parameter_name across all patients
-    get_std(parameter_name)
-        Return the standard deviation value of the parameter_name across all patients
-    to_dataframe()
-        Returns the dataframe of individual parameters
-    from_dataframe(df)
-        Static method that returns an IndividualParameters object from the dataframe
-    to_pytorch()
-        Returns the indices, pytorch_dict corresponding to the individual parameters
-    from_pytorch(indices, pytorch_dict)
-        Static method that returns an IndividualParameters object from the indices and pytorch dictionary
-    save(path):
-        Saves the individual parameters (json or csv) at the path location
-    load(path):
-        Static method that loads the individual parameters (json or csv) existing at the path locatio
     """
 
     def __init__(self):
@@ -78,7 +53,7 @@ class IndividualParameters:
         index: str
             Index of the individual
         individual_parameters: dict
-            Individual parameters of the individual {name: value}
+            Individual parameters of the individual {name: value:}
 
         Raises
         ------
@@ -144,6 +119,9 @@ class IndividualParameters:
         return self._individual_parameters[item]
 
     def items(self):
+        """
+        items() method of dict :attr:`_individual_parameters`
+        """
         return self._individual_parameters.items()
 
     def subset(self, indices):
@@ -152,12 +130,12 @@ class IndividualParameters:
 
         Parameters
         ----------
-        indices: list
+        indices: list[ID]
             List of strings that corresponds to the indices of the individuals to return
 
         Returns
         -------
-        IndividualParameters
+        `IndividualParameters`
             An instance of the IndividualParameters object with the selected list of individuals
 
         Raises
@@ -186,7 +164,7 @@ class IndividualParameters:
 
     def get_mean(self, parameter):
         r"""
-        Returns the mean value of the parameter_name across all patients
+        Returns the mean value of a parameter across all patients
 
         Parameters
         ----------
@@ -195,7 +173,7 @@ class IndividualParameters:
 
         Returns
         -------
-        list or float
+        list or float (depending on parameter shape)
             Mean value of the parameter
 
         Raises
@@ -219,7 +197,7 @@ class IndividualParameters:
 
     def get_std(self, parameter):
         r"""
-        Returns the stardard deviation of the parameter_name across all patients
+        Returns the stardard deviation of a parameter across all patients
 
         Parameters
         ----------
@@ -228,7 +206,7 @@ class IndividualParameters:
 
         Returns
         -------
-        list or float
+        list or float (depending on parameter shape)
             Standard value of the parameter
 
         Raises
@@ -256,7 +234,7 @@ class IndividualParameters:
 
         Returns
         -------
-        dataframe: pandas.DataFrame
+        :class:`pandas.DataFrame`
             Each row corresponds to one individual. The index corresponds to the individual index. The columns are
             the names of the parameters.
 
@@ -300,14 +278,14 @@ class IndividualParameters:
 
         Parameters
         ----------
-        df: pandas.DataFrame
+        df : :class:`pandas.DataFrame`
             Dataframe of the invidual parameters. Each row must correspond to one individual. The index corresponds
             to the individual index. The columns are the names of the parameters.
 
 
         Returns
         -------
-        IndividualParameters
+        `IndividualParameters`
 
         """
         # Check the names to keep
@@ -340,14 +318,14 @@ class IndividualParameters:
 
         Parameters
         ----------
-        indices: list
+        indices: list[ID]
             List of the patients indices
-        dict_pytorch: dict
+        dict_pytorch: dict[parameter:str, `torch.Tensor`]
             Dictionary of the individual parameters
 
         Returns
         -------
-        IndividualParameters
+        `IndividualParameters`
 
 
         Examples
@@ -386,9 +364,9 @@ class IndividualParameters:
 
         Returns
         -------
-        indices: list
+        indices: list[ID]
             List of patient indices
-        pytorch_dict: dict
+        pytorch_dict: dict[parameter:str, `torch.Tensor`]
             Dictionary of the individual parameters {parameter name: pytorch tensor of values across individuals}
 
 
@@ -411,16 +389,22 @@ class IndividualParameters:
 
         return self._indices, ips_pytorch
 
-    def save(self, path):
+    def save(self, path, **kwargs):
         r"""
         Saves the individual parameters (json or csv) at the path location
+
+        TODO? save leaspy version as well for retro/future-compatibility issues?
 
         Parameters
         ----------
         path: str
             Path and file name of the individual parameters. The extension can be json or csv.
             If no extension, default extension (csv) is used
-
+        **kwargs:
+            Additional keyword arguments argument to pass to either:
+            - pandas.to_csv
+            - json.dump
+            depending on saving format requested
         """
         extension = IndividualParameters._check_and_get_extension(path)
         if not extension:
@@ -430,11 +414,11 @@ class IndividualParameters:
             path = path+'.'+extension
 
         if extension == 'csv':
-            self._save_csv(path)
+            self._save_csv(path, **kwargs)
         elif extension == 'json':
-            self._save_json(path)
+            self._save_json(path, **kwargs)
         else:
-            raise ValueError(f"Something bad happened: extension is {extension}")
+            raise ValueError(f"Something bad happened: extension {extension} is not handled.")
 
     @staticmethod
     def load(path):
@@ -448,12 +432,12 @@ class IndividualParameters:
 
         Returns
         -------
-        IndividualParameters:
+        `IndividualParameters`
             Individual parameters object load from the file
 
         Raises
         ------
-        ValueError:
+        ValueError
             If the provided extension is not `csv` or not `json`.
 
         Examples
@@ -483,11 +467,11 @@ class IndividualParameters:
         else:
             return ext[1:]
 
-    def _save_csv(self, path):
+    def _save_csv(self, path, **kwargs):
         df = self.to_dataframe()
-        df.to_csv(path)
+        df.to_csv(path, **kwargs)
 
-    def _save_json(self, path):
+    def _save_json(self, path, **kwargs):
         json_data = {
             'indices': self._indices,
             'individual_parameters': self._individual_parameters,
@@ -495,7 +479,7 @@ class IndividualParameters:
         }
 
         with open(path, 'w') as f:
-            json.dump(json_data, f)
+            json.dump(json_data, f, **kwargs)
 
     @staticmethod
     def _load_csv(path):

@@ -35,6 +35,7 @@ in the main `leaspy Data container`, then we plot them with the main API `Leaspy
 Not so engaging, right? With `leaspy`, we can derive the group average trajectory
 of this population. We use the `Leaspy.fit` method by providing it the settings
 for the MCMC-SAEM algorithm. Then, we plot the group average trajectory:
+
     >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0, progress_bar=True)
     >>> leaspy_logistic.fit(data, model_settings)
     ==> Setting seed to 0
@@ -50,6 +51,7 @@ for the MCMC-SAEM algorithm. Then, we plot the group average trajectory:
 We can also derive the individual trajectory of each subject. To do this,
 we use the `Leaspy.personalize` method, again by providing the proper settings.
 Then we plot both, the first subjects observations and trajectories:
+
     >>> personalize_settings = AlgorithmSettings('scipy_minimize', progress_bar=True, \
     use_jacobian=True, seed=0)
     >>> individual_parameters = leaspy_logistic.personalize(data, personalize_settings)

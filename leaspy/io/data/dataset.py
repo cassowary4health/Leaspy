@@ -4,7 +4,47 @@ import torch
 
 class Dataset:
     """
-    Data container based on `pytorch Tensors`, used to run algorithms.
+    Data container based on :class:`torch.Tensor`, used to run algorithms.
+
+    Parameters
+    ----------
+    data : :class:`.Data`
+        Create `Dataset` from `Data` object
+    model : :class:`.AbstractModel` (optional)
+        If not None, will check compatibility of model and data
+    algo : :class:`.AbstractAlgo` (optional)
+        If not None, will check compatibility of algo and data
+
+    Attributes
+    ----------
+    headers : list[str]
+        Features names
+    dimension : int
+        Number of features
+    n_individuals : int
+        Number of individuals
+    nb_observations_per_individuals : list[int]
+        Number of observations per individual
+    max_observations : int
+        Maximum number of observation for one individual
+    n_visits : int
+        Total number of visits
+    indices : list[ID]
+        Order of patients
+
+    timepoints : :class:`torch.FloatTensor`, shape (n_individuals, max_observations)
+        Ages of patients at their different visits
+    values : :class:`torch.FloatTensor`, shape (n_individuals, max_observations, dimension,)
+        Values of patients for each visit for each feature
+    mask : :class:`torch.FloatTensor`, shape (n_individuals, max_observations, dimension,)
+        Binary mask associated to values.
+        If 1: value is meaningful
+        If 0: value is meaningless (either was nan or does not correspond to a real visit - only here for padding)
+
+    L2_norm_per_ft : :class:`torch.Tensor`, shape (dimension,)
+        Sum of all non-nan squared values, feature per feature
+    L2_norm : scalar :class:`torch.Tensor`
+        Sum of all non-nan squared values
     """
 
     def __init__(self, data, model=None, algo=None):
@@ -18,7 +58,7 @@ class Dataset:
         self.max_observations = None
         self.dimension = None
         self.n_visits = None
-        self.individual_parameters = None
+        #self.individual_parameters = None
         self.indices = list(data.individuals.keys())
         self.L2_norm_per_ft = None # 1D float tensor, shape (dimension,)
         self.L2_norm = None # scalar float tensor
@@ -45,9 +85,9 @@ class Dataset:
         for i, d in enumerate(x_len):
             indiv_values = torch.tensor(data[i].observations, dtype=torch.float32)
             values[i, 0:d, :] = indiv_values
-            padding_mask[i, 0:d, :] = 1
+            padding_mask[i, 0:d, :] = 1.
 
-        mask_missingvalues = (~torch.isnan(values)).int()
+        mask_missingvalues = (~torch.isnan(values)).float()
         # mask should be 0 on visits outside individual's existing visits (he may have fewer visits than the individual with maximum nb of visits)
         # (we need to enforce it here because we padded values with 0, not with nan, so actual mask is 1 on these fictive values)
         mask = padding_mask * mask_missingvalues
@@ -78,9 +118,25 @@ class Dataset:
         self.L2_norm = self.L2_norm_per_ft.sum() # sum on all features
 
     def get_times_patient(self, i):
+        """
+        Get ages for patient number ``i``
+
+        Returns
+        -------
+        :class:`torch.Tensor`, shape (n_obs_of_patient,)
+            Contains float
+        """
         return self.timepoints[i, :self.nb_observations_per_individuals[i]]
 
     def get_values_patient(self, i):
+        """
+        Get values for patient number ``i``
+
+        Returns
+        -------
+        :class:`torch.Tensor`, shape (n_obs_of_patient, dimension)
+            Contains float or nans
+        """
         values = self.values[i, :self.nb_observations_per_individuals[i], :]
         # mask = self.mask[i].clone().cpu().detach().numpy()[:values.shape[0],:]
         mask = self.mask[i].clone().cpu().detach()[:values.shape[0], :]
@@ -101,6 +157,14 @@ class Dataset:
         return
 
     def to_pandas(self):
+        """
+        Convert dataset to a `DataFrame`.
+
+        Returns
+        -------
+        :class:`pandas.DataFrame`
+        """
+
         # TODO : @Raphael : On est oblige de garder une dependance pandas ? Je crois que c'est utilise juste pour l'initialisation
         # TODO : Si fait comme ca, il faut preallouer la memoire du dataframe a l'avance!
         # du modele multivarie. On peut peut-etre s'en passer?

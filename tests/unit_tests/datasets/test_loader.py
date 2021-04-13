@@ -4,6 +4,7 @@ from torch import tensor
 
 from leaspy.datasets.loader import Loader
 
+# TODO: regenerate example models + individual parameters
 
 class DataTest(unittest.TestCase):
 

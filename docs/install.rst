@@ -9,13 +9,13 @@ Dependencies
 `leaspy` requires:
 
 - Python (>=3.6)
-- numpy (>=1.16.2)
-- scipy (>=1.2.1)
-- scikit-learn (>=0.21.3)
+- numpy (>=1.16.6)
+- scipy (>=1.5.4)
+- scikit-learn (>=0.21.3, <0.24)
 - pandas (>=1.0.5)
-- torch (>=1.1.0, <1.5)
-- joblib (>=0.10)
-- matplotlib>=3.0.0
+- torch (>=1.2.0, <1.7)
+- joblib (>=0.13.2)
+- matplotlib>=3.0.3
 - statsmodels (>=0.12.1)
 
 
@@ -36,7 +36,7 @@ User installation
 Testing
 -------
 
-After installation, you can run the examples in :ref:`nutshell` and in :ref:`the Leaspi API <leaspy_api>`.
+After installation, you can run the examples in :ref:`nutshell` and in :ref:`the Leaspy API <api>`.
 To do so, in your `leaspy environment`, you can download ``ipykernel`` to use `leaspy` with `jupyter`::
 
     conda install -c anaconda ipykernel

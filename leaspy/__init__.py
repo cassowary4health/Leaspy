@@ -1,4 +1,4 @@
-__version__ = '1.0.2'
+__version__ = '1.1.1'
 
 dtype = 'float32'
 
@@ -15,3 +15,19 @@ from .io.outputs.individual_parameters import IndividualParameters
 from .io.outputs.result import Result
 # Algorithm Settings
 from .io.settings.algorithm_settings import AlgorithmSettings
+
+# add a watermark with all pkg versions (for trace)
+from importlib import import_module
+
+pkg_deps = ['torch', 'numpy', 'pandas', 'scipy', # core
+            'sklearn', 'joblib', # parallelization / ML utils
+            'statsmodels', # LME benchmark only
+            'matplotlib' # plots
+            ]
+
+__watermark__ = {
+    'leaspy': __version__,
+    **{pkg_name: import_module(pkg_name).__version__ for pkg_name in pkg_deps}
+}
+
+del pkg_deps

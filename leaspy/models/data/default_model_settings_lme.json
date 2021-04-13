@@ -1,4 +1,5 @@
 {
+  "leaspy_version": "1.1",
   "name": "lme",
   "with_random_slope_age": null,
   "parameters": {

@@ -12,7 +12,8 @@
 #
 import os
 import sys
-import warnings
+import ast
+
 import sphinx_gallery
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
@@ -20,11 +21,18 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 # -- Project information -----------------------------------------------------
 
 project = 'Leaspy'
-author = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman'
-copyright = '2017-2021, ' + author
+authors = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman' # TODO read from setup?
+copyright = '2017-2021, ' + authors
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.2'
+def find_version(*py_file_with_version_paths):
+    with open(os.path.join(*py_file_with_version_paths), 'r') as f:
+        for line in f:
+            if line.startswith('__version__'):
+                return ast.parse(line).body[0].value.s # string
+    raise RuntimeError("Unable to find version string.")
+
+release = find_version("..", "leaspy", "__init__.py")
 
 
 # -- General configuration ---------------------------------------------------
@@ -52,6 +60,12 @@ extensions = [
 # this is needed for some reason...
 # see https://github.com/numpy/numpydoc/issues/69
 numpydoc_show_class_members = True
+
+# to remove leaspy. *** in index
+modindex_common_prefix = ['leaspy.'] # , 'leaspy.algo.', 'leaspy.models.'
+
+# primary domain for references
+primary_domain = 'py'
 
 # - From Johann conf.py
 # Use svg images for math stuff
@@ -99,6 +113,9 @@ add_function_parentheses = True
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+html_css_files = [
+    'custom.css',
+]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -112,6 +129,7 @@ html_theme_options = {
     'navigation_depth': 4,
     'includehidden': True,
     'titles_only': False,
+    'prev_next_buttons_location': None,
     # Logo and description
     # 'description': 'LEArning Spatiotemporal Patterns in Python',
     # 'logo': 'leaspy_logo.png',
@@ -126,7 +144,7 @@ html_theme_options = {
 
     # Page and sidebar widths
     # 'page_width': '1300px',
-    'body_max_width': '850px',
+    'body_max_width': '1000px',
     # 'sidebar_width': '250px',
 
     # Related links
@@ -140,9 +158,9 @@ html_theme_options = {
 
 html_context = {
     "display_gitlab": True,  # Integrate Github
-    "gitlab_user": "getleaspy",  # Username
+    "gitlab_user": "icm-institute/aramislab",  # Username
     "gitlab_repo": "leaspy",  # Repo name
-    "gitlab_version": "master",  # Version
+    "gitlab_version": "dev",  # Version
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
 
@@ -174,11 +192,13 @@ latex_elements = {
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://docs.scipy.org/doc/numpy/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
-    'matplotlib': ('https://matplotlib.org/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+    'torch': ('https://pytorch.org/docs/stable/', None),
     'statsmodels': ('https://www.statsmodels.org/stable/', None),
+    'matplotlib': ('https://matplotlib.org/stable/', None),
     'seaborn': ('https://seaborn.pydata.org/', None),
     'sklearn': ('https://scikit-learn.org/stable', None),
-    'torch': ('https://pytorch.org/docs/stable/', None)}
+    'joblib': ('https://joblib.readthedocs.io/en/latest/', None)
+}

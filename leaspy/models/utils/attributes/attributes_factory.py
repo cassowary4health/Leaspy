@@ -1,4 +1,4 @@
-from . import AttributesLogisticParallel, AttributesLogistic, AttributesLinear
+from . import LogisticParallelAttributes, LogisticAttributes, LinearAttributes
 
 
 class AttributesFactory:
@@ -7,19 +7,32 @@ class AttributesFactory:
     """
 
     _attributes = {
-        'logistic': AttributesLogistic,
-        'univariate_logistic': AttributesLogistic,
+        'logistic': LogisticAttributes,
+        'univariate_logistic': LogisticAttributes,
 
-        'logistic_parallel': AttributesLogisticParallel,
+        'logistic_parallel': LogisticParallelAttributes,
 
-        'linear': AttributesLinear,
-        'univariate_linear': AttributesLinear,
+        'linear': LinearAttributes,
+        'univariate_linear': LinearAttributes,
 
-        #'mixed_linear-logistic': AttributesLogistic # TODO mixed check
+        #'mixed_linear-logistic': ... # TODO
     }
 
     @classmethod
     def attributes(cls, name, dimension, source_dimension=None):
+        """
+        Class method to build correct model attributes depending on model `name`.
+
+        Parameters
+        ----------
+        name: str
+        dimension : int
+        source_dimension : int, optional (default None)
+
+        Returns
+        -------
+        :class:`.AbstractAttributes`
+        """
         if type(name) == str:
             name = name.lower()
         else:

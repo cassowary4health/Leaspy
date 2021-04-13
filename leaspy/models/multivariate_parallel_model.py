@@ -1,15 +1,15 @@
 import torch
 
-from .abstract_multivariate_model import AbstractMultivariateModel
-from .utils.attributes.attributes_logistic_parallel import AttributesLogisticParallel
+from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
+from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
+
+from leaspy.utils.docs import doc_with_super
 
 
-#from .utils.initialization.model_initialization import initialize_logistic_parallel # not used
-
-
+@doc_with_super()
 class MultivariateParallelModel(AbstractMultivariateModel):
     """
-    Logistic model for multiple variables of interest, imposing same average evolution pace for all variables.
+    Logistic model for multiple variables of interest, imposing same average evolution pace for all variables (logistic curves are only time-shifted).
     """
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
@@ -22,7 +22,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
-        self.attributes = AttributesLogisticParallel(self.name, self.dimension, self.source_dimension)
+        self.attributes = LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
@@ -46,20 +46,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         return model
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        '''
 
-        Parameters
-        ----------
-        timepoints
-        ind_parameters
-        attribute_type
-
-        Returns
-        -------
-        The Jacobian of the model with parameters order : [xi, tau, sources].
-        This function aims to be used in scipy_minimize.
-
-        '''
         # Population parameters
         g, deltas, a_matrix = self._get_attributes(attribute_type)
         deltas_exp = torch.exp(-deltas)
@@ -68,14 +55,16 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, -> n_features)
+
         # Log likelihood computation
         LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
-        k = (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
+        k = (g * deltas_exp + 1) ** 2 / (g * deltas_exp) # (n_features, )
         if self.source_dimension != 0:
             sources = ind_parameters['sources']
             wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
             LL += wi * k
-        LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)
+        LL = -reparametrized_time - LL.unsqueeze(-2)
         model = 1. / (1. + g * torch.exp(LL))
 
         c = model * (1. - model)
@@ -87,6 +76,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             'tau': (c * -alpha).unsqueeze(-1),
         }
         if self.source_dimension > 0:
+            k = k.reshape((1, 1, -1, 1)) # n_features is third
             derivatives['sources'] = c.unsqueeze(-1) * k * a_matrix.expand((1, 1, -1, -1))
 
         return derivatives
@@ -97,8 +87,8 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 1., 'deltas_std': 0.1, 'betas_std': 0.1},
-            'attributes': AttributesLogisticParallel(self.name, self.dimension, self.source_dimension)
+            'priors': {'g_std': 0.01, 'deltas_std': 0.01, 'betas_std': 0.01}, # population parameters
+            'attributes': LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()
@@ -215,6 +205,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     ###################################
 
     def random_variable_informations(self):
+
         ## Population variables
         g_infos = {
             "name": "g",

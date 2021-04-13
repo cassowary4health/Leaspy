@@ -12,7 +12,7 @@ class GradientDescentPersonalize(AbstractPersonalizeAlgo):
 
     def _initialize_torchvariables(self, realizations):
         for name, realization in realizations.realizations.items():
-            realization.to_torch_Variable()
+            realization.set_autograd()
 
     def _get_individual_parameters(self, model, data):
 

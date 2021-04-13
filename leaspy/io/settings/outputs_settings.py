@@ -109,14 +109,3 @@ class OutputsSettings:
         os.makedirs(self.parameter_convergence_path)
         os.makedirs(self.plot_path)
         os.makedirs(self.patients_plot_path)
-
-    # ---- LEGACY
-    # def _ask_user_if_erase(self, path):
-    #     user_answer = input("Do you want to erase the existing files "
-    #                         "in the logs folder {} you provided? [y]/[n]".format(path)).lower().strip()
-    #     if user_answer == "y":
-    #         return True
-    #     elif user_answer == "n":
-    #         return False
-    #     else:
-    #         self._ask_user_if_erase(path)

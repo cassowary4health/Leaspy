@@ -4,7 +4,7 @@ import warnings
 
 from leaspy.io.settings import default_data_dir
 from leaspy.io.settings.outputs_settings import OutputsSettings
-
+from leaspy.algo.algo_factory import AlgoFactory
 
 class AlgorithmSettings:
     """
@@ -29,6 +29,12 @@ class AlgorithmSettings:
             * For `simulate` algorithms:
                 * `simulation`
 
+    model_initialization_method: str, optional
+        For fit algorithms, give a model initialization method,
+        according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
+    algo_initialization_method: str, optional
+        Personalize the algorithm initialization method,
+        according to those possible for the given algorithm (refer to its documentation in :mod:`.algo`).
     n_iter: int, optional
         Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
     n_burn_in_iter: int, optional
@@ -41,9 +47,9 @@ class AlgorithmSettings:
         Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
     loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
         The wanted loss.
-            * MSE: MSE of all features
-            * MSE_diag_noise: MSE per feature
-            * crossentropy: used when the features are binary
+            * ``'MSE'``: MSE of all features
+            * ``'MSE_diag_noise'``: MSE per feature
+            * ``'crossentropy'``: used when the features are binary
     progress_bar: bool, optional, default False
         Used to display a progress bar during computation.
 
@@ -51,28 +57,27 @@ class AlgorithmSettings:
     ----------
     name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
         The algorithm's name.
-    **kwargs:
-        * seed: int, optional, default None
-            Used for stochastic algorithms.
-        * loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
-            The wanted loss.
-                * MSE: MSE of all features
-                * MSE_diag_noise: MSE per feature
-                * crossentropy: used when the features are binary
-        * parameters: dict
-            Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
-        * logs: NoneType or leaspy.io.settings.outputs_settings.OutputsSettings
-            Used to create a ``logs`` file during a model calibration containing convergence information.
+    model_initialization_method: str, optional
+      For fit algorithms, give a model initialization method,
+      according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
+    algo_initialization_method: str, optional
+      Personalize the algorithm initialization method,
+      according to those possible for the given algorithm (refer to its documentation in :mod:`.algos`).
+    seed: int, optional, default None
+      Used for stochastic algorithms.
+    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+      The wanted loss.
+          * ``'MSE'``: MSE of all features
+          * ``'MSE_diag_noise'``: MSE per feature
+          * ``'crossentropy'``: used when the features are binary
+    parameters: dict
+      Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
+    logs: :class:`.OutputsSettings`, optional
+      Used to create a ``logs`` file during a model calibration containing convergence information.
 
-    Methods
-    -------
-    load(path_to_algorithm_settings)
-        Instantiate a AlgorithmSettings object from a json file.
-    save(self, path, **kwargs):
-        Save an AlgorithmSettings object in a json file.
-    set_logs(path, **kwargs):
-        Use this method to monitor the convergence of a model callibration. It create graphs and csv files of the
-        values of the population parameters (fixed effects) during the callibration
+    See also
+    --------
+    leaspy.algo
 
     For developpers
     ---------------
@@ -94,6 +99,7 @@ class AlgorithmSettings:
             ]}
     """
 
+    # TODO should be in the each algo class directly?
     _dynamic_default_parameters = {
         'mcmc_saem': [
             (
@@ -122,7 +128,8 @@ class AlgorithmSettings:
         self.name = name
         self.parameters = None # {}
         self.seed = None
-        self.initialization_method = None
+        self.algorithm_initialization_method = None # Initialization of the algorithm itself
+        self.model_initialization_method = None # Initialization of the model parameters (independantly of the algorithm)
         self.loss = None
         self.logs = None
 
@@ -132,7 +139,6 @@ class AlgorithmSettings:
             self._load_default_values(default_algo_settings_path)
         else:
             raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
-
         self._manage_kwargs(kwargs)
 
     @classmethod
@@ -147,7 +153,7 @@ class AlgorithmSettings:
 
         Returns
         -------
-        leaspy.io.settings.algorithm_settings.AlgorithmSettings
+        :class:`.AlgorithmSettings`
             An instanced of AlgorithmSettings with specified parameters.
 
         Examples
@@ -171,9 +177,13 @@ class AlgorithmSettings:
             print("You overwrote the algorithm default seed")
             algorithm_settings.seed = cls._get_seed(settings)
 
-        if 'initialization_method' in settings.keys():
+        if 'algorithm_initialization_method' in settings.keys():
             print("You overwrote the algorithm default initialization method")
-            algorithm_settings.initialization_method = cls._get_initialization_method(settings)
+            algorithm_settings.algorithm_initialization_method = cls._get_algorithm_initialization_method(settings)
+
+        if 'model_initialization_method' in settings.keys():
+            print("You overwrote the model default initialization method")
+            algorithm_settings.model_initialization_method = cls._get_model_initialization_method(settings)
 
         if 'loss' in settings.keys():
             print('You overwrote the algorithm default loss')
@@ -184,6 +194,8 @@ class AlgorithmSettings:
     def save(self, path, **kwargs):
         """
         Save an AlgorithmSettings object in a json file.
+
+        TODO? save leaspy version as well for retro/future-compatibility issues?
 
         Parameters
         ----------
@@ -202,7 +214,8 @@ class AlgorithmSettings:
             "name": self.name,
             "seed": self.seed,
             "parameters": self.parameters,
-            "initialization_method": self.initialization_method,
+            "algorithm_initialization_method": self.algorithm_initialization_method,
+            "model_initialization_method": self.model_initialization_method,
             "loss": self.loss,
             "logs": self.logs
         }
@@ -212,19 +225,20 @@ class AlgorithmSettings:
 
     def set_logs(self, path, **kwargs):
         """
-        Use this method to monitor the convergence of a model callibration. It create graphs and csv files of the
-        values of the population parameters (fixed effects) during the callibration
+        Use this method to monitor the convergence of a model callibration.
+
+        It create graphs and csv files of the values of the population parameters (fixed effects) during the callibration
 
         Parameters
         ----------
         path: str
             The path of the folder to store the graphs and csv files.
         **kwargs:
-            * console_print_periodicity: int or NoneType, optional, default 50
+            * console_print_periodicity: int, optional, default 50
                 Display logs in the console/terminal every N iterations.
-            * plot_periodicity: int or NoneType, optional, default 100
+            * plot_periodicity: int, optional, default 100
                 Saves the values to display in pdf every N iterations.
-            * save_periodicity: int or NoneType, optional, default 50
+            * save_periodicity: int, optional, default 50
                 Saves the values in csv files every N iterations.
             * overwrite_logs_folder: bool, optionl, default False
                 Set it to ``True`` to overwrite the content of the folder in ``path``.
@@ -267,7 +281,8 @@ class AlgorithmSettings:
 
         _special_kwargs = {
             'seed': self._get_seed,
-            'initialization_method': self._get_initialization_method,
+            'algorithm_initialization_method': self._get_algorithm_initialization_method,
+            'model_initialization_method': self._get_model_initialization_method,
             'loss': self._get_loss,
         }
 
@@ -344,6 +359,7 @@ class AlgorithmSettings:
         self._check_default_settings(settings)
         # TODO: Urgent => The following function should in fact be algorithm-name specific!! As for the constant prediction
         # Etienne: I'd advocate for putting all non-generic / parametric stuff in special methods / attributes of corresponding algos... so that everything is generic here
+        # Igor : Agreed. This class became a real mess.
 
         self.name = self._get_name(settings)
         self.parameters = self._get_parameters(settings)
@@ -359,6 +375,10 @@ class AlgorithmSettings:
             return
 
         self.loss = self._get_loss(settings)
+        self.algorithm_initialization_method = self._get_algorithm_initialization_method(settings)
+
+        if settings['name'] in AlgoFactory._algos['fit']:
+            self.model_initialization_method = self._get_model_initialization_method(settings)
 
     @staticmethod
     def _check_default_settings(settings):
@@ -383,9 +403,9 @@ class AlgorithmSettings:
             warnings.warn("The 'loss' key is missing in the algorithm settings (JSON file) you are loading. \
             Its value will be 'MSE' by default")
 
-        if 'initialization_method' not in settings.keys():
+        if 'algorithm_initialization_method' not in settings.keys():
             raise ValueError(
-                "The 'initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
+                "The 'algorithm_initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
 
     @staticmethod
     def _get_name(settings):
@@ -406,11 +426,18 @@ class AlgorithmSettings:
             return None
 
     @staticmethod
-    def _get_initialization_method(settings):
-        if settings['initialization_method'] is None:
+    def _get_algorithm_initialization_method(settings):
+        if settings['algorithm_initialization_method'] is None:
             return None
         # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
-        return settings['initialization_method']
+        return settings['algorithm_initialization_method']
+
+    @staticmethod
+    def _get_model_initialization_method(settings):
+        if settings['model_initialization_method'] is None:
+            return None
+        # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
+        return settings['model_initialization_method']
 
     @staticmethod
     def _get_loss(settings):

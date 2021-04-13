@@ -30,7 +30,7 @@ class VisualizationToolbox():
         timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
                                  model.parameters['tau_mean'] + 2 * np.sqrt(model.parameters['tau_std']),
                                  100)
-        timepoints = torch.Tensor(timepoints).reshape(1, -1, 1)
+        timepoints = torch.tensor(timepoints, dtype=torch.float32).reshape(1, -1, 1)
 
         xi = realizations['xi'].tensor_realizations
         tau = realizations['tau'].tensor_realizations
@@ -78,7 +78,7 @@ class VisualizationToolbox():
                     marker='o')
 
         # Plot average model
-        # tensor_timepoints = torch.Tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1,1))
+        # tensor_timepoints = torch.tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1,1), dtype=torch.float32)
         # model_average = model.compute_average(tensor_timepoints)
         # ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
 

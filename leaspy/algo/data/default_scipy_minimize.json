@@ -2,7 +2,7 @@
   "name": "scipy_minimize",
   "seed": null,
   "loss": "MSE",
-  "initialization_method": null,
+  "algorithm_initialization_method": null,
   "parameters": {
     "n_iter": 100,
     "use_jacobian": false,

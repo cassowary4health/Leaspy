@@ -1,9 +1,11 @@
 import json
 
+from leaspy import __version__
+
 
 class ModelSettings:
     """
-    Used in :ref:`leaspy.api.load` to create a `Leaspy` class object from a `json file`.
+    Used in :meth:`.Leaspy.load` to create a :class:`.Leaspy` class object from a `json` file.
     """
     def __init__(self, path_to_model_settings):
         if type(path_to_model_settings) is dict:
@@ -24,6 +26,17 @@ class ModelSettings:
         if 'parameters' not in settings.keys():
             raise ValueError("The 'parameters' key is missing in the model parameters (JSON file) you are loading")
 
+        # check leaspy_version attribute for compatibility purposes
+        if 'leaspy_version' not in settings.keys():
+            raise ValueError("The model you are trying to load was generated with a leaspy version < 1.1"
+                    f" and is not compatible with your current version of leaspy == {__version__}"
+                    " because of a bug in the multivariate model which lead to under-optimal results.\n"
+                    "Please consider re-calibrating your model with your current leaspy version.\n"
+                    "If you really want to load it as is (at your own risk) please use leaspy == 1.0.*")
+        else:
+            # we will be able to add some checks here to check/adapt retro/future compatibility of models
+            pass
+
     def _get_name(self, settings):
         self.name = settings['name'].lower()
 
@@ -31,7 +44,7 @@ class ModelSettings:
         self.parameters = settings['parameters']
 
     def _get_hyperparameters(self, settings):
-        hyperparameters = {k.lower(): v for k, v in settings.items() if k not in ['name', 'parameters']}
+        hyperparameters = {k.lower(): v for k, v in settings.items() if k not in ['name', 'parameters', 'leaspy_version']}
         if hyperparameters:
             self.hyperparameters = hyperparameters
         else:

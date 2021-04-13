@@ -1,11 +1,12 @@
 import os
 import unittest
+import numpy as np
 import pandas as pd
-import torch
+#import torch
 
 from leaspy import Leaspy, IndividualParameters#, Data, AlgorithmSettings
 from leaspy.utils.posterior_analysis.general import append_spaceshifts_to_individual_parameters_dataframe, get_reparametrized_ages, compute_trajectory_of_population
-from tests import test_data_dir
+from tests import test_data_dir, hardcoded_model_path
 
 class TestUtilsGeneral(unittest.TestCase):
 
@@ -14,24 +15,24 @@ class TestUtilsGeneral(unittest.TestCase):
                           index=["idx1", "idx2", "idx3"],
                           columns=["xi", "tau", "sources_0", "sources_1"])
 
-        leaspy = Leaspy.load(os.path.join(test_data_dir, 'model_parameters', 'test_api.json'))
+        leaspy = Leaspy.load(hardcoded_model_path('logistic'))
 
         df_w = append_spaceshifts_to_individual_parameters_dataframe(df, leaspy)
         #TODO : the above test just check  that it runs, not the results!
 
     def test_get_reparametrized_ages(self):
-        leaspy = Leaspy.load(os.path.join(test_data_dir, 'model_parameters', 'test_api.json')) # TODO: hardcode some values instead (not functional test)
-        ip = IndividualParameters.load(os.path.join(test_data_dir, 'io', 'outputs',  'ip_save.json'))
+        leaspy = Leaspy.load(hardcoded_model_path('logistic'))
+        ip = IndividualParameters.load(os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json'))
 
         ages = {'idx1': [70, 80], 'idx3': [100]}
         reparametrized_ages = get_reparametrized_ages(ages, ip, leaspy)
 
         self.assertEqual(reparametrized_ages.keys(), ages.keys())
-        self.assertEqual(reparametrized_ages['idx1'], [78.7451400756836, 89.7968521118164])
-        self.assertEqual(reparametrized_ages['idx3'], [135.439208984375])
+        self.assertTrue(np.allclose(reparametrized_ages['idx1'], [75.2, 86.2517]))
+        self.assertTrue(np.allclose(reparametrized_ages['idx3'], [131.8941]))
 
     def test_compute_trajectory_of_population(self):
-        leaspy = Leaspy.load(os.path.join(test_data_dir, 'model_parameters', 'test_api.json'))
+        leaspy = Leaspy.load(hardcoded_model_path('logistic'))
         ip = IndividualParameters.load(os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json'))
 
         timepoints = [70, 71, 72, 73, 74, 75, 76]

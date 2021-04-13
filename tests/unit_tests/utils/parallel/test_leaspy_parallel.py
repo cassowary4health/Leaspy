@@ -25,7 +25,7 @@ class TestLeaspyParallel(unittest.TestCase):
 
         self.datas = [Data.from_individuals(np.arange(p), t[r, :], y[r, :],
                                             [f'feature_{i}' for i in range(f)]) for r in range(self.n_runs)]
-        self.model_type = 'logistic'
+        #self.model_type = 'logistic'
         self.settings_algos_fit = [AlgorithmSettings('mcmc_saem', n_iter=10, seed=seed)] * self.n_runs
         self.settings_algos_perso = [AlgorithmSettings('mode_real', seed=seed)] * self.n_runs
         # self.src_dim = 1
@@ -33,8 +33,8 @@ class TestLeaspyParallel(unittest.TestCase):
     def test_fit_and_perso(self):
 
         def leaspy_factory(_):
-            leaspy = Leaspy(self.model_type)
-            # leaspy.model.load_hyperparameters({'source_dimension': self.src_dim}) # Optional
+            leaspy = Leaspy('logistic') # Leaspy(self.model_type) # joblib pickiling bug???
+            # leaspy.model.load_hyperparameters({'source_dimension': 1}) # Optional # self.src_dim
             return leaspy
 
         def leaspy_cb(leaspy, k):
@@ -48,17 +48,18 @@ class TestLeaspyParallel(unittest.TestCase):
 
         self.assertEqual(len(outs_fit_cb), self.n_runs)
         for i, (leaspy, j) in enumerate(outs_fit_cb):
-            with self.subTest(i=i):
+            with self.subTest(what='calibration', i=i):
                 self.assertEqual(i, j)  # order outputs
                 self.assertIsInstance(leaspy, Leaspy)  # leaspy object
                 leaspy.check_if_initialized()  # raises an error otherwise
 
         leaspys = [out[0] for out in outs_fit_cb]  # iterable of leaspy fitted models
+
         outs_perso_cb = leaspy_parallel_personalize(leaspys, self.datas, self.settings_algos_perso,
                                                     leaspy_res_cb, verbose=50)
 
         self.assertEqual(len(outs_perso_cb), self.n_runs)
         for i, (ips, j) in enumerate(outs_perso_cb):
-            with self.subTest(i=i):
+            with self.subTest(what='personalize', i=i):
                 self.assertEqual(i, j)  # order outputs
                 self.assertIsInstance(ips, IndividualParameters)  # leaspy IndividualParameters object

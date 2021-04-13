@@ -6,22 +6,24 @@ from leaspy import IndividualParameters
 
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
     r"""
+    .. deprecated:: 1.0
     Returns a new dataframe with space shift columns
 
     Parameters
     ----------
-    df_individual_parameters: pandas.Dataframe
+    df_individual_parameters: :class:`pandas.DataFrame`
         Dataframe of the individual parameters. Each row corresponds to an individual. The index is the index of the patient.
     leaspy: Leaspy
         Initialize model
 
     Returns
     -------
-    dataframe: pandas.Dataframe
+    :class:`pandas.DataFrame`
         Copy of the initial dataframe with additional columns being the space shifts of the individuals.
 
     """
-    warnings.warn('append_spaceshifts_to_individual_parameters_dataframe function is deprecated. Please use the one in Leaspype')
+    warnings.warn('append_spaceshifts_to_individual_parameters_dataframe function is deprecated. Please use the one in Leaspype', DeprecationWarning)
+
     df_ip = df_individual_parameters.copy()
 
     sources = df_ip [['sources_' + str(i) for i in range(leaspy.model.source_dimension)]].values.T
@@ -35,6 +37,7 @@ def append_spaceshifts_to_individual_parameters_dataframe(df_individual_paramete
 
 def get_reparametrized_ages(ages, individual_parameters, leaspy):
     r"""
+    .. deprecated:: 1.0
     Reparametrize the real ages of the patients onto the pathological timeline
 
     Parameters
@@ -53,7 +56,7 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
     reparametrized_ages: dict {patient_idx: [reparametrized_ages]}
         Contains the reparametrized ages
 
-    Raise:
+    Raises
     ------
     ValueError:
         If one of the index not in the individual parameters
@@ -65,7 +68,8 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
     >>> repametrized_ages = get_reparametrized_ages(ages, individual_parameters, leaspy)
     """
 
-    warnings.warn('get_reparametrized_ages function is deprecated. Please use the one in Leaspype')
+    warnings.warn('get_reparametrized_ages function is deprecated. Please use the one in Leaspype', DeprecationWarning)
+
     tau_mean = leaspy.model.parameters['tau_mean']
     indices = individual_parameters._indices
     reparametrized_ages = {}
@@ -86,6 +90,7 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
 
 def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
     r"""
+    .. deprecated:: 1.0
     Compute the trajectory of a population at some timepoints
 
     Parameters
@@ -112,12 +117,12 @@ def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
     >>> trajectory = compute_trajectory_of_population(timepoints, ip, leaspy)
     """
 
-    warnings.warn('compute_trajectory_of_population function is deprecated. Please use the one in Leaspype')
-    ip_dict = {
-        'xi': individual_parameters.get_mean('xi'),
-        'tau': individual_parameters.get_mean('tau'),
-        'sources': individual_parameters.get_mean('sources')
-    }
+    warnings.warn('compute_trajectory_of_population function is deprecated. Please use the one in Leaspype', DeprecationWarning)
+
+    if 'univariate' not in leaspy.model.name:
+        ip_dict = {k : individual_parameters.get_mean(k) for k in ['xi','tau','sources']}
+    else:
+        ip_dict = {k : individual_parameters.get_mean(k) for k in ['xi','tau']}
 
     ip = IndividualParameters()
     ip.add_individual_parameters('mean', ip_dict)

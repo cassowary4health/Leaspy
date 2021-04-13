@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from .abstract_mcmc import AbstractFitMCMC
@@ -5,10 +7,13 @@ from .abstract_mcmc import AbstractFitMCMC
 
 class GradientMCMCSAEM(AbstractFitMCMC):
     """
-    /!\\ Currently deprecated
+    .. deprecated:: 1.0
     """
 
     def __init__(self, settings):
+
+        warnings.warn("Gradient MCMC SAEM algorithm is deprecated. Please use `mcmc_saem` for your fits.", DeprecationWarning)
+
         super().__init__(settings)
         self.name = "MCMC_SAEM (tensor)"
 
@@ -23,14 +28,14 @@ class GradientMCMCSAEM(AbstractFitMCMC):
             if self.algo_parameters['annealing']['do_annealing']:
                 self._update_temperature()
         else:
-            # Torch variable
+            # set autograd
             for key in realizations.keys():
-                realizations[key].to_torch_Variable()
+                realizations[key].set_autograd()
             self._gradient_population_update(data, model, realizations)
 
-            # back to tensors
+            # unset autograd
             for key in realizations.keys():
-                realizations[key].to_torch_Tensor()
+                realizations[key].unset_autograd()
 
         # Maximization step
         self._maximization_step(data, model, realizations)

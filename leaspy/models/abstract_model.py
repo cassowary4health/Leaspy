@@ -1,4 +1,5 @@
 import math
+from abc import ABC, abstractmethod
 
 import torch
 
@@ -7,46 +8,50 @@ from leaspy.io.realizations.realization import Realization
 
 TWO_PI = 2 * math.pi
 
-
-# TODO: Check & complete docstrings
-class AbstractModel:
+# TODO? refact so to only contain methods needed for the Leaspy api + add another abstract class (interface) on top of it for MCMC fittable models + one for "manifold models"
+class AbstractModel(ABC):
     """
     Contains the common attributes & methods of the different models.
 
     Attributes
     ----------
-    distribution: torch.distributions.normal.Normal class object
-        Gaussian generator for the model's penalty (?)
-    is_initialized: bool
+    is_initialized : bool
         Indicates if the model is initialized
-    name: str
+    name : str
         The model's name
-    parameters: dict
+    features : list[str]
+        Names of the model features
+    parameters : dict
         Contains the model's parameters
     loss : str
-        The loss to optimize (MSE or crossentropy)
-
-    Methods
-    -------
-    compute_individual_attachment_tensorized_mcmc(data, realizations)
-        Compute attachment of all subjects? One subject? One visit?
-    compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type=None)
-        Compute the square of the residuals per subject per feature
-    compute_sum_squared_tensorized(data, param_ind, attribute_type=None)
-        Compute the square of the residuals per subject
-    get_individual_variable_name()
-        Return list of names of the individual variables from the model.
-    load_parameters(parameters)
-        Instantiate or update the model's parameters.
+        The loss to optimize (``'MSE'``, ``'MSE_diag_noise'`` or ``'crossentropy'``)
+    distribution : :class:`torch.distributions.normal.Normal`
+        Gaussian distribution object to compute variables regularization
     """
 
-    def __init__(self, name):
-        self.is_initialized = False
+    def __init__(self, name: str):
+        self.is_initialized: bool = False
         self.name = name
         self.features = None
         self.parameters = None
-        self.loss = 'MSE'  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
+        self.loss: str = 'MSE'  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
+
+    @abstractmethod
+    def initialize(self, dataset, method = 'default'):
+        """
+        Initialize the model given a dataset and an initialization method.
+
+        After calling this method :attr:`is_initialized` should be True and model should be ready for use.
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            The dataset we want to initialize from.
+        method : str
+            A custom method to initialize the model
+        """
+        ...
 
     def load_parameters(self, parameters):
         """
@@ -54,16 +59,26 @@ class AbstractModel:
 
         Parameters
         ----------
-        parameters: dict
+        parameters: dict[str, Any]
             Contains the model's parameters
         """
         self.parameters = {}
         for k in parameters.keys():
             self.parameters[k] = parameters[k]
 
+    @abstractmethod
     def load_hyperparameters(self, hyperparameters):
+        """
+        Load model's hyperparameters
+
+        Parameters
+        ----------
+        hyperparameters : dict[str, Any]
+            Contains the model's hyperparameters
+        """
         raise NotImplementedError
 
+    @abstractmethod
     def save(self, path, **kwargs):
         """
         Save Leaspy object as json model parameter file.
@@ -81,9 +96,12 @@ class AbstractModel:
         """
         Return list of names of the individual variables from the model.
 
+        Duplicate of :meth:`.get_individual_realization_names`
+        TODO delete one of them
+
         Returns
         -------
-        individual_variable_name : `list` [str]
+        individual_variable_name : list [str]
             Contains the individual variables' names
         """
 
@@ -102,16 +120,16 @@ class AbstractModel:
 
         Parameters
         ----------
-        data : leaspy.io.data.dataset.Dataset
+        data : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         param_ind : dict
             Contain the individual parameters
-        attribute_type : str
-            The attribute's type
+        attribute_type : Any (default None)
+            Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
         -------
-        torch.Tensor, shape (n_individuals,dimension)
+        :class:`torch.Tensor` of shape (n_individuals,dimension)
             Contains L2 residual for each subject and each feature
         """
         res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
@@ -124,25 +142,27 @@ class AbstractModel:
 
         Parameters
         ----------
-        data : leaspy.io.data.dataset.Dataset
+        data : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         param_ind : dict
             Contain the individual parameters
-        attribute_type : str
-            The attribute's type
+        attribute_type : Any (default None)
+            Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
         -------
-        torch.Tensor, shape (n_individuals,)
+        :class:`torch.Tensor` of shape (n_individuals,)
             Contains L2 residual for each subject
         """
         L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type)
         return torch.sum(L2_res_per_ind_per_ft, dim=1) # sum on features
 
-    def audit_individual_parameters(self, ips):
+    def _audit_individual_parameters(self, ips):
         """
         Perform various consistency and compatibility (with current model) checks
         on an individual parameters dict and outputs qualified information about it.
+
+        TODO? move to IndividualParameters class?
 
         Parameters
         ----------
@@ -268,7 +288,7 @@ class AbstractModel:
 
         Parameters
         ----------
-        timepoints: scalar or array_like[scalar] (list, tuple, np.array)
+        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
         individual_parameters: dict
             Contains the individual parameters.
@@ -279,14 +299,14 @@ class AbstractModel:
 
         Returns
         -------
-        torch.Tensor
+        :class:`torch.Tensor`
             Contains the subject's scores computed at the given age(s)
             Shape of tensor is (1, n_tpts, n_features)
         """
 
         if not skip_ips_checks:
             # Perform checks on ips and gets tensorized version if needed
-            ips_info = self.audit_individual_parameters(individual_parameters)
+            ips_info = self._audit_individual_parameters(individual_parameters)
             n_inds = ips_info['nb_inds']
             individual_parameters = ips_info['tensorized_ips']
 
@@ -300,55 +320,62 @@ class AbstractModel:
         # Compute the individual trajectory
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
+    @abstractmethod
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         """
+        Compute the individual values at timepoints according to the model.
+
         Parameters
         ----------
-        timepoints: torch.Tensor of shape (n_individuals, n_timepoints)
+        timepoints : :class:`torch.Tensor` of shape (n_individuals, n_timepoints)
 
-        individual_parameters: dict[param_name: str, torch.Tensor of shape (n_individuals, n_dims_param)]
+        individual_parameters : dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_dims_param)]
 
-        attribute_type: Any
+        attribute_type: Any (default None)
+            Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
         -------
-        torch.Tensor of shape (n_individuals, n_timepoints, n_features)
+        :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features)
         """
         raise NotImplementedError
 
+    @abstractmethod
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         """
-        The Jacobian of the model for each individual parameter.
-        This function aims to be used in scipy_minimize to speed up optimization.
+        Compute the jacobian of the model w.r.t. each individual parameter.
+
+        This function aims to be used in :class:`.ScipyMinimize` to speed up optimization.
 
         Parameters
         ----------
-        timepoints: torch.Tensor of shape (n_individuals, n_timepoints)
+        timepoints : :class:`torch.Tensor` of shape (n_individuals, n_timepoints)
 
-        individual_parameters: dict[param_name: str, torch.Tensor of shape (n_individuals, n_dims_param)]
+        individual_parameters : dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_dims_param)]
 
-        attribute_type: Any
+        attribute_type: Any (default None)
+            Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
         -------
-        dict[param_name: str, torch.Tensor of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
+        dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
         """
         raise NotImplementedError
 
     def compute_individual_attachment_tensorized_mcmc(self, data, realizations):
         """
+        Compute MCMC attachment of all subjects? One subject? One visit?
         TODO: complete
-        Compute attachment of all subjects? One subject? One visit?
 
         Parameters
         ----------
-        data: a leaspy.io.data.dataset.Dataset class object
+        data : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        realizations: a leaspy realization class object
+        realizations : :class:`.CollectionRealization`
 
         Returns
         -------
-        attachment : torch.Tensor
+        attachment : :class:`torch.Tensor`
             The subject attachment (?)
         """
         param_ind = self.get_param_from_real(realizations)
@@ -361,30 +388,20 @@ class AbstractModel:
 
         Parameters
         ----------
-        data: leaspy.io.data.dataset.Dataset
+        data : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects' time-points and the mask for nan values & padded visits
 
         param_ind: dict
             Contain the individual parameters
 
-        attribute_type: str
+        attribute_type: Any, optional
+            Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
         -------
-        attachment : torch.Tensor
+        attachment : :class:`torch.Tensor`
             Negative Log-likelihood, shape = (n_subjects,)
         """
-
-
-        #if self.loss == 'MSE':
-        #    r1 = mask * (res - data.values)  # r1.ndim = 3 - r1.shape = [n_subjects, ??, n_features]
-        #    #r1[1-data.mask] = 0.0 # Set nans to 0
-        #    squared_sum = torch.sum(r1 * r1, dim=(1, 2))
-        #
-        #    # noise_var = self.parameters['noise_std'] ** 2
-        #    noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
-        #    attachment = 0.5 * (1. / noise_var) * squared_sum
-        #    attachment += math.log(math.sqrt(TWO_PI * noise_var)) * torch.tensor(data.nb_observations_per_individuals)
 
         if 'MSE' in self.loss:
             # diagonal noise (squared) [same for all features if it's forced to be a scalar]
@@ -409,22 +426,88 @@ class AbstractModel:
 
         return attachment.reshape((data.n_individuals,)) # 1D tensor of shape(n_individuals,)
 
-    def update_model_parameters(self, data, suff_stats, burn_in_phase=True):
+    def update_model_parameters(self, data, reals_or_suff_stats, burn_in_phase=True):
+        """
+        Update model parameters (high-level function)
+
+        Under-the-hood call :meth:`.update_model_parameters_burn_in` or :meth:`.update_model_parameters_normal` depending on the phase of the fit algorithm
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        reals_or_suff_stats :
+            If during burn-in phase will be realizations:
+                :class:`.CollectionRealization`
+            If after burn-in phase will be sufficient statistics:
+                dict[suff_stat: str, :class:`torch.Tensor`]
+        """
+
         # Memoryless part of the algorithm
         if burn_in_phase:
-            self.update_model_parameters_burn_in(data, suff_stats)
+            self.update_model_parameters_burn_in(data, reals_or_suff_stats)
         # Stochastic sufficient statistics used to update the parameters of the model
         else:
-            self.update_model_parameters_normal(data, suff_stats)
+            self.update_model_parameters_normal(data, reals_or_suff_stats)
         self.attributes.update(['all'], self.parameters)
 
+    @abstractmethod
     def update_model_parameters_burn_in(self, data, realizations):
+        """
+        Update model parameters (burn-in phase)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        realizations : :class:`.CollectionRealization`
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_model_parameters_normal(self, data, suff_stats):
+        """
+        Update model parameters (after burn-in phase)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        suff_stats : dict[suff_stat: str, :class:`torch.Tensor`]
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def compute_sufficient_statistics(self, data, realizations):
+        """
+        Compute sufficient statistics from realizations
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        realizations : :class:`.CollectionRealization`
+
+        Returns
+        -------
+        dict[suff_stat: str, :class:`torch.Tensor`]
+        """
         raise NotImplementedError
 
     def get_population_realization_names(self):
+        """
+        Get names of population variales of the model.
+
+        Returns
+        -------
+        list[str]
+        """
         return [name for name, value in self.random_variable_informations().items() if value['type'] == 'population']
 
     def get_individual_realization_names(self):
+        """
+        Get names of individual variales of the model.
+
+        Returns
+        -------
+        list[str]
+        """
         return [name for name, value in self.random_variable_informations().items() if value['type'] == 'individual']
 
     def __str__(self):
@@ -437,6 +520,14 @@ class AbstractModel:
         return output
 
     def compute_regularity_realization(self, realization):
+        """
+        Compute regularity term for a :class:`.Realization` instance.
+
+        Parameters
+        ----------
+        realization : :class:`.Realization`
+        """
+
         # Instanciate torch distribution
         if realization.variable_type == 'population':
             mean = self.parameters[realization.name]
@@ -451,6 +542,14 @@ class AbstractModel:
         return self.compute_regularity_variable(realization.tensor_realizations, mean, std)
 
     def compute_regularity_variable(self, value, mean, std):
+        """
+        Compute regularity term (Gaussian distribution), low-level.
+
+        Parameters
+        ----------
+        value, mean, std : :class:`torch.Tensor` of same shapes
+        """
+
         # TODO change to static ???
         # Instanciate torch distribution
         # distribution = torch.distributions.normal.Normal(loc=mean, scale=std)
@@ -461,15 +560,50 @@ class AbstractModel:
         return -self.distribution.log_prob(value)
 
     def get_realization_object(self, n_individuals):
+        """
+        Initialization of a :class:`.CollectionRealization` used during model fitting.
+
+        Parameters
+        ----------
+        n_individuals : int
+            Number of individuals to track
+
+        Returns
+        -------
+        :class:`.CollectionRealization`
+        """
+
         # TODO : CollectionRealizations should probably get self.get_info_var rather than all self
         realizations = CollectionRealization()
         realizations.initialize(n_individuals, self)
         return realizations
 
+    @abstractmethod
     def random_variable_informations(self):
+        """
+        Informations on model's random variables.
+
+        Returns
+        -------
+        dict[str, Any]
+        """
         raise NotImplementedError
 
     def smart_initialization_realizations(self, data, realizations):
+        """
+        Smart initialization of realizations if needed.
+
+        Default behavior to return `realizations` as they are (no smart trick).
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        realizations : :class:`.CollectionRealization`
+
+        Returns
+        -------
+        :class:`.CollectionRealization`
+        """
         return realizations
 
     def _create_dictionary_of_population_realizations(self):
@@ -484,9 +618,39 @@ class AbstractModel:
 
     @staticmethod
     def time_reparametrization(timepoints, xi, tau):
+        """
+        Tensorized time reparametrization formula
+
+        <!> Shapes of tensors must be compatible between them.
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor`
+            Timepoints to reparametrize
+        xi : :class:`torch.Tensor`
+            Log-acceleration of individual(s)
+        tau : :class:`torch.Tensor`
+            Time-shift(s)
+
+        Returns
+        -------
+        :class:`torch.Tensor` of same shape as `timepoints`
+        """
         return torch.exp(xi) * (timepoints - tau)
 
     def get_param_from_real(self, realizations):
+        """
+        Get individual parameters realizations from all model realizations
+
+        Parameters
+        ----------
+        realizations : :class:`.CollectionRealization`
+
+        Returns
+        -------
+        dict[param_name: str, :class:`torch.Tensor` [n_individuals, dims_param]]
+            Individual parameters
+        """
 
         individual_parameters = dict.fromkeys(self.get_individual_variable_name())
 

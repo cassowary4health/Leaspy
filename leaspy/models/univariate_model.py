@@ -1,17 +1,22 @@
 import json
 
-import matplotlib.backends.backend_pdf
-import matplotlib.pyplot as plt
 import torch
 
-from .abstract_model import AbstractModel
-from .utils.attributes.attributes_factory import AttributesFactory
+from leaspy import __version__
+
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+from leaspy.utils.docs import doc_with_super, doc_with_
 
+# TODO refact? implement a single function
+# compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
+# TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
 
+@doc_with_super()
 class UnivariateModel(AbstractModel):
     """
-    Logistic model for a single variable of interest.
+    Univariate (logistic or linear) model for a single variable of interest.
     """
     def __init__(self, name, **kwargs):
         super().__init__(name)
@@ -30,7 +35,9 @@ class UnivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
+                # for linear: "p0" = g
+                'g_std': None,
             }
         }
 
@@ -38,31 +45,27 @@ class UnivariateModel(AbstractModel):
         self.load_hyperparameters(kwargs)
 
     def save(self, path, **kwargs):
-        """
-        Save Leaspy object as json model parameter file.
 
-        Parameters
-        ----------
-        path: str
-            Path to store the model's parameters.
-        **kwargs
-            Keyword arguments for json.dump method.
-        """
         model_parameters_save = self.parameters.copy()
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
         model_settings = {
+            'leaspy_version': __version__,
             'name': self.name,
             'features': self.features,
             #'dimension': 1,
             'loss': self.loss,
             'parameters': model_parameters_save
         }
+        # TODO : in leaspy models there should be a method to only return the dict describing the model
+        # and then another generic method (inherited) should save this dict
+        # (with extra standard fields such as 'leaspy_version' for instance)
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 
     def load_hyperparameters(self, hyperparameters):
+
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
         if 'loss' in hyperparameters.keys():
@@ -73,19 +76,7 @@ class UnivariateModel(AbstractModel):
 
     def initialize(self, dataset, method="default"):
 
-        # "Smart" initialization : may be improved
-        # TODO !
         self.features = dataset.headers
-
-        """
-        self.parameters = {
-            'g': [1.],
-            'tau_mean': 70., 'tau_std': 2.,
-            'xi_mean': -3., 'xi_std': .1,
-            'noise_std': [.1]}
-        self.parameters = {key: torch.tensor(val) for key, val in self.parameters.items()}
-        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
-        """
 
         self.parameters = initialize_parameters(self, dataset, method)
 
@@ -97,13 +88,18 @@ class UnivariateModel(AbstractModel):
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
-            self.parameters[k] = torch.tensor(parameters[k])
+            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
         self.attributes = AttributesFactory.attributes(self.name, dimension=1)
         self.attributes.update(['all'], self.parameters)
 
     def initialize_MCMC_toolbox(self):
+        """
+        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
+
+        TODO to move in a "MCMC-model interface"
+        """
         self.MCMC_toolbox = {
-            'priors': {'g_std': 1.},
+            'priors': {'g_std': 0.01}, # population parameter
             'attributes': AttributesFactory.attributes(self.name, dimension=1)
         }
 
@@ -114,6 +110,18 @@ class UnivariateModel(AbstractModel):
     # CORE
     ##########
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+        """
+        Update the MCMC toolbox with a collection of realizations of model population parameters.
+
+        TODO to move in a "MCMC-model interface"
+
+        Parameters
+        ----------
+        name_of_the_variables_that_have_been_changed: container[str] (list, tuple, ...)
+            Names of the population parameters to update in MCMC toolbox
+        realizations : :class:`.CollectionRealization`
+            All the realizations to update MCMC toolbox with
+        """
         L = name_of_the_variables_that_have_been_changed
         values = {}
         if any(c in L for c in ('g', 'all')):
@@ -130,13 +138,22 @@ class UnivariateModel(AbstractModel):
             g = self.attributes.positions
         return g
 
-    # def compute_sum_squared_tensorized(self, data, param_ind, attribute_type):
-    #    res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
-    #    res *= data.mask
-    #    return torch.sum((res * data.mask - data.values) ** 2, dim=(1, 2))
-
-    # TODO generalize in abstract
     def compute_mean_traj(self, timepoints):
+        """
+        Compute trajectory of the model with individual parameters being the group-average ones.
+
+        TODO check dimensions of io?
+        TODO generalize in abstract manifold model
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor` [1, n_timepoints]
+
+        Returns
+        -------
+        :class:`torch.Tensor` [1, n_timepoints, dimension]
+            The group-average values at given timepoints
+        """
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
             'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
@@ -144,26 +161,16 @@ class UnivariateModel(AbstractModel):
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
-    def plot_param_ind(self, path, param_ind):
-        pdf = matplotlib.backends.backend_pdf.PdfPages(path)
-        fig, ax = plt.subplots(1, 1)
-        xi, tau = param_ind
-        ax.plot(xi.squeeze(1).detach().tolist(), tau.squeeze(1).detach().tolist(), 'x')
-        plt.xlabel('xi')
-        plt.ylabel('tau')
-        pdf.savefig(fig)
-        plt.close()
-        pdf.close()
-
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         if self.name == 'univariate_logistic':
             return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
         elif self.name == 'univariate_linear':
             return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
         else:
-            raise ValueError("Mutivariate model > Compute individual tensorized")
+            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported. You gave {self.name}")
 
     def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=False):
+
         # Population parameters
         g = self._get_attributes(attribute_type)
         # Individual parameters
@@ -176,6 +183,7 @@ class UnivariateModel(AbstractModel):
         return model
 
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
+
         # Population parameters
         positions = self._get_attributes(attribute_type)
         # Individual parameters
@@ -191,24 +199,11 @@ class UnivariateModel(AbstractModel):
             return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
         elif self.name in ['linear', 'univariate_linear']:
             return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
         else:
-            raise ValueError("Mutivariate model > Compute jacobian tensorized")
+            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported. You gave {self.name}")
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-        '''
-        Parameters
-        ----------
-        timepoints
-        ind_parameters
-        attribute_type
 
-        Returns
-        -------
-        The Jacobian of the model with parameters order : [xi, tau, sources].
-        This function aims to be used in scipy_minimize.
-        '''
         # Population parameters
         positions = self._get_attributes(attribute_type)
 
@@ -231,7 +226,6 @@ class UnivariateModel(AbstractModel):
         return derivatives
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, MCMC=False):
-        # cf. AbstractModel.compute_jacobian_tensorized for doc
 
         # Population parameters
         g = self._get_attributes(MCMC)
@@ -324,23 +318,6 @@ class UnivariateModel(AbstractModel):
         if self.loss == 'crossentropy':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
 
-    # def get_param_from_real(self,realizations):
-    #    xi = realizations['xi'].tensor_realizations
-    #    tau = realizations['tau'].tensor_realizations
-    #    return (xi,tau)
-
-    def param_ind_from_dict(self, individual_parameters):
-        xi, tau = [], []
-        for key, item in individual_parameters.items():
-            xi.append(item['xi'])
-            tau.append(item['tau'])
-        xi = torch.tensor(xi).unsqueeze(1)
-        tau = torch.tensor(tau).unsqueeze(1)
-        return (xi, tau)
-
-    def get_xi_tau(self, param_ind):
-        xi, tau = param_ind
-        return xi, tau
 
     def random_variable_informations(self):
 
@@ -374,3 +351,10 @@ class UnivariateModel(AbstractModel):
         }
 
         return variables_infos
+
+# document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
+doc_with_(UnivariateModel.compute_individual_tensorized_linear, UnivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (linear)'})
+doc_with_(UnivariateModel.compute_individual_tensorized_logistic, UnivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (logistic)'})
+
+doc_with_(UnivariateModel.compute_jacobian_tensorized_linear, UnivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (linear)'})
+doc_with_(UnivariateModel.compute_jacobian_tensorized_logistic, UnivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (logistic)'})

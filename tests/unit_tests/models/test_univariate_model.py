@@ -26,8 +26,6 @@ class UnivariateModelTest(unittest.TestCase):
         """
         Test attribute's initialization of leaspy univariate model
         """
-        print('\nUnit-test UnivariateModel\n')
-
         for name in ['univariate_linear', 'univariate_logistic']:
 
             model = UnivariateModel(name)

@@ -1,5 +1,5 @@
 import sys
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import numpy as np
 import torch
@@ -14,34 +14,18 @@ class AbstractAlgo(ABC):
 
     Attributes
     ----------
-    algo_parameters: `dict`
+    algo_parameters: dict
         Contains the algorithm's parameters. These ones are set by a
-        leaspy.intputs.settings.algorithm_settings.AlgorithmSettings class object.
+        :class:`.AlgorithmSettings` class object.
     name: str
         Name of the algorithm.
-    seed: int
-        Seed used by torch.random.
-
-    Methods
-    -------
-    load_parameters(parameters)
-        Update the algorithm's parameters by the ones in the given dictionary. The keys in the io which does not
-        belong to the algorithm's parameters keys are ignored.
-    set_output_manager(output_settings)
-        Set a FitOutputManager class object for the run of the algorithm.
-    display_progress_bar(iteration, n_iter, suffix, n_step_default=50)
-        Display a progression bar while running algorithm, simply based on `sys.stdout`.
-    convert_timer(d)
-        Convert a float representing computation time in seconds to a string giving time in hour, minutes and
-        seconds ``%h %min %s``.
-    _initialize_seed(seed)
-        Set numpy and torch seeds and display it (static method).
+    seed: int, optional
+        Seed used by :mod:`numpy` and :mod:`torch`.
+    output_manager : :class:`~.io.logs.fit_output_manager.FitOutputManager`
+        Optional output manager of the algorithm
     """
 
     def __init__(self):
-        """
-        Process initializer function that is called by class FitOutputManager.
-        """
         self.algo_parameters = None
         self.name = None
         self.output_manager = None
@@ -53,7 +37,7 @@ class AbstractAlgo(ABC):
     @staticmethod
     def _initialize_seed(seed):
         """
-        Set numpy and torch seeds and display it (static method).
+        Set :mod:`numpy` and :mod:`torch` seeds and display it (static method).
 
         Notes - numpy seed is needed for reproducibility for the simulation algorithm which use the scipy kernel
         density estimation function. Indeed, scipy use numpy random seed.
@@ -67,6 +51,36 @@ class AbstractAlgo(ABC):
             np.random.seed(seed)
             torch.manual_seed(seed)
             print(" ==> Setting seed to {0}".format(seed))
+
+    ###########################
+    # Main method
+    ###########################
+
+    @abstractmethod
+    def run(self, model, dataset):
+        """
+        Main method, run the algorithm.
+
+        TODO fix proper abstract class
+
+        Parameters
+        ----------
+        model : :class:`~.models.abstract_model.AbstractModel`
+            The used model.
+        dataset : :class:`.Dataset`
+            Contains all the subjects' observations with corresponding timepoints, in torch format to speed up computations.
+
+        Returns
+        -------
+        Depends on algorithm class: TODO change?
+
+        See also
+        --------
+        :class:`.AbstractFitAlgo`
+        :class:`.AbstractPersonalizeAlgo`
+        :class:`.SimulationAlgorithm`
+        """
+        pass
 
     ###########################
     # Getters / Setters
@@ -119,11 +133,11 @@ class AbstractAlgo(ABC):
 
     def set_output_manager(self, output_settings):
         """
-        Set a FitOutputManager class object for the run of the algorithm
+        Set a :class:`~.io.logs.fit_output_manager.FitOutputManager` object for the run of the algorithm
 
         Parameters
         ----------
-        output_settings: a leaspy.io.settings.outputs_settings.OutputsSettings class object
+        output_settings : :class:`~.io.settings.outputs_settings.OutputsSettings`
             Contains the logs settings for the computation run (console print periodicity, plot periodicity ...)
 
         Examples
@@ -133,10 +147,10 @@ class AbstractAlgo(ABC):
         >>> from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
         >>> algo_settings = AlgorithmSettings("mcmc_saem")
         >>> my_algo = TensorMCMCSAEM(algo_settings)
-        >>> settings = {'path': 'brouillons',\
-                        'console_print_periodicity': 50,\
-                        'plot_periodicity': 100,\
-                        'save_periodicity': 50\
+        >>> settings = {'path': 'brouillons',
+                        'console_print_periodicity': 50,
+                        'plot_periodicity': 100,
+                        'save_periodicity': 50
                         }
         >>> my_algo.set_output_manager(OutputsSettings(settings))
         """
@@ -155,8 +169,9 @@ class AbstractAlgo(ABC):
         n_iter: int
             Total iterations' number of the algorithm.
         suffix: str
-            Used to differentiate calibration algorithms, for which `suffix = ` ``'iterations'`` and personalization
-            algorithms for which `suffix = ` ``'subjects'``.
+            Used to differentiate types of algorithms:
+                * for fit algorithms: ``suffix = 'iterations'``
+                * for personalization algorithms: ``suffix = 'subjects'``.
         n_step_default: int, default 50
             The size of the progression bar.
         """
@@ -180,6 +195,7 @@ class AbstractAlgo(ABC):
         """
         Convert a float representing computation time in seconds to a string giving time in hour, minutes and
         seconds ``%h %min %s``.
+
         If less than one hour, do not return hours. If less than a minute, do not return minuts.
 
         Parameters

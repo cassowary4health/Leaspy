@@ -1,14 +1,18 @@
+from abc import abstractmethod
 import json
 import math
 
 import torch
 
-# from leaspy.utils.realizations.realization import Realization
-from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
+from leaspy import __version__
+
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
-from .abstract_model import AbstractModel
+from leaspy.utils.docs import doc_with_super
 
 
+@doc_with_super()
 class AbstractMultivariateModel(AbstractModel):
     """
     Contains the common attributes & methods of the multivariate models.
@@ -32,7 +36,9 @@ class AbstractMultivariateModel(AbstractModel):
         self.MCMC_toolbox = {
             'attributes': None,
             'priors': {
-                'g_std': None,  # tq p0 = 1 / (1+exp(g)) i.e. g = 1/p0 - 1
+                # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
+                # for linear: "p0" = g
+                'g_std': None,
                 'betas_std': None
             }
         }
@@ -40,12 +46,14 @@ class AbstractMultivariateModel(AbstractModel):
         # load hyperparameters
         self.load_hyperparameters(kwargs)
 
+    """
     def smart_initialization_realizations(self, data, realizations):
         # TODO : Qui a fait ça? A quoi ça sert?
-        # means_time = torch.Tensor([torch.mean(data.get_times_patient(i)) for
+        # means_time = torch.tensor([torch.mean(data.get_times_patient(i)) for
         # i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
         # realizations['tau'].tensor_realizations = means_time
         return realizations
+    """
 
     def initialize(self, dataset, method="default"):
         self.dimension = dataset.dimension
@@ -60,8 +68,30 @@ class AbstractMultivariateModel(AbstractModel):
         self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
 
+    @abstractmethod
     def initialize_MCMC_toolbox(self):
-        raise NotImplementedError
+        """
+        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
+
+        TODO to move in a "MCMC-model interface"
+        """
+        pass
+
+    @abstractmethod
+    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+        """
+        Update the MCMC toolbox with a collection of realizations of model population parameters.
+
+        TODO to move in a "MCMC-model interface"
+
+        Parameters
+        ----------
+        name_of_the_variables_that_have_been_changed: container[str] (list, tuple, ...)
+            Names of the population parameters to update in MCMC toolbox
+        realizations : :class:`.CollectionRealization`
+            All the realizations to update MCMC toolbox with
+        """
+        pass
 
     def load_hyperparameters(self, hyperparameters):
         if 'dimension' in hyperparameters.keys():
@@ -73,11 +103,13 @@ class AbstractMultivariateModel(AbstractModel):
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
 
-        if any([key not in ('features', 'loss', 'dimension', 'source_dimension') for key in hyperparameters.keys()]):
-            raise ValueError("Only <features>, <loss>, <dimension> and <source_dimension> are valid hyperparameters "
-                             f"for an AbstractMultivariateModel! You gave {hyperparameters}.")
+        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension')
+        unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
+        if len(unexpected_hyperparameters) > 0:
+            raise ValueError(f"Only {', '.join([f'<{p}>' for p in expected_hyperparameters])} are valid hyperparameters "
+                             f"for an AbstractMultivariateModel! Unknown hyperparameters: {unexpected_hyperparameters}.")
 
-    def save(self, path, **kwargs):
+    def save(self, path, with_mixing_matrix=True, **kwargs):
         """
         Save Leaspy object as json model parameter file.
 
@@ -85,16 +117,25 @@ class AbstractMultivariateModel(AbstractModel):
         ----------
         path: str
             Path to store the model's parameters.
+        with_mixing_matrix: bool (default True)
+            Save the mixing matrix in the exported file in its 'parameters' section.
+            <!> It is not a real parameter and its value will be overwritten at model loading
+                (orthonormal basis is recomputed from other "true" parameters and mixing matrix is then deduced from this orthonormal basis and the betas)!
+            It was integrated historically because it is used for convenience in browser webtool and only there...
         **kwargs
             Keyword arguments for json.dump method.
         """
         model_parameters_save = self.parameters.copy()
-        model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
+
+        if with_mixing_matrix:
+            model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
+
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
 
         model_settings = {
+            'leaspy_version': __version__,
             'name': self.name,
             'features': self.features,
             'dimension': self.dimension,
@@ -105,14 +146,29 @@ class AbstractMultivariateModel(AbstractModel):
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 
+    @abstractmethod
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
-        raise NotImplementedError
+        pass
 
     def compute_mean_traj(self, timepoints):
+        """
+        Compute trajectory of the model with individual parameters being the group-average ones.
+
+        TODO check dimensions of io?
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor` [1, n_timepoints]
+
+        Returns
+        -------
+        :class:`torch.Tensor` [1, n_timepoints, dimension]
+            The group-average values at given timepoints
+        """
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
             'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
-            'sources': torch.zeros(self.source_dimension)
+            'sources': torch.zeros(self.source_dimension, dtype=torch.float32)
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)

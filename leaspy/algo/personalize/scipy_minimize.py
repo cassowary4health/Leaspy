@@ -48,29 +48,32 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         Initialize individual parameters of one patient with group average parameter.
 
+        ``x = [xi_mean/xi_std, tau_mean/tau_std] (+ [0.] * n_sources if multivariate model)``
+
         Parameters
         ----------
-        model: leaspy model class object
+        model : :class:`.AbstractModel`
 
         Returns
         -------
-        x: `list` [`float`]
-            The individual parameters.
-            By default x = [xi_mean, tau_mean] (+ [0.] * nber_of_sources if multivariate model)
+        list [float]
+            The individual **standardized** parameters to start with.
         """
         # rescale parameters to their natural scale so they are comparable (as well as their gradient)
         x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
              model.parameters["tau_mean"] / model.parameters["tau_std"]
             ]
         if model.name != "univariate":
-            x += [torch.tensor(0.) for _ in range(model.source_dimension)]
+            x += [torch.tensor(0., dtype=torch.float32)
+                  for _ in range(model.source_dimension)]
         return x
 
     def _pull_individual_parameters(self, x, model):
         """
-        Get individual parameters as a dict[param_name: str, torch.Tensor [1,n_dims_param]]
+        Get individual parameters as a dict[param_name: str, :class:`torch.Tensor` [1,n_dims_param]]
         from a condensed array-like version of it
-        (based on the conventional order defined in `_initialize_parameters`)
+
+        (based on the conventional order defined in :meth:`._initialize_parameters`)
         """
         tensorized_params = torch.tensor(x, dtype=torch.float32).view((1,-1)) # 1 individual
 
@@ -88,8 +91,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         From a dict of gradient tensors per param (without normalization),
         returns the full tensor of gradients (= for all params, consecutively):
-        - concatenated with conventional order of x0
-        - normalized because we derive w.r.t. "standardized" parameter (adimensional gradient)
+            * concatenated with conventional order of x0
+            * normalized because we derive w.r.t. "standardized" parameter (adimensional gradient)
         """
         to_cat = [
             dict_grad_tensors['xi'] * model.parameters['xi_std'],
@@ -102,23 +105,22 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
     def _get_reconstruction_error(self, model, times, values, individual_parameters):
         """
-        Compute model values minus real values of a patient for a given model, timepoints, real values &
-        individual parameters.
+        Compute model values minus real values of a patient for a given model, timepoints, real values & individual parameters.
 
         Parameters
         ----------
-        model: Leaspy model class object
+        model : :class:`.AbstractModel`
             Model used to compute the group average parameters.
-        times: `torch.Tensor` [n_tpts]
+        times : :class:`torch.Tensor` [n_tpts]
             Contains the individual ages corresponding to the given ``values``.
-        values: `torch.Tensor` [n_tpts,n_fts]
+        values : :class:`torch.Tensor` [n_tpts,n_fts]
             Contains the individual true scores corresponding to the given ``times``.
-        individual_parameters: dict[str, torch.Tensor[1,n_dims_param]]
+        individual_parameters : dict[str, :class:`torch.Tensor` [1,n_dims_param]]
             Individual parameters as a dict
 
         Returns
         -------
-        err: `torch.Tensor` [n_tpts,n_fts]
+        :class:`torch.Tensor` [n_tpts,n_fts]
             Model values minus real values.
         """
 
@@ -133,21 +135,19 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Parameters
         ----------
-        model: Leaspy model class object
+        model : :class:`.AbstractModel`
             Model used to compute the group average parameters.
 
-        individual_parameters: dict[str, torch.Tensor[n_ind,n_dims_param]]
+        individual_parameters : dict[str, :class:`torch.Tensor` [n_ind,n_dims_param]]
             Individual parameters as a dict
 
         Returns
         -------
-        2-tuple:
-
-        - regularity: `torch.Tensor` [n_individuals]
+        regularity : :class:`torch.Tensor` [n_individuals]
             Regularity of the patient(s) corresponding to the given individual parameters.
             (Sum on all parameters)
 
-        - regularity_grads: dict[param_name: str, `torch.Tensor` [n_individuals, n_dims_param]]
+        regularity_grads : dict[param_name: str, :class:`torch.Tensor` [n_individuals, n_dims_param]]
             Gradient of regularity term with respect to individual parameters.
 
         """
@@ -177,30 +177,30 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Parameters
         ----------
-        x: array-like [`float`]
-            Initialization of individual "standardized" parameters
-            By default x = [xi_mean/xi_std, tau_mean/tau_std] (+ [0.] * nber_of_sources if multivariate model)
+        x: array-like [float]
+            Individual **standardized** parameters
+            At initialization ``x = [xi_mean/xi_std, tau_mean/tau_std] (+ [0.] * n_sources if multivariate model)``
 
         args:
-            - model: leaspy model class object
+            * model : :class:`.AbstractModel`
                 Model used to compute the group average parameters.
-            - timepoints: `torch.Tensor`[1,n_tpts]
+            * timepoints : :class:`torch.Tensor` [1,n_tpts]
                 Contains the individual ages corresponding to the given ``values``
-            - values: `torch.Tensor`[n_tpts, n_fts]
+            * values : :class:`torch.Tensor` [n_tpts, n_fts]
                 Contains the individual true scores corresponding to the given ``times``.
-            - with_gradient boolean
+            * with_gradient: bool
                 If True: return (objective, gradient_objective)
                 Else: simply return objective
 
         Returns
         -------
-        objective: `float`
+        objective: float
             Value of the loss function (opposite of log-likelihood).
 
         if with_gradient is True:
-            2-tuple (as expected by scipy.optimize.minimize when jac=True)
-            - objective: float
-            - gradient: array-like[float] of length n_dims_params
+            2-tuple (as expected by :func:`scipy.optimize.minimize` when ``jac=True``)
+                * objective: float
+                * gradient: array-like[float] of length n_dims_params
         """
 
         # Extra arguments passed by scipy minimize
@@ -268,22 +268,21 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Parameters
         ----------
-        model: Leaspy model class object
+        model : :class:`.AbstractModel`
             Model used to compute the group average parameters.
-        times: `torch.Tensor` [n_tpts]
+        times : :class:`torch.Tensor` [n_tpts]
             Contains the individual ages corresponding to the given ``values``.
-        values: `torch.Tensor` [n_tpts, n_fts]
+        values : :class:`torch.Tensor` [n_tpts, n_fts]
             Contains the individual true scores corresponding to the given ``times``.
-        patient_id: str (or None)
+        patient_id : str (or None)
             ID of patient (essentially here for logging purposes when no convergence)
 
         Returns
         -------
-        2-tuple:
-            - individual parameters: dict[str, torch.Tensor[1,n_dims_param]]
-                Individual parameters as a dict of tensors.
-            - reconstruction error: `torch.Tensor` [n_tpts, n_features]
-                Model values minus real values.
+        individual parameters : dict[str, :class:`torch.Tensor` [1,n_dims_param]]
+            Individual parameters as a dict of tensors.
+        reconstruction error : :class:`torch.Tensor` [n_tpts, n_features]
+            Model values minus real values.
         """
 
         # optimize by sending exact gradient of optimized function?
@@ -318,14 +317,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ----------
         it: int
             The iteration number.
-        model: leaspy model class object
+        model : :class:`.AbstractModel`
             Model used to compute the group average parameters.
-        data: leaspy.io.data.dataset.Dataset class object
+        data : :class:`.Dataset`
             Contains the individual scores.
 
         Returns
         -------
-        leaspy.io.outputs.individual_parameters.IndividualParameters
+        :class:`.IndividualParameters`
             Contains the individual parameters of all patients.
         """
         times = data.get_times_patient(it)  # torch.Tensor[n_tpts]
@@ -348,14 +347,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Parameters
         ----------
-        model: leaspy model class object
+        model : :class:`.AbstractModel`
             Model used to compute the group average parameters.
-        data: leaspy.io.data.dataset.Dataset class object
+        data : :class:`.Dataset` class object
             Contains the individual scores.
 
         Returns
         -------
-        leaspy.io.outputs.individual_parameters.IndividualParameters
+        :class:`.IndividualParameters`
             Contains the individual parameters of all patients.
         """
 

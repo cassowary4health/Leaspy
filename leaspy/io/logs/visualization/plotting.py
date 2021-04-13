@@ -256,7 +256,7 @@ class Plotting:
         # ---- Plot
         t0 = self.model.parameters['tau_mean'].item()
         ip_df = individual_parameters.to_dataframe()
-        ip_df = ip_df.join(data.to_dataframe().reset_index()[['TIME']])
+        ip_df = ip_df.join(data.to_dataframe().set_index('ID')[['TIME']])
         ip_df['TIME_rep'] = np.exp(ip_df['xi'].values) * (ip_df['TIME'].values - ip_df['tau'].values) + t0
 
         for idx in patients_idx:

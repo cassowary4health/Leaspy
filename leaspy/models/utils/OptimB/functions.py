@@ -134,7 +134,7 @@ def filtre_nan_inhomogene(XT):
 
 
 
-
+#Lorsqu'on rajoute un kernel il faut venir aussi rajouter la contraintes qui lui est associé
 class KernelFactory:
 
     @staticmethod
@@ -179,11 +179,56 @@ class KernelFactory:
         K_value = torch.exp(-torch.norm(PA3, dim=-1) ** 2 / (2 * sigma ** 2))
 
         return K_value
+    def sobolev_kernel(X_points, meta_settings, X_control = None):
+        '''
+
+        Parameters
+        ----------
+        X_points : torch vector (N, features_dimension) or (n_ind, n_visits, features_dimension)
+        with N points used for which we want kernel estimation
+        meta_settings : dictionary with all settings
+        X_control : optional, torch vector with control points used for kernel estimation
+
+        Returns
+        The matrix K(X_points_i, X_control_j) with the kernel K being the Sobolev with sigma given in the meta settings
+        and ord, the order of the sobolev space
+        If X_control is None, compute The matrix K(X_points_i, X_points_j)
+        -------
+
+        '''
+        sigma = meta_settings["sigma"]
+        order=meta_settings["order"]
+        if X_control is None:
+            X_control = X_points
+        k = len(X_control)
+
+        ndim = len(X_points.shape)
+
+        if ndim == 2:
+            nb_visit = len(X_points)
+
+            PA1 = X_points.unsqueeze(0).repeat(k, 1, 1).permute(1, 0, 2)
+            PA2 = X_control.unsqueeze(0).repeat(nb_visit, 1, 1)
+
+        elif ndim == 3:
+            n_ind = X_points.shape[0]
+            n_visits = X_points.shape[1]
+
+            PA1 = X_points.unsqueeze(0).repeat(k, 1, 1, 1).permute(1, 2, 0, 3)
+            PA2 = X_control.unsqueeze(0).unsqueeze(0).repeat(n_ind, n_visits, 1, 1)
+
+        PA3 = PA1 - PA2
+
+        K_value = 1/(1+torch.norm(PA3, dim=-1) ** 2 /sigma ** 2)**order
+
+        return K_value
 
     @staticmethod
     def get_kernel(name, meta_settings):
         if name in ["RBF", "gaussian"]:
             return lambda x, X_control=None: KernelFactory.rbf_kernel(x, meta_settings, X_control=X_control)
+        if name in ["sobolev"]:
+            return lambda x, X_control=None: KernelFactory.sobolev_kernel(x, meta_settings, X_control=X_control)
         else:
             raise NotImplementedError("Your kernel {} is not available".format(name))
 
@@ -293,9 +338,12 @@ def kernelreg(meta_settings,dim):
     """
     if meta_settings["kernel_name"]in ["RBF", "gaussian"]:
         concon=meta_settings["sigma"]**2/dim
-        return concon
+        
+    elif meta_settings["kernel_name"]in ["sobolev"]:
+        concon=meta_settings["sigma"]**2/(dim*meta_settings["order"])
     else:
         raise NotImplementedError("Your kernel {} is not available".format(name))
+    return concon
     
 
 

@@ -5,6 +5,16 @@ from .utils.attributes import AttributesFactory
 
 from leaspy.utils.docs import doc_with_super, doc_with_
 
+from leaspy import __version__
+import json
+
+
+
+initB = {"identity":lambda x:x,
+"negidentity":lambda x:-x,
+"logistic":lambda x:1./(1.+torch.exp(-x))}
+import leaspy.models.utils.OptimB as OptimB
+
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
 # TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
@@ -16,11 +26,17 @@ class LinearB(AbstractMultivariateModel):
     """
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
-        self.parameters["v0"] = None
         self.B= lambda x : x
+        self.kernelsettings=None
+        self.initB="identity"
+        
+        self.parameters["v0"] = None
+        
         self.saveB= []
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
-
+    
+    
+ 
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
@@ -30,6 +46,61 @@ class LinearB(AbstractMultivariateModel):
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
+
+
+   
+    def initBlink(self):
+        self.B=initB[self.initB]
+
+    def reconstructionB(self):
+        
+        for e in self.saveB:
+            W,X_filtre=e
+            FonctionTensor=OptimB.transformation_B_compose( X_filtre,W, self.kernelsettings,self.B)
+            self.B=FonctionTensor
+
+    
+    def load_hyperparameters(self, hyperparameters):
+        if 'dimension' in hyperparameters.keys():
+            self.dimension = hyperparameters['dimension']
+        if 'source_dimension' in hyperparameters.keys():
+            self.source_dimension = hyperparameters['source_dimension']
+        if 'features' in hyperparameters.keys():
+            self.features = hyperparameters['features']
+        if 'loss' in hyperparameters.keys():
+            self.loss = hyperparameters['loss']
+        expected_initB=("identity","negidentity","logistic")
+        if 'kernelsettings' in hyperparameters.keys():
+            self.kernelsettings = hyperparameters['kernelsettings']
+        if 'init_b' in hyperparameters.keys():
+            self.initB=hyperparameters['init_b']
+            self.initBlink()
+        if 'save_b' in hyperparameters.keys():
+            
+            L=[]
+            for e in hyperparameters['save_b']:
+                W,X=e
+                L.append((torch.tensor(W),torch.tensor(X)))
+            self.saveB = L
+            self.reconstructionB()
+
+    
+
+        if 'B' in hyperparameters.keys():
+            if 'initB' not in hyperparameters.keys():
+                print("don't forget to define model.initB in order to save your parameters correctly" +f"Only {', '.join([f'<{p}>' for p in expected_initB])}")
+                self.initB="unknown"
+            
+
+            self.B = hyperparameters['B']
+
+        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension','B','save_b','kernelsettings','init_b')
+        unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
+        if len(unexpected_hyperparameters) > 0:
+            raise ValueError(f"Only {', '.join([f'<{p}>' for p in expected_hyperparameters])} are valid hyperparameters "
+                             f"for an AbstractMultivariateModel! Unknown hyperparameters: {unexpected_hyperparameters}.")
+
+    
     def save(self, path, with_mixing_matrix=True, **kwargs):
         """
         Save Leaspy object as json model parameter file.
@@ -63,7 +134,9 @@ class LinearB(AbstractMultivariateModel):
             'source_dimension': self.source_dimension,
             'loss': self.loss,
             'parameters': model_parameters_save,
-            'saveB':self.saveB#faire une fonction pour recontruire B à partir de save B
+            'save_b':self.saveB, #faire une fonction pour recontruire B à partir de save B
+            'init_b':self.initB,
+            'kernelsettings':self.kernelsettings
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)

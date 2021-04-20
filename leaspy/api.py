@@ -261,14 +261,25 @@ class Leaspy:
         Update model.B
 
         """
-        if "B_init" in meta_settings:
-            self.model.B=meta_settings["B_init"]
+
+        if "initB" in meta_settings:
+            self.model.initB=meta_settings["initB"]
+            self.model.initBlink()
         else:
             self.model.B=lambda x:x
+            self.model.initB="identity"
         if "nb_compose" in meta_settings:
             nb_compose=meta_settings["nb_compose"]
         else:
             nb_compose=3
+
+        kernelsettings={}
+        kernelsettings["sigma"]=meta_settings["sigma"]
+        kernelsettings["kernel_name"]=meta_settings["kernel_name"]
+        if "order" in meta_settings:
+            kernelsettings["order"]=meta_settings["order"]
+
+        self.model.kernelsettings=kernelsettings
         
         dataset=Dataset(data)
         mask=dataset.mask
@@ -312,8 +323,9 @@ class Leaspy:
         #KG[index] la matrice de contraintes
 
         W=OptimB.solver(X1,Y1,KG,index,self.model.dimension,meta_settings)
+
         FonctionTensor=OptimB.transformation_B_compose( X_filtre,W, meta_settings,self.model.B)
-        self.model.saveB.append((W,X_filtre))
+        self.model.saveB.append((W.tolist(),X_filtre.tolist()))
         return FonctionTensor
 
 

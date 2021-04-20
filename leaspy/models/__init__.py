@@ -22,3 +22,7 @@ all_models = {
     'constant': ConstantModel,
     
 }
+
+initB = {"identity":lambda x:x,
+"negidentity":lambda x:-x,
+"logistic":lambda x:1./(1.+torch.exp(-x))}

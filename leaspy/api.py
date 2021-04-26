@@ -262,16 +262,20 @@ class Leaspy:
 
         """
 
-        if "initB" in meta_settings:
-            self.model.initB=meta_settings["initB"]
+        if "init_b" in meta_settings:
+            self.model.initB=meta_settings["init_b"]
             self.model.initBlink()
         else:
-            self.model.B=lambda x:x
             self.model.initB="identity"
+            self.model.initBlink()
         if "nb_compose" in meta_settings:
             nb_compose=meta_settings["nb_compose"]
         else:
             nb_compose=3
+        if "nb_compose_succ" in meta_settings:
+            nb_compose_succ=meta_settings["nb_compose_succ"]
+        else:
+            nb_compose_succ=1
 
         kernelsettings={}
         kernelsettings["sigma"]=meta_settings["sigma"]
@@ -290,9 +294,10 @@ class Leaspy:
             self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
             ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
             _, ind_params = ip.to_pytorch()
-            X=self.model.compute_individual_tensorized(tps,ind_params)#On récupère les points de contrôle
+            for j in range(nb_compose_succ):
+                X=self.model.compute_individual_tensorized(tps,ind_params)#On récupère les points de contrôle
 
-            self.model.B=self.update_B(X,Y,mask,meta_settings)#On met à jour la fonction B
+                self.model.B=self.update_B(X,Y,mask,meta_settings)#On met à jour la fonction B
             #On peut imaginer rajouter une initialisation spécifique du solver en fonction d'avant, on le ferai dans meta_setings
         return ip
     

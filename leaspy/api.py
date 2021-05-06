@@ -261,13 +261,27 @@ class Leaspy:
         Update model.B
 
         """
+        if "sigma_auto" not in meta_settings:
+            meta_settings["sigma_auto"]=False
+
+        dataset=Dataset(data)
+        mask=dataset.mask
+        Y=dataset.values.clone()
+        Y1,Y1=OptimB.filtre_nan_homogene(Y,Y,mask)
+        sig=OptimB.sigvalue(Y1)
+        print("sigma med")
+        print(sig)
+        if meta_settings["sigma_auto"]:
+            meta_settings["sigma"]=sig
+        if "iter_in_fit" not in meta_settings:
+            meta_settings["iter_in_fit"]=200
+        if "iter_out_fit" not in meta_settings:
+            meta_settings["iter_out_fit"]=400
 
         if "init_b" in meta_settings:
             self.model.initB=meta_settings["init_b"]
             self.model.initBlink()
-        else:
-            self.model.initB="identity"
-            self.model.initBlink()
+        
         if "nb_compose" in meta_settings:
             nb_compose=meta_settings["nb_compose"]
         else:
@@ -285,14 +299,21 @@ class Leaspy:
 
         self.model.kernelsettings=kernelsettings
         
-        dataset=Dataset(data)
-        mask=dataset.mask
             
         tps=dataset.timepoints
-        Y=dataset.values.clone()
+        
         for i in range(nb_compose):
+            if "iter_begin_fit" in meta_settings and i==0:
+                algorithm_settings.parameters["n_iter"]=meta_settings["iter_begin_fit"]
+                algorithm_settings.parameters["init_real"]=meta_settings["init_real"]
+            if i>0 and i<(nb_compose-1):
+                algorithm_settings.parameters["n_iter"]=meta_settings["iter_in_fit"]
+            if i==nb_compose-1:
+                algorithm_settings.parameters["n_iter"]=meta_settings["iter_out_fit"]
             self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
+            self.model.saveParam.append(self.model.parameters.copy())
             ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
+            algorithm_settings.parameters["init_real"]=ip
             _, ind_params = ip.to_pytorch()
             for j in range(nb_compose_succ):
                 X=self.model.compute_individual_tensorized(tps,ind_params)#On récupère les points de contrôle
@@ -318,6 +339,7 @@ class Leaspy:
         else:
             k=min(10,len(X))
         X1,Y1=OptimB.filtre_nan_homogene(X,Y,mask)
+        
         index=OptimB.sub_sampling(X1,k)
 
         #Y_filtre=Y1[index] on est pas obligé de subsampler sur Y, on perd de l'info

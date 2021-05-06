@@ -29,7 +29,7 @@ class LinearB(AbstractMultivariateModel):
         self.B= lambda x : x
         self.kernelsettings=None
         self.initB="identity"
-        
+        self.saveParam=[]
         self.parameters["v0"] = None
         
         self.saveB= []
@@ -53,10 +53,12 @@ class LinearB(AbstractMultivariateModel):
         self.B=initB[self.initB]
 
     def reconstructionB(self):
-        
+        self.initBlink()
         for e in self.saveB:
             W,X_filtre=e
-            FonctionTensor=OptimB.transformation_B_compose( X_filtre,W, self.kernelsettings,self.B)
+            W1=torch.tensor(W, dtype=torch.float32)
+            X_filtre1=torch.tensor(X_filtre, dtype=torch.float32)
+            FonctionTensor=OptimB.transformation_B_compose( X_filtre1,W1, self.kernelsettings,self.B)
             self.B=FonctionTensor
 
     
@@ -75,6 +77,9 @@ class LinearB(AbstractMultivariateModel):
         if 'init_b' in hyperparameters.keys():
             self.initB=hyperparameters['init_b']
             self.initBlink()
+        if 'saveParam' in hyperparameters.keys():
+            self.saveParam=hyperparameters['saveParam']
+            
         if 'save_b' in hyperparameters.keys():
             
             L=[]
@@ -136,7 +141,8 @@ class LinearB(AbstractMultivariateModel):
             'parameters': model_parameters_save,
             'save_b':self.saveB, #faire une fonction pour recontruire B à partir de save B
             'init_b':self.initB,
-            'kernelsettings':self.kernelsettings
+            'kernelsettings':self.kernelsettings,
+            'saveParam':self.saveParam
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)

@@ -129,6 +129,13 @@ def filtre_nan_inhomogene(XT):
     #Pour l'instant on ne fait rien de la partie inhomogène
     return PartHomo
 
+def sigvalue(Y):
+    nb_visit = len(Y)
+    PA1 = Y.unsqueeze(0).repeat(nb_visit, 1, 1).permute(1, 0, 2)
+    PA2 = Y.unsqueeze(0).repeat(nb_visit, 1, 1)
+    PA3 = PA1 - PA2
+    N=torch.norm(PA3, dim=-1)
+    return torch.median(N)
 
 
 

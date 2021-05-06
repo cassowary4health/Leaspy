@@ -65,7 +65,10 @@ class AbstractFitAlgo(AbstractAlgo):
         realizations = model.get_realization_object(dataset.n_individuals)
 
         # Smart init the realizations
-        realizations = model.smart_initialization_realizations(dataset, realizations)
+        init_values = None
+        if "init_real" in self.algo_parameters:
+            init_values = self.algo_parameters["init_real"]
+        realizations = model.smart_initialization_realizations(dataset, realizations, init=init_values)
 
         # Initialize Algo
         self._initialize_algo(dataset, model, realizations)

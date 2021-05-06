@@ -5,6 +5,7 @@ import torch
 
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 TWO_PI = 2 * math.pi
 
@@ -589,7 +590,7 @@ class AbstractModel(ABC):
         """
         raise NotImplementedError
 
-    def smart_initialization_realizations(self, data, realizations):
+    def smart_initialization_realizations(self, data, realizations, init=None):
         """
         Smart initialization of realizations if needed.
 
@@ -604,6 +605,10 @@ class AbstractModel(ABC):
         -------
         :class:`.CollectionRealization`
         """
+        if isinstance(init, IndividualParameters):
+            values = init.to_pytorch()[1]
+            for key in realizations.reals_ind_variable_names:
+                realizations.realizations[key]._tensor_realizations = values[key].clone()
         return realizations
 
     def _create_dictionary_of_population_realizations(self):

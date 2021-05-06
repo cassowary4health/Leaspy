@@ -297,6 +297,7 @@ class AlgorithmSettings:
 
             else:
                 warning_message = "The parameter key : >>>{0}<<< you provided is unknown".format(k)
+                self.parameters[k] = v
                 warnings.warn(warning_message)
 
         # dynamic default parameters

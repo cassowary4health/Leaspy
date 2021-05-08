@@ -56,8 +56,8 @@ class LinearB(AbstractMultivariateModel):
         self.initBlink()
         for e in self.saveB:
             W,X_filtre=e
-            W1=torch.tensor(W, dtype=torch.float32)
-            X_filtre1=torch.tensor(X_filtre, dtype=torch.float32)
+            W1=torch.tensor(W, dtype=torch.float32).clone().detach()
+            X_filtre1=torch.tensor(X_filtre, dtype=torch.float32).clone().detach()
             FonctionTensor=OptimB.transformation_B_compose( X_filtre1,W1, self.kernelsettings,self.B)
             self.B=FonctionTensor
 
@@ -77,8 +77,8 @@ class LinearB(AbstractMultivariateModel):
         if 'init_b' in hyperparameters.keys():
             self.initB=hyperparameters['init_b']
             self.initBlink()
-        if 'saveParam' in hyperparameters.keys():
-            self.saveParam=hyperparameters['saveParam']
+        if 'saveparam' in hyperparameters.keys():
+            self.saveParam=hyperparameters['saveparam']
             
         if 'save_b' in hyperparameters.keys():
             
@@ -99,7 +99,7 @@ class LinearB(AbstractMultivariateModel):
 
             self.B = hyperparameters['B']
 
-        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension','B','save_b','kernelsettings','init_b')
+        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension','B','save_b','kernelsettings','init_b','saveparam')
         unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
         if len(unexpected_hyperparameters) > 0:
             raise ValueError(f"Only {', '.join([f'<{p}>' for p in expected_hyperparameters])} are valid hyperparameters "
@@ -123,14 +123,23 @@ class LinearB(AbstractMultivariateModel):
             Keyword arguments for json.dump method.
         """
         model_parameters_save = self.parameters.copy()
+        list_model_parameters_save=self.saveParam.copy()
 
         if with_mixing_matrix:
             model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
+            
+        for i in range(len(list_model_parameters_save)):
+            for key, value in list_model_parameters_save[i].items():
+                if type(value) in [torch.Tensor]:
+        
+                    list_model_parameters_save[i][key] = value.tolist()
 
+        
+        
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
-
+       
         model_settings = {
             'leaspy_version': __version__,
             'name': self.name,
@@ -142,8 +151,9 @@ class LinearB(AbstractMultivariateModel):
             'save_b':self.saveB, #faire une fonction pour recontruire B à partir de save B
             'init_b':self.initB,
             'kernelsettings':self.kernelsettings,
-            'saveParam':self.saveParam
+            'saveparam':list_model_parameters_save
         }
+        print(model_settings)
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 

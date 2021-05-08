@@ -272,7 +272,7 @@ class Leaspy:
         print("sigma med")
         print(sig)
         if meta_settings["sigma_auto"]:
-            meta_settings["sigma"]=sig
+            meta_settings["sigma"]=sig.clone().detach().item()
         if "iter_in_fit" not in meta_settings:
             meta_settings["iter_in_fit"]=200
         if "iter_out_fit" not in meta_settings:

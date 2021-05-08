@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 import matplotlib.pyplot as plt
-
+from leaspy import Leaspy, Data, AlgorithmSettings, Plotter, Dataset, IndividualParameters
 
 
 def plot_average_update(model,ax,modelref=None):
@@ -39,9 +39,14 @@ def plot_average_update(model,ax,modelref=None):
         number_of_sources = model.model.random_variable_informations()["sources"]["shape"][0]
         for j in range(len(LB)):
             
-            mean_xi = Lparam[j]['xi_mean'].numpy()
-            mean_tau = Lparam[j]['tau_mean'].numpy()
-            mean_source = Lparam[j]['sources_mean'].numpy().tolist()
+            if type(Lparam[j]['xi_mean']) is torch.Tensor:
+                mean_xi = Lparam[j]['xi_mean'].numpy()
+                mean_tau = Lparam[j]['tau_mean'].numpy()
+                mean_source = Lparam[j]['sources_mean'].numpy().tolist()
+            else:
+                mean_xi = Lparam[j]['xi_mean']
+                mean_tau = Lparam[j]['tau_mean']
+                mean_source = Lparam[j]['sources_mean']
             mean_sources = [mean_source]*number_of_sources
             model.model.saveB=LB[:j]
             model.model.reconstructionB()
@@ -57,6 +62,7 @@ def plot_average_update(model,ax,modelref=None):
         ax[i].set_ylabel("dim"+str(i))
         
     model.model.saveB=LB
+
 
 
 def plot_variability(model, tps,nb_vari,fen):
@@ -83,7 +89,11 @@ def plot_variability(model, tps,nb_vari,fen):
                 
                 if len(ax1.shape)>1:
                     ax1[j,i].plot(t, trajectory[..., j],label="source "+str(i)+": {:.2f}".format(SS[k,i]))
+                    ax1[j,i].set_xlabel("time")
+                    ax1[j,i].set_ylabel("dim"+str(j))
                 else:
                     ax1[j].plot(t, trajectory[..., j],label="source "+str(i)+": {:.2f}".format(SS[k,i]))
+                    ax1[j].set_xlabel("time")
+                    ax1[j].set_ylabel("dim"+str(j))
     plt.legend()
     plt.show()

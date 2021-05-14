@@ -271,12 +271,25 @@ class Leaspy:
         sig=OptimB.sigvalue(Ysig)
         print("sigma med")
         print(sig)
+
+        
         if "control_method" not in meta_settings:
             meta_settings["control_method"]="grid"
 
         if meta_settings["sigma_auto"]:
             meta_settings["sigma"]=sig.clone().detach().item()
 
+        if "nb_control_points" in meta_settings:
+            k=meta_settings["nb_control_points"]
+        else:
+            k=min(10,len(Ysig))
+
+        Y1,Y1=OptimB.filtre_nan_inhomogene(Y,Y,mask)
+
+        if meta_settings["control_method"]=="grid":
+            X_filtre=OptimB.grid_control(Y1,meta_settings["sigma"])
+        print("nb_controls")
+        print(len(X_filtre))
         if "iter_in_fit" not in meta_settings:
             meta_settings["iter_in_fit"]=200
         
@@ -326,11 +339,11 @@ class Leaspy:
             for j in range(nb_compose_succ):
                 X=self.model.compute_individual_tensorized(tps,ind_params)#On récupère les points de contrôle
 
-                self.model.B=self.update_B(X,Y,mask,meta_settings)#On met à jour la fonction B
+                self.model.B=self.update_B(X,Y,mask,meta_settings,X_filtre)#On met à jour la fonction B
             #On peut imaginer rajouter une initialisation spécifique du solver en fonction d'avant, on le ferai dans meta_setings
         return ip
     
-    def update_B(self,X,Y,mask,meta_settings):
+    def update_B(self,X,Y,mask,meta_settings,X_filtre=None):
         """
         Parameters
         ------
@@ -342,10 +355,7 @@ class Leaspy:
         ----
         The fonction B to update, function tensor->tensor
         """
-        if "nb_control_points" in meta_settings:
-            k=meta_settings["nb_control_points"]
-        else:
-            k=min(10,len(X))
+        
         
         X1,Y1=OptimB.filtre_nan_inhomogene(X,Y,mask)
         

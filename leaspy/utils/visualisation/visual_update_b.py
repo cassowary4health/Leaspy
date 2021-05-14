@@ -7,7 +7,10 @@ import matplotlib.pyplot as plt
 from leaspy import Leaspy, Data, AlgorithmSettings, Plotter, Dataset, IndividualParameters
 
 
-def plot_average_update(model,ax,modelref=None):
+
+
+
+def plot_average_update(model,ax,modelref=None,name=None):
     """
     Parameters: model, linear_b model already calibrated with update_b
         ax, (dimension) subplots
@@ -19,13 +22,16 @@ def plot_average_update(model,ax,modelref=None):
         mean_xiref = modelref.model.parameters['xi_mean'].numpy()
         mean_tauref = modelref.model.parameters['tau_mean'].numpy()
         mean_sourceref = modelref.model.parameters['sources_mean'].numpy().tolist()
-        mean_sourcesref = [mean_source]*number_of_sources
+        mean_sourcesref = [mean_sourceref]*number_of_sources
+        
+        model.model.source_dimension=1
+        
         average_parametersref = {'xi': mean_xiref,'tau': mean_tauref,'sources': mean_sourcesref}
         ip_averageref = IndividualParameters()
         ip_averageref.add_individual_parameters('average', average_parametersref)
         valuesref = model.estimate({'average': timepoints}, ip_averageref)
-        for i in range(d):
-            ax[i].plot(timepoints, valuesref['average'].T[i], linewidth=3,label=modelref.name)
+        for i in range(model.model.dimension):
+            ax[i].plot(timepoints, valuesref['average'].T[i], linewidth=3,label="reference",c="red")
 
 
     # —— Get the average individual parameters
@@ -34,10 +40,16 @@ def plot_average_update(model,ax,modelref=None):
     Lparam=model.model.saveParam
     LB=model.model.saveB.copy()
     print(len(LB))
+    cm = plt.get_cmap('winter')
+
     for i in range(d):
         
         number_of_sources = model.model.random_variable_informations()["sources"]["shape"][0]
+        
         for j in range(len(LB)):
+            if i==0:
+                print("norme W")
+                print(torch.norm(torch.tensor(LB[j][0]),dim=0))
             
             if type(Lparam[j]['xi_mean']) is torch.Tensor:
                 mean_xi = Lparam[j]['xi_mean'].numpy()
@@ -57,7 +69,10 @@ def plot_average_update(model,ax,modelref=None):
             ip_average.add_individual_parameters('average', average_parameters)
             values = model.estimate({'average': timepoints}, ip_average)
             
-            ax[i].plot(timepoints, values['average'].T[i], linewidth=3,label="comp "+str(j))
+            if j==0:
+                ax[i].plot(timepoints, values['average'].T[i], linewidth=1,label="init ",c=cm(1.*j/(len(LB)-1)))
+            else:
+                ax[i].plot(timepoints, values['average'].T[i], linewidth=1,label="comp "+str(j),c=cm(1.*j/(len(LB)-1)))
         ax[i].set_xlabel("time")
         ax[i].set_ylabel("dim"+str(i))
         

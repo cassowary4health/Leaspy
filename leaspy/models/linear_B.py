@@ -56,8 +56,8 @@ class LinearB(AbstractMultivariateModel):
         self.initBlink()
         for e in self.saveB:
             W,X_filtre=e
-            W1=torch.tensor(W, dtype=torch.float32).clone().detach()
-            X_filtre1=torch.tensor(X_filtre, dtype=torch.float32).clone().detach()
+            W1=torch.tensor(W, dtype=torch.float32).clone()
+            X_filtre1=torch.tensor(X_filtre, dtype=torch.float32).clone()
             FonctionTensor=OptimB.transformation_B_compose( X_filtre1,W1, self.kernelsettings,self.B)
             self.B=FonctionTensor
 

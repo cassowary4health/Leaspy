@@ -56,6 +56,54 @@ def kmeans_plus_plus(X, k,select=10**(-5)):
 
     return index
 
+def grid_control(Y,sig):
+    """
+    Parameters
+    ----------
+        Y: torch.tensor (nb_visite,dim) 
+        k: int (number of control points)
+    Returns:
+    ---------
+        control points uniformly distributed on [0,1] distant from sig aroud the points in Y
+    
+
+
+
+    """
+    dim=Y.shape[1]
+    
+
+    nk=int(1/sig)
+    grid1=torch.linspace(-0.5*sig,(nk+0.5)*sig,nk+1)
+    L=[grid1]*dim
+    T=torch.meshgrid(L)
+    shape=list(T[0].shape)
+    shape.append(dim)
+    Per=[]
+    for j in range(len(shape)):
+        Per.append(j)
+    Per[-1],Per[0]=Per[0],Per[-1]
+    Z=torch.zeros(shape)
+    Per=tuple(Per)
+    Z=Z.permute(Per)
+    for j in range(dim):
+        Z[j]=T[j]
+    Z=Z.permute(Per)
+
+    Z=Z.reshape((-1,dim))
+    index=[]
+    for j in range(len(Z)):
+        A=Z[j]
+        dist=torch.norm(Y-A,dim=1)
+        m=dist.min().item()
+        if m<sig:
+            index.append(j)
+    X_con=Z[index]
+    
+    return X_con
+
+
+
 def sub_sampling(X,k):
     """
     Parameters
@@ -104,12 +152,12 @@ def filtre_nan_homogene(XT,Y,mask):
     maskbool=mask.bool().logical_not()
     XT[maskbool]=float("Nan")
     Y[maskbool]=float("Nan")
-
-    Select=((XT==XT).all(axis=2))*(Y==Y).all(axis=2)#fonctionne bien voir notebook test pour se convaincre
+    #XT n'a jamais de Nan car modèle génératif
+    Select=(Y==Y).all(axis=2)#fonctionne bien voir notebook test pour se convaincre
     
     return XT[Select],Y[Select]
 
-def filtre_nan_inhomogene(XT):
+def filtre_nan_inhomogene(XT,Y,mask):
     """
     Prend en entrée XT (nb_patient,nb_visit_max,dim) et retourne X sous la forme (nb_visit,dim)
 
@@ -118,16 +166,13 @@ def filtre_nan_inhomogene(XT):
     à voir ensemble Sam + PE
 
     """
-    Select1=(XT==XT).all(axis=2)
-
-    PartHomo=XT[Select1]
+    maskbool=mask.bool().logical_not()
+    XT[maskbool]=float("Nan")
+    Y[maskbool]=float("Nan")
     
-    Select2=(XT!=XT).any(axis=2)*(XT==XT).any(axis=2)#voir test pour se convaincre
-
-    PartInHomo=XT[Select2]
+    Select=(Y==Y).any(axis=2)#si il n'y a pas d'observations
     
-    #Pour l'instant on ne fait rien de la partie inhomogène
-    return PartHomo
+    return XT[Select],Y[Select]
 
 def sigvalue(Y):
     nb_visit = len(Y)
@@ -137,7 +182,7 @@ def sigvalue(Y):
     N=torch.norm(PA3, dim=-1)
     return torch.median(N)
 
-
+#f
 
 
 
@@ -305,7 +350,7 @@ def transformation_B_compose(X_control, W, meta_settings,oldB):
 
     return func
 
-def solver(X, Y, K, indices, dim,meta_settings):
+def solver(X, Y, K_mul,K_con, dim,meta_settings):
     """
     Parameters
     -----
@@ -322,13 +367,14 @@ def solver(X, Y, K, indices, dim,meta_settings):
     """
     if "solver_quad" in meta_settings:
         if meta_settings["solver_quad"]=="cvxpy":
-            W=optim_solver1(X, Y, K, indices, dim, meta_settings)
+            W=optim_solver1(X, Y, K_mul, K_con, dim, meta_settings)
+            
         else:
-            W=optim_solver2(X, Y, K, indices, dim, meta_settings)
+            W=optim_solver3(X, Y, K_mul, K_con, dim, meta_settings)
     else:
-        W=optim_solver2(X, Y, K, indices, dim, meta_settings)
-
-    return torch.from_numpy(W)
+        #W=optim_solver2(X, Y, K, indices, dim, meta_settings)
+        W=optim_solver3(X, Y, K_mul, K_con, dim, meta_settings)
+    return torch.from_numpy(W).to(torch.float32)
 
 
 
@@ -352,8 +398,6 @@ def kernelreg(meta_settings,dim):
         raise NotImplementedError("Your kernel {} is not available".format(name))
     return concon
     
-
-
 def optim_solver1(X, Y, K, indices, dim, meta_settings):
     """
     Parameters
@@ -386,7 +430,7 @@ def optim_solver1(X, Y, K, indices, dim, meta_settings):
 
 import time
 import scipy.linalg as LA
-def optim_solver2(X, Y, K, indices, dim, meta_settings):
+def optim_solver3(X, Y, K_mul,K_con, dim, meta_settings):
     """
     Parameters
     -----
@@ -401,8 +445,129 @@ def optim_solver2(X, Y, K, indices, dim, meta_settings):
 
     """
     t1=time.clock()
-    KCC = K[indices].detach().numpy()
-    KG=K.detach().numpy()
+    KCC1 = K_con.detach().numpy()
+    KG1=K_mul.detach().numpy()#bon même avec nan
+    nb_con=KCC1.shape[0]
+    dim=Y.shape[1]
+    
+    
+    X_ = X.detach().numpy()
+    Y_ = Y.detach().numpy()
+    nb_patient=Y_.shape[0]
+    #X_=X_.transpose().reshape((-1,))#On a d'abord toutes les coordoonées de dim1 puis 2 etc..
+    #Y_=Y_.transpose().reshape((-1,))
+    
+    L_const=[]
+    ind=[]
+    KKK=[]
+    for j in range(dim):
+        
+        for i in range(nb_patient):
+            if Y_[i,j]==Y_[i,j]:
+                L_const.append(Y_[i,j]-X_[i,j])
+                ind.append((i,j))
+                ZK=[0]*dim*nb_con
+                ZK[j*nb_con:(j+1)*nb_con]=list(KG1[i])
+                KKK.append(ZK)
+
+          
+    Const=np.array(L_const)
+    KG=np.array(KKK)
+    print("KG")
+    print(KG.shape)
+    print("Const")
+    print(Const.shape)
+
+    #Si KG matrice rectangulaire par bloc ok, Const ok
+    DD=KG.transpose()@Const
+    #KG doit être de taille (n_visit,control)
+
+
+    Kred=KG.transpose()@KG
+    lambd=1
+    lambdmin=1
+    
+    KCC=np.kron(np.eye(dim,dtype=int),KCC1)
+    Mat=lambd*KCC+Kred
+    
+    w,V=LA.eigh(Mat)
+    delta = np.abs(Mat - (V * w).dot(V.T))
+    print("erreur projection")
+    print(LA.norm(delta, ord=2))
+
+    W=np.linalg.solve(Mat,DD)
+
+    contrainte=kernelreg(meta_settings,dim)-2*10**(-3)
+
+    
+    g=lambda w: w.transpose()@KCC@w
+
+    while g(W)>contrainte:
+        print(lambd)
+        lambd,lambdmin=lambd*2,lambd
+        Mat=lambd*KCC+Kred
+        W=np.linalg.solve(Mat,DD)
+    #rajouter ensuite une recherche dicotomique du lambda optimal
+    f=lambda l: np.linalg.solve(l*KCC+Kred,DD).transpose()@KCC@np.linalg.solve(l*KCC+Kred,DD)
+    lopt=dicho(lambdmin,lambd,contrainte,f)
+    Mat=lopt*KCC+Kred
+    W=np.linalg.solve(Mat,DD)
+    t2=time.clock()
+    print("temps opti quadra")
+    print(t2-t1)
+    W=W.reshape((dim,nb_con)).transpose()
+    
+    return W
+
+def optim_solver1(X, Y, K,K_con, dim, meta_settings):
+    """
+    Parameters
+    -----
+        X: torch.tensor (nb_visit,dim) The points of the lattent space
+        Y: torch.tensor (nb_visit,dim)  to match with the kernel
+        K: torch.tensor(nb_visit,nb_control) kernel matrix associated to the kernel
+        indices: list of int, enables to select the control points
+        dim: int, dimension of the model
+        meta_settings: dict, containing information about the kernel
+    Returns
+    -----
+        W: numpy.array (nb_control,dim), the solution of the constrained quadratic problem
+
+    """
+
+    convalue= kernelreg(meta_settings,dim)
+    W = cp.Variable((K.shape[1], dim))
+    K_ = cp.Parameter((K.shape[1], K.shape[1]), PSD=True)
+    K_.value = K[indices].detach().numpy()
+    X_ = X.detach().numpy()
+    Y_ = Y.detach().numpy()
+
+    constraints = [cp.atoms.sum([cp.atoms.quad_form(W[:,k], K_) for k in range(dim)]) <= convalue]
+    prob = cp.Problem(cp.Minimize(cp.atoms.norm(Y - (X + K.detach().numpy()@W),"fro")), constraints)
+    
+    prob.solve()
+    
+    return W.value
+
+import time
+import scipy.linalg as LA
+def optim_solver2(X, Y, K_mul, K_con, dim, meta_settings):
+    """
+    Parameters
+    -----
+        X: torch.tensor (nb_visit,dim) The points of the lattent space
+        Y: torch.tensor (nb_visit,dim)  to match with the kernel
+        indices: list of int, enables to select the control points
+        dim: int, dimension of the model
+        meta_settings: dict, containing information about the kernel
+    Returns
+    -----
+         W: numpy.array (nb_control,dim), the solution of the constrained quadratic problem
+
+    """
+    t1=time.clock()
+    KCC = K_con.detach().numpy()
+    KG=K_mul.detach().numpy()#bon même avec nan
 
     Kred=KG.transpose()@KG
     

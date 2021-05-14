@@ -267,14 +267,19 @@ class Leaspy:
         dataset=Dataset(data)
         mask=dataset.mask
         Y=dataset.values.clone()
-        Y1,Y1=OptimB.filtre_nan_homogene(Y,Y,mask)
-        sig=OptimB.sigvalue(Y1)
+        Ysig,Ysig=OptimB.filtre_nan_homogene(Y,Y,mask)
+        sig=OptimB.sigvalue(Ysig)
         print("sigma med")
         print(sig)
+        if "control_method" not in meta_settings:
+            meta_settings["control_method"]="grid"
+
         if meta_settings["sigma_auto"]:
             meta_settings["sigma"]=sig.clone().detach().item()
+
         if "iter_in_fit" not in meta_settings:
             meta_settings["iter_in_fit"]=200
+        
         if "iter_out_fit" not in meta_settings:
             meta_settings["iter_out_fit"]=400
 
@@ -310,9 +315,12 @@ class Leaspy:
                 algorithm_settings.parameters["n_iter"]=meta_settings["iter_in_fit"]
             if i==nb_compose-1:
                 algorithm_settings.parameters["n_iter"]=meta_settings["iter_out_fit"]
+
             self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
             self.model.saveParam.append(self.model.parameters.copy())
+            print("enregistrement param")
             ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
+            print(" personalization done")
             algorithm_settings.parameters["init_real"]=ip
             _, ind_params = ip.to_pytorch()
             for j in range(nb_compose_succ):
@@ -338,20 +346,30 @@ class Leaspy:
             k=meta_settings["nb_control_points"]
         else:
             k=min(10,len(X))
-        X1,Y1=OptimB.filtre_nan_homogene(X,Y,mask)
         
-        index=OptimB.sub_sampling(X1,k)
+        X1,Y1=OptimB.filtre_nan_inhomogene(X,Y,mask)
+        
+        if meta_settings["control_method"]=="random":
+            
+            index=OptimB.sub_sampling(X1,k)
+            X_filtre=X1[index]
+            
+        else:
+            sig=meta_settings["sigma"]
+            X_filtre=OptimB.grid_control(Y1,sig)
+            print("nb_controls")
+            print(len(X_filtre))
 
-        #Y_filtre=Y1[index] on est pas obligé de subsampler sur Y, on perd de l'info
-        X_filtre=X1[index]
 
         KG=OptimB.compute_kernel_matrix(X_points=X1,meta_settings=meta_settings,X_control=X_filtre)
         #KG (nb_visit,k), elle permet de calculer la loss
         #KG[index] la matrice de contraintes
-
-        W=OptimB.solver(X1,Y1,KG,index,self.model.dimension,meta_settings)
-
-        FonctionTensor=OptimB.transformation_B_compose( X_filtre,W, meta_settings,self.model.B)
+        KK_con=OptimB.compute_kernel_matrix(X_points=X_filtre,meta_settings=meta_settings,X_control=X_filtre)
+        print("launch B update")
+        W=OptimB.solver(X1, Y1, KG,KK_con, self.model.dimension,meta_settings)
+        print("norme W")
+        print(torch.norm(W,dim=0))
+        FonctionTensor=OptimB.transformation_B_compose(X_filtre,W, meta_settings,self.model.B)
         self.model.saveB.append((W.tolist(),X_filtre.tolist()))
         return FonctionTensor
 

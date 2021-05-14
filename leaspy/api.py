@@ -361,7 +361,7 @@ class Leaspy:
         
         if meta_settings["control_method"]=="random":
             
-            index=OptimB.sub_sampling(X1,k)
+            index=OptimB.sub_sampling(X1,meta_settings["nb_control_points"])
             X_filtre=X1[index]
             
         else:

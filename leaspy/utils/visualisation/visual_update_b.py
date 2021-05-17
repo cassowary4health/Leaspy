@@ -10,13 +10,13 @@ from leaspy import Leaspy, Data, AlgorithmSettings, Plotter, Dataset, Individual
 
 
 
-def plot_average_update(model,ax,modelref=None,name=None):
+def plot_average_update(model,ax,modelref=None,name=None,time=[60,90]):
     """
     Parameters: model, linear_b model already calibrated with update_b
         ax, (dimension) subplots
 
     """
-    timepoints = np.linspace(60, 80, 100)
+    timepoints = np.linspace(time[0], time[1], 100)
     if modelref is not None:
         number_of_sources = modelref.model.random_variable_informations()["sources"]["shape"][0]
         mean_xiref = modelref.model.parameters['xi_mean'].numpy()
@@ -29,7 +29,7 @@ def plot_average_update(model,ax,modelref=None,name=None):
         average_parametersref = {'xi': mean_xiref,'tau': mean_tauref,'sources': mean_sourcesref}
         ip_averageref = IndividualParameters()
         ip_averageref.add_individual_parameters('average', average_parametersref)
-        valuesref = model.estimate({'average': timepoints}, ip_averageref)
+        valuesref = modelref.estimate({'average': timepoints}, ip_averageref)
         for i in range(model.model.dimension):
             ax[i].plot(timepoints, valuesref['average'].T[i], linewidth=3,label="reference",c="red")
 

@@ -284,12 +284,12 @@ class Leaspy:
         else:
             k=min(10,len(Ysig))
 
-        Y1,Y1=OptimB.filtre_nan_inhomogene(Y,Y,mask)
+        Y1,Y1=OptimB.filtre_nan_homogene(Y,Y,mask)
 
         if meta_settings["control_method"]=="grid":
             X_filtre=OptimB.grid_control(Y1,meta_settings["sigma"])
-        print("nb_controls")
-        print(len(X_filtre))
+            print("nb_controls")
+            print(len(X_filtre))
         if "iter_in_fit" not in meta_settings:
             meta_settings["iter_in_fit"]=200
         
@@ -364,11 +364,7 @@ class Leaspy:
             index=OptimB.sub_sampling(X1,meta_settings["nb_control_points"])
             X_filtre=X1[index]
             
-        else:
-            sig=meta_settings["sigma"]
-            X_filtre=OptimB.grid_control(Y1,sig)
-            print("nb_controls")
-            print(len(X_filtre))
+        
 
 
         KG=OptimB.compute_kernel_matrix(X_points=X1,meta_settings=meta_settings,X_control=X_filtre)

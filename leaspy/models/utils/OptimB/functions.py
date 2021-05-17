@@ -150,7 +150,7 @@ def filtre_nan_homogene(XT,Y,mask):
 
     """
     maskbool=mask.bool().logical_not()
-    XT[maskbool]=float("Nan")
+   
     Y[maskbool]=float("Nan")
     #XT n'a jamais de Nan car modèle génératif
     Select=(Y==Y).all(axis=2)#fonctionne bien voir notebook test pour se convaincre
@@ -167,7 +167,7 @@ def filtre_nan_inhomogene(XT,Y,mask):
 
     """
     maskbool=mask.bool().logical_not()
-    XT[maskbool]=float("Nan")
+    
     Y[maskbool]=float("Nan")
     
     Select=(Y==Y).any(axis=2)#si il n'y a pas d'observations

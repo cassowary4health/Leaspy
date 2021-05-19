@@ -24,7 +24,7 @@ def plot_average_update(model,ax,modelref=None,name=None,time=[60,90]):
         mean_sourceref = modelref.model.parameters['sources_mean'].numpy().tolist()
         mean_sourcesref = [mean_sourceref]*number_of_sources
         
-        model.model.source_dimension=1
+       
         
         average_parametersref = {'xi': mean_xiref,'tau': mean_tauref,'sources': mean_sourcesref}
         ip_averageref = IndividualParameters()

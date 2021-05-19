@@ -33,6 +33,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         self.algo_parameters = settings.parameters
         self.seed = settings.seed
         self.loss = settings.loss
+        self.current_ll=None
 
         # Realizations and samplers
         self.realizations = None
@@ -149,10 +150,11 @@ class AbstractFitMCMC(AbstractFitAlgo):
         """
 
         # Sample step
+        self.current_ll=model.compute_individual_attachment_tensorized_mcmc(data, realizations)
         for key in realizations.reals_pop_variable_names:
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv)
+            self.samplers[key].sample(data, model, realizations, self.temperature_inv,current_ll=self.current_ll)
         for key in realizations.reals_ind_variable_names:
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv)
+            self.samplers[key].sample(data, model, realizations, self.temperature_inv,current_ll=self.current_ll)
 
         # Maximization step
         self._maximization_step(data, model, realizations)
@@ -166,6 +168,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         # Annealing
         if self.algo_parameters['annealing']['do_annealing']:
             self._update_temperature()
+        
 
     def _update_temperature(self):
         """

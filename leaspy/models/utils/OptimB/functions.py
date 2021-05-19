@@ -515,6 +515,8 @@ def optim_solver3(X, Y, K_mul,K_con, dim, meta_settings):
     t2=time.clock()
     print("temps opti quadra")
     print(t2-t1)
+    print("error least square")
+    print(np.linalg.norm(Const-KG@W,2)/len(Const))
     W=W.reshape((dim,nb_con)).transpose()
     
     return W

@@ -304,6 +304,8 @@ class LinearB(AbstractMultivariateModel):
 
     def compute_sufficient_statistics(self, data, realizations):
 
+        #take time
+
         # <!> by doing this here, we change v0 and thus orthonormal basis and mixing matrix,
         #     the betas / sources are not related to the previous orthonormal basis...
         realizations = self._center_xi_realizations(realizations)

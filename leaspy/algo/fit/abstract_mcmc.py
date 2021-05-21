@@ -2,6 +2,9 @@ import torch
 
 from .abstract_fit_algo import AbstractFitAlgo
 from ..samplers.gibbs_sampler import GibbsSampler
+from ..samplers.old_gibbs_sampler import OldGibbsSampler
+from ..samplers.fast_gibbs_sampler import FastGibbsSampler
+from ..samplers.metropolis_hastings_sampler import MetropolisHastingsSampler
 from ..samplers.hmc_sampler import HMCSampler
 
 
@@ -40,6 +43,8 @@ class AbstractFitMCMC(AbstractFitAlgo):
         self.samplers = None
         self.current_iteration = 0
 
+        self.current_attachment = None
+
         # Annealing
         self.temperature_inv = 1
         self.temperature = 1
@@ -77,6 +82,9 @@ class AbstractFitMCMC(AbstractFitAlgo):
         self._initialize_sufficient_statistics(data, model, realizations)
         if self.algo_parameters['annealing']['do_annealing']:
             self._initialize_annealing()
+
+        self.current_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
+
         return realizations
 
     def _initialize_annealing(self):
@@ -105,11 +113,23 @@ class AbstractFitMCMC(AbstractFitAlgo):
             if info["type"] == "individual":
                 if self.algo_parameters['sampler_ind'] == 'Gibbs':
                     self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                elif self.algo_parameters['sampler_ind'] == 'OldGibbs':
+                    self.samplers[variable] = OldGibbsSampler(info, data.n_individuals)
+                elif self.algo_parameters['sampler_ind'] == 'FastGibbs':
+                    self.samplers[variable] = FastGibbsSampler(info, data.n_individuals)
+                elif self.algo_parameters['sampler_ind'] == 'MH':
+                    self.samplers[variable] = MetropolisHastingsSampler(info, data.n_individuals)
                 else:
                     self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
             else:
                 if self.algo_parameters['sampler_pop'] == 'Gibbs':
                     self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                elif self.algo_parameters['sampler_ind'] == 'OldGibbs':
+                    self.samplers[variable] = OldGibbsSampler(info, data.n_individuals)
+                elif self.algo_parameters['sampler_ind'] == 'FastGibbs':
+                    self.samplers[variable] = FastGibbsSampler(info, data.n_individuals)
+                elif self.algo_parameters['sampler_ind'] == 'MH':
+                    self.samplers[variable] = MetropolisHastingsSampler(info, data.n_individuals)
                 else:
                     self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
 
@@ -150,9 +170,9 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
         # Sample step
         for key in realizations.reals_pop_variable_names:
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv)
+            self.current_attachment = self.samplers[key].sample(data, model, realizations, self.temperature_inv, previous_attachment = self.current_attachment)
         for key in realizations.reals_ind_variable_names:
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv)
+            self.current_attachment = self.samplers[key].sample(data, model, realizations, self.temperature_inv, previous_attachment = self.current_attachment)
 
         # Maximization step
         self._maximization_step(data, model, realizations)

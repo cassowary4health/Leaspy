@@ -1,11 +1,11 @@
-import itertools
+#import itertools
 
 import torch
 
 from .abstract_sampler import AbstractSampler
 
 
-class GibbsSampler(AbstractSampler):
+class FastGibbsSampler(AbstractSampler):
     """
     Gibbs sampler class.
 
@@ -24,7 +24,8 @@ class GibbsSampler(AbstractSampler):
 
         if info["type"] == "population":
             # Proposition variance is adapted independantly on each dimension of the population variable
-            self.std = 0.005 * torch.ones(size=self.shape) # TODO hyperparameter here
+            self.std = 0.005 * torch.ones(self.shape) # TODO hyperparameter here
+            self.acceptation_temp = torch.zeros(self.shape[0]).repeat(self.temp_length,1)
         elif info["type"] == "individual":
             # Proposition variance is adapted independantly on each patient, but is the same for multiple dimensions
             # TODO : gérer les shapes !!! Necessary for sources
@@ -35,9 +36,6 @@ class GibbsSampler(AbstractSampler):
 
         # Acceptation rate
         self.counter_acceptation = 0
-
-        # Torch distribution
-        self.distribution = torch.distributions.normal.Normal(loc=0.0, scale=self.std)
 
         self.previous_attachment = None
         self.previous_regularity = None
@@ -62,7 +60,7 @@ class GibbsSampler(AbstractSampler):
         else:
             return self._sample_individual_realizations(data, model, realizations, temperature_inv, previous_attachment=previous_attachment)
 
-    def _proposal(self, val):
+    def _proposal(self, val, std):
         """
         Proposal value around the current value with sampler standard deviation.
 
@@ -75,7 +73,9 @@ class GibbsSampler(AbstractSampler):
         value around `val`
         """
         # return val+self.distribution.sample(sample_shape=val.shape)
-        return val + self.distribution.sample()
+        # Torch distribution
+        distribution = torch.distributions.normal.Normal(loc=0.0, scale=std)
+        return val + distribution.sample()
 
     def _update_std(self):
         """
@@ -102,7 +102,6 @@ class GibbsSampler(AbstractSampler):
 
     def _set_std(self, std):
         self.std = std
-        self.distribution = torch.distributions.normal.Normal(loc=0.0, scale=std)
 
     def _sample_population_realizations(self, data, model, realizations, temperature_inv, previous_attachment=None):
         """
@@ -121,12 +120,12 @@ class GibbsSampler(AbstractSampler):
 
         realization = realizations[self.name]
         shape_current_variable = realization.shape
-        index = [e for e in itertools.product(*[range(s) for s in shape_current_variable])]
+#        index = [e for e in itertools.product(*[range(s) for s in shape_current_variable])]
 
         accepted_array = []
 
 
-        for idx in index:
+        for idx in range(shape_current_variable[0]):
             # Compute the attachment and regularity
             # previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
             # previous_regularity = model.compute_regularity_realization(realization).sum()
@@ -137,7 +136,7 @@ class GibbsSampler(AbstractSampler):
 
             # Keep previous realizations and sample new ones
             previous_reals_pop = realization.tensor_realizations.clone()
-            new_val = self._proposal(realization.tensor_realizations[idx])[idx]
+            new_val = self._proposal(realization.tensor_realizations[idx], self.std[idx])
             realization.set_tensor_realizations_element(new_val, idx)
 
             # Update intermediary model variables if necessary
@@ -159,13 +158,13 @@ class GibbsSampler(AbstractSampler):
                 realization.tensor_realizations = previous_reals_pop
                 # Update intermediary model variables if necessary
                 model.update_MCMC_toolbox([self.name], realizations)
-                # force re-compute on next iteration
-                self.previous_attachment = self.previous_regularity = None
+                # force re-compute on next iteration -> no need
+#                self.previous_attachment = self.previous_regularity = None
             else:
                 self.previous_attachment = new_attachment
                 self.previous_regularity = new_regularity
 
-        self._update_acceptation_rate(torch.tensor([accepted_array], dtype=torch.float32))
+        self._update_acceptation_rate(torch.tensor(accepted_array, dtype=torch.float32))
         self._update_std()
 
         current_attachment = self.previous_attachment
@@ -201,7 +200,7 @@ class GibbsSampler(AbstractSampler):
 
         # Keep previous realizations and sample new ones
         previous_reals = realization.tensor_realizations.clone()
-        realization.tensor_realizations = self._proposal(realization.tensor_realizations)
+        realization.tensor_realizations = self._proposal(realization.tensor_realizations, self.std)
         # Add perturbations to previous observations
 
         # Compute the attachment and regularity
@@ -216,6 +215,6 @@ class GibbsSampler(AbstractSampler):
         self._update_std()
         ##### PEUT ETRE PB DE SHAPE
         accepted_ = accepted.unsqueeze(1)
-        realization.tensor_realizations = accepted_*realization.tensor_realizations + (1.-accepted_)*previous_reals
+        realization.tensor_realizations = accepted_ * realization.tensor_realizations + (1. - accepted_) * previous_reals
 
-        return accepted * new_attachment + (1.-accepted) * previous_attachment
+        return accepted * new_attachment + (1. - accepted) * previous_attachment

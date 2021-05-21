@@ -5,7 +5,7 @@ import torch
 from .abstract_sampler import AbstractSampler
 
 
-class GibbsSampler(AbstractSampler):
+class OldGibbsSampler(AbstractSampler):
     """
     Gibbs sampler class.
 
@@ -58,9 +58,9 @@ class GibbsSampler(AbstractSampler):
         # TODO is data / model / realizations supposed to be in sampler ????
 
         if self.type == 'pop':
-            return self._sample_population_realizations(data, model, realizations, temperature_inv, previous_attachment=previous_attachment)
+            return self._sample_population_realizations(data, model, realizations, temperature_inv, previous_attachment=None)
         else:
-            return self._sample_individual_realizations(data, model, realizations, temperature_inv, previous_attachment=previous_attachment)
+            return self._sample_individual_realizations(data, model, realizations, temperature_inv, previous_attachment=None)
 
     def _proposal(self, val):
         """
@@ -172,7 +172,7 @@ class GibbsSampler(AbstractSampler):
         # Reset previous attachment and regularity !!!
         self.previous_attachment = self.previous_regularity = None
 
-        return self.previous_attachment
+        return
 
     def _sample_individual_realizations(self, data, model, realizations, temperature_inv, previous_attachment=None):
         """
@@ -215,7 +215,7 @@ class GibbsSampler(AbstractSampler):
         self._update_acceptation_rate(accepted)
         self._update_std()
         ##### PEUT ETRE PB DE SHAPE
-        accepted_ = accepted.unsqueeze(1)
-        realization.tensor_realizations = accepted_*realization.tensor_realizations + (1.-accepted_)*previous_reals
+        accepted = accepted.unsqueeze(1)
+        realization.tensor_realizations = accepted*realization.tensor_realizations + (1.-accepted)*previous_reals
 
-        return accepted * new_attachment + (1.-accepted) * previous_attachment
+        return

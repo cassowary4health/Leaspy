@@ -5,7 +5,7 @@ import torch
 from .abstract_sampler import AbstractSampler
 
 
-class GibbsSampler(AbstractSampler):
+class OldGibbsSampler(AbstractSampler):
     """
     Gibbs sampler class.
 
@@ -42,11 +42,7 @@ class GibbsSampler(AbstractSampler):
         self.previous_attachment = None
         self.previous_regularity = None
 
-<<<<<<< HEAD
-    def sample(self, data, model, realizations, temperature_inv,current_ll=None):
-=======
     def sample(self, data, model, realizations, temperature_inv, previous_attachment=None):
->>>>>>> a352a4780405262f7a5529ec9ac2297cd53efc55
         """
         Sample either as population or individual.
 
@@ -62,15 +58,9 @@ class GibbsSampler(AbstractSampler):
         # TODO is data / model / realizations supposed to be in sampler ????
 
         if self.type == 'pop':
-<<<<<<< HEAD
-            self._sample_population_realizations(data, model, realizations, temperature_inv,current_ll=None)
+            return self._sample_population_realizations(data, model, realizations, temperature_inv, previous_attachment=None)
         else:
-            self._sample_individual_realizations(data, model, realizations, temperature_inv,current_ll=None)
-=======
-            return self._sample_population_realizations(data, model, realizations, temperature_inv, previous_attachment=previous_attachment)
-        else:
-            return self._sample_individual_realizations(data, model, realizations, temperature_inv, previous_attachment=previous_attachment)
->>>>>>> a352a4780405262f7a5529ec9ac2297cd53efc55
+            return self._sample_individual_realizations(data, model, realizations, temperature_inv, previous_attachment=None)
 
     def _proposal(self, val):
         """
@@ -114,11 +104,7 @@ class GibbsSampler(AbstractSampler):
         self.std = std
         self.distribution = torch.distributions.normal.Normal(loc=0.0, scale=std)
 
-<<<<<<< HEAD
-    def _sample_population_realizations(self, data, model, realizations, temperature_inv,current_ll=None):
-=======
     def _sample_population_realizations(self, data, model, realizations, temperature_inv, previous_attachment=None):
->>>>>>> a352a4780405262f7a5529ec9ac2297cd53efc55
         """
         For each dimension (1D or 2D) of the population variable, compute current attachment and regularity.
         Propose a new value for the given dimension of the given population variable,
@@ -138,7 +124,7 @@ class GibbsSampler(AbstractSampler):
         index = [e for e in itertools.product(*[range(s) for s in shape_current_variable])]
 
         accepted_array = []
-        self.previous_attachment=current_ll
+
 
         for idx in index:
             # Compute the attachment and regularity
@@ -186,13 +172,9 @@ class GibbsSampler(AbstractSampler):
         # Reset previous attachment and regularity !!!
         self.previous_attachment = self.previous_regularity = None
 
-<<<<<<< HEAD
-    def _sample_individual_realizations(self, data, model, realizations, temperature_inv,current_ll=None):
-=======
-        return self.previous_attachment
+        return
 
     def _sample_individual_realizations(self, data, model, realizations, temperature_inv, previous_attachment=None):
->>>>>>> a352a4780405262f7a5529ec9ac2297cd53efc55
         """
         For each indivual variable, compute current patient-batched attachment and regularity.
         Propose a new value for the individual variable,
@@ -209,18 +191,9 @@ class GibbsSampler(AbstractSampler):
 
         # Compute the attachment and regularity
         realization = realizations[self.name]
-<<<<<<< HEAD
-        if current_ll is None:
-            previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
-            
-        else:
-            previous_attachment = current_ll
-            
-=======
 
         if previous_attachment is None:
             previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations)
->>>>>>> a352a4780405262f7a5529ec9ac2297cd53efc55
         # use realizations => use all individual parameters to compare reconstructions vs values
         # previous_attachment.ndim = 1
         previous_regularity = model.compute_regularity_realization(realization).sum(dim=1).reshape(data.n_individuals)
@@ -242,7 +215,7 @@ class GibbsSampler(AbstractSampler):
         self._update_acceptation_rate(accepted)
         self._update_std()
         ##### PEUT ETRE PB DE SHAPE
-        accepted_ = accepted.unsqueeze(1)
-        realization.tensor_realizations = accepted_*realization.tensor_realizations + (1.-accepted_)*previous_reals
+        accepted = accepted.unsqueeze(1)
+        realization.tensor_realizations = accepted*realization.tensor_realizations + (1.-accepted)*previous_reals
 
-        return accepted * new_attachment + (1.-accepted) * previous_attachment
+        return

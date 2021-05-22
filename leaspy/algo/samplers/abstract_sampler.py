@@ -96,7 +96,7 @@ class AbstractSampler:
         # Ad the new acceptation result
         if self.type == "pop":
             self.acceptation_temp = torch.cat(
-                [self.acceptation_temp, accepted.reshape(self.shape).unsqueeze(0)])
+                [self.acceptation_temp, accepted.reshape(self.acceptation_temp.shape[1:]).unsqueeze(0)])
         elif self.type == "ind":
             self.acceptation_temp = torch.cat(
                 [self.acceptation_temp, accepted.unsqueeze(0)])

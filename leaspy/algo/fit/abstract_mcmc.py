@@ -171,16 +171,13 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
         # Sample step
         self.current_ll=model.compute_individual_attachment_tensorized_mcmc(data, realizations)
-        for key in realizations.reals_pop_variable_names:
-<<<<<<< HEAD
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv,current_ll=self.current_ll)
-        for key in realizations.reals_ind_variable_names:
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv,current_ll=self.current_ll)
-=======
-            self.current_attachment = self.samplers[key].sample(data, model, realizations, self.temperature_inv, previous_attachment = self.current_attachment)
-        for key in realizations.reals_ind_variable_names:
-            self.current_attachment = self.samplers[key].sample(data, model, realizations, self.temperature_inv, previous_attachment = self.current_attachment)
->>>>>>> a352a4780405262f7a5529ec9ac2297cd53efc55
+        for key in realizations.reals_pop_variable_names :
+            if key not in self.algo_parameters['Reduce_Variability']:
+                self.current_attachment = self.samplers[key].sample(data, model, realizations, self.temperature_inv, previous_attachment = self.current_attachment)
+        for key in realizations.reals_ind_variable_names :
+            if key not in self.algo_parameters['Reduce_Variability']:
+                self.current_attachment = self.samplers[key].sample(data, model, realizations, self.temperature_inv, previous_attachment = self.current_attachment)
+
 
         # Maximization step
         self._maximization_step(data, model, realizations)

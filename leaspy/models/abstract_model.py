@@ -199,9 +199,10 @@ class AbstractModel(ABC):
 
         # Model supports and needs sources?
         has_sources = hasattr(self, 'source_dimension') and isinstance(self.source_dimension, int) and self.source_dimension > 0
+        has_sources_asymp = hasattr(self, 'source_dimension_asymp') and isinstance(self.source_dimension_asymp, int) and self.source_dimension_asymp > 0
 
         # Check parameters names
-        expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'])
+        expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources']+ int(has_sources_asymp)*['sources_asymp'])
         given_parameters = set(ips.keys())
         symmetric_diff = expected_parameters.symmetric_difference(given_parameters)
         if len(symmetric_diff) > 0:
@@ -215,6 +216,7 @@ class AbstractModel(ABC):
 
         if has_sources:
             s = ips['sources']
+            
 
             if not ips_is_array_like['sources']:
                 raise ValueError('Sources must be an array_like but {} was provided.'.\
@@ -226,6 +228,22 @@ class AbstractModel(ABC):
                 if not is_array_like(s[0]):
                     # then update sources size (1D vector representing only 1 individual)
                     ips_size['sources'] = 1
+
+            # TODO? check source dimension compatibility?
+        if has_sources_asymp:
+            s = ips['sources_asymp']
+            
+
+            if not ips_is_array_like['sources_asymp']:
+                raise ValueError('Sources must be an array_like but {} was provided.'.\
+                                 format(s))
+
+            tau_xi_scalars = all(ips_size[k] == 1 for k in ['tau','xi'])
+            if tau_xi_scalars and (ips_size['sources_asymp'] > 1):
+                # is 'sources' not a nested array? (allowed iff tau & xi are scalars)
+                if not is_array_like(s[0]):
+                    # then update sources size (1D vector representing only 1 individual)
+                    ips_size['sources_asymp'] = 1
 
             # TODO? check source dimension compatibility?
 
@@ -319,7 +337,10 @@ class AbstractModel(ABC):
         timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0) # 1 individual
 
         # Compute the individual trajectory
-        return self.compute_individual_tensorized(timepoints, individual_parameters)
+        if self.name=="linear_inv_b":
+            return self.compute_individual_true(timepoints, individual_parameters)
+        else:
+            return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
@@ -340,6 +361,8 @@ class AbstractModel(ABC):
         :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features)
         """
         raise NotImplementedError
+
+   
 
     @abstractmethod
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):

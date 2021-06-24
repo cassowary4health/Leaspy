@@ -1,4 +1,6 @@
-from . import LogisticParallelAttributes, LogisticAttributes, LinearAttributes, LinearBAttributes
+
+from . import AttributesLogisticParallel, AttributesLogistic, AttributesLinear, AttributesLogisticAsymp, AttributesLogisticAsympDelay, AttributesStannard,AttributesLinearVari
+
 
 
 class AttributesFactory:
@@ -7,33 +9,23 @@ class AttributesFactory:
     """
 
     _attributes = {
-        'logistic': LogisticAttributes,
-        'univariate_logistic': LogisticAttributes,
+        'logistic': AttributesLogistic,
+        'univariate_logistic': AttributesLogistic,
 
-        'logistic_parallel': LogisticParallelAttributes,
+        'logistic_parallel': AttributesLogisticParallel,
 
-        'linear': LinearAttributes,
-        'linearb': LinearBAttributes,
-        'univariate_linear': LinearAttributes,
+        'linear': AttributesLinear,
+        'univariate_linear': AttributesLinear,
+        'logistic_asymp': AttributesLogisticAsymp,
+        'logistic_asymp_delay':AttributesLogisticAsympDelay,
+        'stannard': AttributesStannard,
+        'linear_vari': AttributesLinearVari,
 
-        #'mixed_linear-logistic': ... # TODO
+        #'mixed_linear-logistic': AttributesLogistic # TODO mixed check
     }
 
     @classmethod
-    def attributes(cls, name, dimension, source_dimension=None):
-        """
-        Class method to build correct model attributes depending on model `name`.
-
-        Parameters
-        ----------
-        name: str
-        dimension : int
-        source_dimension : int, optional (default None)
-
-        Returns
-        -------
-        :class:`.AbstractAttributes`
-        """
+    def attributes(cls, name, dimension, source_dimension=None,neg=None,max_asymp=None,source_dimension_direction=None):
         if type(name) == str:
             name = name.lower()
         else:
@@ -42,7 +34,17 @@ class AttributesFactory:
         if name in cls._attributes:
             if 'univariate' in name:
                 assert dimension == 1
-            return cls._attributes[name](name, dimension, source_dimension)
+                return cls._attributes[name](name, dimension, 0)
+                
+            elif 'asymp' in name:
+                return cls._attributes[name](name, dimension, source_dimension)
+            elif 'vari' in name:
+                return cls._attributes[name](name, dimension, source_dimension,source_dimension_direction)
+            elif 'stannard' in name:
+                return cls._attributes[name](name, dimension, source_dimension,neg)
+            else:
+                return cls._attributes[name](name, dimension, source_dimension)
         else:
             raise ValueError(
                 "The name {} you provided for the attributes is not related to an attribute class".format(name))
+

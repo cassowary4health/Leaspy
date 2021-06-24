@@ -60,6 +60,9 @@ def plot_average_update(model,ax,modelref=None,name=None,time=[60,90]):
                 mean_tau = Lparam[j]['tau_mean']
                 mean_source = Lparam[j]['sources_mean']
             mean_sources = [mean_source]*number_of_sources
+            D=model.model.saveParam[j]
+            print(D["v0"])
+            model.model.load_parameters(D)
             model.model.saveB=LB[:j]
             model.model.reconstructionB()
 
@@ -73,7 +76,7 @@ def plot_average_update(model,ax,modelref=None,name=None,time=[60,90]):
                 ax[i].plot(timepoints, values['average'].T[i], linewidth=1,label="init ",c=cm(1.*j/(len(LB)-1)))
             else:
                 ax[i].plot(timepoints, values['average'].T[i], linewidth=1,label="comp "+str(j),c=cm(1.*j/(len(LB)-1)))
-        ax[i].set_xlabel("time")
+        ax[i].set_xlabel("Alzeihmer age")
         ax[i].set_ylabel("dim"+str(i))
         
     model.model.saveB=LB
@@ -104,11 +107,11 @@ def plot_variability(model, tps,nb_vari,fen):
                 
                 if len(ax1.shape)>1:
                     ax1[j,i].plot(t, trajectory[..., j],label="source "+str(i)+": {:.2f}".format(SS[k,i]))
-                    ax1[j,i].set_xlabel("time")
+                    ax1[j,i].set_xlabel("Alzeihmer age")
                     ax1[j,i].set_ylabel("dim"+str(j))
                 else:
                     ax1[j].plot(t, trajectory[..., j],label="source "+str(i)+": {:.2f}".format(SS[k,i]))
-                    ax1[j].set_xlabel("time")
+                    ax1[j].set_xlabel("Alzeihmer age")
                     ax1[j].set_ylabel("dim"+str(j))
     plt.legend()
     plt.show()

@@ -69,6 +69,7 @@ class Realization:
 
         # print("Initialize realizations of {0}".format(self.name))
         if self.variable_type == "population":
+            
             self._tensor_realizations: torch.Tensor = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
         elif self.variable_type == 'individual':
 

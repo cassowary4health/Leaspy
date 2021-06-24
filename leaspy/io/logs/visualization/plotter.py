@@ -280,11 +280,13 @@ class Plotter:
         patient_values = model.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
 
         if type(max_patient_number) == int:
-            patients_list = range(max_patient_number)
+            max_patient_number1=min(max_patient_number,len(data.nb_observations_per_individuals)-1)
+            patients_list = range(max_patient_number1)
         else:
             patients_list = max_patient_number
 
         for i in patients_list:
+            
             model_value = patient_values[i, 0:data.nb_observations_per_individuals[i], :]
             score = data.values[i, 0:data.nb_observations_per_individuals[i], :]
             ax.plot(data.timepoints[i, 0:data.nb_observations_per_individuals[i]].detach().numpy(),
@@ -326,7 +328,10 @@ class Plotter:
             sources = torch.zeros((0,0))
         else:
             # with sources
-            xi, tau, sources = param_ind
+            if len(param_ind)==3:
+                xi, tau, sources = param_ind
+            elif len(param_ind)==4:
+                xi, tau, sources, sources_asymp = param_ind
         ax.plot(xi.squeeze(1).detach().numpy(), tau.squeeze(1).detach().numpy(), 'x')
         plt.xlabel('xi')
         plt.ylabel('tau')
@@ -341,6 +346,15 @@ class Plotter:
             plt.title("sources " + str(i))
             pdf.savefig(fig)
             plt.close()
+        if len(param_ind)==4:
+            nb_sources_asymp = sources_asymp.shape[1]
+
+            for i in range(nb_sources_asymp):
+                fig, ax = plt.subplots(1, 1)
+                ax.plot(sources_asymp[:, i].detach().numpy(), 'x')
+                plt.title("sources_asymp " + str(i))
+                pdf.savefig(fig)
+                plt.close()
         pdf.close()
 
     ## TODO : Refaire avec le path qui est fourni en haut!
@@ -353,7 +367,7 @@ class Plotter:
 
         for i, key in enumerate(model.parameters.keys()):
 
-            if key not in ['betas']:
+            if key not in ['betas','betas_asymp']:
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                 df_convergence.index.rename("iter", inplace=True)
@@ -406,13 +420,13 @@ class Plotter:
 
         for i, key in enumerate(reals_pop_name):
             y_position += 1
-            if key not in ['betas']:
+            if key not in ['betas','betas_asymp']:
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                 df_convergence.index.rename("iter", inplace=True)
                 df_convergence.plot(ax=ax[y_position], legend=False)
                 ax[y_position].set_title(key)
-            if key in ['betas']:
+            if key in ['betas','betas_asymp']:
                 for source_dim in range(model.source_dimension):
                     import_path = os.path.join(path, key + "_" + str(source_dim) + ".csv")
                     df_convergence = pd.read_csv(import_path, index_col=0, header=None)

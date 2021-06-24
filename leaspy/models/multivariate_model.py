@@ -30,11 +30,11 @@ class MultivariateModel(AbstractMultivariateModel):
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         if self.name == 'logistic':
-            return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
+            return self.B(self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type))
         elif self.name == 'linear':
-            return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
+            return self.B(self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type))
         elif self.name == 'mixed_linear-logistic':
-            return self.compute_individual_tensorized_mixed(timepoints, ind_parameters, attribute_type)
+            return self.B(self.compute_individual_tensorized_mixed(timepoints, ind_parameters, attribute_type))
         else:
             raise ValueError("Mutivariate model > Compute individual tensorized")
 

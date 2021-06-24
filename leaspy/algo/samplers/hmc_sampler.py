@@ -130,7 +130,7 @@ class HMCSampler(AbstractSampler):
         new_H = self._compute_pop_hamiltonian(model, data, p, realizations, temperature_inv)
 
         accepted = self._metropolis_step(torch.exp(old_H - new_H))
-        self._update_acceptation_rate([accepted])
+        self._update_acceptation_rate(torch.tensor([accepted], dtype=torch.float32))
         with torch.no_grad():
             realizations[self.name].tensor_realizations = realizations[self.name].tensor_realizations * accepted + (
                     1. - accepted) * old_real

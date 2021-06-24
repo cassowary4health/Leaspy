@@ -168,7 +168,7 @@ class FitOutputManager:
         for key, value in model_parameters.items():
 
             if value.ndim > 1:
-                if key == "betas":
+                if key == "betas" or key=="betas_asymp":
                     model_parameters_save.pop(key)
                     for column in range(value.shape[1]):
                         model_parameters_save["{0}_{1}".format(key, column)] = value[:, column].tolist()
@@ -209,6 +209,14 @@ class FitOutputManager:
             for i in range(realizations['sources'].tensor_realizations.shape[1]):
                 value = realizations['sources'].tensor_realizations[:, i].detach().tolist()
                 path = os.path.join(self.path_save_model_parameters_convergence, 'sources' + str(i) + ".csv")
+                with open(path, 'a', newline='') as filename:
+                    writer = csv.writer(filename)
+                    # writer.writerow([iteration]+list(model_parameters.values()))
+                    writer.writerow([iteration] + value)
+        if "sources_asymp" in realizations.reals_ind_variable_names:
+            for i in range(realizations['sources_asymp'].tensor_realizations.shape[1]):
+                value = realizations['sources_asymp'].tensor_realizations[:, i].detach().tolist()
+                path = os.path.join(self.path_save_model_parameters_convergence, 'sources_asymp' + str(i) + ".csv")
                 with open(path, 'a', newline='') as filename:
                     writer = csv.writer(filename)
                     # writer.writerow([iteration]+list(model_parameters.values()))

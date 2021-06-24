@@ -126,12 +126,13 @@ class AlgorithmSettings:
 
     def __init__(self, name, **kwargs):
         self.name = name
-        self.parameters = None # {}
+        self.parameters =None# {}
         self.seed = None
         self.algorithm_initialization_method = None # Initialization of the algorithm itself
         self.model_initialization_method = None # Initialization of the model parameters (independantly of the algorithm)
         self.loss = None
         self.logs = None
+        
 
         default_algo_settings_path = os.path.join(default_data_dir, 'default_' + name + '.json')
 
@@ -278,7 +279,7 @@ class AlgorithmSettings:
         self.logs = OutputsSettings(settings)
 
     def _manage_kwargs(self, kwargs):
-
+        self.parameters["Reduce_Variability"]=[]
         _special_kwargs = {
             'seed': self._get_seed,
             'algorithm_initialization_method': self._get_algorithm_initialization_method,

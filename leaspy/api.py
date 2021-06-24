@@ -1,15 +1,17 @@
 import pandas as pd
-import torch
-
+import sys
+sys.path.append("/Users/samuel.gruffaz/Documents/leaspy")
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.data.dataset import Dataset
-from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.io.logs.visualization.plotting import Plotting
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
+import torch
 import leaspy.models.utils.OptimB as OptimB
 
-
+initB = {"identity":lambda x:x,
+"negidentity":lambda x:-x,
+"logistic":lambda x:1./(1.+torch.exp(-x))}
 class Leaspy:
     r"""
     Main API used to fit models, run algorithms and simulations.
@@ -261,22 +263,24 @@ class Leaspy:
         Update model.B
 
         """
-        if "sigma_auto" not in meta_settings:
-            meta_settings["sigma_auto"]=False
-
+        
+        #First we remove visits with only NaN
         dataset=Dataset(data)
         mask=dataset.mask
         Y=dataset.values.clone()
         Ysig,Ysig=OptimB.filtre_nan_homogene(Y,Y,mask)
-        sig=OptimB.sigvalue(Ysig)
-        print("sigma med")
-        print(sig)
 
+        # Then, we manage different cases associated to meta_settings
+        if "sigma_auto" not in meta_settings:
+            meta_settings["sigma_auto"]=False
+        if "Reduce_Variability" not in meta_settings:
+            meta_settings["Reduce_Variability"]=["Asymp","sources_asymp"]
         
         if "control_method" not in meta_settings:
             meta_settings["control_method"]="grid"
 
         if meta_settings["sigma_auto"]:
+            sig=OptimB.sigvalue(Ysig)
             meta_settings["sigma"]=sig.clone().detach().item()
 
         if "nb_control_points" in meta_settings:
@@ -285,7 +289,7 @@ class Leaspy:
             k=min(10,len(Ysig))
 
         Y1,Y1=OptimB.filtre_nan_homogene(Y,Y,mask)
-
+        # We generate the control points
         if meta_settings["control_method"]=="grid":
             X_filtre=OptimB.grid_control(Y1,meta_settings["sigma"])
             print("nb_controls")
@@ -320,29 +324,35 @@ class Leaspy:
             
         tps=dataset.timepoints
         
+        #Secondly, we run a loop associated to the alternate optimization
         for i in range(nb_compose):
+
+            #Handle meta-setting
             if "iter_begin_fit" in meta_settings and i==0:
                 algorithm_settings.parameters["n_iter"]=meta_settings["iter_begin_fit"]
                 algorithm_settings.parameters["init_real"]=meta_settings["init_real"]
-            if i>0 and i<(nb_compose-1):
+            if i==1 and i<(nb_compose-1):
                 algorithm_settings.parameters["n_iter"]=meta_settings["iter_in_fit"]
+                algorithm_settings.parameters["Reduce_Variability"]=meta_settings["Reduce_Variability"]
             if i==nb_compose-1:
                 algorithm_settings.parameters["n_iter"]=meta_settings["iter_out_fit"]
 
-            self.fit(data,algorithm_settings)#On fit le modèle avec la valeur de B mis à jour
+            #We estimate the fixed-effect
+            self.fit(data,algorithm_settings)
             self.model.saveParam.append(self.model.parameters.copy())
-            print("enregistrement param")
-            ip=self.personalize(data,personalize_settings)#On récupère les valeurs des paramètres individuelles
-            print(" personalization done")
+            #We estimate the random-effect
+            ip=self.personalize(data,personalize_settings)
+            
             algorithm_settings.parameters["init_real"]=ip
             _, ind_params = ip.to_pytorch()
+            #Then we run the diffeomorphism estimation with the quadratic Optimization with update_b
             for j in range(nb_compose_succ):
-                X=self.model.compute_individual_tensorized(tps,ind_params)#On récupère les points de contrôle
-
-                self.model.B=self.update_B(X,Y,mask,meta_settings,X_filtre)#On met à jour la fonction B
-            #On peut imaginer rajouter une initialisation spécifique du solver en fonction d'avant, on le ferai dans meta_setings
-        return ip
-    
+                X=self.model.compute_individual_tensorized(tps,ind_params)#We take control points
+                #self.model.saveParam.append(self.model.parameters.copy())
+                self.model.B=self.update_B(X,Y,mask,meta_settings,X_filtre)
+                
+            
+        return ip# We return the random-effect z_i associated to the subjects
     def update_B(self,X,Y,mask,meta_settings,X_filtre=None):
         """
         Parameters
@@ -366,19 +376,21 @@ class Leaspy:
             
         
 
-
+        #We take the matric associated to control points to perform the kernel estimation
         KG=OptimB.compute_kernel_matrix(X_points=X1,meta_settings=meta_settings,X_control=X_filtre)
-        #KG (nb_visit,k), elle permet de calculer la loss
-        #KG[index] la matrice de contraintes
+        #KG (nb_visit,N_c(sig))
+        #We take the matrix used to compute the constraints
         KK_con=OptimB.compute_kernel_matrix(X_points=X_filtre,meta_settings=meta_settings,X_control=X_filtre)
+        #KK_con (N_c(sig),N_c(sig))
         print("launch B update")
+        #We compute the kernel weights associated to the new diffeomorphism
         W=OptimB.solver(X1, Y1, KG,KK_con, self.model.dimension,meta_settings)
-        print("norme W")
+        print("norm W")
         print(torch.norm(W,dim=0))
+        #We compose the last and the new diffeomorphism
         FonctionTensor=OptimB.transformation_B_compose(X_filtre,W, meta_settings,self.model.B)
         self.model.saveB.append((W.tolist(),X_filtre.tolist()))
         return FonctionTensor
-
 
     def simulate(self, individual_parameters, data, settings):
         r"""

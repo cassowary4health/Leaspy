@@ -63,9 +63,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
              model.parameters["tau_mean"] / model.parameters["tau_std"]
             ]
-        if model.name != "univariate":
-            x += [torch.tensor(0., dtype=torch.float32)
-                  for _ in range(model.source_dimension)]
+
+        
+        if "univariate" not in model.name:
+            n_s=model.random_variable_informations()["sources"]["shape"][0]
+            x += [torch.tensor(0.) for _ in range(n_s)]
+        if model.name=="logistic_asymp_delay":
+            n_d=model.random_variable_informations()["sources_asymp"]["shape"][0]
+            x += [torch.tensor(0.) for _ in range(n_d)]
+
         return x
 
     def _pull_individual_parameters(self, x, model):
@@ -76,14 +82,16 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         (based on the conventional order defined in :meth:`._initialize_parameters`)
         """
         tensorized_params = torch.tensor(x, dtype=torch.float32).view((1,-1)) # 1 individual
-
+       
         # <!> order + rescaling of parameters
         individual_parameters = {
             'xi': tensorized_params[:,[0]] * model.parameters['xi_std'],
             'tau': tensorized_params[:,[1]] * model.parameters['tau_std'],
         }
         if 'univariate' not in model.name and model.source_dimension > 0:
-            individual_parameters['sources'] = tensorized_params[:, 2:] * model.parameters['sources_std']
+            individual_parameters['sources'] = tensorized_params[:, 2:2+model.source_dimension] * model.parameters['sources_std']
+        if 'logistic_asymp_delay'== model.name:
+            individual_parameters['sources_asymp'] = tensorized_params[:, 2+model.source_dimension:] * model.parameters['sources_asymp_std']
 
         return individual_parameters
 
@@ -339,7 +347,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         #return individual_params_tensorized
 
         # transformation is needed because of IndividualParameters expectations...
-        return {k: v.item() if k != 'sources' else v.detach().squeeze(0).tolist() for k,v in individual_params_tensorized.items()}
+        return {k: v.item() if k not in ['sources','sources_asymp'] else v.detach().squeeze(0).tolist() for k,v in individual_params_tensorized.items()}
 
     def _get_individual_parameters(self, model, data):
         """

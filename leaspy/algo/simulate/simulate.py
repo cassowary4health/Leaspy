@@ -161,15 +161,14 @@ class SimulationAlgorithm(AbstractAlgo):
                         cofactors[key] = [val]
         for key, val in cofactors.items():
             cofactors[key] = np.unique(val)
-
-        if self.cofactor not in cofactors.keys():
+        if not (all(x in cofactors.keys() for x in self.cofactor)) :
             raise ValueError('The input "cofactor" parameter %s does not correspond to any cofactor in your data! '
                              'The available cofactor(s) are %s.'
                              % (self.cofactor, reformat_str(str(list(cofactors.keys())))))
-        if self.cofactor_state not in cofactors[self.cofactor]:
+        if not (all(x in cof for x, cof in zip(self.cofactor_state, cofactors.values()))) :
             raise ValueError('The input "cofactor_state" parameter "%s" does not correspond to any cofactor state'
                              ' in your data! The available cofactor states for "%s" are %s.'
-                             % (self.cofactor_state, self.cofactor, reformat_str(str(cofactors[self.cofactor]))))
+                             % (self.cofactor_state, self.cofactor, reformat_str(str([cofactors[x] for x in self.cofactor]))))
 
     @staticmethod
     def _get_mean_and_covariance_matrix(m):
@@ -547,10 +546,12 @@ class SimulationAlgorithm(AbstractAlgo):
         # Get individual parameters (optional - & the cofactor states)
         df_ind_param = results.get_dataframe_individual_parameters(cofactors=self.cofactor)
         if self.cofactor_state:
-            # Select only subjects with the given cofactor state
-            df_ind_param = df_ind_param[df_ind_param[self.cofactor] == self.cofactor_state]
-            # Remove the cofactor column
-            df_ind_param = df_ind_param.loc[:, df_ind_param.columns != self.cofactor_state]
+            for cof, cof_state in zip(self.cofactor, self.cofactor_state):
+                # Select only subjects with the given cofactor state
+                df_ind_param = df_ind_param[df_ind_param[cof] == cof_state]
+                # Remove the cofactor column
+                df_ind_param = df_ind_param.loc[:, df_ind_param.columns != cof]
+
         # Add the baseline ages
         df_ind_param = results.data.to_dataframe().groupby('ID').first()[['TIME']].join(df_ind_param, how='right')
         # At this point, df_ind_param.columns = ['TIME', 'tau', 'xi', 'sources_0', 'sources_1', ..., 'sources_n']
@@ -582,8 +583,10 @@ class SimulationAlgorithm(AbstractAlgo):
         # --------- Get joined density estimation of repam bl, tau, xi (and sources if the model is not univariate)
         # Normalize by variable then transpose to learn the joined distribution
         ss = StandardScaler()
+
         # fit_transform receive an numpy array of shape (n_samples, n_features)
         distribution = ss.fit_transform(distribution).T
+
         # gaussian_kde receive an numpy array of shape (n_features, n_samples)
         kernel = stats.gaussian_kde(distribution, bw_method=self.bandwidth_method)
 

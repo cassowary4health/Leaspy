@@ -76,10 +76,10 @@ class SimulationAlgorithmTest(unittest.TestCase):
         settings = AlgorithmSettings('mode_real')
         individual_parameters = model.personalize(data, settings)
 
-        settings = AlgorithmSettings('simulation', cofactor="dummy")
+        settings = AlgorithmSettings('simulation', cofactor=["dummy"])
         self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
-        settings = AlgorithmSettings('simulation', cofactor="Treatments", cofactor_state="dummy")
+        settings = AlgorithmSettings('simulation', cofactor=["Treatments"], cofactor_state=["dummy"])
         self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
         if get_result:

@@ -1,6 +1,8 @@
 import json
+from typing import Union
 
 import torch
+import numpy as np
 
 from leaspy import __version__
 
@@ -162,12 +164,16 @@ class UnivariateModel(AbstractModel):
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+
         if self.name == 'univariate_logistic':
             return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
+
         elif self.name == 'univariate_linear':
             return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
+
         else:
-            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported. You gave {self.name}")
+            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported."
+                             f" You gave {self.name}")
 
     def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=False):
 
@@ -193,6 +199,39 @@ class UnivariateModel(AbstractModel):
         model = positions - LL
 
         return model
+
+    def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
+                                                                 individual_parameters: dict, feature: str):
+        if self.name == 'univariate_logistic':
+            return self.compute_individual_ages_logistic(value, individual_parameters, feature)
+
+        elif self.name == 'univariate_linear':
+            return self.compute_individual_ages_linear(value, individual_parameters, feature)
+
+        else:
+            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported."
+                             f" You gave {self.name}")
+
+    def compute_individual_ages_logistic(self, value: torch.Tensor,
+                                         individual_parameters: dict, feature: str = None):
+        # avoid division by zero:
+        value = value.masked_fill((value == 0) | (value == 1), float('nan'))
+
+        # get tensorized attributes
+        g = self._get_attributes(False)
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
+
+        # compute age
+        ages = torch.exp(-xi) * torch.log(g/(1 / value - 1)) + tau
+        assert ages.shape == value.shape
+
+        return ages
+
+    def compute_individual_ages_linear(self, value: torch.Tensor,
+                                       individual_parameters: dict, feature: str = None,
+                                       ):
+        raise NotImplementedError('Not implemented !'
+                                  'If you need it, please open an issue on the Leaspy repository on Gitlab')
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         if self.name in ['logistic', 'univariate_logistic']:

@@ -1,7 +1,7 @@
 import unittest
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from .test_univariate_model import UnivariateModelTest
+from tests.unit_tests.models.test_univariate_model import UnivariateModelTest
 
 from tests import allow_abstract_class_init
 

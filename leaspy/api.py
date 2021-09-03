@@ -1,9 +1,11 @@
 import pandas as pd
+from typing import Dict, Union, List
 
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.logs.visualization.plotting import Plotting
 from leaspy.io.settings.model_settings import ModelSettings
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.models.model_factory import ModelFactory
 
 
@@ -237,6 +239,92 @@ class Leaspy:
                 estimations = pd.DataFrame([], index=ix).join(estimations)
 
         return estimations
+
+    def estimate_ages_from_biomarker_values(self, individual_parameters,
+                                            biomarker_values: Dict[Union[str, int], Union[List, float]],
+                                            feature: str = None) -> Dict[Union[str, int], List]:
+        r"""
+        For individuals characterized by their individual parameters :math:`z_{i}`, returns the age :math:`t_{i,j}`
+        at which a given feature value :math:`y_{i,j,k}` is reached.
+
+        Parameters
+        ----------
+        individual_parameters: Leaspy.IndividualParameters
+            Corresponds to the individual parameters of individuals.
+
+        biomarker_values: Dict[Union[str, int], Union[List, float]]
+            Dictionary that associates to each patient (being a key of the dictionary) a value (float between 0 and 1,
+            or a list of such floats) from which leaspy will estimate the age at which the value is reached.
+
+        feature: str
+            For multivariate models only: feature name (indicates to which model feature the biomarker values belongs)
+
+        Returns
+        ------
+        biomarker_ages :
+            Dictionary that associates to each patient (being a key of the dictionary) the corresponding age
+            (or ages) for which the value(s) from biomarker_values have been reached. Same format as biomarker values.
+
+        Examples
+        --------
+        Given the individual parameters of two subjects, and the feature value of 0.2 for the first
+        and 0.5 and 0.6 for the second, get the corresponding estimated ages at which these values will be reached.
+
+
+        >>> from leaspy.datasets import Loader
+        >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
+        >>> individual_parameters = Loader.load_individual_parameters('parkinson-putamen-train')
+        >>> biomarker_values = {'GS-001': [0.2], 'GS-002': [0.5, 0.6]}
+        # Here the 'feature' argument is optional, as the model is univariate
+        >>> estimated_ages = leaspy_logistic.estimate_ages_from_biomarker_values(individual_parameters, biomarker_values,
+        >>> feature='PUTAMEN')
+
+        """
+        # check input
+        model_features = self.model.features
+
+        if feature is not None:
+            if not isinstance(feature, str):
+                raise TypeError('The \'feature\' parameter must be a string, not {} !'.format(type(feature)))
+            elif feature not in model_features:
+                raise ValueError('Feature {} is not in model parameters features: {} !'.format(
+                    feature, model_features
+                ))
+
+        if len(model_features) > 1 and not feature:
+            raise ValueError('Feature argument must not be None for a multivariate model !')
+
+        if not isinstance(biomarker_values, dict):
+            raise TypeError('The \'biomarker_values\' parameter must be a dict, not {} !'.format(type(biomarker_values)))
+
+        if not isinstance(individual_parameters, IndividualParameters):
+            raise TypeError('The \'individual_parameters\' parameter must be type {}, not {} !'.
+                            format(IndividualParameters, type(individual_parameters)))
+
+        # compute biomarker ages
+        biomarker_ages = {}
+
+        for index, value in biomarker_values.items():
+
+            # get the individual parameters dict
+            ip = individual_parameters[index]
+
+            # compute individual ages from the value array and individual parameter dict
+            est = self.model.compute_individual_ages_from_biomarker_values(value, ip, feature).numpy()
+            est = est.reshape(-1)
+
+            # convert array to initial type (int or list)
+            if isinstance(value, float):
+                est = float(est)
+            elif isinstance(value, list):
+                est = est.tolist()
+
+            else:
+                raise TypeError("Values of biomarker_values should be float or list, not {} !".format(type(value)))
+
+            biomarker_ages[index] = est
+
+        return biomarker_ages
 
     def simulate(self, individual_parameters, data, settings):
         r"""

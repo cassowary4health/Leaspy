@@ -1,4 +1,5 @@
 import unittest
+import os
 
 import pandas as pd
 import torch
@@ -29,7 +30,9 @@ class AbstractModelTest(unittest.TestCase):
                         'compute_individual_attachment_tensorized_mcmc', 'compute_individual_attachment_tensorized',
                         'update_model_parameters', 'update_model_parameters_burn_in',
                         'get_population_realization_names', 'get_individual_realization_names',
-                        'compute_regularity_realization', 'compute_regularity_variable', 'get_realization_object']
+                        'compute_regularity_realization', 'compute_regularity_variable', 'get_realization_object',
+                        'compute_individual_ages_from_biomarker_values',
+                        'compute_individual_ages_from_biomarker_values_tensorized']
 
         present_attributes = [_ for _ in dir(model) if _[:2] != '__']  # Get the present method
 
@@ -192,3 +195,34 @@ class AbstractModelTest(unittest.TestCase):
                             self.assertIsInstance(v, torch.Tensor)
                             self.assertEqual(v.dim(), 2)
                             self.assertEqual(v.shape, (1, src_dim if (k == 'sources') else 1))
+
+    # @allow_abstract_class_init(AbstractModel)
+    # def test_compute_individual_trajectory(self):
+    #     # TODO not sure it is the right place to test that
+    #     # multivariate
+    #     leaspy_object = Leaspy.load(hardcoded_model_path('logistic'))
+    #     abstract_model = AbstractModel("logistic")
+    #     abstract_model.load_parameters(leaspy_object.model.parameters)
+    #
+    #     ip = {
+    #       "xi": 0.1,
+    #       "tau": 70,
+    #       "sources": [
+    #         0.1,
+    #         -0.3
+    #       ]
+    #     }
+    #
+    #     timepoints = [78, 81]
+    #
+    #     expected_estimation = torch.tensor([
+    #         [[0.99641526, 0.34549406, 0.67467, 0.98959327],
+    #          [0.9994672, 0.5080943, 0.8276345, 0.99921334]]
+    #     ])
+    #
+    #     indiv_trajectory = abstract_model.compute_individual_trajectory(timepoints, ip)
+    #     self.assertEqual(indiv_trajectory.shape, (1, len(timepoints), 2))
+    #     self.assertTrue(torch.eq(indiv_trajectory, expected_estimation))
+    #
+    #     # TODO univariate ?
+    #

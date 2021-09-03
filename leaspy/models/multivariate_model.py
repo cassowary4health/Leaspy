@@ -1,4 +1,6 @@
 import torch
+from typing import Union
+import numpy as np
 
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes import AttributesFactory
@@ -85,6 +87,69 @@ class MultivariateModel(AbstractMultivariateModel):
         model = 1. / LL
 
         return model # (n_individuals, n_timepoints, n_features)
+
+    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
+        raise NotImplementedError
+
+    def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
+                                                                 individual_parameters: dict, feature: str):
+        if self.name == 'logistic':
+            return self.compute_individual_ages_logistic(value, individual_parameters, feature)
+
+        elif self.name == 'linear':
+            return self.compute_individual_ages_linear(value, individual_parameters, feature)
+
+        elif self.name == 'mixed_linear-logistic':
+            return self.compute_individual_ages_linear_logistic(value, individual_parameters, feature)
+
+        else:
+            raise ValueError(f"MultivariateModel: only `univariate_linear`, `mixed_linear-logistic`"
+                             f" and `univariate_logistic` are supported for now. You gave {self.name}")
+
+    def compute_individual_ages_logistic(self, value: torch.Tensor,
+                                         individual_parameters: dict, feature: str = None):
+        if value.dim() != 2:
+            raise ValueError("The biomarker value should be dim 2, not {}!".format(value.dim()))
+
+        else:
+            # avoid division by zero:
+            value = value.masked_fill((value == 0) | (value == 1), float('nan'))
+
+            # 1/ get attributes
+            g, v0, a_matrix = self._get_attributes(None)
+            xi, tau = individual_parameters['xi'], individual_parameters['tau']
+            if self.source_dimension != 0:
+                sources = individual_parameters['sources']
+                wi = sources.matmul(a_matrix.t())
+            else:
+                wi = torch.tensor([0])
+
+            # get feature value for g, v0 and wi
+            assert feature is not None
+            feat_ind = self.features.index(feature)
+            g = torch.tensor([g[feat_ind]])  # g and v0 were shape: (n_features in the multivariate model)
+            v0 = torch.tensor([v0[feat_ind]])
+            if self.source_dimension != 0:
+                wi = torch.tensor([wi[0][feat_ind]])  # wi was shape (1, n_features)
+
+            # 2/ compute age
+            ages = tau + (torch.exp(-xi) / v0) * ((g / (g + 1) ** 2) * torch.log(g/(1 / value - 1)) - \
+                                                   wi)
+            assert ages.shape == value.shape
+
+            return ages
+
+    def compute_individual_ages_linear(self, value: torch.Tensor,
+                                       individual_parameters: dict, feature: str = None,
+                                       ):
+        raise NotImplementedError('Not implemented !'
+                                  'If you need it, please open an issue on the Leaspy repository on Gitlab')
+
+    def compute_individual_ages_linear_logistic(self, value: torch.Tensor,
+                                                individual_parameters: dict, feature: str = None,
+                                                ):
+        raise NotImplementedError('Not implemented !'
+                                  'If you need it, please open an issue on the Leaspy repository on Gitlab')
 
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
 

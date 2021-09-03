@@ -1,5 +1,7 @@
 import math
 from abc import ABC, abstractmethod
+from typing import Union
+import numpy as np
 
 import torch
 
@@ -281,6 +283,21 @@ class AbstractModel(ABC):
         # postcondition: x.dim() >= 2
         return x
 
+    def _get_tensorized_inputs(self, timepoints, individual_parameters, skip_ips_checks=False):
+        if not skip_ips_checks:
+            # Perform checks on ips and gets tensorized version if needed
+            ips_info = self._audit_individual_parameters(individual_parameters)
+            n_inds = ips_info['nb_inds']
+            individual_parameters = ips_info['tensorized_ips']
+
+            if n_inds != 1:
+                raise ValueError('Only one individual computation may be performed at a time. ' \
+                                 '{} was provided.'.format(n_inds))
+
+        # Convert the timepoints (list of numbers, or single number) to a 2D torch tensor
+        timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0) # 1 individual
+        return timepoints, individual_parameters
+
     # TODO: unit tests? (functional tests covered by api.estimate)
     def compute_individual_trajectory(self, timepoints, individual_parameters, *, skip_ips_checks = False):
         """
@@ -304,21 +321,68 @@ class AbstractModel(ABC):
             Shape of tensor is (1, n_tpts, n_features)
         """
 
-        if not skip_ips_checks:
-            # Perform checks on ips and gets tensorized version if needed
-            ips_info = self._audit_individual_parameters(individual_parameters)
-            n_inds = ips_info['nb_inds']
-            individual_parameters = ips_info['tensorized_ips']
-
-            if n_inds != 1:
-                raise ValueError('Only one individual computation may be performed at a time. ' \
-                                 '{} was provided.'.format(n_inds))
-
-        # Convert the timepoints (list of numbers, or single number) to a 2D torch tensor
-        timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0) # 1 individual
-
+        timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
+                                                                        skip_ips_checks=skip_ips_checks)
         # Compute the individual trajectory
         return self.compute_individual_tensorized(timepoints, individual_parameters)
+
+    # TODO: unit tests? (functional tests covered by api.estimate)
+    def compute_individual_ages_from_biomarker_values(self, value: Union[list, tuple, np.ndarray],
+                                                      individual_parameters: dict, feature: str = None):
+        """
+        For one individual, compute age(s) at which the given features values are reached (given the subject's
+        individual parameters).
+
+        Parameters
+        ----------
+        value : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
+            Contains the biomarker value(s) of the subject.
+
+        individual_parameters: dict
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like
+
+        feature: str
+            Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
+
+        Returns
+        -------
+
+        :class:`torch.Tensor`
+            Contains the subject's ages computed at the given values(s)
+            Shape of tensor is (1, n_values)
+        """
+        value, individual_parameters = self._get_tensorized_inputs(value, individual_parameters,
+                                                                   skip_ips_checks=False)
+        # Compute the individual trajectory
+        return self.compute_individual_ages_from_biomarker_values_tensorized(value, individual_parameters, feature)
+
+    @abstractmethod
+    def compute_individual_ages_from_biomarker_values_tensorized(self, value, individual_parameters, feature):
+        """
+        For one individual, compute age(s) at which the given features values are reached (given the subject's
+        individual parameters), with tensorized inputs
+
+        Parameters
+        ----------
+        value : torch.Tensor of shape (1, n_values)
+            Contains the biomarker value(s) of the subject.
+
+        individual_parameters: dict
+            Contains the individual parameters.
+            Each individual parameter should be a torch.Tensor
+
+        feature: str
+            Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's ages computed at the given values(s)
+            Shape of tensor is (n_values, 1)
+
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):

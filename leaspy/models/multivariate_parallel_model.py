@@ -81,6 +81,9 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         return derivatives
 
+    def compute_individual_ages_from_biomarker_values_tensorized(self, value, individual_parameters, feature):
+        raise NotImplementedError
+
     ##############################
     ### MCMC-related functions ###
     ##############################

@@ -1,0 +1,30 @@
+{
+  "indices": [
+    "idx1",
+    "idx2",
+    "idx3",
+    "idx4"
+  ],
+  "individual_parameters": {
+    "idx1": {
+      "xi": 0.1,
+      "tau": 70
+    },
+    "idx2": {
+      "xi": 0.2,
+      "tau": 73
+    },
+    "idx3": {
+      "xi": 0.3,
+      "tau": 58
+    },
+    "idx4": {
+      "xi": -3.5,
+      "tau": 80
+    }
+  },
+  "parameters_shape": {
+    "xi": [],
+    "tau": []
+  }
+}

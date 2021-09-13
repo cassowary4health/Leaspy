@@ -124,11 +124,11 @@ class FastGibbsSampler(AbstractSampler):
 
         accepted_array = []
 
+        # Use previous attachment or reset it
+        self.previous_attachment = previous_attachment
 
         for idx in range(shape_current_variable[0]):
             # Compute the attachment and regularity
-            # previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
-            # previous_regularity = model.compute_regularity_realization(realization).sum()
             if self.previous_attachment is None:
                 self.previous_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
             if self.previous_regularity is None:
@@ -167,9 +167,8 @@ class FastGibbsSampler(AbstractSampler):
         self._update_acceptation_rate(torch.tensor(accepted_array, dtype=torch.float32))
         self._update_std()
 
-        current_attachment = self.previous_attachment
-        # Reset previous attachment and regularity !!!
-        self.previous_attachment = self.previous_regularity = None
+        # Reset previous regularity !!!
+        self.previous_regularity = None
 
         return self.previous_attachment
 

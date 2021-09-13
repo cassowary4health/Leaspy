@@ -1,3 +1,6 @@
+############################################        WARNING !!!      ###################################################
+# To be deprecated soon, since it strictly underperforms
+
 import itertools
 
 import torch

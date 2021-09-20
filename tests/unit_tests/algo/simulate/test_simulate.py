@@ -17,6 +17,18 @@ class SimulationAlgorithmTest(unittest.TestCase):
         self.settings = AlgorithmSettings('simulation')
         self.algo = SimulationAlgorithm(self.settings)
 
+        # reused data, model, individual parameters
+        self.data = Data.from_csv_file(example_data_path)
+        cofactors = pd.read_csv(os.path.join(test_data_dir, "io/data/data_tiny_covariate.csv"))
+        cofactors.columns = ("ID", "Treatments")
+        cofactors['ID'] = cofactors['ID'].astype(str)
+        cofactors = cofactors.set_index("ID")
+        self.data.load_cofactors(cofactors, ["Treatments"])
+
+        self.model = Leaspy.load(hardcoded_model_path('logistic'))
+        perso_settings = AlgorithmSettings('mode_real')
+        self.individual_parameters = self.model.personalize(self.data, perso_settings)
+
     def test_construtor(self):
         """
         Test the initialization.
@@ -50,46 +62,42 @@ class SimulationAlgorithmTest(unittest.TestCase):
         self.assertTrue(np.allclose(np.cov(values.T),
                                     t_cov.numpy()))
 
-    def test_check_cofactors(self, get_result=False):
+    def test_check_cofactors(self):
         """
         Test Leaspy.simulate return a ``ValueError`` if the ``cofactor`` and ``cofactor_state`` parameters given
         in the ``AlgorithmSettings`` are invalid.
-
-        Parameters
-        ----------
-        get_result : bool
-            If set to ``True``, return the leaspy model and result object used to do the test. Else return nothing.
-
-        Returns
-        -------
-        model : :class:`.Leaspy`
-        results : :class:`~.io.outputs.result.Result`
         """
-        data = Data.from_csv_file(example_data_path)
-        cofactors = pd.read_csv(os.path.join(test_data_dir, "io/data/data_tiny_covariate.csv"))
-        cofactors.columns = ("ID", "Treatments")
-        cofactors['ID'] = cofactors['ID'].apply(lambda x: str(x))
-        cofactors = cofactors.set_index("ID")
-        data.load_cofactors(cofactors, ["Treatments"])
+        model, individual_parameters, data = self.model, self.individual_parameters, self.data
 
-        model = Leaspy.load(hardcoded_model_path('logistic'))
-        settings = AlgorithmSettings('mode_real')
-        individual_parameters = model.personalize(data, settings)
-
-        settings = AlgorithmSettings('simulation', cofactor=["dummy"])
+        # cofactor not None but cofactor_state None...
+        settings = AlgorithmSettings('simulation', cofactor=["Treatments"])
         self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
+        # bad type for cofactor / cofactor state
+        settings = AlgorithmSettings('simulation', cofactor="Treatments", cofactor_state=["Treatment_A"])
+        self.assertRaises(AssertionError, model.simulate, individual_parameters, data, settings)
+
+        settings = AlgorithmSettings('simulation', cofactor=["Treatments"], cofactor_state="Treatment_A")
+        self.assertRaises(AssertionError, model.simulate, individual_parameters, data, settings)
+
+        # bad length for cofactor_state
+        settings = AlgorithmSettings('simulation', cofactor=["Treatments"], cofactor_state=["Treatment_A", "Treatment_B"])
+        self.assertRaises(AssertionError, model.simulate, individual_parameters, data, settings)
+
+        # invalid cofactor name
+        settings = AlgorithmSettings('simulation', cofactor=["dummy"], cofactor_state=["dummy"])
+        self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
+
+        # invalid cofactor state
         settings = AlgorithmSettings('simulation', cofactor=["Treatments"], cofactor_state=["dummy"])
         self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
-        if get_result:
-            return model, individual_parameters, data
 
     def test_simulation_run(self):
         """
         Test if the simulation run properly with different settings.
         """
-        leaspy_session, individual_parameters, data = self.test_check_cofactors(get_result=True)
+        leaspy_session, individual_parameters, data = self.model, self.individual_parameters, self.data
 
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
                                      std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2)
@@ -120,6 +128,18 @@ class SimulationAlgorithmTest(unittest.TestCase):
         repam_age *= np.exp(new_results.individual_parameters['xi'].squeeze().numpy())
         repam_age += leaspy_session.model.parameters['tau_mean'].item()
         self.assertTrue(all(repam_age > 63) & all(repam_age < 77))
+
+    def test_simulation_cofactors_run(self):
+        """
+        Test if the simulation run properly with different settings (no result check, only unit test).
+        """
+        leaspy_session, individual_parameters, data = self.model, self.individual_parameters, self.data
+
+        settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=1000, mean_number_of_visits=3,
+                                     std_number_of_visits=0, sources_method="full_kde", bandwidth_method=.2,
+                                     cofactor=['Treatments'], cofactor_state=['Treatment_A'])
+        leaspy_session.simulate(individual_parameters, data, settings)  # just test if run without error
+
 
     def _bounds_behaviour(self, leaspy_session, individual_parameters, data, settings):
         """

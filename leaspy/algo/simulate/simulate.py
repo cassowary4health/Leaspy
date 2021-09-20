@@ -13,9 +13,9 @@ class SimulationAlgorithm(AbstractAlgo):
     r"""
     To simulate new data given existing one by learning the individual parameters joined distribution.
 
-    You can choose to only learn the distribution of a group of patient. To do so, choose the cofactor and the cofactor
+    You can choose to only learn the distribution of a group of patient. To do so, choose the cofactor(s) and the cofactor(s)
     state of the wanted patient in the settings. For instance, for an Alzheimer's disease patient, you can load a genetic cofactor
-    informative of the APOE4 carriers. Choose cofactor 'genetic' and cofactor_state 'APOE4' to simulate only
+    informative of the APOE4 carriers. Choose cofactor ['genetic'] and cofactor_state ['APOE4'] to simulate only
     APOE4 carriers.
 
     Attributes
@@ -24,12 +24,16 @@ class SimulationAlgorithm(AbstractAlgo):
         Contains the algorithm's parameters.
     bandwidth_method : float or str or callable, optional
         Bandwidth argument used in scipy.stats.gaussian_kde in order to learn the patients' distribution.
-    cofactor : str, optional (default = None)
-        The cofactor used to select the wanted group of patients (ex - 'genes'). It must correspond to an existing
-        cofactor in the attribute `Data` of the input `result` of the :meth:`~.SimulationAlgorithm.run` method.
-    cofactor_state : str, optional (default None)
-        The cofactor state used to select the  wanted group of patients (ex - 'APOE4'). It must correspond to an
-        existing cofactor state in the attribute `Data` of the input `result` of the :meth:`~.SimulationAlgorithm.run` method.
+    cofactor : list[str], optional (default = None)
+        The list of cofactors included used to select the wanted group of patients (ex - ['genetic']).
+        All of them must correspond to an existing cofactor in the attribute `Data`
+        of the input `result` of the :meth:`~.SimulationAlgorithm.run` method.
+        TODO? should we allow to learn joint distribution of individual parameters and cofactors (not fixed)?
+    cofactor_state : list[str], optional (default None)
+        The cofactors states used to select the wanted group of patients (ex - ['APOE4']).
+        There is exactly one state per cofactor in `cofactor` (same order).
+        It must correspond to an existing cofactor state in the attribute `Data`
+        of the input `result` of the :meth:`~.SimulationAlgorithm.run` method.
     features_bounds : bool or dict[str, (float, float)] (default False)
         Specify if the scores of the generated subjects must be bounded.
         This parameter can express in two way:
@@ -107,6 +111,7 @@ class SimulationAlgorithm(AbstractAlgo):
         self._initialize_seed(self.seed)
 
         self.bandwidth_method = settings.parameters['bandwidth_method']
+
         self.cofactor = settings.parameters['cofactor']
         # TODO: check that the loaded cofactors are converted into strings!
         self.cofactor_state = settings.parameters['cofactor_state']
@@ -130,6 +135,21 @@ class SimulationAlgorithm(AbstractAlgo):
         if self.reparametrized_age_bounds and (len(self.reparametrized_age_bounds) != 2):
             raise ValueError("The parameter 'reparametrized_age_bounds' must contain exactly two elements, "
                              "its lower bound and its upper bound. You gave {0}".format(self.reparametrized_age_bounds))
+
+        # check cofactor coherence
+        # TODO? refact params: dict {cofactor_1: forced_state_1, ...}
+
+        if int(self.cofactor is None) ^ int(self.cofactor_state is None):
+            raise ValueError("`cofactor` and `cofactor_state` should be None or not None simultaneously!")
+
+        if self.cofactor is not None:
+            assert isinstance(self.cofactor, list), \
+                "`cofactor` should be a list of cofactors whose states want to be fixed."
+            assert isinstance(self.cofactor_state, list), \
+                "`cofactor_state` should be the list of cofactors states to fix (same order as `cofactor` list)."
+            assert len(self.cofactor) == len(self.cofactor_state), \
+                "`cofactor` and `cofactor_state` should have equal length (exactly 1 state per cofactor)"
+
 
     def _check_cofactors(self, data):
         """
@@ -156,18 +176,18 @@ class SimulationAlgorithm(AbstractAlgo):
             if bool(ind.cofactors):
                 for key, val in ind.cofactors.items():
                     if key in cofactors.keys():
-                        cofactors[key] += [val]
+                        cofactors[key].add(val)
                     else:
-                        cofactors[key] = [val]
-        for key, val in cofactors.items():
-            cofactors[key] = np.unique(val)
-        if not (all(x in cofactors.keys() for x in self.cofactor)) :
+                        # set (unique vals)
+                        cofactors[key] = {val}
+
+        if not (all(cof_ft in cofactors.keys() for cof_ft in self.cofactor)):
             raise ValueError('The input "cofactor" parameter %s does not correspond to any cofactor in your data! '
                              'The available cofactor(s) are %s.'
                              % (self.cofactor, reformat_str(str(list(cofactors.keys())))))
-        if not (all(x in cof for x, cof in zip(self.cofactor_state, cofactors.values()))) :
-            raise ValueError('The input "cofactor_state" parameter "%s" does not correspond to any cofactor state'
-                             ' in your data! The available cofactor states for "%s" are %s.'
+        if not (all(cof_val in cofactors[cof_ft] for cof_ft, cof_val in zip(self.cofactor, self.cofactor_state))):
+            raise ValueError('The input "cofactor_state" parameter "%s" does not correspond to a valid state'
+                             ' in your data for at least one cofactor! The available cofactor states for "%s" are %s.'
                              % (self.cofactor_state, self.cofactor, reformat_str(str([cofactors[x] for x in self.cofactor]))))
 
     @staticmethod

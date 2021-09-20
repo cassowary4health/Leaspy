@@ -24,7 +24,7 @@ class DataTest(unittest.TestCase):
             self.assertTrue(all(df.dtypes.values == 'float64'))
             self.assertEqual(df.index.get_level_values('ID').unique().tolist(),
                              ['GS-' + '0'*(3 - len(str(i))) + str(i) for i in range(1, 201)])
-            self.assertTrue(df.index.get_level_values('TIME').dtype in ('float64', 'float32'))
+            self.assertIn(df.index.get_level_values('TIME').dtype, ('float64', 'float32'))
 
     def test_load_leaspy_instance(self):
         """

@@ -19,7 +19,7 @@ class ModelSettingsTest(unittest.TestCase):
         self.assertEqual(model_settings.parameters['xi_mean'], -10)
         self.assertEqual(model_settings.parameters['xi_var'], 0.8)
 
-        self.assertEqual(model_settings.hyperparameters, None)
+        self.assertEqual(model_settings.hyperparameters, {})
 
     def test_model_settings_multivariate(self):
         path_to_model_settings = os.path.join(test_data_dir, 'io', 'settings', 'model_settings_multivariate.json')

@@ -1,6 +1,7 @@
 import json
 import os
 import unittest
+import warnings
 
 import pandas as pd
 from numpy import allclose
@@ -56,7 +57,7 @@ def dict_compare_and_display(d, e):
 
     # loop on keys
     for k in d.keys():
-        if type(d[k]) == dict:
+        if isinstance(d[k], dict):
             if not dict_compare_and_display(d[k], e[k]):
                 return False # return now only if False ;)
         else:
@@ -168,13 +169,16 @@ class LeaspyTest(unittest.TestCase):
         # Simulate
         simulation_settings = AlgorithmSettings('simulation', seed=0)
         simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)
-        self.assertTrue(type(simulation_results) == Result)
-        self.assertTrue(simulation_results.data.headers == data.headers)
+        self.assertIsInstance(simulation_results, Result)
+        self.assertEqual(simulation_results.data.headers, data.headers)
         n = simulation_settings.parameters['number_of_subjects']
         self.assertEqual(simulation_results.data.n_individuals, n)
-        self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
-        self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
-        self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', DeprecationWarning)
+            self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
+            self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
+            self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
 
         path_expected_sim_res = os.path.join(test_data_dir,
             "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv")

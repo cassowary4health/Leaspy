@@ -4,9 +4,19 @@ import pandas as pd
 import torch
 import numpy as np
 import json
+import warnings
 
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from tests import test_data_dir
+
+def ordered(obj):
+    """Utils function to sort `obj` recursively at all levels (in-depth)."""
+    if isinstance(obj, dict):
+        return sorted((k, ordered(v)) for k, v in obj.items())
+    elif isinstance(obj, list):
+        return sorted(ordered(x) for x in obj)
+    else:
+        return obj
 
 class IndividualParametersTest(unittest.TestCase):
 
@@ -95,7 +105,7 @@ class IndividualParametersTest(unittest.TestCase):
         # previously would have been "sources" for 1 source which is not generic...
         self.assertEqual({'tau','xi','sources_0'}, set(ip1.to_dataframe().columns))
         # previously one would get a column named "sources", with a string encoded list of 1 element at each row...
-        self.assertTrue(pd.api.types.is_numeric_dtype(ip1.to_dataframe().dtypes.all()))
+        self.assertTrue(all(map(pd.api.types.is_numeric_dtype, ip1.to_dataframe().dtypes)))
 
     def test_get_item(self):
         ip = IndividualParameters()
@@ -143,8 +153,6 @@ class IndividualParametersTest(unittest.TestCase):
         self.assertAlmostEqual(ss[0], 0.2943920288775949, delta=10e-10)
         self.assertAlmostEqual(ss[1], 0.21602468994692867, delta=10e-10)
 
-
-
     def test_to_dataframe(self):
         ip = self.ip
         df = ip.to_dataframe()
@@ -181,9 +189,7 @@ class IndividualParametersTest(unittest.TestCase):
             self.assertEqual(n1, n2)
 
     def test_to_pytorch(self):
-        """
 
-        """
         ip = self.ip
 
         indices, ip_pytorch = ip.to_pytorch()
@@ -196,9 +202,6 @@ class IndividualParametersTest(unittest.TestCase):
 
 
     def test_from_pytorch(self):
-        """
-
-        """
 
         ip = IndividualParameters.from_pytorch(self.indices, self.ip_pytorch)
 
@@ -207,7 +210,7 @@ class IndividualParametersTest(unittest.TestCase):
         self.assertDictEqual(ip._parameters_shape, self.parameters_shape)
         for k, v in self.individual_parameters.items():
             for kk, vv in self.individual_parameters[k].items():
-                self.assertTrue(kk in ip._individual_parameters[k].keys())
+                self.assertIn(kk, ip._individual_parameters[k].keys())
                 if np.ndim(vv) == 0:
                     self.assertAlmostEqual(ip._individual_parameters[k][kk], vv, delta=10e-8)
                 else:
@@ -232,8 +235,6 @@ class IndividualParametersTest(unittest.TestCase):
         for k in self.ip_pytorch.keys():
             for v1, v2 in zip(self.ip_pytorch[k], ip_pytorch2[k]):
                 self.assertTrue((v1.numpy() - v2.numpy() == 0).all())
-
-
 
     def test_check_and_get_extension(self):
         tests = [
@@ -261,19 +262,11 @@ class IndividualParametersTest(unittest.TestCase):
             file2 = f2.readlines()
 
         for l1, l2 in zip(file1, file2):
-            self.assertTrue(l1 == l2)
+            self.assertEqual(l1, l2)
 
         os.remove(test_path)
 
     def test_save_json(self):
-
-        def ordered(obj):
-            if isinstance(obj, dict):
-                return sorted((k, ordered(v)) for k, v in obj.items())
-            if isinstance(obj, list):
-                return sorted(ordered(x) for x in obj)
-            else:
-                return obj
 
         ip = self.ip
 
@@ -284,7 +277,7 @@ class IndividualParametersTest(unittest.TestCase):
             file1 = json.load(f1)
             file2 = json.load(f2)
 
-        self.assertTrue(ordered(file1) == ordered(file2))
+        self.assertEqual(ordered(file1), ordered(file2))
 
         os.remove(test_path)
 
@@ -320,15 +313,6 @@ class IndividualParametersTest(unittest.TestCase):
 
     def test_save_individual_parameters(self):
 
-        # Utils
-        def ordered(obj):
-            if isinstance(obj, dict):
-                return sorted((k, ordered(v)) for k, v in obj.items())
-            if isinstance(obj, list):
-                return sorted(ordered(x) for x in obj)
-            else:
-                return obj
-
         # Parameters
         ip = self.ip
         path_json_test = os.path.join(test_data_dir, "io", "outputs", "ip_save_json_test.json")
@@ -342,7 +326,7 @@ class IndividualParametersTest(unittest.TestCase):
             file1 = json.load(f1)
             file2 = json.load(f2)
 
-        self.assertTrue(ordered(file1) == ordered(file2))
+        self.assertEqual(ordered(file1), ordered(file2))
 
         os.remove(path_json_test)
 
@@ -354,12 +338,19 @@ class IndividualParametersTest(unittest.TestCase):
             file2 = f2.readlines()
 
         for l1, l2 in zip(file1, file2):
-            self.assertTrue(l1 == l2)
+            self.assertEqual(l1, l2)
 
         os.remove(path_csv_test)
 
-        # Test default
-        ip.save(path_default)
+        # Test default (with a warning)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            ip.save(path_default)
+
+        # warning check
+        self.assertEqual(len(w), 1)
+        self.assertIn('You did not provide a valid extension', str(w[0].message))
+
         path_default_with_extension = path_default + '.' + ip._default_saving_type
 
         with open(self.path_csv, 'r') as f1, open(path_default_with_extension, 'r') as f2:
@@ -367,6 +358,6 @@ class IndividualParametersTest(unittest.TestCase):
             file2 = f2.readlines()
 
         for l1, l2 in zip(file1, file2):
-            self.assertTrue(l1 == l2)
+            self.assertEqual(l1, l2)
 
         os.remove(path_default_with_extension)

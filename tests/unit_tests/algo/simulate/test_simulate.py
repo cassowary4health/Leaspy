@@ -46,8 +46,8 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
     def test_get_number_of_visits(self):
         n_visit = self.algo._get_number_of_visits()
-        self.assertTrue(type(n_visit) == int)
-        self.assertTrue(n_visit >= 1)
+        self.assertIsInstance(n_visit, int)
+        self.assertGreaterEqual(n_visit, 1)
 
     def test_get_mean_and_covariance_matrix(self):
         """
@@ -75,14 +75,14 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         # bad type for cofactor / cofactor state
         settings = AlgorithmSettings('simulation', cofactor="Treatments", cofactor_state=["Treatment_A"])
-        self.assertRaises(AssertionError, model.simulate, individual_parameters, data, settings)
+        self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
         settings = AlgorithmSettings('simulation', cofactor=["Treatments"], cofactor_state="Treatment_A")
-        self.assertRaises(AssertionError, model.simulate, individual_parameters, data, settings)
+        self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
         # bad length for cofactor_state
         settings = AlgorithmSettings('simulation', cofactor=["Treatments"], cofactor_state=["Treatment_A", "Treatment_B"])
-        self.assertRaises(AssertionError, model.simulate, individual_parameters, data, settings)
+        self.assertRaises(ValueError, model.simulate, individual_parameters, data, settings)
 
         # invalid cofactor name
         settings = AlgorithmSettings('simulation', cofactor=["dummy"], cofactor_state=["dummy"])
@@ -159,7 +159,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         new_results_max_bounds: np.ndarray = new_results.data.to_dataframe().groupby('ID').first().max().values[1:]
         new_results_min_bounds: np.ndarray = new_results.data.to_dataframe().groupby('ID').first().min().values[1:]
 
-        if type(settings.parameters['features_bounds']) == dict:
+        if isinstance(settings.parameters['features_bounds'], dict):
             results_max_bounds = np.array([val[1] for val in settings.parameters["features_bounds"].values()])
             results_min_bounds = np.array([val[0] for val in settings.parameters["features_bounds"].values()])
         elif settings.parameters['features_bounds']:
@@ -188,7 +188,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         simu_df = simulated_data.data.to_dataframe()
         self.assertEqual(['ID', 'TIME', 'PUTAMEN'], list(simu_df.columns))
         simu_df.set_index('ID', inplace=True)
-        self.assertTrue(list(simu_df.dtypes) == ['float64']*2)
+        self.assertListEqual(list(simu_df.dtypes), ['float64']*2)
         self.assertTrue(all(simu_df['PUTAMEN'].values <= 1))
         self.assertTrue(all(simu_df['PUTAMEN'].values >= 0))
         self.assertTrue(all(simu_df['TIME'].values <= 150))

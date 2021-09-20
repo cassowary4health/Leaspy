@@ -40,7 +40,7 @@ class ModelFactoryTest(unittest.TestCase):
         # Test if raise AttributeError if wrong object in name (not a string)
         wrong_arg_examples = [3.8, {'truc': .1}]
         for wrong_arg in wrong_arg_examples:
-            self.assertRaises(AttributeError, ModelFactory.model, wrong_arg)
+            self.assertRaises(ValueError, ModelFactory.model, wrong_arg)
 
     def test_load_hyperparameters(self):
         """Test if kwargs are ok"""

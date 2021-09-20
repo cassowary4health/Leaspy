@@ -23,7 +23,7 @@ class AbstractModelTest(unittest.TestCase):
         self.assertFalse(model.is_initialized)
         self.assertEqual(model.name, "dummy_abstractmodel")
         self.assertEqual(model.parameters, None)
-        self.assertEqual(type(model.distribution), torch.distributions.normal.Normal)
+        self.assertIsInstance(model.distribution, torch.distributions.normal.Normal)
 
         # Test the presence of all these essential methods
         main_methods = ['load_parameters', 'get_individual_variable_name', 'compute_sum_squared_tensorized',
@@ -37,7 +37,7 @@ class AbstractModelTest(unittest.TestCase):
         present_attributes = [_ for _ in dir(model) if _[:2] != '__']  # Get the present method
 
         for attribute in main_methods:
-            self.assertTrue(attribute in present_attributes)
+            self.assertIn(attribute, present_attributes)
         # TODO: use python's hasattr and issubclass
 
     @allow_abstract_class_init(AbstractModel)
@@ -70,7 +70,7 @@ class AbstractModelTest(unittest.TestCase):
         Check if the following models run with the following algorithms.
         """
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
-            logistic_leaspy = Leaspy(model_name)
+            leaspy = Leaspy(model_name)
             settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
 
             df = pd.read_csv(example_data_path)
@@ -78,21 +78,21 @@ class AbstractModelTest(unittest.TestCase):
                 df = df.iloc[:, :3]
             data = Data.from_dataframe(df)
 
-            logistic_leaspy.fit(data, settings)
+            leaspy.fit(data, settings)
 
             for method in ('mode_real', 'mean_real', 'scipy_minimize', 'gradient_descent_personalize'):
                 burn_in_kw = dict() # not for all algos
                 if '_real' in method:
                     burn_in_kw = dict(n_burn_in_iter=90, )
                 settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
-                logistic_result = logistic_leaspy.personalize(data, settings)
+                result = leaspy.personalize(data, settings)
 
     def test_all_model_run_crossentropy(self):
         """
         Check if the following models run with the following algorithms.
         """
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
-            logistic_leaspy = Leaspy(model_name)
+            leaspy = Leaspy(model_name)
             settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0, loss="crossentropy")
 
             df = pd.read_csv(binary_data_path)
@@ -100,14 +100,14 @@ class AbstractModelTest(unittest.TestCase):
                 df = df.iloc[:, :3]
             data = Data.from_dataframe(df)
 
-            logistic_leaspy.fit(data, settings)
+            leaspy.fit(data, settings)
 
             for method in ['scipy_minimize']:
                 burn_in_kw = dict() # not for all algos
                 if '_real' in method:
                     burn_in_kw = dict(n_burn_in_iter=90, )
                 settings = AlgorithmSettings(method, n_iter=100, seed=0, loss="crossentropy", **burn_in_kw)
-                logistic_result = logistic_leaspy.personalize(data, settings)
+                result = leaspy.personalize(data, settings)
 
     def test_tensorize_2D(self):
 

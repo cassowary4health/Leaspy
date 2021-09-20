@@ -18,11 +18,11 @@ class AttributesFactoryTest(unittest.TestCase):
         # Test if raise AttributeError if wrong object in name (not a string)
         wrong_arg_exemples = [3.8, {'truc': .1}]
         for wrong_arg in wrong_arg_exemples:
-            self.assertRaises(AttributeError,
+            self.assertRaises(ValueError,
                               lambda name: AttributesFactory.attributes(name, 4, 2),
                               wrong_arg)
 
         # Test if lower name:
         name_exemples = ['logistic', 'LogIStiC', 'LOGISTIC']
         for name in name_exemples:
-            self.assertTrue(type(AttributesFactory.attributes(name, 4, 2)) == LogisticAttributes)
+            self.assertIsInstance(AttributesFactory.attributes(name, 4, 2), LogisticAttributes)

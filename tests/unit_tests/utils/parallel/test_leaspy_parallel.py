@@ -1,4 +1,5 @@
 import unittest
+import warnings
 
 import numpy as np
 
@@ -11,6 +12,9 @@ class TestLeaspyParallel(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
+
+        # ignore deprecation warnings in tests
+        warnings.simplefilter('ignore', DeprecationWarning)
 
         self.n_runs = 9
 

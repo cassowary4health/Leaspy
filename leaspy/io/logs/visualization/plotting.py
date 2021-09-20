@@ -4,12 +4,13 @@ import warnings
 import matplotlib as mpl
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+# import matplotlib.backends.backend_pdf
 import numpy as np
 import pandas as pd
 import torch
 
 from leaspy.io.outputs.individual_parameters import IndividualParameters
-# import matplotlib.backends.backend_pdf
+from leaspy.exceptions import LeaspyInputError, LeaspyTypeError, LeaspyIndividualParamsInputError
 
 
 # TODO: outdated -
@@ -47,7 +48,8 @@ class Plotting:
             self.color_palette = palette
         else:
             if max_colors is None:
-                assert self.model.dimension is not None, "Initialize model first please"
+                if self.model.dimension is not None:
+                    raise LeaspyInputError("Initialize model first please, with a not None dimension")
                 max_colors = self.model.dimension
             self.color_palette = cm.get_cmap(palette, max_colors)
 
@@ -72,7 +74,7 @@ class Plotting:
     def _raise_if_model_not_init(self):
         # /!\ Break if model is not initialized
         if not self.model.is_initialized:
-            raise ValueError("Please initialize the model before plotting")
+            raise LeaspyInputError("Please initialize the model before plotting")
 
     def _handle_kwargs_begin(self, kwargs, all_features_list = None):
 
@@ -87,12 +89,14 @@ class Plotting:
 
         # ---- Colors
         colors = kwargs.get('color', self.colors(features_ix))
-        assert len(colors) >= len(features)
+        if len(colors) < len(features):
+            raise LeaspyInputError(f'Please choose a palette with at least {len(features)} colors.')
         # TODO: reindex default colors if subset of features?
 
         # ---- Labels
         labels = kwargs.get('labels', features)
-        assert len(labels) == len(features)
+        if len(labels) != len(features):
+            raise LeaspyInputError(f'Dimensions mismatch between features ({len(features)}) and labels ({len(labels)}.')
 
         # ---- Ax
         ax = kwargs.get('ax', None)
@@ -224,7 +228,7 @@ class Plotting:
             )
             return {'obs': p_obs, 'model': p_model}
         else:
-            raise NotImplementedError
+            raise LeaspyInputError("case must be in {'average', 'obs', 'recons'}")
 
     @staticmethod
     def _get_ip_df_torch(individual_parameters):
@@ -240,15 +244,18 @@ class Plotting:
             ip_df = IndividualParameters.from_pytorch(*individual_parameters).to_dataframe()
             ip_torch = individual_parameters
         else:
-            raise ValueError("`individual_parameters` should be an IndividualParameters object, a pandas.DataFrame or a dict.")
+            raise LeaspyTypeError("`individual_parameters` should be an IndividualParameters object, a pandas.DataFrame or a dict.")
 
-        assert ip_df.index.names == ['ID']
+        if ip_df.index.names != ['ID']:
+            raise LeaspyIndividualParamsInputError("Individual parameters index is not ['ID'] "
+                                                  f"as expected but {list(ip_df.index.names)}")
 
         return ip_df, ip_torch
 
     def _plot_patients_generic(self, case, data, patients_idx='all', individual_parameters=None, reparametrized_ages=False, **kwargs):
 
         # plot with reparametrized ages
+        ip_df, ip_torch = None, None
         if individual_parameters is not None:
             self._raise_if_model_not_init()
             ip_df, ip_torch = self._get_ip_df_torch(individual_parameters)
@@ -257,7 +264,8 @@ class Plotting:
         plot_kws = self._plot_kwargs(case, kwargs)
         with_model = 'model' in plot_kws # plot reconstruction of model as well
         with_obs = 'obs' in plot_kws and plot_kws['obs'].get('marker') is not None
-        assert with_model or with_obs # (or both !)
+        if not(with_model or with_obs): # (or both !)
+            raise LeaspyInputError('Nothing to plot... nor model values nor observations.')
 
         # ---- Patients sublist
         if 'patient_IDs' in kwargs.keys():
@@ -273,7 +281,9 @@ class Plotting:
 
         # features check
         if self.model.is_initialized:
-            assert data.headers == self.model.features
+            if data.headers != self.model.features:
+                raise LeaspyInputError('Features provided mismatch between `data` and model: '
+                                      f'{data.headers} != {self.model.features}')
 
         ax, features, features_ix, labels, colors = self._handle_kwargs_begin(kwargs, data.headers)
 
@@ -283,7 +293,8 @@ class Plotting:
         df = df.set_index('ID').loc[patients_idx]
 
         if reparametrized_ages:
-            assert ip_df is not None
+            if ip_df is None:
+                raise LeaspyInputError('`reparametrized_ages=True` but no valid individual parameters.')
             t0 = self.model.parameters['tau_mean'].item()
             df = df.join(ip_df)
             # reparametrized ages
@@ -297,7 +308,8 @@ class Plotting:
 
         # plot reconstruction as well (model values)
         if with_model:
-            assert ip_torch is not None
+            if ip_torch is None:
+                raise LeaspyInputError('Individual reconstruction need valid individual parameters.')
             self._plot_model_trajectories(ax, df, self.model, ip_torch, features_ix, colors, reparametrized_ages, plot_kws['model'], **kwargs)
 
         # ---- Title & labels

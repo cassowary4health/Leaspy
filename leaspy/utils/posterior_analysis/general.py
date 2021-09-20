@@ -1,7 +1,8 @@
 import numpy as np
 import warnings
 
-from leaspy import IndividualParameters
+from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.exceptions import LeaspyInputError
 
 
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
@@ -58,7 +59,7 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
 
     Raises
     ------
-    ValueError:
+    LeaspyInputError:
         If one of the index not in the individual parameters
 
     Examples
@@ -76,7 +77,7 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
 
     for idx, ages in ages.items():
         if idx not in indices:
-            raise ValueError(f'The index {idx} is not in the individual parameters')
+            raise LeaspyInputError(f'The index {idx} is not in the individual parameters')
 
         idx_ip = individual_parameters[idx]
         alpha = np.exp(idx_ip['xi'])

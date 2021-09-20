@@ -1,4 +1,7 @@
-from . import all_models
+from leaspy.models import AbstractModel, all_models
+
+from leaspy.exceptions import LeaspyModelInputError
+
 
 class ModelFactory:
     """
@@ -6,7 +9,7 @@ class ModelFactory:
     """
 
     @staticmethod
-    def model(name, **kwargs): # -> AbstractModel
+    def model(name: str, **kwargs) -> AbstractModel:
         """
         Return the model object corresponding to 'name' arg with possible `kwargs`
 
@@ -24,18 +27,22 @@ class ModelFactory:
         :class:`.AbstractModel`
             A child class object of :class:`.models.AbstractModel` class object determined by 'name'.
 
+        Raises
+        ------
+        LeaspyModelInputError: if incorrect model requested.
+
         See also
         --------
         leaspy.api.Leaspy
         """
-        if type(name) == str:
+        if isinstance(name, str):
             name = name.lower()
         else:
-            raise AttributeError("The `name` argument must be a string!")
+            raise LeaspyModelInputError("The `name` argument must be a string!")
 
         if name not in all_models:
-            raise ValueError("The name of the model you are trying to create does not exist! "
-                             f"It should be in {{{repr(tuple(all_models.keys()))[1:-1]}}}")
+            raise LeaspyModelInputError("The name of the model you are trying to create does not exist! "
+                                       f"It should be in {{{repr(tuple(all_models.keys()))[1:-1]}}}")
 
         # instantiate model with optional keyword arguments
         return all_models[name](name, **kwargs)

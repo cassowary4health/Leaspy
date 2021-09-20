@@ -10,6 +10,9 @@ import torch
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 
+from leaspy.exceptions import LeaspyTypeError, LeaspyIndividualParamsInputError, LeaspyInputError
+from leaspy.utils.typing import IDType, ParamType, DictParamsTorch, Dict, List, Union
+
 
 class Result:
     """
@@ -32,7 +35,7 @@ class Result:
     """
 
     # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters io.
-    def __init__(self, data, individual_parameters, noise_std=None):
+    def __init__(self, data: Data, individual_parameters: DictParamsTorch, noise_std = None):
         """
         Process the initializer function - called by Leaspy.io.outputs.result.Result
 
@@ -47,17 +50,17 @@ class Result:
         """
         self.data = data
         self.individual_parameters = individual_parameters
-        self.ID_to_idx = {key: i for i, key in enumerate(data.individuals)}
+        self.ID_to_idx: Dict[IDType, int] = {key: i for i, key in enumerate(data.individuals)}
         self.noise_std = noise_std
 
     # TODO : this method is used only once in plotting => delete it ?
-    def get_torch_individual_parameters(self, ID=None):
+    def get_torch_individual_parameters(self, ID: Union[IDType, List[IDType]] = None) -> DictParamsTorch:
         """
         Getter function for the individual parameters.
 
         Parameters
         ----------
-        ID : list, optional (default None)
+        ID : str or list[str], optional (default None)
             Contains the identifiers of the wanted subject.
 
         Returns
@@ -66,13 +69,13 @@ class Result:
             Contains the individual parameters.
         """
         if ID is not None:
-            if type(ID) != list:
+            if not isinstance(ID, list):
                 if isinstance(ID, str) or not isinstance(ID, Iterable):
                     # If ID is not a Iterable (case where ID is a int) => convert into list
                     # If ID is a str => convert into list
                     ID = [ID]
                 else:
-                    raise ValueError('Input argument "ID" must be a single identifier or a list or identifier!')
+                    raise LeaspyIndividualParamsInputError("Input argument 'ID' must be a single identifier or a list or identifiers!")
 
             list_idt = [self.ID_to_idx[id_patient] for id_patient in ID]
             ind_parameters = {key: value[list_idt] for key, value in self.individual_parameters.items()}
@@ -81,7 +84,7 @@ class Result:
         return ind_parameters
 
     # TODO: unit test & functional test
-    def get_dataframe_individual_parameters(self, cofactors=None):
+    def get_dataframe_individual_parameters(self, cofactors: Union[str, List[str]] = None) -> pd.DataFrame:
         """
         Return the dataframe of the individual parameters.
 
@@ -91,7 +94,7 @@ class Result:
 
         Parameters
         ----------
-        cofactors: str or list, optional (default None)
+        cofactors: str or list[str], optional (default None)
             Contains the cofactor(s) to join to the logs dataframe.
 
         Notes
@@ -148,14 +151,14 @@ class Result:
             # Case sources --> multidimensional
             elif self.individual_parameters[variable_ind].shape[1] > 1:
                 for dim in range(self.individual_parameters[variable_ind].shape[1]):
-                    patient_dict[variable_ind + "_{}".format(dim)] = \
+                    patient_dict[f"{variable_ind}_{dim}"] = \
                         self.individual_parameters[variable_ind][:, dim].numpy().reshape(-1)
 
         df_individual_parameters = pd.DataFrame(patient_dict).set_index('ID')
 
         # If you want to load cofactors too
         if cofactors is not None:
-            if type(cofactors) == str:
+            if isinstance(cofactors, str):
                 cofactors = [cofactors]
 
             cofactor_dict = {'ID': list(self.data.individuals.keys())}
@@ -169,7 +172,7 @@ class Result:
 
         return df_individual_parameters
 
-    def save_individual_parameters_csv(self, path, idx=None, cofactors=None, **args):
+    def save_individual_parameters_csv(self, path: str, idx: List[IDType] = None, cofactors = None, **args):
         """
         Save the individual parameters in a csv format.
 
@@ -206,18 +209,17 @@ class Result:
         >>> idx = list(individual_results.individual_parameters.keys())[:20]
         >>> individual_results.save_individual_parameters_csv(output_path, idx, cofactors='GENES')
         """
-        self._check_folder_existancy(path)
+        self._check_folder_existence(path)
 
         df_individual_parameters = self.get_dataframe_individual_parameters(cofactors=cofactors)
         if idx:
-            if type(idx) != list:
-                raise TypeError('Input "idx" must be a list, even if it contains only one element! '
-                                'You gave idx={} which is of type {}.'.
-                                format(idx, type(idx)))
+            if not isinstance(idx, list):
+                raise LeaspyIndividualParamsInputError("Input 'idx' must be a list, even if it contains only one element! "
+                                                      f"You gave idx={idx} which is of type {type(idx)}.")
             df_individual_parameters = df_individual_parameters.loc[idx]
         df_individual_parameters.to_csv(path, index=True, **args)
 
-    def save_individual_parameters_json(self, path, idx=None, human_readable=None, **args):
+    def save_individual_parameters_json(self, path: str, idx: List[IDType] = None, human_readable = None, **args):
         """
         Save the individual parameters in a json format.
 
@@ -235,6 +237,10 @@ class Result:
         **args : Any
             Arguments to pass to json.dump.
 
+        Raises
+        ------
+        NotADirectoryError: if parent directory of path does not exist.
+
         Examples
         --------
         Save the individual parameters of the twenty first subjects.
@@ -250,7 +256,7 @@ class Result:
         >>> idx = list(individual_results.individual_parameters.keys())[:20]
         >>> individual_results.save_individual_parameters_json(output_path, idx)
         """
-        self._check_folder_existancy(path)
+        self._check_folder_existence(path)
         dump = self._get_dump(idx)
         if human_readable is not None:
             warnings.warn("This parameter is deprecated! To save as a torch file, use the method "
@@ -260,7 +266,7 @@ class Result:
             with open(path, 'w') as fp:
                 json.dump(dump, fp, **args)
 
-    def save_individual_parameters_torch(self, path, idx=None, **args):
+    def save_individual_parameters_torch(self, path: str, idx: List[IDType] = None, **args):
         """
         Save the individual parameters in a torch format.
 
@@ -272,6 +278,10 @@ class Result:
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         args : Any
             Arguments to pass to torch.save.
+
+        Raises
+        ------
+        NotADirectoryError: if parent directory of path does not exist.
 
         Examples
         --------
@@ -288,19 +298,20 @@ class Result:
         >>> idx = list(individual_results.individual_parameters.keys())[:20]
         >>> individual_results.save_individual_parameters_torch(output_path, idx)
         """
-        self._check_folder_existancy(path)
+        self._check_folder_existence(path)
         dump = self._get_dump(idx)
         torch.save(dump, path, **args)
 
     @staticmethod
-    def _check_folder_existancy(path):
+    def _check_folder_existence(path: str):
         # Test path's folder existence (if path contain a folder)
-        if os.path.dirname(path) != '':
-            if not os.path.isdir(os.path.dirname(path)):
-                raise FileNotFoundError(
-                    'Cannot save individual parameter at path %s - The folder does not exist!' % path)
+        dir_path = os.path.dirname(path)
+        if dir_path != '':
+            if not os.path.isdir(dir_path):
+                raise NotADirectoryError(
+                    f'Cannot save individual parameter at path {path}. The folder does not exist!')
 
-    def _get_dump(self, idx=None):
+    def _get_dump(self, idx: List[IDType] = None):
         """
         Convert the individual_parameters attribute into a dictionary of list. The univariate parameters values
         like xi and tau are squeeze from shape (n_subjects, 1) to (n_subjects,).
@@ -320,11 +331,14 @@ class Result:
 
         # Select only the wanted subjects
         if idx is not None:
+            if not isinstance(idx, list):
+                raise LeaspyIndividualParamsInputError("Input 'idx' must be a list, even if it contains only one element! "
+                                                      f"You gave idx={idx} which is of type {type(idx)}.")
             selected_id = [self.ID_to_idx[val] for val in idx]
             dump = {key: val[selected_id] for key, val in dump.items()}
 
         for key in dump.keys():
-            if type(dump[key]) not in [list]:
+            if not isinstance(dump[key], list):
                 # For multivariate parameter - like sources
                 # convert tensor([[1, 2], [2, 3]]) into [[1, 2], [2, 3]]
                 if dump[key].shape[1] == 2:
@@ -335,8 +349,8 @@ class Result:
                     dump[key] = dump[key].squeeze().tolist()
         return dump
 
-    @staticmethod
-    def load_individual_parameters_from_csv(path, verbose=True, **args):
+    @classmethod
+    def load_individual_parameters_from_csv(cls, path: str, verbose=True, **args):
         """
         Load individual parameters from a csv.
 
@@ -365,10 +379,10 @@ class Result:
         df = pd.read_csv(path, **args)
         if verbose:
             print("Load from csv file ... conversion to torch")
-        return Result.load_individual_parameters_from_dataframe(df)
+        return cls.load_individual_parameters_from_dataframe(df)
 
     @staticmethod
-    def load_individual_parameters_from_dataframe(df):
+    def load_individual_parameters_from_dataframe(df: pd.DataFrame):
         """
         Load individual parameters from a :class:`pandas.DataFrame`.
 
@@ -392,7 +406,7 @@ class Result:
         return ind_param
 
     @staticmethod
-    def load_individual_parameters_from_json(path, verbose=True, **args):
+    def load_individual_parameters_from_json(path: str, verbose=True, **args):
         """
         Load individual parameters from a json file.
 
@@ -423,25 +437,28 @@ class Result:
         try:
             with open(path, 'r') as f:
                 individual_parameters = json.load(f, **args)
-                if verbose:
-                    print("Load from json file ... conversion to torch")
-                for key in individual_parameters.keys():
-                    # Convert every list in torch.tensor
-                    individual_parameters[key] = torch.tensor(individual_parameters[key], dtype=torch.float32)
-                    # If tensor is 1-dimensional tensor([1, 2, 3]) => reshape it in tensor([[1], [2], [3]])
-                    if individual_parameters[key].dim() == 1:
-                        individual_parameters[key] = individual_parameters[key].view(-1, 1)
+            if verbose:
+                print("Load from json file ... conversion to torch")
+
+            for key in individual_parameters.keys():
+                # Convert every list in torch.tensor
+                individual_parameters[key] = torch.tensor(individual_parameters[key], dtype=torch.float32)
+                # If tensor is 1-dimensional tensor([1, 2, 3]) => reshape it in tensor([[1], [2], [3]])
+                if individual_parameters[key].dim() == 1:
+                    individual_parameters[key] = individual_parameters[key].view(-1, 1)
         # Else if it is a torch file
         except UnicodeDecodeError:
-            warnings.warn('To load a torch file, use the static method result.load_individual_parameters_from_torch',
+            warnings.warn('To load a torch file, use the static method result `load_individual_parameters_from_torch`',
                           DeprecationWarning, stacklevel=2)
+
             individual_parameters = torch.load(path)  # load function from torch
             if verbose:
                 print("Load from torch file")
+
         return individual_parameters
 
     @staticmethod
-    def load_individual_parameters_from_torch(path, verbose=True, **args):
+    def load_individual_parameters_from_torch(path: str, verbose=True, **args):
         """
         Load individual parameters from a torch file.
 
@@ -470,14 +487,14 @@ class Result:
             print("Load from torch file")
         individual_parameters = torch.load(path, **args)
         for key, val in individual_parameters.items():
-            if type(val) != torch.Tensor:
+            if not isinstance(val, torch.Tensor):
                 individual_parameters[key] = torch.tensor(val, dtype=torch.float32)
             if individual_parameters[key].ndim != 2:
                 individual_parameters[key] = individual_parameters[key].unsqueeze(-1)
         return individual_parameters
 
-    @staticmethod
-    def load_individual_parameters(path_or_df, verbose=True, **args):
+    @classmethod
+    def load_individual_parameters(cls, path_or_df, verbose=True, **args):
         """
         Load individual parameters from a :class:`pandas.DataFrame`, a csv, a json file or a torch file.
 
@@ -493,26 +510,31 @@ class Result:
         -------
         dict [str, :class:`torch.Tensor`]
             A dictionary of torch.tensor which contains the individual parameters.
+
+        Raises
+        ------
+        FileNotFoundError: if path is invalid
         """
-        if type(path_or_df) == pd.DataFrame:
-            return Result.load_individual_parameters_from_dataframe(path_or_df)
-        elif type(path_or_df) == str:
+        if isinstance(path_or_df, pd.DataFrame):
+            return cls.load_individual_parameters_from_dataframe(path_or_df)
+        elif isinstance(path_or_df, str):
             file_extension = os.path.splitext(path_or_df)[-1]
             if file_extension == '.csv':
-                return Result.load_individual_parameters_from_csv(path_or_df, verbose=verbose, **args)
+                return cls.load_individual_parameters_from_csv(path_or_df, verbose=verbose, **args)
             elif file_extension == '.json':
-                return Result.load_individual_parameters_from_json(path_or_df, verbose=verbose, **args)
+                return cls.load_individual_parameters_from_json(path_or_df, verbose=verbose, **args)
             else:
                 if file_extension not in ('.pt', '.p'):
-                    warnings.warn('File extension not recognized (got "%s"). Try torch.load by default.',
+                    warnings.warn(f"File extension not recognized (got '{file_extension}')."
+                                   "Trying to load with torch by default.",
                                   RuntimeWarning, stacklevel=2)
-                return Result.load_individual_parameters_from_torch(path_or_df, verbose=verbose, **args)
+                return cls.load_individual_parameters_from_torch(path_or_df, verbose=verbose, **args)
         else:
-            raise TypeError("The given input must be a pandas.DataFrame or a string giving the path of the file "
-                            "containing the individual parameters!")
+            raise LeaspyIndividualParamsInputError("The given input must be a pandas.DataFrame or a string "
+                                                   "giving the path of the file containing the individual parameters!")
 
-    @staticmethod
-    def load_result(data, individual_parameters, cofactors=None, verbose=True, **args):
+    @classmethod
+    def load_result(cls, data, individual_parameters, cofactors=None, verbose=True, **args):
         """
         Load a `Result` class object from two file - one for the individual data & one for the individual parameters.
 
@@ -551,29 +573,30 @@ class Result:
         >>> individual_results.save_individual_parameters_json(path_individual_parameters)
         >>> individual_parameters = Result.load_result(path_data, path_individual_parameters)
         """
-        if type(data) == Data:
+        if isinstance(data, Data):
             pass
-        elif type(data) == str:
+        elif isinstance(data, str):
             data = Data.from_csv_file(data)
-        elif type(data) == pd.DataFrame:
+        elif isinstance(data, pd.DataFrame):
             data = Data.from_dataframe(data)
         else:
-            raise TypeError("The given `data` input must be a pandas.DataFrame or a string giving the path of the file "
-                            "containing the features' scores! You gave an object of type %s" % str(type(data)))
+            raise LeaspyTypeError("The given `data` input must be a Data instance, a pandas.DataFrame "
+                        "or a string giving the path of the file containing the features' scores! "
+                        f"You gave an object of type {type(data)}")
 
         if cofactors is not None:
-            if type(cofactors) == str:
+            if isinstance(cofactors, str):
                 cofactors_df = pd.read_csv(cofactors, index_col=0)
-            elif type(cofactors) == pd.DataFrame:
+            elif isinstance(cofactors, pd.DataFrame):
                 cofactors_df = cofactors.copy()
             else:
-                raise TypeError("The given `cofactors` input must be a pandas.DataFrame or a string giving the path of "
-                                "the file containing the cofactors! You gave an object of type %s" %
-                                str(type(cofactors)))
-            data.load_cofactors(cofactors_df, cofactors_df.columns.to_list())
+                raise LeaspyTypeError("The given `cofactors` input must be a pandas.DataFrame "
+                            "or a string giving the path of  the file containing the cofactors! "
+                            f"You gave an object of type {type(cofactors)}")
+            data.load_cofactors(cofactors_df, cofactors_df.columns.tolist())
 
-        individual_parameters = Result.load_individual_parameters(individual_parameters, verbose=verbose, **args)
-        return Result(data, individual_parameters)
+        individual_parameters = cls.load_individual_parameters(individual_parameters, verbose=verbose, **args)
+        return cls(data, individual_parameters)
 
     def get_error_distribution_dataframe(self, model, cofactors=None):
         """
@@ -612,18 +635,19 @@ class Result:
         residuals_dataframe = residuals_dataset.to_pandas().set_index('ID')
 
         if cofactors is not None:
-            if type(cofactors) == str:
+            if isinstance(cofactors, str):
                 if cofactors == "all":
                     cofactors_list = self.data.cofactors
                 else:
                     cofactors_list = [cofactors]
-            elif type(cofactors) == list:
+            elif isinstance(cofactors, list):
                 cofactors_list = cofactors
             else:
-                raise TypeError("The given `cofactors` input must be a string or a list of strings! "
-                                "You gave an object of type %s" % str(type(cofactors)))
+                raise LeaspyTypeError("The given `cofactors` input must be a string or a list of strings! "
+                                      f"You gave an object of type {type(cofactors)}")
             cofactors_df = self.data.to_dataframe(cofactors=cofactors).groupby('ID').first()[cofactors_list]
             residuals_dataframe = residuals_dataframe.join(cofactors_df)
+
         return residuals_dataframe
 
     ###############################################################
@@ -632,7 +656,7 @@ class Result:
     ###############################################################
 
     @staticmethod
-    def get_cofactor_states(cofactors):
+    def get_cofactor_states(cofactors: List) -> List:
         """
         .. deprecated:: 1.0
         Given a list of string return the list of unique elements.
@@ -649,14 +673,10 @@ class Result:
         """
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
-        result = []
-        for state in cofactors:
-            if state not in result:
-                result.append(state)
-        result.sort()
-        return result
+        result = set(cofactors)
+        return sorted(result)
 
-    def get_parameter_distribution(self, parameter, cofactor=None):
+    def get_parameter_distribution(self, parameter: ParamType, cofactor=None):
         """
         .. deprecated:: 1.0
         Return the wanted parameter distribution (one distribution per covariate state).
@@ -671,6 +691,11 @@ class Result:
         Returns
         -------
         list[float] or  dict[str, *]
+
+        Raises
+        ------
+        LeaspyIndividualParamsInputError: if bad
+        LeaspyInputError: if unknown cofactor
 
         Notes
         -----
@@ -692,9 +717,10 @@ class Result:
         # parameter_distribution is of size (N_subjects, N_dimension_of_parameter)
 
         # Check the tensor's dimension is <= 2
-        if parameter_distribution.ndimension() > 2:
-            raise ValueError('The chosen parameter %s is a tensor of dimension %d - it must be 1 or 2 dimensional!' %
-                             (parameter, parameter_distribution.ndimension()))
+        p_ndim = parameter_distribution.ndimension()
+        if p_ndim > 2:
+            raise LeaspyIndividualParamsInputError(f'The chosen parameter {parameter} is a tensor '
+                                                   f'of dimension {p_ndim}: it should be <= 2!')
         ##############################################
         # If there is no cofactor to take into account
         ##############################################
@@ -714,9 +740,10 @@ class Result:
         # If the distribution as asked for different cofactor values
         ############################################################
         # Check if the cofactor exist
-        if cofactor not in self.data[0].cofactors.keys():
-            raise ValueError("The cofactor '%s' do not exist. Here are the available cofactors: %s" %
-                             (cofactor, list(self.data[0].cofactors.keys())))
+        all_cofactors = self.data[0].cofactors.keys()
+        if cofactor not in all_cofactors:
+            raise LeaspyInputError(f"The cofactor '{cofactor}' do not exist. "
+                                   f"Here are the available cofactors: {list(all_cofactors)}")
         # Get possible covariate stats
         # cofactors = [_.cofactors[cofactor] for _ in self.data if _.cofactors[cofactor] is not None]
         cofactors = self.get_cofactor_distribution(cofactor)
@@ -751,7 +778,7 @@ class Result:
                             # return {'cofactor1': {'parameter1': .., 'parameter2': ..}, 'cofactor2': { .. }, .. }
         return distributions
 
-    def get_cofactor_distribution(self, cofactor):
+    def get_cofactor_distribution(self, cofactor: str):
         """
         .. deprecated:: 1.0
         Get the list of the cofactor's distribution.
@@ -770,7 +797,7 @@ class Result:
 
         return [d.cofactors[cofactor] for d in self.data]
 
-    def get_patient_individual_parameters(self, idx):
+    def get_patient_individual_parameters(self, idx: IDType):
         """
         .. deprecated:: 1.0
         Get the dictionary of the wanted patient's individual parameters

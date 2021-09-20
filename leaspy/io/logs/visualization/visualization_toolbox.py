@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 import torch
+
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.realizations.realization import Realization
 
@@ -84,6 +85,6 @@ class VisualizationToolbox():
 
         return 0
 
-    # Plot distributions
-    def plot_distributions_individual_parameter(self, data, real_ind_name, covariable=None):
-        raise NotImplementedError
+    ## Plot distributions
+    #def plot_distributions_individual_parameter(self, data, real_ind_name, covariable=None):
+    #    raise NotImplementedError

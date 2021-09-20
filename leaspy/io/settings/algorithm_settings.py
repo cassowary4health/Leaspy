@@ -2,9 +2,14 @@ import json
 import os
 import warnings
 
+from leaspy.algo import DEFAULT_LOSS, VALID_LOSSES
 from leaspy.io.settings import default_data_dir
 from leaspy.io.settings.outputs_settings import OutputsSettings
 from leaspy.algo.algo_factory import AlgoFactory
+
+from leaspy.exceptions import LeaspyAlgoInputError
+from leaspy.utils.typing import KwargsType, Optional
+
 
 class AlgorithmSettings:
     """
@@ -75,6 +80,10 @@ class AlgorithmSettings:
     logs: :class:`.OutputsSettings`, optional
       Used to create a ``logs`` file during a model calibration containing convergence information.
 
+    Raises
+    ------
+    LeaspyAlgoInputError
+
     See also
     --------
     leaspy.algo
@@ -124,13 +133,13 @@ class AlgorithmSettings:
         ]
     }
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str, **kwargs):
         self.name = name
-        self.parameters = None # {}
-        self.seed = None
-        self.algorithm_initialization_method = None # Initialization of the algorithm itself
-        self.model_initialization_method = None # Initialization of the model parameters (independantly of the algorithm)
-        self.loss = None
+        self.parameters: KwargsType = None # {}
+        self.seed: Optional[int] = None
+        self.algorithm_initialization_method: str = None # Initialization of the algorithm itself
+        self.model_initialization_method: str = None # Initialization of the model parameters (independantly of the algorithm)
+        self.loss: str = None
         self.logs = None
 
         default_algo_settings_path = os.path.join(default_data_dir, 'default_' + name + '.json')
@@ -138,11 +147,11 @@ class AlgorithmSettings:
         if os.path.isfile(default_algo_settings_path):
             self._load_default_values(default_algo_settings_path)
         else:
-            raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
+            raise LeaspyAlgoInputError(f"The algorithm name '{name}' you provided does not exist")
         self._manage_kwargs(kwargs)
 
     @classmethod
-    def load(cls, path_to_algorithm_settings):
+    def load(cls, path_to_algorithm_settings: str):
         """
         Instantiate a AlgorithmSettings object a from json file.
 
@@ -156,6 +165,10 @@ class AlgorithmSettings:
         :class:`.AlgorithmSettings`
             An instanced of AlgorithmSettings with specified parameters.
 
+        Raises
+        ------
+        LeaspyAlgoInputError: if anything is invalid in algo settings
+
         Examples
         --------
         >>> from leaspy import AlgorithmSettings
@@ -165,7 +178,7 @@ class AlgorithmSettings:
             settings = json.load(fp)
 
         if 'name' not in settings.keys():
-            raise ValueError("Your json file must contain a 'name' attribute!")
+            raise LeaspyAlgoInputError("Your json file must contain a 'name' attribute!")
 
         algorithm_settings = cls(settings['name'])
 
@@ -191,7 +204,7 @@ class AlgorithmSettings:
 
         return algorithm_settings
 
-    def save(self, path, **kwargs):
+    def save(self, path: str, **kwargs):
         """
         Save an AlgorithmSettings object in a json file.
 
@@ -245,13 +258,13 @@ class AlgorithmSettings:
 
         Notes
         -----
-        By default, if the folder given in ``path`` allready exists, the method will raise an error.
+        By default, if the folder given in ``path`` already exists, the method will raise an error.
         To overwrite the content of the folder, set ``overwrite_logs_folder`` it to ``True``.
 
         Raises
         ------
-        ValueError
-            If the folder given in ``path`` allready exists and if ``overwrite_logs_folder`` is set to ``False``.
+        LeaspyAlgoInputError
+            If the folder given in ``path`` already exists and if ``overwrite_logs_folder`` is set to ``False``.
         """
         settings = {
             'path': path,
@@ -263,17 +276,17 @@ class AlgorithmSettings:
 
         for k, v in kwargs.items():
             if k in ['console_print_periodicity', 'plot_periodicity', 'save_periodicity']:
-                if (type(v) != int) and (v is not None):
-                    raise TypeError(f'You must provide a integer to the input <{k}>! '
+                if v is not None and not isinstance(v, int):
+                    raise LeaspyAlgoInputError(f'You must provide a integer to the input <{k}>! '
                                     f'You provide {v} of type {type(v)}.')
                 settings[k] = v
             elif k in ['overwrite_logs_folder']:
-                if type(v) != bool:
-                    raise TypeError(f'You must provide a boolean to the input <{k}>! '
+                if not isinstance(v, bool):
+                    raise LeaspyAlgoInputError(f'You must provide a boolean to the input <{k}>! '
                                     f'You provide {v} of type {type(v)}.')
                 settings[k] = v
             else:
-                warnings.warn("The kwargs {} you provided is not correct".format(k))
+                warnings.warn(f"The kwarg '{k}' you provided is not valid and was skipped.")
 
         self.logs = OutputsSettings(settings)
 
@@ -296,8 +309,7 @@ class AlgorithmSettings:
                 self.parameters[k] = v
 
             else:
-                warning_message = "The parameter key : >>>{0}<<< you provided is unknown".format(k)
-                warnings.warn(warning_message)
+                warnings.warn(f"The parameter '{k}' you provided is unknown and thus was skipped.")
 
         # dynamic default parameters
         if self.name in self._dynamic_default_parameters:
@@ -382,11 +394,13 @@ class AlgorithmSettings:
 
     @staticmethod
     def _check_default_settings(settings):
+
+        error_tpl = "The '{}' key is missing in the algorithm settings (JSON file) you are loading."
+
         # TODO: This should probably be in the ests
-        if 'name' not in settings.keys():
-            raise ValueError("The 'name' key is missing in the algorithm settings (JSON file) you are loading")
-        if 'parameters' not in settings.keys():
-            raise ValueError("The 'parameters' key is missing in the algorithm settings (JSON file) you are loading")
+        for mandatory_key in ['name', 'parameters']:
+            if mandatory_key not in settings.keys():
+                raise LeaspyAlgoInputError(error_tpl.format(mandatory_key))
 
         if settings['name'] == 'constant_prediction':
             return
@@ -394,18 +408,17 @@ class AlgorithmSettings:
             return
 
         if 'seed' not in settings.keys():
-            raise ValueError("The 'seed' key is missing in the algorithm settings (JSON file) you are loading")
+            raise LeaspyAlgoInputError(error_tpl.format('seed'))
 
         if settings['name'] == 'lme_fit':
             return
 
         if 'loss' not in settings.keys():
-            warnings.warn("The 'loss' key is missing in the algorithm settings (JSON file) you are loading. \
-            Its value will be 'MSE' by default")
+            warnings.warn(error_tpl.format('loss') + f" Its value will be '{DEFAULT_LOSS}' by default")
 
         if 'algorithm_initialization_method' not in settings.keys():
-            raise ValueError(
-                "The 'algorithm_initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
+            raise LeaspyAlgoInputError(error_tpl.format('algorithm_initialization_method'))
+
 
     @staticmethod
     def _get_name(settings):
@@ -419,6 +432,7 @@ class AlgorithmSettings:
     def _get_seed(settings):
         if settings['seed'] is None:
             return None
+
         try:
             return int(settings['seed'])
         except Exception:
@@ -442,11 +456,12 @@ class AlgorithmSettings:
     @staticmethod
     def _get_loss(settings):
         if 'loss' not in settings.keys():
-            # Return default value for the loss (Mean Squared Error)
-            return 'MSE'
-        if settings['loss'] in ['MSE', 'MSE_diag_noise', 'crossentropy']:
+            # Return default value for the loss
+            # TODO? Emit a warning / log this info?
+            return DEFAULT_LOSS
+        elif settings['loss'] in VALID_LOSSES:
             return settings['loss']
         else:
-            raise ValueError("The loss provided is not recognised. Should be one of ['MSE', 'MSE_diag_noise', 'crossentropy']")
+            raise LeaspyAlgoInputError(f"The loss provided is not recognised. Should be one of {VALID_LOSSES}")
 
 

@@ -1,4 +1,7 @@
-from . import LogisticParallelAttributes, LogisticAttributes, LinearAttributes
+from leaspy.models.utils.attributes.abstract_attributes import AbstractAttributes
+from leaspy.models.utils.attributes import LogisticParallelAttributes, LogisticAttributes, LinearAttributes
+
+from leaspy.exceptions import LeaspyModelInputError
 
 
 class AttributesFactory:
@@ -19,7 +22,7 @@ class AttributesFactory:
     }
 
     @classmethod
-    def attributes(cls, name, dimension, source_dimension=None):
+    def attributes(cls, name: str, dimension: int, source_dimension: int = None) -> AbstractAttributes:
         """
         Class method to build correct model attributes depending on model `name`.
 
@@ -32,16 +35,22 @@ class AttributesFactory:
         Returns
         -------
         :class:`.AbstractAttributes`
+
+        Raises
+        ------
+        LeaspyModelInputError: if any inconsistent parameter.
         """
-        if type(name) == str:
+        if isinstance(name, str):
             name = name.lower()
         else:
-            raise AttributeError("The `name` argument must be a string!")
+            raise LeaspyModelInputError("The `name` argument must be a string!")
 
-        if name in cls._attributes:
-            if 'univariate' in name:
-                assert dimension == 1
-            return cls._attributes[name](name, dimension, source_dimension)
-        else:
-            raise ValueError(
-                "The name {} you provided for the attributes is not related to an attribute class".format(name))
+        if name not in cls._attributes:
+            raise LeaspyModelInputError(f"The name '{name}' you provided for the attributes is not supported."
+                                        f"Valid choices are: {list(cls._attributes.keys())}")
+
+        if 'univariate' in name and dimension != 1:
+            raise LeaspyModelInputError(f"{name}: `dimension` should be 1 when 'univariate' is part of model `name`, not {dimension}!")
+
+        return cls._attributes[name](name, dimension, source_dimension)
+

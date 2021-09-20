@@ -2,12 +2,19 @@ import torch
 
 from .abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 
+from leaspy.exceptions import LeaspyModelInputError
 
 class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     """
     Attributes of leaspy logistic parallel models.
 
     Contains the common attributes & methods of the logistic parallel models' attributes.
+
+    Parameters
+    ----------
+    name: str
+    dimension: int
+    source_dimension: int
 
     Attributes
     ----------
@@ -30,25 +37,23 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     mixing_matrix : :class:`torch.Tensor` [dimension, source_dimension] (default None)
         Matrix A such that w_i = A * s_i.
 
+    Raises
+    ------
+    LeaspyModelInputError: if any inconsistent parameters for the model.
+
     See also
     --------
     leaspy.models.multivariate_parallel_model.MultivariateParallelModel
     """
 
     def __init__(self, name, dimension, source_dimension):
-        """
-        Instantiate a `LogisticParallelAttributes` class object.
 
-        Parameters
-        ----------
-        name: str
-        dimension: int
-        source_dimension: int
-        """
         super().__init__(name, dimension, source_dimension)
-        assert self.dimension >= 2
 
-        self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
+        if self.dimension < 2:
+            raise LeaspyModelInputError(f"`LogisticParallelAttributes` with dimension = {self.dimension} (< 2)")
+
+        self.deltas: torch.FloatTensor = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
         self.update_possibilities = ('all', 'g', 'xi_mean', 'betas', 'deltas')
 
     def get_attributes(self):
@@ -82,7 +87,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
         Raises
         ------
-        ValueError
+        LeaspyModelInputError
             If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)

@@ -1,11 +1,16 @@
 import csv
 
 from leaspy.io.data.individual_data import IndividualData
+from leaspy.exceptions import LeaspyDataInputError
 
 
 class CSVDataReader:
     """
     Methods to convert `csv files` to data containers `Leaspy` compliants.
+
+    Raises
+    ------
+    LeaspyDataInputError
     """
     def __init__(self, path):
         self.individuals = {}
@@ -15,40 +20,39 @@ class CSVDataReader:
         self.n_individuals = 0
         self.n_visits = 0
 
-
         self._read(path)
 
     def _check_headers(self, csv_headers):
         if len(csv_headers) < 3:
-            raise ValueError("There must be at least three columns in the input dataset")
-        if csv_headers[0].lower() != 'id':
-            raise ValueError("The first column of the input csv must be 'ID'")
-        if csv_headers[1].lower() != 'time':
-            raise ValueError("The second column of the input csv must be 'Time'")
+            raise LeaspyDataInputError("There must be at least three columns in the input dataset")
+        if csv_headers[0].upper() != 'ID':
+            raise LeaspyDataInputError("The first column of the input csv must be 'ID'")
+        if csv_headers[1].upper() != 'TIME':
+            raise LeaspyDataInputError("The second column of the input csv must be 'TIME'")
 
         self.headers = csv_headers[2:]
 
     @staticmethod
     def _get_timepoint(idx, timepoint):
+        if timepoint != timepoint:
+            raise LeaspyDataInputError(f"One of the time value of individual '{idx}' is NaN")
         try:
-            if timepoint != timepoint:
-                raise ValueError('One of the time value of individual {} is NaN'.format(idx))
             return float(timepoint)
-        except ValueError:
-            print('The timepoint {} of individual {} cannot be converted to float'.format(timepoint, idx))
+        except Exception:
+            raise LeaspyDataInputError(f"The timepoint '{timepoint}' of individual '{idx}' cannot be converted to float")
 
     @staticmethod
     def _get_observation(idx, timepoint, observation):
         try:
             return [float(_) for _ in observation]
-        except ValueError:
-            print('The observations of individual ' + str(idx) + ' at time ' + str(
-                timepoint) + ' cannot be converted to float')
+        except Exception:
+            raise LeaspyDataInputError(f"The observations of individual '{idx}' at time '{timepoint}' cannot be converted to float")
 
     def _check_observation(self, observation):
         if self.dimension is None:
             self.dimension = len(observation)
-        assert len(observation) == self.dimension
+        elif len(observation) != self.dimension:
+            raise LeaspyDataInputError(f'Number of features mismatch: {len(observation)} != {self.dimension}')
 
     def _read(self, path):
         # Read csv

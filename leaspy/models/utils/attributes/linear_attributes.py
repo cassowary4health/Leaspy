@@ -65,7 +65,7 @@ class LinearAttributes(AbstractManifoldModelAttributes):
 
         Raises
         ------
-        ValueError
+        LeaspyModelInputError
             If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)

@@ -5,6 +5,7 @@ from scipy import stats
 
 # <!> circular imports
 import leaspy
+from leaspy.exceptions import LeaspyInputError
 
 #from joblib import Parallel, delayed
 
@@ -39,6 +40,11 @@ def initialize_parameters(model, dataset, method="default"):
     -------
     parameters: dict [str, :class:`torch.Tensor`]
         Contains the initialized model's group parameters.
+
+    Raises
+    ------
+    LeaspyInputError:
+        If no initialization method is known for model type / method
     """
 
     if method == 'lme':
@@ -57,7 +63,7 @@ def initialize_parameters(model, dataset, method="default"):
         raise NotImplementedError
         #parameters = initialize_logistic(model, dataset, method)
     else:
-        raise ValueError("There is no initialization method for the parameter of the model {}".format(name))
+        raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
 
     return parameters
 
@@ -72,7 +78,7 @@ def get_lme_results(dataset, n_jobs=-1, **lme_fit_kwargs):
         Contains all the data wrapped into a leaspy Dataset object
     n_jobs: int
         Number of jobs in parallel when multiple features to init
-        Not used, buggy
+        Not used for now, buggy
     **lme_fit_kwargs:
         Other kwargs passed to 'lme_fit' (such as `force_independent_random_effects`, default True)
 
@@ -129,11 +135,17 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
     -------
     parameters: dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters.
+
+    Raises
+    ------
+    LeaspyInputError:
+        If model is not supported for this initialization
     """
 
     name = model.name
     loss = model.loss # has to be set directly at model init and not in algosettings step to be available here
-    assert dataset.headers == model.features
+    if model.features != dataset.headers:
+        raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {dataset.headers}")
 
     multiv = 'univariate' not in name
 
@@ -183,7 +195,7 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
         params['v0' if multiv else 'xi_mean'] = v0.log()
 
     else:
-        raise ValueError(f"Model {name} is not supported in `lme` initialization.")
+        raise LeaspyInputError(f"Model '{name}' is not supported in `lme` initialization.")
 
     ## Dispersion of individual parameters
     # approx. dispersion on tau (-> on inflexion point when logistic)
@@ -235,6 +247,11 @@ def initialize_logistic(model, dataset, method):
         Contains the initialized model's group parameters.
         The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
+
+    Raises
+    ------
+    LeaspyInputError:
+        If method is not handled
     """
     # Get the slopes / values / times mu and sigma
     slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
@@ -251,7 +268,7 @@ def initialize_logistic(model, dataset, method):
         values = torch.normal(values_mu, values_sigma)
         time = torch.normal(time_mu, time_sigma)
     else:
-        raise ValueError("Initialization method not known")
+        raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
 
     # Check that slopes are >0, values between 0 and 1
     slopes = slopes.clamp(min=1e-2)
@@ -313,6 +330,11 @@ def initialize_logistic_parallel(model, dataset, method):
     parameters: dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters. The parameters' keys are 'g',  'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'delta' and 'beta'.
+
+    Raises
+    ------
+    LeaspyInputError:
+        If method is not handled
     """
 
     # Get the slopes / values / times mu and sigma
@@ -332,7 +354,7 @@ def initialize_logistic_parallel(model, dataset, method):
         time = torch.normal(time_mu, time_sigma)
         betas = torch.distributions.normal.Normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
     else:
-        raise ValueError("Initialization method not known")
+        raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
 
     # Check that slopes are >0, values between 0 and 1
     slopes = slopes.clamp(min=1e-2)
@@ -369,6 +391,8 @@ def initialize_linear(model, dataset, method):
         The model to initialize.
     dataset : :class:`.Dataset`
         Contains the individual scores.
+    method: str
+        not used for now
 
     Returns
     -------
@@ -597,7 +621,7 @@ def initialize_logistic_parallel(model, data, method="default"):
         }
 
     else:
-        raise ValueError("Initialization method not known")
+        raise LeaspyInputError("Initialization method not known")
 
     # Initialize the attribute
     model.attributes = LogisticParallelAttributes(model.dimension, model.source_dimension)
@@ -629,7 +653,7 @@ def initialize_logistic(model, data, method="default"):
         values = np.random.normal(loc=values_mu, scale=values_sigma)
         time = np.array(np.random.normal(loc=time_mu, scale=time_sigma))
     else:
-        raise ValueError("Initialization method not known")
+        raise LeaspyInputError("Initialization method not known")
 
     # Check that slopes are >0, values between 0 and 1
     slopes = slopes.clamp(min=1e-2)

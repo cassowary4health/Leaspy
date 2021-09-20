@@ -3,7 +3,8 @@ import time
 
 import torch
 
-from ..abstract_algo import AbstractAlgo
+from leaspy.algo.abstract_algo import AbstractAlgo
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 
 class AbstractPersonalizeAlgo(AbstractAlgo):
@@ -72,7 +73,6 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         self._initialize_seed(self.seed)
 
         # Init the run
-        # print("Beginning personalization : std error of the model is {0}".format(model.parameters['noise_std']))
         time_beginning = time.time()
 
         # Estimate individual parameters
@@ -80,12 +80,13 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         # Compute the noise with the estimated individual parameters (per feature or not, depending on model loss)
         _, dict_pytorch = individual_parameters.to_pytorch()
+        noise_std: torch.FloatTensor
         if 'diag_noise' in model.loss:
             squared_diff = model.compute_sum_squared_per_ft_tensorized(data, dict_pytorch).sum(dim=0)  # k tensor
             noise_std = torch.sqrt(squared_diff.detach() / data.n_observations_per_ft.float())
 
             # for displaying only
-            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in
+            noise_map = {ft_name: f'{ft_noise:.4f}' for ft_name, ft_noise in
                          zip(model.features, noise_std.view(-1).tolist())}
             print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
             print_noise = '\n'.join(print_noise.split(', '))
@@ -93,7 +94,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
             squared_diff = model.compute_sum_squared_tensorized(data, dict_pytorch).sum()
             noise_std = torch.sqrt(squared_diff.detach() / data.n_observations)
             # for displaying only
-            print_noise = '{:.4f}'.format(noise_std.item())
+            print_noise = f'{noise_std.item():.4f}'
 
         # Print run infos
         time_end = time.time()
@@ -105,7 +106,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         return individual_parameters, noise_std
 
     @abstractmethod
-    def _get_individual_parameters(self, model, data):
+    def _get_individual_parameters(self, model, data) -> IndividualParameters:
         """
         Estimate individual parameters from a `Dataset`.
 
@@ -120,4 +121,4 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         -------
         :class:`.IndividualParameters`
         """
-        raise NotImplementedError('This algorithm does not present a personalization procedure')
+        pass

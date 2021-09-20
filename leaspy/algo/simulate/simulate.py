@@ -7,6 +7,10 @@ from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.outputs.result import Result
+from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.models.abstract_model import AbstractModel
+
+from leaspy.exceptions import LeaspyAlgoInputError
 
 
 class SimulationAlgorithm(AbstractAlgo):
@@ -67,6 +71,17 @@ class SimulationAlgorithm(AbstractAlgo):
     std_number_of_visits : int
         Standard deviation used into the generation of the number of visits per simulated patient.
 
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        Set the class attributes.
+
+    Raises
+    ------
+    LeaspyAlgoInputError
+        - If ``settings.parameters['sources_method']`` is not one of the two option allowed ("full_kde" or "normal_sources").
+        - If the type of ``settings.parameters['features_bounds']`` is not `bool` or `dict`.
+
     Notes
     -----
     One can choose to set the interval of the reparametrized baseline age of the simulated subjects. By doing so, the
@@ -84,22 +99,7 @@ class SimulationAlgorithm(AbstractAlgo):
     """
 
     def __init__(self, settings):
-        """
-        Process initializer function that is called by Leaspy().simulate.
 
-        Parameters
-        ----------
-        settings : :class:`.AlgorithmSettings`
-            Set the class attributes.
-
-        Raises
-        ------
-        ValueError
-            If ``settings.parameters['sources_method']`` is not one of the two option allowed -
-            "full_kde" or "normal_sources".
-        TypeError
-            If the type of ``settings.parameters['features_bounds']`` is not `bool` or `dict`.
-        """
         super().__init__()
 
         # TODO: put it in abstract_algo + add settings=None in AbstractAlgo __init__ method
@@ -126,29 +126,28 @@ class SimulationAlgorithm(AbstractAlgo):
         self.prefix = settings.parameters['prefix']
 
         if self.sources_method not in ("full_kde", "normal_sources"):
-            raise ValueError('The "sources_method" parameter must be "full_kde" or "normal_sources"!')
+            raise LeaspyAlgoInputError('The "sources_method" parameter must be "full_kde" or "normal_sources"!')
 
-        if type(self.features_bounds) not in [bool, dict]:
-            raise TypeError('The type of the "features_bounds" parameter must be %s or %s, not %s!'
-                            % (str(bool), str(dict), str(type(self.features_bounds))))
+        if not isinstance(self.features_bounds, (bool, dict)):
+            raise LeaspyAlgoInputError(f'The type of the "features_bounds" parameter must be bool or dict, not {type(self.features_bounds)}!')
 
         if self.reparametrized_age_bounds and (len(self.reparametrized_age_bounds) != 2):
-            raise ValueError("The parameter 'reparametrized_age_bounds' must contain exactly two elements, "
-                             "its lower bound and its upper bound. You gave {0}".format(self.reparametrized_age_bounds))
+            raise LeaspyAlgoInputError("The parameter 'reparametrized_age_bounds' must contain exactly two elements, "
+                             f"its lower bound and its upper bound. You gave {self.reparametrized_age_bounds}")
 
         # check cofactor coherence
         # TODO? refact params: dict {cofactor_1: forced_state_1, ...}
 
         if int(self.cofactor is None) ^ int(self.cofactor_state is None):
-            raise ValueError("`cofactor` and `cofactor_state` should be None or not None simultaneously!")
+            raise LeaspyAlgoInputError("`cofactor` and `cofactor_state` should be None or not None simultaneously!")
 
         if self.cofactor is not None:
-            assert isinstance(self.cofactor, list), \
-                "`cofactor` should be a list of cofactors whose states want to be fixed."
-            assert isinstance(self.cofactor_state, list), \
-                "`cofactor_state` should be the list of cofactors states to fix (same order as `cofactor` list)."
-            assert len(self.cofactor) == len(self.cofactor_state), \
-                "`cofactor` and `cofactor_state` should have equal length (exactly 1 state per cofactor)"
+            if not isinstance(self.cofactor, list):
+                raise LeaspyAlgoInputError("`cofactor` should be a list of cofactors whose states want to be fixed.")
+            if not isinstance(self.cofactor_state, list):
+                raise LeaspyAlgoInputError("`cofactor_state` should be the list of cofactors states to fix (same order as `cofactor` list).")
+            if len(self.cofactor) != len(self.cofactor_state):
+                raise LeaspyAlgoInputError("`cofactor` and `cofactor_state` should have equal length (exactly 1 state per cofactor)")
 
 
     def _check_cofactors(self, data):
@@ -162,15 +161,9 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Raises
         ------
-        ValueError
+        LeaspyAlgoInputError
             Raised if the parameters "cofactor" and "cofactor_state" do not receive a valid value.
         """
-        def reformat_str(string, replace=True):
-            result = string.replace('[', "").replace(']', "")
-            if replace:
-                result = result.replace(',', " or")
-            return result
-
         cofactors = {}
         for ind in data.individuals.values():
             if bool(ind.cofactors):
@@ -181,14 +174,18 @@ class SimulationAlgorithm(AbstractAlgo):
                         # set (unique vals)
                         cofactors[key] = {val}
 
-        if not (all(cof_ft in cofactors.keys() for cof_ft in self.cofactor)):
-            raise ValueError('The input "cofactor" parameter %s does not correspond to any cofactor in your data! '
-                             'The available cofactor(s) are %s.'
-                             % (self.cofactor, reformat_str(str(list(cofactors.keys())))))
-        if not (all(cof_val in cofactors[cof_ft] for cof_ft, cof_val in zip(self.cofactor, self.cofactor_state))):
-            raise ValueError('The input "cofactor_state" parameter "%s" does not correspond to a valid state'
-                             ' in your data for at least one cofactor! The available cofactor states for "%s" are %s.'
-                             % (self.cofactor_state, self.cofactor, reformat_str(str([cofactors[x] for x in self.cofactor]))))
+        unknown_cofactors = [cof_ft for cof_ft in self.cofactor if cof_ft not in cofactors.keys()]
+        if len(unknown_cofactors) > 0:
+            raise LeaspyAlgoInputError(
+                f'The `cofactor` parameter has cofactors unknown in your data: {unknown_cofactors}. '
+                f'The available cofactor(s) are {list(cofactors.keys())}.')
+
+        invalid_cofactors = dict([(cof_ft, cof_val) for cof_ft, cof_val in zip(self.cofactor, self.cofactor_state)
+                             if cof_val not in cofactors[cof_ft]])
+        if len(invalid_cofactors) > 0:
+            raise LeaspyAlgoInputError(
+                f'The `cofactor_state` parameter is invalid for cofactors {invalid_cofactors}. '
+                f'The available cofactor states for those are: { {k: cofactors[k] for k in invalid_cofactors} }.')
 
     @staticmethod
     def _get_mean_and_covariance_matrix(m):
@@ -286,11 +283,11 @@ class SimulationAlgorithm(AbstractAlgo):
         """
         features_min = np.zeros(len(results_object.data.headers))
         features_max = np.ones(len(results_object.data.headers))
-        if type(self.features_bounds) is dict:
-            assert results_object.data.headers == list(self.features_bounds.keys()), \
-                'The keys of your input "features_bounds" do not match the headers of your data!' \
-                + '\nThe data headers - %s' % str(results_object.data.headers) \
-                + '\nYour "features_bounds" input - %s' % str(list(self.features_bounds.keys()))
+        if isinstance(self.features_bounds, dict):
+            if results_object.data.headers != list(self.features_bounds.keys()):
+                raise LeaspyAlgoInputError('The keys of your input "features_bounds" do not match the headers of your data!'
+                                          f'\nThe data headers: {results_object.data.headers}'
+                                          f'\nYour "features_bounds" input: {list(self.features_bounds.keys())}')
             for i, key in enumerate(results_object.data.headers):
                 features_min[i] = self.features_bounds[key][0]
                 features_max[i] = self.features_bounds[key][1]
@@ -340,7 +337,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Raises
         ------
-        ValueError
+        LeaspyAlgoInputError
             If the attribute self.noise is an iterable of float of a length different than the number of features.
         """
         if self.noise:
@@ -352,10 +349,10 @@ class SimulationAlgorithm(AbstractAlgo):
             else:
                 if hasattr(self.noise, '__len__'):
                     if len(self.noise) != len(results.data.headers):
-                        raise ValueError("The attribute 'noise' you gave is {}. If you want to specify the level of"
-                                         " noise for each feature score, you must give an iterable object of size "
-                                         "the number of features, here {}.".format(self.noise,
-                                                                                   len(results.data.headers)))
+                        raise LeaspyAlgoInputError(
+                                    f"The attribute 'noise' you gave is {self.noise}. If you want to specify the level of"
+                                    " noise for each feature score, you must give an iterable object of size "
+                                    f"the number of features for you model, here {results.data.headers}.")
                 noise = torch.tensor(self.noise, dtype=torch.float32)
             return torch.distributions.Normal(loc=0., scale=noise)  # diagonal noise (per feature)
 
@@ -520,7 +517,7 @@ class SimulationAlgorithm(AbstractAlgo):
             Contains the scores of all the subjects whose scores are within the features boundaries.
         """
 
-        def _test_subject(bl_score: float, features_min: np.array, features_max: np.array) -> bool:
+        def _test_subject(bl_score: float, features_min: np.ndarray, features_max: np.ndarray) -> bool:
             return all(features_min <= bl_score) & all(bl_score <= features_max)
 
         baseline_scores = np.array([scores[0] for scores in features_values])
@@ -529,10 +526,12 @@ class SimulationAlgorithm(AbstractAlgo):
         return indices_of_accepted_simulated_subjects, [val for i, val in enumerate(features_values)
                                                         if i in indices_of_accepted_simulated_subjects]
 
-    def run(self, model, individual_parameters, data):
+    def run(self, model: AbstractModel, individual_parameters: IndividualParameters, data: Data) -> Result:
         """
         Run simulation - learn joined distribution of patients' individual parameters and return a results object
         containing the simulated individual parameters and the simulated scores.
+
+        <!> The `AbstractAlgo.run` signature is not respected for simulation algorithm...
 
         Parameters
         ----------
@@ -541,6 +540,8 @@ class SimulationAlgorithm(AbstractAlgo):
             It contains the population parameters.
         individual_parameters : :class:`.IndividualParameters`
             Object containing the computed individual parameters.
+        data : :class:`.Data`
+            The data object.
 
         Notes
         -----

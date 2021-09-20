@@ -1,6 +1,5 @@
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Any, Dict
 import itertools
 import json
 
@@ -8,14 +7,19 @@ import torch
 import numpy as np
 
 from leaspy import __version__
+from leaspy.exceptions import LeaspyModelInputError
+from leaspy.utils.typing import KwargsType, FeatureType, Optional, List
 
-KwargsType = Dict[str, Any]
 
 class GenericModel(ABC):
     """
     Generic model (temporary until :class:`.AbstractModel` is really **abstract**).
 
     TODO: change naming after AbstractModel was renamed?
+
+    Parameters
+    ----------
+    name: str
 
     Attributes
     ----------
@@ -41,7 +45,7 @@ class GenericModel(ABC):
 
         self.name = name
         #self.reset_hyperparameters()
-        self.features: Optional[List[str]] = None
+        self.features: Optional[List[FeatureType]] = None
         self.parameters: KwargsType = {}
         #self.dimension = None
 
@@ -135,7 +139,7 @@ class GenericModel(ABC):
             if isinstance(v, list):
                 self.parameters[k] = list_converter(v)
 
-    def load_hyperparameters(self, hyperparameters) -> None:
+    def load_hyperparameters(self, hyperparameters: dict) -> None:
         """
         Load model hyperparameters from a dict
 
@@ -143,6 +147,10 @@ class GenericModel(ABC):
         ----------
         hyperparameters: dict
             Contains the model's hyperparameters
+
+        Raises
+        ------
+        LeaspyModelInputError: if inconsistent hyperparameters
         """
 
         # no total reset of hyperparameters here unlike in load_parameters...
@@ -157,7 +165,7 @@ class GenericModel(ABC):
         unknown_hps = non_static_hps.difference(dynamic_hps) # no Python method to get intersection and difference at once...
 
         if len(unknown_hps) > 0:
-            raise ValueError(f'Unknown hyperparameters: {unknown_hps}...')
+            raise LeaspyModelInputError(f'Unknown hyperparameters: {unknown_hps}...')
 
         # set "static" hyperparameters only
         for hp_name, hp_val in hyperparameters.items():
@@ -173,9 +181,10 @@ class GenericModel(ABC):
             d_hp_name: hyperparameters[d_hp_name] for d_hp_name in dynamic_hps
         }
         if dynamic_hps_provided != dynamic_hps_expected:
-            raise ValueError(f"Dynamic hyperparameters provided do not correspond to the expected ones:\n{dynamic_hps_provided} != {dynamic_hps_expected}")
+            raise LeaspyModelInputError(f"Dynamic hyperparameters provided do not correspond to the expected ones:\n"
+                                        f"{dynamic_hps_provided} != {dynamic_hps_expected}")
 
-    def save(self, path, **kwargs):
+    def save(self, path: str, **kwargs):
         """
         Save Leaspy object as json model parameter file.
 
@@ -199,6 +208,7 @@ class GenericModel(ABC):
             **self.get_hyperparameters(with_properties=True),
             'parameters': model_parameters_save
         }
+
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 
@@ -239,9 +249,6 @@ class GenericModel(ABC):
         lines.append('-'*len(lines[0]))
 
         for param_name, param_val in self.parameters.items():
-            # if type(self.parameters[key]) == float:
-            #    logs += "{} : {:.5f}\n".format(key, self.parameters[key])
-            # else:
             lines.append(f"{param_name} : {param_val}")
 
         return "\n".join(lines)

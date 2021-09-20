@@ -1,5 +1,16 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import pandas as pd
 import torch
+
+from leaspy.exceptions import LeaspyInputError
+from leaspy.utils.typing import List
+
+if TYPE_CHECKING:
+    from leaspy.io.data.data import Data
+    from leaspy.models.abstract_model import AbstractModel
+    from leaspy.algo.abstract_algo import AbstractAlgo
 
 
 class Dataset:
@@ -41,27 +52,32 @@ class Dataset:
         If 1: value is meaningful
         If 0: value is meaningless (either was nan or does not correspond to a real visit - only here for padding)
 
-    L2_norm_per_ft : :class:`torch.Tensor`, shape (dimension,)
+    L2_norm_per_ft : :class:`torch.FloatTensor`, shape (dimension,)
         Sum of all non-nan squared values, feature per feature
-    L2_norm : scalar :class:`torch.Tensor`
+    L2_norm : scalar :class:`torch.FloatTensor`
         Sum of all non-nan squared values
+
+    Raises
+    ------
+    LeaspyInputError:
+        if data, model or algo are not compatible together.
     """
 
-    def __init__(self, data, model=None, algo=None):
-        # TODO : Change in Pytorch
-        self.timepoints = None
-        self.values = None
-        self.mask = None
+    def __init__(self, data: Data, model: AbstractModel = None, algo: AbstractAlgo = None):
+
+        self.timepoints: torch.FloatTensor = None
+        self.values: torch.FloatTensor = None
+        self.mask: torch.FloatTensor = None
         self.headers = data.headers
-        self.n_individuals = None
-        self.nb_observations_per_individuals = None
-        self.max_observations = None
-        self.dimension = None
-        self.n_visits = None
+        self.n_individuals: int = None
+        self.nb_observations_per_individuals: List[int] = None
+        self.max_observations: int = None
+        self.dimension: int = None
+        self.n_visits: int = None
         #self.individual_parameters = None
         self.indices = list(data.individuals.keys())
-        self.L2_norm_per_ft = None # 1D float tensor, shape (dimension,)
-        self.L2_norm = None # scalar float tensor
+        self.L2_norm_per_ft: torch.FloatTensor = None # 1D float tensor, shape (dimension,)
+        self.L2_norm: torch.FloatTensor = None # scalar float tensor
 
         if model is not None:
             self._check_model_compatibility(data, model)
@@ -72,7 +88,7 @@ class Dataset:
         self._construct_timepoints(data)
         self._compute_L2_norm()
 
-    def _construct_values(self, data):
+    def _construct_values(self, data: Data):
 
         batch_size = data.n_individuals
         x_len = [len(_.timepoints) for _ in data]
@@ -107,7 +123,7 @@ class Dataset:
         self.n_observations_per_ft = self.n_observations_per_ind_per_ft.sum(dim=0) # 1D int tensor of shape(dimension,)
         self.n_observations = self.n_observations_per_ft.sum().item() # scalar (int)
 
-    def _construct_timepoints(self, data):
+    def _construct_timepoints(self, data: Data):
         self.timepoints = torch.zeros([self.n_individuals, self.max_observations], dtype=torch.float32)
         x_len = [len(_.timepoints) for _ in data]
         for i, d in enumerate(x_len):
@@ -117,7 +133,7 @@ class Dataset:
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0,1)) # 1D tensor of shape (dimension,)
         self.L2_norm = self.L2_norm_per_ft.sum() # sum on all features
 
-    def get_times_patient(self, i):
+    def get_times_patient(self, i: int) -> torch.FloatTensor:
         """
         Get ages for patient number ``i``
 
@@ -128,7 +144,7 @@ class Dataset:
         """
         return self.timepoints[i, :self.nb_observations_per_individuals[i]]
 
-    def get_values_patient(self, i):
+    def get_values_patient(self, i: int) -> torch.FloatTensor:
         """
         Get values for patient number ``i``
 
@@ -146,17 +162,17 @@ class Dataset:
         return values_with_na
 
     @staticmethod
-    def _check_model_compatibility(data, model):
+    def _check_model_compatibility(data: Data, model: AbstractModel):
         if model.dimension is None:
             return
         if data.dimension != model.dimension:
-            raise ValueError(f"Unmatched dimensions. Model {model.dimension} ≠ {data.dimension} Data ")
+            raise LeaspyInputError(f"Unmatched dimensions: {model.dimension} (model) ≠ {data.dimension} (data).")
 
     @staticmethod
-    def _check_algo_compatibility(data, algo):
+    def _check_algo_compatibility(data: Data, algo: AbstractAlgo):
         return
 
-    def to_pandas(self):
+    def to_pandas(self) -> pd.DataFrame:
         """
         Convert dataset to a `DataFrame`.
 

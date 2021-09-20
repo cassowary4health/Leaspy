@@ -1,26 +1,45 @@
 import json
-from typing import Union
 
 import torch
-import numpy as np
 
 from leaspy import __version__
 
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+
 from leaspy.utils.docs import doc_with_super, doc_with_
+from leaspy.utils.subtypes import suffixed_method
+from leaspy.exceptions import LeaspyModelInputError
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
 # TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
 
+
 @doc_with_super()
 class UnivariateModel(AbstractModel):
     """
     Univariate (logistic or linear) model for a single variable of interest.
+
+    Parameters
+    ----------
+    name: str
+    **kwargs: hyperparameters
+
+    Raises
+    ------
+    LeaspyModelInputError:
+        * If `name` is not one of allowed sub-type: 'univariate_linear' or 'univariate_logistic'
+        * If hyperparameters are inconsistent
     """
-    def __init__(self, name, **kwargs):
+
+    SUBTYPES_SUFFIXES = {
+        'univariate_linear': '_linear',
+        'univariate_logistic': '_logistic'
+    }
+
+    def __init__(self, name: str, **kwargs):
         super().__init__(name)
         self.dimension = 1
         self.source_dimension = 0  # TODO, None ???
@@ -43,14 +62,24 @@ class UnivariateModel(AbstractModel):
             }
         }
 
+        # subtype of univariate model
+        self._subtype_suffix = self._check_subtype()
+
         # load hyperparameters
         self.load_hyperparameters(kwargs)
 
-    def save(self, path, **kwargs):
+    def _check_subtype(self):
+        if self.name not in self.SUBTYPES_SUFFIXES.keys():
+            raise LeaspyModelInputError(f'Univariate model name should be among these valid sub-types: '
+                                        f'{list(self.SUBTYPES_SUFFIXES.keys())}.')
+
+        return self.SUBTYPES_SUFFIXES[self.name]
+
+    def save(self, path: str, **kwargs):
 
         model_parameters_save = self.parameters.copy()
         for key, value in model_parameters_save.items():
-            if type(value) in [torch.Tensor]:
+            if isinstance(value, torch.Tensor):
                 model_parameters_save[key] = value.tolist()
         model_settings = {
             'leaspy_version': __version__,
@@ -66,15 +95,15 @@ class UnivariateModel(AbstractModel):
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 
-    def load_hyperparameters(self, hyperparameters):
+    def load_hyperparameters(self, hyperparameters: dict):
 
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
         if any([key not in ('features', 'loss') for key in hyperparameters.keys()]):
-            raise ValueError("Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
-                             f"You gave {hyperparameters}.")
+            raise LeaspyModelInputError("Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
+                                       f"You gave {hyperparameters}.")
 
     def initialize(self, dataset, method="default"):
 
@@ -135,10 +164,9 @@ class UnivariateModel(AbstractModel):
 
     def _get_attributes(self, MCMC):
         if MCMC:
-            g = self.MCMC_toolbox['attributes'].positions
+            return self.MCMC_toolbox['attributes'].positions
         else:
-            g = self.attributes.positions
-        return g
+            return self.attributes.positions
 
     def compute_mean_traj(self, timepoints):
         """
@@ -163,17 +191,9 @@ class UnivariateModel(AbstractModel):
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
+    @suffixed_method
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-
-        if self.name == 'univariate_logistic':
-            return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
-
-        elif self.name == 'univariate_linear':
-            return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
-
-        else:
-            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported."
-                             f" You gave {self.name}")
+        pass
 
     def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=False):
 
@@ -200,20 +220,13 @@ class UnivariateModel(AbstractModel):
 
         return model
 
+    @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
                                                                  individual_parameters: dict, feature: str):
-        if self.name == 'univariate_logistic':
-            return self.compute_individual_ages_logistic(value, individual_parameters, feature)
+        pass
 
-        elif self.name == 'univariate_linear':
-            return self.compute_individual_ages_linear(value, individual_parameters, feature)
-
-        else:
-            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported."
-                             f" You gave {self.name}")
-
-    def compute_individual_ages_logistic(self, value: torch.Tensor,
-                                         individual_parameters: dict, feature: str = None):
+    def compute_individual_ages_from_biomarker_values_tensorized_logistic(self, value: torch.Tensor,
+                                                                          individual_parameters: dict, feature: str):
         # avoid division by zero:
         value = value.masked_fill((value == 0) | (value == 1), float('nan'))
 
@@ -227,19 +240,9 @@ class UnivariateModel(AbstractModel):
 
         return ages
 
-    def compute_individual_ages_linear(self, value: torch.Tensor,
-                                       individual_parameters: dict, feature: str = None,
-                                       ):
-        raise NotImplementedError('Not implemented !'
-                                  'If you need it, please open an issue on the Leaspy repository on Gitlab')
-
+    @suffixed_method
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        if self.name in ['logistic', 'univariate_logistic']:
-            return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
-        elif self.name in ['linear', 'univariate_linear']:
-            return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        else:
-            raise ValueError(f"UnivariateModel: only `univariate_linear` and `univariate_logistic` are supported. You gave {self.name}")
+        pass
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
 
@@ -262,6 +265,7 @@ class UnivariateModel(AbstractModel):
             'xi' : (reparametrized_time).unsqueeze(-1),
             'tau' : (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
         }
+
         return derivatives
 
     def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, MCMC=False):

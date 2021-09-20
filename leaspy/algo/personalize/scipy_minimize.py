@@ -7,6 +7,8 @@ from scipy.optimize import minimize
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 
+from leaspy.exceptions import LeaspyAlgoInputError
+
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
     """
@@ -201,6 +203,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             2-tuple (as expected by :func:`scipy.optimize.minimize` when ``jac=True``)
                 * objective: float
                 * gradient: array-like[float] of length n_dims_params
+
+        Raises
+        ------
+        LeaspyAlgoInputError: if algorithm loss is not valid.
         """
 
         # Extra arguments passed by scipy minimize
@@ -216,6 +222,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         diff[nans] = 0.  # set nans to zero, not to count in the sum
 
         # compute  gradient of model with respect to individual parameters
+        grads = None
         if with_gradient:
             grads = model.compute_jacobian_tensorized(times, individual_parameters)
             # put derivatives consecutively in the right order: shape [n_tpts,n_fts,n_dims_params]
@@ -244,7 +251,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
 
         else:
-            raise NotImplementedError(f"Algorithm loss {self.loss} is currently not implemented...")
+            raise LeaspyAlgoInputError(f"Algorithm loss {self.loss} is currently not implemented..."
+                                       f"Please open an issue on Gitlab if needed.")
 
         ## Regularity term
         regularity, regularity_grads = self._get_regularity(model, individual_parameters)

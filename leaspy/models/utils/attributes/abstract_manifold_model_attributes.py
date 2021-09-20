@@ -2,6 +2,9 @@ import torch
 
 from .abstract_attributes import AbstractAttributes
 
+from leaspy.exceptions import LeaspyModelInputError
+from leaspy.utils.typing import DictParamsTorch
+
 
 class AbstractManifoldModelAttributes(AbstractAttributes):
     """
@@ -12,7 +15,8 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
     Parameters
     ----------
-    dimension: int (default None)
+    name: str
+    dimension: int
     source_dimension: int (default None)
 
     Attributes
@@ -35,34 +39,32 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
     betas : :class:`torch.Tensor` [dimension - 1, source_dimension] (default None)
     mixing_matrix : :class:`torch.Tensor` [dimension, source_dimension] (default None)
         Matrix A such that w_i = A * s_i.
+
+    Raises
+    ------
+    LeaspyModelInputError: if any inconsistent parameter.
     """
 
-    def __init__(self, name, dimension, source_dimension):
-        """
-        Instantiate a AbstractManifoldModelAttributes class object.
+    def __init__(self, name: str, dimension: int, source_dimension: int = None):
 
-        Parameters
-        ----------
-        name: str
-        dimension: int
-        source_dimension: int
-        """
         super().__init__(name, dimension, source_dimension)
 
-        self.positions = None
-        self.velocities = None
+        self.positions: torch.FloatTensor = None
+        self.velocities: torch.FloatTensor = None
 
         if self.univariate:
-            assert not self.has_sources
+            if self.has_sources:
+                raise LeaspyModelInputError("Inconsistent univariate attributes with some sources.")
 
             self.update_possibilities = ('all', 'g', 'xi_mean')
         else:
             if not isinstance(source_dimension, int):
-                raise ValueError("In `AbstractManifoldModelAttributes` you must provide integer for the parameters `source_dimension` for non univariate models.")
+                raise LeaspyModelInputError("In `AbstractManifoldModelAttributes` you must provide "
+                            "an integer for the parameters `source_dimension` for non univariate models.")
 
-            self.betas = None
-            self.mixing_matrix = None
-            self.orthonormal_basis = None
+            self.betas: torch.FloatTensor = None
+            self.mixing_matrix: torch.FloatTensor = None
+            self.orthonormal_basis: torch.FloatTensor = None
             self.update_possibilities = ('all', 'g', 'v0', 'betas')
 
     def get_attributes(self):
@@ -84,7 +86,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         else:
             return self.positions, self.velocities, self.mixing_matrix
 
-    def _compute_velocities(self, values):
+    def _compute_velocities(self, values: DictParamsTorch):
         """
         Update the attribute ``velocities``.
 
@@ -95,12 +97,9 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         if self.univariate:
             self.velocities = torch.exp(values['xi_mean'])
         else:
-            if 'linear' in self.name or 'logistic' in self.name:
-                self.velocities = torch.exp(values['v0'])
-            else:
-                raise ValueError
+            self.velocities = torch.exp(values['v0'])
 
-    def _compute_betas(self, values):
+    def _compute_betas(self, values: DictParamsTorch):
         """
         Update the attribute ``betas``.
 
@@ -113,7 +112,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         self.betas = values['betas'].clone()
 
 
-    def _compute_Q(self, dgamma_t0, G_metric, strip_col=0):
+    def _compute_Q(self, dgamma_t0: torch.FloatTensor, G_metric: torch.FloatTensor, strip_col: int = 0):
         """
         Householder decomposition, adapted for a non-Euclidean inner product defined by:
         (1) :math:`< x, y >Metric(p) = < x, G(p) y >Eucl = xT G(p) y`, where:
@@ -149,6 +148,10 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
         strip_col: int in 0..model_dimension-1 (default 0)
             Which column of the basis should be the one collinear to `dgamma_t0` (that we get rid of)
+
+        Raises
+        ------
+        LeaspyModelInputError: if incoherent metric `G_metric`
         """
 
         # enforce `G_metric` to be a tensor
@@ -158,17 +161,24 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         # compute the vector that others columns should be orthogonal to, w.r.t canonical inner product
         G_shape = G_metric.shape
         if len(G_shape) == 0: # 0D
-            assert G_metric.item() > 0
+            if G_metric.item() <= 0:
+                raise LeaspyModelInputError('Incoherent negative scalar metric.')
+
             dgamma_t0 = G_metric.item() * dgamma_t0 # homothetic
         elif len(G_shape) == 1: # 1D
-            assert (G_metric > 0).all()
-            assert len(G_metric) == self.dimension
+            if not (G_metric > 0).all():
+                raise LeaspyModelInputError('Incoherent 1D metric with negative values.')
+            if len(G_metric) != self.dimension:
+                raise LeaspyModelInputError(f'Incoherent 1D metric size: {len(G_metric)} != {self.dimension}.')
+
             dgamma_t0 = G_metric * dgamma_t0 # component-wise multiplication of vectors
         elif len(G_shape) == 2: # matrix (general case)
-            assert G_shape == (self.dimension, self.dimension)
+            if len(G_metric) != self.dimension:
+                raise LeaspyModelInputError(f'Incoherent 2D metric shape: {G_shape} != {(self.dimension, self.dimension)}.')
+
             dgamma_t0 = G_metric @ dgamma_t0 # matrix multiplication
         else:
-            raise NotImplementedError
+            raise LeaspyModelInputError('Unexpected metric of dim > 2 when computing orthonormal basis.')
 
         """
         Automatically choose the best column to strip?
@@ -200,7 +210,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         ), dim=1)
 
     @staticmethod
-    def _mixing_matrix_utils(linear_combination_values, matrix):
+    def _mixing_matrix_utils(linear_combination_values: torch.FloatTensor, matrix: torch.FloatTensor) -> torch.FloatTensor:
         """
         Intermediate function used to test the good behaviour of the class' methods.
 

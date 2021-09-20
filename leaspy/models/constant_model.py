@@ -1,6 +1,8 @@
 import torch
 
 from leaspy.models.generic_model import GenericModel
+from leaspy.exceptions import LeaspyModelInputError
+
 from leaspy.utils.docs import doc_with_super
 
 
@@ -40,9 +42,12 @@ class ConstantModel(GenericModel):
         super().__init__(name)
 
         # no more initialization needed...
-        self.is_initialized = True
+        self.is_initialized: bool = True
 
     def compute_individual_trajectory(self, timepoints, ip):
+
+        if self.features is None:
+            raise LeaspyModelInputError('The model was not properly initialized.')
 
         values = [ip[f] for f in self.features]
         return torch.tensor([[values] * len(timepoints)], dtype=torch.float32)

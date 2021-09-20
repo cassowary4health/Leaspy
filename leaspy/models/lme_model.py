@@ -4,6 +4,7 @@ import torch
 
 from leaspy.models.generic_model import GenericModel
 
+
 class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
     """
     LMEModel is a benchmark model that fits and personalize a linear mixed-effects model

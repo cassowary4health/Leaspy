@@ -5,6 +5,9 @@ import scipy.stats as stats
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 
+from leaspy.exceptions import LeaspyInputError
+
+
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
     """
     .. deprecated:: 1.0
@@ -65,12 +68,12 @@ def compute_correlation(leaspy, individual_parameters, df_cofactors, method="pea
 
     df = pd.concat([df_indparam, df_cofactors], axis=1, sort=True).dropna()
 
-    if method =="pearson":
+    if method == "pearson":
         correlation_function = stats.pearsonr
     elif method == "spearman":
         correlation_function = stats.spearmanr
     else:
-        raise ValueError("Correlation not known")
+        raise LeaspyInputError("Correlation method not known, must be in {'pearson', 'spearman'}")
 
     # P-values
     features = df.columns

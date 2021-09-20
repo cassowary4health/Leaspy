@@ -117,7 +117,7 @@ class FitOutputManager:
         Display the duration since the last print
         """
         current_time = time.time()
-        print("Duration since last print : {:.4f}s".format(current_time - self.time))
+        print(f"Duration since last print : {current_time - self.time:.4f}s")
         self.time = current_time
 
     def print_model_statistics(self, model):
@@ -171,7 +171,7 @@ class FitOutputManager:
                 if key == "betas":
                     model_parameters_save.pop(key)
                     for column in range(value.shape[1]):
-                        model_parameters_save["{0}_{1}".format(key, column)] = value[:, column].tolist()
+                        model_parameters_save[f"{key}_{column}"] = value[:, column].tolist()
                 # P0, V0
                 elif value.shape[0] == 1 and len(value.shape) > 1:
                     model_parameters_save[key] = value[0].tolist()
@@ -232,8 +232,8 @@ class FitOutputManager:
                                                        self.path_plot_convergence_model_parameters_2,
                                                        model)
 
-    def plot_model_average_trajectory(self, model):
-        raise NotImplementedError
+    #def plot_model_average_trajectory(self, model):
+    #    raise NotImplementedError
 
     def plot_patient_reconstructions(self, iteration, data, model, realizations):
         """
@@ -250,7 +250,7 @@ class FitOutputManager:
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
-        path_iteration = os.path.join(self.path_plot_patients, 'plot_patients_{0}.pdf'.format(iteration))
+        path_iteration = os.path.join(self.path_plot_patients, f'plot_patients_{iteration}.pdf')
         param_ind = model.get_param_from_real(realizations)
         self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind,
                                                   self.plot_options['maximum_patient_number'])
@@ -276,6 +276,6 @@ class FitOutputManager:
         model_average = model.compute_average(tensor_timepoints)
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
 
-        plt.savefig(os.path.join(self.path_plot_patients,'plot_patients_{0}.pdf'.format(iteration)))
+        plt.savefig(os.path.join(self.path_plot_patients,f'plot_patients_{iteration}.pdf'))
         plt.close()
         """

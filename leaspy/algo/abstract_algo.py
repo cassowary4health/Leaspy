@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from leaspy.io.logs.fit_output_manager import FitOutputManager
+from leaspy.utils.typing import KwargsType, Optional, Any
 
 
 class AbstractAlgo(ABC):
@@ -14,11 +15,11 @@ class AbstractAlgo(ABC):
 
     Attributes
     ----------
+    name: str
+        Name of the algorithm.
     algo_parameters: dict
         Contains the algorithm's parameters. These ones are set by a
         :class:`.AlgorithmSettings` class object.
-    name: str
-        Name of the algorithm.
     seed: int, optional
         Seed used by :mod:`numpy` and :mod:`torch`.
     output_manager : :class:`~.io.logs.fit_output_manager.FitOutputManager`
@@ -26,16 +27,16 @@ class AbstractAlgo(ABC):
     """
 
     def __init__(self):
-        self.algo_parameters = None
-        self.name = None
-        self.output_manager = None
-        self.seed = None
+        self.name: str = None
+        self.algo_parameters: KwargsType = None
+        self.output_manager: Optional[FitOutputManager] = None
+        self.seed: Optional[int] = None
 
     ###########################
     # Initialization
     ###########################
     @staticmethod
-    def _initialize_seed(seed):
+    def _initialize_seed(seed: Optional[int]):
         """
         Set :mod:`numpy` and :mod:`torch` seeds and display it (static method).
 
@@ -50,14 +51,14 @@ class AbstractAlgo(ABC):
         if seed is not None:
             np.random.seed(seed)
             torch.manual_seed(seed)
-            print(" ==> Setting seed to {0}".format(seed))
+            print(f" ==> Setting seed to {seed}")
 
     ###########################
     # Main method
     ###########################
 
     @abstractmethod
-    def run(self, model, dataset):
+    def run(self, model, dataset) -> Any:
         """
         Main method, run the algorithm.
 
@@ -86,7 +87,7 @@ class AbstractAlgo(ABC):
     # Getters / Setters
     ###########################
 
-    def load_parameters(self, parameters):
+    def load_parameters(self, parameters: dict):
         """
         Update the algorithm's parameters by the ones in the given dictionary. The keys in the io which does not
         belong to the algorithm's parameters keys are ignored.
@@ -128,7 +129,7 @@ class AbstractAlgo(ABC):
         for k, v in parameters.items():
             if k in self.algo_parameters.keys():
                 previous_v = self.algo_parameters[k]
-                print("Replacing {} parameter from value {} to value {}".format(k, previous_v, v))
+                print(f"Replacing {k} parameter from value {previous_v} to value {v}")
             self.algo_parameters[k] = v
 
     def set_output_manager(self, output_settings):
@@ -191,7 +192,7 @@ class AbstractAlgo(ABC):
                 sys.stdout.flush()
 
     @staticmethod
-    def convert_timer(d):
+    def convert_timer(d: float) -> str:
         """
         Convert a float representing computation time in seconds to a string giving time in hour, minutes and
         seconds ``%h %min %s``.
@@ -205,7 +206,7 @@ class AbstractAlgo(ABC):
 
         Returns
         -------
-        res: str
+        str
             Time formating in hour, minutes and seconds.
         """
         s = d % 60

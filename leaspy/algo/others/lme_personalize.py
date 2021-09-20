@@ -1,9 +1,11 @@
-from leaspy.models.lme_model import LMEModel
 import numpy as np
+import statsmodels.api as sm
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.outputs.individual_parameters import IndividualParameters
-import statsmodels.api as sm
+from leaspy.models.lme_model import LMEModel
+
+from leaspy.exceptions import LeaspyAlgoInputError, LeaspyInputError
 
 
 class LMEPersonalizeAlgorithm(AbstractAlgo):
@@ -14,11 +16,15 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
     ----------
     name : ``'lme_personalize'``
 
+    Raises
+    ------
+    LeaspyAlgoInputError: if bad configuration of algorithm
     """
 
     def __init__(self, settings):
         self.name = 'lme_personalize'
-        assert settings.name == self.name
+        if settings.name != self.name:
+            raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
 
     def run(self, model, dataset):
         """
@@ -39,12 +45,16 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
             Contains individual parameters.
         noise_std: float
             The estimated noise
+
+        Raises
+        ------
+        LeaspyInputError: if data and model mismatch
         """
 
         if model.features != dataset.headers:
-            raise ValueError(
+            raise LeaspyInputError(
                 "LME model was not fitted on the same features than those you want to personalize on. "
-                "Model features : {}, data features: {}".format(model.features, dataset.headers))
+                f"Model features : {model.features}, data features: {dataset.headers}")
 
         ip = IndividualParameters()
         residuals = []

@@ -1,5 +1,6 @@
-from joblib import Parallel, delayed
 import warnings
+
+from joblib import Parallel, delayed
 
 def leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, leaspy_obj_cb,
                               n_jobs=-1, **joblib_Parallel_kwargs):

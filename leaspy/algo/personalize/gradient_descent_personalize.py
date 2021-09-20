@@ -1,6 +1,7 @@
+import torch
+
 from ...io.outputs.individual_parameters import IndividualParameters
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
-import torch
 
 
 class GradientDescentPersonalize(AbstractPersonalizeAlgo):

@@ -81,7 +81,7 @@ class Loader:
     @staticmethod
     def load_leaspy_instance(instance_name):
         """
-        Load a Leaspy instance with a model allready calibrated on the synthetic dataset corresponding to the name
+        Load a Leaspy instance with a model already calibrated on the synthetic dataset corresponding to the name
         of the instance.
 
         Parameters
@@ -92,14 +92,14 @@ class Loader:
         Returns
         -------
         :class:`.Leaspy`
-            Leaspy instance with a model allready calibrated.
+            Leaspy instance with a model already calibrated.
         """
         return Leaspy.load(model_paths[instance_name])
 
     @staticmethod
     def load_individual_parameters(ip_name):
         """
-        Load a Leaspy instance with a model allready calibrated on the synthetic dataset corresponding to the name
+        Load a Leaspy instance with a model already calibrated on the synthetic dataset corresponding to the name
         of the instance.
 
         Parameters
@@ -110,7 +110,7 @@ class Loader:
         Returns
         -------
         :class:`.IndividualParameters`
-            Leaspy instance with a model allready calibrated.
+            Leaspy instance with a model already calibrated.
         """
         return IndividualParameters.load(ip_paths[ip_name])
 

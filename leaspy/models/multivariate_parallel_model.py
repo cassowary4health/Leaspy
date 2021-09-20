@@ -11,7 +11,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     """
     Logistic model for multiple variables of interest, imposing same average evolution pace for all variables (logistic curves are only time-shifted).
     """
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None
@@ -82,7 +82,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         return derivatives
 
     def compute_individual_ages_from_biomarker_values_tensorized(self, value, individual_parameters, feature):
-        raise NotImplementedError
+        raise NotImplementedError("Open an issue on Gitlab if needed.")
 
     ##############################
     ### MCMC-related functions ###

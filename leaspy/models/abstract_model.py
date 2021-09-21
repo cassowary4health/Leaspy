@@ -51,7 +51,7 @@ class AbstractModel(ABC):
         self.features: List[FeatureType] = None
         self.parameters: KwargsType = None
         self.loss: str = DEFAULT_LOSS  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
-        self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
+        self.distribution = torch.distributions.normal.Normal(loc=0., scale=1.)
 
     @abstractmethod
     def initialize(self, dataset: Dataset, method: str = 'default'):

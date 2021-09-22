@@ -26,7 +26,7 @@ class TestUtilsGeneral(unittest.TestCase):
         leaspy = Leaspy.load(hardcoded_model_path('logistic'))
 
         df_w = append_spaceshifts_to_individual_parameters_dataframe(df, leaspy)
-        #TODO : the above test just check  that it runs, not the results!
+        #TODO : the above test just check that it runs, not the results!
 
     def test_get_reparametrized_ages(self):
         leaspy = Leaspy.load(hardcoded_model_path('logistic'))

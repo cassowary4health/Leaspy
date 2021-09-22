@@ -15,21 +15,21 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
     Parameters
     ----------
-    name: str
-    dimension: int
-    source_dimension: int (default None)
+    name : str
+    dimension : int
+    source_dimension : int (default None)
 
     Attributes
     ----------
-    name: str (default None)
+    name : str (default None)
         Name of the associated leaspy model.
-    dimension: int
-    source_dimension: int
-    univariate: bool
+    dimension : int
+    source_dimension : int
+    univariate : bool
         Whether model is univariate or not (i.e. dimension == 1)
-    has_sources: bool
+    has_sources : bool
         Whether model has sources or not (not univariate and source_dimension >= 1)
-    update_possibilities: tuple [str], (default ('all', 'g', 'v0', 'betas') )
+    update_possibilities : tuple [str], (default ('all', 'g', 'v0', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
     positions : :class:`torch.Tensor` [dimension] (default None)
         <!> Depending on the submodel it does not correspond to the same thing.
@@ -42,7 +42,8 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
     Raises
     ------
-    LeaspyModelInputError: if any inconsistent parameter.
+    :class:`.LeaspyModelInputError`
+        if any inconsistent parameter.
     """
 
     def __init__(self, name: str, dimension: int, source_dimension: int = None):
@@ -92,7 +93,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
         Parameters
         ----------
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
         """
         if self.univariate:
             self.velocities = torch.exp(values['xi_mean'])
@@ -105,7 +106,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
         Parameters
         ----------
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
         """
         if not self.has_sources:
             return
@@ -119,7 +120,8 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         :math:`G(p)` is the symmetric positive-definite (SPD) matrix defining the metric at point `p`.
 
         The Euclidean case is the special case where `G` is the identity matrix.
-        Product-metric is a special case where `G(p)` is a diagonal matrix (identified to a vector) whose components are all > 0.
+        Product-metric is a special case where `G(p)` is a diagonal matrix (identified to a vector)
+        whose components are all > 0.
 
         It is used in child classes to compute and set in-place the ``orthonormal_basis`` attribute
         given the time-derivative of the geodesic at initial time and the `G_metric`.
@@ -130,28 +132,29 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         which is the same thing that being orthogonal to `dgamma_t0` for the inner product implied by the metric.
 
         [We could do otherwise if we'd like a full orthonormal basis, w.r.t. the non-Euclidean inner product.
-         But it'd imply to compute G^(-1/2) & G^(1/2) which may be computationally costly in case we don't have direct access to them
-         (for the special case of product-metric it is easy - just the component-wise inverse (sqrt'ed) of diagonal)
-         TODO are there any advantages/drawbacks of one method over the other except this one?
-              are there any biases between features when only considering Euclidean orthonormal basis?]
+        But it'd imply to compute G^(-1/2) & G^(1/2) which may be computationally costly in case we don't have direct access to them
+        (for the special case of product-metric it is easy - just the component-wise inverse (sqrt'ed) of diagonal)
+        TODO are there any advantages/drawbacks of one method over the other except this one?
+        TODO are there any biases between features when only considering Euclidean orthonormal basis?]
 
         Parameters
         ----------
-        dgamma_t0: `torch.Tensor` 1D
+        dgamma_t0 : :class:`torch.FloatTensor` 1D
             Time-derivative of the geodesic at initial time
 
-        G_metric: scalar, `torch.Tensor` 0D, 1D or 2D-square
-            The `G(p)` defining the metric as refered in equation (1) just before.
-            If 0D / scalar: `G` is proportional to the identity matrix
-            If 1D (vector): `G` is a diagonal matrix (diagonal components > 0)
-            If 2D (square matrix): `G` is general (SPD)
+        G_metric : scalar, `torch.FloatTensor` 0D, 1D or 2D-square
+            The `G(p)` defining the metric as refered in equation (1) just before :
+                * If 0D (scalar): `G` is proportional to the identity matrix
+                * If 1D (vector): `G` is a diagonal matrix (diagonal components > 0)
+                * If 2D (square matrix): `G` is general (SPD)
 
-        strip_col: int in 0..model_dimension-1 (default 0)
+        strip_col : int in 0..model_dimension-1 (default 0)
             Which column of the basis should be the one collinear to `dgamma_t0` (that we get rid of)
 
         Raises
         ------
-        LeaspyModelInputError: if incoherent metric `G_metric`
+        :class:`.LeaspyModelInputError`
+            if incoherent metric `G_metric`
         """
 
         # enforce `G_metric` to be a tensor
@@ -216,12 +219,12 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
         Parameters
         ----------
-        linear_combination_values: `torch.Tensor`
-        matrix: `torch.Tensor`
+        linear_combination_values : :class:`torch.FloatTensor`
+        matrix : :class:`torch.FloatTensor`
 
         Returns
         -------
-        `torch.Tensor`
+        :class:`torch.FloatTensor`
         """
         return torch.mm(matrix, linear_combination_values)
 

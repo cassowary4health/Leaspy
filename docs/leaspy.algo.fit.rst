@@ -9,7 +9,6 @@ Submodules
 
    leaspy.algo.fit.abstract_fit_algo
    leaspy.algo.fit.abstract_mcmc
-   leaspy.algo.fit.gradient_descent
    leaspy.algo.fit.gradient_mcmcsaem
    leaspy.algo.fit.tensor_mcmcsaem
 

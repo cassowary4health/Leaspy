@@ -19,17 +19,17 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
 
     Attributes
     ----------
-    name: str
+    name : str
         The model's name
-    parameters: dict
+    parameters : dict
         Contains the model parameters
-    features: list[str]
+    features : list[str]
         List of the model features
 
-    See Also
+    See also
     --------
-    leaspy.algo.others.lme_fit.LMEFitAlgorithm
-    leaspy.algo.others.lme_personalize.LMEPersonalizeAlgorithm
+    :class:`~leaspy.algo.others.lme_fit.LMEFitAlgorithm`
+    :class:`~leaspy.algo.others.lme_personalize.LMEPersonalizeAlgorithm`
     """
 
     _hyperparameters = ('features', 'with_random_slope_age')
@@ -49,10 +49,10 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
 
         Parameters
         ----------
-        timepoints: array-like of ages (not normalized)
+        timepoints : array-like of ages (not normalized)
             Timepoints to compute individual trajectory at
 
-        ip: dict
+        ip : dict
             Individual parameters:
                 * random_intercept
                 * random_slope_age (if ``with_random_slope_age == True``)

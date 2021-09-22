@@ -19,16 +19,16 @@ class GenericModel(ABC):
 
     Parameters
     ----------
-    name: str
+    name : str
 
     Attributes
     ----------
-    name: str
-    features: list[str]
-    dimension: int (read-only)
+    name : str
+    features : list[str]
+    dimension : int (read-only)
         Number of features
-    parameters: dict
-    is_initialized: bool
+    parameters : dict
+    is_initialized : bool
     """
 
     # to be changed in sub-classes so to benefit from automatic methods
@@ -119,7 +119,7 @@ class GenericModel(ABC):
 
         Parameters
         ----------
-        parameters: dict
+        parameters : dict
             Contains the model's parameters
         """
 
@@ -145,12 +145,13 @@ class GenericModel(ABC):
 
         Parameters
         ----------
-        hyperparameters: dict
+        hyperparameters : dict
             Contains the model's hyperparameters
 
         Raises
         ------
-        LeaspyModelInputError: if inconsistent hyperparameters
+        :class:`.LeaspyModelInputError`
+            if inconsistent hyperparameters
         """
 
         # no total reset of hyperparameters here unlike in load_parameters...
@@ -192,7 +193,7 @@ class GenericModel(ABC):
 
         Parameters
         ----------
-        path: str
+        path : str
             Path to store the model's parameters.
         **kwargs
             Keyword arguments for json.dump method.
@@ -221,10 +222,10 @@ class GenericModel(ABC):
         ----------
         timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
-        individual_parameters: dict
+        individual_parameters : dict
             Contains the individual parameters.
             Each individual parameter should be a scalar or array_like
-        **kws: Any
+        **kws
             extra model specific keyword-arguments
 
         Returns

@@ -17,27 +17,27 @@ class SimulationAlgorithm(AbstractAlgo):
     r"""
     To simulate new data given existing one by learning the individual parameters joined distribution.
 
-    You can choose to only learn the distribution of a group of patient. To do so, choose the cofactor(s) and the cofactor(s)
-    state of the wanted patient in the settings. For instance, for an Alzheimer's disease patient, you can load a genetic cofactor
-    informative of the APOE4 carriers. Choose cofactor ['genetic'] and cofactor_state ['APOE4'] to simulate only
-    APOE4 carriers.
+    You can choose to only learn the distribution of a group of patient.
+    To do so, choose the cofactor(s) and the cofactor(s) state of the wanted patient in the settings.
+    For instance, for an Alzheimer's disease patient, you can load a genetic cofactor informative of the APOE4 carriers.
+    Choose cofactor ['genetic'] and cofactor_state ['APOE4'] to simulate only APOE4 carriers.
 
     Attributes
     ----------
     algo_parameters : dict
         Contains the algorithm's parameters.
     bandwidth_method : float or str or callable, optional
-        Bandwidth argument used in scipy.stats.gaussian_kde in order to learn the patients' distribution.
+        Bandwidth argument used in :class:`scipy.stats.gaussian_kde` in order to learn the patients' distribution.
     cofactor : list[str], optional (default = None)
         The list of cofactors included used to select the wanted group of patients (ex - ['genetic']).
         All of them must correspond to an existing cofactor in the attribute `Data`
-        of the input `result` of the :meth:`~.SimulationAlgorithm.run` method.
+        of the input `result` of the :meth:`~.run` method.
         TODO? should we allow to learn joint distribution of individual parameters and cofactors (not fixed)?
     cofactor_state : list[str], optional (default None)
         The cofactors states used to select the wanted group of patients (ex - ['APOE4']).
         There is exactly one state per cofactor in `cofactor` (same order).
         It must correspond to an existing cofactor state in the attribute `Data`
-        of the input `result` of the :meth:`~.SimulationAlgorithm.run` method.
+        of the input `result` of the :meth:`~.run` method.
     features_bounds : bool or dict[str, (float, float)] (default False)
         Specify if the scores of the generated subjects must be bounded.
         This parameter can express in two way:
@@ -61,13 +61,12 @@ class SimulationAlgorithm(AbstractAlgo):
         Number of subject to simulate.
     reparametrized_age_bounds : tuple[float, float], optional (default None)
         Set the minimum and maximum age of the generated reparametrized subjects' ages. See Notes section.
-        Example - reparametrized_age_bounds = (65, 70)
+        Example: reparametrized_age_bounds = (65, 70)
     seed : int
         Used by :mod:`numpy.random` & :mod:`torch.random` for reproducibility.
     sources_method : str in {'full_kde', 'normal_sources'}
         * ``'full_kde'`` : the sources are also learned with the gaussian kernel density estimation.
-        * ``'normal_sources'`` : the sources are generated as multivariate normal distribution linked with the other
-          individual parameters.
+        * ``'normal_sources'`` : the sources are generated as multivariate normal distribution linked with the other individual parameters.
     std_number_of_visits : int
         Standard deviation used into the generation of the number of visits per simulated patient.
 
@@ -78,9 +77,9 @@ class SimulationAlgorithm(AbstractAlgo):
 
     Raises
     ------
-    LeaspyAlgoInputError
-        - If ``settings.parameters['sources_method']`` is not one of the two option allowed ("full_kde" or "normal_sources").
-        - If the type of ``settings.parameters['features_bounds']`` is not `bool` or `dict`.
+    :class:`.LeaspyAlgoInputError`
+        * If ``settings.parameters['sources_method']`` is not one of the two option allowed ("full_kde" or "normal_sources").
+        * If the type of ``settings.parameters['features_bounds']`` is not `bool` or `dict`.
 
     Notes
     -----
@@ -161,7 +160,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Raises
         ------
-        LeaspyAlgoInputError
+        :class:`.LeaspyAlgoInputError`
             Raised if the parameters "cofactor" and "cofactor_state" do not receive a valid value.
         """
         cofactors = {}
@@ -226,12 +225,12 @@ class SimulationAlgorithm(AbstractAlgo):
             Sources' dimension of the simulated patient.
         df_mean : :class:`torch.Tensor`, shape = (n_individual_parameters,)
             Mean values per individual parameter type (bl_mean, tau_mean, xi_mean & sources_means) (1-dimensional).
-        df_cov : :class:`torch.Tensor`r, shape = (n_individual_parameters, n_individual_parameters)
+        df_cov : :class:`torch.Tensor`, shape = (n_individual_parameters, n_individual_parameters)
             Empirical covariance matrix of the individual parameters (2-dimensional).
 
         Returns
         -------
-        t:class:`torch.Tensor`
+        :class:`torch.Tensor`
             Sources of the simulated patient, shape = (n_sources, ).
         """
         x_1 = torch.tensor([bl, tau, xi], dtype=torch.float32)
@@ -332,12 +331,12 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Returns
         -------
-        :class:`torch.distributions.Normal` or None
+        :class:`torch.distributions.normal.Normal` or None
             A gaussian noise generator. If self.noise is None, the function returns None.
 
         Raises
         ------
-        LeaspyAlgoInputError
+        :class:`.LeaspyAlgoInputError`
             If the attribute self.noise is an iterable of float of a length different than the number of features.
         """
         if self.noise:
@@ -354,7 +353,7 @@ class SimulationAlgorithm(AbstractAlgo):
                                     " noise for each feature score, you must give an iterable object of size "
                                     f"the number of features for you model, here {results.data.headers}.")
                 noise = torch.tensor(self.noise, dtype=torch.float32)
-            return torch.distributions.Normal(loc=0., scale=noise)  # diagonal noise (per feature)
+            return torch.distributions.normal.Normal(loc=0., scale=noise)  # diagonal noise (per feature)
 
     @staticmethod
     def _get_reparametrized_age(timepoints, tau, xi, tau_mean):
@@ -410,7 +409,7 @@ class SimulationAlgorithm(AbstractAlgo):
         model : :class:`~.models.abstract_model.AbstractModel`
             A subclass object of leaspy `AbstractModel`.
         number_of_simulated_subjects : int
-        kernel : scipy.stats.gaussian_kde
+        kernel : :class:`scipy.stats.gaussian_kde`
         ss : :class:`sklearn.preprocessing.StandardScaler`
         df_mean : :class:`torch.Tensor`, shape = (n_individual_parameters,)
             Mean values per individual parameter type.
@@ -464,7 +463,7 @@ class SimulationAlgorithm(AbstractAlgo):
             Contains the simulated parameters.
         timepoints : list [float]
             Contains the ages of the subjects for all their visits - 2D list with one row per simulated subject.
-        noise_generator : :class:`torch.distributions.Normal`, optional
+        noise_generator : :class:`torch.distributions.normal.Normal`, optional
             A gaussian noise generator. If self.noise is None, the features' score are exactly the ones derived from
             the individual parameters by the model.
 

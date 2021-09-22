@@ -18,10 +18,14 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
 
     Raises
     ------
-    LeaspyAlgoInputError: if bad configuration of algorithm
+    :class:`.LeaspyAlgoInputError`
+        if bad configuration of algorithm
     """
 
     def __init__(self, settings):
+
+        super().__init__()
+
         self.name = 'lme_personalize'
         if settings.name != self.name:
             raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
@@ -43,12 +47,13 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
         -------
         individual_parameters : :class:`.IndividualParameters`
             Contains individual parameters.
-        noise_std: float
+        noise_std : float
             The estimated noise
 
         Raises
         ------
-        LeaspyInputError: if data and model mismatch
+        :class:`.LeaspyInputError`
+            if data and model mismatch
         """
 
         if model.features != dataset.headers:

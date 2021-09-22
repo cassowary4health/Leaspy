@@ -16,20 +16,20 @@ class Realization:
 
     Parameters
     ----------
-    name: str
+    name : str
         Variable name
-    shape: tuple of int
+    shape : tuple of int
         Shape of variable (multiple dimensions allowed)
-    variable_type: str
+    variable_type : str
         ``'individual'`` or ``'population'`` variable?
 
     Attributes
     ----------
-    name: str
+    name : str
         Variable name
-    shape: tuple of int
+    shape : tuple of int
         Shape of variable (multiple dimensions allowed)
-    variable_type: str
+    variable_type : str
         ``'individual'`` or ``'population'`` variable?
     tensor_realizations : :class:`torch.Tensor`
         Actual realizations, whose shape is given by `shape`
@@ -47,18 +47,18 @@ class Realization:
 
         Parameters
         ----------
-        name: str
+        name : str
             Variable name
-        shape: tuple of int
+        shape : tuple of int
             Shape of variable (multiple dimensions allowed)
-        variable_type: str
+        variable_type : str
             ``'individual'`` or ``'population'`` variable?
         tensor_realization : :class:`torch.Tensor`
             Actual realizations, whose shape is given by `shape`
 
         Returns
         -------
-        `Realization`
+        :class:`.Realization`
         """
         # TODO : a check of shapes
         realization = cls(name, shape, variable_type)
@@ -78,7 +78,8 @@ class Realization:
 
         Raises
         ------
-        LeaspyModelInputError: if unknown variable type
+        :class:`.LeaspyModelInputError`
+            if unknown variable type
         """
 
         if self.variable_type == "population":
@@ -123,7 +124,8 @@ class Realization:
 
         Raises
         ------
-        ValueError: if inconsistent internal request
+        :class:`ValueError`
+            if inconsistent internal request
         """
         if not self._tensor_realizations.requires_grad:
             self._tensor_realizations.requires_grad_(True) # in-place
@@ -140,7 +142,8 @@ class Realization:
 
         Raises
         ------
-        ValueError: if inconsistent internal request
+        :class:`ValueError`
+            if inconsistent internal request
         """
         if self._tensor_realizations.requires_grad_:
             #self._tensor_realizations = self._tensor_realizations.detach()

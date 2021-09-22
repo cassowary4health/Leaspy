@@ -11,7 +11,7 @@ class OutputsSettings:
 
     Raises
     ------
-    LeaspyAlgoInputError
+    :class:`.LeaspyAlgoInputError`
     """
     # TODO mettre les variables par défaut à None
     # TODO: Réfléchir aux cas d'usages : est-ce qu'on veut tout ou rien,

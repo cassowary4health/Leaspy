@@ -59,7 +59,7 @@ class Dataset:
 
     Raises
     ------
-    LeaspyInputError:
+    :class:`.LeaspyInputError`
         if data, model or algo are not compatible together.
     """
 

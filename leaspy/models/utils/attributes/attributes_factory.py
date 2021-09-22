@@ -28,7 +28,7 @@ class AttributesFactory:
 
         Parameters
         ----------
-        name: str
+        name : str
         dimension : int
         source_dimension : int, optional (default None)
 
@@ -38,7 +38,8 @@ class AttributesFactory:
 
         Raises
         ------
-        LeaspyModelInputError: if any inconsistent parameter.
+        :class:`.LeaspyModelInputError`
+            if any inconsistent parameter.
         """
         if isinstance(name, str):
             name = name.lower()

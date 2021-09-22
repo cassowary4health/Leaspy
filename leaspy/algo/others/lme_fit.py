@@ -29,7 +29,8 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
 
     Raises
     ------
-    LeaspyAlgoInputError: if bad configuration of algorithm
+    :class:`.LeaspyAlgoInputError`
+        if bad configuration of algorithm
     """
 
     def __init__(self, settings):
@@ -68,7 +69,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
 
         Raises
         ------
-        LeaspyDataInputError:
+        :class:`.LeaspyDataInputError`
             If data does not meet requirements for estimation with this LME fit algorithm.
         """
 

@@ -13,14 +13,14 @@ class GibbsSampler(AbstractSampler):
 
     Parameters
     ----------
-    info: dict
+    info : dict
         Informations on variable to be sampled
-    n_patients: int > 0
+    n_patients : int > 0
         Number of individual (used for variable with ``info['type'] == 'individual'``)
 
     Raises
     ------
-    LeaspyModelInputError
+    :class:`.LeaspyModelInputError`
     """
 
     def __init__(self, info, n_patients):

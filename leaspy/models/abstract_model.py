@@ -26,7 +26,7 @@ class AbstractModel(ABC):
 
     Parameters
     ----------
-    name: str
+    name : str
         The name of the model
 
     Attributes
@@ -75,7 +75,7 @@ class AbstractModel(ABC):
 
         Parameters
         ----------
-        parameters: dict[str, Any]
+        parameters : dict[str, Any]
             Contains the model's parameters
         """
         self.parameters = copy.deepcopy(parameters)
@@ -92,7 +92,7 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        LeaspyModelInputError:
+        :class:`.LeaspyModelInputError`
             If any of the consistency checks fail.
         """
         pass
@@ -104,7 +104,7 @@ class AbstractModel(ABC):
 
         Parameters
         ----------
-        path: str
+        path : str
             Path to store the model's parameters.
         **kwargs
             Keyword arguments for json.dump method.
@@ -116,6 +116,7 @@ class AbstractModel(ABC):
         Return list of names of the individual variables from the model.
 
         Duplicate of :meth:`.get_individual_realization_names`
+
         TODO delete one of them
 
         Returns
@@ -177,25 +178,27 @@ class AbstractModel(ABC):
 
         Parameters
         ----------
-        ips: dict
+        ips : dict[param: str, Any]
             Contains some untrusted individual parameters.
             If representing only one individual (in a multivariate model) it could be:
-                {'tau':0.1, 'xi':-0.3, 'sources':[0.1,...]}
+                * {'tau':0.1, 'xi':-0.3, 'sources':[0.1,...]}
             Or for multiple individuals:
-                {'tau':[0.1,0.2,...], 'xi':[-0.3,0.2,...], 'sources':[[0.1,...],[0,...],...]}
+                * {'tau':[0.1,0.2,...], 'xi':[-0.3,0.2,...], 'sources':[[0.1,...],[0,...],...]}
             In particular, a sources vector (if present) should always be a array_like, even if it is 1D
 
         Returns
         -------
-        ips_info: dict
-            'nb_inds': number of individuals present (int >= 0)
-            'tensorized_ips': tensorized version of individual parameters
-            'tensorized_ips_gen': generator providing for all individuals present (ordered as is)
-                their own tensorized individual parameters
+        ips_info : dict
+            * ``'nb_inds'`` : int >= 0
+                number of individuals present
+            * ``'tensorized_ips'`` : dict[param:str, `torch.Tensor`]
+                tensorized version of individual parameters
+            * ``'tensorized_ips_gen'`` : generator
+                generator providing tensorized individual parameters for all individuals present (ordered as is)
 
         Raises
         ------
-        LeaspyIndividualParamsInputError:
+        :class:`.LeaspyIndividualParamsInputError`
             if any of the consistency/compatibility checks fail
         """
 
@@ -270,18 +273,22 @@ class AbstractModel(ABC):
 
         Parameters
         ----------
-        x: scalar or array_like
+        x : scalar or array_like
             element to be tensorized
-        unsqueeze_dim: 0 or -1
+        unsqueeze_dim : 0 or -1
             dimension to be unsqueezed; meaningful for 1D array-like only
-            >>> _tensorize_2D([1, 2], 0) == tensor([[1, 2]])
-            >>> _tensorize_2D([1, 2], -1) == tensor([[1], [2])
-            for scalar or vector of length 1 it has no matter
+            (for scalar or vector of length 1 it has no matter)
 
         Returns
         -------
-        torch.Tensor, at least 2D
+        :class:`torch.Tensor`, at least 2D
+
+        Examples
+        --------
+        >>> _tensorize_2D([1, 2], 0) == tensor([[1, 2]])
+        >>> _tensorize_2D([1, 2], -1) == tensor([[1], [2])
         """
+
         # convert to torch.Tensor if not the case
         if not isinstance(x, torch.Tensor):
             x = torch.tensor(x, dtype=dtype)
@@ -323,10 +330,10 @@ class AbstractModel(ABC):
         ----------
         timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
-        individual_parameters: dict
+        individual_parameters : dict
             Contains the individual parameters.
             Each individual parameter should be a scalar or array_like
-        skip_ips_checks: bool (default: False)
+        skip_ips_checks : bool (default: False)
             Flag to skip consistency/compatibility checks and tensorization
             of individual_parameters when it was done earlier (speed-up)
 
@@ -338,8 +345,10 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        - LeaspyModelInputError: if computation is tried on more than 1 individual
-        - LeaspyIndividualParamsInputError: if invalid individual parameters
+        :class:`.LeaspyModelInputError`
+            if computation is tried on more than 1 individual
+        :class:`.LeaspyIndividualParamsInputError`
+            if invalid individual parameters
         """
 
         timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
@@ -360,11 +369,11 @@ class AbstractModel(ABC):
         value : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
             Contains the biomarker value(s) of the subject.
 
-        individual_parameters: dict
+        individual_parameters : dict
             Contains the individual parameters.
             Each individual parameter should be a scalar or array_like
 
-        feature: str (or None)
+        feature : str (or None)
             Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
 
         Returns
@@ -375,7 +384,8 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        LeaspyModelInputError: if computation is tried on more than 1 individual
+        :class:`.LeaspyModelInputError`
+            if computation is tried on more than 1 individual
         """
         value, individual_parameters = self._get_tensorized_inputs(value, individual_parameters,
                                                                    skip_ips_checks=False)
@@ -394,11 +404,11 @@ class AbstractModel(ABC):
         value : torch.Tensor of shape (1, n_values)
             Contains the biomarker value(s) of the subject.
 
-        individual_parameters: dict
+        individual_parameters : dict
             Contains the individual parameters.
             Each individual parameter should be a torch.Tensor
 
-        feature: str (or None)
+        feature : str (or None)
             Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
 
         Returns
@@ -421,7 +431,7 @@ class AbstractModel(ABC):
 
         individual_parameters : dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_dims_param)]
 
-        attribute_type: Any (default None)
+        attribute_type : Any (default None)
             Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
@@ -443,7 +453,7 @@ class AbstractModel(ABC):
 
         individual_parameters : dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_dims_param)]
 
-        attribute_type: Any (default None)
+        attribute_type : Any (default None)
             Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
@@ -481,10 +491,10 @@ class AbstractModel(ABC):
         data : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects' time-points and the mask for nan values & padded visits
 
-        param_ind: dict
+        param_ind : dict
             Contain the individual parameters
 
-        attribute_type: Any, optional
+        attribute_type : Any, optional
             Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
@@ -494,7 +504,7 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        LeaspyModelInputError:
+        :class:`.LeaspyModelInputError`
             If invalid loss for model
         """
 

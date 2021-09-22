@@ -9,21 +9,27 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
 
     Contains the common attributes & methods to update the logistic model's attributes.
 
+    Parameters
+    ----------
+    name : str
+    dimension : int
+    source_dimension : int
+
     Attributes
     ----------
-    name: str (default 'logistic')
+    name : str (default 'logistic')
         Name of the associated leaspy model.
-    dimension: int
-    source_dimension: int
-    univariate: bool
+    dimension : int
+    source_dimension : int
+    univariate : bool
         Whether model is univariate or not (i.e. dimension == 1)
-    has_sources: bool
+    has_sources : bool
         Whether model has sources or not (not univariate and source_dimension >= 1)
-    update_possibilities: tuple [str] (default ('all', 'g', 'v0', 'betas') )
+    update_possibilities : tuple [str] (default ('all', 'g', 'v0', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
-    positions: :class:`torch.Tensor` [dimension] (default None)
+    positions : :class:`torch.Tensor` [dimension] (default None)
         positions = exp(realizations['g']) such that "p0" = 1 / (1 + positions)
-    velocities: :class:`torch.Tensor` [dimension] (default None)
+    velocities : :class:`torch.Tensor` [dimension] (default None)
         Always positive: exp(realizations['v0'])
     orthonormal_basis : :class:`torch.Tensor` [dimension, dimension - 1] (default None)
     betas : :class:`torch.Tensor` [dimension - 1, source_dimension] (default None)
@@ -32,20 +38,12 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
 
     See also
     --------
-    leaspy.models.univariate_model.UnivariateModel
-    leaspy.models.multivariate_model.MultivariateModel
+    :class:`~leaspy.models.univariate_model.UnivariateModel`
+    :class:`~leaspy.models.multivariate_model.MultivariateModel`
     """
 
     def __init__(self, name, dimension, source_dimension):
-        """
-        Instantiate a `LogisticAttributes` class object.
 
-        Parameters
-        ----------
-        name: str
-        dimension: int
-        source_dimension: int
-        """
         super().__init__(name, dimension, source_dimension)
 
     def update(self, names_of_changed_values, values):
@@ -54,19 +52,19 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
 
         Parameters
         ----------
-        names_of_changed_values: list [str]
+        names_of_changed_values : list [str]
             Elements of list must be either:
                 * ``all`` (update everything)
                 * ``g`` correspond to the attribute :attr:`positions`.
                 * ``v0`` (``xi_mean`` if univariate) correspond to the attribute :attr:`velocities`.
                 * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
                   to derive the :attr:`mixing_matrix`.
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
 
         Raises
         ------
-        LeaspyModelInputError
+        :class:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)
@@ -107,7 +105,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
 
         Parameters
         ----------
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
         """
         self.positions = torch.exp(values['g'])
 

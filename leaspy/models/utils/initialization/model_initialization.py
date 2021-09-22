@@ -31,19 +31,19 @@ def initialize_parameters(model, dataset, method="default"):
         The model to initialize.
     dataset : :class:`.Dataset`
         Contains the individual scores.
-    method: str
+    method : str
         Must be one of:
             * ``'default'``: initialize at mean.
             * ``'random'``:  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
-    parameters: dict [str, :class:`torch.Tensor`]
+    parameters : dict [str, :class:`torch.Tensor`]
         Contains the initialized model's group parameters.
 
     Raises
     ------
-    LeaspyInputError:
+    :class:`.LeaspyInputError`
         If no initialization method is known for model type / method
     """
 
@@ -69,22 +69,22 @@ def initialize_parameters(model, dataset, method="default"):
 
 
 def get_lme_results(dataset, n_jobs=-1, **lme_fit_kwargs):
-    """
+    r"""
     Fit a LME on univariate (per feature) time-series (feature vs. patients' ages with varying intercept & slope)
 
     Parameters
     ----------
     dataset : :class:`.Dataset`
         Contains all the data wrapped into a leaspy Dataset object
-    n_jobs: int
+    n_jobs : int
         Number of jobs in parallel when multiple features to init
         Not used for now, buggy
-    **lme_fit_kwargs:
+    **lme_fit_kwargs
         Other kwargs passed to 'lme_fit' (such as `force_independent_random_effects`, default True)
 
     Returns
     -------
-    dict:
+    dict
         {param: str -> param_values_for_ft: torch.Tensor(nb_fts, *shape_param)}
     """
 
@@ -128,17 +128,17 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
         Contains the individual scores.
     fact_std : float
         Multiplicative factor to apply on std-dev (tau, xi, noise) found naively with LME
-    **kwargs :
+    **kwargs
         Additional kwargs passed to :func:`.get_lme_results`
 
     Returns
     -------
-    parameters: dict [str, `torch.Tensor`]
+    parameters : dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters.
 
     Raises
     ------
-    LeaspyInputError:
+    :class:`.LeaspyInputError`
         If model is not supported for this initialization
     """
 
@@ -236,23 +236,24 @@ def initialize_logistic(model, dataset, method):
         The model to initialize.
     dataset : :class:`.Dataset`
         Contains the individual scores.
-    method: str
+    method : str
         Must be one of:
             * ``'default'``: initialize at mean.
             * ``'random'``:  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
-    parameters: dict [str, `torch.Tensor`]
+    parameters : dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters.
         The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
 
     Raises
     ------
-    LeaspyInputError:
+    :class:`.LeaspyInputError`
         If method is not handled
     """
+
     # Get the slopes / values / times mu and sigma
     slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
     values_mu, values_sigma = compute_patient_values_distribution(dataset)
@@ -320,20 +321,20 @@ def initialize_logistic_parallel(model, dataset, method):
         The model to initialize.
     dataset : :class:`.Dataset`
         Contains the individual scores.
-    method: str
+    method : str
         Must be one of:
             * ``'default'``: initialize at mean.
             * ``'random'``:  initialize with a gaussian realization with same mean and variance.
 
     Returns
     -------
-    parameters: dict [str, `torch.Tensor`]
+    parameters : dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters. The parameters' keys are 'g',  'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'delta' and 'beta'.
 
     Raises
     ------
-    LeaspyInputError:
+    :class:`.LeaspyInputError`
         If method is not handled
     """
 
@@ -391,12 +392,12 @@ def initialize_linear(model, dataset, method):
         The model to initialize.
     dataset : :class:`.Dataset`
         Contains the individual scores.
-    method: str
+    method : str
         not used for now
 
     Returns
     -------
-    parameters: dict [str, `torch.Tensor`]
+    parameters : dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
     """

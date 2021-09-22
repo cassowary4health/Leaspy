@@ -179,34 +179,35 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Parameters
         ----------
-        x: array-like [float]
+        x : array-like [float]
             Individual **standardized** parameters
             At initialization ``x = [xi_mean/xi_std, tau_mean/tau_std] (+ [0.] * n_sources if multivariate model)``
 
-        args:
+        *args
             * model : :class:`.AbstractModel`
                 Model used to compute the group average parameters.
             * timepoints : :class:`torch.Tensor` [1,n_tpts]
                 Contains the individual ages corresponding to the given ``values``
             * values : :class:`torch.Tensor` [n_tpts, n_fts]
                 Contains the individual true scores corresponding to the given ``times``.
-            * with_gradient: bool
-                If True: return (objective, gradient_objective)
-                Else: simply return objective
+            * with_gradient : bool
+                * If True: return (objective, gradient_objective)
+                * Else: simply return objective
 
         Returns
         -------
-        objective: float
+        objective : float
             Value of the loss function (opposite of log-likelihood).
 
-        if with_gradient is True:
+        if `with_gradient` is True:
             2-tuple (as expected by :func:`scipy.optimize.minimize` when ``jac=True``)
-                * objective: float
-                * gradient: array-like[float] of length n_dims_params
+                * objective : float
+                * gradient : array-like[float] of length n_dims_params
 
         Raises
         ------
-        LeaspyAlgoInputError: if algorithm loss is not valid.
+        :class:`.LeaspyAlgoInputError`
+            if algorithm loss is not valid.
         """
 
         # Extra arguments passed by scipy minimize
@@ -221,7 +222,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         nans = torch.isnan(diff)
         diff[nans] = 0.  # set nans to zero, not to count in the sum
 
-        # compute  gradient of model with respect to individual parameters
+        # compute gradient of model with respect to individual parameters
         grads = None
         if with_gradient:
             grads = model.compute_jacobian_tensorized(times, individual_parameters)
@@ -323,7 +324,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Parameters
         ----------
-        it: int
+        it : int
             The iteration number.
         model : :class:`.AbstractModel`
             Model used to compute the group average parameters.

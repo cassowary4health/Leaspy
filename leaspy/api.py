@@ -29,7 +29,7 @@ class Leaspy:
 
     Parameters
     ----------
-    model_name: str
+    model_name : str
         The name of the model that will be used for the computations.
         The available models are:
             * ``'logistic'`` - suppose that every modality follow a logistic curve across time. This model performs a dimensionality reduction of the modalities.
@@ -40,11 +40,18 @@ class Leaspy:
             * ``'constant'`` - benchmark model for constant predictions.
             * ``'lme'`` - benchmark model for classical linear mixed-effects model.
 
-    **kwargs:
+    **kwargs
         Keyword arguments directly passed to the model for its initialization (through :meth:`.ModelFactory.model`).
         Refer to the corresponding model to know possible arguments.
 
-        source_dimension: int, optional
+        loss : str
+            `For manifold-like models`.
+            Set the loss of the model, can be either:
+                * ``'MSE'``: gaussian error, with same standard deviation for all features
+                * ``'MSE_diag_noise'``: gaussian error, with one standard deviation parameter per feature
+                * ``'crossentropy'``: for binary data (Bernoulli realization)
+
+        source_dimension : int, optional
             `For multivariate models only`.
             Set the spatial variability degree of freedom.
             This number MUST BE lower than the number of features.
@@ -61,13 +68,11 @@ class Leaspy:
 
     See also
     --------
-    leaspy.models
+    :mod:`leaspy.models`
     """
 
     def __init__(self, model_name: str, **kwargs):
-        """
-        Instantiate a Leaspy class object.
-        """
+
         self.model = ModelFactory.model(model_name, **kwargs)
         #self.type = model_name # is a property instead
         self.plotting = Plotting(self.model)
@@ -145,7 +150,7 @@ class Leaspy:
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
         settings : :class:`.AlgorithmSettings`
             Contains the algorithm's settings.
-        return_noise: bool (default False)
+        return_noise : bool (default False)
             Returns a tuple (individual_parameters, noise_std) if True
 
         Returns
@@ -153,13 +158,14 @@ class Leaspy:
         ips : :class:`.IndividualParameters`
             Contains individual parameters
 
-        if return_noise is True:
-            ips : :class:`.IndividualParameters`
-            noise_std : :class:`torch.Tensor`
+        if return_noise is True : tuple
+            * ips : :class:`.IndividualParameters`
+            * noise_std : :class:`torch.Tensor`
 
         Raises
         ------
-        LeaspyInputError: if model is not initialized.
+        :class:`.LeaspyInputError`
+            if model is not initialized.
 
         Examples
         --------
@@ -268,26 +274,28 @@ class Leaspy:
 
         Parameters
         ----------
-        individual_parameters: :class:`.IndividualParameters`
+        individual_parameters : :class:`.IndividualParameters`
             Corresponds to the individual parameters of individuals.
 
-        biomarker_values: Dict[Union[str, int], Union[List, float]]
+        biomarker_values : Dict[Union[str, int], Union[List, float]]
             Dictionary that associates to each patient (being a key of the dictionary) a value (float between 0 and 1,
             or a list of such floats) from which leaspy will estimate the age at which the value is reached.
 
-        feature: str
+        feature : str
             For multivariate models only: feature name (indicates to which model feature the biomarker values belongs)
 
         Returns
-        ------
+        -------
         biomarker_ages :
             Dictionary that associates to each patient (being a key of the dictionary) the corresponding age
             (or ages) for which the value(s) from biomarker_values have been reached. Same format as biomarker values.
 
         Raises
         ------
-        LeaspyTypeError: bad types for input
-        LeaspyInputError: inconsistent inputs
+        :class:`.LeaspyTypeError`
+            bad types for input
+        :class:`.LeaspyInputError`
+            inconsistent inputs
 
         Examples
         --------
@@ -461,12 +469,12 @@ class Leaspy:
 
         Parameters
         ----------
-        path_to_model_settings: str or dict
+        path_to_model_settings : str or dict
             Path to the model's settings json file or dictionary of model parameters
 
         Returns
         -------
-        :class:`.Leaspy`
+        :class:`leaspy.Leaspy`
             An instanced Leaspy object with the given population parameters :math:`\theta`.
 
         Examples
@@ -507,7 +515,7 @@ class Leaspy:
 
         Parameters
         ----------
-        path: str
+        path : str
             Path to store the model's parameters.
         **kwargs
             Keyword arguments for json.dump method.
@@ -539,7 +547,7 @@ class Leaspy:
 
         Raises
         ------
-        LeaspyInputError
+        :class:`.LeaspyInputError`
             Raise an error if the model has not been initialized.
         """
         if not self.model.is_initialized:

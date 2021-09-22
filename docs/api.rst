@@ -22,6 +22,58 @@ a given set a subjects, estimate trajectories and simulate synthetic data.
 
    Leaspy
 
+:mod:`leaspy.models`: **Models**
+================================
+Available models in `Leaspy`.
+
+.. currentmodule:: leaspy.models
+
+.. autosummary::
+    :toctree: generated/
+    :template: class.rst
+
+    model_factory.ModelFactory
+    abstract_model.AbstractModel
+    univariate_model.UnivariateModel
+    abstract_multivariate_model.AbstractMultivariateModel
+    multivariate_model.MultivariateModel
+    multivariate_parallel_model.MultivariateParallelModel
+    .. generic_model.GenericModel
+    lme_model.LMEModel
+    constant_model.ConstantModel
+
+:mod:`leaspy.models.utils.attributes`: **Models' attributes**
+-------------------------------------------------------------
+Attributes used by the models.
+
+.. currentmodule:: leaspy.models.utils.attributes
+
+.. autosummary::
+    :toctree: generated/
+    :template: class.rst
+
+    attributes_factory.AttributesFactory
+    abstract_attributes.AbstractAttributes
+    abstract_manifold_model_attributes.AbstractManifoldModelAttributes
+    linear_attributes.LinearAttributes
+    logistic_attributes.LogisticAttributes
+    logistic_parallel_attributes.LogisticParallelAttributes
+
+:mod:`leaspy.models.utils.initialization`: **Initialization methods**
+---------------------------------------------------------------------
+Available methods to initialize model parameters before a fit.
+
+.. currentmodule:: leaspy.models.utils.initialization
+
+.. autosummary::
+  :toctree: generated/
+  :template: function.rst
+
+  model_initialization.initialize_parameters
+  .. model_initialization.initialize_linear
+  .. model_initialization.initialize_logistic
+  .. model_initialization.initialize_logistic_parallel
+
 :mod:`leaspy.algo`: **Algorithms**
 ==================================
 Contains all algorithms used in the package.
@@ -41,7 +93,7 @@ Contains all algorithms used in the package.
 
 :mod:`leaspy.algo.fit`: **Fit algorithms**
 ------------------------------------------
-Algorithms used to calibrate a model.
+Algorithms used to calibrate (fit) a model.
 
 .. currentmodule:: leaspy.algo.fit
 
@@ -55,7 +107,7 @@ Algorithms used to calibrate a model.
 
 :mod:`leaspy.algo.personalize`: **Personalization algorithms**
 --------------------------------------------------------------
-Algorithms used to personalize a model to a given set of subjects.
+Algorithms used to personalize a model to given subjects.
 
 .. currentmodule:: leaspy.algo.personalize
 
@@ -65,20 +117,6 @@ Algorithms used to personalize a model to a given set of subjects.
 
     abstract_personalize_algo.AbstractPersonalizeAlgo
     scipy_minimize.ScipyMinimize
-
-:mod:`leaspy.algo.samplers`: **Samplers**
------------------------------------------
-Samplers used by the algorithms.
-
-.. currentmodule:: leaspy.algo.samplers
-
-.. autosummary::
-    :toctree: generated/
-    :template: class.rst
-
-    abstract_sampler.AbstractSampler
-    gibbs_sampler.GibbsSampler
-    hmc_sampler.HMCSampler
 
 :mod:`leaspy.algo.simulate`: **Simulation algorithms**
 ------------------------------------------------------
@@ -106,9 +144,22 @@ Reference algorithms to use with reference models (for benchmarks).
     lme_fit.LMEFitAlgorithm
     lme_personalize.LMEPersonalizeAlgorithm
 
+:mod:`leaspy.algo.samplers`: **Samplers**
+-----------------------------------------
+Samplers used by the MCMC algorithms.
+
+.. currentmodule:: leaspy.algo.samplers
+
+.. autosummary::
+    :toctree: generated/
+    :template: class.rst
+
+    abstract_sampler.AbstractSampler
+    gibbs_sampler.GibbsSampler
+
 :mod:`leaspy.dataset`: **Datasets**
 ===================================
-Give access to some synthetic longitudinal observations mimicking cohort of subjects with neurodegenerative disorders,
+Give access to some synthetic longitudinal observations mimicing cohort of subjects with neurodegenerative disorders,
 as well as calibrated models and computed individual parameters.
 
 .. currentmodule:: leaspy.datasets
@@ -121,7 +172,7 @@ as well as calibrated models and computed individual parameters.
 
 :mod:`leaspy.io`: **Inputs / Outputs**
 ======================================
-Containers class objects used as input / ouputs in the `Leaspy` package.
+Containers classes used as input / ouputs in the `Leaspy` package.
 
 :mod:`leaspy.io.data`: **Data containers**
 ------------------------------------------
@@ -138,31 +189,8 @@ Containers class objects used as input / ouputs in the `Leaspy` package.
     .. csv_data_reader.CSVDataReader
     .. dataframe_data_reader.DataframeDataReader
 
-:mod:`leaspy.io.outputs`: **Outputs class objects**
----------------------------------------------------
-
-.. currentmodule:: leaspy.io.outputs
-
-.. autosummary::
-    :toctree: generated/
-    :template: class.rst
-
-    individual_parameters.IndividualParameters
-
-:mod:`leaspy.io.realizations`: **Realizations class objects**
--------------------------------------------------------------
-
-.. currentmodule:: leaspy.io.realizations
-
-.. autosummary::
-    :toctree: generated/
-    :template: class.rst
-
-    realization.Realization
-    collection_realization.CollectionRealization
-
-:mod:`leaspy.io.settings`: **Settings class objects**
------------------------------------------------------
+:mod:`leaspy.io.settings`: **Settings classes**
+-----------------------------------------------
 
 .. currentmodule:: leaspy.io.settings
 
@@ -174,52 +202,45 @@ Containers class objects used as input / ouputs in the `Leaspy` package.
     algorithm_settings.AlgorithmSettings
     outputs_settings.OutputsSettings
 
-:mod:`leaspy.models`: **Models**
-================================
-Available models in `Leaspy`.
+:mod:`leaspy.io.outputs`: **Outputs classes**
+---------------------------------------------
 
-.. currentmodule:: leaspy.models
-
-.. autosummary::
-    :toctree: generated/
-    :template: class.rst
-
-    model_factory.ModelFactory
-    abstract_model.AbstractModel
-    abstract_multivariate_model.AbstractMultivariateModel
-    multivariate_model.MultivariateModel
-    multivariate_parallel_model.MultivariateParallelModel
-    univariate_model.UnivariateModel
-    .. generic_model.GenericModel
-    lme_model.LMEModel
-    constant_model.ConstantModel
-
-:mod:`leaspy.models.utils.attributes`: **Models' attributes**
--------------------------------------------------------------
-Attributes used by the models.
-
-.. currentmodule:: leaspy.models.utils.attributes
+.. currentmodule:: leaspy.io.outputs
 
 .. autosummary::
     :toctree: generated/
     :template: class.rst
 
-    attributes_factory.AttributesFactory
-    abstract_attributes.AbstractAttributes
-    abstract_manifold_model_attributes.AbstractManifoldModelAttributes
-    linear_attributes.LinearAttributes
-    logistic_attributes.LogisticAttributes
-    logistic_parallel_attributes.LogisticParallelAttributes
+    individual_parameters.IndividualParameters
+    .. result.Result
 
-:mod:`leaspy.models.utils.initialization`: **Initialization methods**
----------------------------------------------------------------------
-.. currentmodule:: leaspy.models.utils.initialization
+:mod:`leaspy.io.realizations`: **Realizations classes**
+-------------------------------------------------------
+Internal classes used for random variables in MCMC algorithms.
+
+.. currentmodule:: leaspy.io.realizations
 
 .. autosummary::
-  :toctree: generated/
-  :template: function.rst
+    :toctree: generated/
+    :template: class.rst
 
-  model_initialization.initialize_parameters
-  .. model_initialization.initialize_linear
-  .. model_initialization.initialize_logistic
-  .. model_initialization.initialize_logistic_parallel
+    realization.Realization
+    collection_realization.CollectionRealization
+
+:mod:`leaspy.exceptions`: **Exceptions**
+========================================
+Custom `Leaspy` exceptions raised in code.
+
+.. currentmodule:: leaspy.exceptions
+
+.. autosummary::
+    :toctree: generated/
+    :template: exception_class.rst
+
+    LeaspyException
+    LeaspyTypeError
+    LeaspyInputError
+    LeaspyDataInputError
+    LeaspyModelInputError
+    LeaspyAlgoInputError
+    LeaspyIndividualParamsInputError

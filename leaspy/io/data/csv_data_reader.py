@@ -10,7 +10,7 @@ class CSVDataReader:
 
     Raises
     ------
-    LeaspyDataInputError
+    :class:`.LeaspyDataInputError`
     """
     def __init__(self, path):
         self.individuals = {}

@@ -20,13 +20,13 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
     Attributes
     ----------
-    algo_parameters: dict
+    algo_parameters : dict
         Algorithm's parameters.
-    name: str
+    name : str
         Algorithm's name.
-    seed: int, optional
+    seed : int, optional
         Algorithm's seed (default None).
-    loss: str
+    loss : str
         Loss to used during algo
 
     See also
@@ -35,9 +35,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
     """
 
     def __init__(self, settings):
-        """
-        Initialize class object from settings object
-        """
+
         super().__init__()
         self.algo_parameters = settings.parameters
         self.name = settings.name
@@ -59,7 +57,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         -------
         individual_parameters : :class:`.IndividualParameters`
             Contains individual parameters.
-        noise_std: float or :class:`torch.FloatTensor`
+        noise_std : float or :class:`torch.FloatTensor`
             The estimated noise (is a tensor if ``'diag_noise'`` in `model.loss`)
 
             .. math:: = \frac{1}{n_{visits} \times n_{dim}} \sqrt{\sum_{i, j \in [1, n_{visits}] \times [1, n_{dim}]} \varepsilon_{i,j}}

@@ -22,12 +22,14 @@ class AbstractMultivariateModel(AbstractModel):
 
     Parameters
     ----------
-    name: str
-    **kwargs: hyperparameters
+    name : str
+    **kwargs
+        hyperparameters
 
     Raises
     ------
-    LeaspyModelInputError: if inconsistent hyperparameters
+    :class:`.LeaspyModelInputError`
+        if inconsistent hyperparameters
     """
     def __init__(self, name: str, **kwargs):
         super().__init__(name)
@@ -98,7 +100,7 @@ class AbstractMultivariateModel(AbstractModel):
 
         Parameters
         ----------
-        name_of_the_variables_that_have_been_changed: container[str] (list, tuple, ...)
+        name_of_the_variables_that_have_been_changed : container[str] (list, tuple, ...)
             Names of the population parameters to update in MCMC toolbox
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with
@@ -128,12 +130,13 @@ class AbstractMultivariateModel(AbstractModel):
 
         Parameters
         ----------
-        path: str
+        path : str
             Path to store the model's parameters.
-        with_mixing_matrix: bool (default True)
+        with_mixing_matrix : bool (default True)
             Save the mixing matrix in the exported file in its 'parameters' section.
             <!> It is not a real parameter and its value will be overwritten at model loading
-                (orthonormal basis is recomputed from other "true" parameters and mixing matrix is then deduced from this orthonormal basis and the betas)!
+            (orthonormal basis is recomputed from other "true" parameters and mixing matrix
+            is then deduced from this orthonormal basis and the betas)!
             It was integrated historically because it is used for convenience in browser webtool and only there...
         **kwargs
             Keyword arguments for json.dump method.

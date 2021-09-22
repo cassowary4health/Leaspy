@@ -64,12 +64,12 @@ def doc_with(original: object, mapping: Dict[str, str] = None, **mapping_kwargs)
 
     Parameters
     ----------
-    original: documented Python object
+    original : documented Python object
         The object to extract the docstring from
-    mapping: dict[str, str], optional
+    mapping : dict[str, str], optional
         Optional mapping to replace some terms (case-sensitive and word boundary aware) by others
         from the original docstring.
-    **mapping_kwargs:
+    **mapping_kwargs
         Optional keyword arguments passed to :func:`._replace_terms` (flags=...).
 
     Returns
@@ -99,13 +99,13 @@ def doc_with_super(*, if_other_signature: str = 'force', **doc_with_kwargs) -> C
 
     Parameters
     ----------
-    if_other_signature:
+    if_other_signature : str
         Behavior if a documented method was found in parent but it has another signature:
             * ``'force'``: patch the method with the found docstring anyway (default)
             * ``'warn'``: patch the method but with a warning regarding signature mismatch
             * ``'skip'``: don't patch the method with the found docstring
             * ``'raise'``: raise a ValueError
-    **doc_with_kwargs:
+    **doc_with_kwargs
         Optional keyword arguments passed to :func:`.doc_with` (mapping=...).
 
     Returns

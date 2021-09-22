@@ -10,7 +10,7 @@ class IndividualData:
 
     Raises
     ------
-    LeaspyDataInputError
+    :class:`.LeaspyDataInputError`
     """
 
     def __init__(self, idx: IDType):

@@ -131,7 +131,7 @@ class Plotting:
 
         Parameters
         ----------
-        kwargs
+        **kwargs
             * alpha: float, default 0.6
                 Matplotlib's transparency option. Must be in [0, 1].
             * linestyle: {'-', '--', '-.', ':', '', (offset, on-off-seq), ...}
@@ -162,7 +162,7 @@ class Plotting:
 
         Returns
         -------
-        ax: matplotlib.axes.Axes
+        :class:`matplotlib.axes.Axes`
         """
         # ---- Input manager
         plot_kws = self._plot_kwargs('average', kwargs)
@@ -337,16 +337,16 @@ class Plotting:
 
         Parameters
         ----------
-        ax: matplotlib ax
+        ax : :class:`matplotlib.axes.Axes`
         df : :class:`pandas.DataFrame`
             Data to plot
-        features: list[str]
+        features : list[str]
             Which features to plot (subset of model features / data features)
-        colors: list
+        colors : list
             List of colors (associated to features selected), in order
-        reparametrized_ages: bool
+        reparametrized_ages : bool
             Should we plot trajectories in reparam age or not?
-        plot_kws: dict
+        plot_kws : dict
             Plot kwargs
         """
 
@@ -378,20 +378,20 @@ class Plotting:
 
         Parameters
         ----------
-        ax: matplotlib ax
+        ax : :class:`matplotlib.axes.Axes`
         df : :class:`pandas.DataFrame`
             Data (TODO: could be the MultiIndex [ID,TIME] instead...)
-        individual_parameters: tuple[list, dict]
+        individual_parameters : tuple[list, dict]
             <!> in pytorch dict format: tuple(indices:list, dict{ip_name: vals})
-        features_ix: list[int]
+        features_ix : list[int]
             Which features to plot (order of features from model)
-        colors: list
+        colors : list
             List of colors (associated to features selected), in order
-        reparametrized_ages: bool
+        reparametrized_ages : bool
             Should we plot trajectories in reparam age or not?
-        plot_kws: dict
+        plot_kws : dict
             Plot kwargs
-        kwargs:
+        **kwargs
             * "factor_past", "factor_future": float (default 0.5)
                 past/future padding to plot (as fraction of total follow-up duration of subjects)
             * "n_tpts": int (default 100)
@@ -433,7 +433,7 @@ class Plotting:
         Parameters
         ----------
         data : :class:`.Data`
-        patients_idx: 'all' (default), str or list[str]
+        patients_idx : 'all' (default), str or list[str]
             Patients to display (by their ID).
         individual_parameters : :class:`.IndividualParameters` or :class:`pandas.DataFrame` (as may be outputed by ip.to_dataframe()) or dict (Pytorch ip format) or None (default)
             If not None, observations are plotted with respect to reparametrized ages.
@@ -459,12 +459,12 @@ class Plotting:
         ----------
         data : :class:`.Data`
         individual_parameters : :class:`.IndividualParameters` or :class:`pandas.DataFrame` (as may be outputed by ip.to_dataframe()) or dict (Pytorch ip format)
-        patients_idx: 'all' (default), str or list[str]
+        patients_idx : 'all' (default), str or list[str]
             Patients to display (by their ID).
-        reparametrized_ages: bool (default False)
+        reparametrized_ages : bool (default False)
             Should we plot trajectories in reparam age or not? to study source impact essentially
-        kwargs:
-            cf. `_plot_model_trajectories`
+        **kwargs
+            cf. :meth:`._plot_model_trajectories`
             In particular, pass marker=None if you don't want observations besides model
         """
 

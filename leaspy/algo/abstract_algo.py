@@ -15,12 +15,12 @@ class AbstractAlgo(ABC):
 
     Attributes
     ----------
-    name: str
+    name : str
         Name of the algorithm.
-    algo_parameters: dict
+    algo_parameters : dict
         Contains the algorithm's parameters. These ones are set by a
         :class:`.AlgorithmSettings` class object.
-    seed: int, optional
+    seed : int, optional
         Seed used by :mod:`numpy` and :mod:`torch`.
     output_manager : :class:`~.io.logs.fit_output_manager.FitOutputManager`
         Optional output manager of the algorithm
@@ -45,7 +45,7 @@ class AbstractAlgo(ABC):
 
         Parameters
         ----------
-        seed: int
+        seed : int
             The wanted seed
         """
         if seed is not None:
@@ -94,7 +94,7 @@ class AbstractAlgo(ABC):
 
         Parameters
         ----------
-        parameters: dict
+        parameters : dict
             Contains the pairs (key, value) of the wanted parameters
 
         Examples
@@ -165,15 +165,15 @@ class AbstractAlgo(ABC):
 
         Parameters
         ----------
-        iteration: int
+        iteration : int
             Current iteration of the algorithm.
-        n_iter: int
+        n_iter : int
             Total iterations' number of the algorithm.
-        suffix: str
+        suffix : str
             Used to differentiate types of algorithms:
                 * for fit algorithms: ``suffix = 'iterations'``
                 * for personalization algorithms: ``suffix = 'subjects'``.
-        n_step_default: int, default 50
+        n_step_default : int, default 50
             The size of the progression bar.
         """
         n_step = min(n_step_default, n_iter)
@@ -201,7 +201,7 @@ class AbstractAlgo(ABC):
 
         Parameters
         ----------
-        d: float
+        d : float
             Computation time
 
         Returns

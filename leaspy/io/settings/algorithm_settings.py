@@ -19,7 +19,7 @@ class AlgorithmSettings:
 
     Parameters
     ----------
-    name: str
+    name : str
         The algorithm's name. Must be in:
             * For `fit` algorithms:
                 * `mcmc_saem`
@@ -33,59 +33,59 @@ class AlgorithmSettings:
             * For `simulate` algorithms:
                 * `simulation`
 
-    model_initialization_method: str, optional
+    model_initialization_method : str, optional
         For fit algorithms, give a model initialization method,
         according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
-    algo_initialization_method: str, optional
+    algo_initialization_method : str, optional
         Personalize the algorithm initialization method,
-        according to those possible for the given algorithm (refer to its documentation in :mod:`.algo`).
-    n_iter: int, optional
+        according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
+    n_iter : int, optional
         Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
-    n_burn_in_iter: int, optional
+    n_burn_in_iter : int, optional
         Number of iteration during burning phase, used for the MCMC SAEM algorithms.
-    seed: int, optional, default None
+    seed : int, optional, default None
         Used for stochastic algorithms.
-    use_jacobian: bool, optional, default False
+    use_jacobian : bool, optional, default False
         Used in ``scipy_minimize`` algorithm to perform a `LBFGS` instead of a `Powell` algorithm.
-    n_jobs: int, optional, default 1
+    n_jobs : int, optional, default 1
         Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
-    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+    loss : {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
         The wanted loss.
             * ``'MSE'``: MSE of all features
             * ``'MSE_diag_noise'``: MSE per feature
             * ``'crossentropy'``: used when the features are binary
-    progress_bar: bool, optional, default False
+    progress_bar : bool, optional, default False
         Used to display a progress bar during computation.
 
     Attributes
     ----------
-    name: str
+    name : str
         The algorithm's name.
-    model_initialization_method: str, optional
+    model_initialization_method : str, optional
       For fit algorithms, give a model initialization method,
       according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
-    algo_initialization_method: str, optional
+    algo_initialization_method : str, optional
       Personalize the algorithm initialization method,
-      according to those possible for the given algorithm (refer to its documentation in :mod:`.algos`).
-    seed: int, optional, default None
+      according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
+    seed : int, optional, default None
       Used for stochastic algorithms.
-    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+    loss : {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
       The wanted loss.
           * ``'MSE'``: MSE of all features
           * ``'MSE_diag_noise'``: MSE per feature
           * ``'crossentropy'``: used when the features are binary
-    parameters: dict
+    parameters : dict
       Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
-    logs: :class:`.OutputsSettings`, optional
+    logs : :class:`.OutputsSettings`, optional
       Used to create a ``logs`` file during a model calibration containing convergence information.
 
     Raises
     ------
-    LeaspyAlgoInputError
+    :class:`.LeaspyAlgoInputError`
 
     See also
     --------
-    leaspy.algo
+    :mod:`leaspy.algo`
 
     For developpers
     ---------------
@@ -156,7 +156,7 @@ class AlgorithmSettings:
 
         Parameters
         ----------
-        path_to_algorithm_settings: str
+        path_to_algorithm_settings : str
             Path of the json file.
 
         Returns
@@ -166,7 +166,8 @@ class AlgorithmSettings:
 
         Raises
         ------
-        LeaspyAlgoInputError: if anything is invalid in algo settings
+        :class:`.LeaspyAlgoInputError`
+            if anything is invalid in algo settings
 
         Examples
         --------
@@ -211,7 +212,7 @@ class AlgorithmSettings:
 
         Parameters
         ----------
-        path: str
+        path : str
             Path to store the AlgorithmSettings.
         **kwargs
             Keyword arguments for json.dump method.
@@ -243,9 +244,9 @@ class AlgorithmSettings:
 
         Parameters
         ----------
-        path: str
+        path : str
             The path of the folder to store the graphs and csv files.
-        **kwargs:
+        **kwargs
             * console_print_periodicity: int, optional, default 50
                 Display logs in the console/terminal every N iterations.
             * plot_periodicity: int, optional, default 100
@@ -262,7 +263,7 @@ class AlgorithmSettings:
 
         Raises
         ------
-        LeaspyAlgoInputError
+        :class:`.LeaspyAlgoInputError`
             If the folder given in ``path`` already exists and if ``overwrite_logs_folder`` is set to ``False``.
         """
         settings = {
@@ -329,14 +330,14 @@ class AlgorithmSettings:
         """
         Get a nested key of a dict or default if any previous level is missing.
 
-        Examples:
-        ---------
-        _get_nested_dict(d, ('a','b'), -1)
-            -> -1 if 'a' not in d
-            -> -1 if 'b' not in d['a']
-            -> d['a']['b'] else
+        Examples
+        --------
+        >>> _get_nested_dict(d, ('a','b'), -1) == ...
+            * -1 if 'a' not in d
+            * -1 if 'b' not in d['a']
+            * d['a']['b'] else
 
-        _get_nested_dict(d, [], ...) = d
+        >>> _get_nested_dict(d, (), ...) == d
         """
         it_levels = iter(nested_levels)
 

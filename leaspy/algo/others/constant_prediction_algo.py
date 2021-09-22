@@ -23,7 +23,7 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
 
     Raises
     ------
-    LeaspyAlgoInputError:
+    :class:`.LeaspyAlgoInputError`
         If any invalid setting for the algorithm
     """
 
@@ -31,6 +31,7 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
 
     def __init__(self, settings):
 
+        # super().__init__()
         self.name = 'constant_prediction'
         if settings.name != self.name:
             raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
@@ -58,7 +59,7 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         -------
         individual_parameters : :class:`.IndividualParameters`
             Contains individual parameters.
-        noise_std: float
+        noise_std : float
             TODO: always 0 for now
         """
 

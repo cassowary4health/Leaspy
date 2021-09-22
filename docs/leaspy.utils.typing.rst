@@ -5,3 +5,5 @@ leaspy.utils.typing module
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. literalinclude:: ../leaspy/utils/typing.py

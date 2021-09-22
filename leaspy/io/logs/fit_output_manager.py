@@ -16,33 +16,32 @@ class FitOutputManager:
 
     Attributes
     ----------
-    path_output: str
+    path_output : str
         Path of the folder containing all the outputs
-    path_plot: str
+    path_plot : str
         Path of the subfolder of path_output containing the logs plots
-    path_plot_convergence_model_parameters_1: str
+    path_plot_convergence_model_parameters_1 : str
         Path of the first plot of the convergence of the model's parameters (in the subfolder path_plot)
-    path_plot_convergence_model_parameters_2: str
+    path_plot_convergence_model_parameters_2 : str
         Path of the second plot of the convergence of the model's parameters (in the subfolder path_plot)
-    path_plot_patients: str
+    path_plot_patients : str
         Path of the subfolder of path_plot containing the plot of the reconstruction of the patients' longitudinal
         trajectory by the model
-    path_save_model_parameters_convergence: str
+    path_save_model_parameters_convergence : str
         Path of the subfolder of path_output containing the progression of the model's parameters convergence
-    periodicity_plot: int (default 100)
+    periodicity_plot : int (default 100)
         Set the frequency of the display of the plots
-    periodicity_print: int
+    periodicity_print : int
         Set the frequency of the display of the statistics
-    periodicity_save: int
+    periodicity_save : int
         Set the frequency of the saves of the model's parameters & the realizations
-    plot_options: dict
+    plot_options : dict
         Contain all the additional information (for now contain only the number of displayed patients by the method
         plot_patient_reconstructions - which is 5 by default)
-    plotter: :class:`~.utils.logs.visualisation.plotter.Plotter`
+    plotter : :class:`~.utils.logs.visualisation.plotter.Plotter`
         class object used to call visualization methods
-    time: float
+    time : float
         Last timestamp (to display the duration between two visualization prints)
-
     """
 
     # TODO: add a loading bar for a run
@@ -152,7 +151,7 @@ class FitOutputManager:
 
         Parameters
         ----------
-        iteration: int
+        iteration : int
             The current iteration
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
@@ -193,7 +192,7 @@ class FitOutputManager:
 
         Parameters
         ----------
-        iteration: int
+        iteration : int
             The current iteration
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
@@ -241,9 +240,9 @@ class FitOutputManager:
 
         Parameters
         ----------
-        iteration: int
+        iteration : int
             The current iteration
-        data: :class:`.Data`
+        data : :class:`.Data`
             The data used by the computation
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation

@@ -23,18 +23,18 @@ class ConstantModel(GenericModel):
 
     Attributes
     ----------
-    name: str
+    name : str
         The model's name
-    features: list[str]
+    features : list[str]
         List of the model features
-    dimension: int
+    dimension : int
         Number of features (read-only)
-    parameters: dict
+    parameters : dict
         Population parameters: empty dictionary.
 
     See also
     --------
-    leaspy.algo.others.constant_prediction_algo.ConstantPredictionAlgorithm
+    :class:`~leaspy.algo.others.constant_prediction_algo.ConstantPredictionAlgorithm`
     """
 
     def __init__(self, name):

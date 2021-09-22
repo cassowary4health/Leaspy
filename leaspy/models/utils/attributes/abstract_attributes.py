@@ -15,34 +15,31 @@ class AbstractAttributes(ABC):
 
     Parameters
     ----------
-    name: str
-    dimension: int (default None)
-    source_dimension: int (default None)
-    univariate: bool
-        Whether model is univariate or not (i.e. dimension == 1)
-    has_sources: bool
-        Whether model has sources or not (not univariate and source_dimension >= 1)
+    name : str
+    dimension : int (default None)
+    source_dimension : int (default None)
 
     Attributes
     ----------
-    name: str
+    name : str
         Name of the associated leaspy model.
-    dimension: int
+    dimension : int
         Number of features of the model
-    source_dimension: int
+    source_dimension : int
         Number of sources of the model
         TODO? move to AbstractManifoldModelAttributes?
-    univariate: bool
+    univariate : bool
         Whether model is univariate or not (i.e. dimension == 1)
-    has_sources: bool
+    has_sources : bool
         Whether model has sources or not (not univariate and source_dimension >= 1)
         TODO? move to AbstractManifoldModelAttributes?
-    update_possibilities: tuple[str] (default empty)
+    update_possibilities : tuple[str] (default empty)
         Contains the available parameters to update. Different models have different parameters.
 
     Raises
     ------
-    LeaspyModelInputError: if any inconsistent parameter.
+    :class:`.LeaspyModelInputError`
+        if any inconsistent parameter.
     """
 
     def __init__(self, name: str, dimension: int = None, source_dimension: int = None):
@@ -82,14 +79,14 @@ class AbstractAttributes(ABC):
 
         Parameters
         ----------
-        names_of_changed_values: list [str]
+        names_of_changed_values : list [str]
            Values to be updated
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
            New values used to update the model's group average parameters
 
         Raises
         ------
-        LeaspyModelInputError
+        :class:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown values to update.
         """
         pass
@@ -100,11 +97,11 @@ class AbstractAttributes(ABC):
 
         Parameters
         ----------
-        names_of_changed_values: list [str]
+        names_of_changed_values : list [str]
 
         Raises
-        -------
-        LeaspyModelInputError
+        ------
+        :class:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown values to update.
         """
         unknown_update_possibilities = set(names_of_changed_values).difference(self.update_possibilities)

@@ -11,13 +11,13 @@ class ModelSettings:
 
     Parameters
     ----------
-    path_to_model_settings_or_dict: dict or str
+    path_to_model_settings_or_dict : dict or str
         * If a str: path to a json file containing model settings
         * If a dict: content of model settings
 
     Raises
     ------
-    LeaspyModelInputError
+    :class:`.LeaspyModelInputError`
     """
     def __init__(self, path_to_model_settings_or_dict: Union[str, dict]):
 

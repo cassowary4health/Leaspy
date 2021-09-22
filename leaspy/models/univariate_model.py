@@ -24,12 +24,13 @@ class UnivariateModel(AbstractModel):
 
     Parameters
     ----------
-    name: str
-    **kwargs: hyperparameters
+    name : str
+    **kwargs
+        hyperparameters
 
     Raises
     ------
-    LeaspyModelInputError:
+    :class:`.LeaspyModelInputError`
         * If `name` is not one of allowed sub-type: 'univariate_linear' or 'univariate_logistic'
         * If hyperparameters are inconsistent
     """
@@ -148,7 +149,7 @@ class UnivariateModel(AbstractModel):
 
         Parameters
         ----------
-        name_of_the_variables_that_have_been_changed: container[str] (list, tuple, ...)
+        name_of_the_variables_that_have_been_changed : container[str] (list, tuple, ...)
             Names of the population parameters to update in MCMC toolbox
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with

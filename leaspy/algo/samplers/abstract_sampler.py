@@ -13,17 +13,17 @@ class AbstractSampler:
     acceptation_temp : :class:`torch.Tensor`
         Acceptation rate for the sampler in MCMC-SAEM algorithm
         Keep the history of the last `temp_length` last steps
-    name: str
+    name : str
         Name of variable
-    shape: tuple
+    shape : tuple
         Shape of variable
-    temp_length: int
+    temp_length : int
         Deepness of the history kept in the acceptation rate `acceptation_temp`
         Length of the `acceptation_temp` torch tensor
 
     Raises
     ------
-    LeaspyModelInputError
+    :class:`.LeaspyModelInputError`
     """
 
     def __init__(self, info: KwargsType, n_patients: int):
@@ -105,7 +105,7 @@ class AbstractSampler:
 
         Raises
         ------
-        LeaspyModelInputError
+        :class:`.LeaspyModelInputError`
         """
 
         # Ad the new acceptation result

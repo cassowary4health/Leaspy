@@ -11,7 +11,7 @@ class AbstractFitAlgo(AbstractAlgo):
 
     Attributes
     ----------
-    current_iteration: int, default 0
+    current_iteration : int, default 0
         The number of the current iteration
     Inherited attributes
         From :class:`.AbstractAlgo`

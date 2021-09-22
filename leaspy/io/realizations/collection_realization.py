@@ -32,12 +32,12 @@ class CollectionRealization:
 
         Parameters
         ----------
-        n_individuals: int
+        n_individuals : int
             Number of individuals modelled
-        model: :class:`.AbstractModel`
+        model : :class:`.AbstractModel`
             Model we initialize from
-        scale_individual: float
-            Individual scale, cf. `Realization.initialize::scale_individual`
+        scale_individual : float
+            Individual scale, cf. :meth:`.Realization.initialize`
         """
         # Indices
         infos = model.random_variable_informations()

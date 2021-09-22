@@ -61,7 +61,7 @@ class AlgoFactory:
 
         Parameters
         ----------
-        algorithm_class: str
+        algorithm_class : str
             Task name, used to check if the algorithm within the input `settings` is compatible with this task.
             Must be one of the following api's name:
                 * `fit`
@@ -78,7 +78,7 @@ class AlgoFactory:
 
         Raises
         ------
-        LeaspyAlgoInputError
+        :class:`.LeaspyAlgoInputError`
             * if the algorithm class is unknown
             * if the algorithm name is unknown / does not belong to the wanted algorithm class
         """

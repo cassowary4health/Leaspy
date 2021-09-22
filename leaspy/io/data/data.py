@@ -64,12 +64,12 @@ class Data:
         ----------
         df : :class:`pandas.DataFrame`
             the index is the list of subject ids
-        cofactors: list[str]
+        cofactors : list[str]
             names of the column(s) of df which shall be loaded as cofactors
 
         Raises
         ------
-        LeaspyDataInputError
+        :class:`.LeaspyDataInputError`
         """
 
         df = df[cofactors].copy(deep=True)
@@ -127,7 +127,7 @@ class Data:
 
         Raises
         ------
-        LeaspyDataInputError
+        :class:`.LeaspyDataInputError`
         """
         indices = []
         timepoints = torch.zeros((self.n_visits, 1))
@@ -198,15 +198,15 @@ class Data:
 
         Parameters
         ----------
-        indices: list[str]
+        indices : list[str]
             Contains the individuals' ID.
-        timepoints: list[array-like 1D]
+        timepoints : list[array-like 1D]
             For each individual ``i``, list of ages at visits.
             Number of timepoints is refered below as ``n_timepoints_i``
-        values: list[array-like 2D]
+        values : list[array-like 2D]
             For each individual ``i``, all values at visits.
             Shape is ``(n_timepoints_i, n_features)``.
-        headers: list[str]
+        headers : list[str]
             Contains the features' names.
 
         Returns

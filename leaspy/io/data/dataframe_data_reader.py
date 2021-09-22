@@ -10,7 +10,7 @@ class DataframeDataReader:
 
     Raises
     ------
-    LeaspyDataInputError
+    :class:`.LeaspyDataInputError`
     """
     def __init__(self, df: pd.DataFrame):
         self.individuals = {}

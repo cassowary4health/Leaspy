@@ -17,9 +17,9 @@ class ModelFactory:
 
         Parameters
         ----------
-        name: str
+        name : str
             The model's name.
-        **kwargs:
+        **kwargs
             Contains model's hyper-parameters. Raise an error if the keyword is inapropriate for the given model's name.
 
         Returns
@@ -29,11 +29,12 @@ class ModelFactory:
 
         Raises
         ------
-        LeaspyModelInputError: if incorrect model requested.
+        :class:`.LeaspyModelInputError`
+            if incorrect model requested.
 
         See also
         --------
-        leaspy.api.Leaspy
+        :class:`leaspy.Leaspy`
         """
         if isinstance(name, str):
             name = name.lower()

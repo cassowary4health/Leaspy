@@ -25,7 +25,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
     See also
     --------
-    :mod:`.algo.samplers`
+    :mod:`leaspy.algo.samplers`
     """
 
     def __init__(self, settings):
@@ -63,7 +63,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
         Raises
         ------
-        LeaspyAlgoInputError:
+        :class:`.LeaspyAlgoInputError`
             If inconsistent parameter between model & algo
         """
 

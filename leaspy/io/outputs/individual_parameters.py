@@ -22,13 +22,13 @@ class IndividualParameters:
 
     Attributes
     ----------
-    _indices: list
+    _indices : list
         List of the patient indices
-    _individual_parameters: dict
+    _individual_parameters : dict
         Individual indices (key) with their corresponding individual parameters {parameter name: parameter value}
-    _parameters_shape: dict
+    _parameters_shape : dict
         Shape of each individual parameter
-    _default_saving_type: str
+    _default_saving_type : str
         Default extension for saving when none is provided
     """
 
@@ -55,14 +55,14 @@ class IndividualParameters:
 
         Parameters
         ----------
-        index: str
+        index : str
             Index of the individual
-        individual_parameters: dict
+        individual_parameters : dict
             Individual parameters of the individual {name: value:}
 
         Raises
         ------
-        LeaspyIndividualParamsInputError:
+        :class:`.LeaspyIndividualParamsInputError`
             * If the index is not a string or has already been added
             * Or if the individual parameters is not a dict.
             * Or if individual parameters are not self-consistent.
@@ -129,7 +129,8 @@ class IndividualParameters:
 
         Raises
         ------
-        LeaspyIndividualParamsInputError: if bad item asked
+        :class:`.LeaspyIndividualParamsInputError`
+            if bad item asked
         """
         if not isinstance(item, IDType):
             raise LeaspyIndividualParamsInputError(f'The index should be a string ({type(item)} provided instead)')
@@ -149,9 +150,9 @@ class IndividualParameters:
 
         Parameters
         ----------
-        indices: list[ID]
+        indices : list[ID]
             List of strings that corresponds to the indices of the individuals to return
-        copy: bool, optional (default True)
+        copy : bool, optional (default True)
             Should we copy underlying parameters or not?
 
         Returns
@@ -161,7 +162,7 @@ class IndividualParameters:
 
         Raises
         ------
-        LeaspyIndividualParamsInputError
+        :class:`.LeaspyIndividualParamsInputError`
             Raise an error if one of the index is not in the IndividualParameters
 
         Examples
@@ -193,9 +194,9 @@ class IndividualParameters:
 
         Parameters
         ----------
-        parameter: str
+        parameter : str
             Name of the parameter
-        function: callable
+        function : callable
             A function operating on iterables and supporting axis keyword,
             and outputing an iterable supporting the `tolist` method.
 
@@ -206,7 +207,7 @@ class IndividualParameters:
 
         Raises
         ------
-        LeaspyIndividualParamsInputError:
+        :class:`.LeaspyIndividualParamsInputError`
             * If individual parameters are empty,
             * or if the parameter is not in the IndividualParameters.
 
@@ -232,7 +233,7 @@ class IndividualParameters:
 
         Parameters
         ----------
-        parameter: str
+        parameter : str
             Name of the parameter
 
         Returns
@@ -242,7 +243,7 @@ class IndividualParameters:
 
         Raises
         ------
-        LeaspyIndividualParamsInputError:
+        :class:`.LeaspyIndividualParamsInputError`
             * If individual parameters are empty,
             * or if the parameter is not in the IndividualParameters.
 
@@ -260,7 +261,7 @@ class IndividualParameters:
 
         Parameters
         ----------
-        parameter: str
+        parameter : str
             Name of the parameter
 
         Returns
@@ -270,7 +271,7 @@ class IndividualParameters:
 
         Raises
         ------
-        LeaspyIndividualParamsInputError:
+        :class:`.LeaspyIndividualParamsInputError`
             * If individual parameters are empty,
             * or if the parameter is not in the IndividualParameters.
 
@@ -373,18 +374,18 @@ class IndividualParameters:
 
         Parameters
         ----------
-        indices: list[ID]
+        indices : list[ID]
             List of the patients indices
-        dict_pytorch: dict[parameter:str, `torch.Tensor`]
+        dict_pytorch : dict[parameter:str, `torch.Tensor`]
             Dictionary of the individual parameters
 
         Returns
         -------
-        `IndividualParameters`
+        :class:`.IndividualParameters`
 
         Raises
         ------
-        LeaspyIndividualParamsInputError
+        :class:`.LeaspyIndividualParamsInputError`
 
         Examples
         --------
@@ -455,18 +456,18 @@ class IndividualParameters:
 
         Parameters
         ----------
-        path: str
+        path : str
             Path and file name of the individual parameters. The extension can be json or csv.
             If no extension, default extension (csv) is used
-        **kwargs:
-            Additional keyword arguments argument to pass to either:
-            - pandas.to_csv
-            - json.dump
+        **kwargs
+            Additional keyword arguments to pass to either:
+            * :meth:`pandas.DataFrame.to_csv`
+            * :func:`json.dump`
             depending on saving format requested
 
         Raises
         ------
-        LeaspyIndividualParamsInputError:
+        :class:`.LeaspyIndividualParamsInputError`
             * If extension not supported for saving
             * If individual parameters are empty
         """
@@ -495,17 +496,17 @@ class IndividualParameters:
 
         Parameters
         ----------
-        path: str
+        path : str
             Path and file name of the individual parameters.
 
         Returns
         -------
-        `IndividualParameters`
+        :class:`.IndividualParameters`
             Individual parameters object load from the file
 
         Raises
         ------
-        LeaspyIndividualParamsInputError:
+        :class:`.LeaspyIndividualParamsInputError`
             If the provided extension is not `csv` or not `json`.
 
         Examples

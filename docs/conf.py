@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 # -- Project information -----------------------------------------------------
 
 project = 'Leaspy'
-authors = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman' # TODO read from setup?
-copyright = '2017-2021, ' + authors
+author = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Samuel Gruffaz, Nemo Fournier, Mauricio Diaz Melo, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman' # TODO read from setup?
+copyright = '2017-2021, ' + author
 
 # The full version, including alpha/beta/rc tags
 def find_version(*py_file_with_version_paths):
@@ -78,8 +78,14 @@ if LooseVersion(sphinx.__version__) < LooseVersion('1.4'):
 else:
     extensions.append('sphinx.ext.imgmath')
 
-autodoc_default_flags = ['members', 'inherited-members', 'private-members']
-
+autodoc_default_options = {
+    'members': True,
+    'inherited-members': True,
+    'private-members': True,
+    #'member-order': 'bysource', # 'groupwise' # 'alphabetical'
+    #'special-members': '__init__',
+    'exclude-members': '__weakref__'
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -95,7 +101,7 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output -------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
+# The theme to use for HTML and HTML Help pages. See the documentation for
 # a list of builtin themes.
 #
 #---sphinx-themes-----
@@ -118,7 +124,7 @@ html_css_files = [
 ]
 
 # Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
+# further. For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
     "canonical_url": "",
@@ -172,7 +178,7 @@ html_context = {
 html_logo = "leaspy_logo.png"
 
 html_title = "Leaspy"
-# A shorter title for the navigation bar.  Default is the same as html_title.
+# A shorter title for the navigation bar. Default is the same as html_title.
 html_short_title = "Leaspy documentation"
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -198,7 +204,7 @@ intersphinx_mapping = {
     'torch': ('https://pytorch.org/docs/stable/', None),
     'statsmodels': ('https://www.statsmodels.org/stable/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
-    'seaborn': ('https://seaborn.pydata.org/', None),
+    # 'seaborn': ('https://seaborn.pydata.org/', None),
     'sklearn': ('https://scikit-learn.org/stable', None),
     'joblib': ('https://joblib.readthedocs.io/en/latest/', None)
 }

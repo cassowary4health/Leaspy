@@ -19,6 +19,15 @@ class Result:
     Result object class.
     Used as logs by personalize algorithms & simulation algorithm.
 
+    Parameters
+    ----------
+    data : :class:`.Data`
+        Object containing the idx, time-points and observations of the patients
+    individual_parameters : dict [str, :class:`torch.Tensor`]
+        Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
+    noise_std : float or :class:`torch.FloatTensor`, optional (default None)
+        Desired noise standard deviation level
+
     Attributes
     ----------
     data : :class:`.Data`
@@ -36,18 +45,7 @@ class Result:
 
     # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters io.
     def __init__(self, data: Data, individual_parameters: DictParamsTorch, noise_std = None):
-        """
-        Process the initializer function - called by Leaspy.io.outputs.result.Result
 
-        Parameters
-        ----------
-        data : :class:`.Data`
-            Object containing the idx, time-points and observations of the patients
-        individual_parameters : dict [str, :class:`torch.Tensor`]
-            Contains log-acceleration 'xi', time-shifts 'tau' & 'sources'
-        noise_std : float or :class:`torch.FloatTensor`, optional (default None)
-            Desired noise standard deviation level
-        """
         self.data = data
         self.individual_parameters = individual_parameters
         self.ID_to_idx: Dict[IDType, int] = {key: i for i, key in enumerate(data.individuals)}
@@ -94,7 +92,7 @@ class Result:
 
         Parameters
         ----------
-        cofactors: str or list[str], optional (default None)
+        cofactors : str or list[str], optional (default None)
             Contains the cofactor(s) to join to the logs dataframe.
 
         Notes
@@ -184,7 +182,7 @@ class Result:
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         cofactors : str or list [str], optional (default None)
             Contains the cofactor(s) to join to the logs dataframe.
-        **args : Any
+        **args
             Parameters to pass to :meth:`pandas.DataFrame.to_csv`.
 
         Notes
@@ -234,12 +232,13 @@ class Result:
             TODO change to bool
                 * If None (default): save as json file
                 * If not None: call :meth:`.save_individual_parameters_torch`.
-        **args : Any
+        **args
             Arguments to pass to json.dump.
 
         Raises
         ------
-        NotADirectoryError: if parent directory of path does not exist.
+        :class:`NotADirectoryError`
+            if parent directory of path does not exist.
 
         Examples
         --------
@@ -276,12 +275,13 @@ class Result:
             The logs's path.
         idx : list [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
-        args : Any
+        **args
             Arguments to pass to torch.save.
 
         Raises
         ------
-        NotADirectoryError: if parent directory of path does not exist.
+        :class:`NotADirectoryError`
+            if parent directory of path does not exist.
 
         Examples
         --------
@@ -360,7 +360,7 @@ class Result:
             The file's path. The csv file musts contain two columns named 'tau' and 'xi'. If the individual parameters
             come from a multivariate model, it must also contain the columns 'sources_i' for i in [0, ..., n_sources].
         verbose : bool (default True)
-        args : Any
+        **args
             Parameters to pass to :func:`pandas.read_csv`.
 
         Returns
@@ -417,7 +417,7 @@ class Result:
         path : str
             The file's path.
         verbose : bool (default True)
-        args : Any
+        **args
             Parameters to pass to json.load.
 
         Returns
@@ -467,7 +467,7 @@ class Result:
         path : str
             The file's path.
         verbose : bool (default True)
-        args : Any
+        **args
             Parameters to pass to torch.load.
 
         Returns
@@ -503,7 +503,7 @@ class Result:
         path_or_df : str or :class:`pandas.DataFrame`
             The file's path or a DataFrame containing the individual parameters.
         verbose : bool (default True)
-        args : Any
+        **args
             Parameters to pass to the corresponding load fonction.
 
         Returns
@@ -513,7 +513,8 @@ class Result:
 
         Raises
         ------
-        FileNotFoundError: if path is invalid
+        :class:`FileNotFoundError`
+            if path is invalid
         """
         if isinstance(path_or_df, pd.DataFrame):
             return cls.load_individual_parameters_from_dataframe(path_or_df)
@@ -542,13 +543,13 @@ class Result:
         ----------
         data : str or :class:`pandas.DataFrame` or :class:`.Data`
             The file's path or a DataFrame containing the features' scores.
-        individual_parameters :  str or :class:`pandas.DataFrame`
+        individual_parameters : str or :class:`pandas.DataFrame`
             The file's path or a DataFrame containing the individual parameters.
         cofactors : str or :class:`pandas.DataFrame`, optional (default None)
             The file's path or a DataFrame containing the individual cofactors.
             The ID must be in index! Thus, the shape is (n_subjects, n_cofactors).
         verbose : bool (default True)
-        args : Any
+        **args
             Parameters to pass to result.load_individual_parameters static method.
 
         Returns
@@ -591,7 +592,7 @@ class Result:
                 cofactors_df = cofactors.copy()
             else:
                 raise LeaspyTypeError("The given `cofactors` input must be a pandas.DataFrame "
-                            "or a string giving the path of  the file containing the cofactors! "
+                            "or a string giving the path of the file containing the cofactors! "
                             f"You gave an object of type {type(cofactors)}")
             data.load_cofactors(cofactors_df, cofactors_df.columns.tolist())
 
@@ -659,6 +660,7 @@ class Result:
     def get_cofactor_states(cofactors: List) -> List:
         """
         .. deprecated:: 1.0
+
         Given a list of string return the list of unique elements.
 
         Parameters
@@ -679,6 +681,7 @@ class Result:
     def get_parameter_distribution(self, parameter: ParamType, cofactor=None):
         """
         .. deprecated:: 1.0
+
         Return the wanted parameter distribution (one distribution per covariate state).
 
         Parameters
@@ -690,12 +693,14 @@ class Result:
 
         Returns
         -------
-        list[float] or  dict[str, *]
+        list[float] or dict[str, *]
 
         Raises
         ------
-        LeaspyIndividualParamsInputError: if bad
-        LeaspyInputError: if unknown cofactor
+        :class:`.LeaspyIndividualParamsInputError`
+            if unsupported individual parameters
+        :class:`.LeaspyInputError`
+            if unknown cofactor
 
         Notes
         -----
@@ -781,6 +786,7 @@ class Result:
     def get_cofactor_distribution(self, cofactor: str):
         """
         .. deprecated:: 1.0
+
         Get the list of the cofactor's distribution.
 
         Parameters
@@ -800,6 +806,7 @@ class Result:
     def get_patient_individual_parameters(self, idx: IDType):
         """
         .. deprecated:: 1.0
+
         Get the dictionary of the wanted patient's individual parameters
 
         Parameters

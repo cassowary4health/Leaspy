@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from ...io.outputs.individual_parameters import IndividualParameters
@@ -10,6 +12,11 @@ class GradientDescentPersonalize(AbstractPersonalizeAlgo):
 
         # Algorithm parameters
         super().__init__(settings)
+
+        # Deprecation warning: but with nans
+        warnings.warn("Personalization algorithm 'gradient_descent_personalize' is deprecated "
+                      "due to issues with nans in multivariate logistic models. "
+                      "Try another personalization algorithm such as 'scipy_minimize'.", DeprecationWarning)
 
     def _initialize_torchvariables(self, realizations):
         for name, realization in realizations.realizations.items():

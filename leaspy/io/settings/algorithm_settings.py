@@ -23,14 +23,13 @@ class AlgorithmSettings:
         The algorithm's name. Must be in:
             * For `fit` algorithms:
                 * `mcmc_saem`
-                * `lme_fit`
+                * `lme_fit` (for LME model only)
             * For `personalize` algorithms:
                 * `scipy_minimize`
                 * `mean_real`
                 * `mode_real`
-                * `gradient_descent_personalize`
-                * `constant_prediction`
-                * `lme_personalize`
+                * `constant_prediction` (for constant model only)
+                * `lme_personalize` (for LME model only)
             * For `simulate` algorithms:
                 * `simulation`
 
@@ -60,7 +59,7 @@ class AlgorithmSettings:
 
     Attributes
     ----------
-    name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
+    name: str
         The algorithm's name.
     model_initialization_method: str, optional
       For fit algorithms, give a model initialization method,

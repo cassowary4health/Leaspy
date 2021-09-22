@@ -43,7 +43,7 @@ class AlgoFactory:
             'scipy_minimize': ScipyMinimize,
             'mean_real': MeanReal,
             'mode_real': ModeReal,
-            'gradient_descent_personalize': GradientDescentPersonalize, # deprecated?
+            'gradient_descent_personalize': GradientDescentPersonalize, # deprecated!
 
             'constant_prediction': ConstantPredictionAlgorithm,
             'lme_personalize': LMEPersonalizeAlgorithm,

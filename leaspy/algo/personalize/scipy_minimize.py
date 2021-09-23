@@ -4,6 +4,7 @@ import torch
 from joblib import Parallel, delayed
 from scipy.optimize import minimize
 
+from leaspy.models.utils import DEFAULT_LOSS
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 
@@ -233,7 +234,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         res = {}
 
         # Different losses implemented
-        if 'MSE' in self.loss:
+        if 'MSE' in model.loss:
             noise_var = model.parameters['noise_std'] * model.parameters['noise_std']
             noise_var = noise_var.expand((1, model.dimension)) # tensor 1,n_fts (works with diagonal noise or scalar noise)
             res['objective'] = torch.sum((0.5 / noise_var) @ (diff * diff).t()) # <!> noise per feature
@@ -241,7 +242,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             if with_gradient:
                 res['gradient'] = torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0,1))
 
-        elif self.loss == 'crossentropy':
+        elif model.loss == 'crossentropy':
             predicted = torch.clamp(predicted, 1e-38, 1. - 1e-7)  # safety before taking the log # @P-E: why clamping not symmetric?
             neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
             neg_crossentropy[nans] = 0. # set nans to zero, not to count in the sum
@@ -252,7 +253,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
 
         else:
-            raise LeaspyAlgoInputError(f"Algorithm loss {self.loss} is currently not implemented..."
+            raise LeaspyAlgoInputError(f"Model loss '{model.loss}' is currently not implemented in 'scipy_minimize' algorithm..."
                                        f"Please open an issue on Gitlab if needed.")
 
         ## Regularity term
@@ -366,6 +367,17 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         :class:`.IndividualParameters`
             Contains the individual parameters of all patients.
         """
+
+        # <!> NEW: loss belongs to model! handling previous behavior, a bit dirty...
+        # TODO: to be removed when algorithm.loss attribute will be completely removed!
+        if self.loss is not None and self.loss != DEFAULT_LOSS: # non default loss from algorithm (to be removed / deprecated)
+            if self.loss != model.loss:
+                raise LeaspyAlgoInputError(f"You provided inconsistent losses: '{model.loss}' (for model) != '{self.loss}' (for algo)."
+                                            "Please define the loss only in the modle, not in the algorithm settings.")
+        else:
+            pass
+            ## set algo loss from model
+            # self.loss = model.loss
 
         individual_parameters = IndividualParameters()
 

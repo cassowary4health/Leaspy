@@ -6,7 +6,7 @@ import copy
 
 import torch
 
-from leaspy.algo import DEFAULT_LOSS, VALID_LOSSES
+from leaspy.models.utils import DEFAULT_LOSS, VALID_LOSSES
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
 

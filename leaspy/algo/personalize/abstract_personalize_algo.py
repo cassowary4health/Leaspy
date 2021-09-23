@@ -40,7 +40,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         self.algo_parameters = settings.parameters
         self.name = settings.name
         self.seed = settings.seed
-        self.loss = settings.loss
+        self.loss = settings.loss  # TODO remove? only keep in model?
 
     def run(self, model, data):
         r"""

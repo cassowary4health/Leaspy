@@ -97,8 +97,8 @@ class AbstractModelTest(unittest.TestCase):
         Check if the following models run with the following algorithms.
         """
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
-            leaspy = Leaspy(model_name)
-            settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0, loss="crossentropy")
+            leaspy = Leaspy(model_name, loss="crossentropy")
+            settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
 
             df = pd.read_csv(binary_data_path)
             if model_name == 'univariate_linear' or model_name == 'univariate_logistic':
@@ -111,7 +111,7 @@ class AbstractModelTest(unittest.TestCase):
                 burn_in_kw = dict() # not for all algos
                 if '_real' in method:
                     burn_in_kw = dict(n_burn_in_iter=90, )
-                settings = AlgorithmSettings(method, n_iter=100, seed=0, loss="crossentropy", **burn_in_kw)
+                settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
                 result = leaspy.personalize(data, settings)
 
     def test_tensorize_2D(self):

@@ -51,10 +51,10 @@ class LeaspyFitTest(unittest.TestCase):
 
         # Inputs
         data = Data.from_csv_file(example_data_path)
-        algo_settings = AlgorithmSettings('mcmc_saem', loss='MSE_diag_noise', n_iter=100, seed=0)
+        algo_settings = AlgorithmSettings('mcmc_saem', n_iter=100, seed=0)
 
         # Initialize
-        leaspy = Leaspy("logistic")
+        leaspy = Leaspy("logistic", loss='MSE_diag_noise')
         leaspy.model.load_hyperparameters({'source_dimension': 2})
 
         # Fit the model on the data
@@ -122,10 +122,10 @@ class LeaspyFitTest(unittest.TestCase):
     def test_fit_logisticparallel_diag_noise(self, tol=1e-2):
         # Inputs
         data = Data.from_csv_file(example_data_path)
-        algo_settings = AlgorithmSettings('mcmc_saem', loss='MSE_diag_noise', n_iter=100, seed=0)
+        algo_settings = AlgorithmSettings('mcmc_saem', n_iter=100, seed=0)
 
         # Initialize
-        leaspy = Leaspy("logistic_parallel")
+        leaspy = Leaspy("logistic_parallel", loss='MSE_diag_noise')
         leaspy.model.load_hyperparameters({'source_dimension': 2})
 
         # Fit the model on the data

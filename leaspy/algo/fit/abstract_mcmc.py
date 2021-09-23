@@ -4,7 +4,7 @@ from .abstract_fit_algo import AbstractFitAlgo
 from ..samplers.gibbs_sampler import GibbsSampler
 from ..samplers.hmc_sampler import HMCSampler
 
-from leaspy.algo import DEFAULT_LOSS
+from leaspy.models.utils import DEFAULT_LOSS
 from leaspy.exceptions import LeaspyAlgoInputError
 
 
@@ -35,7 +35,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         # Algorithm parameters
         self.algo_parameters = settings.parameters
         self.seed = settings.seed
-        self.loss = settings.loss
+        self.loss = settings.loss  # to be removed?!
 
         # Realizations and samplers
         self.realizations = None
@@ -67,6 +67,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
             If inconsistent parameter between model & algo
         """
 
+        # TODO: change this behavior: loss should only come from algo!
         # handling loss, a bit dirty...
         if model.loss != DEFAULT_LOSS: # non default loss from model
             if self.loss not in [DEFAULT_LOSS, model.loss]:

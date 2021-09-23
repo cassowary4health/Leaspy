@@ -2,7 +2,7 @@ import json
 import os
 import warnings
 
-from leaspy.algo import DEFAULT_LOSS, VALID_LOSSES
+from leaspy.models.utils import DEFAULT_LOSS, VALID_LOSSES
 from leaspy.io.settings import default_data_dir
 from leaspy.io.settings.outputs_settings import OutputsSettings
 from leaspy.algo.algo_factory import AlgoFactory
@@ -138,7 +138,7 @@ class AlgorithmSettings:
         self.seed: Optional[int] = None
         self.algorithm_initialization_method: str = None # Initialization of the algorithm itself
         self.model_initialization_method: str = None # Initialization of the model parameters (independantly of the algorithm)
-        self.loss: str = None
+        self.loss: str = None  # TODO remove?
         self.logs = None
 
         default_algo_settings_path = os.path.join(default_data_dir, 'default_' + name + '.json')
@@ -220,7 +220,7 @@ class AlgorithmSettings:
         Examples
         --------
         >>> from leaspy import AlgorithmSettings
-        >>> settings = AlgorithmSettings('scipy_minimize', seed=42, loss='MSE_diag_noise', n_jobs=-1, use_jacobian=True, progress_bar=True)
+        >>> settings = AlgorithmSettings('scipy_minimize', seed=42, n_jobs=-1, use_jacobian=True, progress_bar=True)
         >>> settings.save('outputs/scipy_minimize-settings.json', indent=2)
         """
         json_settings = {

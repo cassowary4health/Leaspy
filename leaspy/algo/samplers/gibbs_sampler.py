@@ -21,25 +21,28 @@ class GibbsSampler(AbstractSampler):
             * type : 'population' or 'individual'
     n_patients : int > 0
         Number of patients (useful for individual variables)
+    device: torch.device (default: torch.device("cpu"))
+        Device on which sampling computations will be performed. Its default value
+        is set in the AbstractSampler parent class to torch.device("cpu"). 
 
     Raises
     ------
     :exc:`.LeaspyModelInputError`
     """
 
-    def __init__(self, info, n_patients):
-        super().__init__(info, n_patients)
+    def __init__(self, info, n_patients, device=None):
+        super().__init__(info, n_patients, device)
 
         self.std = None
 
         if info["type"] == "population":
             # Proposition variance is adapted independantly on each dimension of the population variable
-            self.std = 0.005 * torch.ones(size=self.shape) # TODO hyperparameter here
+            self.std = 0.005 * torch.ones(size=self.shape, device=self.device) # TODO hyperparameter here
         elif info["type"] == "individual":
             # Proposition variance is adapted independantly on each patient, but is the same for multiple dimensions
             # TODO : gérer les shapes !!! Necessary for sources
             self.std = torch.tensor([0.1] * n_patients * int(self.shape[0]),
-                                    dtype=torch.float32).reshape(n_patients,int(self.shape[0]))
+                                    dtype=torch.float32, device=self.device).reshape(n_patients,int(self.shape[0]))
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{info['type']}'.")
 

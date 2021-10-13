@@ -31,33 +31,35 @@ class AbstractSampler:
     temp_length : int
         Deepness of the history kept in the acceptation rate `acceptation_temp`
         Length of the `acceptation_temp` torch tensor
+    device : torch.device
 
     Raises
     ------
     :exc:`.LeaspyModelInputError`
     """
 
-    def __init__(self, info: KwargsType, n_patients: int):
+    def __init__(self, info: KwargsType, n_patients: int, device: torch.device = None):
 
         self.acceptation_temp: torch.FloatTensor = None
         self.name: str = info["name"]
         self.shape: Tuple[int, ...] = info["shape"]
         self.temp_length: int = 25  # For now the same between pop and ind #TODO this is an hyperparameter
+        self.device = device if device is not None else torch.device("cpu")
 
         if info["type"] == "population":
             self.type = 'pop'
             # Initialize the acceptation history
             if len(self.shape) < 2:
-                self.acceptation_temp = torch.zeros(size=self.shape).repeat(self.temp_length,
+                self.acceptation_temp = torch.zeros(size=self.shape, device=self.device).repeat(self.temp_length,
                                                                             1)  # convention : shape of pop is 2D
             elif len(self.shape) == 2:
-                self.acceptation_temp = torch.zeros(size=self.shape).repeat(self.temp_length, 1, 1)
+                self.acceptation_temp = torch.zeros(size=self.shape, device=self.device).repeat(self.temp_length, 1, 1)
             else:
                 raise LeaspyModelInputError("Dimension of population variable > 2")
         elif info["type"] == "individual":
             self.type = 'ind'
             # Initialize the acceptation history
-            self.acceptation_temp = torch.zeros(size=(n_patients,)).repeat(self.temp_length, 1)
+            self.acceptation_temp = torch.zeros(size=(n_patients,), device=self.device).repeat(self.temp_length, 1)
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{info['type']}': nor 'population' nor 'individual'.")
 
@@ -74,7 +76,7 @@ class AbstractSampler:
         accepted : :class:`torch.Tensor`
             Acceptance decision (0. or 1.). The logs must be one dimensional (i.e. accepted.ndim = 1)
         """
-        accepted = (torch.rand(alpha.size(0)) < alpha).float()  # TODO: change for boolean?
+        accepted = (torch.rand(alpha.size(0), device=self.device) < alpha).float()  # TODO: change for boolean?
         return accepted
 
     def _metropolis_step(self, alpha):
@@ -100,7 +102,7 @@ class AbstractSampler:
         else:
             # Case 2: we decreased the LogL
             # Sample a realization from uniform law
-            realization = torch.rand(1)
+            realization = torch.rand(1, device=self.device)
             # Choose to keep a lesser parameter value from it
             if realization < alpha:
                 accepted = 1
@@ -122,10 +124,10 @@ class AbstractSampler:
         # Ad the new acceptation result
         if self.type == "pop":
             self.acceptation_temp = torch.cat(
-                [self.acceptation_temp, accepted.reshape(self.shape).unsqueeze(0)])
+                [self.acceptation_temp, accepted.reshape(self.shape).unsqueeze(0).to(self.device)])
         elif self.type == "ind":
             self.acceptation_temp = torch.cat(
-                [self.acceptation_temp, accepted.unsqueeze(0)])
+                [self.acceptation_temp, accepted.unsqueeze(0).to(self.device)])
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{self.type}': nor 'pop' nor 'ind'.")
 

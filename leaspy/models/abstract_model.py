@@ -783,5 +783,7 @@ class AbstractModel(ABC):
             for parameter in self.parameters:
                 self.parameters[parameter] = self.parameters[parameter].to(device)
 
+            if hasattr(self, "attributes"):
+                self.attributes.move_to_device(device)
             # update the device
             self.device = device

@@ -1,6 +1,7 @@
 import json
 import os
 import warnings
+import torch # to set the default device
 
 from leaspy.models.utils import DEFAULT_LOSS, VALID_LOSSES
 from leaspy.io.settings import default_data_dir
@@ -56,6 +57,8 @@ class AlgorithmSettings:
             * ``'crossentropy'``: used when the features are binary
     progress_bar : bool, optional, default False
         Used to display a progress bar during computation.
+    device: torch.device, optional, default torch.device("cpu")
+      Used to specify on which device the algorithm will run
 
     Attributes
     ----------
@@ -78,6 +81,8 @@ class AlgorithmSettings:
       Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
     logs : :class:`.OutputsSettings`, optional
       Used to create a ``logs`` file during a model calibration containing convergence information.
+    device: torch.device, optional, default torch.device("cpu")
+      Used to specify on which device the algorithm will run
 
     Raises
     ------
@@ -302,6 +307,7 @@ class AlgorithmSettings:
             'algorithm_initialization_method': self._get_algorithm_initialization_method,
             'model_initialization_method': self._get_model_initialization_method,
             'loss': self._get_loss,
+            'device': lambda x: x['device'], # clean this??
         }
 
         for k, v in kwargs.items():
@@ -380,6 +386,11 @@ class AlgorithmSettings:
 
         self.name = self._get_name(settings)
         self.parameters = self._get_parameters(settings)
+
+        # set the default device; I think we could do something more clean that
+        # setting it from here, but since we cannot embed a torch.device object
+        # in a json file, I am not exactly sure how
+        self.device = torch.device('cpu')
 
         if settings['name'] == 'constant_prediction':
             return

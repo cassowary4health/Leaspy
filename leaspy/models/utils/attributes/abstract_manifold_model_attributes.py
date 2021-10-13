@@ -18,6 +18,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
     name : str
     dimension : int
     source_dimension : int (default None)
+    device : torch.device (default torch.device("cpu"))
 
     Attributes
     ----------
@@ -46,9 +47,9 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         if any inconsistent parameter.
     """
 
-    def __init__(self, name: str, dimension: int, source_dimension: int = None):
+    def __init__(self, name: str, dimension: int, source_dimension: int = None, device: torch.device = None):
 
-        super().__init__(name, dimension, source_dimension)
+        super().__init__(name, dimension, source_dimension, device)
 
         self.positions: torch.FloatTensor = None
         self.velocities: torch.FloatTensor = None
@@ -161,6 +162,10 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         if not isinstance(G_metric, torch.Tensor):
             G_metric = torch.tensor(G_metric) # convert from scalar...
 
+        # enforce `G_metric` to live on the ambient device
+        if G_metric.device != self.device:
+            G_metric = G_metric.to(self.device)
+
         # compute the vector that others columns should be orthogonal to, w.r.t canonical inner product
         G_shape = G_metric.shape
         if len(G_shape) == 0: # 0D
@@ -192,7 +197,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         """
 
         assert 0 <= strip_col < self.dimension
-        ej = torch.zeros(self.dimension, dtype=torch.float32)
+        ej = torch.zeros(self.dimension, dtype=torch.float32, device=self.device)
         ej[strip_col] = 1.
 
         alpha = -torch.sign(dgamma_t0[strip_col]) * torch.norm(dgamma_t0)
@@ -201,7 +206,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
         ## Classical Householder method (to get an orthonormal basis for the canonical inner product)
         ## Q = I_n - 2 v • v'
-        q_matrix = torch.eye(self.dimension) - 2 * v_vector.view(-1,1) * v_vector
+        q_matrix = torch.eye(self.dimension, device=self.device) - 2 * v_vector.view(-1,1) * v_vector
 
         # first component of basis is a unit vector (for metric norm) collinear to `dgamma_t0`
         #self.orthonormal_basis = q_matrix[:, 1:]

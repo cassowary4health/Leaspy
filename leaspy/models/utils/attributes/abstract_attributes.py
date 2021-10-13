@@ -18,6 +18,7 @@ class AbstractAttributes(ABC):
     name : str
     dimension : int (default None)
     source_dimension : int (default None)
+    device: torch.device (default torch.device("cpu"))
 
     Attributes
     ----------
@@ -28,6 +29,8 @@ class AbstractAttributes(ABC):
     source_dimension : int
         Number of sources of the model
         TODO? move to AbstractManifoldModelAttributes?
+    device: torch.device
+        Torch device on which tensors are stored during the algorithm run
     univariate : bool
         Whether model is univariate or not (i.e. dimension == 1)
     has_sources : bool
@@ -42,10 +45,11 @@ class AbstractAttributes(ABC):
         if any inconsistent parameter.
     """
 
-    def __init__(self, name: str, dimension: int = None, source_dimension: int = None):
+    def __init__(self, name: str, dimension: int = None, source_dimension: int = None, device: torch.device = None):
 
         if not isinstance(name, str):
             raise LeaspyModelInputError("In model attributes, you must provide a string for the parameter `name`.")
+
         self.name = name
 
         if not isinstance(dimension, int):
@@ -54,6 +58,8 @@ class AbstractAttributes(ABC):
         self.univariate = dimension == 1
 
         self.source_dimension = source_dimension
+        self.device = device if device is not None else torch.device("cpu")
+
         self.has_sources = bool(source_dimension) # False iff None or == 0
 
         if self.univariate and self.has_sources:
@@ -90,6 +96,15 @@ class AbstractAttributes(ABC):
             If `names_of_changed_values` contains unknown values to update.
         """
         pass
+
+    def move_to_device(self, device):
+        if self.device != device:
+            for attribute_name in dir(self):
+                attribute = getattr(self, attribute_name)
+                if isinstance(attribute, torch.Tensor):
+                    setattr(self, attribute_name, attribute.to(device))
+
+            self.device = device
 
     def _check_names(self, names_of_changed_values: Tuple[ParamType, ...]):
         """

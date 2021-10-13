@@ -22,7 +22,7 @@ class AttributesFactory:
     }
 
     @classmethod
-    def attributes(cls, name: str, dimension: int, source_dimension: int = None) -> AbstractAttributes:
+    def attributes(cls, name: str, dimension: int, source_dimension: int = None, device: torch.device = None) -> AbstractAttributes:
         """
         Class method to build correct model attributes depending on model `name`.
 
@@ -53,5 +53,4 @@ class AttributesFactory:
         if 'univariate' in name and dimension != 1:
             raise LeaspyModelInputError(f"{name}: `dimension` should be 1 when 'univariate' is part of model `name`, not {dimension}!")
 
-        return cls._attributes[name](name, dimension, source_dimension)
-
+        return cls._attributes[name](name, dimension, source_dimension, device)

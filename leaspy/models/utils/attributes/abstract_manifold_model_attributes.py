@@ -55,7 +55,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
         if self.univariate:
             if self.has_sources:
-                raise LeaspyModelInputError("Inconsistent univariate attributes with some sources.")
+                raise LeaspyModelInputError("Inconsistent attributes: presence of sources for a univariate model.")
 
             self.update_possibilities = ('all', 'g', 'xi_mean')
         else:

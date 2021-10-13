@@ -44,7 +44,7 @@ class Result:
     """
 
     # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters io.
-    def __init__(self, data: Data, individual_parameters: DictParamsTorch, noise_std = None):
+    def __init__(self, data: Data, individual_parameters: DictParamsTorch, noise_std=None):
 
         self.data = data
         self.individual_parameters = individual_parameters
@@ -170,7 +170,7 @@ class Result:
 
         return df_individual_parameters
 
-    def save_individual_parameters_csv(self, path: str, idx: List[IDType] = None, cofactors = None, **args):
+    def save_individual_parameters_csv(self, path: str, idx: List[IDType] = None, cofactors=None, **args):
         """
         Save the individual parameters in a csv format.
 
@@ -217,7 +217,7 @@ class Result:
             df_individual_parameters = df_individual_parameters.loc[idx]
         df_individual_parameters.to_csv(path, index=True, **args)
 
-    def save_individual_parameters_json(self, path: str, idx: List[IDType] = None, human_readable = None, **args):
+    def save_individual_parameters_json(self, path: str, idx: List[IDType] = None, human_readable=None, **args):
         """
         Save the individual parameters in a json format.
 

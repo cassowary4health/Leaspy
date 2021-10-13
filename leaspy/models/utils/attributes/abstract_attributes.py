@@ -57,7 +57,7 @@ class AbstractAttributes(ABC):
         self.has_sources = bool(source_dimension) # False iff None or == 0
 
         if self.univariate and self.has_sources:
-            raise LeaspyModelInputError("Inconsistent univariate attributes with some sources.")
+            raise LeaspyModelInputError("Inconsistent attributes: presence of sources for a univariate model.")
 
         self.update_possibilities: Tuple[ParamType, ...] = () # empty tuple
 

@@ -294,7 +294,8 @@ class Plotting:
 
         if reparametrized_ages:
             if ip_df is None:
-                raise LeaspyInputError('`reparametrized_ages=True` but no valid individual parameters.')
+                raise LeaspyInputError('You want to plot reparametrized ages (`reparametrized_ages=True`) but you did not provide any individual parameters '
+                                       'to do so (please use `individual_parameters` argument).')
             t0 = self.model.parameters['tau_mean'].item()
             df = df.join(ip_df)
             # reparametrized ages

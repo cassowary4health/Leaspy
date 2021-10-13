@@ -357,7 +357,7 @@ class AbstractModel(ABC):
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     # TODO: unit tests? (functional tests covered by api.estimate)
-    def compute_individual_ages_from_biomarker_values(self, value, individual_parameters: DictParams, feature: FeatureType = None):
+    def compute_individual_ages_from_biomarker_values(self, value: Union[float | List[float]], individual_parameters: DictParams, feature: FeatureType = None):
         """
         For one individual, compute age(s) at which the given features values are reached (given the subject's
         individual parameters).

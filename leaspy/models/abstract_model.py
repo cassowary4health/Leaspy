@@ -53,6 +53,9 @@ class AbstractModel(ABC):
         self.loss: str = DEFAULT_LOSS  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=1.)
 
+        # default device is CPU
+        self.device = torch.device('cpu')
+
     @abstractmethod
     def initialize(self, dataset: Dataset, method: str = 'default'):
         """
@@ -771,3 +774,14 @@ class AbstractModel(ABC):
                 individual_parameters[variable_ind] = realizations[variable_ind].tensor_realizations
 
         return individual_parameters
+
+    def move_to_device(self, device: torch.device) -> None:
+        # in a model, the only tensors that need offloading to a particular device
+        # are in the model.parameters dict
+
+        if self.device != device:
+            for parameter in self.parameters:
+                self.parameters[parameter] = self.parameters[parameter].to(device)
+
+            # update the device
+            self.device = device

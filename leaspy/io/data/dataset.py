@@ -202,3 +202,14 @@ class Dataset:
         df.reset_index(inplace=True)
 
         return df
+
+    def move_to_device(self, device: torch.device) -> None:
+        """
+        Moves the dataset to the specified device.
+        """
+
+        # I don't know if we should make the moved attributes explicit...
+        for attribute_name in dir(self):
+            attribute = getattr(self, attribute_name)
+            if isinstance(attribute, torch.Tensor):
+                setattr(self, attribute_name, attribute.to(device))

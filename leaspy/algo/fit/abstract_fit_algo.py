@@ -63,6 +63,11 @@ class AbstractFitAlgo(AbstractAlgo):
         time_beginning = time.time()
         self._initialize_seed(self.seed)
 
+        # Move both the dataset and the model on the correct device, and keep the original one
+        original_model_device = model.device
+        dataset.move_to_device(self.device)
+        model.move_to_device(self.device)
+
         # Initialize first the random variables
         # TODO : Check if needed - model.initialize_random_variables(dataset)
 
@@ -104,6 +109,9 @@ class AbstractFitAlgo(AbstractAlgo):
 
         print("\nThe standard deviation of the noise at the end of the calibration is:\n" + print_noise)
         print("\nCalibration took: " + self.convert_timer(diff_time))
+
+        dataset.move_to_device(original_model_device)
+        model.move_to_device(original_model_device)
 
         return realizations
 

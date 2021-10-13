@@ -47,6 +47,10 @@ class AbstractFitMCMC(AbstractFitAlgo):
         self.temperature_inv = 1
         self.temperature = 1
 
+        # Select the device on which computation will be perfomed
+        # (default to the CPU)
+        self.device = torch.device(settings.device)
+
     ###########################
     ## Initialization
     ###########################
@@ -113,12 +117,12 @@ class AbstractFitMCMC(AbstractFitAlgo):
         for variable, info in infos_variables.items():
             if info["type"] == "individual":
                 if self.algo_parameters['sampler_ind'] == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                    self.samplers[variable] = GibbsSampler(info, data.n_individuals, device=self.device)
                 else:
                     self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
             else:
                 if self.algo_parameters['sampler_pop'] == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                    self.samplers[variable] = GibbsSampler(info, data.n_individuals, device=self.device)
                 else:
                     self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
 
@@ -133,7 +137,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
         suff_stats = model.compute_sufficient_statistics(data, realizations)
-        self.sufficient_statistics = {k: torch.zeros(v.shape, dtype=torch.float32) for k, v in suff_stats.items()}
+        self.sufficient_statistics = {k: torch.zeros(v.shape, dtype=torch.float32, device=self.device) for k, v in suff_stats.items()}
 
     ###########################
     ## Getters / Setters

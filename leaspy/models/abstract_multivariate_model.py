@@ -79,7 +79,7 @@ class AbstractMultivariateModel(AbstractModel):
 
         self.parameters = initialize_parameters(self, dataset, method)
 
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension, self.device)
         self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
 

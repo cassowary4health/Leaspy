@@ -57,7 +57,7 @@ class MultivariateModel(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension, self.device)
         self.attributes.update(['all'], self.parameters)
 
     @suffixed_method
@@ -228,7 +228,7 @@ class MultivariateModel(AbstractMultivariateModel):
     def initialize_MCMC_toolbox(self, set_v0_prior = False):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
-            'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
+            'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension, self.device)
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()

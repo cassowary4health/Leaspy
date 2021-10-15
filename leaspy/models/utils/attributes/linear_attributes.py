@@ -40,9 +40,9 @@ class LinearAttributes(AbstractManifoldModelAttributes):
     :class:`~leaspy.models.multivariate_model.MultivariateModel`
     """
 
-    def __init__(self, name, dimension, source_dimension):
+    def __init__(self, name, dimension, source_dimension, device=None):
 
-        super().__init__(name, dimension, source_dimension)
+        super().__init__(name, dimension, source_dimension, device)
 
 
     def update(self, names_of_changed_values, values):

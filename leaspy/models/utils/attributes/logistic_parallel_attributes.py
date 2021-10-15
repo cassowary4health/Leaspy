@@ -47,9 +47,9 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     :class:`~leaspy.models.multivariate_parallel_model.MultivariateParallelModel`
     """
 
-    def __init__(self, name, dimension, source_dimension):
+    def __init__(self, name, dimension, source_dimension, device=None):
 
-        super().__init__(name, dimension, source_dimension)
+        super().__init__(name, dimension, source_dimension, device)
 
         if self.dimension < 2:
             raise LeaspyModelInputError(f"`LogisticParallelAttributes` with dimension = {self.dimension} (< 2)")

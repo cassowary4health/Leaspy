@@ -118,7 +118,7 @@ class UnivariateModel(AbstractModel):
 
         self.parameters = initialize_parameters(self, dataset, method)
 
-        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
+        self.attributes = AttributesFactory.attributes(self.name, dimension=1, device=self.device)
         self.attributes.update(['all'], self.parameters)
 
         self.is_initialized = True
@@ -127,7 +127,7 @@ class UnivariateModel(AbstractModel):
         self.parameters = {}
         for k in parameters.keys():
             self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
-        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
+        self.attributes = AttributesFactory.attributes(self.name, dimension=1, device=self.device)
         self.attributes.update(['all'], self.parameters)
 
     def initialize_MCMC_toolbox(self):
@@ -138,7 +138,7 @@ class UnivariateModel(AbstractModel):
         """
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01}, # population parameter
-            'attributes': AttributesFactory.attributes(self.name, dimension=1)
+            'attributes': AttributesFactory.attributes(self.name, dimension=1, device=self.device)
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()

@@ -1,12 +1,12 @@
 import torch
 
-from .attributes_abstract import AttributesAbstract
+from .abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 
 
 # TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
-class AttributesStannard(AttributesAbstract):
+class StannardAttributes(AbstractManifoldModelAttributes):
     """
-    Contains the common attributes & methods to update the logistic_asymp model's attributes.
+    Contains the common attributes & methods to update the Stannard model's attributes.
 
     Attributes
     ----------
@@ -19,72 +19,46 @@ class AttributesStannard(AttributesAbstract):
         Matrix A such that w_i = A * s_i
     orthonormal_basis: `torch.Tensor` (default None)
     velocities: `torch.Tensor` (default None)
-    name: `str` (default 'logistic')
+    gammas : ``orch.Tensor` (default None)
+    name: `str` (default 'stannard')
         Name of the associated leaspy model. Used by ``update`` method.
-    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'v0', 'betas') )
+    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'v0', 'gammas', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
 
     Methods
     -------
     get_attributes()
-        Returns the following attributes: ``positions``, ``deltas`` & ``mixing_matrix``.
+        Returns the following attributes: ``positions``, ``velocities``, ``gammas`` & ``mixing_matrix``.
     update(names_of_changed_values, values)
         Update model group average parameter(s).
     """
 
-    def __init__(self, name, dimension, source_dimension,neg):
+    def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a AttributesLogistic class object.
+        Instantiate a StannardAttributes class object.
 
         Parameters
         ----------
         dimension: `int`
         source_dimension: `int`
         """
-        self.Param=None
-        self.neg=neg
-        self.mixing_matrix=None
         super().__init__(name, dimension, source_dimension)
-        self.update_possibilities=('all', 'g', 'Param', 'betas')
+        self.gammas = None
+        self.update_possibilities=('all', 'g', 'v0', 'gammas', 'betas')
 
-    def _compute_orthonormal_basis(self):
+    def get_attributes(self):
         """
-        Compute the attribute ``orthonormal_basis`` which is a free family orthogonal to Param and is composed of vectors orthogonal
-        to Param on all Plan induce by infection_k,guerison_k. 
-        
-        return a matrix with dim(Param) lines and self.dimension columns (number of lines of beta)
-
-        
-        """
-        Param=self.Param
-        AA=Param[:self.dimension]
-        
-
-        ej = torch.zeros(self.dimension, dtype=torch.float32)
-        ej[0] = 1.
-
-        alpha = -torch.sign(AA[0]) * torch.norm(AA)
-        u_vector = AA - alpha * ej
-        v_vector = u_vector / torch.norm(u_vector)
-        q_matrix = torch.eye(self.dimension) - 2 * v_vector.view(-1,1) * v_vector
-        
-
-        
-        self.orthonormal_basis =q_matrix[:, 1:]
-    
-
-    def get_attributes(self):#à changer
-        """
-        Returns the following attributes: ``positions``, ``velocities`` & ``mixing_matrix``.
+        Returns the following attributes: ``positions``, ``velocities``, ``gammas`` & ``mixing_matrix``.
 
         Returns
         -------
         - positions: `torch.Tensor`
         - velocities: `torch.Tensor`
+        - gammas: `torch.Tensor`
         - mixing_matrix: `torch.Tensor`
         """
        
-        return self.positions, self.Param, self.mixing_matrix
+        return self.positions, self.velocities, self.gammas, self.mixing_matrix
 
     def update(self, names_of_changed_values, values):
         """
@@ -93,7 +67,7 @@ class AttributesStannard(AttributesAbstract):
         Parameters
         ----------
         names_of_changed_values: `list` [`str`]
-            Must be one of - "all", "g", "v0", "betas". Raise an error otherwise.
+            Must be one of - "all", "g", "v0", "gammas", "betas". Raise an error otherwise.
             "g" correspond to the attribute ``positions``.
             "v0" correspond to the attribute ``velocities``.
         values: `dict` [`str`, `torch.Tensor`]
@@ -103,8 +77,8 @@ class AttributesStannard(AttributesAbstract):
 
         compute_betas = False
         compute_positions = False
-        compute_Param=False 
-        
+        compute_velocities = False
+        compute_gammas = False
 
         if 'all' in names_of_changed_values:
             
@@ -114,23 +88,24 @@ class AttributesStannard(AttributesAbstract):
             compute_betas = True
         if 'g' in names_of_changed_values:
             compute_positions = True
-        if ('Param' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
-            compute_Param = True
+        if ('velocities' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
+            compute_velocities = True
+        if 'gammas' in names_of_changed_values:
+            compute_gammas = True
 
         if compute_betas:
             self._compute_betas(values)
         if compute_positions:
             self._compute_positions(values)
-
-        
-        
-        if compute_Param:
-            self._compute_Param(values)
+        if compute_velocities:
+            self._compute_velocities(values)
+        if compute_gammas:
+            self._compute_gammas(values)
 
         # TODO : Check if the condition is enough
-        if self.has_sources and (compute_positions or compute_Param):
+        if self.has_sources and (compute_positions or compute_velocities):
             self._compute_orthonormal_basis()
-        if self.has_sources and (compute_positions or compute_Param or compute_betas):
+        if self.has_sources and (compute_positions or compute_velocities or compute_betas):
             self._compute_mixing_matrix()
 
     def _check_names(self, names_of_changed_values):
@@ -157,20 +132,31 @@ class AttributesStannard(AttributesAbstract):
         ----------
         values: `dict` [`str`, `torch.Tensor`]
         """
-        self.positions=torch.exp(values['g']) #on a échantilloné suivant une loi normale
+        self.positions=torch.exp(values['g'])
        
 
-    def _compute_Param(self, values):
+    def _compute_gammas(self, values):
         """
-        Update the attribute ``Param``.
+        Update the attribute ``gammas``.
 
         Parameters
         ----------
         values: `dict` [`str`, `torch.Tensor`]
         """
-        if not(self.neg):
-            self.Param=torch.exp(values['Param'])
-        else:
-            self.Param=-torch.exp(values['Param'])
+        self.gammas = torch.exp(values['gammas'])
 
-    #overwrite les compute_positions get_attributes
+    def _compute_orthonormal_basis(self):
+        """
+        Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
+        of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
+        """
+
+        ej = torch.zeros(self.dimension, dtype=torch.float32)
+        ej[0] = 1.
+
+        alpha = -torch.sign(self.velocities[0]) * torch.norm(self.velocities)
+        u_vector = self.velocities - alpha * ej
+        v_vector = u_vector / torch.norm(u_vector)
+        q_matrix = torch.eye(self.dimension) - 2 * v_vector.view(-1, 1) * v_vector
+
+        self.orthonormal_basis = q_matrix[:, 1:]

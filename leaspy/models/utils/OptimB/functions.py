@@ -114,10 +114,6 @@ def sub_sampling(X,k):
     ---------
         index list of int, the indices of control points selected in X
     We use kmeans_plus_plus to take points not so close in order to have a kernel matrix well specified
-    
-
-
-
     """
     index = kmeans_plus_plus(X.numpy(), k)
     return index
@@ -176,116 +172,6 @@ def sigvalue(Y):
     N=torch.norm(PA3, dim=-1)
     return torch.median(N)
 
-
-class KernelFactory:
-
-    @staticmethod
-    def rbf_kernel(X_points, meta_settings, X_control = None):
-        '''
-
-        Parameters
-        ----------
-        X_points : torch vector (N, features_dimension) or (n_ind, n_visits, features_dimension)
-        with N points used for which we want kernel estimation
-        meta_settings : dictionary with all settings
-        X_control : optional, torch vector with control points used for kernel estimation
-
-        Returns
-        The matrix K(X_points_i, X_control_j) with the kernel K being the RBF with sigma given in the meta settings
-        If X_control is None, compute The matrix K(X_points_i, X_points_j)
-        -------
-
-        '''
-        sigma = meta_settings["sigma"]
-        if X_control is None:
-            X_control = X_points
-        k = len(X_control)
-
-        ndim = len(X_points.shape)
-
-        if ndim == 2:
-            nb_visit = len(X_points)
-
-            PA1 = X_points.unsqueeze(0).repeat(k, 1, 1).permute(1, 0, 2)
-            PA2 = X_control.unsqueeze(0).repeat(nb_visit, 1, 1)
-        elif ndim==1:
-            X_points1=X_points.unsqueeze(0)
-            nb_visit = len(X_points1)
-
-            PA1 = X_points1.unsqueeze(0).repeat(k, 1, 1).permute(1, 0, 2)
-            PA2 = X_control.unsqueeze(0).repeat(nb_visit, 1, 1)
-
-            
-        
-
-        elif ndim == 3:
-            n_ind = X_points.shape[0]
-            n_visits = X_points.shape[1]
-
-            PA1 = X_points.unsqueeze(0).repeat(k, 1, 1, 1).permute(1, 2, 0, 3)
-            PA2 = X_control.unsqueeze(0).unsqueeze(0).repeat(n_ind, n_visits, 1, 1)
-            
-
-        PA3 = PA1 - PA2
-
-        K_value = torch.exp(-torch.norm(PA3, dim=-1) ** 2 / (2 * sigma ** 2))
-
-        return K_value
-    def sobolev_kernel(X_points, meta_settings, X_control = None):
-        '''
-
-        Parameters
-        ----------
-        X_points : torch vector (N, features_dimension) or (n_ind, n_visits, features_dimension)
-        with N points used for which we want kernel estimation
-        meta_settings : dictionary with all settings
-        X_control : optional, torch vector with control points used for kernel estimation
-
-        Returns
-        The matrix K(X_points_i, X_control_j) with the kernel K being the Sobolev with sigma given in the meta settings
-        and ord, the order of the sobolev space
-        If X_control is None, compute The matrix K(X_points_i, X_points_j)
-        -------
-
-        '''
-        sigma = meta_settings["sigma"]
-        order=meta_settings["order"]
-        if X_control is None:
-            X_control = X_points
-        k = len(X_control)
-
-        ndim = len(X_points.shape)
-
-        if ndim == 2:
-            nb_visit = len(X_points)
-
-            PA1 = X_points.unsqueeze(0).repeat(k, 1, 1).permute(1, 0, 2)
-            PA2 = X_control.unsqueeze(0).repeat(nb_visit, 1, 1)
-
-        elif ndim == 3:
-            n_ind = X_points.shape[0]
-            n_visits = X_points.shape[1]
-
-            PA1 = X_points.unsqueeze(0).repeat(k, 1, 1, 1).permute(1, 2, 0, 3)
-            PA2 = X_control.unsqueeze(0).unsqueeze(0).repeat(n_ind, n_visits, 1, 1)
-            
-
-        
-
-        K_value = 1/(1+torch.norm(PA3, dim=-1) ** 2 /sigma ** 2)**order
-
-        return K_value
-
-    @staticmethod
-    def get_kernel(name, meta_settings):
-        if name in ["RBF", "gaussian"]:
-            return lambda x, X_control=None: KernelFactory.rbf_kernel(x, meta_settings, X_control=X_control)
-        if name in ["sobolev"]:
-            return lambda x, X_control=None: KernelFactory.sobolev_kernel(x, meta_settings, X_control=X_control)
-        else:
-            raise NotImplementedError("Your kernel {} is not available".format(name))
-
-
 def InitInvB(saveB, kernelsettings,init):
         """
         Compute the inverse of B at points X_lat
@@ -320,68 +206,7 @@ def InvB(X,init,B):
 
 
 
-def compute_kernel_matrix(X_points, meta_settings, X_control = None):
-    '''
 
-        Parameters
-        ----------
-        X_points : torch vector (N, features_dimension) or (n_ind, n_visits, features_dimension)
-        with N points used for which we want kernel estimation
-        meta_settings : dictionary with all settings
-        X_control : optional, torch vector with control points used for kernel estimation
-
-        Returns
-        The matrix K(x_i, x_j) with the kernel K specified by meta_settings["kernelname"]
-        -------
-
-        '''
-    kernel_name = meta_settings["kernel_name"]
-    kernel = KernelFactory.get_kernel(kernel_name, meta_settings)
-
-    return kernel(X_points, X_control = X_control)
-
-
-def transformation_B(X_control, W, meta_settings):
-    '''
-
-    Parameters
-    ----------
-    X_control : torch vector (N, features_dimension) with N points used for which we want kernel estimation
-    W : torch vector (N, features_dimension) of the weights associated with control points for kernel estimation
-    meta_settings : dictionary with all settings
-
-    Returns
-    -------
-    The function B computing the geodesics, taking as arguments :
-    X_points : torch vector (n_points, features_dimension) of points for which we want to compute B(X_points)
-    and returns the application of B to X_points of size (n_points, features_dimension)
-    '''
-
-    return lambda X_points : (X_points + compute_kernel_matrix(X_points, meta_settings, X_control = X_control) @ W).float()
-
-
-def transformation_B_compose(X_control, W, meta_settings,oldB):
-    '''
-
-    Parameters
-    ----------
-    X_control : torch vector (N, features_dimension) with N points used for which we want kernel estimation
-    W : torch vector (N, features_dimension) of the weights associated with control points for kernel estimation
-    meta_settings : dictionary with all settings
-    oldB: last transformation tensor -> tensor
-
-    Returns
-    -------
-    The function B computing the geodesics, taking as arguments :
-    X_points : torch vector (n_points, features_dimension) of points for which we want to compute B(X_points)
-    and returns the application of B to X_points of size (n_points, features_dimension)
-    composed with oldB
-    '''
-    def func(X_pts):
-        X_points=oldB(X_pts)
-        return (X_points + compute_kernel_matrix(X_points, meta_settings, X_control = X_control) @ W).float()
-
-    return func
 
 def solver(X, Y, K_mul,K_con, dim,meta_settings):
     """
@@ -410,28 +235,6 @@ def solver(X, Y, K_mul,K_con, dim,meta_settings):
         #W=optim_solver2(X, Y, K, indices, dim, meta_settings)
         W=optim_solver3(X, Y, K_mul, K_con, dim, meta_settings)
     return torch.from_numpy(W).to(torch.float32)
-
-
-
-def kernelreg(meta_settings,dim):
-    """
-    Parameters
-    -----
-        meta_settings: Dict
-        dim: int, dimension of the model
-    Returns
-    -----
-        concon: Float, the constraint to respect associated to the kernel selected
-
-    """
-    if meta_settings["kernel_name"]in ["RBF", "gaussian"]:
-        concon=meta_settings["sigma"]**2/dim
-        
-    elif meta_settings["kernel_name"]in ["sobolev"]:
-        concon=meta_settings["sigma"]**2/(dim*meta_settings["order"])
-    else:
-        raise NotImplementedError("Your kernel {} is not available".format(name))
-    return concon
     
 def optim_solver1(X, Y, K, indices, dim, meta_settings):
     """

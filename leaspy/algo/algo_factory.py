@@ -1,6 +1,4 @@
-
 import sys
-sys.path.append("/Users/samuel.gruffaz/Documents/leaspy")
 
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 # from leaspy.algo.fit.gradient_descent import GradientDescent

@@ -95,7 +95,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         if self.univariate:
             self.velocities = torch.exp(values['xi_mean'])
         else:
-            if 'linear' in self.name or 'logistic' in self.name:
+            if 'linear' in self.name or 'logistic' in self.name or 'stannard' in self.name:
                 self.velocities = torch.exp(values['v0'])
             else:
                 raise ValueError

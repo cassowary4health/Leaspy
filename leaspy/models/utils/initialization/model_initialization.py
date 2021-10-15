@@ -4,10 +4,7 @@ import warnings
 import torch
 from scipy import stats
 import numpy as np
-from sklearn.decomposition import PCA
-
-
-from leaspy.models.utils.regression.TransformAngle import *
+#from sklearn.decomposition import PCA
 
 xi_std = .5
 tau_std = 5.
@@ -39,14 +36,12 @@ def initialize_parameters(model, dataset, method="default"):
         parameters = initialize_logistic(model, dataset, method)
     elif name == 'logistic_parallel':
         parameters = initialize_logistic_parallel(model, dataset, method)
-    elif name == 'logistic_asymp':
+    elif name == 'logistic_asymptots':
         parameters = initialize_logistic_asymp(model, dataset, method)
     elif name == 'logistic_asymp_delay':
-        parameters = initialize_logistic_asymp_delay(model, dataset, method)
+        parameters = initialize_logistic_asymp(model, dataset, method, delay = True)
     elif name == 'stannard':
         parameters = initialize_stannard(model, dataset, method)
-    elif name == 'linear_vari':
-        parameters = initialize_linear_vari(model, dataset, method)
     elif name in ['linear', 'univariate_linear']:
         parameters = initialize_linear(model, dataset, method)
     #elif name == 'univariate':
@@ -247,24 +242,13 @@ def initialize_stannard(model, dataset, method):
     
     # Do transformations
     t0 = time.clone()
-    print("slopes mean")
-    print(slopes)
     slopes = slopes.mean() * torch.ones_like(slopes)
-    
-    
-    if slopes.mean()<0:
-        v0_array=-slopes
-        model.neg=True
-    else:
-        v0_array=slopes
-    AA=v0_array/(values*(1-values))
-    
-    
-    if model.init is not None:
-        BB=model.init.log()
-    else:
-        BB=torch.zeros(AA.shape)
-    AA=AA.log()
+
+    slopes = slopes / (values * (1-values))
+
+    slopes = slopes.log()
+
+    gammas = torch.zeros(model.dimension)
 
     g_array = torch.log(1./values - 1.) # every variable are stored in log forms
     betas = torch.zeros((model.dimension-1, model.source_dimension))
@@ -273,10 +257,11 @@ def initialize_stannard(model, dataset, method):
     # param dim 1
     # Create smart initialization dictionary
     if 'univariate' in model.name:
-        xi_mean = v0_array.squeeze() # already log'ed
+        xi_mean = slopes.squeeze() # already log'ed
         parameters = {
             'g': g_array.squeeze(), 
-            'Param': torch.cat((AA,BB)).sqeeze(),
+            'v0': torch.tensor(slopes),
+            'gammas': torch.tensor(gammas),
             'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
             'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
             'noise_std': torch.tensor(noise_std, dtype=torch.float32)
@@ -284,7 +269,8 @@ def initialize_stannard(model, dataset, method):
     else:
         parameters = {
             'g': g_array,
-            'Param': torch.cat((AA,BB)),
+            'v0': torch.tensor(slopes),
+            'gammas': torch.tensor(gammas),
             'betas': betas,
             'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
             'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
@@ -295,7 +281,7 @@ def initialize_stannard(model, dataset, method):
     return parameters
 
 
-def initialize_logistic_asymp(model, dataset, method):
+def initialize_logistic_asymp(model, dataset, method, delay=False):
     """
     Initialize the logistic_asymp model's group parameters.
 
@@ -322,9 +308,8 @@ def initialize_logistic_asymp(model, dataset, method):
     time_mu, time_sigma = compute_patient_time_distribution(dataset)
     #We take the max values of each features to initialize the asymptots
    
-    rho=compute_features_quantile_values(dataset)
-    a=model.max_asymp
-    rho=torch.clamp(rho,min=0,max=a-0.05)
+    asymptots = compute_features_quantile_values(dataset)
+    asymptots = torch.clamp(asymptots, min = 0, max = model.max_asymptot - 0.05)
     
     # Method
     if method == "default":
@@ -341,41 +326,32 @@ def initialize_logistic_asymp(model, dataset, method):
     # Check that slopes are >0, values between 0 and rho the asymptots
    
     values[values < 0] = 0.01
-    
-    for i in range(len(values)):
-        if values[i]>rho[i]:
-            values[i] = rho[i]-0.01
-    print("rho init")   
-    print(rho)
+
+    values[values > asymptots] = asymptots[values > asymptots] - 0.05
     # Do transformations
     t0 = time.clone()
     print("slopes mean")
     print(slopes)
     slopes = slopes.mean() * torch.ones_like(slopes)
-    
-    
-    if slopes.mean()/abs(values).mean()<-0.02:
-        v0_array=-slopes
-        model.neg=True
-    else:
-        v0_array=slopes
-    infection_array=v0_array/(values*(rho-values))
+
+    slopes = slopes / (values * (asymptots - values))
     
  
-    rho_array=rho.log()#On sample sur rho plutôt que sur guerison
-    infection_array=infection_array.log()
+    asymptots = asymptots.log()#On sample sur rho plutôt que sur guerison
+    slopes = slopes.log()
 
-    g_array = torch.log(rho / values - 1.) # every variable are stored in log forms
+    g_array = torch.log(asymptots / values - 1.) # every variable are stored in log forms
     betas = torch.zeros((model.dimension, model.source_dimension))
     #normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     #betas = normal.sample(sample_shape=(model.dimension, model.source_dimension))
     # param dim 1
     # Create smart initialization dictionary
     if 'univariate' in model.name:
-        xi_mean = v0_array.squeeze() # already log'ed
+        xi_mean = slopes.squeeze() # already log'ed
         parameters = {
             'g': g_array.squeeze(), 
-            'Param': torch.cat((infection_array,rho_array)).sqeeze(),
+            'v0': torch.tensor(slopes),
+            'asymptots': torch.tensor(asymptots),
             'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
             'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
             'noise_std': torch.tensor(noise_std, dtype=torch.float32)
@@ -383,110 +359,16 @@ def initialize_logistic_asymp(model, dataset, method):
     else:
         parameters = {
             'g': g_array,
-            'Param': torch.cat((infection_array,rho_array)),
+            'v0': torch.tensor(slopes),
+            'asymptots': torch.tensor(asymptots),
             'betas': betas,
             'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
             'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
             'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
             'noise_std': torch.tensor([noise_std], dtype=torch.float32)
         }
-
-    return parameters
-
-def initialize_logistic_asymp_delay(model, dataset, method):
-    """
-    Initialize the logistic_asymp model's group parameters.
-
-    Parameters
-    ----------
-    model: a leaspy model class object
-        The model to initialize.
-    dataset: a leaspy.io.data.dataset.Dataset class object
-        Contains the individual scores.
-    method: `str`
-        Must be one of:
-        - "default": initialize at mean.
-        - "random":  initialize with a gaussian realization with same mean and variance.
-
-    Returns
-    -------
-    parameters: `dict` [`str`, `torch.Tensor`]
-        Contains the initialized model's group parameters. The parameters' keys are 'g', 'Param=[infection,guerison]', 'betas', 'tau_mean',
-        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
-    """
-    # Get the slopes / values / times mu and sigma
-    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
-    values_mu, values_sigma = compute_patient_values_distribution(dataset)
-    time_mu, time_sigma = compute_patient_time_distribution(dataset)
-    #We take the max values of each features to initialize the asymptots
-   
-    rho=compute_features_max_values(dataset)
-    a=model.max_asymp
-    rho=torch.clamp(rho,min=0,max=a-0.05)
-    
-    # Method
-    if method == "default":
-        slopes = slopes_mu
-        values = values_mu
-        time = time_mu
-    elif method == "random":
-        slopes = torch.normal(slopes_mu, slopes_sigma)
-        values = torch.normal(values_mu, values_sigma)
-        time = torch.normal(time_mu, time_sigma)
-    else:
-        raise ValueError("Initialization method not known")
-
-    # Check that slopes are >0, values between 0 and rho the asymptots
-    
-    values[values < 0] = 0.01
-    
-    for i in range(len(values)):
-        if values[i]>rho[i]:
-            values[i] = rho[i]-0.01
-
-    # Do transformations
-    t0 = time.clone()
-    slopes = slopes.mean() * torch.ones_like(slopes)
-    
-    
-    v0_array=slopes
-    infection_array=v0_array/(values*(rho-values))
-    
- 
-    rho_array=rho.log()[model.features_moving_asymp]#On sample sur rho plutôt que sur guerison
-    infection_array=infection_array.log()
-
-    g_array = torch.log(rho / values - 1.) # every variable are stored in log forms
-    
-    betas = torch.zeros((model.dimension-1, model.source_dimension))
-    betas_asymp=torch.zeros((len(model.features_moving_asymp),model.source_dimension_asymp))
-    #normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
-    #betas = normal.sample(sample_shape=(model.dimension, model.source_dimension))
-    # param dim 1
-    # Create smart initialization dictionary
-    if 'univariate' in model.name:
-        xi_mean = v0_array.squeeze() # already log'ed
-        parameters = {
-            'g': g_array.squeeze(), 
-            'Param': infection_array.squeeze(),
-            'Asymp': rho_array.squeeze(),
-            'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
-            'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
-            'noise_std': torch.tensor(noise_std, dtype=torch.float32)
-        }
-    else:
-        parameters = {
-            'g': g_array,
-            'Param': infection_array,
-            'Asymp':rho_array,
-            'betas': betas,
-            'betas_asymp':betas_asymp,
-            'tau_mean': t0, 'tau_std': torch.tensor(tau_std),
-            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
-            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
-            'sources_asymp_mean': torch.tensor(0.), 'sources_asymp_std': torch.tensor(sources_std),
-            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
-        }
+        if delay:
+            parameters['betas_asymptots'] = torch.zeros((model.dimension, model.source_dimension))
 
     return parameters
 
@@ -636,118 +518,6 @@ def initialize_linear(model, dataset, method):
         }
 
     return parameters
-
-def initialize_linear_vari(model, dataset, method):
-    """
-    Initialize the linear model's group parameters.
-
-    Parameters
-    ----------
-    model: a leaspy model class object
-        The model to initialize.
-    dataset: a leaspy.io.data.dataset.Dataset class object
-        Contains the individual scores.
-
-    Returns
-    -------
-    parameters: `dict` [`str`, `torch.Tensor`]
-        Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
-        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
-    """
-
-    if model.source_dimension_direction is None:
-        model.source_dimension_direction=model.source_dimension
-    sum_ages = torch.sum(dataset.timepoints).item()
-    nb_nonzeros = (dataset.timepoints != 0).sum()
-
-    t0 = float(sum_ages) / float(nb_nonzeros)
-
-    df = dataset.to_pandas()
-    df.set_index(["ID", "TIME"], inplace=True)
-
-    positions, velocities = [[] for _ in range(model.dimension)], [[] for _ in range(model.dimension)]
-
-    for idx in dataset.indices:
-        indiv_df = df.loc[idx]
-        ages = indiv_df.index.values
-        features = indiv_df.values
-
-        if len(ages) == 1:
-            continue
-
-        for dim in range(model.dimension):
-
-            ages_list, feature_list = [], []
-            for i, f in enumerate(features[:, dim]):
-                if f == f:
-                    feature_list.append(f)
-                    ages_list.append(ages[i])
-
-            if len(ages_list) < 4:
-                break
-            else:
-                slope, intercept, _, _, _ = stats.linregress(ages_list, feature_list)
-
-                value = intercept + t0 * slope
-
-                velocities[dim].append(slope)
-                positions[dim].append(value)
-
-    positions = [torch.tensor(_) for _ in positions]
-    positions = torch.tensor([torch.mean(_) for _ in positions], dtype=torch.float32)
-    velocities = torch.tensor(velocities)
-
-    velocities=velocities.permute(1,0)
-    velocities0 = torch.mean(velocities,axis=0)
-    print("velo")
-    print(torch.isnan(velocities).any())
-    velocitiesnorm=velocities/torch.norm(velocities,dim=1).unsqueeze(-1)
-    print("velonorm")
-    print(torch.isnan(velocitiesnorm).any())
-
-    angles=[vectoangle(velocitiesnorm[i]).tolist() for i in range(len(velocitiesnorm))]
-
-    angles_to_pca=np.array(angles)
-    print("velonorm")
-    print(np.isnan(angles_to_pca).any())
-    pca=PCA(n_components=model.source_dimension_direction)
-    pca.fit(angles_to_pca)
-    print(pca.singular_values_)
-    V=torch.tensor(list(pca.components_),dtype=torch.float32)
-    print(V)
-    
-    
-      
-
-
-
-    if 'univariate' in model.name:
-        if (velocities0 <= 0).item():
-            warnings.warn("Individual linear regressions made at initialization has a mean slope which is negative: not properly handled in case of an univariate linear model...")
-            xi_mean = torch.tensor(-3.) # default...
-        else:
-            xi_mean = torch.log(velocities0).squeeze()
-
-        parameters = {
-            'g': positions.squeeze(),
-            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(tau_std),
-            'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
-            'noise_std': torch.tensor(noise_std, dtype=torch.float32)
-        }
-    else:
-        model.components=V
-        parameters = {
-            'g': positions,
-            'Param': velocities0,
-            'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(tau_std),
-            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
-            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
-            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
-        }
-
-    return parameters
-
 
 #def initialize_univariate(dataset, method):
 #    # TODO?

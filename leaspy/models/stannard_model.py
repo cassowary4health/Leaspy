@@ -4,68 +4,19 @@ from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_factory import AttributesFactory
 
 from .utils.initialization.model_initialization import initialize_parameters
-from leaspy import __version__
-import json
 
-class LogisticAsymp(AbstractMultivariateModel):
+class StannardModel(AbstractMultivariateModel):
     """
     Logistic model for multiple variables of interest.
     """
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
         self.neg=False
-        self.max_asymp=1.1
-        self.parameters["Param"] = None
-        self.MCMC_toolbox['priors']['Param_std'] = None  # Value, Coef
-    def save(self, path, with_mixing_matrix=True, **kwargs):
-        """
-        Save Leaspy object as json model parameter file.
-
-        Parameters
-        ----------
-        path: str
-            Path to store the model's parameters.
-        with_mixing_matrix: bool (default True)
-            Save the mixing matrix in the exported file in its 'parameters' section.
-            <!> It is not a real parameter and its value will be overwritten at model loading
-                (orthonormal basis is recomputed from other "true" parameters and mixing matrix is then deduced from this orthonormal basis and the betas)!
-            It was integrated historically because it is used for convenience in browser webtool and only there...
-        **kwargs
-            Keyword arguments for json.dump method.
-        """
-        model_parameters_save = self.parameters.copy()
-
-        list_model_parameters_save=self.saveParam.copy()
-
-        if with_mixing_matrix:
-            model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
-            
-        for i in range(len(list_model_parameters_save)):
-            for key, value in list_model_parameters_save[i].items():
-                if type(value) in [torch.Tensor]:
-        
-                    list_model_parameters_save[i][key] = value.tolist()
-        for key, value in model_parameters_save.items():
-            if type(value) in [torch.Tensor]:
-                model_parameters_save[key] = value.tolist()
-
-        model_settings = {
-            'leaspy_version': __version__,
-            'name': self.name,
-            'features': self.features,
-            'dimension': self.dimension,
-            'source_dimension': self.source_dimension,
-            'loss': self.loss,
-            'neg':self.neg,
-            'max_asymp':self.max_asymp,
-            'parameters': model_parameters_save,
-            'save_b':self.saveB, 
-            'init_b':self.initB,
-            'kernelsettings':self.kernelsettings,
-            'saveparam':list_model_parameters_save
-        }
-        with open(path, 'w') as fp:
-            json.dump(model_settings, fp, **kwargs)
+        self.init=None
+        self.parameters['v0'] = None
+        self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
+        self.parameters['gammas'] = None # inverse of power applied to the logistic
+        self.MCMC_toolbox['priors']['gammas_std'] = None  # Value, Coef
 
     def load_parameters(self, parameters):
         self.parameters = {}
@@ -73,7 +24,7 @@ class LogisticAsymp(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,self.neg,self.max_asymp)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
     def initialize(self, dataset, method="default"):
@@ -81,33 +32,23 @@ class LogisticAsymp(AbstractMultivariateModel):
         self.features = dataset.headers
 
         if self.source_dimension is None:
-            self.source_dimension = int(math.sqrt(dataset.dimension))
-
+            self.source_dimension = int((dataset.dimension+1)//2)
+        
         self.parameters = initialize_parameters(self, dataset, method)
         
 
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,self.neg,self.max_asymp)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,self.neg)
         self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
 
    
 
-    def compute_individual_tensorized_preB(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         # Population parameters
-        g, Param, a_matrix = self._get_attributes(attribute_type)
-        
-        
-        #slicer Param
+        g, v0, gammas, a_matrix = self._get_attributes(attribute_type)
+
         # Individual parameters
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
-        Infection=Param[:self.dimension]
-        Rho=Param[self.dimension:]
-        a=self.max_asymp
-        Rho[Rho!=Rho]=a
-        Rho=torch.clamp(Rho,max=a-0.001)
-       
-        
-        #Rho[Rho<0]=0.
         
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
@@ -115,38 +56,21 @@ class LogisticAsymp(AbstractMultivariateModel):
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
         
         
-        LL = Infection * reparametrized_time
-       
-        sources = ind_parameters['sources']
-       
-        if self.source_dimension != 0 and len(sources.shape)>1:
+        LL = v0 * reparametrized_time
+        if self.source_dimension != 0:
+            sources = ind_parameters['sources']
+
+            if len(sources.shape)>1:
             
-            wi = sources.matmul(a_matrix.t())
-            infection_w=wi[:,:self.dimension]
+                wi = sources.matmul(a_matrix.t())
+        
+                LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
 
-            #deltaw=infection_w-guerison_w
-            quo=a-Rho
-            Rhow=(a+1/quo)/Rho
+        g1 = torch.exp(torch.log(g + 1) * gammas) - 1
+        LL = 1. + g1 * torch.exp(-LL)
+        model = torch.exp(-torch.log(LL) / gammas)
 
-            Rho1=Rhow/(1+(Rhow/Rho-1)*torch.exp(-infection_w))
-            p1=Rhow/(1+(Rhow*(1+g)/Rho-1)*torch.exp(-infection_w))
-            g1=Rho1/p1-1
-           
-           
-            LL=LL.permute(1,0,2)
-                
-            LL = 1.0 + g1 * torch.exp(-LL)
-            model = Rho1 / LL
-            model=model.permute(1,0,2)
-                
-            return model
-           
-
-        else:
-            LL = 1.0 + g * torch.exp(-LL)
-            model = Rho / LL
-            
-            return model
+        return model
 
     def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError
@@ -154,20 +78,7 @@ class LogisticAsymp(AbstractMultivariateModel):
     
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError
-  
-    """
-    à changer plus tard, permet d'accélérer la détermination des paramètres personalisés
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        if self.name == 'logistic':
-            return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'linear':
-            return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
-        else:
-            raise ValueError("Mutivariate model > Compute jacobian tensorized")
-   
-"""
+
     def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError
 
@@ -179,8 +90,8 @@ class LogisticAsymp(AbstractMultivariateModel):
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'Param_std': 0.01, 'betas_std': 0.01},
-            'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,self.neg,self.max_asymp)
+            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'gammas_std' : 0.01,  'betas_std': 0.01},
+            'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()
@@ -188,16 +99,18 @@ class LogisticAsymp(AbstractMultivariateModel):
 
         # TODO maybe not here
         # Initialize priors
-        self.MCMC_toolbox['priors']['Param_mean'] = self.parameters['Param'].clone()
-        self.MCMC_toolbox['priors']['s_Param'] = 0.1
+        self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone()
+        self.MCMC_toolbox['priors']['s_v0'] = 0.1
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
         values = {}
         if any(c in L for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
-        if any(c in L for c in ('Param', 'all')):
-            values['Param'] = realizations['Param'].tensor_realizations
+        if any(c in L for c in ('v0', 'all')):
+            values['Param'] = realizations['v0'].tensor_realizations
+        if any(c in L for c in ('gammas', 'all')):
+            values['Param'] = realizations['gammas'].tensor_realizations
         if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
 
@@ -205,10 +118,8 @@ class LogisticAsymp(AbstractMultivariateModel):
 
     def _center_xi_realizations(self, realizations):
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
-        #On recentre les ci de cette manière en vue de l'argument de l'exponentielle au dénominateur
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
-        realizations['Param'].tensor_realizations[:self.dimension] = realizations['Param'].tensor_realizations[:self.dimension] + mean_xi
-        #On modifie les self.dimension premiers termes car c'est les taux d'infection
+        realizations['gammas'].tensor_realizations = realizations['gammas'].tensor_realizations + mean_xi
         self.update_MCMC_toolbox(['all'], realizations)
         return realizations
 
@@ -218,7 +129,8 @@ class LogisticAsymp(AbstractMultivariateModel):
 
         sufficient_statistics = {
             'g': realizations['g'].tensor_realizations,
-            'Param': realizations['Param'].tensor_realizations,
+            'v0': realizations['v0'].tensor_realizations,
+            'gammas': realizations['gammas'].tensor_realizations,
             'tau': realizations['tau'].tensor_realizations,
             'tau_sqrd': torch.pow(realizations['tau'].tensor_realizations, 2),
             'xi': realizations['xi'].tensor_realizations,
@@ -254,18 +166,19 @@ class LogisticAsymp(AbstractMultivariateModel):
         # Memoryless part of the algorithm
         self.parameters['g'] = realizations['g'].tensor_realizations
 
-        if self.MCMC_toolbox['priors']['Param_mean'] is not None:
-            Param_mean = self.MCMC_toolbox['priors']['Param_mean']
-            Param_emp = realizations['Param'].tensor_realizations
-            s_Param = self.MCMC_toolbox['priors']['s_Param']
-            sigma_Param = self.MCMC_toolbox['priors']['Param_std']
-            self.parameters['Param'] = (1 / (1 / (s_Param ** 2) + 1 / (sigma_Param ** 2))) * (
+        if self.MCMC_toolbox['priors']['v0_mean'] is not None:
+            Param_mean = self.MCMC_toolbox['priors']['v0_mean']
+            Param_emp = realizations['v0'].tensor_realizations
+            s_Param = self.MCMC_toolbox['priors']['s_v0']
+            sigma_Param = self.MCMC_toolbox['priors']['v0_std']
+            self.parameters['v0'] = (1 / (1 / (s_Param ** 2) + 1 / (sigma_Param ** 2))) * (
                         Param_emp / (sigma_Param ** 2) + Param_mean / (s_Param ** 2))
         else:
-            self.parameters['Param'] = realizations['Param'].tensor_realizations
+            self.parameters['v0'] = realizations['v0'].tensor_realizations
 
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations
+        self.parameters['gammas'] = realizations['gammas'].tensor_realizations
         xi = realizations['xi'].tensor_realizations
         # self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
@@ -307,10 +220,10 @@ class LogisticAsymp(AbstractMultivariateModel):
         # TODO : 1. Learn the mean of xi and v_k
         # TODO : 2. Set the mean of xi to 0 and add it to the mean of V_k
         self.parameters['g'] = suff_stats['g']
-        self.parameters['Param'] = suff_stats['Param']
+        self.parameters['v0'] = suff_stats['v0']
         if self.source_dimension != 0:
             self.parameters['betas'] = suff_stats['betas']
-
+        self.parameters['gammas'] = suff_stats['gammas']
         tau_mean = self.parameters['tau_mean'].clone()
         tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
         self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
@@ -355,16 +268,23 @@ class LogisticAsymp(AbstractMultivariateModel):
             "rv_type": "multigaussian"
         }
 
-        Param_infos = {
-            "name": "Param",
-            "shape": torch.Size([2*self.dimension]),
+        v0_infos = {
+            "name": "v0",
+            "shape": torch.Size([self.dimension]),
+            "type": "population",
+            "rv_type": "multigaussian"
+        }
+
+        gammas_infos = {
+            "name": "gammas",
+            "shape": torch.Size([self.dimension]),
             "type": "population",
             "rv_type": "multigaussian"
         }
 
         betas_infos = {
             "name": "betas",
-            "shape": torch.Size([self.dimension, self.source_dimension]),
+            "shape": torch.Size([self.dimension-1, self.source_dimension]),
             "type": "population",
             "rv_type": "multigaussian"
         }
@@ -393,7 +313,8 @@ class LogisticAsymp(AbstractMultivariateModel):
 
         variables_infos = {
             "g": g_infos,
-            "Param": Param_infos,
+            "v0": v0_infos,
+            "gammas": gammas_infos,
             "tau": tau_infos,
             "xi": xi_infos,
         }

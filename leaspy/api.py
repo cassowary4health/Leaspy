@@ -1,6 +1,5 @@
 import pandas as pd
 import sys
-sys.path.append("/Users/samuel.gruffaz/Documents/leaspy")
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.logs.visualization.plotting import Plotting
@@ -12,6 +11,7 @@ import leaspy.models.utils.OptimB as OptimB
 initB = {"identity":lambda x:x,
 "negidentity":lambda x:-x,
 "logistic":lambda x:1./(1.+torch.exp(-x))}
+
 class Leaspy:
     r"""
     Main API used to fit models, run algorithms and simulations.
@@ -353,6 +353,7 @@ class Leaspy:
                 
             
         return ip# We return the random-effect z_i associated to the subjects
+    
     def update_B(self,X,Y,mask,meta_settings,X_filtre=None):
         """
         Parameters

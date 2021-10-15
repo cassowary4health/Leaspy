@@ -1,21 +1,57 @@
 import torch
+import json
 
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_factory import AttributesFactory
-
 from .utils.initialization.model_initialization import initialize_parameters
+from leaspy import __version__
 
-
-class Stannard(AbstractMultivariateModel):
+class LogisticAsymptotsDelayModel(AbstractMultivariateModel):
     """
-    Logistic model for multiple variables of interest.
+    Logistic asympdelay model for multiple variables of interest.
     """
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
-        self.neg=False
-        self.init=None
-        self.parameters["Param"] = None
-        self.MCMC_toolbox['priors']['Param_std'] = None  # Value, Coef
+        self.parameters['v0'] = None
+        self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
+        self.parameters['asymptots'] = None
+        self.MCMC_toolbox['priors']['asymptots_std'] = None  # Value, Coef
+        self.parameters['betas_asymptots'] = None
+        self.MCMC_toolbox['priors']['betas_asymptots_std'] = None
+        self.max_asymptot = 1.1
+
+    def initialize(self, dataset, method="default"):
+        self.dimension = dataset.dimension
+            
+        self.features = dataset.headers
+
+        if self.source_dimension is None:
+            self.source_dimension = int((dataset.dimension+1)//2)
+
+        self.parameters = initialize_parameters(self, dataset, method)
+
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
+        self.attributes.update(['all'], self.parameters)
+        self.is_initialized = True
+
+    def load_hyperparameters(self, hyperparameters):
+        if 'dimension' in hyperparameters.keys():
+            self.dimension = hyperparameters['dimension']
+        if 'source_dimension' in hyperparameters.keys():
+            self.source_dimension = hyperparameters['source_dimension']
+        if 'features' in hyperparameters.keys():
+            self.features = hyperparameters['features']
+        if 'loss' in hyperparameters.keys():
+            self.loss = hyperparameters['loss']
+        if 'max_asymptot' in hyperparameters.keys():
+            self.max_asymptot = hyperparameters['max_asymptot']
+
+        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension', 'max_asymptot')
+        unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
+        if len(unexpected_hyperparameters) > 0:
+            raise ValueError(
+                f"Only {', '.join([f'<{p}>' for p in expected_hyperparameters])} are valid hyperparameters "
+                f"for an AbstractMultivariateModel! Unknown hyperparameters: {unexpected_hyperparameters}.")
 
     def load_parameters(self, parameters):
         self.parameters = {}
@@ -26,82 +62,57 @@ class Stannard(AbstractMultivariateModel):
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
-    def initialize(self, dataset, method="default"):
-        self.dimension = dataset.dimension
-        self.features = dataset.headers
-
-        if self.source_dimension is None:
-            self.source_dimension = int(math.sqrt(dataset.dimension))
-        
-        self.parameters = initialize_parameters(self, dataset, method)
-        
-
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,self.neg)
-        self.attributes.update(['all'], self.parameters)
-        self.is_initialized = True
-
    
 
-    def compute_individual_tensorized_preB(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         # Population parameters
-        g, Param, a_matrix = self._get_attributes(attribute_type)
-        
-        
-        #slicer Param
+        g, v0, asymptots, a_matrix_delay, a_matrix_asymp = self._get_attributes(attribute_type)
+
         # Individual parameters
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
-        AA=Param[:self.dimension]#paramètre dans l'argument de l'exponentielle
-        BB=Param[self.dimension:]
-        
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
+        
         # Log likelihood computation
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
-        
-        
-        LL = AA* reparametrized_time
-        if self.source_dimension != 0:
-            sources = ind_parameters['sources']
 
-            if len(sources.shape)>1:
+        LL = v0 * reparametrized_time
+       
+        sources_delay = ind_parameters['sources']
+
+        sources_asymp = ind_parameters['sources_asymptots']
+
+        asymptots = torch.clamp(asymptots, 0., self.max_asymptot - 0.001)
+       
+        if self.source_dimension != 0 and len(sources_delay.shape) > 1:
             
-                wi = sources.matmul(a_matrix.t())
-        
-                LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
-                 
-        #g=(I0^(-a/b)-1)
-        g1=torch.exp(torch.log(g+1)*BB)-1
-        LL = 1. + g1 * torch.exp(-LL)
-        model=torch.exp(-torch.log(LL)*(1/BB))
-        return model
+            wi_delay = sources_delay.matmul(a_matrix_delay.t())
+            wi_asymp = sources_asymp.matmul(a_matrix_asymp.t())
+
+            LL += wi_delay.unsqueeze(-2)
+
+            exp_wi = torch.exp(-wi_asymp)
+
+            rho = (self.max_asymptot + 1 / (self.max_asymptot - asymptots)) / asymptots
+
+            shifted_asymptots = rho / (1 + (rho / asymptots - 1) * exp_wi)
+            shifted_position = rho / (1 + (rho * (1 + g) / asymptots - 1) * exp_wi)
+            shifted_g = shifted_asymptots / shifted_position - 1
+
+            LL = 1.0 + shifted_g.unsqueeze(-2) * torch.exp(-LL)
+            model = shifted_asymptots.unsqueeze(-2) / LL
+            
+            return model
            
-    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        return self.B(self.compute_individual_tensorized_preB(self, timepoints, ind_parameters, attribute_type))
 
-    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        raise NotImplementedError
-
-    
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        raise NotImplementedError
-  
-    """
-    à changer plus tard, permet d'accélérer la détermination des paramètres personalisés
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        if self.name == 'logistic':
-            return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'linear':
-            return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
         else:
-            raise ValueError("Mutivariate model > Compute jacobian tensorized")
+            LL = 1.0 + g * torch.exp(-LL)
+            model = asymptots / LL
+            
+            return model
    
-"""
-    def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
+
+    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         raise NotImplementedError
-
-
    
     ##############################
     ### MCMC-related functions ###
@@ -109,7 +120,7 @@ class Stannard(AbstractMultivariateModel):
 
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'Param_std': 0.01, 'betas_std': 0.01},
+            'priors': {'g_std': 0.01, 'betas_std': 0.01, 'v0_std': 0.01,'asymptots_std': 0.01, 'betas_asymptots_std': 0.01},
             'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         }
 
@@ -118,16 +129,21 @@ class Stannard(AbstractMultivariateModel):
 
         # TODO maybe not here
         # Initialize priors
-        self.MCMC_toolbox['priors']['Param_mean'] = self.parameters['Param'].clone()
-        self.MCMC_toolbox['priors']['s_Param'] = 0.1
+        self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone()
+        self.MCMC_toolbox['priors']['s_v0'] = 0.1
+        self.MCMC_toolbox['priors']['asymptots_mean'] = self.parameters['asymptots'].clone()
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
         values = {}
         if any(c in L for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
-        if any(c in L for c in ('Param', 'all')):
-            values['Param'] = realizations['Param'].tensor_realizations
+        if any(c in L for c in ('v0', 'all')):
+            values['v0'] = realizations['v0'].tensor_realizations
+        if any(c in L for c in ('asymptots', 'all')):
+            values['asymptots'] = realizations['asymptots'].tensor_realizations
+        if any(c in L for c in ('betas_asymptots', 'all')):
+            values['betas_asymptots'] = realizations['betas_asymptots'].tensor_realizations
         if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
 
@@ -135,10 +151,8 @@ class Stannard(AbstractMultivariateModel):
 
     def _center_xi_realizations(self, realizations):
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
-        #On recentre les ci de cette manière en vue de l'argument de l'exponentielle au dénominateur
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
-        realizations['Param'].tensor_realizations[:self.dimension] = realizations['Param'].tensor_realizations[:self.dimension] + mean_xi
-        #On modifie les self.dimension premiers termes car c'est les taux d'infection
+        realizations['v0'].tensor_realizations= realizations['v0'].tensor_realizations + mean_xi
         self.update_MCMC_toolbox(['all'], realizations)
         return realizations
 
@@ -148,7 +162,8 @@ class Stannard(AbstractMultivariateModel):
 
         sufficient_statistics = {
             'g': realizations['g'].tensor_realizations,
-            'Param': realizations['Param'].tensor_realizations,
+            'v0': realizations['v0'].tensor_realizations,
+            'asymptots': realizations['asymptots'].tensor_realizations,
             'tau': realizations['tau'].tensor_realizations,
             'tau_sqrd': torch.pow(realizations['tau'].tensor_realizations, 2),
             'xi': realizations['xi'].tensor_realizations,
@@ -156,6 +171,8 @@ class Stannard(AbstractMultivariateModel):
         }
         if self.source_dimension != 0:
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
+        if self.source_dimension_asymp != 0:
+            sufficient_statistics['betas_asymptots'] = realizations['betas_asymptots'].tensor_realizations
 
         ind_parameters = self.get_param_from_real(realizations)
 
@@ -184,18 +201,22 @@ class Stannard(AbstractMultivariateModel):
         # Memoryless part of the algorithm
         self.parameters['g'] = realizations['g'].tensor_realizations
 
-        if self.MCMC_toolbox['priors']['Param_mean'] is not None:
-            Param_mean = self.MCMC_toolbox['priors']['Param_mean']
-            Param_emp = realizations['Param'].tensor_realizations
-            s_Param = self.MCMC_toolbox['priors']['s_Param']
-            sigma_Param = self.MCMC_toolbox['priors']['Param_std']
-            self.parameters['Param'] = (1 / (1 / (s_Param ** 2) + 1 / (sigma_Param ** 2))) * (
+        if self.MCMC_toolbox['priors']['v0_mean'] is not None:
+            Param_mean = self.MCMC_toolbox['priors']['v0_mean']
+            Param_emp = realizations['v0'].tensor_realizations
+            s_Param = self.MCMC_toolbox['priors']['s_v0']
+            sigma_Param = self.MCMC_toolbox['priors']['v0_std']
+            self.parameters['v0'] = (1 / (1 / (s_Param ** 2) + 1 / (sigma_Param ** 2))) * (
                         Param_emp / (sigma_Param ** 2) + Param_mean / (s_Param ** 2))
         else:
-            self.parameters['Param'] = realizations['Param'].tensor_realizations
+            self.parameters['v0'] = realizations['v0'].tensor_realizations
+
+        self.parameters['asymptots'] = realizations['asymptots'].tensor_realizations
 
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations
+        if self.source_dimension_asymp != 0:
+            self.parameters['betas_asymptots'] = realizations['betas_asymptots'].tensor_realizations
         xi = realizations['xi'].tensor_realizations
         # self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
@@ -237,9 +258,12 @@ class Stannard(AbstractMultivariateModel):
         # TODO : 1. Learn the mean of xi and v_k
         # TODO : 2. Set the mean of xi to 0 and add it to the mean of V_k
         self.parameters['g'] = suff_stats['g']
-        self.parameters['Param'] = suff_stats['Param']
+        self.parameters['v0'] = suff_stats['v0']
+        self.parameters['asymptots'] = suff_stats['asymptots']
         if self.source_dimension != 0:
             self.parameters['betas'] = suff_stats['betas']
+        if self.source_dimension_asymp != 0:
+            self.parameters['betas_asymptots'] = suff_stats['betas_asymptots']
 
         tau_mean = self.parameters['tau_mean'].clone()
         tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
@@ -285,9 +309,16 @@ class Stannard(AbstractMultivariateModel):
             "rv_type": "multigaussian"
         }
 
-        Param_infos = {
-            "name": "Param",
-            "shape": torch.Size([2*self.dimension]),
+        v0_infos = {
+            "name": "v0",
+            "shape": torch.Size([self.dimension]),
+            "type": "population",
+            "rv_type": "multigaussian"
+        }
+
+        asymptots_infos = {
+            "name": "asymptots",
+            "shape": torch.Size([self.dimension]),
             "type": "population",
             "rv_type": "multigaussian"
         }
@@ -295,6 +326,13 @@ class Stannard(AbstractMultivariateModel):
         betas_infos = {
             "name": "betas",
             "shape": torch.Size([self.dimension-1, self.source_dimension]),
+            "type": "population",
+            "rv_type": "multigaussian"
+        }
+
+        betas_asymp_infos = {
+            "name": "betas_asymptots",
+            "shape": torch.Size([self.dimension, self.source_dimension]),
             "type": "population",
             "rv_type": "multigaussian"
         }
@@ -320,10 +358,17 @@ class Stannard(AbstractMultivariateModel):
             "type": "individual",
             "rv_type": "gaussian"
         }
+        sources_asymp_infos = {
+            "name": "sources_asymptots",
+            "shape": torch.Size([self.source_dimension]),
+            "type": "individual",
+            "rv_type": "gaussian"
+        }
 
         variables_infos = {
             "g": g_infos,
-            "Param": Param_infos,
+            "v0": v0_infos,
+            "asymptots":asymptots_infos,
             "tau": tau_infos,
             "xi": xi_infos,
         }
@@ -331,4 +376,8 @@ class Stannard(AbstractMultivariateModel):
         if self.source_dimension != 0:
             variables_infos['sources'] = sources_infos
             variables_infos['betas'] = betas_infos
+
+        if self.source_dimension_asymp != 0:
+            variables_infos['sources_asymptots'] = sources_asymp_infos
+            variables_infos['betas_asymptots'] = betas_asymp_infos
         return variables_infos

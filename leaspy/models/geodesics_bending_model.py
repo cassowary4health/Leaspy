@@ -6,99 +6,72 @@ import torch
 
 from leaspy import __version__
 
-from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.utils.docs import doc_with_super
+from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
+from leaspy.io.settings.model_settings import ModelSettings
 
 import leaspy.models.utils.OptimB as OptimB
-initB = {"identity":torch.nn.Identity(),
-"negidentity":lambda x:-x,
-"logistic":lambda x:1./(1.+torch.exp(-x))}
+
+init_mapping = {"identity": torch.nn.Identity(),
+                "negidentity": lambda x: -x,
+                "logistic": lambda x: 1. / (1. + torch.exp(-x))}
+
 
 @doc_with_super()
-class AbstractMultivariateModel(AbstractModel):
+class GeodesicsBending(AbstractMultivariateModel):
     """
     Contains the common attributes & methods of the multivariate models.
     """
-    def __init__(self, name, **kwargs):
-        super().__init__(name)
-        self.source_dimension = None
-        self.dimension = None
-        self.B= lambda x:x
-        self.moving_b=None
-        self.kernelsettings=None
-        self.saveParam=[]
-        self.saveB= []
-        self.initB= "identity"
-        
-        self.parameters = {
-            "g": None,
-            "betas": None,
-            "tau_mean": None, "tau_std": None,
-            "xi_mean": None, "xi_std": None,
-            "sources_mean": None, "sources_std": None,
-            "noise_std": None
-        }
-        self.bayesian_priors = None
-        self.attributes = None
 
-        # MCMC related "parameters"
-        self.MCMC_toolbox = {
-            'attributes': None,
-            'priors': {
-                # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
-                # for linear: "p0" = g
-                'g_std': None,
-                'betas_std': None
-            }
-        }
+    def __init__(self, name, base_model = None, **kwargs):
+        super().__init__(name, **kwargs)
+        self.base_model = base_model
+        self.base_model_path = None
+        assert isinstance(self.base_model, AbstractMultivariateModel), "Base model for GeodesicsBending must be a " \
+                                                                       "AbstractMultivariateModel"
+        self.mapping = None # Diffeomorphism to apply to previous model
+        self.kernel_settings = None
+        self.parameters = {"weights" : None,
+                           "control_points" : None}
+        self.initial_mapping = "identity"
 
         # load hyperparameters
         self.load_hyperparameters(kwargs)
 
-    def initBlink(self):
-        self.B=initB[self.initB]
-    def reconstructionB(self):
-        self.initBlink()
-        for e in self.saveB:
-            W,X_filtre=e
-            W1=torch.tensor(W, dtype=torch.float32).clone().detach()
-            X_filtre1=torch.tensor(X_filtre, dtype=torch.float32).clone().detach()
-            FonctionTensor=OptimB.transformation_B_compose( X_filtre1,W1, self.kernelsettings,self.B)
-            self.B=FonctionTensor
+    def init_mapping_function(self):
+        self.mapping = init_mapping[self.initial_mapping]
+
+    def mapping_reconstruction(self):
+        self.init_mapping_function()
+
+        weights, control_points = self.parameters["weights"], self.parameters["control_points"]
+        W = torch.tensor(weights, dtype=torch.float32).clone().detach()
+        X = torch.tensor(control_points, dtype=torch.float32).clone().detach()
+        mapping = OptimB.transformation_B_compose(X, W, self.kernel_settings, self.mapping)
+        self.mapping = mapping
 
     def initialize(self, dataset, method="default"):
+        self.base_model.initialize(dataset, method=method)
         self.dimension = dataset.dimension
-        if self.moving_b is None:
-            self.moving_b=[i for i in range(self.dimension)]
         self.features = dataset.headers
 
-        if self.source_dimension is None:
-            self.source_dimension = int(math.sqrt(dataset.dimension))
+        self.source_dimension = self.base_model.source_dimension
 
-        self.parameters = initialize_parameters(self, dataset, method)
-        
-
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
-        self.attributes.update(['all'], self.parameters)
         self.is_initialized = True
 
     @abstractmethod
     def initialize_MCMC_toolbox(self):
         """
         Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
-
-        TODO to move in a "MCMC-model interface"
         """
-        pass
+        self.base_model.initialize_MCMC_toolbox()
 
     @abstractmethod
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
-
-        TODO to move in a "MCMC-model interface"
 
         Parameters
         ----------
@@ -107,7 +80,7 @@ class AbstractMultivariateModel(AbstractModel):
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with
         """
-        pass
+        self.base_model.update_MCMC_toolbox(name_of_the_variables_that_have_been_changed, realizations)
 
     def load_hyperparameters(self, hyperparameters):
         if 'dimension' in hyperparameters.keys():
@@ -119,14 +92,39 @@ class AbstractMultivariateModel(AbstractModel):
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
 
-        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension')
+        if 'kernel_settings' in hyperparameters.keys():
+            self.kernelsettings = hyperparameters['kernelsettings']
+        if 'initial_mapping' in hyperparameters.keys():
+            self.initial_mapping = hyperparameters['initial_mapping']
+            self.init_mapping_function()
+
+        if 'base_model_path' in hyperparameters.keys():
+            if self.base_model_path is None:
+                self.base_model_path = hyperparameters["save_base_model"]
+
+        expected_hyperparameters = (
+            'features', 'loss', 'dimension', 'source_dimension',
+            'base_model_path', 'kernel_settings', 'initial_mapping')
         unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
         if len(unexpected_hyperparameters) > 0:
             raise ValueError(
                 f"Only {', '.join([f'<{p}>' for p in expected_hyperparameters])} are valid hyperparameters "
                 f"for an AbstractMultivariateModel! Unknown hyperparameters: {unexpected_hyperparameters}.")
 
-    def save(self, path, with_mixing_matrix=True, **kwargs):
+    def load_parameters(self, parameters):
+        self.parameters = {}
+        for k in parameters.keys():
+            if k in ['mixing_matrix']:
+                continue
+            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
+        self.mapping_reconstruction()
+
+        # Load base model
+        reader = ModelSettings(self.base_model_path)
+        self.base_model.load_hyperparameters(reader.hyperparameters)
+        self.base_model.load_parameters(reader.parameters)
+
+    def save(self, path, with_mixing_matrix=True, comp=0, **kwargs):
         """
         Save Leaspy object as json model parameter file.
 
@@ -143,20 +141,27 @@ class AbstractMultivariateModel(AbstractModel):
             Keyword arguments for json.dump method.
         """
         model_parameters_save = self.parameters.copy()
-        list_model_parameters_save=self.saveParam.copy()
 
         if with_mixing_matrix:
             model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
-            
-        for i in range(len(list_model_parameters_save)):
-            for key, value in list_model_parameters_save[i].items():
-                if type(value) in [torch.Tensor]:
-        
-                    list_model_parameters_save[i][key] = value.tolist()
+
         for key, value in model_parameters_save.items():
             if type(value) in [torch.Tensor]:
                 model_parameters_save[key] = value.tolist()
-       
+
+        # Save base model as well
+        split = path.split(".")
+        if comp == 0:
+            model_path = path
+        else:
+            model_path = ".".join(split[:-1]) + "_base_{}.".format(comp)+split[-1]
+        new_path = ".".join(split[:-1]) + "_base_{}.".format(comp+1)+split[-1]
+        self.base_model_path = new_path
+        if isinstance(self.base_model, GeodesicsBending):
+            self.base_model.save(path, with_mixing_matrix=with_mixing_matrix, comp=comp+1, **kwargs)
+        else:
+            self.base_model.save(self.base_model_path, with_mixing_matrix=with_mixing_matrix, **kwargs)
+
         model_settings = {
             'leaspy_version': __version__,
             'name': self.name,
@@ -165,22 +170,18 @@ class AbstractMultivariateModel(AbstractModel):
             'source_dimension': self.source_dimension,
             'loss': self.loss,
             'parameters': model_parameters_save,
+            'initial_mapping': self.initial_mapping,
+            'kernel_settings': self.kernel_settings,
+            'base_model_path': self.base_model_path,
         }
-       
-        with open(path, 'w') as fp:
+
+        with open(model_path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 
-    def load_parameters(self, parameters):
-        self.parameters = {}
-        for k in parameters.keys():
-            if k in ['mixing_matrix']:
-                continue
-            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
-        self.attributes.update(['all'], self.parameters)
-    
-    def compute_individual_tensorized_preb(self, timepoints, individual_parameters, attribute_type=None):
-        raise NotImplementedError
+    def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+        trajectories = self.base_model.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
+        mapped_trajectories = self.mapping(trajectories)
+        return mapped_trajectories
 
     def compute_mean_traj(self, timepoints):
         """
@@ -203,15 +204,4 @@ class AbstractMultivariateModel(AbstractModel):
             'sources': torch.zeros(self.source_dimension, dtype=torch.float32)
         }
 
-        if self.name=="logistic_asymptots_delay":
-            individual_parameters["sources_asymptots"]=torch.zeros(self.source_dimension, dtype=torch.float32)
-
         return self.compute_individual_tensorized(timepoints, individual_parameters)
-
-    def _get_attributes(self, attribute_type):
-        if attribute_type is None:
-            return self.attributes.get_attributes()
-        elif attribute_type == 'MCMC':
-            return self.MCMC_toolbox['attributes'].get_attributes()
-        else:
-            raise ValueError("The specified attribute type does not exist : {}".format(attribute_type))

@@ -37,6 +37,7 @@ class AbstractModel(ABC):
         self.parameters = None
         self.loss: str = 'MSE'  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
         self.distribution = torch.distributions.normal.Normal(loc=0., scale=0.)
+        self.save_path = None
 
     @abstractmethod
     def initialize(self, dataset, method = 'default'):
@@ -337,10 +338,7 @@ class AbstractModel(ABC):
         timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0) # 1 individual
 
         # Compute the individual trajectory
-        if self.name=="linear_inv_b":
-            return self.compute_individual_true(timepoints, individual_parameters)
-        else:
-            return self.compute_individual_tensorized(timepoints, individual_parameters)
+        return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):

@@ -1,18 +1,19 @@
 import torch
 
-from .attributes_abstract import AttributesAbstract
+from .abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 
 
 # TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
-class AttributesLogisticAsymp(AttributesAbstract):
+class LogisticAsymptotsDelayAttributes(AbstractManifoldModelAttributes):
     """
-    Contains the common attributes & methods to update the logistic_asymp model's attributes.
+    Contains the common attributes & methods to update the logistic_asymp model's with delay attributes.
 
     Attributes
     ----------
     dimension: `int`
     source_dimension: `int`
     betas: `torch.Tensor` (default None)
+    betas_asymptots: `torch.Tensor` (default None)
     positions: `torch.Tensor` (default None)
         positions = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
     mixing_matrix: `torch.Tensor` (default None)
@@ -21,75 +22,93 @@ class AttributesLogisticAsymp(AttributesAbstract):
     velocities: `torch.Tensor` (default None)
     name: `str` (default 'logistic')
         Name of the associated leaspy model. Used by ``update`` method.
-    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'v0', 'betas') )
+    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'v0', 'betas', 'betas_asymptots) )
         Contains the available parameters to update. Different models have different parameters.
 
     Methods
     -------
     get_attributes()
-        Returns the following attributes: ``positions``, ``deltas`` & ``mixing_matrix``.
+        Returns the following attributes: ``positions``, ``positions`` & ``mixing_matrix``.
     update(names_of_changed_values, values)
         Update model group average parameter(s).
     """
 
-    def __init__(self, name, dimension, source_dimension,neg,max_asymp):
+    def __init__(self, name, dimension, source_dimension):
         """
-        Instantiate a AttributesLogistic class object.
+        Instantiate a LogisticAsymptotsDelayAttributes class object.
 
         Parameters
         ----------
         dimension: `int`
         source_dimension: `int`
         """
-        self.Param=None
-        self.max_asymp=max_asymp
-        self.neg=neg
+        
+        self.velocities = None
+        self.asymptots = None
+        
+        self.betas_asymptots =None
+        
+        self.orthonormal_basis_delay = None
         super().__init__(name, dimension, source_dimension)
-        self.update_possibilities=('all', 'g', 'Param', 'betas')
+        self.update_possibilities=('all', 'g', 'v0', 'betas','asymptots','betas_asymptots')
+        
 
-
-    """
     def _compute_orthonormal_basis(self):
-    
+        """
         Compute the attribute ``orthonormal_basis`` which is a free family orthogonal to Param and is composed of vectors orthogonal
         to Param on all Plan induce by infection_k,guerison_k. 
         
         return a matrix with dim(Param) lines and self.dimension columns (number of lines of beta)
     
+        """
+        ej = torch.zeros(self.dimension, dtype=torch.float32)
+        ej[0] = 1.
+
+        alpha = -torch.sign(self.velocities[0]) * torch.norm(self.velocities)
+        u_vector = self.velocities - alpha * ej
+        v_vector = u_vector / torch.norm(u_vector)
+
+        ## Classical Householder method (to get an orthonormal basis for the canonical inner product)
+        ## Q = I_n - 2 v • v'
+        q_matrix = torch.eye(self.dimension) - 2 * v_vector.view(-1,1) * v_vector
+
+        # first component of basis is a unit vector (for metric norm) collinear to `dgamma_t0`
+        #self.orthonormal_basis = q_matrix[:, 1:]
+
+        # concat columns (get rid of the one collinear to `dgamma_t0`)
+        self.orthonormal_basis_delay =q_matrix[:, 1:]
         
-        Param=self.Param
-        Infection=Param[:self.dimension]
-        Rho=Param[self.dimension:]
-        a=self.max_asymp
-        
-        Rho[Rho!=Rho]=0.0
-        Rho=torch.clamp(Rho,max=a-10**(-7))#on suppose un sampling log et non logit
-        Guerison=(a-Rho)*Infection
-        if self.neg:
-            Guerison=torch.clamp(Guerison,min=-10**(-7))
-        else:
-            Guerison=torch.clamp(Guerison,min=10**(-7))
-
-        Norm=(Infection**2+Guerison **2)
-        Norm=Norm**(0.5)#if the torch is of type int, there will be an approximation
-
-        Infection=Infection/Norm
-        Guerison=Guerison/Norm# Normality respected
-
-        Diagup=torch.diag(-Guerison)
-        Diagdown=torch.diag(Infection)
         
 
+    def _mixing_matrix_utils(self,linear_combination_values1, matrix1):
+        """
+        Intermediate function used to test the good behaviour of the class' methods.
+
+        Parameters
+        ----------
+        linear_combination_values: `torch.Tensor`
+        matrix: `torch.Tensor`
+
+        Returns
+        -------
+        `torch.Tensor`
+        """
         
-        self.orthonormal_basis = torch.cat((Diagup,Diagdown))#orthogonality respected
 
-    """
-    def _compute_orthonormal_basis(self):
-        self.orthonormal_basis=torch.cat((torch.eye(self.dimension),torch.eye(self.dimension)))
+        #on range les deux bases les unes à la suite des autres
+        return torch.mm(matrix1, linear_combination_values1)
+
+    def _compute_mixing_matrix(self):
+        """
+        Update the attribute ``mixing_matrix``. de dimension 3n x dim source
+        """
+        if not self.has_sources:
+            return
         
+        self.mixing_matrix = self._mixing_matrix_utils(self.betas, self.orthonormal_basis_delay)
+    
 
-
-    def get_attributes(self):#à changer
+    def get_attributes(self):
         """
         Returns the following attributes: ``positions``, ``velocities`` & ``mixing_matrix``.
 
@@ -100,7 +119,7 @@ class AttributesLogisticAsymp(AttributesAbstract):
         - mixing_matrix: `torch.Tensor`
         """
        
-        return self.positions, self.Param, self.mixing_matrix
+        return self.positions, self.velocities, self.asymptots, self.mixing_matrix, self.betas_asymptots
 
     def update(self, names_of_changed_values, values):
         """
@@ -119,7 +138,9 @@ class AttributesLogisticAsymp(AttributesAbstract):
 
         compute_betas = False
         compute_positions = False
-        compute_Param=False 
+        compute_velocities = False
+        compute_Asymp = False
+        compute_betas_asymp = False
         
 
         if 'all' in names_of_changed_values:
@@ -128,25 +149,30 @@ class AttributesLogisticAsymp(AttributesAbstract):
 
         if 'betas' in names_of_changed_values:
             compute_betas = True
+        if 'betas_asymptots' in names_of_changed_values:
+            compute_betas_asymp = True
+        if 'asymptots' in names_of_changed_values:
+            compute_Asymp = True
         if 'g' in names_of_changed_values:
             compute_positions = True
-        if ('Param' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
-            compute_Param = True
+        if ('v0' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
+            compute_velocities = True
 
         if compute_betas:
             self._compute_betas(values)
         if compute_positions:
             self._compute_positions(values)
-
-        
-        
-        if compute_Param:
-            self._compute_Param(values)
+        if compute_velocities:
+            self._compute_velocities(values)
+        if compute_Asymp:
+            self._compute_asymptots(values)
+        if compute_betas_asymp:
+            self._compute_betas_asymp(values)
 
         # TODO : Check if the condition is enough
-        if self.has_sources and (compute_positions or compute_Param):
+        if self.has_sources and (compute_positions or compute_velocities):
             self._compute_orthonormal_basis()
-        if self.has_sources and (compute_positions or compute_Param or compute_betas):
+        if self.has_sources and (compute_positions or compute_velocities or compute_betas):
             self._compute_mixing_matrix()
 
     def _check_names(self, names_of_changed_values):
@@ -173,20 +199,25 @@ class AttributesLogisticAsymp(AttributesAbstract):
         ----------
         values: `dict` [`str`, `torch.Tensor`]
         """
-        self.positions=torch.exp(values['g']) #on a échantilloné suivant une loi normale
-       
+        self.positions=torch.exp(values['g'])
 
-    def _compute_Param(self, values):
+    def _compute_asymptots(self, values):
         """
-        Update the attribute ``Param``.
+        Update the attribute ``positions``.
 
         Parameters
         ----------
         values: `dict` [`str`, `torch.Tensor`]
         """
-        if not(self.neg):
-            self.Param=torch.exp(values['Param'])
-        else:
-            self.Param=-torch.exp(values['Param'])
+        self.asymptots = torch.exp(values['asymptots'])
+       
+    def _compute_betas_asymp(self, values):
+        """
+        Update the attribute ``betas``.
 
-    #overwrite les compute_positions get_attributes
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
+        
+        self.betas_asymptots = values['betas_asymptots'].clone()

@@ -1,4 +1,101 @@
+######################## Tests for variability on directions ################################
+# Not functional
+
+import numpy as np
+import math
 import torch
+
+
+def vectoangle(s):
+    """
+    Parameters:
+    -s an normalized vector of dimension d
+    return:
+    - theta the angles vector of dimension d-1
+
+    """
+    if len(s.shape) == 1:
+        d = len(s)
+        L = torch.zeros(d - 1)
+        L[0] = torch.acos(s[0])
+        S = 1.0
+        for i in range(1, d - 1):
+            S = torch.sin(L[i - 1]) * S
+            L[i] = torch.acos(s[i] / S)
+        return L
+    elif len(s.shape) == 2:
+        d = s.shape[1]
+        N = s.shape[0]
+        L = torch.zeros(N, d - 1)
+        L[:, 0] = torch.acos(s[:, 0])
+        S = torch.ones(N)
+        for i in range(1, d - 1):
+            S = torch.sin(L[:, i - 1]) * S
+            L[:, i] = torch.acos(s[:, i] / S)
+        return L
+    else:
+        raise ValueError
+
+
+def angletovec(theta):
+    """
+    Parameters:
+    -s an normalized vector of dimension d
+    - theta the angles vector of dimension d-1
+    return:
+    -s an normalized vector of dimension d
+    """
+    if len(theta.shape) == 1:
+        dminusone = len(theta)
+        L = torch.zeros(dminusone + 1)
+        L[0] = torch.cos(theta[0])
+        S = 1.0
+
+        for i in range(1, dminusone):
+            S = torch.sin(theta[i - 1]) * S
+            L[i] = torch.cos(theta[i]) * S
+        S = torch.sin(theta[dminusone - 1]) * S
+        L[dminusone] = S
+        return L
+    elif len(theta.shape) == 2:
+        N = theta.shape[0]
+        dminusone = theta.shape[1]
+        L = torch.zeros(N, dminusone + 1)
+        L[:, 0] = torch.cos(theta[:, 0])
+        S = torch.ones(N)
+
+        for i in range(1, dminusone):
+            S = torch.sin(theta[:, i - 1]) * S
+            L[:, i] = torch.cos(theta[:, i]) * S
+        S = torch.sin(theta[:, dminusone - 1]) * S
+        L[:, dminusone] = S
+        return L
+    else:
+        raise ValueError
+
+
+def rotation(w, thetaplus):
+    if len(w.shape) == 1:
+        norm = torch.norm(w)
+        wnorm = w.clone()
+        wnorm = w / norm
+        repangle = vectoangle(wnorm)
+        rep = repangle + thetaplus
+        wnew = angletovec(rep) * norm
+        return wnew
+    elif len(w.shape) == 2:
+        norm = torch.norm(w, dim=1)
+        wnorm = w.clone()
+        wnorm[norm > 10 ** (-5)] = w[norm > 10 ** (-5)] / norm.unsqueeze(-1)[norm > 10 ** (-5)]
+
+        repangle = vectoangle(wnorm)
+
+        rep = repangle + thetaplus
+        wnew = angletovec(rep) * norm.unsqueeze(-1)
+
+        return wnew
+    else:
+        raise ValueError
 
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes.attributes_factory import AttributesFactory
@@ -6,7 +103,6 @@ from .utils.attributes.attributes_factory import AttributesFactory
 from .utils.initialization.model_initialization import initialize_parameters
 from leaspy import __version__
 import json
-from .utils.regression.TransformAngle import *
 
 class LinearVari(AbstractMultivariateModel):
     """
@@ -19,6 +115,7 @@ class LinearVari(AbstractMultivariateModel):
         self.parameters["Param"] = None
         self.components=None
         self.MCMC_toolbox['priors']['Param_std'] = None  # Value, Coef
+
     def save(self, path, with_mixing_matrix=True, **kwargs):
         """
         Save Leaspy object as json model parameter file.
@@ -56,6 +153,7 @@ class LinearVari(AbstractMultivariateModel):
         }
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
+
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
@@ -86,7 +184,7 @@ class LinearVari(AbstractMultivariateModel):
         #à changer, étape changement de direction
 
         
-          # Population parameters
+        # Population parameters
         positions, param, mixing_matrix = self._get_attributes(attribute_type)
         xi, tau = ind_parameters['xi'], ind_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
@@ -402,3 +500,269 @@ class LinearVari(AbstractMultivariateModel):
             variables_infos['sources'] = sources_infos
             variables_infos['betas'] = betas_infos
         return variables_infos
+
+################
+# Initialization
+################
+
+def initialize_linear_vari(model, dataset, method):
+    """
+    Initialize the linear model's group parameters.
+
+    Parameters
+    ----------
+    model: a leaspy model class object
+        The model to initialize.
+    dataset: a leaspy.io.data.dataset.Dataset class object
+        Contains the individual scores.
+
+    Returns
+    -------
+    parameters: `dict` [`str`, `torch.Tensor`]
+        Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
+    """
+
+    if model.source_dimension_direction is None:
+        model.source_dimension_direction = model.source_dimension
+    sum_ages = torch.sum(dataset.timepoints).item()
+    nb_nonzeros = (dataset.timepoints != 0).sum()
+
+    t0 = float(sum_ages) / float(nb_nonzeros)
+
+    df = dataset.to_pandas()
+    df.set_index(["ID", "TIME"], inplace=True)
+
+    positions, velocities = [[] for _ in range(model.dimension)], [[] for _ in range(model.dimension)]
+
+    for idx in dataset.indices:
+        indiv_df = df.loc[idx]
+        ages = indiv_df.index.values
+        features = indiv_df.values
+
+        if len(ages) == 1:
+            continue
+
+        for dim in range(model.dimension):
+
+            ages_list, feature_list = [], []
+            for i, f in enumerate(features[:, dim]):
+                if f == f:
+                    feature_list.append(f)
+                    ages_list.append(ages[i])
+
+            if len(ages_list) < 4:
+                break
+            else:
+                slope, intercept, _, _, _ = stats.linregress(ages_list, feature_list)
+
+                value = intercept + t0 * slope
+
+                velocities[dim].append(slope)
+                positions[dim].append(value)
+
+    positions = [torch.tensor(_) for _ in positions]
+    positions = torch.tensor([torch.mean(_) for _ in positions], dtype=torch.float32)
+    velocities = torch.tensor(velocities)
+
+    velocities = velocities.permute(1, 0)
+    velocities0 = torch.mean(velocities, axis=0)
+    print("velo")
+    print(torch.isnan(velocities).any())
+    velocitiesnorm = velocities / torch.norm(velocities, dim=1).unsqueeze(-1)
+    print("velonorm")
+    print(torch.isnan(velocitiesnorm).any())
+
+    angles = [vectoangle(velocitiesnorm[i]).tolist() for i in range(len(velocitiesnorm))]
+
+    angles_to_pca = np.array(angles)
+    print("velonorm")
+    print(np.isnan(angles_to_pca).any())
+    pca = PCA(n_components=model.source_dimension_direction)
+    pca.fit(angles_to_pca)
+    print(pca.singular_values_)
+    V = torch.tensor(list(pca.components_), dtype=torch.float32)
+    print(V)
+
+    if 'univariate' in model.name:
+        if (velocities0 <= 0).item():
+            warnings.warn(
+                "Individual linear regressions made at initialization has a mean slope which is negative: not properly handled in case of an univariate linear model...")
+            xi_mean = torch.tensor(-3.)  # default...
+        else:
+            xi_mean = torch.log(velocities0).squeeze()
+
+        parameters = {
+            'g': positions.squeeze(),
+            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(tau_std),
+            'xi_mean': xi_mean, 'xi_std': torch.tensor(xi_std),
+            'noise_std': torch.tensor(noise_std, dtype=torch.float32)
+        }
+    else:
+        model.components = V
+        parameters = {
+            'g': positions,
+            'Param': velocities0,
+            'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
+            'tau_mean': torch.tensor(t0), 'tau_std': torch.tensor(tau_std),
+            'xi_mean': torch.tensor(0.), 'xi_std': torch.tensor(xi_std),
+            'sources_mean': torch.tensor(0.), 'sources_std': torch.tensor(sources_std),
+            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
+        }
+
+    return parameters
+
+###########
+#Attributes
+###########
+
+import torch
+
+from .attributes_abstract import AttributesAbstract
+
+
+# TODO 2 : Add some individual attributes -> Optimization on the w_i = A * s_i
+class AttributesLinearVari(AttributesAbstract):
+    """
+    Contains the common attributes & methods to update the logistic_asymp model's attributes.
+
+    Attributes
+    ----------
+    dimension: `int`
+    source_dimension: `int`
+    betas: `torch.Tensor` (default None)
+    positions: `torch.Tensor` (default None)
+        positions = exp(realizations['g']) such that p0 = 1 / (1+exp(g))
+    mixing_matrix: `torch.Tensor` (default None)
+        Matrix A such that w_i = A * s_i
+    orthonormal_basis: `torch.Tensor` (default None)
+    velocities: `torch.Tensor` (default None)
+    name: `str` (default 'logistic')
+        Name of the associated leaspy model. Used by ``update`` method.
+    update_possibilities: `tuple` [`str`] (default ('all', 'g', 'v0', 'betas') )
+        Contains the available parameters to update. Different models have different parameters.
+
+    Methods
+    -------
+    get_attributes()
+        Returns the following attributes: ``positions``, ``deltas`` & ``mixing_matrix``.
+    update(names_of_changed_values, values)
+        Update model group average parameter(s).
+    """
+
+    def __init__(self, name, dimension, source_dimension, source_dimension_direction):
+        """
+        Instantiate a AttributesLogistic class object.
+
+        Parameters
+        ----------
+        dimension: `int`
+        source_dimension: `int`
+        """
+        self.Param = None
+
+        super().__init__(name, dimension, source_dimension)
+        self.update_possibilities = ('all', 'g', 'Param', 'betas')
+
+    def _compute_orthonormal_basis(self):
+        """
+        Compute the attribute ``orthonormal_basis`` which is a basis orthogonal to velocities v0 for the inner product
+        implied by the metric..
+        """
+        dgamma_t0 = self.Param
+        self._compute_Q(dgamma_t0)
+
+    def get_attributes(self):  # à changer
+        """
+        Returns the following attributes: ``positions``, ``Param`` & ``mixing_matrix``.
+
+        Returns
+        -------
+        - positions: `torch.Tensor`
+        - velocities: `torch.Tensor`
+        - mixing_matrix: `torch.Tensor`
+        """
+
+        return self.positions, self.Param, self.mixing_matrix
+
+    def update(self, names_of_changed_values, values):
+        """
+        Update model group average parameter(s).
+
+        Parameters
+        ----------
+        names_of_changed_values: `list` [`str`]
+            Must be one of - "all", "g", "v0", "betas". Raise an error otherwise.
+            "g" correspond to the attribute ``positions``.
+            "v0" correspond to the attribute ``velocities``.
+        values: `dict` [`str`, `torch.Tensor`]
+            New values used to update the model's group average parameters
+        """
+        self._check_names(names_of_changed_values)
+
+        compute_betas = False
+        compute_positions = False
+        compute_Param = False
+
+        if 'all' in names_of_changed_values:
+            names_of_changed_values = self.update_possibilities  # make all possible updates
+
+        if 'betas' in names_of_changed_values:
+            compute_betas = True
+        if 'g' in names_of_changed_values:
+            compute_positions = True
+        if ('Param' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
+            compute_Param = True
+
+        if compute_betas:
+            self._compute_betas(values)
+        if compute_positions:
+            self._compute_positions(values)
+
+        if compute_Param:
+            self._compute_Param(values)
+
+        # TODO : Check if the condition is enough
+        if self.has_sources and (compute_positions or compute_Param):
+            self._compute_orthonormal_basis()
+        if self.has_sources and (compute_positions or compute_Param or compute_betas):
+            self._compute_mixing_matrix()
+
+    def _check_names(self, names_of_changed_values):
+        """
+        Check if the name of the parameter(s) to update are in the possibilities allowed by the model.
+
+        Parameters
+        ----------
+        names_of_changed_values: `list` [`str`]
+
+        Raises
+        -------
+        ValueError
+        """
+        unknown_update_possibilities = set(names_of_changed_values).difference(self.update_possibilities)
+        if len(unknown_update_possibilities) > 0:
+            raise ValueError(f"{unknown_update_possibilities} not in the attributes that can be updated")
+
+    def _compute_positions(self, values):
+        """
+        Update the attribute ``positions``.
+
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
+        self.positions = torch.exp(values['g'])  # on a échantilloné suivant une loi normale
+
+    def _compute_Param(self, values):
+        """
+        Update the attribute ``Param``.
+
+        Parameters
+        ----------
+        values: `dict` [`str`, `torch.Tensor`]
+        """
+
+        self.Param = torch.exp(values['Param'])
+
+    # overwrite les compute_positions get_attributes

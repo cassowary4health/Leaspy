@@ -1,5 +1,5 @@
 
-from . import AttributesLogisticParallel, AttributesLogistic, AttributesLinear, AttributesLogisticAsymp, AttributesLogisticAsympDelay, AttributesStannard,AttributesLinearVari
+from . import LogisticParallelAttributes, LogisticAttributes, LinearAttributes, LogisticAsymptotsAttributes, LogisticAsymptotsDelayAttributes, StannardAttributes
 
 
 
@@ -9,23 +9,20 @@ class AttributesFactory:
     """
 
     _attributes = {
-        'logistic': AttributesLogistic,
-        'univariate_logistic': AttributesLogistic,
-
-        'logistic_parallel': AttributesLogisticParallel,
-
-        'linear': AttributesLinear,
-        'univariate_linear': AttributesLinear,
-        'logistic_asymp': AttributesLogisticAsymp,
-        'logistic_asymp_delay':AttributesLogisticAsympDelay,
-        'stannard': AttributesStannard,
-        'linear_vari': AttributesLinearVari,
+        'logistic': LogisticAttributes,
+        'univariate_logistic': LogisticAttributes,
+        'logistic_parallel': LogisticParallelAttributes,
+        'linear': LinearAttributes,
+        'univariate_linear': LinearAttributes,
+        'logistic_asymp': LogisticAsymptotsAttributes,
+        'logistic_asymp_delay':LogisticAsymptotsDelayAttributes,
+        'stannard': StannardAttributes,
 
         #'mixed_linear-logistic': AttributesLogistic # TODO mixed check
     }
 
     @classmethod
-    def attributes(cls, name, dimension, source_dimension=None,neg=None,max_asymp=None,source_dimension_direction=None):
+    def attributes(cls, name, dimension, source_dimension=None, max_asymp=None):
         if type(name) == str:
             name = name.lower()
         else:
@@ -35,13 +32,6 @@ class AttributesFactory:
             if 'univariate' in name:
                 assert dimension == 1
                 return cls._attributes[name](name, dimension, 0)
-                
-            elif 'asymp' in name:
-                return cls._attributes[name](name, dimension, source_dimension)
-            elif 'vari' in name:
-                return cls._attributes[name](name, dimension, source_dimension,source_dimension_direction)
-            elif 'stannard' in name:
-                return cls._attributes[name](name, dimension, source_dimension,neg)
             else:
                 return cls._attributes[name](name, dimension, source_dimension)
         else:

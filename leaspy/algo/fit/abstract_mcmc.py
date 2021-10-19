@@ -4,6 +4,9 @@ from .abstract_fit_algo import AbstractFitAlgo
 from ..samplers.gibbs_sampler import GibbsSampler
 from ..samplers.hmc_sampler import HMCSampler
 
+from leaspy.models.utils import DEFAULT_LOSS
+from leaspy.exceptions import LeaspyAlgoInputError
+
 
 class AbstractFitMCMC(AbstractFitAlgo):
     """
@@ -22,7 +25,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
     See also
     --------
-    :mod:`.algo.samplers`
+    :mod:`leaspy.algo.samplers`
     """
 
     def __init__(self, settings):
@@ -32,7 +35,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         # Algorithm parameters
         self.algo_parameters = settings.parameters
         self.seed = settings.seed
-        self.loss = settings.loss
+        self.loss = settings.loss  # to be removed?!
 
         # Realizations and samplers
         self.realizations = None
@@ -57,12 +60,18 @@ class AbstractFitMCMC(AbstractFitAlgo):
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+
+        Raises
+        ------
+        :class:`.LeaspyAlgoInputError`
+            If inconsistent parameter between model & algo
         """
 
+        # TODO: change this behavior: loss should only come from algo!
         # handling loss, a bit dirty...
-        if model.loss != 'MSE': # non default loss from model
-            assert self.loss in ['MSE', model.loss], \
-                f"You provided inconsistent loss: '{model.loss}' for model and '{self.loss}' for algo."
+        if model.loss != DEFAULT_LOSS: # non default loss from model
+            if self.loss not in [DEFAULT_LOSS, model.loss]:
+                raise LeaspyAlgoInputError(f"You provided inconsistent loss: '{model.loss}' for model and '{self.loss}' for algo.")
             # set algo loss to the one from model
             self.loss = model.loss
         else:
@@ -189,17 +198,16 @@ class AbstractFitMCMC(AbstractFitAlgo):
     def __str__(self):
         out = ""
         out += "=== ALGO ===\n"
-        out += "Instance of {0} algo \n".format(self.name)
-        out += "Iteration {0}\n".format(self.current_iteration)
-        out += "=Samplers \n"
+        out += f"Instance of {self.name} algo\n"
+        out += f"Iteration {self.current_iteration}\n"
+        out += "=Samplers\n"
         for sampler_name, sampler in self.samplers.items():
             acceptation_rate = torch.mean(sampler.acceptation_temp.detach()).item()
-            out += "    {} rate : {:.2f}%, std: {:.5f}\n".format(sampler_name, 100 * acceptation_rate,
-                                                                 sampler.std.mean())
+            out += f"    {sampler_name} rate : {acceptation_rate:.2%}, std: {sampler.std.mean():.5f}\n"
 
         if self.algo_parameters['annealing']['do_annealing']:
-            out += "Annealing \n"
-            out += "Temperature : {0}".format(self.temperature)
+            out += "Annealing\n"
+            out += f"Temperature : {self.temperature}"
         return out
 
     #############

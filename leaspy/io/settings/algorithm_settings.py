@@ -2,9 +2,14 @@ import json
 import os
 import warnings
 
+from leaspy.models.utils import DEFAULT_LOSS, VALID_LOSSES
 from leaspy.io.settings import default_data_dir
 from leaspy.io.settings.outputs_settings import OutputsSettings
 from leaspy.algo.algo_factory import AlgoFactory
+
+from leaspy.exceptions import LeaspyAlgoInputError
+from leaspy.utils.typing import KwargsType, Optional
+
 
 class AlgorithmSettings:
     """
@@ -14,70 +19,73 @@ class AlgorithmSettings:
 
     Parameters
     ----------
-    name: str
+    name : str
         The algorithm's name. Must be in:
             * For `fit` algorithms:
                 * `mcmc_saem`
-                * `lme_fit`
+                * `lme_fit` (for LME model only)
             * For `personalize` algorithms:
                 * `scipy_minimize`
                 * `mean_real`
                 * `mode_real`
-                * `gradient_descent_personalize`
-                * `constant_prediction`
-                * `lme_personalize`
+                * `constant_prediction` (for constant model only)
+                * `lme_personalize` (for LME model only)
             * For `simulate` algorithms:
                 * `simulation`
 
-    model_initialization_method: str, optional
+    model_initialization_method : str, optional
         For fit algorithms, give a model initialization method,
         according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
-    algo_initialization_method: str, optional
+    algo_initialization_method : str, optional
         Personalize the algorithm initialization method,
-        according to those possible for the given algorithm (refer to its documentation in :mod:`.algo`).
-    n_iter: int, optional
+        according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
+    n_iter : int, optional
         Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
-    n_burn_in_iter: int, optional
+    n_burn_in_iter : int, optional
         Number of iteration during burning phase, used for the MCMC SAEM algorithms.
-    seed: int, optional, default None
+    seed : int, optional, default None
         Used for stochastic algorithms.
-    use_jacobian: bool, optional, default False
+    use_jacobian : bool, optional, default False
         Used in ``scipy_minimize`` algorithm to perform a `LBFGS` instead of a `Powell` algorithm.
-    n_jobs: int, optional, default 1
+    n_jobs : int, optional, default 1
         Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
-    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+    loss : {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
         The wanted loss.
             * ``'MSE'``: MSE of all features
             * ``'MSE_diag_noise'``: MSE per feature
             * ``'crossentropy'``: used when the features are binary
-    progress_bar: bool, optional, default False
+    progress_bar : bool, optional, default False
         Used to display a progress bar during computation.
 
     Attributes
     ----------
-    name: {'mcmc_saem', 'scipy_minimize', 'simulation', 'mean_real', 'gradient_descent_personalize', 'mode_real'}
+    name : str
         The algorithm's name.
-    model_initialization_method: str, optional
+    model_initialization_method : str, optional
       For fit algorithms, give a model initialization method,
       according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
-    algo_initialization_method: str, optional
+    algo_initialization_method : str, optional
       Personalize the algorithm initialization method,
-      according to those possible for the given algorithm (refer to its documentation in :mod:`.algos`).
-    seed: int, optional, default None
+      according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
+    seed : int, optional, default None
       Used for stochastic algorithms.
-    loss: {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
+    loss : {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
       The wanted loss.
           * ``'MSE'``: MSE of all features
           * ``'MSE_diag_noise'``: MSE per feature
           * ``'crossentropy'``: used when the features are binary
-    parameters: dict
+    parameters : dict
       Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
-    logs: :class:`.OutputsSettings`, optional
+    logs : :class:`.OutputsSettings`, optional
       Used to create a ``logs`` file during a model calibration containing convergence information.
+
+    Raises
+    ------
+    :class:`.LeaspyAlgoInputError`
 
     See also
     --------
-    leaspy.algo
+    :mod:`leaspy.algo`
 
     For developpers
     ---------------
@@ -124,13 +132,13 @@ class AlgorithmSettings:
         ]
     }
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str, **kwargs):
         self.name = name
-        self.parameters = None # {}
-        self.seed = None
-        self.algorithm_initialization_method = None # Initialization of the algorithm itself
-        self.model_initialization_method = None # Initialization of the model parameters (independantly of the algorithm)
-        self.loss = None
+        self.parameters: KwargsType = None # {}
+        self.seed: Optional[int] = None
+        self.algorithm_initialization_method: str = None # Initialization of the algorithm itself
+        self.model_initialization_method: str = None # Initialization of the model parameters (independantly of the algorithm)
+        self.loss: str = None  # TODO remove?
         self.logs = None
 
         default_algo_settings_path = os.path.join(default_data_dir, 'default_' + name + '.json')
@@ -138,23 +146,28 @@ class AlgorithmSettings:
         if os.path.isfile(default_algo_settings_path):
             self._load_default_values(default_algo_settings_path)
         else:
-            raise ValueError('The algorithm name >>>{0}<<< you provided does not exist'.format(name))
+            raise LeaspyAlgoInputError(f"The algorithm name '{name}' you provided does not exist")
         self._manage_kwargs(kwargs)
 
     @classmethod
-    def load(cls, path_to_algorithm_settings):
+    def load(cls, path_to_algorithm_settings: str):
         """
         Instantiate a AlgorithmSettings object a from json file.
 
         Parameters
         ----------
-        path_to_algorithm_settings: str
+        path_to_algorithm_settings : str
             Path of the json file.
 
         Returns
         -------
         :class:`.AlgorithmSettings`
             An instanced of AlgorithmSettings with specified parameters.
+
+        Raises
+        ------
+        :class:`.LeaspyAlgoInputError`
+            if anything is invalid in algo settings
 
         Examples
         --------
@@ -165,7 +178,7 @@ class AlgorithmSettings:
             settings = json.load(fp)
 
         if 'name' not in settings.keys():
-            raise ValueError("Your json file must contain a 'name' attribute!")
+            raise LeaspyAlgoInputError("Your json file must contain a 'name' attribute!")
 
         algorithm_settings = cls(settings['name'])
 
@@ -191,7 +204,7 @@ class AlgorithmSettings:
 
         return algorithm_settings
 
-    def save(self, path, **kwargs):
+    def save(self, path: str, **kwargs):
         """
         Save an AlgorithmSettings object in a json file.
 
@@ -199,7 +212,7 @@ class AlgorithmSettings:
 
         Parameters
         ----------
-        path: str
+        path : str
             Path to store the AlgorithmSettings.
         **kwargs
             Keyword arguments for json.dump method.
@@ -207,7 +220,7 @@ class AlgorithmSettings:
         Examples
         --------
         >>> from leaspy import AlgorithmSettings
-        >>> settings = AlgorithmSettings('scipy_minimize', seed=42, loss='MSE_diag_noise', n_jobs=-1, use_jacobian=True, progress_bar=True)
+        >>> settings = AlgorithmSettings('scipy_minimize', seed=42, n_jobs=-1, use_jacobian=True, progress_bar=True)
         >>> settings.save('outputs/scipy_minimize-settings.json', indent=2)
         """
         json_settings = {
@@ -231,9 +244,9 @@ class AlgorithmSettings:
 
         Parameters
         ----------
-        path: str
+        path : str
             The path of the folder to store the graphs and csv files.
-        **kwargs:
+        **kwargs
             * console_print_periodicity: int, optional, default 50
                 Display logs in the console/terminal every N iterations.
             * plot_periodicity: int, optional, default 100
@@ -245,13 +258,13 @@ class AlgorithmSettings:
 
         Notes
         -----
-        By default, if the folder given in ``path`` allready exists, the method will raise an error.
+        By default, if the folder given in ``path`` already exists, the method will raise an error.
         To overwrite the content of the folder, set ``overwrite_logs_folder`` it to ``True``.
 
         Raises
         ------
-        ValueError
-            If the folder given in ``path`` allready exists and if ``overwrite_logs_folder`` is set to ``False``.
+        :class:`.LeaspyAlgoInputError`
+            If the folder given in ``path`` already exists and if ``overwrite_logs_folder`` is set to ``False``.
         """
         settings = {
             'path': path,
@@ -263,17 +276,17 @@ class AlgorithmSettings:
 
         for k, v in kwargs.items():
             if k in ['console_print_periodicity', 'plot_periodicity', 'save_periodicity']:
-                if (type(v) != int) and (v is not None):
-                    raise TypeError(f'You must provide a integer to the input <{k}>! '
+                if v is not None and not isinstance(v, int):
+                    raise LeaspyAlgoInputError(f'You must provide a integer to the input <{k}>! '
                                     f'You provide {v} of type {type(v)}.')
                 settings[k] = v
             elif k in ['overwrite_logs_folder']:
-                if type(v) != bool:
-                    raise TypeError(f'You must provide a boolean to the input <{k}>! '
+                if not isinstance(v, bool):
+                    raise LeaspyAlgoInputError(f'You must provide a boolean to the input <{k}>! '
                                     f'You provide {v} of type {type(v)}.')
                 settings[k] = v
             else:
-                warnings.warn("The kwargs {} you provided is not correct".format(k))
+                warnings.warn(f"The kwarg '{k}' you provided is not valid and was skipped.")
 
         self.logs = OutputsSettings(settings)
 
@@ -296,8 +309,7 @@ class AlgorithmSettings:
                 self.parameters[k] = v
 
             else:
-                warning_message = "The parameter key : >>>{0}<<< you provided is unknown".format(k)
-                warnings.warn(warning_message)
+                warnings.warn(f"The parameter '{k}' you provided is unknown and thus was skipped.")
 
         # dynamic default parameters
         if self.name in self._dynamic_default_parameters:
@@ -318,14 +330,14 @@ class AlgorithmSettings:
         """
         Get a nested key of a dict or default if any previous level is missing.
 
-        Examples:
-        ---------
-        _get_nested_dict(d, ('a','b'), -1)
-            -> -1 if 'a' not in d
-            -> -1 if 'b' not in d['a']
-            -> d['a']['b'] else
+        Examples
+        --------
+        >>> _get_nested_dict(d, ('a','b'), -1) == ...
+            * -1 if 'a' not in d
+            * -1 if 'b' not in d['a']
+            * d['a']['b'] else
 
-        _get_nested_dict(d, [], ...) = d
+        >>> _get_nested_dict(d, (), ...) == d
         """
         it_levels = iter(nested_levels)
 
@@ -382,11 +394,13 @@ class AlgorithmSettings:
 
     @staticmethod
     def _check_default_settings(settings):
+
+        error_tpl = "The '{}' key is missing in the algorithm settings (JSON file) you are loading."
+
         # TODO: This should probably be in the ests
-        if 'name' not in settings.keys():
-            raise ValueError("The 'name' key is missing in the algorithm settings (JSON file) you are loading")
-        if 'parameters' not in settings.keys():
-            raise ValueError("The 'parameters' key is missing in the algorithm settings (JSON file) you are loading")
+        for mandatory_key in ['name', 'parameters']:
+            if mandatory_key not in settings.keys():
+                raise LeaspyAlgoInputError(error_tpl.format(mandatory_key))
 
         if settings['name'] == 'constant_prediction':
             return
@@ -394,18 +408,17 @@ class AlgorithmSettings:
             return
 
         if 'seed' not in settings.keys():
-            raise ValueError("The 'seed' key is missing in the algorithm settings (JSON file) you are loading")
+            raise LeaspyAlgoInputError(error_tpl.format('seed'))
 
         if settings['name'] == 'lme_fit':
             return
 
         if 'loss' not in settings.keys():
-            warnings.warn("The 'loss' key is missing in the algorithm settings (JSON file) you are loading. \
-            Its value will be 'MSE' by default")
+            warnings.warn(error_tpl.format('loss') + f" Its value will be '{DEFAULT_LOSS}' by default")
 
         if 'algorithm_initialization_method' not in settings.keys():
-            raise ValueError(
-                "The 'algorithm_initialization_method' key is missing in the algorithm settings (JSON file) you are loading")
+            raise LeaspyAlgoInputError(error_tpl.format('algorithm_initialization_method'))
+
 
     @staticmethod
     def _get_name(settings):
@@ -419,6 +432,7 @@ class AlgorithmSettings:
     def _get_seed(settings):
         if settings['seed'] is None:
             return None
+
         try:
             return int(settings['seed'])
         except Exception:
@@ -442,11 +456,12 @@ class AlgorithmSettings:
     @staticmethod
     def _get_loss(settings):
         if 'loss' not in settings.keys():
-            # Return default value for the loss (Mean Squared Error)
-            return 'MSE'
-        if settings['loss'] in ['MSE', 'MSE_diag_noise', 'crossentropy']:
+            # Return default value for the loss
+            # TODO? Emit a warning / log this info?
+            return DEFAULT_LOSS
+        elif settings['loss'] in VALID_LOSSES:
             return settings['loss']
         else:
-            raise ValueError("The loss provided is not recognised. Should be one of ['MSE', 'MSE_diag_noise', 'crossentropy']")
+            raise LeaspyAlgoInputError(f"The loss provided is not recognised. Should be one of {VALID_LOSSES}")
 
 

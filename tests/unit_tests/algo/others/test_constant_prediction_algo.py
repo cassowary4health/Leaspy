@@ -59,8 +59,8 @@ class ConstantPredictionAlgorithmTest(unittest.TestCase):
                 self.assertDictEqual(ind_ip, res)
 
             elif ind_ip['A'] != ind_ip['A']:
-                self.assertTrue(res['A'] != res['A'])
-                self.assertTrue(ind_ip['B'] == res['B'])
+                self.assertNotEqual(res['A'], res['A'])
+                self.assertEqual(ind_ip['B'], res['B'])
 
     def test_run_last(self):
         results = [

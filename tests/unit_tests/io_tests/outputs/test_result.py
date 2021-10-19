@@ -2,6 +2,7 @@ import filecmp
 import os
 import unittest
 import inspect
+import warnings
 
 import pandas as pd
 import torch
@@ -14,6 +15,9 @@ from tests import example_data_path, test_data_dir, hardcoded_model_path
 class ResultTest(unittest.TestCase):
 
     def setUp(self, get=False):
+
+        # ignore deprecation warnings in tests
+        warnings.simplefilter('ignore', DeprecationWarning)
 
         # Starting from Torch 1.6.0 a new serialization method is used
         sig = inspect.signature(torch.save).parameters
@@ -41,8 +45,8 @@ class ResultTest(unittest.TestCase):
             return self.results
 
     def test_constructor(self):
-        self.assertTrue(type(self.results.data) == Data)
-        self.assertTrue(type(self.results.individual_parameters) == dict)
+        self.assertIsInstance(self.results.data, Data)
+        self.assertIsInstance(self.results.individual_parameters, dict)
         self.assertEqual(list(self.results.individual_parameters.keys()), ['tau', 'xi', 'sources'])
         for key in self.results.individual_parameters.keys():
             self.assertEqual(len(self.results.individual_parameters[key]), 17)
@@ -87,7 +91,7 @@ class ResultTest(unittest.TestCase):
         self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
 
         for idx in ('116', 116, ('116',), ('116', '142')):
-            self.assertRaises(TypeError, self.results.save_individual_parameters_csv,
+            self.assertRaises(ValueError, self.results.save_individual_parameters_csv,
                               individual_parameters_path, idx=idx)
 
     def test_save_individual_parameters_torch(self):

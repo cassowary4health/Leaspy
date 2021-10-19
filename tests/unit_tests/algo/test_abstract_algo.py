@@ -51,4 +51,4 @@ class Test(unittest.TestCase):
         # output_path = path.join(test_data_dir, "_outputs", 'output_manager')
         # settings.set_logs(output_path)
         # algo.set_output_manager(settings.logs)
-        # self.assertTrue(type(algo.output_manager) == FitOutputManager)
+        # self.assertIsInstance(algo.output_manager, FitOutputManager)

@@ -1,8 +1,8 @@
 import time
 from abc import abstractmethod
 
-# from ...utils.logs.fit_output_manager import FitOutputManager
-from ..abstract_algo import AbstractAlgo
+from leaspy.algo.abstract_algo import AbstractAlgo
+from leaspy.exceptions import LeaspyAlgoInputError
 
 
 class AbstractFitAlgo(AbstractAlgo):
@@ -11,7 +11,7 @@ class AbstractFitAlgo(AbstractAlgo):
 
     Attributes
     ----------
-    current_iteration: int, default 0
+    current_iteration : int, default 0
         The number of the current iteration
     Inherited attributes
         From :class:`.AbstractAlgo`
@@ -54,6 +54,11 @@ class AbstractFitAlgo(AbstractAlgo):
             The optimized parameters.
 
         """
+
+        # Check algo is well-defined
+        if self.algo_parameters is None:
+            raise LeaspyAlgoInputError('The fit algorithm was not properly created.')
+
         # Initialize Model
         time_beginning = time.time()
         self._initialize_seed(self.seed)
@@ -88,11 +93,11 @@ class AbstractFitAlgo(AbstractAlgo):
                 self.display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
 
         if 'diag_noise' in model.loss:
-            noise_map = {ft_name: '{:.4f}'.format(ft_noise) for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'].view(-1).tolist())}
+            noise_map = {ft_name: f'{ft_noise:.4f}' for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'].view(-1).tolist())}
             print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
             print_noise = '\n'.join(print_noise.split(', '))
         else:
-            print_noise = '{:.4f}'.format(model.parameters['noise_std'].item())
+            print_noise = f"{model.parameters['noise_std'].item():.4f}"
 
         time_end = time.time()
         diff_time = (time_end - time_beginning)
@@ -116,7 +121,7 @@ class AbstractFitAlgo(AbstractAlgo):
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             The parameters.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _initialize_algo(self, dataset, model, realizations):
@@ -129,7 +134,7 @@ class AbstractFitAlgo(AbstractAlgo):
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
-        raise NotImplementedError
+        pass
 
     def _maximization_step(self, dataset, model, realizations):
         """
@@ -173,5 +178,5 @@ class AbstractFitAlgo(AbstractAlgo):
     def __str__(self):
         out = ""
         out += "=== ALGO ===\n"
-        out += "Iteration {0}".format(self.current_iteration)
+        out += f"Iteration {self.current_iteration}"
         return out

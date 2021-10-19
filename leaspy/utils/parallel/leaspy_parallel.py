@@ -1,10 +1,12 @@
-from joblib import Parallel, delayed
 import warnings
+
+from joblib import Parallel, delayed
 
 def leaspy_parallel_calibrate(data_iter, algo_settings_iter, leaspy_factory, leaspy_obj_cb,
                               n_jobs=-1, **joblib_Parallel_kwargs):
     """
     .. deprecated:: 1.0
+
     Calibrate in parallel multiple Leaspy models.
 
     Parameters
@@ -51,6 +53,7 @@ def leaspy_parallel_personalize(leaspy_iter, data_iter, algo_settings_iter, leas
                                 n_jobs=-1, **joblib_Parallel_kwargs):
     """
     .. deprecated:: 1.0
+
     Personalize in parallel multiple Leaspy models
 
     Parameters

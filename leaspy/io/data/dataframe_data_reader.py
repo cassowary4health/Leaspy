@@ -1,11 +1,18 @@
+import pandas as pd
+
 from leaspy.io.data.individual_data import IndividualData
+from leaspy.exceptions import LeaspyDataInputError
 
 
 class DataframeDataReader:
     """
     Methods to convert :class:`pandas.DataFrame` to data containers `Leaspy` compliants.
+
+    Raises
+    ------
+    :class:`.LeaspyDataInputError`
     """
-    def __init__(self, df):
+    def __init__(self, df: pd.DataFrame):
         self.individuals = {}
         self.iter_to_idx = {}
         self.headers = None
@@ -17,17 +24,18 @@ class DataframeDataReader:
 
     @staticmethod
     def _check_headers(columns):
-        columns = [_.lower() for _ in columns]
-        for key in ['id', 'time']:
-            if key not in columns:
-                raise ValueError("Your dataframe must have a {} column".format(key))
+        # cols_upper = list(map(str.upper, columns))
+        missing_mandatory_columns = [_ for _ in ['ID', 'TIME'] if _ not in columns]
+        if len(missing_mandatory_columns) > 0:
+            raise LeaspyDataInputError(f"Your dataframe must have {missing_mandatory_columns} columns")
 
     def _check_observation(self, observation):
         if self.dimension is None:
             self.dimension = len(observation)
-        assert len(observation) == self.dimension
+        elif len(observation) != self.dimension:
+            raise LeaspyDataInputError(f'Number of features mismatch: {len(observation)} != {self.dimension}')
 
-    def _read(self, df):
+    def _read(self, df: pd.DataFrame):
         df = df.copy(deep=True)  # No modification on the input dataframe !
         columns = df.columns.values
         # Try to read the raw dataframe
@@ -35,18 +43,17 @@ class DataframeDataReader:
             self._check_headers(columns)
 
         # If we do not find 'ID' and 'TIME' columns, check the Index
-        except ValueError:
+        except LeaspyDataInputError:
             df.reset_index(inplace=True)
             columns = df.columns.values
             self._check_headers(columns)
+
         df.set_index(['ID', 'TIME'], inplace=True)
         self.headers = df.columns.values.tolist()
 
-        for k, v in df.iterrows():
-            idx = k[0]
-            timepoint = k[1]
+        for (idx, timepoint), v in df.iterrows():
             if timepoint != timepoint:
-                raise ValueError('One of the time value of individual {} is NaN'.format(idx))
+                raise LeaspyDataInputError(f'One of the time value of individual {idx} is NaN')
 
             observation = v.values
             self._check_observation(observation)

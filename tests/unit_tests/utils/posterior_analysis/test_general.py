@@ -1,14 +1,22 @@
 import os
 import unittest
+import warnings
+
 import numpy as np
 import pandas as pd
-#import torch
 
 from leaspy import Leaspy, IndividualParameters#, Data, AlgorithmSettings
 from leaspy.utils.posterior_analysis.general import append_spaceshifts_to_individual_parameters_dataframe, get_reparametrized_ages, compute_trajectory_of_population
 from tests import test_data_dir, hardcoded_model_path
 
+
 class TestUtilsGeneral(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+
+        # ignore deprecation warnings in tests
+        warnings.simplefilter('ignore', DeprecationWarning)
 
     def test_append_spaceshifts_to_individual_parameters_dataframe(self):
         df = pd.DataFrame(data=[[0.1, 70, 0.1, -0.3], [0.2, 73, -0.4, 0.1], [0.3, 58, -0.6, 0.2]],
@@ -18,7 +26,7 @@ class TestUtilsGeneral(unittest.TestCase):
         leaspy = Leaspy.load(hardcoded_model_path('logistic'))
 
         df_w = append_spaceshifts_to_individual_parameters_dataframe(df, leaspy)
-        #TODO : the above test just check  that it runs, not the results!
+        #TODO : the above test just check that it runs, not the results!
 
     def test_get_reparametrized_ages(self):
         leaspy = Leaspy.load(hardcoded_model_path('logistic'))

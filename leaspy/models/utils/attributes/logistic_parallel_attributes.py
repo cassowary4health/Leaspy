@@ -2,6 +2,7 @@ import torch
 
 from .abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 
+from leaspy.exceptions import LeaspyModelInputError
 
 class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     """
@@ -9,46 +10,51 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
     Contains the common attributes & methods of the logistic parallel models' attributes.
 
+    Parameters
+    ----------
+    name : str
+    dimension : int
+    source_dimension : int
+
     Attributes
     ----------
-    name: str (default 'logistic_parallel')
+    name : str (default 'logistic_parallel')
         Name of the associated leaspy model.
-    dimension: int
-    source_dimension: int
-    has_sources: bool
+    dimension : int
+    source_dimension : int
+    has_sources : bool
         Whether model has sources or not (source_dimension >= 1)
-    update_possibilities: tuple [str] (default ('all', 'g', 'xi_mean', 'deltas', 'betas') )
+    update_possibilities : tuple [str] (default ('all', 'g', 'xi_mean', 'deltas', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
-    positions: :class:`torch.Tensor` (scalar) (default None)
+    positions : :class:`torch.Tensor` (scalar) (default None)
         positions = exp(realizations['g']) such that "p0" = 1 / (1 + positions * exp(-deltas))
-    deltas: :class:`torch.Tensor` [dimension] (default None)
+    deltas : :class:`torch.Tensor` [dimension] (default None)
         deltas = [0, delta_2_realization, ..., delta_n_realization]
-    velocities: :class:`torch.Tensor` (scalar) (default None)
+    velocities : :class:`torch.Tensor` (scalar) (default None)
         Always positive: exp(realizations['xi_mean'])
     orthonormal_basis : :class:`torch.Tensor` [dimension, dimension - 1] (default None)
     betas : :class:`torch.Tensor` [dimension - 1, source_dimension] (default None)
     mixing_matrix : :class:`torch.Tensor` [dimension, source_dimension] (default None)
         Matrix A such that w_i = A * s_i.
 
+    Raises
+    ------
+    :class:`.LeaspyModelInputError`
+        if any inconsistent parameters for the model.
+
     See also
     --------
-    leaspy.models.multivariate_parallel_model.MultivariateParallelModel
+    :class:`~leaspy.models.multivariate_parallel_model.MultivariateParallelModel`
     """
 
     def __init__(self, name, dimension, source_dimension):
-        """
-        Instantiate a `LogisticParallelAttributes` class object.
 
-        Parameters
-        ----------
-        name: str
-        dimension: int
-        source_dimension: int
-        """
         super().__init__(name, dimension, source_dimension)
-        assert self.dimension >= 2
 
-        self.deltas = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
+        if self.dimension < 2:
+            raise LeaspyModelInputError(f"`LogisticParallelAttributes` with dimension = {self.dimension} (< 2)")
+
+        self.deltas: torch.FloatTensor = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
         self.update_possibilities = ('all', 'g', 'xi_mean', 'betas', 'deltas')
 
     def get_attributes(self):
@@ -69,7 +75,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
         Parameters
         ----------
-        names_of_changed_values: list [str]
+        names_of_changed_values : list [str]
             Elements of list must be either:
                 * ``all`` (update everything)
                 * ``g`` correspond to the attribute :attr:`positions`.
@@ -77,12 +83,12 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
                 * ``deltas`` correspond to the attribute :attr:`deltas`.
                 * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
                   to derive the :attr:`mixing_matrix`.
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
 
         Raises
         ------
-        ValueError
+        :class:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)
@@ -126,7 +132,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
         Parameters
         ----------
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
         """
         self.positions = torch.exp(values['g'])
 
@@ -137,7 +143,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
         Parameters
         ----------
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
         """
         self.velocities = torch.exp(values['xi_mean'])
 
@@ -147,21 +153,21 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
         Parameters
         ----------
-        values: dict [str, `torch.Tensor`]
+        values : dict [str, `torch.Tensor`]
         """
         self.deltas = torch.cat((torch.tensor([0], dtype=torch.float32), values['deltas']))
 
     def _compute_gamma_dgamma_t0(self):
         """
         Computes both gamma:
-        - value at t0
-        - derivative w.r.t. time at time t0
+            * value at t0
+            * derivative w.r.t. time at time t0
 
         Returns
         -------
         2-tuple:
-            gamma_t0: `torch.Tensor` 1D
-            dgamma_t0: `torch.Tensor` 1D
+            * gamma_t0 : :class:`torch.Tensor` 1D
+            * dgamma_t0 : :class:`torch.Tensor` 1D
         """
         exp_d = torch.exp(-self.deltas)
         denom = 1. + self.positions * exp_d

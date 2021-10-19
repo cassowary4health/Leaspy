@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 import torch
 
+from leaspy.exceptions import LeaspyIndividualParamsInputError
+from leaspy.utils.typing import IDType, ParamType, DictParams, DictParamsTorch, Iterable, List, Callable, Dict, Tuple
+
 
 class IndividualParameters:
     r"""
@@ -19,24 +22,26 @@ class IndividualParameters:
 
     Attributes
     ----------
-    _indices: list
+    _indices : list
         List of the patient indices
-    _individual_parameters: dict
+    _individual_parameters : dict
         Individual indices (key) with their corresponding individual parameters {parameter name: parameter value}
-    _parameters_shape: dict
+    _parameters_shape : dict
         Shape of each individual parameter
-    _default_saving_type: str
+    _default_saving_type : str
         Default extension for saving when none is provided
     """
 
+    VALID_IO_EXTENSIONS = ['csv', 'json']
+
     def __init__(self):
-        self._indices = []
-        self._individual_parameters = {}
+        self._indices: List[IDType] = []
+        self._individual_parameters: Dict[IDType, DictParams] = {}
         self._parameters_shape = None # {p_name: p_shape as tuple}
         self._default_saving_type = 'csv'
 
     @property
-    def _parameters_size(self):
+    def _parameters_size(self) -> Dict[ParamType, int]:
         # convert parameter shape to parameter size
         # e.g. () -> 1, (1,) -> 1, (2,3) -> 6
         shape_to_size = lambda shape: functools.reduce(operator.mul, shape, 1)
@@ -44,21 +49,23 @@ class IndividualParameters:
         return {p: shape_to_size(s)
                 for p,s in self._parameters_shape.items()}
 
-    def add_individual_parameters(self, index, individual_parameters):
+    def add_individual_parameters(self, index: IDType, individual_parameters: DictParams):
         r"""
         Add the individual parameter of an individual to the IndividualParameters object
 
         Parameters
         ----------
-        index: str
+        index : str
             Index of the individual
-        individual_parameters: dict
+        individual_parameters : dict
             Individual parameters of the individual {name: value:}
 
         Raises
         ------
-        ValueError
-            If the index is not a string or has already been added
+        :class:`.LeaspyIndividualParamsInputError`
+            * If the index is not a string or has already been added
+            * Or if the individual parameters is not a dict.
+            * Or if individual parameters are not self-consistent.
 
         Examples
         --------
@@ -69,15 +76,15 @@ class IndividualParameters:
         >>> ip.add_individual_parameters('index-2', {"xi": 0.2, "tau": 73, "sources": [-0.4, -0.1]})
         """
         # Check indices
-        if type(index) != str:
-            raise ValueError(f'The index should be a string ({type(index)} provided instead)')
+        if not isinstance(index, str):
+            raise LeaspyIndividualParamsInputError(f'The index should be a string ({type(index)} provided instead)')
 
         if index in self._indices:
-            raise ValueError(f'The index {index} has already been added before')
+            raise LeaspyIndividualParamsInputError(f'The index {index} has already been added before')
 
         # Check the dictionary format
-        if type(individual_parameters) != dict:
-            raise ValueError('The `individual_parameters` argument should be a dictionary')
+        if not isinstance(individual_parameters, dict):
+            raise LeaspyIndividualParamsInputError('The `individual_parameters` argument should be a dictionary')
 
         # Conversion of numpy arrays to lists
         individual_parameters = {k: v.tolist() if isinstance(v, np.ndarray) else v
@@ -95,7 +102,8 @@ class IndividualParameters:
             #    scalar_type = v.dtype
 
             if scalar_type not in valid_scalar_types:
-                raise ValueError(f'Incorrect dictionary value. Error for key: {k} -> scalar type {scalar_type}')
+                raise LeaspyIndividualParamsInputError(
+                            f'Incorrect dictionary value. Error for key: {k} -> scalar type {scalar_type}')
 
         # Fix/check parameters nomenclature and shapes
         # (scalar or 1D arrays only...)
@@ -106,16 +114,28 @@ class IndividualParameters:
             # Keep track of the parameter shape
             self._parameters_shape = pshapes
         elif self._parameters_shape != pshapes:
-            raise ValueError(f'Invalid parameter shapes provided: {pshapes}. Expected: {self._parameters_shape}. Some parameters may be missing/unknown or have a wrong shape.')
+            raise LeaspyIndividualParamsInputError(
+                    f'Invalid parameter shapes provided: {pshapes}. Expected: {self._parameters_shape}. '
+                    'Some parameters may be missing/unknown or have a wrong shape.')
 
         # Finally: add to internal dict object + indices array
         self._indices.append(index)
         self._individual_parameters[index] = individual_parameters
 
 
-    def __getitem__(self, item):
-        if type(item) != str:
-            raise ValueError(f'The index should be a string ({type(item)} provided instead)')
+    def __getitem__(self, item: IDType) -> DictParams:
+        """
+        Get the individual parameters for individual `item`.
+
+        Raises
+        ------
+        :class:`.LeaspyIndividualParamsInputError`
+            if bad item asked
+        """
+        if not isinstance(item, IDType):
+            raise LeaspyIndividualParamsInputError(f'The index should be a string ({type(item)} provided instead)')
+        if item not in self._individual_parameters:
+            raise LeaspyIndividualParamsInputError(f'The index {item} is unknown')
         return self._individual_parameters[item]
 
     def items(self):
@@ -124,14 +144,16 @@ class IndividualParameters:
         """
         return self._individual_parameters.items()
 
-    def subset(self, indices):
+    def subset(self, indices: Iterable[IDType], *, copy: bool = True):
         r"""
         Returns IndividualParameters object with a subset of the initial individuals
 
         Parameters
         ----------
-        indices: list[ID]
+        indices : list[ID]
             List of strings that corresponds to the indices of the individuals to return
+        copy : bool, optional (default True)
+            Should we copy underlying parameters or not?
 
         Returns
         -------
@@ -140,7 +162,7 @@ class IndividualParameters:
 
         Raises
         ------
-        ValueError
+        :class:`.LeaspyIndividualParamsInputError`
             Raise an error if one of the index is not in the IndividualParameters
 
         Examples
@@ -154,21 +176,64 @@ class IndividualParameters:
         """
         ip = IndividualParameters()
 
+        unknown_ix = [ix for ix in indices if ix not in self._indices]
+        if len(unknown_ix) > 0:
+            raise LeaspyIndividualParamsInputError(f'The index {unknown_ix} are not in the indices.')
+
         for idx in indices:
-            if idx not in self._indices:
-                raise ValueError(f'The index {idx} is not in the indices')
-            p = self[idx].copy()
+            p = self[idx]
+            if copy:
+                p = p.copy()  # deepcopy here?
             ip.add_individual_parameters(idx, p)
 
         return ip
 
-    def get_mean(self, parameter):
+    def get_aggregate(self, parameter: ParamType, function: Callable) -> List:
+        r"""
+        Returns the result of aggregation by `function` of parameter values across all patients
+
+        Parameters
+        ----------
+        parameter : str
+            Name of the parameter
+        function : callable
+            A function operating on iterables and supporting axis keyword,
+            and outputing an iterable supporting the `tolist` method.
+
+        Returns
+        -------
+        list or float (depending on parameter shape)
+            Resulting value of the parameter
+
+        Raises
+        ------
+        :class:`.LeaspyIndividualParamsInputError`
+            * If individual parameters are empty,
+            * or if the parameter is not in the IndividualParameters.
+
+        Examples
+        --------
+
+        >>> ip = IndividualParameters.load("path/to/individual_parameters")
+        >>> tau_median = ip.get_aggregate("tau", np.median)
+        """
+        if self._parameters_shape is None:
+            raise LeaspyIndividualParamsInputError(f"Individual parameters are empty: no information on '{parameter}'.")
+        if parameter not in self._parameters_shape.keys():
+            raise LeaspyIndividualParamsInputError(f"Parameter '{parameter}' does not exist in the individual parameters")
+
+        p = [v[parameter] for v in self._individual_parameters.values()]
+        p_agg = function(p, axis=0).tolist()
+
+        return p_agg
+
+    def get_mean(self, parameter: ParamType):
         r"""
         Returns the mean value of a parameter across all patients
 
         Parameters
         ----------
-        parameter: str
+        parameter : str
             Name of the parameter
 
         Returns
@@ -178,8 +243,9 @@ class IndividualParameters:
 
         Raises
         ------
-        ValueError
-            If the parameter is not in the IndividualParameters
+        :class:`.LeaspyIndividualParamsInputError`
+            * If individual parameters are empty,
+            * or if the parameter is not in the IndividualParameters.
 
         Examples
         --------
@@ -187,32 +253,27 @@ class IndividualParameters:
         >>> ip = IndividualParameters.load("path/to/individual_parameters")
         >>> tau_mean = ip.get_mean("tau")
         """
-        if parameter not in self._parameters_shape.keys():
-            ValueError(f"Parameter {parameter} does not exist in the individual parameters")
+        return self.get_aggregate(parameter, np.mean)
 
-        p = [v[parameter] for v in self._individual_parameters.values()]
-        p_mean = np.mean(p, axis=0).tolist()
-
-        return p_mean
-
-    def get_std(self, parameter):
+    def get_std(self, parameter: ParamType):
         r"""
         Returns the stardard deviation of a parameter across all patients
 
         Parameters
         ----------
-        parameter: str
+        parameter : str
             Name of the parameter
 
         Returns
         -------
         list or float (depending on parameter shape)
-            Standard value of the parameter
+            Standard-deviation value of the parameter
 
         Raises
         ------
-        ValueError
-            If the parameter is not in the IndividualParameters
+        :class:`.LeaspyIndividualParamsInputError`
+            * If individual parameters are empty,
+            * or if the parameter is not in the IndividualParameters.
 
         Examples
         --------
@@ -220,23 +281,18 @@ class IndividualParameters:
         >>> ip = IndividualParameters.load("path/to/individual_parameters")
         >>> tau_std = ip.get_std("tau")
         """
-        if parameter not in self._parameters_shape.keys():
-            ValueError(f"Parameter {parameter} does not exist in the individual parameters")
+        return self.get_aggregate(parameter, np.std)
 
-        p = [v[parameter] for v in self._individual_parameters.values()]
-        p_std = np.std(p, axis=0).tolist()
-
-        return p_std
-
-    def to_dataframe(self):
+    def to_dataframe(self) -> pd.DataFrame:
         r"""
         Returns the dataframe of individual parameters
 
         Returns
         -------
         :class:`pandas.DataFrame`
-            Each row corresponds to one individual. The index corresponds to the individual index. The columns are
-            the names of the parameters.
+            Each row corresponds to one individual.
+            The index corresponds to the individual index ('ID').
+            The columns are the names of the parameters.
 
 
         Examples
@@ -272,7 +328,7 @@ class IndividualParameters:
 
 
     @staticmethod
-    def from_dataframe(df):
+    def from_dataframe(df: pd.DataFrame):
         r"""
         Static method that returns an IndividualParameters object from the dataframe
 
@@ -289,7 +345,7 @@ class IndividualParameters:
 
         """
         # Check the names to keep
-        df_names = list(df.columns.values)
+        df_names: List[ParamType] = list(df.columns.values)
 
         final_names = {}
         for name in df_names:
@@ -312,21 +368,24 @@ class IndividualParameters:
         return ip
 
     @staticmethod
-    def from_pytorch(indices, dict_pytorch):
+    def from_pytorch(indices: List[IDType], dict_pytorch: DictParamsTorch):
         r"""
         Static method that returns an IndividualParameters object from the indices and pytorch dictionary
 
         Parameters
         ----------
-        indices: list[ID]
+        indices : list[ID]
             List of the patients indices
-        dict_pytorch: dict[parameter:str, `torch.Tensor`]
+        dict_pytorch : dict[parameter:str, `torch.Tensor`]
             Dictionary of the individual parameters
 
         Returns
         -------
-        `IndividualParameters`
+        :class:`.IndividualParameters`
 
+        Raises
+        ------
+        :class:`.LeaspyIndividualParamsInputError`
 
         Examples
         --------
@@ -344,7 +403,7 @@ class IndividualParameters:
         len_p = {k: len(v) for k, v in dict_pytorch.items()}
         for k, v in len_p.items():
             if v != len(indices):
-                raise ValueError(f'The parameter {k} should be of same length as the indices')
+                raise LeaspyIndividualParamsInputError(f'The parameter {k} should be of same length as the indices')
 
         ip = IndividualParameters()
 
@@ -358,7 +417,7 @@ class IndividualParameters:
 
         return ip
 
-    def to_pytorch(self):
+    def to_pytorch(self) -> Tuple[List[IDType], DictParamsTorch]:
         r"""
         Returns the indices and pytorch dictionary of individual parameters
 
@@ -389,7 +448,7 @@ class IndividualParameters:
 
         return self._indices, ips_pytorch
 
-    def save(self, path, **kwargs):
+    def save(self, path: str, **kwargs):
         r"""
         Saves the individual parameters (json or csv) at the path location
 
@@ -397,47 +456,57 @@ class IndividualParameters:
 
         Parameters
         ----------
-        path: str
+        path : str
             Path and file name of the individual parameters. The extension can be json or csv.
             If no extension, default extension (csv) is used
-        **kwargs:
-            Additional keyword arguments argument to pass to either:
-            - pandas.to_csv
-            - json.dump
+        **kwargs
+            Additional keyword arguments to pass to either:
+            * :meth:`pandas.DataFrame.to_csv`
+            * :func:`json.dump`
             depending on saving format requested
+
+        Raises
+        ------
+        :class:`.LeaspyIndividualParamsInputError`
+            * If extension not supported for saving
+            * If individual parameters are empty
         """
+        if self._parameters_shape is None:
+            raise LeaspyIndividualParamsInputError('Individual parameters are empty: unable to save them.')
+
         extension = IndividualParameters._check_and_get_extension(path)
         if not extension:
             warnings.warn(f'You did not provide a valid extension (csv or json) for the file. '
-                          f'Default to {self._default_saving_type}')
+                          f'Default to {self._default_saving_type}.')
             extension = self._default_saving_type
-            path = path+'.'+extension
+            path = path + '.' + extension
 
         if extension == 'csv':
             self._save_csv(path, **kwargs)
         elif extension == 'json':
             self._save_json(path, **kwargs)
         else:
-            raise ValueError(f"Something bad happened: extension {extension} is not handled.")
+            raise LeaspyIndividualParamsInputError(f"Saving individual parameters to extension '{extension}' is currently not handled. "
+                                                   f"Valid extensions are: {self.VALID_IO_EXTENSIONS}.")
 
-    @staticmethod
-    def load(path):
+    @classmethod
+    def load(cls, path: str):
         r"""
         Static method that loads the individual parameters (json or csv) existing at the path locatio
 
         Parameters
         ----------
-        path: str
+        path : str
             Path and file name of the individual parameters.
 
         Returns
         -------
-        `IndividualParameters`
+        :class:`.IndividualParameters`
             Individual parameters object load from the file
 
         Raises
         ------
-        ValueError
+        :class:`.LeaspyIndividualParamsInputError`
             If the provided extension is not `csv` or not `json`.
 
         Examples
@@ -447,31 +516,30 @@ class IndividualParameters:
         >>> ip2 = IndividualParameters.load('/path/to/individual_parameters_2.csv')
         """
         extension = IndividualParameters._check_and_get_extension(path)
-        if not extension or extension not in ['csv', 'json']:
-            raise ValueError('The file you provide should have a `.csv` or `.json` name')
+        if not extension or extension not in cls.VALID_IO_EXTENSIONS:
+            raise LeaspyIndividualParamsInputError(f"Loading individual parameters from extension '{extension}' is currently not handled. "
+                                                   f"Valid extensions are: {cls.VALID_IO_EXTENSIONS}.")
 
         if extension == 'csv':
             ip = IndividualParameters._load_csv(path)
-        elif extension == 'json':
-            ip = IndividualParameters._load_json(path)
         else:
-            raise ValueError(f"Something bad happened: extension is {extension}")
+            ip = IndividualParameters._load_json(path)
 
         return ip
 
     @staticmethod
-    def _check_and_get_extension(path):
+    def _check_and_get_extension(path: str):
         _, ext = os.path.splitext(path)
         if len(ext) == 0:
             return False
         else:
             return ext[1:]
 
-    def _save_csv(self, path, **kwargs):
+    def _save_csv(self, path: str, **kwargs):
         df = self.to_dataframe()
         df.to_csv(path, **kwargs)
 
-    def _save_json(self, path, **kwargs):
+    def _save_json(self, path: str, **kwargs):
         json_data = {
             'indices': self._indices,
             'individual_parameters': self._individual_parameters,
@@ -482,15 +550,15 @@ class IndividualParameters:
             json.dump(json_data, f, **kwargs)
 
     @staticmethod
-    def _load_csv(path):
+    def _load_csv(path: str):
 
-        df = pd.read_csv(path, dtype={'ID':str}).set_index('ID')
+        df = pd.read_csv(path, dtype={'ID': IDType}).set_index('ID')
         ip = IndividualParameters.from_dataframe(df)
 
         return ip
 
     @staticmethod
-    def _load_json(path):
+    def _load_json(path: str):
         with open(path, 'r') as f:
             json_data = json.load(f)
 

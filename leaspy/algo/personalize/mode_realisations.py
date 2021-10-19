@@ -7,9 +7,6 @@ from ..samplers.hmc_sampler import HMCSampler
 from ...io.outputs.individual_parameters import IndividualParameters
 
 
-# import time
-
-
 class ModeReal(AbstractPersonalizeAlgo):
     """
     Sampler based algorithm, individual parameters are derivated as the most frequent realization for `n_samples` samplings.

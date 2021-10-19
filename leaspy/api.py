@@ -1,12 +1,25 @@
-import pandas as pd
-from typing import Dict, Union, List
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
-from leaspy.algo.algo_factory import AlgoFactory
+import pandas as pd
+
 from leaspy.io.data.dataset import Dataset
-from leaspy.io.logs.visualization.plotting import Plotting
-from leaspy.io.settings.model_settings import ModelSettings
-from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.models.model_factory import ModelFactory
+from leaspy.io.settings.model_settings import ModelSettings
+from leaspy.algo.algo_factory import AlgoFactory
+from leaspy.io.logs.visualization.plotting import Plotting
+from leaspy.io.outputs.individual_parameters import IndividualParameters
+
+from leaspy.exceptions import LeaspyTypeError, LeaspyInputError
+from leaspy.utils.typing import FeatureType, IDType, Dict, Union, List, Tuple
+
+if TYPE_CHECKING:
+    import numpy as np
+    import torch
+
+    from leaspy.io.data.data import Data
+    from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+    from leaspy.io.outputs.result import Result  # for simulate only
 
 
 class Leaspy:
@@ -16,7 +29,7 @@ class Leaspy:
 
     Parameters
     ----------
-    model_name: str
+    model_name : str
         The name of the model that will be used for the computations.
         The available models are:
             * ``'logistic'`` - suppose that every modality follow a logistic curve across time. This model performs a dimensionality reduction of the modalities.
@@ -27,11 +40,18 @@ class Leaspy:
             * ``'constant'`` - benchmark model for constant predictions.
             * ``'lme'`` - benchmark model for classical linear mixed-effects model.
 
-    **kwargs:
+    **kwargs
         Keyword arguments directly passed to the model for its initialization (through :meth:`.ModelFactory.model`).
         Refer to the corresponding model to know possible arguments.
 
-        source_dimension: int, optional
+        loss : str
+            `For manifold-like models`.
+            Set the loss of the model, can be either:
+                * ``'MSE'``: gaussian error, with same standard deviation for all features
+                * ``'MSE_diag_noise'``: gaussian error, with one standard deviation parameter per feature
+                * ``'crossentropy'``: for binary data (Bernoulli realization)
+
+        source_dimension : int, optional
             `For multivariate models only`.
             Set the spatial variability degree of freedom.
             This number MUST BE lower than the number of features.
@@ -48,13 +68,11 @@ class Leaspy:
 
     See also
     --------
-    leaspy.models
+    :mod:`leaspy.models`
     """
 
-    def __init__(self, model_name, **kwargs):
-        """
-        Instantiate a Leaspy class object.
-        """
+    def __init__(self, model_name: str, **kwargs):
+
         self.model = ModelFactory.model(model_name, **kwargs)
         #self.type = model_name # is a property instead
         self.plotting = Plotting(self.model)
@@ -63,7 +81,7 @@ class Leaspy:
     def type(self) -> str:
         return self.model.name
 
-    def fit(self, data, algorithm_settings):
+    def fit(self, data: Data, algorithm_settings: AlgorithmSettings):
         r"""
         Estimate the model's parameters :math:`\theta` for a given dataset and a given algorithm.
         These model's parameters correspond to the fixed-effects of the mixed-effects model.
@@ -115,13 +133,13 @@ class Leaspy:
         # Update plotting
         self.plotting.update_model(self.model)
 
-    def calibrate(self, data, algorithm_settings):
+    def calibrate(self, data: Data, algorithm_settings: AlgorithmSettings):
         r"""
         Duplicates of the :meth:`~.Leaspy.fit` method.
         """
         self.fit(data, algorithm_settings)
 
-    def personalize(self, data, settings, return_noise=False):
+    def personalize(self, data: Data, settings: AlgorithmSettings, return_noise: bool = False):
         r"""
         From a model, estimate individual parameters for each `ID` of a given dataset.
         These individual parameters correspond to the random-effects :math:`(z_{i,j})` of the mixed-effects model.
@@ -132,7 +150,7 @@ class Leaspy:
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
         settings : :class:`.AlgorithmSettings`
             Contains the algorithm's settings.
-        return_noise: bool (default False)
+        return_noise : bool (default False)
             Returns a tuple (individual_parameters, noise_std) if True
 
         Returns
@@ -140,9 +158,14 @@ class Leaspy:
         ips : :class:`.IndividualParameters`
             Contains individual parameters
 
-        if return_noise is True:
-            ips : :class:`.IndividualParameters`
-            noise_std : :class:`torch.Tensor`
+        if return_noise is True : tuple
+            * ips : :class:`.IndividualParameters`
+            * noise_std : :class:`torch.Tensor`
+
+        Raises
+        ------
+        :class:`.LeaspyInputError`
+            if model is not initialized.
 
         Examples
         --------
@@ -169,14 +192,16 @@ class Leaspy:
 
         algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
-        individual_parameters, noise_std = algorithm.run(self.model, dataset)
+        res: Tuple[IndividualParameters, torch.FloatTensor] = algorithm.run(self.model, dataset)
+        individual_parameters, noise_std = res
 
         if return_noise:
             return individual_parameters, noise_std
         else:  # default
             return individual_parameters
 
-    def estimate(self, timepoints, individual_parameters, *, to_dataframe=None):
+    def estimate(self, timepoints: Union[pd.MultiIndex, Dict[IDType, List[float]]], individual_parameters: IndividualParameters, *,
+                 to_dataframe: bool = None) -> Union[pd.DataFrame, Dict[IDType, np.ndarray]]:
         r"""
         Return the model values for individuals characterized by their individual parameters :math:`z_i` at time-points :math:`(t_{i,j})_j`
 
@@ -193,7 +218,7 @@ class Leaspy:
 
         Returns
         -------
-        individual_trajectory : dict or :class:`pandas.DataFrame` (depending on `to_dataframe` flag)
+        individual_trajectory : :class:`pandas.DataFrame` or dict (depending on `to_dataframe` flag)
             Key: patient indices.
             Value: :class:`numpy.ndarray` of the estimated value, in the shape
             (number of timepoints, number of features)
@@ -240,30 +265,37 @@ class Leaspy:
 
         return estimations
 
-    def estimate_ages_from_biomarker_values(self, individual_parameters,
-                                            biomarker_values: Dict[Union[str, int], Union[List, float]],
-                                            feature: str = None) -> Dict[Union[str, int], List]:
+    def estimate_ages_from_biomarker_values(self, individual_parameters: IndividualParameters,
+                                            biomarker_values: Dict[IDType, Union[List[float], float]],
+                                            feature: FeatureType = None) -> Dict[IDType, Union[List[float], float]]:
         r"""
         For individuals characterized by their individual parameters :math:`z_{i}`, returns the age :math:`t_{i,j}`
         at which a given feature value :math:`y_{i,j,k}` is reached.
 
         Parameters
         ----------
-        individual_parameters: Leaspy.IndividualParameters
+        individual_parameters : :class:`.IndividualParameters`
             Corresponds to the individual parameters of individuals.
 
-        biomarker_values: Dict[Union[str, int], Union[List, float]]
+        biomarker_values : Dict[Union[str, int], Union[List, float]]
             Dictionary that associates to each patient (being a key of the dictionary) a value (float between 0 and 1,
             or a list of such floats) from which leaspy will estimate the age at which the value is reached.
 
-        feature: str
+        feature : str
             For multivariate models only: feature name (indicates to which model feature the biomarker values belongs)
 
         Returns
-        ------
+        -------
         biomarker_ages :
             Dictionary that associates to each patient (being a key of the dictionary) the corresponding age
             (or ages) for which the value(s) from biomarker_values have been reached. Same format as biomarker values.
+
+        Raises
+        ------
+        :class:`.LeaspyTypeError`
+            bad types for input
+        :class:`.LeaspyInputError`
+            inconsistent inputs
 
         Examples
         --------
@@ -285,21 +317,18 @@ class Leaspy:
 
         if feature is not None:
             if not isinstance(feature, str):
-                raise TypeError('The \'feature\' parameter must be a string, not {} !'.format(type(feature)))
+                raise LeaspyTypeError(f"The 'feature' parameter must be a string, not {type(feature)} !")
             elif feature not in model_features:
-                raise ValueError('Feature {} is not in model parameters features: {} !'.format(
-                    feature, model_features
-                ))
+                raise LeaspyInputError(f'Feature {feature} is not in model parameters features: {model_features} !')
 
         if len(model_features) > 1 and not feature:
-            raise ValueError('Feature argument must not be None for a multivariate model !')
+            raise LeaspyInputError('Feature argument must not be None for a multivariate model !')
 
         if not isinstance(biomarker_values, dict):
-            raise TypeError('The \'biomarker_values\' parameter must be a dict, not {} !'.format(type(biomarker_values)))
+            raise LeaspyTypeError(f"The 'biomarker_values' parameter must be a dict, not {type(biomarker_values)} !")
 
         if not isinstance(individual_parameters, IndividualParameters):
-            raise TypeError('The \'individual_parameters\' parameter must be type {}, not {} !'.
-                            format(IndividualParameters, type(individual_parameters)))
+            raise LeaspyTypeError(f"The 'individual_parameters' parameter must be type IndividualParameters, not {type(individual_parameters)} !")
 
         # compute biomarker ages
         biomarker_ages = {}
@@ -318,15 +347,14 @@ class Leaspy:
                 est = float(est)
             elif isinstance(value, list):
                 est = est.tolist()
-
             else:
-                raise TypeError("Values of biomarker_values should be float or list, not {} !".format(type(value)))
+                raise LeaspyTypeError(f"Values of biomarker_values should be float or list, not {type(value)} !")
 
             biomarker_ages[index] = est
 
         return biomarker_ages
 
-    def simulate(self, individual_parameters, data, settings):
+    def simulate(self, individual_parameters: IndividualParameters, data: Data, settings: AlgorithmSettings):
         r"""
         Generate longitudinal synthetic patients data from a given model, a given collection of individual parameters
         and some given settings.
@@ -428,11 +456,12 @@ class Leaspy:
         self.check_if_initialized()
 
         algorithm = AlgoFactory.algo("simulate", settings)
-        simulated_data = algorithm.run(self.model, individual_parameters, data)
+        # <!> The `AbstractAlgo.run` signature is not respected for simulation algorithm...
+        simulated_data: Result = algorithm.run(self.model, individual_parameters, data)
         return simulated_data
 
     @classmethod
-    def load(cls, path_to_model_settings):
+    def load(cls, path_to_model_settings: str):
         r"""
         Instantiate a Leaspy object from json model parameter file or the corresponding dictionary
 
@@ -440,12 +469,12 @@ class Leaspy:
 
         Parameters
         ----------
-        path_to_model_settings: str or dict
+        path_to_model_settings : str or dict
             Path to the model's settings json file or dictionary of model parameters
 
         Returns
         -------
-        :class:`.Leaspy`
+        :class:`leaspy.Leaspy`
             An instanced Leaspy object with the given population parameters :math:`\theta`.
 
         Examples
@@ -480,13 +509,13 @@ class Leaspy:
 
         return leaspy
 
-    def save(self, path, **kwargs):
+    def save(self, path: str, **kwargs):
         """
         Save Leaspy object as json model parameter file.
 
         Parameters
         ----------
-        path: str
+        path : str
             Path to store the model's parameters.
         **kwargs
             Keyword arguments for json.dump method.
@@ -518,8 +547,8 @@ class Leaspy:
 
         Raises
         ------
-        ValueError
+        :class:`.LeaspyInputError`
             Raise an error if the model has not been initialized.
         """
         if not self.model.is_initialized:
-            raise ValueError("Model has not been initialized")
+            raise LeaspyInputError("Model has not been initialized")

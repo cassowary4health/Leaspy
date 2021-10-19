@@ -1,7 +1,6 @@
 import os
 import unittest
 
-import torch
 import numpy as np
 
 from leaspy import Leaspy, IndividualParameters
@@ -94,7 +93,7 @@ class LeaspyEstimateTest(unittest.TestCase):
         estimations = {}
         for idx, array in estimations_raw.items():
             estimations[idx] = array.squeeze().tolist()
-            if type(estimations[idx]) == float:
+            if isinstance(estimations[idx], float):
                 estimations[idx] = [estimations[idx]]
 
         # with no feature argument
@@ -138,7 +137,7 @@ class LeaspyEstimateTest(unittest.TestCase):
                                                              biomarker_values=problematic_estimations)
 
         # check that nan estimation gives nan age
-        self.assertFalse(pbq_age['idx1'][0] == pbq_age['idx1'][0])
+        self.assertNotEqual(pbq_age['idx1'][0], pbq_age['idx1'][0])
 
         # quick check biomarker_values as dict of key: str and val: int rather than list works
         estimated_ages_0 = leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip,
@@ -201,7 +200,7 @@ class LeaspyEstimateTest(unittest.TestCase):
             estimations = {}
             for idx, array in feat_estimations.items():
                 estimations[idx] = array.squeeze().tolist()
-                if type(estimations[idx]) == float:
+                if isinstance(estimations[idx], float):
                     estimations[idx] = [estimations[idx]]
 
             estimated_ages = leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip,

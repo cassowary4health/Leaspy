@@ -1,10 +1,12 @@
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import os
+
 import pandas as pd
 import numpy as np
 import torch
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import matplotlib.backends.backend_pdf
 from matplotlib.cm import get_cmap
 # import seaborn as sns
@@ -12,6 +14,7 @@ from matplotlib.cm import get_cmap
 #from leaspy.utils.logs.visualization import color_palette # not used
 
 from leaspy.io.data.dataset import Dataset
+from leaspy.exceptions import LeaspyInputError
 
 
 class Plotter:
@@ -34,14 +37,14 @@ class Plotter:
 
         try:
             iter(model)
-        except TypeError:
+        except Exception:
 
             # Break if model is not initialized
             if not model.is_initialized:
-                raise ValueError("Please initialize the model before plotting")
+                raise LeaspyInputError("Please initialize the model before plotting")
 
             # not iterable
-            if model.name in ['logistic', 'logistic_parallel']:
+            if 'logistic' in model.name:
                 plt.ylim(0, 1)
 
             mean_time = model.parameters['tau_mean']
@@ -60,10 +63,10 @@ class Plotter:
 
             # Break if model is not initialized
             if not model[0].is_initialized:
-                raise ValueError("Please initialize the model before plotting")
+                raise LeaspyInputError("Please initialize the model before plotting")
 
             # iterable
-            if model[0].name in ['logistic', 'logistic_parallel']:
+            if 'logistic' in model[0].name:
                 plt.ylim(0, 1)
 
             timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
@@ -119,10 +122,10 @@ class Plotter:
         else:
             (fig, ax) = plt.subplots(1, 1, figsize=(8, 8))
 
-        if model.name in ['logistic', 'logistic_parallel']:
+        if 'logistic' in model.name:
             plt.ylim(0, 1)
 
-        if type(indices) is not list:
+        if not isinstance(indices, list):
             indices = [indices]
 
         for idx in indices:
@@ -230,7 +233,7 @@ class Plotter:
                 ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
                         patient_values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy(),
                         alpha=0.8)
-            if model.name in ['logistic', 'logistic_parallel']:
+            if 'logistic' in model.name:
                 plt.ylim(0, 1)
 
     ############## TODO : The next functions are related to the plots during the fit. Disentangle them properly
@@ -279,7 +282,7 @@ class Plotter:
 
         patient_values = model.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
 
-        if type(max_patient_number) == int:
+        if isinstance(max_patient_number, int):
             patients_list = range(max_patient_number)
         else:
             patients_list = max_patient_number
@@ -421,26 +424,25 @@ class Plotter:
                     ax[y_position].set_title(key)
 
         for i, key in enumerate(reals_ind_name):
-            import_path_mean = os.path.join(path, "{}_mean.csv".format(key))
+            import_path_mean = os.path.join(path, f"{key}_mean.csv")
             df_convergence_mean = pd.read_csv(import_path_mean, index_col=0, header=None)
             df_convergence_mean.index.rename("iter", inplace=True)
 
-            import_path_var = os.path.join(path, "{}_std.csv".format(key))
+            import_path_var = os.path.join(path, f"{key}_std.csv")
             df_convergence_var = pd.read_csv(import_path_var, index_col=0, header=None)
             df_convergence_var.index.rename("iter", inplace=True)
 
-            df_convergence_mean.columns = [key + "_mean"]
-            df_convergence_var.columns = [key + "_sigma"]
+            df_convergence_mean.columns = [f"{key}_mean"]
+            df_convergence_var.columns = [f"{key}_sigma"] # is it variance or std-dev??
 
             df_convergence = pd.concat([df_convergence_mean, df_convergence_var], axis=1)
 
             y_position += 1
-            df_convergence.plot(use_index=True, y="{0}_mean".format(key), ax=ax[y_position], legend=False)
+            df_convergence.plot(use_index=True, y=f"{key}_mean", ax=ax[y_position], legend=False)
+
+            mu, sd = df_convergence[f"{key}_mean"], np.sqrt(df_convergence[f"{key}_sigma"]) # is it variance or std-dev??
             ax[y_position].fill_between(df_convergence.index,
-                                        df_convergence["{0}_mean".format(key)] - np.sqrt(
-                                            df_convergence["{0}_sigma".format(key)]),
-                                        df_convergence["{0}_mean".format(key)] + np.sqrt(
-                                            df_convergence["{0}_sigma".format(key)]),
+                                        mu - sd, mu + sd,
                                         color='b', alpha=0.2)
             ax[y_position].set_title(key)
 

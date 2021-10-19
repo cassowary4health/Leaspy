@@ -1,7 +1,8 @@
 import numpy as np
 import warnings
 
-from leaspy import IndividualParameters
+from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.exceptions import LeaspyInputError
 
 
 def append_spaceshifts_to_individual_parameters_dataframe(df_individual_parameters, leaspy):
@@ -11,9 +12,9 @@ def append_spaceshifts_to_individual_parameters_dataframe(df_individual_paramete
 
     Parameters
     ----------
-    df_individual_parameters: :class:`pandas.DataFrame`
+    df_individual_parameters : :class:`pandas.DataFrame`
         Dataframe of the individual parameters. Each row corresponds to an individual. The index is the index of the patient.
-    leaspy: Leaspy
+    leaspy : :class:`leaspy.Leaspy`
         Initialize model
 
     Returns
@@ -42,28 +43,27 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
 
     Parameters
     ----------
-    individual_parameters: Individual parameters object
+    individual_parameters : :class:`.IndividualParameters`
         Contains the individual parameters for each patient
 
-    ages: dict {patient_idx: [ages]}
+    ages : dict {patient_idx: [ages]}
         Contains the patient ages to reparametrized
 
-    leaspy: Leaspy object
+    leaspy : :class:`leaspy.Leaspy`
         Contains the model parameters
 
     Returns
     -------
-    reparametrized_ages: dict {patient_idx: [reparametrized_ages]}
+    reparametrized_ages : dict {patient_idx: [reparametrized_ages]}
         Contains the reparametrized ages
 
     Raises
     ------
-    ValueError:
+    :class:`.LeaspyInputError`
         If one of the index not in the individual parameters
 
     Examples
     --------
-
     >>> ages = {'idx-1': [78, 79, 81], 'idx-2': [67, 68, 74], 'idx-3': [56]}
     >>> repametrized_ages = get_reparametrized_ages(ages, individual_parameters, leaspy)
     """
@@ -76,7 +76,7 @@ def get_reparametrized_ages(ages, individual_parameters, leaspy):
 
     for idx, ages in ages.items():
         if idx not in indices:
-            raise ValueError(f'The index {idx} is not in the individual parameters')
+            raise LeaspyInputError(f'The index {idx} is not in the individual parameters')
 
         idx_ip = individual_parameters[idx]
         alpha = np.exp(idx_ip['xi'])
@@ -95,18 +95,18 @@ def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
 
     Parameters
     ----------
-    timepoints: list
+    timepoints : list
         Containes the ages at which the trajectory is computed
 
-    individual_parameters: IndividualParameters
+    individual_parameters : :class:`.IndividualParameters`
         Population for which the trajectory should be computed
 
-    leaspy: Leaspy object
+    leaspy : :class:`leaspy.Leaspy`
         Contains the model parameters
 
     Returns
     -------
-    trajectory: tensor.Tensor
+    trajectory : :class:`torch.Tensor`
         Contains the trajectory of the population with shape (number of timepoints, number of features)
 
     Examples

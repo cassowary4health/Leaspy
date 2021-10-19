@@ -16,33 +16,32 @@ class FitOutputManager:
 
     Attributes
     ----------
-    path_output: str
+    path_output : str
         Path of the folder containing all the outputs
-    path_plot: str
+    path_plot : str
         Path of the subfolder of path_output containing the logs plots
-    path_plot_convergence_model_parameters_1: str
+    path_plot_convergence_model_parameters_1 : str
         Path of the first plot of the convergence of the model's parameters (in the subfolder path_plot)
-    path_plot_convergence_model_parameters_2: str
+    path_plot_convergence_model_parameters_2 : str
         Path of the second plot of the convergence of the model's parameters (in the subfolder path_plot)
-    path_plot_patients: str
+    path_plot_patients : str
         Path of the subfolder of path_plot containing the plot of the reconstruction of the patients' longitudinal
         trajectory by the model
-    path_save_model_parameters_convergence: str
+    path_save_model_parameters_convergence : str
         Path of the subfolder of path_output containing the progression of the model's parameters convergence
-    periodicity_plot: int (default 100)
+    periodicity_plot : int (default 100)
         Set the frequency of the display of the plots
-    periodicity_print: int
+    periodicity_print : int
         Set the frequency of the display of the statistics
-    periodicity_save: int
+    periodicity_save : int
         Set the frequency of the saves of the model's parameters & the realizations
-    plot_options: dict
+    plot_options : dict
         Contain all the additional information (for now contain only the number of displayed patients by the method
         plot_patient_reconstructions - which is 5 by default)
-    plotter: :class:`~.utils.logs.visualisation.plotter.Plotter`
+    plotter : :class:`~.utils.logs.visualisation.plotter.Plotter`
         class object used to call visualization methods
-    time: float
+    time : float
         Last timestamp (to display the duration between two visualization prints)
-
     """
 
     # TODO: add a loading bar for a run
@@ -117,7 +116,7 @@ class FitOutputManager:
         Display the duration since the last print
         """
         current_time = time.time()
-        print("Duration since last print : {:.4f}s".format(current_time - self.time))
+        print(f"Duration since last print : {current_time - self.time:.4f}s")
         self.time = current_time
 
     def print_model_statistics(self, model):
@@ -152,7 +151,7 @@ class FitOutputManager:
 
         Parameters
         ----------
-        iteration: int
+        iteration : int
             The current iteration
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
@@ -171,7 +170,7 @@ class FitOutputManager:
                 if key == "betas":
                     model_parameters_save.pop(key)
                     for column in range(value.shape[1]):
-                        model_parameters_save["{0}_{1}".format(key, column)] = value[:, column].tolist()
+                        model_parameters_save[f"{key}_{column}"] = value[:, column].tolist()
                 # P0, V0
                 elif value.shape[0] == 1 and len(value.shape) > 1:
                     model_parameters_save[key] = value[0].tolist()
@@ -193,7 +192,7 @@ class FitOutputManager:
 
         Parameters
         ----------
-        iteration: int
+        iteration : int
             The current iteration
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
@@ -232,8 +231,8 @@ class FitOutputManager:
                                                        self.path_plot_convergence_model_parameters_2,
                                                        model)
 
-    def plot_model_average_trajectory(self, model):
-        raise NotImplementedError
+    #def plot_model_average_trajectory(self, model):
+    #    raise NotImplementedError
 
     def plot_patient_reconstructions(self, iteration, data, model, realizations):
         """
@@ -241,16 +240,16 @@ class FitOutputManager:
 
         Parameters
         ----------
-        iteration: int
+        iteration : int
             The current iteration
-        data: :class:`.Data`
+        data : :class:`.Data`
             The data used by the computation
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
-        path_iteration = os.path.join(self.path_plot_patients, 'plot_patients_{0}.pdf'.format(iteration))
+        path_iteration = os.path.join(self.path_plot_patients, f'plot_patients_{iteration}.pdf')
         param_ind = model.get_param_from_real(realizations)
         self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind,
                                                   self.plot_options['maximum_patient_number'])
@@ -276,6 +275,6 @@ class FitOutputManager:
         model_average = model.compute_average(tensor_timepoints)
         ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
 
-        plt.savefig(os.path.join(self.path_plot_patients,'plot_patients_{0}.pdf'.format(iteration)))
+        plt.savefig(os.path.join(self.path_plot_patients,f'plot_patients_{iteration}.pdf'))
         plt.close()
         """

@@ -8,14 +8,14 @@ Dependencies
 
 `leaspy` requires:
 
-- Python (>=3.6)
+- Python (>=3.7)
 - numpy (>=1.16.6)
 - scipy (>=1.5.4)
-- scikit-learn (>=0.21.3, <0.24)
+- scikit-learn (>=0.21.3)
 - pandas (>=1.0.5)
-- torch (>=1.2.0, <1.7)
+- torch (>=1.2.0)
 - joblib (>=0.13.2)
-- matplotlib>=3.0.3
+- matplotlib (>=3.0.3)
 - statsmodels (>=0.12.1)
 
 

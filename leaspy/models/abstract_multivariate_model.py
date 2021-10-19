@@ -8,19 +8,33 @@ from leaspy import __version__
 
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
+from leaspy.models.utils.attributes.abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+
 from leaspy.utils.docs import doc_with_super
+from leaspy.exceptions import LeaspyModelInputError
 
 
 @doc_with_super()
 class AbstractMultivariateModel(AbstractModel):
     """
     Contains the common attributes & methods of the multivariate models.
+
+    Parameters
+    ----------
+    name : str
+    **kwargs
+        hyperparameters
+
+    Raises
+    ------
+    :class:`.LeaspyModelInputError`
+        if inconsistent hyperparameters
     """
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str, **kwargs):
         super().__init__(name)
-        self.source_dimension = None
-        self.dimension = None
+        self.source_dimension: int = None
+        self.dimension: int = None
         self.parameters = {
             "g": None,
             "betas": None,
@@ -30,7 +44,7 @@ class AbstractMultivariateModel(AbstractModel):
             "noise_std": None
         }
         self.bayesian_priors = None
-        self.attributes = None
+        self.attributes: AbstractManifoldModelAttributes = None
 
         # MCMC related "parameters"
         self.MCMC_toolbox = {
@@ -86,7 +100,7 @@ class AbstractMultivariateModel(AbstractModel):
 
         Parameters
         ----------
-        name_of_the_variables_that_have_been_changed: container[str] (list, tuple, ...)
+        name_of_the_variables_that_have_been_changed : container[str] (list, tuple, ...)
             Names of the population parameters to update in MCMC toolbox
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with
@@ -106,8 +120,9 @@ class AbstractMultivariateModel(AbstractModel):
         expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension')
         unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
         if len(unexpected_hyperparameters) > 0:
-            raise ValueError(f"Only {', '.join([f'<{p}>' for p in expected_hyperparameters])} are valid hyperparameters "
-                             f"for an AbstractMultivariateModel! Unknown hyperparameters: {unexpected_hyperparameters}.")
+            raise LeaspyModelInputError(
+                    f"Only {expected_hyperparameters} are valid hyperparameters for an AbstractMultivariateModel! "
+                    f"Unknown hyperparameters: {unexpected_hyperparameters}.")
 
     def save(self, path, with_mixing_matrix=True, **kwargs):
         """
@@ -115,12 +130,13 @@ class AbstractMultivariateModel(AbstractModel):
 
         Parameters
         ----------
-        path: str
+        path : str
             Path to store the model's parameters.
-        with_mixing_matrix: bool (default True)
+        with_mixing_matrix : bool (default True)
             Save the mixing matrix in the exported file in its 'parameters' section.
             <!> It is not a real parameter and its value will be overwritten at model loading
-                (orthonormal basis is recomputed from other "true" parameters and mixing matrix is then deduced from this orthonormal basis and the betas)!
+            (orthonormal basis is recomputed from other "true" parameters and mixing matrix
+            is then deduced from this orthonormal basis and the betas)!
             It was integrated historically because it is used for convenience in browser webtool and only there...
         **kwargs
             Keyword arguments for json.dump method.
@@ -131,7 +147,7 @@ class AbstractMultivariateModel(AbstractModel):
             model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
 
         for key, value in model_parameters_save.items():
-            if type(value) in [torch.Tensor]:
+            if isinstance(value, torch.Tensor):
                 model_parameters_save[key] = value.tolist()
 
         model_settings = {
@@ -179,4 +195,5 @@ class AbstractMultivariateModel(AbstractModel):
         elif attribute_type == 'MCMC':
             return self.MCMC_toolbox['attributes'].get_attributes()
         else:
-            raise ValueError("The specified attribute type does not exist : {}".format(attribute_type))
+            raise LeaspyModelInputError(f"The specified attribute type does not exist: {attribute_type}. "
+                                        "Should be None or 'MCMC'.")

@@ -25,11 +25,11 @@ class Loader:
 
     Attributes
     ----------
-    data_paths: dict [str, str]
+    data_paths : dict [str, str]
         Contains the datasets' names and their respective path within ``leaspy.datasets`` subpackage.
-    model_paths: dict [str, str]
+    model_paths : dict [str, str]
         Contains the `Leaspy` instances' names and their respective path within ``leaspy.datasets`` subpackage.
-    ip_paths: dict [str, str]
+    ip_paths : dict [str, str]
         Contains the individual parameters' names and their respective path within ``leaspy.datasets`` subpackage.
 
     Notes
@@ -53,7 +53,7 @@ class Loader:
 
         Parameters
         ----------
-        dataset_name: {'parkinson-multivariate', 'alzheimer-multivariate', 'parkinson-putamen', 'parkinson-putamen-train_and_test'}
+        dataset_name : {'parkinson-multivariate', 'alzheimer-multivariate', 'parkinson-putamen', 'parkinson-putamen-train_and_test'}
             Name of the dataset.
 
         Returns
@@ -81,36 +81,36 @@ class Loader:
     @staticmethod
     def load_leaspy_instance(instance_name):
         """
-        Load a Leaspy instance with a model allready calibrated on the synthetic dataset corresponding to the name
+        Load a Leaspy instance with a model already calibrated on the synthetic dataset corresponding to the name
         of the instance.
 
         Parameters
         ----------
-        instance_name: {'parkinson-putamen-train'}
+        instance_name : {'parkinson-putamen-train'}
             Name of the instance.
 
         Returns
         -------
         :class:`.Leaspy`
-            Leaspy instance with a model allready calibrated.
+            Leaspy instance with a model already calibrated.
         """
         return Leaspy.load(model_paths[instance_name])
 
     @staticmethod
     def load_individual_parameters(ip_name):
         """
-        Load a Leaspy instance with a model allready calibrated on the synthetic dataset corresponding to the name
+        Load a Leaspy instance with a model already calibrated on the synthetic dataset corresponding to the name
         of the instance.
 
         Parameters
         ----------
-        ip_name: {'parkinson-putamen-train'}
+        ip_name : {'parkinson-putamen-train'}
             Name of the individual parameters.
 
         Returns
         -------
         :class:`.IndividualParameters`
-            Leaspy instance with a model allready calibrated.
+            Leaspy instance with a model already calibrated.
         """
         return IndividualParameters.load(ip_paths[ip_name])
 

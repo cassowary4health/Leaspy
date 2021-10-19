@@ -1,10 +1,13 @@
 import warnings
-from leaspy.algo.abstract_algo import AbstractAlgo
 
 import statsmodels.api as sm
 from statsmodels.regression.mixed_linear_model import MixedLM, MixedLMParams
 import torch
 import numpy as np
+
+from leaspy.algo.abstract_algo import AbstractAlgo
+from leaspy.exceptions import LeaspyAlgoInputError, LeaspyDataInputError
+
 
 class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
     """
@@ -23,14 +26,20 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
     See also
     --------
     :class:`statsmodels.regression.mixed_linear_model.MixedLM`
+
+    Raises
+    ------
+    :class:`.LeaspyAlgoInputError`
+        if bad configuration of algorithm
     """
 
     def __init__(self, settings):
 
         super().__init__()
 
-        assert settings.name == 'lme_fit'
         self.name = 'lme_fit'
+        if settings.name != self.name:
+            raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
 
         params = settings.parameters.copy()
 
@@ -57,6 +66,11 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
             A subclass object of leaspy `LMEModel`.
         dataset : :class:`.Dataset`
             Dataset object build with leaspy class objects Data, algo & model
+
+        Raises
+        ------
+        :class:`.LeaspyDataInputError`
+            If data does not meet requirements for estimation with this LME fit algorithm.
         """
 
         # Initialize Model
@@ -64,8 +78,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
 
         # get inputs in right format
         if len(dataset.headers) != 1:
-            raise ValueError(
-                "LME model is univariate only, provided features: {}".format(dataset.headers))
+            raise LeaspyDataInputError(f"LME model is univariate only, you provided features: {dataset.headers}")
 
         # Store hyperparameters in model
         model.load_hyperparameters({
@@ -96,7 +109,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
                 self.sm_fit_parameters['free'] = free
                 methods_not_compat_with_free = {'powell','nm'}.intersection(self.sm_fit_parameters['method']) # cf. statsmodels doc
                 if len(methods_not_compat_with_free) > 0:
-                    warnings.warn(f"<!> Methods {'powell','nm'} are not compatible with `force_independent_random_effects`")
+                    warnings.warn("<!> Methods {'powell','nm'} are not compatible with `force_independent_random_effects`")
         else:
             exog_re = None # random_intercept only
 
@@ -106,8 +119,8 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         try:
             cov_re_unscaled_inv = np.linalg.inv(fitted_lme.cov_re_unscaled)
         except np.linalg.LinAlgError:
-            raise ValueError("Cannot predict random effects from "
-                             "singular covariance structure.")
+            raise LeaspyDataInputError("Cannot predict random effects from "
+                                       "singular covariance structure.")
 
         parameters = {
             "ages_mean": ages_mean,
@@ -124,7 +137,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         model.load_parameters(parameters)
 
         # display `(fitted_lme.resid ** 2).mean() ** .5` instead?
-        print_noise = '{:.4f}'.format(model.parameters['noise_std'].item())
+        print_noise = f"{model.parameters['noise_std'].item():.4f}"
         print("The standard deviation of the noise at the end of the calibration is: " + print_noise)
 
     @staticmethod

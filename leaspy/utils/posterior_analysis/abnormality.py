@@ -1,8 +1,9 @@
 import warnings
+
 import numpy as np
 
-
 from leaspy.utils.posterior_analysis.general import compute_trajectory_of_population
+from leaspy.exceptions import LeaspyInputError
 
 
 def get_age_at_abnormality_conversion(abnormality_thresholds,
@@ -44,7 +45,7 @@ def get_age_at_abnormality_conversion(abnormality_thresholds,
                 times_reach = timepoints[idx_reached]
         # If threhold was not reached
         elif len_idx == 0:
-            print("Warning : cutoff for feature {} at index {} was not reached".format(feature, j))
+            warnings.warn(f"Warning : cutoff for feature {feature} at index {j} was not reached")
             # If always below
             if is_superior_cutoff[0, 0, j]:
                 times_reach = timepoints[0]
@@ -52,7 +53,7 @@ def get_age_at_abnormality_conversion(abnormality_thresholds,
             else:
                 times_reach = timepoints[-1]
         else:
-            raise ValueError("Threshold reached at multiples times")
+            raise LeaspyInputError("Threshold reached at multiples times")
         times_reach_list.append(np.array(times_reach).reshape(1,1))
     res = np.concatenate(times_reach_list, axis=1)
     #res = np.expand_dims(res, axis=0)

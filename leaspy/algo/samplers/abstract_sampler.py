@@ -1,5 +1,8 @@
 import torch
 
+from leaspy.exceptions import LeaspyModelInputError
+from leaspy.utils.typing import KwargsType, Tuple
+
 
 class AbstractSampler:
     """
@@ -10,20 +13,26 @@ class AbstractSampler:
     acceptation_temp : :class:`torch.Tensor`
         Acceptation rate for the sampler in MCMC-SAEM algorithm
         Keep the history of the last `temp_length` last steps
-    name: str
+    name : str
         Name of variable
-    shape: tuple
+    shape : tuple
         Shape of variable
-    temp_length: int
+    temp_length : int
         Deepness of the history kept in the acceptation rate `acceptation_temp`
         Length of the `acceptation_temp` torch tensor
+
+    Raises
+    ------
+    :class:`.LeaspyModelInputError`
     """
 
-    def __init__(self, info, n_patients):
-        self.acceptation_temp = None
-        self.name = info["name"]
-        self.shape = info["shape"]
-        self.temp_length = 25  # For now the same between pop and ind #TODO this is an hyperparameter
+    def __init__(self, info: KwargsType, n_patients: int):
+
+        self.acceptation_temp: torch.FloatTensor = None
+        self.name: str = info["name"]
+        self.shape: Tuple[int, ...] = info["shape"]
+        self.temp_length: int = 25  # For now the same between pop and ind #TODO this is an hyperparameter
+
         if info["type"] == "population":
             self.type = 'pop'
             # Initialize the acceptation history
@@ -33,11 +42,13 @@ class AbstractSampler:
             elif len(self.shape) == 2:
                 self.acceptation_temp = torch.zeros(size=self.shape).repeat(self.temp_length, 1, 1)
             else:
-                raise ValueError("Dimension of population variable >2")
+                raise LeaspyModelInputError("Dimension of population variable > 2")
         elif info["type"] == "individual":
             self.type = 'ind'
             # Initialize the acceptation history
             self.acceptation_temp = torch.zeros(size=(n_patients,)).repeat(self.temp_length, 1)
+        else:
+            raise LeaspyModelInputError(f"Unknown variable type '{info['type']}': nor 'population' nor 'individual'.")
 
     def _group_metropolis_step(self, alpha):
         """
@@ -91,6 +102,10 @@ class AbstractSampler:
         Parameters
         ----------
         accepted : :class:`torch.Tensor`
+
+        Raises
+        ------
+        :class:`.LeaspyModelInputError`
         """
 
         # Ad the new acceptation result
@@ -101,6 +116,6 @@ class AbstractSampler:
             self.acceptation_temp = torch.cat(
                 [self.acceptation_temp, accepted.unsqueeze(0)])
         else:
-            raise ValueError("Nor pop or ind")
+            raise LeaspyModelInputError(f"Unknown variable type '{self.type}': nor 'pop' nor 'ind'.")
 
         self.acceptation_temp = self.acceptation_temp[1:]

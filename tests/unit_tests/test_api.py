@@ -8,6 +8,8 @@ import torch
 
 from leaspy.api import Leaspy
 from leaspy.models.model_factory import ModelFactory
+from leaspy.models.utils import VALID_LOSSES
+
 from tests.unit_tests.models.test_model_factory import ModelFactoryTest
 from tests import hardcoded_model_path, hardcoded_models_folder, from_fit_models_folder
 
@@ -34,6 +36,11 @@ class LeaspyTest(unittest.TestCase):
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
             ModelFactoryTest().test_model_factory_constructor(leaspy.model)
 
+        for loss in VALID_LOSSES:
+            leaspy = Leaspy('logistic', loss=loss)
+            self.assertEqual(leaspy.type, 'logistic')
+            self.assertEqual(leaspy.model.loss, loss)
+
         for name in ['linear', 'logistic', 'logistic_parallel', 'mixed_linear-logistic']:
             leaspy = Leaspy(name, source_dimension=2)
             self.assertEqual(leaspy.model.source_dimension, 2)
@@ -44,6 +51,14 @@ class LeaspyTest(unittest.TestCase):
             Leaspy('univariate_linear', source_dimension=1)
         with self.assertRaises(ValueError):
             Leaspy('univariate') # old name
+
+    def test_load_hyperparameters(self):
+
+        leaspy = Leaspy.load(hardcoded_model_path('logistic'))
+        leaspy.model.load_hyperparameters({'source_dimension': 3, 'loss': 'crossentropy'})
+
+        self.assertEqual(leaspy.model.source_dimension, 3)
+        self.assertEqual(leaspy.model.loss, 'crossentropy')
 
     def test_load_logistic(self):
         """

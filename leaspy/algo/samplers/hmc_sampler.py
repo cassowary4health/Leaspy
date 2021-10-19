@@ -7,39 +7,40 @@ class HMCSampler(AbstractSampler):
     """
     Hamiltonian Monte Carlo sampler class.
 
+    Parameters
+    ----------
+    info : dict
+        Information concerning the given variable to sample (defined in the leaspy model)
+        Example : v0_infos = {
+                                "name": "v0",
+                                "shape": torch.Size([self.dimension]),
+                                "type": "population",
+                                "rv_type": "multigaussian"
+                            }
+    n_patients : int
+        Number of patients
+    eps : float
+        ... (noise level prior ? )
+
     Attributes
     ----------
-    eps: float
+    eps : float
         wanted level of noise (?)
-    L: int
+    L : int
         ... (?)
-    name: str
+    name : str
         Name of the wanted variable to be sampled
     std : float
         ... (?)
-    type: str
-        = 'pop' for population variable
-        = 'ind' for individual variable
+    type : str
+        * ``'pop'`` for population variable
+        * ``'ind'`` for individual variable
     """
 
     def __init__(self, info, n_patients, eps):
-        """
-        Parameters
-        ----------
-        info: dict
-            Information concerning the given variable to sample (defined in the leaspy model)
-            Example : v0_infos = {
-                                    "name": "v0",
-                                    "shape": torch.Size([self.dimension]),
-                                    "type": "population",
-                                    "rv_type": "multigaussian"
-                                }
-        n_patients: int
-            Number of patients
-        eps: float
-            ... (noise level prior ? )
-        """
+
         super().__init__(info, n_patients)
+
         self.L = 10
         if self.name == 'tau':
             self.eps = eps * 10
@@ -65,7 +66,7 @@ class HMCSampler(AbstractSampler):
             Model used by the algorithm
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Contain the current state & informations of all the variables of interest
-        temperature_inv: float > 0
+        temperature_inv : float > 0
             Inverse of the temperature used in tempered MCMC-SAEM
         """
 
@@ -82,7 +83,7 @@ class HMCSampler(AbstractSampler):
         Compute a proposition for the new state of the given variable
 
         Parameters
-        ---------
+        ----------
         p : :class:`torch.Tensor`
             Current momenta
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
@@ -114,7 +115,7 @@ class HMCSampler(AbstractSampler):
             Model used by the algorithm
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Contain the current state & informations of all the variables of interest
-        temperature_inv: float > 0
+        temperature_inv : float > 0
             Inverse of the temperature used in tempered MCMC-SAEM
         """
 
@@ -248,7 +249,7 @@ class HMCSampler(AbstractSampler):
 
         Parameters
         ----------
-        old_real: ...
+        old_real : ...
             ...
 
         Returns

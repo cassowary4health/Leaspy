@@ -5,13 +5,14 @@ import torch
 from leaspy.io.data.csv_data_reader import CSVDataReader
 from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 from leaspy.io.data.individual_data import IndividualData
-
-
 # from leaspy.io.data.dataset import Dataset
 
+from leaspy.exceptions import LeaspyDataInputError
+from leaspy.utils.typing import FeatureType, IDType, Dict, List
 
 # TODO : object data as logs ??? or a result object ? Because there could be ambiguetes here
 # TODO or find a good way to say thet there are individual parameters here ???
+
 
 class Data:
     """
@@ -19,17 +20,17 @@ class Data:
     """
     def __init__(self):
 
-        self.individuals = {}
-        self.iter_to_idx = {}
-        self.headers = None
-        self.dimension = None
-        self.n_individuals = 0
-        self.n_visits = 0
-        self.cofactors = []
+        self.individuals: Dict[IDType, IndividualData] = {}
+        self.iter_to_idx: Dict[int, IDType] = {}
+        self.headers: List[FeatureType] = None
+        self.dimension: int = None
+        self.n_individuals: int = 0
+        self.n_visits: int = 0
+        self.cofactors: List[FeatureType] = []
 
-        self.iter = 0
+        self.iter: int = 0
 
-    def get_by_idx(self, idx):
+    def get_by_idx(self, idx: IDType):
         """
         Get the :class:`~leaspy.io.data.individual_data.IndividualData` of a an individual identified by its ID.
 
@@ -39,13 +40,15 @@ class Data:
         """
         return self.individuals[idx]
 
-    def __getitem__(self, iter):
+    def __getitem__(self, iter: int):
         return self.individuals[self.iter_to_idx[iter]]
 
     def __iter__(self):
+        # TODO: make a true DataIterator class because quite dirty to have `iter` inside
         return self
 
     def __next__(self):
+        # TODO: make a true DataIterator class because quite dirty to have `iter` inside
         if self.iter >= self.n_individuals:
             self.iter = 0
             raise StopIteration
@@ -53,7 +56,7 @@ class Data:
             self.iter += 1
             return self.__getitem__(self.iter - 1)
 
-    def load_cofactors(self, df, cofactors):
+    def load_cofactors(self, df: pd.DataFrame, cofactors: List[FeatureType]):
         """
         Load cofactors from a `pandas.DataFrame` to the `Data` object
 
@@ -61,25 +64,31 @@ class Data:
         ----------
         df : :class:`pandas.DataFrame`
             the index is the list of subject ids
-        cofactors: list[str]
+        cofactors : list[str]
             names of the column(s) of df which shall be loaded as cofactors
+
+        Raises
+        ------
+        :class:`.LeaspyDataInputError`
         """
 
-        df = df.copy(deep=True)
+        df = df[cofactors].copy(deep=True)
 
         for iter, idx in self.iter_to_idx.items():
             # Get the cofactors and check that it is unique
             try:
-                cof = df.loc[[idx]][cofactors].to_dict(orient='list')
+                df_ind = df.loc[[idx]]
             except KeyError:
                 # If the ID are for example '116' - pandas save & reload it as integer & might induce errors
-                cof = df.loc[[int(idx)]][cofactors].to_dict(orient='list')
+                df_ind = df.loc[[int(idx)]]
+
+            cof = df_ind.to_dict(orient='list')
 
             for c in cofactors:
                 v = np.unique(cof[c])
-                v = [_ for _ in v if _ == _]
+                v = [_ for _ in v if _ == _]  # no nans
                 if len(v) > 1:
-                    raise ValueError("Multiples values of the cofactor {} for patient {} : {}".format(c, idx, v))
+                    raise LeaspyDataInputError(f"Multiples values of the cofactor {c} for patient {idx} : {v}")
                 elif len(v) == 0:
                     cof[c] = None
                 else:
@@ -90,7 +99,7 @@ class Data:
         self.cofactors += cofactors
 
     @staticmethod
-    def from_csv_file(path):
+    def from_csv_file(path: str):
         """
         Create a `Data` object from a CSV file.
 
@@ -115,6 +124,10 @@ class Data:
         -------
         :class:`pandas.DataFrame`
             Contains the subjects's ID, age and scores (optional - and cofactors) for each timepoint.
+
+        Raises
+        ------
+        :class:`.LeaspyDataInputError`
         """
         indices = []
         timepoints = torch.zeros((self.n_visits, 1))
@@ -136,11 +149,16 @@ class Data:
         df.index.name = 'ID'
 
         if cofactors is not None:
-            if type(cofactors) == str:
-                if cofactors == "all":
-                    cofactors_list = self.cofactors
-            else:
+            cofactors_list = None
+
+            if isinstance(cofactors, str) and cofactors == "all":
+                cofactors_list = self.cofactors
+            elif isinstance(cofactors, list):
                 cofactors_list = cofactors
+
+            if cofactors_list is None:
+                raise LeaspyDataInputError("`cofactor` should either be 'all' or a list[str]")
+
             for cofactor in cofactors_list:
                 df[cofactor] = ''
                 for subject_name in indices:
@@ -149,7 +167,7 @@ class Data:
         return df.reset_index()
 
     @staticmethod
-    def from_dataframe(df):
+    def from_dataframe(df: pd.DataFrame):
         """
         Create a `Data` object from a :class:`pandas.DataFrame`.
 
@@ -174,21 +192,21 @@ class Data:
         return data
 
     @staticmethod
-    def from_individuals(indices, timepoints, values, headers):
+    def from_individuals(indices: List[IDType], timepoints: List[List], values: List[List], headers: List[FeatureType]):
         """
         Create a `Data` class object from lists of `ID`, `timepoints` and the corresponding `values`.
 
         Parameters
         ----------
-        indices: list[str]
+        indices : list[str]
             Contains the individuals' ID.
-        timepoints: list[array-like 1D]
+        timepoints : list[array-like 1D]
             For each individual ``i``, list of ages at visits.
             Number of timepoints is refered below as ``n_timepoints_i``
-        values: list[array-like 2D]
+        values : list[array-like 2D]
             For each individual ``i``, all values at visits.
             Shape is ``(n_timepoints_i, n_features)``.
-        headers: list[str]
+        headers : list[str]
             Contains the features' names.
 
         Returns

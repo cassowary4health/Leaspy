@@ -1,25 +1,54 @@
 import torch
-from typing import Union
-import numpy as np
 
 from .abstract_multivariate_model import AbstractMultivariateModel
 from .utils.attributes import AttributesFactory
 
 from leaspy.utils.docs import doc_with_super, doc_with_
+from leaspy.utils.subtypes import suffixed_method
+from leaspy.exceptions import LeaspyModelInputError
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
 # TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
 
+
 @doc_with_super()
 class MultivariateModel(AbstractMultivariateModel):
     """
     Manifold model for multiple variables of interest (logistic or linear formulation).
+
+    Parameters
+    ----------
+    name : str
+    **kwargs
+        hyperparameters
+
+    Raises
+    ------
+    :class:`.LeaspyModelInputError`
+        * If `name` is not one of allowed sub-type: 'univariate_linear' or 'univariate_logistic'
+        * If hyperparameters are inconsistent
     """
-    def __init__(self, name, **kwargs):
+
+    SUBTYPES_SUFFIXES = {
+        'linear': '_linear',
+        'logistic': '_logistic',
+        'mixed_linear-logistic': '_mixed',
+    }
+
+    def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
+
+        self._subtype_suffix = self._check_subtype()
+
+    def _check_subtype(self):
+        if self.name not in self.SUBTYPES_SUFFIXES.keys():
+            raise LeaspyModelInputError(f'Multivariate model name should be among these valid sub-types: '
+                                        f'{list(self.SUBTYPES_SUFFIXES.keys())}.')
+
+        return self.SUBTYPES_SUFFIXES[self.name]
 
     def load_parameters(self, parameters):
         self.parameters = {}
@@ -30,15 +59,9 @@ class MultivariateModel(AbstractMultivariateModel):
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
+    @suffixed_method
     def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-        if self.name == 'logistic':
-            return self.compute_individual_tensorized_logistic(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'linear':
-            return self.compute_individual_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_individual_tensorized_mixed(timepoints, ind_parameters, attribute_type)
-        else:
-            raise ValueError("Mutivariate model > Compute individual tensorized")
+        pass
 
     def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
 
@@ -88,79 +111,44 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return model # (n_individuals, n_timepoints, n_features)
 
-    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        raise NotImplementedError
-
+    @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
                                                                  individual_parameters: dict, feature: str):
-        if self.name == 'logistic':
-            return self.compute_individual_ages_logistic(value, individual_parameters, feature)
+        pass
 
-        elif self.name == 'linear':
-            return self.compute_individual_ages_linear(value, individual_parameters, feature)
-
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_individual_ages_linear_logistic(value, individual_parameters, feature)
-
-        else:
-            raise ValueError(f"MultivariateModel: only `univariate_linear`, `mixed_linear-logistic`"
-                             f" and `univariate_logistic` are supported for now. You gave {self.name}")
-
-    def compute_individual_ages_logistic(self, value: torch.Tensor,
-                                         individual_parameters: dict, feature: str = None):
+    def compute_individual_ages_from_biomarker_values_tensorized_logistic(self, value: torch.Tensor,
+                                                                          individual_parameters: dict, feature: str):
         if value.dim() != 2:
-            raise ValueError("The biomarker value should be dim 2, not {}!".format(value.dim()))
+            raise LeaspyModelInputError(f"The biomarker value should be dim 2, not {value.dim()}!")
 
+        # avoid division by zero:
+        value = value.masked_fill((value == 0) | (value == 1), float('nan'))
+
+        # 1/ get attributes
+        g, v0, a_matrix = self._get_attributes(None)
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
+        if self.source_dimension != 0:
+            sources = individual_parameters['sources']
+            wi = sources.matmul(a_matrix.t())
         else:
-            # avoid division by zero:
-            value = value.masked_fill((value == 0) | (value == 1), float('nan'))
+            wi = 0
 
-            # 1/ get attributes
-            g, v0, a_matrix = self._get_attributes(None)
-            xi, tau = individual_parameters['xi'], individual_parameters['tau']
-            if self.source_dimension != 0:
-                sources = individual_parameters['sources']
-                wi = sources.matmul(a_matrix.t())
-            else:
-                wi = torch.tensor([0])
+        # get feature value for g, v0 and wi
+        feat_ind = self.features.index(feature)  # all consistency checks were done in API layer
+        g = torch.tensor([g[feat_ind]])  # g and v0 were shape: (n_features in the multivariate model)
+        v0 = torch.tensor([v0[feat_ind]])
+        if self.source_dimension != 0:
+            wi = wi[0, feat_ind].item()  # wi was shape (1, n_features)
 
-            # get feature value for g, v0 and wi
-            assert feature is not None
-            feat_ind = self.features.index(feature)
-            g = torch.tensor([g[feat_ind]])  # g and v0 were shape: (n_features in the multivariate model)
-            v0 = torch.tensor([v0[feat_ind]])
-            if self.source_dimension != 0:
-                wi = torch.tensor([wi[0][feat_ind]])  # wi was shape (1, n_features)
+        # 2/ compute age
+        ages = tau + (torch.exp(-xi) / v0) * ((g / (g + 1) ** 2) * torch.log(g/(1 / value - 1)) - wi)
+        # assert ages.shape == value.shape
 
-            # 2/ compute age
-            ages = tau + (torch.exp(-xi) / v0) * ((g / (g + 1) ** 2) * torch.log(g/(1 / value - 1)) - \
-                                                   wi)
-            assert ages.shape == value.shape
+        return ages
 
-            return ages
-
-    def compute_individual_ages_linear(self, value: torch.Tensor,
-                                       individual_parameters: dict, feature: str = None,
-                                       ):
-        raise NotImplementedError('Not implemented !'
-                                  'If you need it, please open an issue on the Leaspy repository on Gitlab')
-
-    def compute_individual_ages_linear_logistic(self, value: torch.Tensor,
-                                                individual_parameters: dict, feature: str = None,
-                                                ):
-        raise NotImplementedError('Not implemented !'
-                                  'If you need it, please open an issue on the Leaspy repository on Gitlab')
-
+    @suffixed_method
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
-
-        if self.name == 'logistic':
-            return self.compute_jacobian_tensorized_logistic(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'linear':
-            return self.compute_jacobian_tensorized_linear(timepoints, ind_parameters, attribute_type)
-        elif self.name == 'mixed_linear-logistic':
-            return self.compute_jacobian_tensorized_mixed(timepoints, ind_parameters, attribute_type)
-        else:
-            raise ValueError("Mutivariate model > Compute jacobian tensorized")
+        pass
 
     def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
 
@@ -231,60 +219,6 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
-
-    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        """
-        Not implemented.
-        """
-        raise NotImplementedError
-
-    def compute_jacobian_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-        """
-        Not implemented.
-        """
-        raise NotImplementedError
-
-    """
-    def compute_individual_tensorized_mixed(self, timepoints, ind_parameters, attribute_type=None):
-
-
-        raise ValueError("Do not use !!!")
-
-        # Hyperparameters : split # TODO
-        split = 1
-        idx_linear = list(range(split))
-        idx_logistic = list(range(split, self.dimension))
-
-        # Population parameters
-        g, v0, a_matrix = self._get_attributes(attribute_type)
-        g_plus_1 = 1. + g
-        b = g_plus_1 * g_plus_1 / g
-
-        # Individual parameters
-        xi, tau, sources = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['sources']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
-        # Log likelihood computation
-        reparametrized_time = reparametrized_time.reshape(*timepoints.shape, 1)
-        v0 = v0.reshape(1, 1, -1)
-
-        LL = v0 * reparametrized_time
-        if self.source_dimension != 0:
-            wi = sources.matmul(a_matrix.t())
-            LL += wi.unsqueeze(-2)
-
-        # Logistic Part
-        LL_log = 1. + g * torch.exp(-LL * b)
-        model_logistic = (1. / LL_log)[:,:,idx_logistic]
-
-        # Linear Part
-        model_linear = (LL + torch.log(g))[:,:,idx_linear]
-
-        # Concat
-        model = torch.cat([model_linear, model_logistic], dim=2)
-
-        return model
-    """
 
     ##############################
     ### MCMC-related functions ###
@@ -525,8 +459,8 @@ class MultivariateModel(AbstractMultivariateModel):
 # document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
 doc_with_(MultivariateModel.compute_individual_tensorized_linear, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (linear)'})
 doc_with_(MultivariateModel.compute_individual_tensorized_logistic, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (logistic)'})
-doc_with_(MultivariateModel.compute_individual_tensorized_mixed, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})
+#doc_with_(MultivariateModel.compute_individual_tensorized_mixed, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})
 
 doc_with_(MultivariateModel.compute_jacobian_tensorized_linear, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (linear)'})
 doc_with_(MultivariateModel.compute_jacobian_tensorized_logistic, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (logistic)'})
-doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})
+#doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})

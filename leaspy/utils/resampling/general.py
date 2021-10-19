@@ -1,11 +1,20 @@
 import warnings
+
 import numpy as np
+
 from leaspy.utils.posterior_analysis.general import compute_trajectory_of_population
 from leaspy.utils.posterior_analysis.abnormality import get_age_at_abnormality_conversion
 from leaspy.utils.posterior_analysis.statistical_analysis import compute_subgroup_statistics
 from leaspy.utils.posterior_analysis.statistical_analysis import compute_correlation
 
-import pandas as pd
+from leaspy.exceptions import LeaspyInputError
+
+def _check_resampling_iter_consistency(nb_m, nb_ips) -> int:
+    if nb_ips != nb_m:
+        raise LeaspyInputError('Resampling runs differ between individual parameters and models: '
+                              f'{nb_ips} != {nb_m}')
+
+    return nb_m
 
 def compute_trajectory_of_population_resampling(timepoints,
                                                 individual_parameters,
@@ -15,8 +24,7 @@ def compute_trajectory_of_population_resampling(timepoints,
     """
     warnings.warn('compute_trajectory_of_population_resampling function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
-    assert len(leaspy_iter)==len(individual_parameters)
-    n_resampling_iter = len(leaspy_iter)
+    n_resampling_iter = _check_resampling_iter_consistency(len(leaspy_iter), len(individual_parameters))
 
     resampling_trajectory = np.array([compute_trajectory_of_population(timepoints,
                                       individual_parameters[resampling_iter],
@@ -34,8 +42,7 @@ def get_age_at_abnormality_conversion_resampling(leaspy_iter,
     """
     warnings.warn('get_age_at_abnormality_conversion_resampling function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
-    assert len(leaspy_iter)==len(individual_parameters)
-    n_resampling_iter = len(leaspy_iter)
+    n_resampling_iter = _check_resampling_iter_consistency(len(leaspy_iter), len(individual_parameters))
 
     res = np.array([get_age_at_abnormality_conversion(cutoffs,
                                                 individual_parameters[resampling_iter],
@@ -56,6 +63,8 @@ def compute_subgroup_statistics_resampling(leaspy_iter,
     .. deprecated:: 1.0
     """
     warnings.warn('compute_subgroup_statistics_resampling function is deprecated. Please use the one in Leaspype', DeprecationWarning)
+
+    n_resampling_iter = _check_resampling_iter_consistency(len(leaspy_iter), len(individual_parameters_iter))
 
     difference_subgroups_resampling = {}
 
@@ -81,7 +90,7 @@ def compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_c
     """
     warnings.warn('compute_correlation_resampling function is deprecated. Please use the one in Leaspype', DeprecationWarning)
 
-    assert len(leaspy_iter) == len(individual_parameters_iter)
+    n_resampling_iter = _check_resampling_iter_consistency(len(leaspy_iter), len(individual_parameters_iter))
 
     corr_value_dict = {}
     corr_log10pvalue_dict = {}
@@ -108,7 +117,4 @@ def compute_correlation_resampling(leaspy_iter, individual_parameters_iter, df_c
     #corr_log10pvalue_std = log10pvalue_by_row_index.std().loc[features, features]
 
     return corr_value_dict, corr_log10pvalue_dict
-
-
-
 

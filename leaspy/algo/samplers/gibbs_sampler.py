@@ -4,6 +4,8 @@ import torch
 
 from .abstract_sampler import AbstractSampler
 
+from leaspy.exceptions import LeaspyModelInputError
+
 
 class GibbsSampler(AbstractSampler):
     """
@@ -11,10 +13,14 @@ class GibbsSampler(AbstractSampler):
 
     Parameters
     ----------
-    info: dict
+    info : dict
         Informations on variable to be sampled
-    n_patients: int > 0
+    n_patients : int > 0
         Number of individual (used for variable with ``info['type'] == 'individual'``)
+
+    Raises
+    ------
+    :class:`.LeaspyModelInputError`
     """
 
     def __init__(self, info, n_patients):
@@ -31,7 +37,7 @@ class GibbsSampler(AbstractSampler):
             self.std = torch.tensor([0.1] * n_patients * int(self.shape[0]),
                                     dtype=torch.float32).reshape(n_patients,int(self.shape[0]))
         else:
-            raise NotImplementedError
+            raise LeaspyModelInputError(f"Unknown variable type '{info['type']}'.")
 
         # Acceptation rate
         self.counter_acceptation = 0

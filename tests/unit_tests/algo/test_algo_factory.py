@@ -12,7 +12,7 @@ class Test(unittest.TestCase):
         # Test for one name
         settings = AlgorithmSettings('mcmc_saem')
         algo = AlgoFactory.algo('fit', settings)
-        self.assertTrue(type(algo) == TensorMCMCSAEM)
+        self.assertIsInstance(algo, TensorMCMCSAEM)
 
         # Test if raise ValueError if wrong string arg for name
         wrong_arg_exemples = ['mcmc', 'blabla']

@@ -2,10 +2,15 @@ import numpy as np
 
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 
+from leaspy.exceptions import LeaspyAlgoInputError
+from leaspy.utils.typing import FeatureType, List
+
 
 class ConstantPredictionAlgorithm(): # AbstractAlgo
     """
-    Personalization algorithm associated to :class:`~.models.constant_model.ConstantModel`
+    ConstantPredictionAlgorithm is the algorithm that outputs a constant prediction
+
+    It is associated to :class:`~.models.constant_model.ConstantModel`
 
     It could predict:
         * `last_known`: last non NaN value seen during calibration*§,
@@ -15,19 +20,26 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
 
     | \\* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
     | § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
+
+    Raises
+    ------
+    :class:`.LeaspyAlgoInputError`
+        If any invalid setting for the algorithm
     """
 
     _prediction_types = {'last', 'last_known', 'max', 'mean'}
 
     def __init__(self, settings):
-        """
-        ConstantPredictionAlgorithm is the algorithm that outputs a constant prediction
-        """
+
+        # super().__init__()
         self.name = 'constant_prediction'
-        assert settings.name == self.name
-        self.features = None
+        if settings.name != self.name:
+            raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
+
+        self.features: List[FeatureType] = None
+
         if settings.parameters['prediction_type'] not in self._prediction_types:
-            raise ValueError(f'The `prediction_type` of the constant prediction should be {self._prediction_types}')
+            raise LeaspyAlgoInputError(f'The `prediction_type` of the constant prediction should be in {self._prediction_types}')
         self.prediction_type = settings.parameters['prediction_type']
 
     def run(self, model, dataset):
@@ -47,10 +59,13 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         -------
         individual_parameters : :class:`.IndividualParameters`
             Contains individual parameters.
-        noise_std: float
+        noise_std : float
             TODO: always 0 for now
         """
+
+        # always overwrite model features (no fit process)
         # TODO? we could fit the model before, only to recover model features, and then check at personalize that is the same (as in others personalize algos...)
+
         self.features = dataset.headers
         model.features = dataset.headers
 

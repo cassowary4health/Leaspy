@@ -2,15 +2,24 @@ import os
 import shutil
 import warnings
 
+from leaspy.exceptions import LeaspyAlgoInputError
+
 
 class OutputsSettings:
     """
     Used to create the `logs` folder to monitor the convergence of the calibration algorithm.
+
+    Raises
+    ------
+    :class:`.LeaspyAlgoInputError`
     """
     # TODO mettre les variables par défaut à None
     # TODO: Réfléchir aux cas d'usages : est-ce qu'on veut tout ou rien,
     # TODO: ou bien la possibilité d'avoir l'affichage console et/ou logs dans un fold
     # TODO: Aussi, bien définir la création du path
+
+    DEFAULT_LOGS_DIR = '_outputs'  # logs
+
     def __init__(self, settings):
         self.console_print_periodicity = None
         self.plot_periodicity = None
@@ -21,91 +30,90 @@ class OutputsSettings:
         self.plot_path = None
         self.patients_plot_path = None
 
-        self._get_console_print_periodicity(settings)
-        self._get_plot_periodicity(settings)
-        self._get_save_periodicity(settings)
+        self._set_console_print_periodicity(settings)
+        self._set_plot_periodicity(settings)
+        self._set_save_periodicity(settings)
         self._create_root_folder(settings)
 
-    def _get_console_print_periodicity(self, settings):
-        if 'console_print_periodicity' not in settings.keys():
+    def _set_param_as_int_or_ignore(self, settings, param: str):
+        """Inplace set of parameter (as int) from settings."""
+        if param not in settings:
             return
 
-        if settings['console_print_periodicity'] is None:
-            self.console_print_periodicity = None
-        else:
+        val = settings[param]
+        if val is not None:
+            # try to cast as an integer.
             try:
-                self.console_print_periodicity = int(settings['console_print_periodicity'])
-            except ValueError:
-                print("The 'console_print_periodicity' parameters you provided is not an int")
+                val = int(val)
+            except Exception:
+                warnings.warn(f"The '{param}' parameters you provided is not castable to an int. "
+                              "Ignoring its value.", RuntimeWarning)
+                return
 
-    def _get_plot_periodicity(self, settings):
-        if 'plot_periodicity' not in settings.keys():
-            return
+        # Update the attribute of self in-place
+        setattr(self, param, val)
 
-        if settings['plot_periodicity'] is None:
-            self.plot_periodicity = None
-        else:
-            try:
-                self.plot_periodicity = int(settings['plot_periodicity'])
-            except ValueError:
-                print("The 'plot_periodicity' parameters you provided is not an int")
+    def _set_console_print_periodicity(self, settings):
+        self._set_param_as_int_or_ignore(settings, 'console_print_periodicity')
 
-    def _get_save_periodicity(self, settings):
-        if 'save_periodicity' not in settings.keys():
-            return
+    def _set_plot_periodicity(self, settings):
+        self._set_param_as_int_or_ignore(settings, 'plot_periodicity')
 
-        if settings['save_periodicity'] is None:
-            self.save_periodicity = None
-        else:
-            try:
-                self.save_periodicity = int(settings['save_periodicity'])
-            except ValueError:
-                print("The 'save_periodicity' parameters you provided is not an int")
+    def _set_save_periodicity(self, settings):
+        self._set_param_as_int_or_ignore(settings, 'save_periodicity')
 
     def _create_root_folder(self, settings):
         # Get a path to put the outputs
         if 'path' not in settings.keys():
-            warnings.warn("You did not provide a path for your outputs. "
-                          "They have been initialized in the working directory.")
-            settings['path'] = os.path.join(os.getcwd(), '_outputs')
+            warnings.warn("You did not provide a path for your logs outputs. "
+                          f"They have been initialized to '{self.DEFAULT_LOGS_DIR}', relatively to the current working directory.")
 
-        settings['path'] = os.path.join(os.getcwd(), settings['path'])
+        rel_or_abs_path = settings.get('path', self.DEFAULT_LOGS_DIR)
+        abs_path = os.path.abspath(rel_or_abs_path)
 
-        parent_directory = os.path.abspath(os.path.join(settings['path'], '..'))
+        # store the absolute path in settings
+        settings['path'] = abs_path
 
-        # Check if the parent directory exists
-        if not os.path.exists(parent_directory):
-            raise ValueError(
-                "Parent directory : \n {0} \n of the logs path you provided does not exist".format(parent_directory))
+        # Check if the folder does not exist: if not, create (and its parent)
+        if not os.path.exists(abs_path):
+            warnings.warn(f"The logs path you provided ({settings['path']}) does not exist. "
+                          "Needed paths will be created (and their parents if needed).")
+        elif settings['overwrite_logs_folder']:
+            warnings.warn(f'Overwrite logs folder...')
+            self._clean_folder(abs_path)
 
-        # Check if the folder does not exist : if not, create
-        existence_cdt = os.path.exists(settings['path'])
-        if not existence_cdt:
-            os.makedirs(settings['path'])
+        all_ok = self._check_needed_folders_are_empty_or_create_them(abs_path)
 
-        # Check if the folder is empty or not
-        emptiness_cdt = [f for f in os.listdir(settings['path']) if not f.startswith('.')] == []
-        if emptiness_cdt:
-            self._create_dedicated_folders(settings['path'])
+        if not all_ok:
+            raise LeaspyAlgoInputError("The logs folder already exists and are not empty! "
+                    "Give another path or use keyword argument `overwrite_logs_folder=True`.")
+
+    @staticmethod
+    def _check_folder_is_empty_or_create_it(path_folder) -> bool:
+        if os.path.exists(path_folder):
+            if os.path.islink(path_folder) or not os.path.isdir(path_folder) or len(os.listdir(path_folder)) > 0:
+                # path is a link, or not a directory, or a directory containing something
+                return False
         else:
-            if settings['overwrite_logs_folder']:
-                print('\n...overwrite logs folder...')
-                self._clean_folder(settings['path'])
-                self._create_dedicated_folders(settings['path'])
-            else:
-                raise ValueError("The logs folder already exists! Give an other path of use "
-                                 "keyword argument <overwrite_logs_folder=True>.")
+            os.makedirs(path_folder)
 
-    def _clean_folder(self, path):
+        return True
+
+    @staticmethod
+    def _clean_folder(path):
         shutil.rmtree(path)
         os.makedirs(path)
 
-    def _create_dedicated_folders(self, path):
+    def _check_needed_folders_are_empty_or_create_them(self, path) -> bool:
         self.root_path = path
+
         self.parameter_convergence_path = os.path.join(path, 'parameter_convergence')
         self.plot_path = os.path.join(path, 'plots')
         self.patients_plot_path = os.path.join(self.plot_path, 'patients')
 
-        os.makedirs(self.parameter_convergence_path)
-        os.makedirs(self.plot_path)
-        os.makedirs(self.patients_plot_path)
+        all_ok = self._check_folder_is_empty_or_create_it(self.parameter_convergence_path)
+        all_ok &= self._check_folder_is_empty_or_create_it(self.plot_path)
+        all_ok &= self._check_folder_is_empty_or_create_it(self.patients_plot_path)
+
+        return all_ok
+

@@ -106,12 +106,14 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertTupleEqual(reg_grads['tau'].shape, (1,1))
         self.assertTupleEqual(reg_grads['sources'].shape, (1,2))
 
-    def get_individual_parameters_patient(self, model_name, times, values, **algo_kwargs):
+    def get_individual_parameters_patient(self, model_name, times, values, *, loss, **algo_kwargs):
         # already a functional test in fact...
         leaspy = Leaspy.load(hardcoded_model_path(model_name))
+        leaspy.model.load_hyperparameters({'loss': loss})
 
-        settings = AlgorithmSettings('scipy_minimize', seed=0, **algo_kwargs)
+        settings = AlgorithmSettings('scipy_minimize', seed=0, **algo_kwargs)  # loss=loss (not need: loss comes from model now)
         algo = ScipyMinimize(settings)
+        # self.assertEqual(algo.loss, loss)
 
         # manually initialize seed since it's not done by algo itself (no call to run afterwards)
         algo._initialize_seed(algo.seed)
@@ -139,7 +141,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         }.items():
 
             individual_parameters, err = self.get_individual_parameters_patient(model_name,
-                                                    times, values, use_jacobian=use_jacobian)
+                                                    times, values, loss='MSE', use_jacobian=use_jacobian)
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,
@@ -175,7 +177,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         }.items():
 
             individual_parameters, err = self.get_individual_parameters_patient(model_name,
-                                                    times, values, use_jacobian=use_jacobian)
+                                                    times, values, loss='MSE', use_jacobian=use_jacobian)
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,
@@ -217,7 +219,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         }.items():
 
             individual_parameters, err = self.get_individual_parameters_patient(model_name,
-                                                    times, values, use_jacobian=use_jacobian)
+                                                    times, values, loss='MSE', use_jacobian=use_jacobian)
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,

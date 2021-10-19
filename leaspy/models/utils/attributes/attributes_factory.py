@@ -1,3 +1,5 @@
+import torch
+
 from leaspy.models.utils.attributes.abstract_attributes import AbstractAttributes
 from leaspy.models.utils.attributes import LogisticParallelAttributes, LogisticAttributes, LinearAttributes
 

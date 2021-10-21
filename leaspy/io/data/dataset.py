@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -99,7 +100,10 @@ class Dataset:
         # TODO missing values in mask ?
 
         for i, d in enumerate(x_len):
-            indiv_values = torch.tensor(data[i].observations, dtype=torch.float32)
+            # PyTorch 1.10 warns: Creating a tensor from a list of numpy.ndarrays is extremely slow.
+            # Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor.
+            # TODO: IndividualData.observations is really badly constructed (list of numpy 1D arrays), we should change this...
+            indiv_values = torch.tensor(np.array(data[i].observations), dtype=torch.float32)
             values[i, 0:d, :] = indiv_values
             padding_mask[i, 0:d, :] = 1.
 

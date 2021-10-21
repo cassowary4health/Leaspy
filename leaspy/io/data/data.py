@@ -134,12 +134,13 @@ class Data:
         arr = torch.zeros((self.n_visits, self.dimension))
 
         iteration = 0
-        for i, indiv in enumerate(self.individuals.values()):
+        for indiv in self.individuals.values():
             ages = indiv.timepoints
             for j, age in enumerate(ages):
                 indices.append(indiv.idx)
                 timepoints[iteration] = age
-                arr[iteration] = torch.tensor(indiv.observations[j], dtype=torch.float32)
+                # TODO: IndividualData.observations is really badly constructed (list of numpy 1D arrays), we should change this...
+                arr[iteration] = torch.tensor(np.array(indiv.observations[j]), dtype=torch.float32)
 
                 iteration += 1
 

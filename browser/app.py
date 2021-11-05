@@ -5,15 +5,13 @@ from flask import render_template, request
 import json
 
 
-
-
 application = Flask(__name__, template_folder='templates')
 application._static_folder = 'static'
+
 
 @application.route("/")
 def index():
     return render_template('index.html')
-
 
 
 @application.route("/", methods=['POST'])
@@ -22,7 +20,8 @@ def personalize():
 
     data = request.get_json()
     individual_parameters = get_individual_parameters(data)
-    return json.dumps(individual_parameters)
+    return json.dumps(individual_parameters, allow_nan=False)
+
 
 if __name__ == "__main__":
     application.run()

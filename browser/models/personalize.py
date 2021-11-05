@@ -4,37 +4,46 @@ import numpy as np
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
-sys.path.append(os.path.join(os.getcwd(), '..'))
-
+# Add leaspy source to path (overwrite any existing leaspy package by inserting instead of appending)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from leaspy import Leaspy, Data, AlgorithmSettings
+
 
 def convert_data(data):
 
     # Ages
     birthday = datetime.strptime(data['birthday'], '%Y-%m-%d')
-    dates = [_[0] for _ in data['scores']]
+    dates = [_[0] for _ in data['scores'] if _[0]]
     dates = [datetime.strptime(_, '%m/%d/%Y') for _ in dates]
     ages = [relativedelta(_, birthday) for _ in dates]
     ages = [_.years + _.months/12 + _.days/365 for _ in ages]
     ages = np.array(ages, dtype=np.float32)
 
-
     # Scores
-    scores = [_[1:] for _ in data['scores']]
+    empty_str_to_nan = lambda s: float(s) if s else np.nan
+    scores = [list(map(empty_str_to_nan, _[1:])) for _ in data['scores'] if _[0]]
     scores = np.array(scores, dtype=np.float32)
-    scores = pd.DataFrame(data=scores, columns=[str(_) for _ in range(len(scores[0]))])
+    scores = pd.DataFrame(data=scores,
+                          columns=[str(_) for _ in range(len(scores[0]))])
     scores['ID'] = "patient"
     scores['TIME'] = ages
+
+    scores = scores.set_index(['ID', 'TIME']).dropna(how='all')
+    assert scores.index.is_unique, "Patient's ages are not unique..."
 
     return Data.from_dataframe(scores)
 
 def get_individual_parameters(data):
     # Data
     leaspy_data = convert_data(data)
+    df = leaspy_data.to_dataframe().set_index(['ID', 'TIME'])
+
+    # Replace nans by None to be JSON-compliant
+    df = df.mask(df.isna(), None)
 
     # Algorithm
-    settings = AlgorithmSettings('scipy_minimize')
+    settings = AlgorithmSettings('scipy_minimize', use_jacobian=True)
 
     # Leaspy
 
@@ -47,8 +56,8 @@ def get_individual_parameters(data):
     individual_parameters = leaspy.personalize(leaspy_data, settings=settings)
 
     output = {
-        'individual_parameters' : individual_parameters["patient"],
-        'scores': leaspy_data.to_dataframe().values.T.tolist()
+        'individual_parameters': individual_parameters["patient"],
+        'scores': df.reset_index('TIME').to_dict(orient='list')
     }
 
     return output

@@ -15,6 +15,20 @@ setTriggerValues = (individualParameters) => {
   };
 }
 
+resetTriggerValues = () => {
+  if(!parameters) {
+    return;
+  }
+  individualParameters = {
+    'xi': 0,
+    'alpha': 1, // useful for text update...
+    'tau': 0,
+    'sources': new Array(parameters['source_dimension']).fill(0)
+  }
+  setTriggerValues(individualParameters);
+  changeTriggerText(individualParameters);
+}
+
 
 getTriggerValues = () => {
   var values = {

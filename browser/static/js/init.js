@@ -2,6 +2,11 @@
 // THE MODEL
 ////////////////////////////////////////
 
+var age_min = 50;
+var age_max = 110;
+var age_step = 0.1;
+var leg_yprecision = 2;
+
 var parameters = '';
 var ages = '';
 var plotColors = ['rgb(231, 76, 60)', 'rgb(241, 196, 15)', 'rgb(149, 165, 166)', 'rgb(46, 204, 113)',
@@ -103,12 +108,10 @@ clearPage = () => {
   }
 }
 
-
 initPlot = () => {
   var indivParameters = getTriggerValues();
-  var incr_=0.5;
   ages = []
-  for(var i=35; i<110; i=i+incr_) {
+  for(var i=age_min; i<age_max; i=i+age_step) {
     ages.push(i);
   }
 
@@ -154,19 +157,48 @@ initPlot = () => {
     options: {
       maintainAspectRatio: false,
       tooltips: {
-        mode: 'index',
-        intersect: false,
+        mode: 'index', // 'index'
+        intersect: true,
+        filter: function(tooltipItem, data) {
+          // only keep plain curves items
+          return data.datasets[tooltipItem.datasetIndex].label != '';
+        },
+        callbacks: {
+          title: function(tooltipItems, data) {
+            r_age = tooltipItems[0].xLabel.toFixed(1);
+            return 'Age: ' + r_age
+          },
+          label: function(tooltipItem, data) {
+            // Prefix feature name + round values
+            var label = data.datasets[tooltipItem.datasetIndex].label || '';
+            var data_ix = tooltipItem.index;
+            if(label) {
+              label += ': ';
+            }
+            val = tooltipItem.yLabel.toFixed(leg_yprecision);
+            label += val
+
+            // We also fetch the value of dashed curve (same age index, feature is shifted by nb of features)
+            other_val = data.datasets[tooltipItem.datasetIndex + parameters['dimension']].data[data_ix].y.toFixed(leg_yprecision);
+            if(other_val != val) {
+              label += ' (' + other_val + ')'
+            }
+
+            return label;
+          }
+        }
       },
       legend: {
         labels: {
           filter: function(label) {
-            if (label.text != "") return true;
+            return label.text != '';
           },
           fontSize: 20
         },
       },
       hover: {
-        mode: 'nearest',
+        mode: 'index',
+        axis: 'x',
         intersect: true
       },
       scales: {
@@ -177,8 +209,8 @@ initPlot = () => {
         }],
         xAxes: [{
           ticks: {
-            min: 40,
-            max: 100
+            min: age_min,
+            max: age_max
           }
         }],
       },
@@ -190,13 +222,16 @@ initPlot = () => {
 }
 
 initModel = (e) => {
-  clearPage()
   parameters = JSON.parse(e.target.result);
-  initTriggers(parameters);
+  reinitModel(parameters);
+}
+
+reinitModel = (params) => {
+  clearPage();
+  initTriggers(params);
   initPlot();
   onTriggerChange();
 }
-
 
 ////////////////////////////////////////
 // INITIALIZATION OF NEW PATIENT
@@ -221,7 +256,7 @@ resetPatientButton = (individualData) => {
     input.setAttribute('value', individualData['birthday']);
   }
 
-  input.setAttribute('min', '1900-01-01');
+  input.setAttribute('min', '1920-01-01');
   input.setAttribute('max', '2000-01-01');
   patient.appendChild(input);
 
@@ -252,7 +287,7 @@ resetPatientButton = (individualData) => {
   var reset = document.createElement('button');
   reset.setAttribute('type', 'button');
   reset.setAttribute('class', 'btn btn-danger btn-sm');
-  //addRow.setAttribute('onclick', console.log(hot.getData()));
+  reset.setAttribute('onclick', 'resetTriggerValues(); reinitModel(parameters)'); // reset plot without individual data
   reset.style = 'margin:10px';
   reset.innerText = 'Reinitialize';
   patient.appendChild(reset);
@@ -306,11 +341,6 @@ initTable = (parameters, individualData) => {
     }
     console.log(dataObject);
   }
-
-
-
-
-
 
 
   var hotSettings = {

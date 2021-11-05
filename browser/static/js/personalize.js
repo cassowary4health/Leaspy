@@ -1,13 +1,13 @@
 addIndividualData = (scores) => {
-  var ages = scores[1]
-  for(var i=2; i<scores.length; ++i) {
+  var ages = scores['TIME']
+  for(var i=0; i < parameters['dimension']; ++i) {
     dataset = {
       label : '',
-      data: convertData(ages, scores[i]),
+      data: convertData(ages, scores[String(i)]),
       showLine: false,
       fill: true,
       pointBorderColor: 'rgb(0, 0, 0)',
-      pointBackgroundColor: plotColors[i-2],
+      pointBackgroundColor: plotColors[i],
       pointRadius: 7
     }
 
@@ -39,8 +39,6 @@ personalize = () => {
     'scores': scores,
     'model': parameters
   }
-
-
 
   $.ajax({
     type: 'POST',

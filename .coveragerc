@@ -1,0 +1,7 @@
+[report]
+omit =
+    leaspy/algo/fit/gradient_mcmcsaem.py
+    leaspy/algo/fit/gradient_descent.py
+    leaspy/utils/posterior_analysis/statistical_analysis.py
+    leaspy/utils/resampling/general.py
+    leaspy/utils/posterior_analysis/abnormality.py

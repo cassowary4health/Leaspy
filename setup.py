@@ -18,10 +18,14 @@ version = find_version("leaspy", "__init__.py")
 with open("requirements.txt", 'r') as f:
     requirements = f.read().splitlines()
 
+with open("requirements_dev.txt", 'r') as f:
+    dev_requirements = f.read().splitlines()
+
 with open("docs/requirements.txt", 'r') as f:
     docs_requirements = f.read().splitlines()
 
 EXTRAS_REQUIRE = {
+    'dev': dev_requirements,
     'docs': docs_requirements
 }
 
@@ -78,7 +82,7 @@ setup(name="leaspy",
 
       install_requires=requirements,
       include_package_data=True,
-      data_files=[('requirements', ['requirements.txt', 'docs/requirements.txt'])],
+      data_files=[('requirements', ['requirements.txt', 'requirements_dev.txt', 'docs/requirements.txt'])],
 
       # tests_require=["unittest"],
       test_suite='tests',

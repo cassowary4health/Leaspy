@@ -2,171 +2,82 @@ stages:
   - build
   - test
 
-update_conda_linux:
-  stage: .pre
-  tags:
-    - linux
+.create_conda_envs:
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ['3.7', '3.8', '3.9'] # 3.10
+  script:
+    - conda --version
+    - conda create --yes python=$PYTHON_VERSION --name leaspy_env_${PYTHON_VERSION}_${CI_COMMIT_BRANCH} || true  # use 'create --yes' to force re-creation of env if already exists
+    - conda activate leaspy_env_${PYTHON_VERSION}_${CI_COMMIT_BRANCH}
+    - >
+      if [ "$PYTHON_VERSION" == "3.9" ]; then
+        export AR=/usr/bin/ar
+      fi
+    - pip install -U -r requirements.txt
+    - conda deactivate
+
+.update_conda:
   script:
     - conda init bash
     - eval "$(conda shell.bash hook)"
     - conda update --name base --channel defaults --yes conda
+
+.tests:
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ['3.7', '3.8', '3.9'] # 3.10
+  script:
+    - conda activate leaspy_env_${PYTHON_VERSION}_${CI_COMMIT_BRANCH}
+    - python --version
+    - pip freeze
+    - pytest --cov-config=.coveragerc --cov-report html:htmlcov --cov-report xml:build/coverage.xml --cov-report term --cov=leaspy/ --junitxml=build/tests_results/tests_${PYTHON_VERSION}.xml tests/
+    - conda deactivate
+  coverage: '/^TOTAL(?:\s+.*){2}\s+(\d+(?:\.\d+)?\%)$/'
+  artifacts:
+    paths:
+      - htmlcov/  # for people to browse if they want (in addition to Gitlab tool)
+    reports:
+      cobertura: build/coverage.xml  # will be directly integrated to Gitlab coverage tool (MR)
+      junit: build/tests_results/tests_*.xml  # will be directly integrated to Gitlab tests tool
+    expire_in: 30 days
+
+update_conda_linux:
+  extends: .update_conda
+  stage: build
+  tags:
+    - linux
 
 update_conda_macos:
-  stage: .pre
-  tags:
-    - macos
-  script:
-    - conda init bash
-    - eval "$(conda shell.bash hook)"
-    - conda update --name base --channel defaults --yes conda
-
-create_conda_env_37_linux:
-  stage: build
-  tags:
-    - linux
-  script:
-    - conda create --yes python=3.7 --name leaspy_env_37_$CI_COMMIT_BRANCH
-    - conda activate leaspy_env_37_$CI_COMMIT_BRANCH
-    - pip install -r requirements.txt
-    - conda deactivate
-
-create_conda_env_38_linux:
-  stage: build
-  tags:
-    - linux
-  script:
-    - conda create --yes python=3.8 --name leaspy_env_38_$CI_COMMIT_BRANCH
-    - conda activate leaspy_env_38_$CI_COMMIT_BRANCH
-    - pip install -r requirements.txt
-    - conda deactivate
-
-create_conda_env_39_linux:
-  stage: build
-  tags:
-    - linux
-  script:
-    - conda create --yes python=3.9 --name leaspy_env_39_$CI_COMMIT_BRANCH
-    - conda activate leaspy_env_39_$CI_COMMIT_BRANCH
-    - pip install -r requirements.txt
-    - conda deactivate
-
-create_conda_env_37_macos:
+  extends: .update_conda
   stage: build
   tags:
     - macos
-  script:
-    - conda create --yes python=3.7 --name leaspy_env_37_$CI_COMMIT_BRANCH
-    - conda activate leaspy_env_37_$CI_COMMIT_BRANCH
-    - pip install -r requirements.txt
-    - conda deactivate
 
-create_conda_env_38_macos:
+create_conda_envs_macos:
+  extends: .create_conda_envs
   stage: build
   tags:
     - macos
-  script:
-    - conda create --yes python=3.8 --name leaspy_env_38_$CI_COMMIT_BRANCH
-    - conda activate leaspy_env_38_$CI_COMMIT_BRANCH
-    - pip install -r requirements.txt
-    - conda deactivate
 
-create_conda_env_39_macos:
+create_conda_envs_linux:
+  extends: .create_conda_envs
   stage: build
   tags:
-    - macos
-  script:
-    - conda create --yes python=3.9 --name leaspy_env_39_$CI_COMMIT_BRANCH
-    - conda activate leaspy_env_39_$CI_COMMIT_BRANCH
-    - export AR=/usr/bin/ar  # otherwise bug to compile statsmodels from source with python 3.9 on macos != 10.15
-    - pip install -r requirements.txt
-    - conda deactivate
-
-test_37_linux:
-  stage: test
-  tags:
     - linux
-  before_script:
-    - conda activate leaspy_env_37_$CI_COMMIT_BRANCH
-  script:
-    - python --version
-    - pip freeze
-    - python -m unittest discover tests/unit_tests
-    - python -m unittest discover tests/functional_tests
-  after_script:
-    - conda deactivate
-    - conda env remove --yes --name leaspy_env_37_$CI_COMMIT_BRANCH
 
-test_38_linux:
+tests_macos:
+  extends: .tests
   stage: test
-  tags:
-    - linux
-  before_script:
-    - conda activate leaspy_env_38_$CI_COMMIT_BRANCH
-  script:
-    - python --version
-    - pip freeze
-    - python -m unittest discover tests/unit_tests
-    - python -m unittest discover tests/functional_tests
-  after_script:
-    - conda deactivate
-    - conda env remove --yes --name leaspy_env_38_$CI_COMMIT_BRANCH
-
-test_39_linux:
-  stage: test
-  tags:
-    - linux
-  before_script:
-    - conda activate leaspy_env_39_$CI_COMMIT_BRANCH
-  script:
-    - python --version
-    - pip freeze
-    - python -m unittest discover tests/unit_tests
-    - python -m unittest discover tests/functional_tests
-  after_script:
-    - conda deactivate
-    - conda env remove --yes --name leaspy_env_39_$CI_COMMIT_BRANCH
-
-test_37_macos:
-  stage: test
+  retry: 0  # no retry if failed
+  interruptible: true  # job should be canceled when a newer pipeline starts before the job completes
   tags:
     - macos
-  before_script:
-    - conda activate leaspy_env_37_$CI_COMMIT_BRANCH
-  script:
-    - python --version
-    - pip freeze
-    - python -m unittest discover tests/unit_tests
-    - python -m unittest discover tests/functional_tests
-  after_script:
-    - conda deactivate
-    - conda env remove --yes --name leaspy_env_37_$CI_COMMIT_BRANCH
 
-test_38_macos:
+tests_linux:
+  extends: .tests
   stage: test
+  retry: 0  # no retry if failed
+  interruptible: true  # job should be canceled when a newer pipeline starts before the job completes
   tags:
-    - macos
-  before_script:
-    - conda activate leaspy_env_38_$CI_COMMIT_BRANCH
-  script:
-    - python --version
-    - pip freeze
-    - python -m unittest discover tests/unit_tests
-    - python -m unittest discover tests/functional_tests
-  after_script:
-    - conda deactivate
-    - conda env remove --yes --name leaspy_env_38_$CI_COMMIT_BRANCH
-
-test_39_macos:
-  stage: test
-  tags:
-    - macos
-  before_script:
-    - conda activate leaspy_env_39_$CI_COMMIT_BRANCH
-  script:
-    - python --version
-    - pip freeze
-    - python -m unittest discover tests/unit_tests
-    - python -m unittest discover tests/functional_tests
-  after_script:
-    - conda deactivate
-    - conda env remove --yes --name leaspy_env_39_$CI_COMMIT_BRANCH
+   - linux

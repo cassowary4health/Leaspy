@@ -92,6 +92,7 @@ test_37_linux:
     - pip freeze
     - python -m unittest discover tests/unit_tests
     - python -m unittest discover tests/functional_tests
+    - python -m unittest discover tests/gpu_tests
   after_script:
     - conda deactivate
     - conda env remove --yes --name leaspy_env_37_$CI_COMMIT_BRANCH

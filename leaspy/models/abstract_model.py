@@ -785,5 +785,8 @@ class AbstractModel(ABC):
 
             if hasattr(self, "attributes"):
                 self.attributes.move_to_device(device)
+            if hasattr(self, "MCMC_toolbox"):
+                if self.MCMC_toolbox.get("attributes", None) is not None:
+                    self.MCMC_toolbox["attributes"].move_to_device(device)
             # update the device
             self.device = device

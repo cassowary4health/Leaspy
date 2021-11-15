@@ -16,10 +16,6 @@ class GPUModelFit(unittest.TestCase):
         Check if the following models run with the following algorithms, on a GPU device.
         """
 
-        # at the moment we choose not to fail those tests if the GPU is not available
-        # during the CI pipeline
-        if not torch.cuda.is_available():
-            return
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
 
             leaspy = Leaspy(model_name)
@@ -46,11 +42,6 @@ class GPUModelFit(unittest.TestCase):
         Check if the following models run with the following algorithms, on a GPU device.
         """
 
-        # at the moment we choose not to fail those tests if the GPU is not available
-        # during the CI pipeline
-        if not torch.cuda.is_available():
-            return
-
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
             leaspy = Leaspy(model_name, loss="crossentropy")
             settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0, device=torch.device("cuda"))
@@ -64,7 +55,6 @@ class GPUModelFit(unittest.TestCase):
 
             for method in ['scipy_minimize']:
                 burn_in_kw = dict() # not for all algos
-                if '_real' in method:
-                    burn_in_kw = dict(n_burn_in_iter=90, )
+
                 settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
                 result = leaspy.personalize(data, settings)

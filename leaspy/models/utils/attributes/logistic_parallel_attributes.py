@@ -15,6 +15,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     name : str
     dimension : int
     source_dimension : int
+    device : torch.device (defaults to torch.device("cpu")
 
     Attributes
     ----------
@@ -22,6 +23,8 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         Name of the associated leaspy model.
     dimension : int
     source_dimension : int
+    device: torch.device
+        Torch device on which tensors are stored during the algorithm run
     has_sources : bool
         Whether model has sources or not (source_dimension >= 1)
     update_possibilities : tuple [str] (default ('all', 'g', 'xi_mean', 'deltas', 'betas') )

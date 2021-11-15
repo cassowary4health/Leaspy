@@ -48,7 +48,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         self.temperature = 1
 
         # Select the device on which computation will be perfomed
-        # (default to the CPU)
+        # (defaults to the CPU in the AlgorithmSettings method)
         self.device = torch.device(settings.device)
 
     ###########################

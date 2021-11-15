@@ -33,6 +33,7 @@ class AttributesFactory:
         name : str
         dimension : int
         source_dimension : int, optional (default None)
+        device : torch.device (optional, will default to torch.device("cpu") through input None)
 
         Returns
         -------

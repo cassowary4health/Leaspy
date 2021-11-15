@@ -43,6 +43,13 @@ class AbstractModel(ABC):
         The loss to optimize (``'MSE'``, ``'MSE_diag_noise'`` or ``'crossentropy'``)
     distribution : :class:`torch.distributions.normal.Normal`
         Gaussian distribution object to compute variables regularization
+    device : torch.device
+        The device on which computations are performed on the model. It
+        defaults to torch.device("cpu"), and should be torch.device("cpu")
+        most of the time.  It is changed internally during some algorithms'
+        run time, and is usually set back to torch.device("cpu") once the
+        algorithms end, so that all the model analysis pipelines (plotting,
+        stats, etc) can be run transparently.
     """
 
     def __init__(self, name: str):
@@ -776,8 +783,13 @@ class AbstractModel(ABC):
         return individual_parameters
 
     def move_to_device(self, device: torch.device) -> None:
-        # in a model, the only tensors that need offloading to a particular device
-        # are in the model.parameters dict
+        """
+        Move a model and its relevant attributes to the specified device.
+        """
+
+        # Note that in a model, the only tensors that need offloading to a
+        # particular device are in the model.parameters dict as well as in the
+        # attributes and MCMC_toolbox['attributes'] objects
 
         if self.device != device:
             for parameter in self.parameters:

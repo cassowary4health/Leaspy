@@ -14,6 +14,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
     name : str
     dimension : int
     source_dimension : int
+    device : torch.device (defaults to torch.device("cpu")
 
     Attributes
     ----------
@@ -21,6 +22,8 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         Name of the associated leaspy model.
     dimension : int
     source_dimension : int
+    device: torch.device
+        Torch device on which tensors are stored during the algorithm run
     univariate : bool
         Whether model is univariate or not (i.e. dimension == 1)
     has_sources : bool

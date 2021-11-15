@@ -297,9 +297,9 @@ class Plotter:
         for i in patients_list:
             model_value = patient_values[i, 0:data.nb_observations_per_individuals[i], :]
             score = data.values[i, 0:data.nb_observations_per_individuals[i], :]
-            ax.plot(data.timepoints[i, 0:data.nb_observations_per_individuals[i]].cpu().cpu().detach().numpy(),
+            ax.plot(data.timepoints[i, 0:data.nb_observations_per_individuals[i]].cpu().detach().numpy(),
                     model_value.cpu().detach().numpy(), c=colors[i])
-            ax.plot(data.timepoints[i, 0:data.nb_observations_per_individuals[i]].cpu().cpu().detach().numpy(),
+            ax.plot(data.timepoints[i, 0:data.nb_observations_per_individuals[i]].cpu().detach().numpy(),
                     score.cpu().detach().numpy(), c=colors[i], linestyle='--',
                     marker='o')
 

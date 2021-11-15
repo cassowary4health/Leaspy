@@ -18,7 +18,7 @@ class AbstractAttributes(ABC):
     name : str
     dimension : int (default None)
     source_dimension : int (default None)
-    device: torch.device (default torch.device("cpu"))
+    device: torch.device (default to torch.device("cpu"))
 
     Attributes
     ----------

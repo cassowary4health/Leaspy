@@ -110,6 +110,7 @@ class AbstractFitAlgo(AbstractAlgo):
         print("\nThe standard deviation of the noise at the end of the calibration is:\n" + print_noise)
         print("\nCalibration took: " + self.convert_timer(diff_time))
 
+        # move back both the dataset and the model to their original device
         dataset.move_to_device(original_model_device)
         model.move_to_device(original_model_device)
 

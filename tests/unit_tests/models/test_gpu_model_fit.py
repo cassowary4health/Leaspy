@@ -7,12 +7,19 @@ from leaspy import AlgorithmSettings, Data, Leaspy
 
 from tests import example_data_path, binary_data_path
 
+@unittest.skipIf(not torch.cuda.is_available(),
+                "GPU calibration tests need an available CUDA environment")
 class GPUModelFit(unittest.TestCase):
 
     def test_all_model_gpu_run(self):
         """
         Check if the following models run with the following algorithms, on a GPU device.
         """
+
+        # at the moment we choose not to fail those tests if the GPU is not available
+        # during the CI pipeline
+        if not torch.cuda.is_available():
+            return
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
 
             leaspy = Leaspy(model_name)
@@ -38,6 +45,12 @@ class GPUModelFit(unittest.TestCase):
         """
         Check if the following models run with the following algorithms, on a GPU device.
         """
+
+        # at the moment we choose not to fail those tests if the GPU is not available
+        # during the CI pipeline
+        if not torch.cuda.is_available():
+            return
+
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
             leaspy = Leaspy(model_name, loss="crossentropy")
             settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0, device=torch.device("cuda"))

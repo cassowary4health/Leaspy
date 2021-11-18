@@ -3,7 +3,6 @@ import itertools
 import torch
 
 from .abstract_sampler import AbstractSampler
-
 from leaspy.exceptions import LeaspyModelInputError
 
 

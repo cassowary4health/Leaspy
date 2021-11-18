@@ -1,9 +1,9 @@
 import torch
 
 from leaspy.io.realizations.realization import Realization
-from .abstract_personalize_algo import AbstractPersonalizeAlgo
-from ..samplers.algo_with_samplers import AlgoWithSamplersMixin
-from ...io.outputs.individual_parameters import IndividualParameters
+from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
+from leaspy.algo.utils.samplers import AlgoWithSamplersMixin
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 
 class ModeReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):

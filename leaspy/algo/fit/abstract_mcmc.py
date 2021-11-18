@@ -1,10 +1,10 @@
 import torch
 
-from .abstract_fit_algo import AbstractFitAlgo
+from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
+from leaspy.algo.utils.samplers import AlgoWithSamplersMixin
 
 from leaspy.models.utils import DEFAULT_LOSS
 from leaspy.exceptions import LeaspyAlgoInputError
-from leaspy.algo.samplers.algo_with_samplers import AlgoWithSamplersMixin
 
 
 class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
@@ -18,13 +18,13 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
 
     Attributes
     ----------
-    samplers : dict[ str, :class:`~.algo.samplers.abstract_sampler.AbstractSampler` ]
+    samplers : dict[ str, :class:`~.algo.utils.samplers.abstract_sampler.AbstractSampler` ]
         Dictionary of samplers per each variable
     TODO add missing
 
     See Also
     --------
-    :mod:`leaspy.algo.samplers`
+    :mod:`leaspy.algo.utils.samplers`
     """
 
     def __init__(self, settings):

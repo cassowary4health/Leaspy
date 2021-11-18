@@ -1,7 +1,7 @@
 import torch
 
 from leaspy.io.data.dataset import Dataset
-from leaspy.algo.samplers.gibbs_sampler import GibbsSampler
+from leaspy.algo.utils.samplers.gibbs_sampler import GibbsSampler
 
 from tests import LeaspyTestCase
 

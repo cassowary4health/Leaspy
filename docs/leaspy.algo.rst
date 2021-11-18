@@ -27,5 +27,4 @@ Module contents
 
 .. automodule:: leaspy.algo
    :members:
-   :undoc-members:
    :show-inheritance:

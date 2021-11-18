@@ -16,5 +16,4 @@ Module contents
 
 .. automodule:: leaspy.algo.others
    :members:
-   :undoc-members:
    :show-inheritance:

@@ -8,6 +8,17 @@ class AbstractSampler:
     """
     Abstract sampler class.
 
+    Parameters
+    ----------
+    info : dict[str, Any]
+        The dictionary describing the random variable to sample.
+        It should contains the following entries:
+            * name : str
+            * shape : tuple[int, ...]
+            * type : 'population' or 'individual'
+    n_patients : int > 0
+        Number of patients (useful for individual variables)
+
     Attributes
     ----------
     acceptation_temp : :class:`torch.Tensor`
@@ -23,7 +34,7 @@ class AbstractSampler:
 
     Raises
     ------
-    :class:`.LeaspyModelInputError`
+    :exc:`.LeaspyModelInputError`
     """
 
     def __init__(self, info: KwargsType, n_patients: int):
@@ -105,7 +116,7 @@ class AbstractSampler:
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
         """
 
         # Ad the new acceptation result

@@ -1,11 +1,13 @@
 import unittest
+from math import isnan
+
 import pandas as pd
 import numpy as np
 
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
-from leaspy import Leaspy
+from leaspy.models.constant_model import ConstantModel
 from leaspy.algo.others.constant_prediction_algo import ConstantPredictionAlgorithm
 
 
@@ -43,7 +45,7 @@ class ConstantPredictionAlgorithmTest(unittest.TestCase):
         ])
 
         results = [
-            ('last', {'A': float('nan'), 'B': 2.}),
+            ('last', {'A': None, 'B': 2.}),
             ('last_known', {'A': 3., 'B': 2.}),
             ('max', {'A': 3., 'B': 2.}),
             ('mean', {'A': 2., 'B': 1.})
@@ -52,15 +54,15 @@ class ConstantPredictionAlgorithmTest(unittest.TestCase):
         for (prediction_type, res) in results:
             settings = AlgorithmSettings('constant_prediction', prediction_type=prediction_type)
             algo = ConstantPredictionAlgorithm(settings)
-            algo.features = ['A', 'B']
-            ind_ip = algo._get_individual_last_values(times, values)
+            ind_ip = algo._get_individual_last_values(times, values, fts=['A', 'B'])
 
-            if ind_ip['A'] == ind_ip['A'] and ind_ip['B'] == ind_ip['B']:
-                self.assertDictEqual(ind_ip, res)
+            # replace nans by None for comparisons
+            ind_ip = {
+                k: None if isnan(v) else v
+                for k, v in ind_ip.items()
+            }
 
-            elif ind_ip['A'] != ind_ip['A']:
-                self.assertNotEqual(res['A'], res['A'])
-                self.assertEqual(ind_ip['B'], res['B'])
+            self.assertEqual(ind_ip, res)
 
     def test_run_last(self):
         results = [
@@ -74,7 +76,7 @@ class ConstantPredictionAlgorithmTest(unittest.TestCase):
 
             settings = AlgorithmSettings('constant_prediction', prediction_type=pred_type)
             algo = ConstantPredictionAlgorithm(settings)
-            model = Leaspy('constant')
+            model = ConstantModel('constant')
 
             ip, noise = algo.run(model, self.dataset)
             self.assertEqual(noise, 0.)

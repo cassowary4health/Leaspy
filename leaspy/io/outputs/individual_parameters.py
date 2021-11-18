@@ -15,9 +15,9 @@ from leaspy.utils.typing import IDType, ParamType, DictParams, DictParamsTorch, 
 class IndividualParameters:
     r"""
     Data container for individual parameters, contains IDs, timepoints and observations values.
-    Ouput of the :meth:`.Leaspy.personalize` method, contains the *random effects*.
+    Output of the :meth:`.Leaspy.personalize` method, contains the *random effects*.
 
-    There are used as ouput of the `personalization algorithms` and as input/ouput of the `simulation algorithm`,
+    There are used as output of the `personalization algorithms` and as input/output of the `simulation algorithm`,
     to provide an initial distribution of individual parameters.
 
     Attributes
@@ -62,7 +62,7 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             * If the index is not a string or has already been added
             * Or if the individual parameters is not a dict.
             * Or if individual parameters are not self-consistent.
@@ -129,7 +129,7 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             if bad item asked
         """
         if not isinstance(item, IDType):
@@ -140,7 +140,7 @@ class IndividualParameters:
 
     def items(self):
         """
-        items() method of dict :attr:`_individual_parameters`
+        Get items of dict :attr:`_individual_parameters`.
         """
         return self._individual_parameters.items()
 
@@ -162,12 +162,11 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             Raise an error if one of the index is not in the IndividualParameters
 
         Examples
         --------
-
         >>> ip = IndividualParameters()
         >>> ip.add_individual_parameters('index-1', {"xi": 0.1, "tau": 70, "sources": [0.1, -0.3]})
         >>> ip.add_individual_parameters('index-2', {"xi": 0.2, "tau": 73, "sources": [-0.4, -0.1]})
@@ -207,13 +206,12 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             * If individual parameters are empty,
             * or if the parameter is not in the IndividualParameters.
 
         Examples
         --------
-
         >>> ip = IndividualParameters.load("path/to/individual_parameters")
         >>> tau_median = ip.get_aggregate("tau", np.median)
         """
@@ -243,13 +241,12 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             * If individual parameters are empty,
             * or if the parameter is not in the IndividualParameters.
 
         Examples
         --------
-
         >>> ip = IndividualParameters.load("path/to/individual_parameters")
         >>> tau_mean = ip.get_mean("tau")
         """
@@ -271,13 +268,12 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             * If individual parameters are empty,
             * or if the parameter is not in the IndividualParameters.
 
         Examples
         --------
-
         >>> ip = IndividualParameters.load("path/to/individual_parameters")
         >>> tau_std = ip.get_std("tau")
         """
@@ -342,7 +338,6 @@ class IndividualParameters:
         Returns
         -------
         `IndividualParameters`
-
         """
         # Check the names to keep
         df_names: List[ParamType] = list(df.columns.values)
@@ -385,11 +380,10 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
 
         Examples
         --------
-
         >>> indices = ['index-1', 'index-2', 'index-3']
         >>> ip_pytorch = {
         >>>    "xi": torch.tensor([[0.1], [0.2], [0.3]], dtype=torch.float32),
@@ -397,7 +391,6 @@ class IndividualParameters:
         >>>    "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1], [-0.6, 0.2]], dtype=torch.float32)
         >>> }
         >>> ip_pytorch = IndividualParameters.from_pytorch(indices, ip_pytorch)
-
         """
 
         len_p = {k: len(v) for k, v in dict_pytorch.items()}
@@ -467,7 +460,7 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             * If extension not supported for saving
             * If individual parameters are empty
         """
@@ -506,12 +499,11 @@ class IndividualParameters:
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             If the provided extension is not `csv` or not `json`.
 
         Examples
         --------
-
         >>> ip = IndividualParameters.load('/path/to/individual_parameters_1.json')
         >>> ip2 = IndividualParameters.load('/path/to/individual_parameters_2.csv')
         """
@@ -545,6 +537,9 @@ class IndividualParameters:
             'individual_parameters': self._individual_parameters,
             'parameters_shape': self._parameters_shape
         }
+
+        # Default json.dump kwargs:
+        kwargs = {'indent': 2, **kwargs}
 
         with open(path, 'w') as f:
             json.dump(json_data, f, **kwargs)

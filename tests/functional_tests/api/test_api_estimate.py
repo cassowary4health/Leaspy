@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 
 from leaspy import Leaspy, IndividualParameters
-from tests import test_data_dir, hardcoded_model_path
+from tests import test_data_dir, hardcoded_model_path, hardcoded_ip_path
 
 
 class LeaspyEstimateTest(unittest.TestCase):
@@ -30,7 +30,7 @@ class LeaspyEstimateTest(unittest.TestCase):
 
     def test_estimate_multivariate(self):
 
-        ip_path = os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json')
+        ip_path = hardcoded_ip_path('ip_save.json')
         ip = IndividualParameters.load(ip_path)
 
         timepoints = {
@@ -53,7 +53,8 @@ class LeaspyEstimateTest(unittest.TestCase):
         # TODO linear model?
 
     def test_estimate_univariate(self):
-        ip_path = os.path.join(test_data_dir, 'io', 'outputs', 'ip_univariate_save.json')
+
+        ip_path = hardcoded_ip_path('ip_univariate_save.json')
         ip = IndividualParameters.load(ip_path)
 
         timepoints = {
@@ -80,7 +81,7 @@ class LeaspyEstimateTest(unittest.TestCase):
         # feat is "feature"
         model_parameters_path = hardcoded_model_path('univariate_logistic')
         leaspy = Leaspy.load(model_parameters_path)
-        ip_path = os.path.join(test_data_dir, 'io', 'outputs', 'ip_univariate_save.json')
+        ip_path = hardcoded_ip_path('ip_univariate_save.json')
         ip = IndividualParameters.load(ip_path)
         timepoints = {
             'idx1': [78, 81],
@@ -152,7 +153,7 @@ class LeaspyEstimateTest(unittest.TestCase):
         model_parameters_path = hardcoded_model_path('logistic')
         leaspy = Leaspy.load(model_parameters_path)
 
-        ip_path = os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json')
+        ip_path = hardcoded_ip_path('ip_save.json')
         ip = IndividualParameters.load(ip_path)
 
         timepoints = {

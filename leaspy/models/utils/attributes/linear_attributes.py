@@ -34,7 +34,7 @@ class LinearAttributes(AbstractManifoldModelAttributes):
     mixing_matrix : :class:`torch.Tensor` [dimension, source_dimension] (default None)
         Matrix A such that w_i = A * s_i.
 
-    See also
+    See Also
     --------
     :class:`~leaspy.models.univariate_model.UnivariateModel`
     :class:`~leaspy.models.multivariate_model.MultivariateModel`
@@ -63,7 +63,7 @@ class LinearAttributes(AbstractManifoldModelAttributes):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)

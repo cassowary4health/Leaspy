@@ -12,13 +12,19 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
     r"""
     Personalization algorithm associated to :class:`~.models.lme_model.LMEModel`
 
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        Algorithm settings (none yet).
+        Most LME parameters are defined within LME model and LME fit algorithm.
+
     Attributes
     ----------
     name : ``'lme_personalize'``
 
     Raises
     ------
-    :class:`.LeaspyAlgoInputError`
+    :exc:`.LeaspyAlgoInputError`
         if bad configuration of algorithm
     """
 
@@ -52,7 +58,7 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
 
         Raises
         ------
-        :class:`.LeaspyInputError`
+        :exc:`.LeaspyInputError`
             if data and model mismatch
         """
 

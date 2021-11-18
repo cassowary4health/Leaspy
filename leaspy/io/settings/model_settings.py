@@ -17,7 +17,7 @@ class ModelSettings:
 
     Raises
     ------
-    :class:`.LeaspyModelInputError`
+    :exc:`.LeaspyModelInputError`
     """
     def __init__(self, path_to_model_settings_or_dict: Union[str, dict]):
 

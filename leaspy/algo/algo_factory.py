@@ -9,7 +9,6 @@ from leaspy.algo.others.lme_fit import LMEFitAlgorithm
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.algo.personalize.mean_realisations import MeanReal
 from leaspy.algo.personalize.mode_realisations import ModeReal
-from leaspy.algo.personalize.gradient_descent_personalize import GradientDescentPersonalize
 
 from leaspy.algo.others.constant_prediction_algo import ConstantPredictionAlgorithm
 from leaspy.algo.others.lme_personalize import LMEPersonalizeAlgorithm
@@ -26,9 +25,9 @@ class AlgoFactory:
     """
     Return the wanted algorithm given its name.
 
-    For developpers
-    ---------------
-    Add your new algorithm in corresponding category of `_algos` dictionary.
+    Notes
+    -----
+    For developers: add your new algorithm in corresponding category of ``_algos`` dictionary.
     """
 
     _algos = {
@@ -43,7 +42,7 @@ class AlgoFactory:
             'scipy_minimize': ScipyMinimize,
             'mean_real': MeanReal,
             'mode_real': ModeReal,
-            'gradient_descent_personalize': GradientDescentPersonalize, # deprecated!
+            #'gradient_descent_personalize': GradientDescentPersonalize, # deprecated!
 
             'constant_prediction': ConstantPredictionAlgorithm,
             'lme_personalize': LMEPersonalizeAlgorithm,
@@ -78,7 +77,7 @@ class AlgoFactory:
 
         Raises
         ------
-        :class:`.LeaspyAlgoInputError`
+        :exc:`.LeaspyAlgoInputError`
             * if the algorithm class is unknown
             * if the algorithm name is unknown / does not belong to the wanted algorithm class
         """

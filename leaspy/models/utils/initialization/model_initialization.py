@@ -43,7 +43,7 @@ def initialize_parameters(model, dataset, method="default"):
 
     Raises
     ------
-    :class:`.LeaspyInputError`
+    :exc:`.LeaspyInputError`
         If no initialization method is known for model type / method
     """
 
@@ -68,7 +68,8 @@ def initialize_parameters(model, dataset, method="default"):
     return parameters
 
 
-def get_lme_results(dataset, n_jobs=-1, **lme_fit_kwargs):
+def get_lme_results(dataset, n_jobs=-1, *,
+                    with_random_slope_age=True, **lme_fit_kwargs):
     r"""
     Fit a LME on univariate (per feature) time-series (feature vs. patients' ages with varying intercept & slope)
 
@@ -79,24 +80,27 @@ def get_lme_results(dataset, n_jobs=-1, **lme_fit_kwargs):
     n_jobs : int
         Number of jobs in parallel when multiple features to init
         Not used for now, buggy
+    with_random_slope_age : bool (default True)
+        Has LME model a random slope per age (otherwise only a random intercept).
     **lme_fit_kwargs
-        Other kwargs passed to 'lme_fit' (such as `force_independent_random_effects`, default True)
+        Kwargs passed to 'lme_fit' (such as `force_independent_random_effects`, default True)
 
     Returns
     -------
     dict
-        {param: str -> param_values_for_ft: torch.Tensor(nb_fts, *shape_param)}
+        {param: str -> param_values_for_ft: torch.Tensor(nb_fts, \*shape_param)}
     """
 
+    # defaults for LME Fit algorithm settings
     lme_fit_kwargs = {
-        'with_random_slope_age': True,
         'force_independent_random_effects': True,
-        **lme_fit_kwargs} # defaults
+        **lme_fit_kwargs
+    }
 
     #@delayed
     def fit_one_ft(df_ft):
         data_ft = leaspy.Data.from_dataframe(df_ft)
-        lsp_lme_ft = leaspy.Leaspy('lme')
+        lsp_lme_ft = leaspy.Leaspy('lme', with_random_slope_age=with_random_slope_age)
         algo = leaspy.AlgorithmSettings('lme_fit', **lme_fit_kwargs) # seed=seed
 
         lsp_lme_ft.fit(data_ft, algo)
@@ -138,7 +142,7 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
 
     Raises
     ------
-    :class:`.LeaspyInputError`
+    :exc:`.LeaspyInputError`
         If model is not supported for this initialization
     """
 
@@ -250,7 +254,7 @@ def initialize_logistic(model, dataset, method):
 
     Raises
     ------
-    :class:`.LeaspyInputError`
+    :exc:`.LeaspyInputError`
         If method is not handled
     """
 
@@ -278,7 +282,7 @@ def initialize_logistic(model, dataset, method):
     # Do transformations
     t0 = time.clone().detach()
     v0_array = slopes.log().detach()
-    g_array = torch.log(1. / values - 1.).detach() # cf. Igor thesis; <!> exp is done in Attributes class for logisitic models
+    g_array = torch.log(1. / values - 1.).detach() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
     betas = torch.zeros((model.dimension - 1, model.source_dimension))
     # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
@@ -334,7 +338,7 @@ def initialize_logistic_parallel(model, dataset, method):
 
     Raises
     ------
-    :class:`.LeaspyInputError`
+    :exc:`.LeaspyInputError`
         If method is not handled
     """
 
@@ -353,7 +357,7 @@ def initialize_logistic_parallel(model, dataset, method):
         slopes = torch.normal(slopes_mu, slopes_sigma)
         values = torch.normal(values_mu, values_sigma)
         time = torch.normal(time_mu, time_sigma)
-        betas = torch.distributions.normal.Normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
+        betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(sample_shape=(model.dimension - 1, model.source_dimension))
     else:
         raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
 
@@ -365,7 +369,7 @@ def initialize_logistic_parallel(model, dataset, method):
     t0 = time.clone()
     v0 = slopes.log().mean().detach()
     #v0 = slopes.mean().log().detach() # mean before log
-    g = torch.log(1. / values - 1.).mean().detach() # cf. Igor thesis; <!> exp is done in Attributes class for logisitic models
+    g = torch.log(1. / values - 1.).mean().detach() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
     #g = torch.log(1. / values.mean() - 1.).detach() # mean before transfo
 
     return {
@@ -574,119 +578,3 @@ def compute_patient_time_distribution(data):
     return torch.mean(torch.tensor(df.index.get_level_values('TIME').tolist())), \
            torch.std(torch.tensor(df.index.get_level_values('TIME').tolist()))
 
-
-'''
-def initialize_logistic_parallel(model, data, method="default"):
-
-    # Dimension if not given
-    model.dimension = data.dimension
-    if model.source_dimension is None:
-        model.source_dimension = int(np.sqrt(data.dimension))
-
-    if method == "default":
-        model.parameters = {
-            'g': torch.tensor([1.]), 'tau_mean': 70.0, 'tau_std': 2.0, 'xi_mean': -3., 'xi_std': 0.1,
-            'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': torch.tensor([0.1], dtype=torch.float32),
-            'deltas': torch.tensor([0.0] * (model.dimension - 1)),
-            'betas': torch.zeros((model.dimension - 1, model.source_dimension))
-        }
-    elif method == "random":
-        # Get the slopes / values / times mu and sigma
-        slopes_mu, slopes_sigma = compute_patient_slopes_distribution(data)
-        values_mu, values_sigma = compute_patient_values_distribution(data)
-        time_mu, time_sigma = compute_patient_time_distribution(data)
-
-        # Get random variations
-        slopes = np.random.normal(loc=slopes_mu, scale=slopes_sigma)
-        values = np.random.normal(loc=values_mu, scale=values_sigma)
-        time = np.array(np.random.normal(loc=time_mu, scale=time_sigma))
-
-        # Check that slopes are >0, values between 0 and 1
-        slopes = slopes.clamp(min=1e-2)
-        values = values.clamp(min=1e-2, max=1-1e-2)
-
-        # Do transformations
-        t0 = torch.tensor(time)
-        v0_array = torch.tensor(np.log((np.array(slopes))))
-        g_array = torch.tensor(np.exp(1 / (1 + values)))
-
-        model.parameters = {
-            'g': torch.tensor([torch.mean(g_array)]),
-            'tau_mean': t0, 'tau_std': 2.0,
-            'xi_mean': float(torch.mean(v0_array).detach().numpy()),'xi_std': 0.1,
-            'sources_mean': 0.0, 'sources_std': 1.0,
-            'noise_std': torch.tensor([0.1], dtype=torch.float32),
-            'deltas': torch.tensor([0.0] * (model.dimension - 1)),
-            'betas': torch.zeros((model.dimension - 1, model.source_dimension))
-        }
-
-    else:
-        raise LeaspyInputError("Initialization method not known")
-
-    # Initialize the attribute
-    model.attributes = LogisticParallelAttributes(model.dimension, model.source_dimension)
-    model.attributes.update(['all'], model.parameters) # TODO : why is this not needed ???
-    model.is_initialized = True
-
-    return model
-
-
-def initialize_logistic(model, data, method="default"):
-
-    # Dimension if not given
-    model.dimension = data.dimension
-    if model.source_dimension is None:
-        model.source_dimension = int(np.sqrt(data.dimension))
-
-    # Get the slopes / values / times mu and sigma
-    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(data)
-    values_mu, values_sigma = compute_patient_values_distribution(data)
-    time_mu, time_sigma = compute_patient_time_distribution(data)
-
-    # Method
-    if method == "default":
-        slopes = np.array(slopes_mu)
-        values = np.array(values_mu)
-        time = np.array(time_mu)
-    elif method == "random":
-        slopes = np.random.normal(loc=slopes_mu, scale=slopes_sigma)
-        values = np.random.normal(loc=values_mu, scale=values_sigma)
-        time = np.array(np.random.normal(loc=time_mu, scale=time_sigma))
-    else:
-        raise LeaspyInputError("Initialization method not known")
-
-    # Check that slopes are >0, values between 0 and 1
-    slopes = slopes.clamp(min=1e-2)
-    values = values.clamp(min=1e-2, max=1-1e-2)
-
-    # Do transformations
-    t0 = torch.tensor(time)
-    v0_array = torch.tensor(np.log((np.array(slopes))))
-    g_array = torch.tensor(np.exp(1/(1+values)))
-
-    # Create smart initialization dictionnary
-    SMART_INITIALIZATION = {
-        'g': g_array,
-        'v0': v0_array,
-        'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-        'tau_mean': t0, 'tau_std': 1.0,
-        'xi_mean': .0, 'xi_std': 0.05,
-        'sources_mean': 0.0, 'sources_std': 1.0,
-        'noise_std': torch.tensor([0.1], dtype=torch.float32)
-    }
-
-    # Initializes Parameters
-    for parameter_key in model.parameters.keys():
-        if model.parameters[parameter_key] is None:
-            model.parameters[parameter_key] = SMART_INITIALIZATION[parameter_key]
-        else:
-            print('ok')
-
-    # Initialize the attribute
-    model.attributes = LogisticAttributes(model.dimension, model.source_dimension)
-    model.attributes.update(['all'], model.parameters)
-    model.is_initialized = True
-
-    return model
-'''

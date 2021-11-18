@@ -22,5 +22,4 @@ Module contents
 
 .. automodule:: leaspy.io.logs
    :members:
-   :undoc-members:
    :show-inheritance:

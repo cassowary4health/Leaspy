@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import warnings
 
 import statsmodels.api as sm
@@ -6,7 +8,11 @@ import torch
 import numpy as np
 
 from leaspy.algo.abstract_algo import AbstractAlgo
+from leaspy.models.lme_model import LMEModel
 from leaspy.exceptions import LeaspyAlgoInputError, LeaspyDataInputError
+
+if TYPE_CHECKING:
+    from leaspy.io.data.dataset import Dataset
 
 
 class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
@@ -19,17 +25,21 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         * with_random_slope_age : bool
             If False: only varying intercepts
             If True: random intercept & random slope w.r.t ages
+
+            .. deprecated:: 1.2
+
+            You should rather define this directly as an hyperparameter of LME model.
         * force_independent_random_effects : bool
             Force independence of random intercept & random slope
         * other keyword arguments passed to :meth:`statsmodels.regression.mixed_linear_model.MixedLM.fit`
 
-    See also
+    See Also
     --------
     :class:`statsmodels.regression.mixed_linear_model.MixedLM`
 
     Raises
     ------
-    :class:`.LeaspyAlgoInputError`
+    :exc:`.LeaspyAlgoInputError`
         if bad configuration of algorithm
     """
 
@@ -47,14 +57,15 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         self.hyperparams = {
             hp_name: params.pop(hp_name)
             for hp_name in [
-                "with_random_slope_age",
-                "force_independent_random_effects" # only an algo setting
+                "force_independent_random_effects", # only an algo setting
+                *LMEModel._hyperparameters.keys() # for backward-compat (to be removed soon...)
             ]
+            if hp_name in params
         }
         self.sm_fit_parameters = params # popped from other params
         self.seed = settings.seed
 
-    def run(self, model, dataset):
+    def run(self, model: LMEModel, dataset: Dataset):
         """
         Main method, refer to abstract definition in :meth:`~.algo.fit.abstract_fit_algo.AbstractFitAlgo.run`.
 
@@ -62,30 +73,25 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
 
         Parameters
         ----------
-        model : :class:`~.models.lme_model.LMEModel`
+        model : :class:`~.LMEModel`
             A subclass object of leaspy `LMEModel`.
         dataset : :class:`.Dataset`
             Dataset object build with leaspy class objects Data, algo & model
-
-        Raises
-        ------
-        :class:`.LeaspyDataInputError`
-            If data does not meet requirements for estimation with this LME fit algorithm.
         """
 
-        # Initialize Model
+        # DEPRECATED - TO BE REMOVED: Store some algo "hyperparameters" for the model
+        model_hps_in_algo_settings = {
+            hp: v for hp, v in self.hyperparams.items()
+            if hp in model._hyperparameters.keys() and v is not None
+        }
+        if len(model_hps_in_algo_settings) != 0:
+            warnings.warn(f'You should define {model_hps_in_algo_settings} directly as hyperparameters of LME model. '
+                          'The current behaviour will soon be dropped.', FutureWarning)
+            model.load_hyperparameters(model_hps_in_algo_settings)
+        # END DEPRECATED
+
+        # Initialize seed
         self._initialize_seed(self.seed)
-
-        # get inputs in right format
-        if len(dataset.headers) != 1:
-            raise LeaspyDataInputError(f"LME model is univariate only, you provided features: {dataset.headers}")
-
-        # Store hyperparameters in model
-        model.load_hyperparameters({
-            'features': dataset.headers,
-            #**self.hyperparams
-            'with_random_slope_age': self.hyperparams['with_random_slope_age']
-        })
 
         # get data
         ages = self._get_reformated(dataset, 'timepoints')
@@ -98,7 +104,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         # model
         X = sm.add_constant(ages_norm, prepend=True, has_constant='add')
 
-        if self.hyperparams['with_random_slope_age']:
+        if model.with_random_slope_age:
             exog_re = X
 
             if self.hyperparams['force_independent_random_effects']:
@@ -128,7 +134,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
             "fe_params": fitted_lme.fe_params,
             "cov_re": fitted_lme.cov_re,
             "cov_re_unscaled_inv": cov_re_unscaled_inv, # really useful for personalization
-            "noise_std": fitted_lme.scale ** .5,
+            "noise_std": fitted_lme.scale ** .5, # statsmodels scale is variance
             "bse_fe": fitted_lme.bse_fe,
             "bse_re": fitted_lme.bse_re
         }

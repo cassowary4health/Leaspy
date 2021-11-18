@@ -1,23 +1,21 @@
 r"""
 Define custom Leaspy exceptions for better downstream handling.
 
-Exceptions classes are nested so to handle in the most convenient way for users:
+Exceptions classes are nested so to handle in the most convenient way for users::
 
-
-|                 Exception
-|                     |
-|               LeaspyException
-|                    / \
-|      TypeError    /   \     ValueError
-|          |       /     \        |
-|   LeaspyTypeError      LeaspyInputError
-|                       /    |    |      \
-|                      /     |    |  |LeaspyIndividualParamsInputError
-|                     /      |    |
-| LeaspyDataInputError       |  LeaspyAlgoInputError
-|                            |
-|                 LeaspyModelInputError
-
+                    Exception
+                        |
+                  LeaspyException
+                       / \
+         TypeError    /   \     ValueError
+             |       /     \        |
+      LeaspyTypeError      LeaspyInputError
+                          /    |    |      \
+                         /     |    |  LeaspyIndividualParamsInputError
+                        /      |    |
+    LeaspyDataInputError       |  LeaspyAlgoInputError
+                               |
+                    LeaspyModelInputError
 
 For I/O operations, non-Leaspy specific errors may be raised, in particular:
     * :class:`FileNotFoundError`

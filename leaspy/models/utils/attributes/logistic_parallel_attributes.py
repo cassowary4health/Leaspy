@@ -39,10 +39,10 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
     Raises
     ------
-    :class:`.LeaspyModelInputError`
+    :exc:`.LeaspyModelInputError`
         if any inconsistent parameters for the model.
 
-    See also
+    See Also
     --------
     :class:`~leaspy.models.multivariate_parallel_model.MultivariateParallelModel`
     """
@@ -88,7 +88,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)

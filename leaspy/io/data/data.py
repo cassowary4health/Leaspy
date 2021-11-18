@@ -69,7 +69,7 @@ class Data:
 
         Raises
         ------
-        :class:`.LeaspyDataInputError`
+        :exc:`.LeaspyDataInputError`
         """
 
         df = df[cofactors].copy(deep=True)
@@ -127,7 +127,7 @@ class Data:
 
         Raises
         ------
-        :class:`.LeaspyDataInputError`
+        :exc:`.LeaspyDataInputError`
         """
         indices = []
         timepoints = torch.zeros((self.n_visits, 1))

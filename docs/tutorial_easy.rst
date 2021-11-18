@@ -32,6 +32,3 @@ Simulations
 -----------
 TODO
 
-.. .. toctree::
-..    :numbered:
-..    :maxdepth: 2

@@ -48,7 +48,7 @@ class Test(unittest.TestCase):
 
         # TODO: capture question & answer yes automatically (use subprocess.Popen.communicate ?) or remove interactive mode
         # settings = AlgorithmSettings('mcmc_saem')
-        # output_path = path.join(test_data_dir, "_outputs", 'output_manager')
+        # output_path = path.join(test_data_dir, 'output_manager')
         # settings.set_logs(output_path)
         # algo.set_output_manager(settings.logs)
         # self.assertIsInstance(algo.output_manager, FitOutputManager)

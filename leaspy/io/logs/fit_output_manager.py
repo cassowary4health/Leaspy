@@ -38,13 +38,11 @@ class FitOutputManager:
     plot_options : dict
         Contain all the additional information (for now contain only the number of displayed patients by the method
         plot_patient_reconstructions - which is 5 by default)
-    plotter : :class:`~.utils.logs.visualisation.plotter.Plotter`
+    plotter : :class:`~.utils.logs.visualization.plotter.Plotter`
         class object used to call visualization methods
     time : float
         Last timestamp (to display the duration between two visualization prints)
     """
-
-    # TODO: add a loading bar for a run
 
     def __init__(self, outputs):
 

@@ -13,8 +13,13 @@ from leaspy.exceptions import LeaspyAlgoInputError
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
     """
-    Gradient descent based algorithm to compute individual parameters, `i.e.` personalize a model to a
-    given set of subjects.
+    Gradient descent based algorithm to compute individual parameters,
+    `i.e.` personalize a model to a given set of subjects.
+
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        Settings of the algorithm.
     """
 
     def __init__(self, settings):
@@ -207,7 +212,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         Raises
         ------
-        :class:`.LeaspyAlgoInputError`
+        :exc:`.LeaspyAlgoInputError`
             if algorithm loss is not valid.
         """
 

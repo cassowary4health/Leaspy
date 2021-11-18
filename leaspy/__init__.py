@@ -14,7 +14,6 @@ from .io.outputs.result import Result
 from .io.settings.algorithm_settings import AlgorithmSettings
 # Plotter
 from leaspy.io.logs.visualization.plotter import Plotter
-from leaspy.io.logs.visualization.plotting import Plotting
 
 # Exceptions
 from leaspy.exceptions import *

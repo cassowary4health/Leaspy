@@ -25,12 +25,13 @@ class UnivariateModel(AbstractModel):
     Parameters
     ----------
     name : str
+        Name of the model
     **kwargs
-        hyperparameters
+        Hyperparameters of the model
 
     Raises
     ------
-    :class:`.LeaspyModelInputError`
+    :exc:`.LeaspyModelInputError`
         * If `name` is not one of allowed sub-type: 'univariate_linear' or 'univariate_logistic'
         * If hyperparameters are inconsistent
     """
@@ -90,9 +91,14 @@ class UnivariateModel(AbstractModel):
             'loss': self.loss,
             'parameters': model_parameters_save
         }
+
         # TODO : in leaspy models there should be a method to only return the dict describing the model
         # and then another generic method (inherited) should save this dict
         # (with extra standard fields such as 'leaspy_version' for instance)
+
+        # Default json.dump kwargs:
+        kwargs = {'indent': 2, **kwargs}
+
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 

@@ -15,8 +15,29 @@ from leaspy.exceptions import LeaspyInputError, LeaspyTypeError, LeaspyIndividua
 
 # TODO: outdated -
 class Plotting:
+    """
+    .. deprecated:: 1.2
+
+    Class defining some plotting tools.
+
+    Parameters
+    ----------
+    model : leaspy Model
+        The model you want to do plots with.
+    output_path : str (optional)
+        Folder where plots will be saved.
+        If None, default to current working directory.
+    palette : str (palette name) or :class:`matplotlib.colors.Colormap` (`ListedColormap` or `LinearSegmentedColormap`)
+        The palette to use.
+    max_colors : int > 0, optional (default, corresponding to model nb of features)
+        Only used if palette is a string
+    """
 
     def __init__(self, model, output_path='.', palette='tab10', max_colors=10):
+
+        warnings.warn('Plotting will soon be removed from Leaspy, please use Plotter instead.',
+                      FutureWarning)
+
         self.model = model
 
         # ---- Graphical options
@@ -39,6 +60,7 @@ class Plotting:
         Parameters
         ----------
         palette : str (palette name) or :class:`matplotlib.colors.Colormap` (`ListedColormap` or `LinearSegmentedColormap`)
+            The palette to use.
 
         max_colors : int > 0, optional (default, corresponding to model nb of features)
             Only used if palette is a string
@@ -173,7 +195,7 @@ class Plotting:
         mean_time = self.model.parameters['tau_mean'].item()
         std_time = max(self.model.parameters['tau_std'].item(), 4)
         timepoints = mean_time + std_time * np.linspace(-kwargs.get('n_std_left', 3), kwargs.get('n_std_right', 6), kwargs.get('n_tpts', 100))
-        timepoints = torch.tensor([timepoints], dtype=torch.float32)
+        timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
 
         # ---- Compute average trajectory
         mean_trajectory = self.model.compute_mean_traj(timepoints).detach().numpy()

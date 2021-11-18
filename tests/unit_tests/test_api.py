@@ -11,7 +11,7 @@ from leaspy.models.model_factory import ModelFactory
 from leaspy.models.utils import VALID_LOSSES
 
 from tests.unit_tests.models.test_model_factory import ModelFactoryTest
-from tests import hardcoded_model_path, hardcoded_models_folder, from_fit_models_folder
+from tests import hardcoded_model_path, hardcoded_models_folder, from_fit_models_folder, test_tmp_dir
 
 def ordered(obj):
     if isinstance(obj, dict):
@@ -236,8 +236,8 @@ class LeaspyTest(unittest.TestCase):
         """
         leaspy = Leaspy.load(model_path)
 
-        # Save the file
-        save_path = model_path + '-copy.json'
+        # Save the file (in tests temporary directory)
+        save_path = os.path.join(test_tmp_dir, os.path.basename(model_path))
         leaspy.save(save_path, indent=2)
 
         # Check that the files are the same

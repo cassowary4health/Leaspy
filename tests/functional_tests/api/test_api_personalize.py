@@ -22,7 +22,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         leaspy = Leaspy.load(hardcoded_model_path('logistic'))
 
         # Launch algorithm
-        path_settings = os.path.join(os.path.dirname(__file__), "data/settings_mean_real.json")
+        path_settings = os.path.join(test_data_dir, 'settings', 'algo', 'settings_mean_real.json')
         algo_personalize_settings = AlgorithmSettings.load(path_settings)
         _, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
 
@@ -39,7 +39,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         leaspy = Leaspy.load(hardcoded_model_path('logistic'))
 
         # Launch algorithm
-        path_settings = os.path.join(os.path.dirname(__file__), "data/settings_mode_real.json")
+        path_settings = os.path.join(test_data_dir, 'settings', 'algo', 'settings_mode_real.json')
         algo_personalize_settings = AlgorithmSettings.load(path_settings)
         _, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
 

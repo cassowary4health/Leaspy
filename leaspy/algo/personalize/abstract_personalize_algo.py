@@ -29,7 +29,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
     loss : str
         Loss to used during algo
 
-    See also
+    See Also
     --------
     :meth:`.Leaspy.personalize`
     """

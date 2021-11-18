@@ -72,23 +72,25 @@ class Realization:
         Parameters
         ----------
         n_individuals : int > 0
+            Number of individuals
         model : :class:`.AbstractModel`
+            The model you want realizations for.
         scale_individual : float > 0
             Multiplicative factor to scale the std-dev as given by model parameters
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             if unknown variable type
         """
 
         if self.variable_type == "population":
-            self._tensor_realizations: torch.FloatTensor = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
+            self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
         elif self.variable_type == 'individual':
 
             distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
                                                              scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized
-            self._tensor_realizations: torch.FloatTensor = distribution.sample(sample_shape=(n_individuals, *self.shape))
+            self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{self.variable_type}'.")
 
@@ -118,7 +120,7 @@ class Realization:
         """
         Set autograd for tensor of realizations
 
-        See also
+        See Also
         --------
         torch.Tensor.requires_grad_
 
@@ -136,7 +138,7 @@ class Realization:
         """
         Unset autograd for tensor of realizations
 
-        See also
+        See Also
         --------
         torch.Tensor.requires_grad_
 

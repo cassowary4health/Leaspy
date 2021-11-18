@@ -14,5 +14,4 @@ Module contents
 
 .. automodule:: leaspy.algo.simulate
    :members:
-   :undoc-members:
    :show-inheritance:

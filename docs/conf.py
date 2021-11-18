@@ -11,29 +11,33 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import re
 import sys
 import ast
+from datetime import date
 
 import sphinx_gallery
-sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
+# Add leaspy source path into python path to get references working
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # -- Project information -----------------------------------------------------
 
 project = 'Leaspy'
-author = 'Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Samuel Gruffaz, Nemo Fournier, Mauricio Diaz Melo, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman' # TODO read from setup?
-copyright = '2017-2021, ' + author
+
+def find_var(varname: str, *py_file_paths):
+    with open(os.path.join(*py_file_paths), 'r') as f:
+        for line in f:
+            if re.match(rf'^\s*{varname}\s*=', line):
+                return ast.parse(line.strip()).body[0].value
+    raise RuntimeError("Unable to find `{var_name}` definition.")
 
 # The full version, including alpha/beta/rc tags
-def find_version(*py_file_with_version_paths):
-    with open(os.path.join(*py_file_with_version_paths), 'r') as f:
-        for line in f:
-            if line.startswith('__version__'):
-                return ast.parse(line).body[0].value.s # string
-    raise RuntimeError("Unable to find version string.")
+release = find_var('__version__', "..", "leaspy", "__init__.py").s
 
-release = find_version("..", "leaspy", "__init__.py")
-
+# List of authors as defined in setup
+author = find_var('author', "..", "setup.py").elts[0].s  # interpreted as a tuple
+copyright = f'2017-{date.today().year}, ' + author
 
 # -- General configuration ---------------------------------------------------
 
@@ -60,9 +64,16 @@ extensions = [
 # this is needed for some reason...
 # see https://github.com/numpy/numpydoc/issues/69
 numpydoc_show_class_members = True
+#class_members_toctree = False
 
 # to remove leaspy. *** in index
 modindex_common_prefix = ['leaspy.'] # , 'leaspy.algo.', 'leaspy.models.'
+
+# to remove leaspy in front of all objects
+add_module_names = False
+
+# If true, suppress the module name of the python reference if it can be resolved. The default is False. (experimental)
+python_use_unqualified_type_names = True
 
 # primary domain for references
 primary_domain = 'py'
@@ -71,6 +82,7 @@ primary_domain = 'py'
 # Use svg images for math stuff
 imgmath_image_format = 'svg'
 # pngmath / imgmath compatibility layer for different sphinx versions
+
 import sphinx
 from distutils.version import LooseVersion
 if LooseVersion(sphinx.__version__) < LooseVersion('1.4'):
@@ -78,13 +90,19 @@ if LooseVersion(sphinx.__version__) < LooseVersion('1.4'):
 else:
     extensions.append('sphinx.ext.imgmath')
 
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#configuration
+
+#autoclass_content = 'class' # no __init__ method
+#autodoc_inherit_docstrings = False
+
 autodoc_default_options = {
     'members': True,
     'inherited-members': True,
-    'private-members': True,
+    'private-members': False, # _methods are not shown
+    'undoc-members': False,
     #'member-order': 'bysource', # 'groupwise' # 'alphabetical'
     #'special-members': '__init__',
-    'exclude-members': '__weakref__'
+    'exclude-members': '__init__,__weakref__'
 }
 
 # Add any paths that contain templates here, relative to this directory.
@@ -138,7 +156,6 @@ html_theme_options = {
     'prev_next_buttons_location': None,
     # Logo and description
     # 'description': 'LEArning Spatiotemporal Patterns in Python',
-    # 'logo': 'leaspy_logo.png',
     # 'logo_name': 'false',
     # 'logo_text_align': 'center',
 
@@ -175,7 +192,7 @@ html_context = {
 #     'custom.css',
 # ]# The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "leaspy_logo.png"
+html_logo = "_static/images/leaspy_logo.png"
 
 html_title = "Leaspy"
 # A shorter title for the navigation bar. Default is the same as html_title.

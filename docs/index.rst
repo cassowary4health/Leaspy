@@ -1,11 +1,11 @@
-.. figure::  leaspy_logo.png
+.. figure::  _static/images/leaspy_logo.png
   :align:   center
 
 Welcome to Leaspy's documentation!
 **********************************
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :hidden:
    :caption: Getting Started
 
@@ -14,27 +14,13 @@ Welcome to Leaspy's documentation!
 ..   contribute
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :hidden:
    :caption: Documentation
 
    api
    user_guide
-
-.. toctree::
-..   :maxdepth: 2
-..   :hidden:
-..   :caption: Tutorial - Examples
-..
-..   auto_examples/index
-
-.. toctree::
-..   :maxdepth: 1
-..   :hidden:
-..   :caption: Additional Information
-..
-..   reproducibility
-..   changelog
+   py-modindex
 
 LEArning Spatiotemporal Patterns in Python
 ==========================================
@@ -44,19 +30,20 @@ Description
 -----------
 **Leaspy** is a software package for the statistical analysis of **longitudinal data**, particularly **medical** data that comes in a form of **repeated observations** of patients at different time-points.
 
-.. figure:: leaspy_front.png
+.. figure:: _static/images/leaspy_front.png
   :align:   center
 
-Considering these series of short-term data, the software aims at :
+|
+| Considering these series of short-term data, the software aims at :
 
 - Recombining them to reconstruct the long-term spatio-temporal trajectory of evolution
-- Positioning each patient observations relatively to the group-average timeline, in term of both temporal differences (time shift and acceleration factor) and spatial differences (diffent sequences of events, spatial pattern of progression, ...)
+- Positioning each patient observations relatively to the group-average timeline, in term of both temporal differences (time shift and acceleration factor) and spatial differences (different sequences of events, spatial pattern of progression, ...)
 - Quantifying impact of cofactors (gender, genetic mutation, environmental factors, ...) on the evolution of the signal
 - Imputing missing values
 - Predicting future observations
-- Simulating virtual patients to unbias the initial cohort or mimic its characteristics
+- Simulating virtual patients to un-bias the initial cohort or mimic its characteristics
 
-The software package can be used with scalar multivariate data whose progression can be modeled by a logistic shape, an exponential decay or a linear progression.
+The software package can be used with scalar multivariate data whose progression can be modelled by a logistic shape, an exponential decay or a linear progression.
 The simplest type of data handled by the software are scalar data: they correspond to one (univariate) or multiple (multivariate) measurement(s) per patient observation.
 This includes, for instance, clinical scores, cognitive assessments, physiological measurements (e.g. blood markers, radioactive markers) but also imaging-derived data that are rescaled, for instance, between 0 and 1 to describe a logistic progression.
 
@@ -65,12 +52,6 @@ This includes, for instance, clinical scores, cognitive assessments, physiologic
 
 Information to install, test, and contribute to the package.
 
-`User Guide <user_guide.html>`_
--------------------------------
-
-The main documentation. This contains an in-depth description of all
-algorithms and how to apply them.
-
 `API Documentation <api.html>`_
 -------------------------------
 
@@ -78,8 +59,16 @@ The exact API of all functions and classes, as given in the
 docstrings. The API documents expected types and allowed features for
 all functions, and all parameters available for the algorithms.
 
+`User Guide <user_guide.html>`_
+-------------------------------
+
+The main documentation. This contains an in-depth description of all
+algorithms and how to apply them.
+
 `License <license.html>`_
 -------------------------
+
+The package is distributed under the BSD 3-Clause license.
 
 .. * :ref:`license`
 .. * :ref:`genindex`
@@ -98,8 +87,7 @@ More detailed explanations about the models themselves and about the estimation 
 - **Application to data with missing values**: *Learning disease progression models with longitudinal data and missing values*. R. Couronne, M. Vidailhet, JC. Corvol, S. Lehéricy, S. Durrleman. ISBI, April 2019. `Open Access <https://hal.archives-ouvertes.fr/hal-02091571>`_
 - **Intensive application for Alzheimer's Disease progression**: *AD Course Map charts Alzheimer's disease progression*, I. Koval, A. Bone, M. Louis, S. Bottani, A. Marcoux, J. Samper-Gonzalez, N. Burgos, B. Charlier, A. Bertrand, S. Epelbaum, O. Colliot, S. Allassonniere & S. Durrleman, Scientific Reports, 2021. 11(1):1-16 `Open Access <https://hal.inria.fr/hal-01964821>`_
 - `www.digital-brain.org <https://project.inria.fr/digitalbrain/>`_ : Website related to the application of the model for Alzheimer's disease.
-
-
+- `Disease Course Mapping <https://disease-progression-modelling.github.io/pages/models/disease_course_mapping.html>`_ webpage by Igor Koval
 
 
 .. `Examples <auto_examples/index.html>`_

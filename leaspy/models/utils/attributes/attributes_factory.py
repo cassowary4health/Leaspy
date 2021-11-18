@@ -38,7 +38,7 @@ class AttributesFactory:
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             if any inconsistent parameter.
         """
         if isinstance(name, str):

@@ -23,12 +23,13 @@ class AbstractMultivariateModel(AbstractModel):
     Parameters
     ----------
     name : str
+        Name of the model
     **kwargs
-        hyperparameters
+        Hyperparameters for the model
 
     Raises
     ------
-    :class:`.LeaspyModelInputError`
+    :exc:`.LeaspyModelInputError`
         if inconsistent hyperparameters
     """
     def __init__(self, name: str, **kwargs):
@@ -140,6 +141,7 @@ class AbstractMultivariateModel(AbstractModel):
             It was integrated historically because it is used for convenience in browser webtool and only there...
         **kwargs
             Keyword arguments for json.dump method.
+            Default to: dict(indent=2)
         """
         model_parameters_save = self.parameters.copy()
 
@@ -159,6 +161,10 @@ class AbstractMultivariateModel(AbstractModel):
             'loss': self.loss,
             'parameters': model_parameters_save
         }
+
+        # Default json.dump kwargs:
+        kwargs = {'indent': 2, **kwargs}
+
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 

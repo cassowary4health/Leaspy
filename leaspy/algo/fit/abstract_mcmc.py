@@ -23,7 +23,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         Dictionary of samplers per each variable
     TODO add missing
 
-    See also
+    See Also
     --------
     :mod:`leaspy.algo.samplers`
     """
@@ -39,7 +39,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
         # Realizations and samplers
         self.realizations = None
-        self.task = None
+        #self.task = None
         self.samplers = None
         self.current_iteration = 0
 
@@ -63,7 +63,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
 
         Raises
         ------
-        :class:`.LeaspyAlgoInputError`
+        :exc:`.LeaspyAlgoInputError`
             If inconsistent parameter between model & algo
         """
 

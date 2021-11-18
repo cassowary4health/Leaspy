@@ -63,7 +63,7 @@ class AlgorithmSettingsTest(unittest.TestCase):
 
     def test_constructor_by_loading_json(self):
         # Constructor by loading a json file
-        path = os.path.join(test_data_dir, 'io', 'settings', 'mcmc_saem_settings.json')
+        path = os.path.join(test_data_dir, 'settings', 'algo', 'mcmc_saem_settings.json')
 
         with open(path) as fp:
             json_data = json.load(fp)

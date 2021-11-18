@@ -8,7 +8,7 @@ import torch
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 from leaspy.io.outputs.result import Result
-from tests import example_data_path, test_data_dir, hardcoded_model_path
+from tests import example_data_path, example_data_covars_path, hardcoded_model_path
 
 
 class SimulationAlgorithmTest(unittest.TestCase):
@@ -19,10 +19,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
 
         # reused data, model, individual parameters
         self.data = Data.from_csv_file(example_data_path)
-        cofactors = pd.read_csv(os.path.join(test_data_dir, "io/data/data_tiny_covariate.csv"))
-        cofactors.columns = ("ID", "Treatments")
-        cofactors['ID'] = cofactors['ID'].astype(str)
-        cofactors = cofactors.set_index("ID")
+        cofactors = pd.read_csv(example_data_covars_path, dtype={'ID': str}, index_col='ID')
         self.data.load_cofactors(cofactors, ["Treatments"])
 
         self.model = Leaspy.load(hardcoded_model_path('logistic'))

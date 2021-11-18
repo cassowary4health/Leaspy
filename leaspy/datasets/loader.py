@@ -10,9 +10,9 @@ model_all = ['parkinson-putamen-train']
 ip_all = ['parkinson-putamen-train']
 
 module_path = os.path.dirname(__file__)
-data_paths = {dataset_name: os.path.join(module_path, 'data/' + dataset_name + '.csv') for dataset_name in dataset_all}
-model_paths = {model_name: os.path.join(module_path, 'model_parameters/' + model_name + '-model_parameters.json') for model_name in model_all}
-ip_paths = {ip_name: os.path.join(module_path, 'individual_parameters/' + ip_name + '-individual_parameters.csv') for ip_name in ip_all}
+data_paths = {dataset_name: os.path.join(module_path, 'data', dataset_name + '.csv') for dataset_name in dataset_all}
+model_paths = {model_name: os.path.join(module_path, 'model_parameters', model_name + '-model_parameters.json') for model_name in model_all}
+ip_paths = {ip_name: os.path.join(module_path, 'individual_parameters', ip_name + '-individual_parameters.csv') for ip_name in ip_all}
 
 # TODO: add some leaspy_instance
 # TODO: add some individual_parameters

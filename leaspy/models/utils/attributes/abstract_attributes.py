@@ -38,18 +38,18 @@ class AbstractAttributes(ABC):
 
     Raises
     ------
-    :class:`.LeaspyModelInputError`
+    :exc:`.LeaspyModelInputError`
         if any inconsistent parameter.
     """
 
     def __init__(self, name: str, dimension: int = None, source_dimension: int = None):
 
         if not isinstance(name, str):
-            raise LeaspyModelInputError("In model attributes, you must provide a string for the parameters `name`.")
+            raise LeaspyModelInputError("In model attributes, you must provide a string for the parameter `name`.")
         self.name = name
 
         if not isinstance(dimension, int):
-            raise LeaspyModelInputError("In model attributes, you must provide an integer for the parameters `dimension`.")
+            raise LeaspyModelInputError("In model attributes, you must provide an integer for the parameter `dimension`.")
         self.dimension = dimension
         self.univariate = dimension == 1
 
@@ -86,7 +86,7 @@ class AbstractAttributes(ABC):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown values to update.
         """
         pass
@@ -101,7 +101,7 @@ class AbstractAttributes(ABC):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown values to update.
         """
         unknown_update_possibilities = set(names_of_changed_values).difference(self.update_possibilities)

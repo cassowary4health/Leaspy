@@ -12,7 +12,7 @@ import pandas as pd
 class LMEPersonalizeAlgorithmTest(unittest.TestCase):
     def setUp(self):
         # Leaspy
-        self.model = LMEModel('lme')
+        self.model = LMEModel('lme', with_random_slope_age=False)
         # TODO? redo test with realistic values...?
         self.parameters = {
                            "ages_mean": 0.,

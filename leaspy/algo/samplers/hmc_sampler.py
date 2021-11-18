@@ -11,12 +11,15 @@ class HMCSampler(AbstractSampler):
     ----------
     info : dict
         Information concerning the given variable to sample (defined in the leaspy model)
-        Example : v0_infos = {
-                                "name": "v0",
-                                "shape": torch.Size([self.dimension]),
-                                "type": "population",
-                                "rv_type": "multigaussian"
-                            }
+        Example::
+
+            v0_infos = {
+                "name": "v0",
+                "shape": torch.Size([self.dimension]),
+                "type": "population",
+                "rv_type": "multigaussian"
+            }
+
     n_patients : int
         Number of patients
     eps : float

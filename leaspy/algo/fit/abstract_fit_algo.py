@@ -16,7 +16,7 @@ class AbstractFitAlgo(AbstractAlgo):
     Inherited attributes
         From :class:`.AbstractAlgo`
 
-    See also
+    See Also
     --------
     :meth:`.Leaspy.fit`
     """

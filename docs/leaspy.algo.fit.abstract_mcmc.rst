@@ -3,5 +3,4 @@ leaspy.algo.fit.abstract\_mcmc module
 
 .. automodule:: leaspy.algo.fit.abstract_mcmc
    :members:
-   :undoc-members:
    :show-inheritance:

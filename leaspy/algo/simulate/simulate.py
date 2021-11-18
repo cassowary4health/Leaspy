@@ -24,8 +24,13 @@ class SimulationAlgorithm(AbstractAlgo):
 
     Attributes
     ----------
+    name : ``'simulation'``
+        Algorithm's name.
+    seed : int
+        Used by :mod:`numpy.random` & :mod:`torch.random` for reproducibility.
     algo_parameters : dict
         Contains the algorithm's parameters.
+
     bandwidth_method : float or str or callable, optional
         Bandwidth argument used in :class:`scipy.stats.gaussian_kde` in order to learn the patients' distribution.
     cofactor : list[str], optional (default = None)
@@ -47,37 +52,47 @@ class SimulationAlgorithm(AbstractAlgo):
     mean_number_of_visits : int (default 6)
         Average number of visits of the simulated patients.
         Examples - choose 5 => in average, a simulated patient will have 5 visits.
-    name : ``'simulation'``
-        Algorithm's name.
     noise : 'default' (default) or float or array-like[float], optional
-        Wanted level of gaussian noise in the generated scores.
+        Wanted level of gaussian noise in the generated scores:
             * Set to ``'default'``, the noise added to each feature score correspond to the reconstruction error for each
               feature (MSE on all visits, per feature).
             * Set noise to ``None`` will lead to patients having "perfect progression" of their scores, i.e.
               following exactly a logistic curve.
             * Set a float will add for each feature's scores a noise of standard deviation the given float.
             * Set an array-like[float] (1D of length `n_features`) will add for the feature `j` a noise of standard deviation ``noise[j]``.
-    number_of_subjects : int
+    number_of_subjects : int > 0
         Number of subject to simulate.
     reparametrized_age_bounds : tuple[float, float], optional (default None)
         Set the minimum and maximum age of the generated reparametrized subjects' ages. See Notes section.
         Example: reparametrized_age_bounds = (65, 70)
-    seed : int
-        Used by :mod:`numpy.random` & :mod:`torch.random` for reproducibility.
     sources_method : str in {'full_kde', 'normal_sources'}
         * ``'full_kde'`` : the sources are also learned with the gaussian kernel density estimation.
         * ``'normal_sources'`` : the sources are generated as multivariate normal distribution linked with the other individual parameters.
     std_number_of_visits : int
         Standard deviation used into the generation of the number of visits per simulated patient.
+    prefix : str
+        Prefix appended to simulated patients' identifiers
 
     Parameters
     ----------
     settings : :class:`.AlgorithmSettings`
-        Set the class attributes.
+        The algorithm settings.
+        They may include the following parameters, described in _Attributes_ section:
+            * `bandwidth_method`
+            * `cofactor`
+            * `cofactor_state`
+            * `features_bounds`
+            * `mean_number_of_visits`
+            * `noise`
+            * `number_of_subjects`
+            * `reparametrized_age_bounds`
+            * `sources_method`
+            * `std_number_of_visits`
+            * `prefix`
 
     Raises
     ------
-    :class:`.LeaspyAlgoInputError`
+    :exc:`.LeaspyAlgoInputError`
         * If ``settings.parameters['sources_method']`` is not one of the two option allowed ("full_kde" or "normal_sources").
         * If the type of ``settings.parameters['features_bounds']`` is not `bool` or `dict`.
 
@@ -160,7 +175,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Raises
         ------
-        :class:`.LeaspyAlgoInputError`
+        :exc:`.LeaspyAlgoInputError`
             Raised if the parameters "cofactor" and "cofactor_state" do not receive a valid value.
         """
         cofactors = {}
@@ -336,7 +351,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Raises
         ------
-        :class:`.LeaspyAlgoInputError`
+        :exc:`.LeaspyAlgoInputError`
             If the attribute self.noise is an iterable of float of a length different than the number of features.
         """
         if self.noise:

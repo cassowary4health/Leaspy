@@ -20,6 +20,7 @@ Submodules
    :maxdepth: 4
 
    leaspy.api
+   leaspy.exceptions
 
 Module contents
 ---------------

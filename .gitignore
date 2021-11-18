@@ -2,6 +2,10 @@
 example/start/_outputs/*
 example/estimation_stability/_outputs/*
 
+# Ignore all temporary files in tests (but the Markdown ones)
+tests/_data/_tmp/*
+!tests/_data/_tmp/*.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -78,6 +82,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/generated/
 
 # PyBuilder
 target/

@@ -9,15 +9,21 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.backends.backend_pdf
 from matplotlib.cm import get_cmap
-# import seaborn as sns
-
-#from leaspy.utils.logs.visualization import color_palette # not used
 
 from leaspy.io.data.dataset import Dataset
 from leaspy.exceptions import LeaspyInputError
 
 
 class Plotter:
+    """
+    Class defining some plotting tools.
+
+    Parameters
+    ----------
+    output_path : str (optional)
+        Folder where plots will be saved.
+        If None, default to current working directory.
+    """
 
     def __init__(self, output_path=None):
         # TODO : Do all the check up if the path exists, and if yes, if removing or not
@@ -50,7 +56,7 @@ class Plotter:
             mean_time = model.parameters['tau_mean']
             std_time = max(model.parameters['tau_std'], 4)
             timepoints = np.linspace(mean_time - 3 * std_time, mean_time + 6 * std_time, 100)
-            timepoints = torch.tensor([timepoints], dtype=torch.float32)
+            timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
 
             mean_trajectory = model.compute_mean_traj(timepoints).detach().numpy()
 
@@ -72,7 +78,7 @@ class Plotter:
             timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
                                      model[0].parameters['tau_mean'] + 6 * np.sqrt(model[0].parameters['tau_std']),
                                      100)
-            timepoints = torch.tensor([timepoints], dtype=torch.float32)
+            timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
 
             for j, el in enumerate(model):
                 mean_trajectory = el.compute_mean_traj(timepoints).detach().numpy()
@@ -217,7 +223,7 @@ class Plotter:
         timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
                                  model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
                                  100)
-        timepoints = torch.tensor([timepoints], dtype=torch.float32)
+        timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
         xi = results.individual_parameters['xi']
         tau = results.individual_parameters['tau']
 
@@ -307,7 +313,7 @@ class Plotter:
         timepoints = np.linspace(min_time,
                                  max_time,
                                  100)
-        timepoints = torch.tensor([timepoints], dtype=torch.float32)
+        timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
         patient_values = model.compute_mean_traj(timepoints)
         for i in range(patient_values.shape[-1]):
             ax.plot(timepoints[0, :].detach().numpy(), patient_values[0, :, i].detach().numpy(),

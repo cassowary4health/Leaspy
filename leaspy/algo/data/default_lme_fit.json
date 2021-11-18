@@ -2,7 +2,7 @@
   "name": "lme_fit",
   "seed": null,
   "parameters": {
-    "with_random_slope_age": false,
+    "with_random_slope_age": null,
     "force_independent_random_effects": false,
     "method": ["lbfgs","bfgs","powell"]
   }

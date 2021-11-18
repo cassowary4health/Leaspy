@@ -6,11 +6,16 @@ from leaspy.exceptions import LeaspyDataInputError
 
 class DataframeDataReader:
     """
-    Methods to convert :class:`pandas.DataFrame` to data containers `Leaspy` compliants.
+    Methods to convert :class:`pandas.DataFrame` to `Leaspy`-compliant data containers.
+
+    Parameters
+    ----------
+    df : :class:`pandas.DataFrame``
+        The dataframe to read.
 
     Raises
     ------
-    :class:`.LeaspyDataInputError`
+    :exc:`.LeaspyDataInputError`
     """
     def __init__(self, df: pd.DataFrame):
         self.individuals = {}

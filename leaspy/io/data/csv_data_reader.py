@@ -6,11 +6,16 @@ from leaspy.exceptions import LeaspyDataInputError
 
 class CSVDataReader:
     """
-    Methods to convert `csv files` to data containers `Leaspy` compliants.
+    Methods to convert `csv files` to `Leaspy`-compliant data containers.
+
+    Parameters
+    ----------
+    path : str
+        Path to csv file
 
     Raises
     ------
-    :class:`.LeaspyDataInputError`
+    :exc:`.LeaspyDataInputError`
     """
     def __init__(self, path):
         self.individuals = {}

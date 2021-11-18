@@ -12,8 +12,6 @@ Full API documentation of the *Leaspy* Python package.
 The main class, from which you can instantiate and calibrate a model, personalize it to
 a given set a subjects, estimate trajectories and simulate synthetic data.
 
-.. automodule:: leaspy.api
-
 .. currentmodule:: leaspy.api
 
 .. autosummary::
@@ -21,6 +19,14 @@ a given set a subjects, estimate trajectories and simulate synthetic data.
    :template: class.rst
 
    Leaspy
+
+.. autoclass:: leaspy.api.Leaspy
+   :no-members:
+   :no-inherited-members:
+   :no-undoc-members:
+   :no-private-members:
+   :noindex:
+   :member-order: bysource
 
 :mod:`leaspy.models`: **Models**
 ================================
@@ -77,10 +83,6 @@ Available methods to initialize model parameters before a fit.
 :mod:`leaspy.algo`: **Algorithms**
 ==================================
 Contains all algorithms used in the package.
-
-.. automodule:: leaspy.algo
-   :no-members:
-   :no-inherited-members:
 
 .. currentmodule:: leaspy.algo
 
@@ -159,7 +161,7 @@ Samplers used by the MCMC algorithms.
 
 :mod:`leaspy.dataset`: **Datasets**
 ===================================
-Give access to some synthetic longitudinal observations mimicing cohort of subjects with neurodegenerative disorders,
+Give access to some synthetic longitudinal observations mimicking cohort of subjects with neurodegenerative disorders,
 as well as calibrated models and computed individual parameters.
 
 .. currentmodule:: leaspy.datasets
@@ -172,7 +174,7 @@ as well as calibrated models and computed individual parameters.
 
 :mod:`leaspy.io`: **Inputs / Outputs**
 ======================================
-Containers classes used as input / ouputs in the `Leaspy` package.
+Containers classes used as input / outputs in the `Leaspy` package.
 
 :mod:`leaspy.io.data`: **Data containers**
 ------------------------------------------
@@ -189,6 +191,14 @@ Containers classes used as input / ouputs in the `Leaspy` package.
     .. csv_data_reader.CSVDataReader
     .. dataframe_data_reader.DataframeDataReader
 
+.. autoclass:: leaspy.io.data.data.Data
+   :no-members:
+   :no-inherited-members:
+   :no-undoc-members:
+   :no-private-members:
+   :noindex:
+   :member-order: bysource
+
 :mod:`leaspy.io.settings`: **Settings classes**
 -----------------------------------------------
 
@@ -201,6 +211,14 @@ Containers classes used as input / ouputs in the `Leaspy` package.
     model_settings.ModelSettings
     algorithm_settings.AlgorithmSettings
     outputs_settings.OutputsSettings
+
+.. autoclass:: leaspy.io.settings.algorithm_settings.AlgorithmSettings
+   :no-members:
+   :no-inherited-members:
+   :no-undoc-members:
+   :no-private-members:
+   :noindex:
+   :member-order: bysource
 
 :mod:`leaspy.io.outputs`: **Outputs classes**
 ---------------------------------------------
@@ -229,13 +247,21 @@ Internal classes used for random variables in MCMC algorithms.
 
 :mod:`leaspy.exceptions`: **Exceptions**
 ========================================
-Custom `Leaspy` exceptions raised in code.
+
+.. automodule:: leaspy.exceptions
+   :show-inheritance:
+   :no-members:
+   :no-inherited-members:
+   :no-undoc-members:
+   :no-private-members:
+   :noindex:
+   :member-order: bysource
 
 .. currentmodule:: leaspy.exceptions
 
 .. autosummary::
     :toctree: generated/
-    :template: exception_class.rst
+    :template: exception.rst
 
     LeaspyException
     LeaspyTypeError

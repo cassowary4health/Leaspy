@@ -75,7 +75,7 @@ class AbstractAlgo(ABC):
         -------
         Depends on algorithm class: TODO change?
 
-        See also
+        See Also
         --------
         :class:`.AbstractFitAlgo`
         :class:`.AbstractPersonalizeAlgo`

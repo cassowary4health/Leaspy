@@ -5,18 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-# [1.2.0] - 2021-09-22
+# [1.2.0] - 2021-11-02
 - [CODE] Broad use of type annotations in Leaspy package
 - [COMPAT] As a consequence support of Python 3.6 is dropped
 - [COMPAT] PyTorch >=1.7 is now supported, as well as Python 3.9
 - [FEAT] Custom Leaspy exceptions raised in code: cf. `leaspy.exceptions` in documentation
 - [FEAT] Implementation of model "inverse" in API to get age according to model for a given feature value: `Leaspy.estimate_ages_from_biomarker_values`
 - [FIX] Simulation algorithm is fixed (shape issue)
+- [LICENSE] Changing GPL license to BSD 3-Clause license - active only for current and future releases
 
 # [1.1.2] - 2021-04-13
 - **Fix computation of orthonormal basis for leaspy multivariate models:**
   - **<!> this modification is breaking old multivariate models for which orthogonality**
-    **between space-shifts and time-derivatie of geodesic at initial time was not respected.**
+    **between space-shifts and time-derivative of geodesic at initial time was not respected.**
   - To prevent misusing old saved models (with betas and sources being related to the old wrong
     orthonormal basis) with new code, we added the leaspy version in the model parameters when saved,
     you'll have to use leaspy 1.0.* to run old erroneous models and use leaspy >= 1.1 to run new models

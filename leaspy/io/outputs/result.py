@@ -227,13 +227,15 @@ class Result:
             The logs's path.
         idx : list [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
-        human_readable : Any, optional (default None)
+        human_readable : Any, optional (default None) -->  TODO change to bool
+
             .. deprecated:: 1.0
-            TODO change to bool
+
                 * If None (default): save as json file
                 * If not None: call :meth:`.save_individual_parameters_torch`.
         **args
             Arguments to pass to json.dump.
+            Default to: dict(indent=2)
 
         Raises
         ------
@@ -262,6 +264,9 @@ class Result:
                           "'save_individual_parameters_torch'.", DeprecationWarning, stacklevel=2)
             self.save_individual_parameters_torch(path, idx)
         else:
+            # Default json.dump kwargs:
+            args = {'indent': 2, **args}
+
             with open(path, 'w') as fp:
                 json.dump(dump, fp, **args)
 
@@ -671,7 +676,7 @@ class Result:
         Returns
         -------
         list
-            Uniques occurrence of the input vector.
+            Unique occurrences of the input vector.
         """
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
@@ -687,19 +692,19 @@ class Result:
         Parameters
         ----------
         parameter : str
-            The wanted parameter's name (ex: 'xi', 'tau' ...).
+            The wanted parameter's name (ex: 'xi', 'tau', ...).
         cofactor : str, optional (default None)
             The wanted cofactor's name.
 
         Returns
         -------
-        list[float] or dict[str, *]
+        list[float] or dict[str, Any]
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             if unsupported individual parameters
-        :class:`.LeaspyInputError`
+        :exc:`.LeaspyInputError`
             if unknown cofactor
 
         Notes
@@ -714,7 +719,7 @@ class Result:
             * If the parameter is univariate => return a dictionary:
                 {'cofactor1': parameter distribution such that patient.covariate = covariate1, 'cofactor2': ...}
             * If the parameter is multivariate => return a dictionary:
-                {'cofactor1': {'parameter1': ..., 'parameter2': ...}, 'cofactor2': { ...}, ...}
+                {'cofactor1': {'parameter1': ..., 'parameter2': ...}, 'cofactor2': {...}, ...}
         """
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 

@@ -9,9 +9,24 @@ class OutputsSettings:
     """
     Used to create the `logs` folder to monitor the convergence of the calibration algorithm.
 
+    Parameters
+    ----------
+    settings : dict[str, Any]
+        Parameters of the object. It may be in:
+            * console_print_periodicity : int
+                Flag to log into console convergence data every N iterations
+            * plot_periodicity : int
+                Flag to plot convergence data every N iterations
+            * save_periodicity : int
+                Flag to save convergence data every N iterations
+            * overwrite_logs_folder : bool
+                Flag to remove all previous logs if existing (default False)
+            * path : str
+                Where to store logs (default to './_outputs/')
+
     Raises
     ------
-    :class:`.LeaspyAlgoInputError`
+    :exc:`.LeaspyAlgoInputError`
     """
     # TODO mettre les variables par défaut à None
     # TODO: Réfléchir aux cas d'usages : est-ce qu'on veut tout ou rien,

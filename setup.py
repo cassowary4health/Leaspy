@@ -31,25 +31,27 @@ setup(name="leaspy",
       description='Leaspy is a software package for the statistical analysis of longitudinal data.',
       long_description=readme(),
       long_description_content_type='text/markdown',
-      license='GNU GPL v3',  # TODO
+      license='BSD-3-Clause',
 
       url='https://gitlab.com/icm-institute/aramislab/leaspy',
       project_urls={
           'Bug Reports': 'https://gitlab.com/icm-institute/aramislab/leaspy/issues',
           'Source': 'https://gitlab.com/icm-institute/aramislab/leaspy',
+          'Documentation': 'https://leaspy.readthedocs.io',
       },
 
-      author='Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman',  # TODO
-      author_email='igor.koval@icm-institute.org',
+      author='Igor Koval, Raphael Couronne, Arnaud Valladier, Etienne Maheux, Benoit Martin, Pierre-Emmanuel Poulet, Samuel Gruffaz, Cecile Di Folco, Juliette Ortholand, Mkrtich Vatinyan, Benoit Sauty De Chalon, Stanley Durrleman',  # TODO
+      #author_email='igor.koval@inria.fr',
+      maintainer='Igor Koval',
+      maintainer_email='igor.koval@inria.fr',
 
       python_requires='>=3.7',
 
-      keywords='leaspy longitudinal',
+      keywords='leaspy longitudinal mixed-model',
 
       packages=['leaspy',
 
                 'leaspy.algo',
-                #'leaspy.algo.data',
                 'leaspy.algo.fit',
                 'leaspy.algo.personalize',
                 'leaspy.algo.samplers',
@@ -57,7 +59,6 @@ setup(name="leaspy",
                 'leaspy.algo.others',
 
                 'leaspy.datasets',
-                #'leaspy.datasets.data',
 
                 'leaspy.io',
                 'leaspy.io.data',
@@ -68,15 +69,11 @@ setup(name="leaspy",
                 'leaspy.io.logs.visualization',
 
                 'leaspy.models',
-                #'leaspy.models.data',
                 'leaspy.models.utils',
                 'leaspy.models.utils.attributes',
                 'leaspy.models.utils.initialization',
 
                 'leaspy.utils',
-                'leaspy.utils.parallel',
-                'leaspy.utils.posterior_analysis',
-                'leaspy.utils.resampling',
                 ],
 
       install_requires=requirements,
@@ -84,13 +81,17 @@ setup(name="leaspy",
       data_files=[('requirements', ['requirements.txt', 'docs/requirements.txt'])],
 
       # tests_require=["unittest"],
-      test_suite='test',
+      test_suite='tests',
 
       classifiers=[
+          # https://pypi.org/classifiers/
+          "Development Status :: 5 - Production/Stable",
           "Intended Audience :: Science/Research",
           "Intended Audience :: Developers",
-          "Programming Language :: Python :: 3",
-          "License :: OSI Approved :: MIT License",
+          "Programming Language :: Python :: 3.7",
+          "Programming Language :: Python :: 3.8",
+          "Programming Language :: Python :: 3.9",
+          "License :: OSI Approved :: BSD License",
           "Operating System :: OS Independent",
       ],
       extras_require=EXTRAS_REQUIRE

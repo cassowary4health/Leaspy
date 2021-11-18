@@ -1,29 +1,41 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from leaspy.io.outputs.individual_parameters import IndividualParameters
-
 from leaspy.exceptions import LeaspyAlgoInputError
 from leaspy.utils.typing import FeatureType, List
 
+if TYPE_CHECKING:
+    from leaspy.models.constant_model import ConstantModel
+    from leaspy.io.data.dataset import Dataset
+
 
 class ConstantPredictionAlgorithm(): # AbstractAlgo
-    """
+    r"""
     ConstantPredictionAlgorithm is the algorithm that outputs a constant prediction
 
     It is associated to :class:`~.models.constant_model.ConstantModel`
 
-    It could predict:
-        * `last_known`: last non NaN value seen during calibration*§,
-        * `last`: last value seen during calibration (even if NaN),
-        * `max`: maximum (=worst) value seen during calibration*§,
-        * `mean`: average of values seen during calibration§.
+    TODO: fix algorithm inheritance (more genericity needed)
 
-    | \\* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
-    | § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        The settings of constant prediction algorithm.
+        It may define `prediction_type` (str):
+            * ``'last'``: last value seen during calibration (even if NaN) [default],
+            * ``'last_known'``: last non NaN value seen during calibration*§,
+            * ``'max'``: maximum (=worst) value seen during calibration*§,
+            * ``'mean'``: average of values seen during calibration§.
+
+        | \\* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
+        | § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
 
     Raises
     ------
-    :class:`.LeaspyAlgoInputError`
+    :exc:`.LeaspyAlgoInputError`
         If any invalid setting for the algorithm
     """
 
@@ -36,13 +48,11 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         if settings.name != self.name:
             raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
 
-        self.features: List[FeatureType] = None
-
         if settings.parameters['prediction_type'] not in self._prediction_types:
             raise LeaspyAlgoInputError(f'The `prediction_type` of the constant prediction should be in {self._prediction_types}')
         self.prediction_type = settings.parameters['prediction_type']
 
-    def run(self, model, dataset):
+    def run(self, model: ConstantModel, dataset: Dataset):
         """
         Main method, refer to abstract definition in :meth:`~.algo.personalize.abstract_personalize_algo.AbstractPersonalizeAlgo.run`.
 
@@ -66,21 +76,23 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         # always overwrite model features (no fit process)
         # TODO? we could fit the model before, only to recover model features, and then check at personalize that is the same (as in others personalize algos...)
 
-        self.features = dataset.headers
-        model.features = dataset.headers
+        features = dataset.headers
+
+        # Always overwrite model features (no fit for constant model...)
+        model.initialize(dataset)
 
         ip = IndividualParameters()
         for it in range(dataset.n_individuals):
             idx = dataset.indices[it]
             times = dataset.get_times_patient(it)
             values = dataset.get_values_patient(it).numpy()
-            ind_ip = self._get_individual_last_values(times, values)
+            ind_ip = self._get_individual_last_values(times, values, fts=features)
 
             ip.add_individual_parameters(str(idx), ind_ip)
 
         return ip, 0 # TODO? evaluate rmse?
 
-    def _get_individual_last_values(self, times, values):
+    def _get_individual_last_values(self, times, values, *, fts: List[FeatureType]):
         """
         Parameters
         ----------
@@ -89,6 +101,9 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
 
         values : :class:`numpy.ndarray` [float]
             shape (n_visits, n_features)
+
+        fts : list[str]
+            Feature names
 
         Returns
         -------
@@ -123,7 +138,7 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
                 fts_values = values_sorted_desc[last_non_nan_ix_per_ft, range(values.shape[1])]
 
         # return a dict with parameters names being features names
-        return dict(zip(self.features, fts_values))
+        return dict(zip(fts, fts_values))
 
 
     def set_output_manager(self, settings):

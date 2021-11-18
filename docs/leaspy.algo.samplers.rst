@@ -15,5 +15,4 @@ Module contents
 
 .. automodule:: leaspy.algo.samplers
    :members:
-   :undoc-members:
    :show-inheritance:

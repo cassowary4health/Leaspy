@@ -92,7 +92,7 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             If any of the consistency checks fail.
         """
         pass
@@ -182,8 +182,10 @@ class AbstractModel(ABC):
             Contains some untrusted individual parameters.
             If representing only one individual (in a multivariate model) it could be:
                 * {'tau':0.1, 'xi':-0.3, 'sources':[0.1,...]}
+
             Or for multiple individuals:
                 * {'tau':[0.1,0.2,...], 'xi':[-0.3,0.2,...], 'sources':[[0.1,...],[0,...],...]}
+
             In particular, a sources vector (if present) should always be a array_like, even if it is 1D
 
         Returns
@@ -198,7 +200,7 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             if any of the consistency/compatibility checks fail
         """
 
@@ -345,9 +347,9 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             if computation is tried on more than 1 individual
-        :class:`.LeaspyIndividualParamsInputError`
+        :exc:`.LeaspyIndividualParamsInputError`
             if invalid individual parameters
         """
 
@@ -357,7 +359,7 @@ class AbstractModel(ABC):
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     # TODO: unit tests? (functional tests covered by api.estimate)
-    def compute_individual_ages_from_biomarker_values(self, value: Union[float | List[float]], individual_parameters: DictParams, feature: FeatureType = None):
+    def compute_individual_ages_from_biomarker_values(self, value: Union[float, List[float]], individual_parameters: DictParams, feature: FeatureType = None):
         """
         For one individual, compute age(s) at which the given features values are reached (given the subject's
         individual parameters).
@@ -384,7 +386,7 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             if computation is tried on more than 1 individual
         """
         value, individual_parameters = self._get_tensorized_inputs(value, individual_parameters,
@@ -504,7 +506,7 @@ class AbstractModel(ABC):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             If invalid loss for model
         """
 

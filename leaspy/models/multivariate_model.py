@@ -20,12 +20,13 @@ class MultivariateModel(AbstractMultivariateModel):
     Parameters
     ----------
     name : str
+        Name of the model
     **kwargs
-        hyperparameters
+        Hyperparameters of the model
 
     Raises
     ------
-    :class:`.LeaspyModelInputError`
+    :exc:`.LeaspyModelInputError`
         * If `name` is not one of allowed sub-type: 'univariate_linear' or 'univariate_logistic'
         * If hyperparameters are inconsistent
     """

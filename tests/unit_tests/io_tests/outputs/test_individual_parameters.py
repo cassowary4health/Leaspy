@@ -7,7 +7,7 @@ import json
 import warnings
 
 from leaspy.io.outputs.individual_parameters import IndividualParameters
-from tests import test_data_dir
+from tests import test_tmp_dir, hardcoded_ip_path
 
 def ordered(obj):
     """Utils function to sort `obj` recursively at all levels (in-depth)."""
@@ -44,8 +44,8 @@ class IndividualParametersTest(unittest.TestCase):
             "tau": torch.tensor([[70], [73], [58.]], dtype=torch.float32),
             "sources": torch.tensor([[0.1, -0.3], [-0.4, 0.1], [-0.6, 0.2]], dtype=torch.float32)
         }
-        self.path_json = os.path.join(test_data_dir, "io", "outputs", "ip_save.json")
-        self.path_csv = os.path.join(test_data_dir, "io", "outputs", "ip_save.csv")
+        self.path_json = hardcoded_ip_path('ip_save.json')
+        self.path_csv = hardcoded_ip_path('ip_save.csv')
 
 
     def test_constructor(self):
@@ -254,7 +254,7 @@ class IndividualParametersTest(unittest.TestCase):
 
         ip = self.ip
 
-        test_path = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv_test.csv")
+        test_path = os.path.join(test_tmp_dir, "ip_save_csv_test.csv")
         ip._save_csv(test_path)
 
         with open(self.path_csv, 'r') as f1, open(test_path, 'r') as f2:
@@ -270,7 +270,7 @@ class IndividualParametersTest(unittest.TestCase):
 
         ip = self.ip
 
-        test_path = os.path.join(test_data_dir, "io", "outputs", "ip_save_json_test.json")
+        test_path = os.path.join(test_tmp_dir, "ip_save_json_test.json")
         ip._save_json(test_path)
 
         with open(self.path_json, 'r') as f1, open(test_path, 'r') as f2:
@@ -315,9 +315,9 @@ class IndividualParametersTest(unittest.TestCase):
 
         # Parameters
         ip = self.ip
-        path_json_test = os.path.join(test_data_dir, "io", "outputs", "ip_save_json_test.json")
-        path_csv_test = os.path.join(test_data_dir, "io", "outputs", "ip_save_csv_test.csv")
-        path_default = os.path.join(test_data_dir, "io", "outputs", "ip_save_default")
+        path_json_test = os.path.join(test_tmp_dir, "ip_save_json_test.json")
+        path_csv_test = os.path.join(test_tmp_dir, "ip_save_csv_test.csv")
+        path_default = os.path.join(test_tmp_dir, "ip_save_default")
 
         # Test json
         ip.save(path_json_test)

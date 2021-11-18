@@ -161,7 +161,7 @@ class LeaspyTest(unittest.TestCase):
         #self.assertAlmostEqual(result.noise_std, 0.21146, delta=0.01)
 
         ## Plot TODO
-        #path_output = os.path.join(os.path.dirname(__file__), '../../_data', "_outputs")
+        #path_output = os.path.join(test_data_dir, "plots")
         #plotter = Plotter(path_output)
         # plotter.plot_mean_trajectory(leaspy.model, save_as="mean_trajectory_plot")
         #plt.close()
@@ -180,8 +180,8 @@ class LeaspyTest(unittest.TestCase):
             self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
             self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
 
-        path_expected_sim_res = os.path.join(test_data_dir,
-            "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv")
+        path_expected_sim_res = os.path.join(test_data_dir, "simulation",
+                                             "test_api_simulation_result.csv")
 
         ## uncomment to re-generate simulation results
         #simulation_results.data.to_dataframe().to_csv(path_expected_sim_res, index=False)
@@ -208,7 +208,7 @@ class LeaspyTest(unittest.TestCase):
         error_message = ''
         if not simulation_is_reproducible:
             # simulation_df = pd.read_csv(
-            #     os.path.join(test_data_dir, "_outputs/simulation/test_api_simulation_df-post_merge-result_fix.csv"))
+            #     os.path.join(test_data_dir, "simulation", "test_api_simulation_result.csv"))
             max_diff = 0.
             value_v1 = 0.
             value_v2 = 0.

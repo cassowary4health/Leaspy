@@ -8,41 +8,56 @@ from leaspy.utils.docs import doc_with_super
 
 @doc_with_super()
 class ConstantModel(GenericModel):
-    """
-    `ConstantModel` is a benchmark model that predicts constant values no matter of the patient's ages.
+    r"""
+    `ConstantModel` is a benchmark model that predicts constant values (no matter what the patient's ages are).
 
     These constant values depend on the algorithm setting and the patient's values provided during calibration.
     It could predict:
-        * `last_known`: last non NaN value seen during calibration*§,
         * `last`: last value seen during calibration (even if NaN),
+        * `last_known`: last non NaN value seen during calibration*§,
         * `max`: maximum (=worst) value seen during calibration*§,
         * `mean`: average of values seen during calibration§.
 
     | \\* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
     | § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
 
+    Parameters
+    ----------
+    name : str
+        The model's name
+    **kwargs
+        Hyperparameters for the model.
+        None supported for now.
+
     Attributes
     ----------
     name : str
         The model's name
+    is_initialized : bool
+        Always True (no true initialization needed for constant model)
     features : list[str]
-        List of the model features
+        List of the model features.
+        Unlike most models features will be determined at `personalization` only (because it does not needed any `fit`)
     dimension : int
         Number of features (read-only)
     parameters : dict
-        Population parameters: empty dictionary.
+        Model has no parameters: empty dictionary.
+        The `prediction_type` parameter should be defined during `personalization`.
+        Example:
+            >>> AlgorithmSettings('constant_prediction', prediction_type='last_known')
 
-    See also
+    See Also
     --------
     :class:`~leaspy.algo.others.constant_prediction_algo.ConstantPredictionAlgorithm`
     """
 
-    def __init__(self, name):
+    def __init__(self, name: str, **kwargs):
 
-        super().__init__(name)
+        super().__init__(name, **kwargs)
 
-        # no more initialization needed...
-        self.is_initialized: bool = True
+        # no more initialization needed for constant model (in particular: no fit)
+        # features will be evaluated at "personalization"
+        self.is_initialized = True
 
     def compute_individual_trajectory(self, timepoints, ip):
 

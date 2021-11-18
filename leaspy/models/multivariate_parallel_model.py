@@ -10,6 +10,13 @@ from leaspy.utils.docs import doc_with_super
 class MultivariateParallelModel(AbstractMultivariateModel):
     """
     Logistic model for multiple variables of interest, imposing same average evolution pace for all variables (logistic curves are only time-shifted).
+
+    Parameters
+    ----------
+    name : str
+        Name of the model
+    **kwargs
+        Hyperparameters of the model
     """
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)

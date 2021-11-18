@@ -1,18 +1,19 @@
 leaspy.utils package
 ====================
 
-Subpackages
------------
+Submodules
+----------
 
 .. toctree::
    :maxdepth: 4
 
-   leaspy.utils.parallel
+   leaspy.utils.docs
+   leaspy.utils.subtypes
+   leaspy.utils.typing
 
 Module contents
 ---------------
 
 .. automodule:: leaspy.utils
    :members:
-   :undoc-members:
    :show-inheritance:

@@ -7,7 +7,6 @@ from leaspy.io.data.dataset import Dataset
 from leaspy.models.model_factory import ModelFactory
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.algo.algo_factory import AlgoFactory
-from leaspy.io.logs.visualization.plotting import Plotting
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 from leaspy.exceptions import LeaspyTypeError, LeaspyInputError
@@ -32,10 +31,10 @@ class Leaspy:
     model_name : str
         The name of the model that will be used for the computations.
         The available models are:
-            * ``'logistic'`` - suppose that every modality follow a logistic curve across time. This model performs a dimensionality reduction of the modalities.
+            * ``'logistic'`` - suppose that every modality follow a logistic curve across time.
             * ``'logistic_parallel'`` - idem & suppose also that every modality have the same slope at inflexion point
-            * ``'linear'`` - suppose that every modality follow a linear curve across time. This model performs a dimensionality reduction of the modalities.
-            * ``'univariate_logisitic'`` - a 'logistic' model for a single modality => do not perform a dimensionality reduction.
+            * ``'linear'`` - suppose that every modality follow a linear curve across time.
+            * ``'univariate_logistic'`` - a 'logistic' model for a single modality.
             * ``'univariate_linear'`` - idem with a 'linear' model.
             * ``'constant'`` - benchmark model for constant predictions.
             * ``'lme'`` - benchmark model for classical linear mixed-effects model.
@@ -53,9 +52,10 @@ class Leaspy:
 
         source_dimension : int, optional
             `For multivariate models only`.
-            Set the spatial variability degree of freedom.
-            This number MUST BE lower than the number of features.
+            Set the degrees of freedom for _spatial_ variability.
+            This number MUST BE strictly lower than the number of features.
             By default, this number is equal to square root of the number of features.
+            One can interpret this hyperparameter as a way to reduce the dimension of inter-individual _spatial_ variability between progressions.
 
     Attributes
     ----------
@@ -63,10 +63,8 @@ class Leaspy:
         Model used for computations, is an instance of `AbstractModel`.
     type : str (read-only)
         Name of the model - will be one of the names listed above.
-    plotting : :class:`~.io.logs.visualization.plotting.Plotting`
-        Main class for visualization.
 
-    See also
+    See Also
     --------
     :mod:`leaspy.models`
     """
@@ -74,8 +72,6 @@ class Leaspy:
     def __init__(self, model_name: str, **kwargs):
 
         self.model = ModelFactory.model(model_name, **kwargs)
-        #self.type = model_name # is a property instead
-        self.plotting = Plotting(self.model)
 
     @property
     def type(self) -> str:
@@ -84,6 +80,7 @@ class Leaspy:
     def fit(self, data: Data, algorithm_settings: AlgorithmSettings):
         r"""
         Estimate the model's parameters :math:`\theta` for a given dataset and a given algorithm.
+
         These model's parameters correspond to the fixed-effects of the mixed-effects model.
 
         Parameters
@@ -95,8 +92,7 @@ class Leaspy:
 
         Examples
         --------
-        Fit a logistic model on a longitudinal dataset, display the group parameters and plot the
-        group average trajectory.
+        Fit a logistic model on a longitudinal dataset, display the group parameters
 
         >>> from leaspy import AlgorithmSettings, Data, Leaspy
         >>> from leaspy.datasets import Loader
@@ -118,7 +114,6 @@ class Leaspy:
         xi_mean : -2.3396952152252197
         xi_std : 0.5421289801597595
         noise_std : 0.021265486255288124
-        >>> leaspy_logistic.plotting.average_trajectory()
         """
         algorithm = AlgoFactory.algo("fit", algorithm_settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
@@ -130,8 +125,6 @@ class Leaspy:
             self.model.initialize(dataset, initialization_method)
         algorithm.run(self.model, dataset)
 
-        # Update plotting
-        self.plotting.update_model(self.model)
 
     def calibrate(self, data: Data, algorithm_settings: AlgorithmSettings):
         r"""
@@ -147,7 +140,8 @@ class Leaspy:
         Parameters
         ----------
         data : :class:`.Data`
-            Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
+            Contains the information of the individuals, in particular the time-points
+            :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
         settings : :class:`.AlgorithmSettings`
             Contains the algorithm's settings.
         return_noise : bool (default False)
@@ -164,7 +158,7 @@ class Leaspy:
 
         Raises
         ------
-        :class:`.LeaspyInputError`
+        :exc:`.LeaspyInputError`
             if model is not initialized.
 
         Examples
@@ -203,7 +197,7 @@ class Leaspy:
     def estimate(self, timepoints: Union[pd.MultiIndex, Dict[IDType, List[float]]], individual_parameters: IndividualParameters, *,
                  to_dataframe: bool = None) -> Union[pd.DataFrame, Dict[IDType, np.ndarray]]:
         r"""
-        Return the model values for individuals characterized by their individual parameters :math:`z_i` at time-points :math:`(t_{i,j})_j`
+        Return the model values for individuals characterized by their individual parameters :math:`z_i` at time-points :math:`(t_{i,j})_j`.
 
         Parameters
         ----------
@@ -292,9 +286,9 @@ class Leaspy:
 
         Raises
         ------
-        :class:`.LeaspyTypeError`
+        :exc:`.LeaspyTypeError`
             bad types for input
-        :class:`.LeaspyInputError`
+        :exc:`.LeaspyInputError`
             inconsistent inputs
 
         Examples
@@ -328,7 +322,8 @@ class Leaspy:
             raise LeaspyTypeError(f"The 'biomarker_values' parameter must be a dict, not {type(biomarker_values)} !")
 
         if not isinstance(individual_parameters, IndividualParameters):
-            raise LeaspyTypeError(f"The 'individual_parameters' parameter must be type IndividualParameters, not {type(individual_parameters)} !")
+            raise LeaspyTypeError("The 'individual_parameters' parameter must be type IndividualParameters, "
+                                  f"not {type(individual_parameters)} !")
 
         # compute biomarker ages
         biomarker_ages = {}
@@ -437,8 +432,8 @@ class Leaspy:
                               76.119949  0.876363
 
         By default, the generated subjects are named `'Generated_subject_001'`, `'Generated_subject_002'` and so on.
-        Let's say you want a shorter name, for exemple `'GS-001'`. Furthermore, you want to set the level of noise
-        arround the subject trajectory when generating the observations:
+        Let's say you want a shorter name, for example `'GS-001'`. Furthermore, you want to set the level of noise
+        around the subject trajectory when generating the observations:
 
         >>> simulation_settings = AlgorithmSettings('simulation', seed=0, prefix='GS-', noise=.2)
         >>> simulated_data = leaspy_logistic.simulate(individual_parameters, data, simulation_settings)
@@ -463,7 +458,7 @@ class Leaspy:
     @classmethod
     def load(cls, path_to_model_settings: str):
         r"""
-        Instantiate a Leaspy object from json model parameter file or the corresponding dictionary
+        Instantiate a Leaspy object from json model parameter file or the corresponding dictionary.
 
         This function can be used to load a pre-trained model.
 
@@ -474,7 +469,7 @@ class Leaspy:
 
         Returns
         -------
-        :class:`leaspy.Leaspy`
+        :class:`~leaspy.api.Leaspy`
             An instanced Leaspy object with the given population parameters :math:`\theta`.
 
         Examples
@@ -504,9 +499,6 @@ class Leaspy:
 
         leaspy.model.is_initialized = True
 
-        # Update plotting
-        leaspy.plotting.update_model(leaspy.model)
-
         return leaspy
 
     def save(self, path: str, **kwargs):
@@ -518,7 +510,8 @@ class Leaspy:
         path : str
             Path to store the model's parameters.
         **kwargs
-            Keyword arguments for json.dump method.
+            Keyword arguments for :meth:`~.models.abstract_model.AbstractModel.save`
+            (including those sent to :func:`json.dump` function).
 
         Examples
         --------
@@ -536,7 +529,7 @@ class Leaspy:
         The standard deviation of the noise at the end of the calibration is:
         0.0213
         Calibration took: 30s
-        >>> leaspy_logistic.save('leaspy-logistic-model_parameters-seed0.json', indent=2)
+        >>> leaspy_logistic.save('leaspy-logistic-model_parameters-seed0.json')
         """
         self.check_if_initialized()
         self.model.save(path, **kwargs)
@@ -547,7 +540,7 @@ class Leaspy:
 
         Raises
         ------
-        :class:`.LeaspyInputError`
+        :exc:`.LeaspyInputError`
             Raise an error if the model has not been initialized.
         """
         if not self.model.is_initialized:

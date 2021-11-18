@@ -9,6 +9,11 @@ from ...io.outputs.individual_parameters import IndividualParameters
 class MeanReal(AbstractPersonalizeAlgo):
     """
     Sampler based algorithm, individual parameters are derivated as the mean realization for `n_samples` samplings.
+
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        Settings of the algorithm.
     """
 
     def __init__(self, settings):

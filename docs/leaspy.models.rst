@@ -30,5 +30,4 @@ Module contents
 
 .. automodule:: leaspy.models
    :members:
-   :undoc-members:
    :show-inheritance:

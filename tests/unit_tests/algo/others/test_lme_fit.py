@@ -26,7 +26,7 @@ class LMEFitAlgorithmTest(unittest.TestCase):
         data = Data.from_dataframe(df)
         self.dataset = Dataset(data)
         # models
-        self.model = LMEModel('lme')
+        self.model = LMEModel('lme', with_random_slope_age=False)
         self.settings = AlgorithmSettings('lme_fit')
         self.algo = LMEFitAlgorithm(self.settings)
 

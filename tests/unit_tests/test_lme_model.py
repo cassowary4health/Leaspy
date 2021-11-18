@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from tests import example_data_path
+from tests import example_data_path, test_tmp_dir
 from leaspy import Data, Leaspy, AlgorithmSettings
 
 #import statsmodels.api as sm
@@ -14,32 +14,51 @@ from statsmodels.regression.mixed_linear_model import MixedLMParams
 
 class LMEModelAPITest(unittest.TestCase):
 
-    def setUp(self) -> None:
+    @classmethod
+    def setUpClass(cls) -> None:
         # Data
         # read csv
-        self.raw_data_df = pd.read_csv(example_data_path, dtype={'ID':str})
-        self.raw_data_df['TIME'] = round(self.raw_data_df['TIME'], 3)
+        cls.raw_data_df = pd.read_csv(example_data_path, dtype={'ID':str})
+        cls.raw_data_df['TIME'] = round(cls.raw_data_df['TIME'], 3)
 
-        self.raw_data_df.iloc[30,2] = np.nan
+        cls.raw_data_df.iloc[30,2] = np.nan
 
-        ages = self.raw_data_df.dropna(subset=['Y0'])['TIME']
-        self.ages_mean, self.ages_std = ages.mean(), ages.std(ddof=0)
-        self.raw_data_df['TIME_norm'] = (self.raw_data_df['TIME'] - self.ages_mean) / self.ages_std
+        ages = cls.raw_data_df.dropna(subset=['Y0'])['TIME']
+        cls.ages_mean, cls.ages_std = ages.mean(), ages.std(ddof=0)
+        cls.raw_data_df['TIME_norm'] = (cls.raw_data_df['TIME'] - cls.ages_mean) / cls.ages_std
 
         # Data must have only one feature:
-        data_df = self.raw_data_df[["ID", "TIME", "Y0"]]
+        data_df = cls.raw_data_df[["ID", "TIME", "Y0"]]
         # from dataframe
-        self.data = Data.from_dataframe(data_df)
+        cls.data = Data.from_dataframe(data_df)
 
         data_df_others_ix = data_df.copy()
         data_df_others_ix['ID'] += '_new' # but same data to test easily...
 
-        self.data_new_ix = Data.from_dataframe(data_df_others_ix)
+        cls.data_new_ix = Data.from_dataframe(data_df_others_ix)
+
+    def test_bivariate_data(self):
+        bivariate_data = Data.from_dataframe(pd.DataFrame({
+            'ID': [1, 1, 1, 2, 2, 2],
+            'TIME': [50, 51, 52, 60, 62, 64],
+            'FT_1': [.4]*6,
+            'FT_2': [.6]*6,
+        }))
+
+        lsp = Leaspy('lme')
+        lme_fit = AlgorithmSettings('lme_fit')
+        with self.assertRaises(ValueError):
+            lsp.fit(bivariate_data, lme_fit)
 
     def test_run(self):
 
+        # Leaspy model
+        lsp = Leaspy('lme')
+        self.assertIsNone(lsp.model.features)
+        self.assertEqual(lsp.model.with_random_slope_age, True)
+
         # Settings
-        settings = AlgorithmSettings('lme_fit')
+        settings = AlgorithmSettings('lme_fit', with_random_slope_age=False)
 
         self.assertDictEqual(settings.parameters, {
             'with_random_slope_age': False,
@@ -47,14 +66,14 @@ class LMEModelAPITest(unittest.TestCase):
             'method': ['lbfgs', 'bfgs', 'powell']
         })
 
-        # Leaspy
-        lsp = Leaspy('lme')
-        lsp.fit(self.data, settings)
+        # Deprecated behavior: (re)set of model `with_random_slope_age` from algorithm setting
+        with self.assertWarns(FutureWarning):
+            lsp.fit(self.data, settings)
 
         self.assertListEqual(lsp.model.features, ['Y0'])
+        self.assertEqual(lsp.model.with_random_slope_age, False)
         self.assertEqual(lsp.model.dimension, 1)
 
-        self.assertEqual(lsp.model.with_random_slope_age, False)
         #self.assertGreater(lsp.model.parameters['cov_re'][0,1].abs(), 0) # not forced independent
 
         self.assertAlmostEqual(self.ages_mean, lsp.model.parameters['ages_mean'], places=3)
@@ -104,14 +123,14 @@ class LMEModelAPITest(unittest.TestCase):
         unseen_df = unseen_df.rename(columns={0: 'feat1'})
         unseen_df = unseen_df.swaplevel()
 
-        # from dataframe
+        # Data
         easy_data = Data.from_dataframe(df)
 
-        # Settings
-        easy_settings = AlgorithmSettings('lme_fit')
+        # Leaspy model
+        easy_model = Leaspy('lme', with_random_slope_age=False)
 
-        # Leaspy
-        easy_model = Leaspy('lme')
+        # Fit Settings
+        easy_settings = AlgorithmSettings('lme_fit')
         easy_model.fit(easy_data, easy_settings)
 
         # Personalize
@@ -154,17 +173,19 @@ class LMEModelAPITest(unittest.TestCase):
 
     def test_with_random_slope_age(self):
 
+        # Leaspy
+        lsp = Leaspy('lme')
+        self.assertEqual(lsp.model.with_random_slope_age, True)
+
         # Settings
-        settings = AlgorithmSettings('lme_fit', with_random_slope_age=True)
+        settings = AlgorithmSettings('lme_fit')
 
         self.assertDictEqual(settings.parameters, {
-            'with_random_slope_age': True,
+            'with_random_slope_age': None, # deprecated (in model only)
             'force_independent_random_effects': False,
             'method': ['lbfgs', 'bfgs', 'powell']
         })
 
-        # Leaspy
-        lsp = Leaspy('lme')
         lsp.fit(self.data, settings)
 
         self.assertListEqual(lsp.model.features, ['Y0'])
@@ -176,11 +197,12 @@ class LMEModelAPITest(unittest.TestCase):
         print(repr(lsp.model.parameters))
 
         # + test save/load
-        lsp.save('./tmp_lme_model_1.lock.json')
+        model_path = os.path.join(test_tmp_dir, 'lme_model_1.json')
+        lsp.save(model_path)
         del lsp
 
-        lsp = Leaspy.load('./tmp_lme_model_1.lock.json')
-        os.unlink('./tmp_lme_model_1.lock.json')
+        lsp = Leaspy.load(model_path)
+        os.unlink(model_path)
 
         # Personalize
         settings = AlgorithmSettings('lme_personalize')
@@ -192,17 +214,16 @@ class LMEModelAPITest(unittest.TestCase):
     def test_with_random_slope_age_indep(self):
 
         # Settings
-        settings = AlgorithmSettings('lme_fit', with_random_slope_age=True,
-                                     force_independent_random_effects=True)
+        settings = AlgorithmSettings('lme_fit', force_independent_random_effects=True)
 
         self.assertDictEqual(settings.parameters, {
-            'with_random_slope_age': True,
+            'with_random_slope_age': None, # deprecated (in model only) # To be removed soon
             'force_independent_random_effects': True,
             'method': ['lbfgs', 'bfgs']
         })
 
         # Leaspy
-        lsp = Leaspy('lme')
+        lsp = Leaspy('lme', with_random_slope_age=True)
         lsp.fit(self.data, settings)
 
         self.assertEqual(lsp.model.with_random_slope_age, True)

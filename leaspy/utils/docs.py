@@ -25,8 +25,8 @@ def _replace_terms(source: str, mapping: Dict[str, str], flags: int = 0) -> str:
     flags
         Valid flag for :func:`re.sub`
 
-    Example
-    -------
+    Examples
+    --------
     >>> _replace_terms("Can't say the word `less` since I'm wordless. word-", \
                        {'say': 'hear', 'word': '***', 'less': '!?', "I'm": "you're"})
     "Can't hear the *** `!?` since you're wordless. ***-"

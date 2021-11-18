@@ -15,5 +15,4 @@ Module contents
 
 .. automodule:: leaspy.io.realizations
    :members:
-   :undoc-members:
    :show-inheritance:

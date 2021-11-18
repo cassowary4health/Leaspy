@@ -1,3 +1,5 @@
+.. https://raw.githubusercontent.com/sphinx-doc/sphinx/master/sphinx/ext/autosummary/templates/autosummary/class.rst
+
 :mod:`{{module}}`.{{objname}}
 {{ underline }}==============
 
@@ -5,8 +7,8 @@
 
 .. autoclass:: {{ objname }}
    :members:
-   :private-members:
-   :special-members:
+   :no-private-members:
+   :no-undoc-members:
    :show-inheritance:
    :inherited-members:
 
@@ -22,7 +24,6 @@
     {% endblock %}
 
     {% block methods %}
-    .. automethod:: __init__
     {% if methods %}
     .. rubric:: Methods
 
@@ -30,7 +31,6 @@
     {% for item in methods %}
        ~{{ name }}.{{ item }}
     {%- endfor %}
-..    .. automethod:: __init__
     {% endif %}
     {% endblock %}
 

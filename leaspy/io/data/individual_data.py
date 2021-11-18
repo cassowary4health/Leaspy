@@ -6,11 +6,16 @@ from leaspy.utils.typing import IDType, DictParams, KwargsType, List, Iterable
 
 class IndividualData:
     """
-    Data container for individual parameters, used to contruct a `Data` container.
+    Data container for individual parameters, used to construct a `Data` container.
+
+    Parameters
+    ----------
+    idx : str
+        The identifier of subject.
 
     Raises
     ------
-    :class:`.LeaspyDataInputError`
+    :exc:`.LeaspyDataInputError`
     """
 
     def __init__(self, idx: IDType):

@@ -22,16 +22,16 @@ class AlgorithmSettings:
     name : str
         The algorithm's name. Must be in:
             * For `fit` algorithms:
-                * `mcmc_saem`
-                * `lme_fit` (for LME model only)
+                * ``'mcmc_saem'``
+                * ``'lme_fit'`` (for LME model only)
             * For `personalize` algorithms:
-                * `scipy_minimize`
-                * `mean_real`
-                * `mode_real`
-                * `constant_prediction` (for constant model only)
-                * `lme_personalize` (for LME model only)
+                * ``'scipy_minimize'``
+                * ``'mean_real'``
+                * ``'mode_real'``
+                * ``'constant_prediction'`` (for constant model only)
+                * ``'lme_personalize'`` (for LME model only)
             * For `simulate` algorithms:
-                * `simulation`
+                * ``'simulation'``
 
     model_initialization_method : str, optional
         For fit algorithms, give a model initialization method,
@@ -81,30 +81,31 @@ class AlgorithmSettings:
 
     Raises
     ------
-    :class:`.LeaspyAlgoInputError`
+    :exc:`.LeaspyAlgoInputError`
 
-    See also
+    See Also
     --------
     :mod:`leaspy.algo`
 
-    For developpers
-    ---------------
-    Use `_dynamic_default_parameters` to dynamically set some default parameters,
-    depending on other parameters that were set, while these "dynamic" parameters were not set.
+    Notes
+    -----
+    For developers: use ``_dynamic_default_parameters`` to dynamically set some default parameters,
+    depending on other parameters that were set, while these `dynamic` parameters were not set.
 
-        Example:
-        --------
+    Example:
         you could want to set burn in iterations or annealing iterations
         as fractions of non-default number of iterations given.
 
-        Format:
-        -------
-            {algo_name: [
-                (functional_condition_to_trigger_dynamic_setting(kwargs),
-                {
-                    nested_keys_of_dynamic_setting: dynamic_value(kwargs)
-                })
-            ]}
+    Format:
+
+    ::
+
+        {algo_name: [
+            (functional_condition_to_trigger_dynamic_setting(kwargs),
+            {
+                nested_keys_of_dynamic_setting: dynamic_value(kwargs)
+            })
+        ]}
     """
 
     # TODO should be in the each algo class directly?
@@ -166,7 +167,7 @@ class AlgorithmSettings:
 
         Raises
         ------
-        :class:`.LeaspyAlgoInputError`
+        :exc:`.LeaspyAlgoInputError`
             if anything is invalid in algo settings
 
         Examples
@@ -216,12 +217,13 @@ class AlgorithmSettings:
             Path to store the AlgorithmSettings.
         **kwargs
             Keyword arguments for json.dump method.
+            Default: dict(indent=2)
 
         Examples
         --------
         >>> from leaspy import AlgorithmSettings
         >>> settings = AlgorithmSettings('scipy_minimize', seed=42, n_jobs=-1, use_jacobian=True, progress_bar=True)
-        >>> settings.save('outputs/scipy_minimize-settings.json', indent=2)
+        >>> settings.save('outputs/scipy_minimize-settings.json')
         """
         json_settings = {
             "name": self.name,
@@ -232,6 +234,9 @@ class AlgorithmSettings:
             "loss": self.loss,
             "logs": self.logs
         }
+
+        # Default json.dump kwargs:
+        kwargs = {'indent': 2, **kwargs}
 
         with open(os.path.join(path), "w") as json_file:
             json.dump(json_settings, json_file, **kwargs)
@@ -263,7 +268,7 @@ class AlgorithmSettings:
 
         Raises
         ------
-        :class:`.LeaspyAlgoInputError`
+        :exc:`.LeaspyAlgoInputError`
             If the folder given in ``path`` already exists and if ``overwrite_logs_folder`` is set to ``False``.
         """
         settings = {

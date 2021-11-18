@@ -9,12 +9,16 @@ import torch
 from numpy import allclose
 
 from leaspy import Data, Leaspy, Result
-from tests import example_data_path, test_data_dir, hardcoded_model_path
+from tests import example_data_path, example_data_covars_path, \
+                  test_data_dir, test_tmp_dir, hardcoded_model_path, from_personalize_ip_path
 
 
 class ResultTest(unittest.TestCase):
 
     def setUp(self, get=False):
+
+        # The list of individuals that were pre-saved for tests on subset of individuals
+        self.idx_sub = ['116', '142', '169']
 
         # ignore deprecation warnings in tests
         warnings.simplefilter('ignore', DeprecationWarning)
@@ -27,20 +31,16 @@ class ResultTest(unittest.TestCase):
             self.torch_save_suffix = '.pt' #'_v1.pt'
 
         # Inputs
-        data = Data.from_csv_file(example_data_path)
+        self.data = Data.from_csv_file(example_data_path)
 
-        cofactors_path = os.path.join(test_data_dir,
-                                      "io",
-                                      "data",
-                                      "data_tiny_covariate.csv")
-        self.cofactors = pd.read_csv(cofactors_path, index_col=0)
-        self.cofactors.index = [str(i) for i in self.cofactors.index.values]
-        data.load_cofactors(self.cofactors, ['Treatments'])
+        self.cofactors = pd.read_csv(example_data_covars_path, dtype={'ID': str}, index_col='ID')
+        self.data.load_cofactors(self.cofactors, ['Treatments'])
 
-        load_individual_parameters_path = os.path.join(test_data_dir,
-                                                       "individual_parameters",
-                                                       "data_tiny-individual_parameters.json")
-        self.results = Result.load_result(data, load_individual_parameters_path)
+        self.df = self.data.to_dataframe()
+
+        load_individual_parameters_path = from_personalize_ip_path("data_tiny-individual_parameters.json")
+        self.results = Result.load_result(self.data, load_individual_parameters_path)
+
         if get:
             return self.results
 
@@ -52,67 +52,56 @@ class ResultTest(unittest.TestCase):
             self.assertEqual(len(self.results.individual_parameters[key]), 17)
         self.assertEqual(self.results.noise_std, None)
 
-    def test_save_individual_parameters_json(self):
-        path_original = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters.json")
-        path_copy = os.path.join(test_data_dir, "individual_parameters", "data_tiny-individual_parameters-copy.json")
-        self.results.save_individual_parameters_json(path_copy)
-        self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
+    def test_save_individual_parameters(self):
 
-        # Test to save only several subjects
-        idx = ['116', '142', '169']
-        path_original = os.path.join(test_data_dir, "individual_parameters",
-                                     "data_tiny-individual_parameters-3subjects.json")
-        path_copy = os.path.join(test_data_dir, "individual_parameters",
-                                 "data_tiny-individual_parameters-3subjects-copy.json")
-        self.results.save_individual_parameters_json(path_copy, idx)
-        self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
+        to_test = [
+            # method, path, args, kwargs
 
-        # test if run with an **args of json.dump
-        path_indent_4 = os.path.join(test_data_dir, "individual_parameters",
-                                     "data_tiny-individual_parameters-indent_4.json")
-        self.results.save_individual_parameters_json(path_indent_4, idx, indent=4)
+            ## JSON
+            # test save default
+            (self.results.save_individual_parameters_json, 'data_tiny-individual_parameters.json', [], dict(indent=None)),
+            # test to save only a subset of subjects
+            (self.results.save_individual_parameters_json, 'data_tiny-individual_parameters-3subjects.json', [self.idx_sub], dict(indent=None)),
+            # test if run with an **args of json.dump
+            (self.results.save_individual_parameters_json, 'data_tiny-individual_parameters-indent_4.json', [self.idx_sub], dict(indent=4)),
 
-    def test_save_individual_parameters_csv(self):
-        individual_parameters_path = os.path.join(test_data_dir, "individual_parameters",
-                                                  "data_tiny-individual_parameters.csv")
-        path_original = os.path.join(test_data_dir, "individual_parameters",
-                                     "data_tiny-individual_parameters-original.csv")
+            ## CSV
+            # test save default
+            (self.results.save_individual_parameters_csv, 'data_tiny-individual_parameters.csv', [], {}),
+            # test to save only a subset of subjects
+            (self.results.save_individual_parameters_csv, 'data_tiny-individual_parameters-3subjects.csv', [self.idx_sub], {}),
 
-        self.results.save_individual_parameters_csv(individual_parameters_path)
-        self.assertTrue(filecmp.cmp(path_original, path_original, shallow=False))
+            ## Torch (suffix depend on PyTorch version)
+            # test save default
+            (self.results.save_individual_parameters_torch,
+             f'data_tiny-individual_parameters{self.torch_save_suffix}', [], {}),
+            # test to save only a subset of subjects
+            (self.results.save_individual_parameters_torch,
+             f'data_tiny-individual_parameters-3subjects{self.torch_save_suffix}', [self.idx_sub], {}),
+        ]
 
-        # Test to save only several subjects
-        idx = ['116', '142', '169']
-        path_original = os.path.join(test_data_dir, "individual_parameters",
-                                     "data_tiny-individual_parameters-3subjects.csv")
-        path_copy = os.path.join(test_data_dir, "individual_parameters",
-                                 "data_tiny-individual_parameters-3subjects-copy.csv")
-        self.results.save_individual_parameters_csv(path_copy, idx)
-        self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
+        # We check that each re-saved file (with options) is same as expected
+        for saving_method, ip_original, args, kwargs in to_test:
+            with self.subTest(ip_original=ip_original):
+                path_original = from_personalize_ip_path(ip_original)
+                path_copy = os.path.join(test_tmp_dir, ip_original)
+                saving_method(path_copy, *args, **kwargs)
+                self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
+                os.unlink(path_copy)
 
-        for idx in ('116', 116, ('116',), ('116', '142')):
-            self.assertRaises(ValueError, self.results.save_individual_parameters_csv,
-                              individual_parameters_path, idx=idx)
+        # Bad type: a list of indexes is expected for `idx` keyword (no tuple nor scalar!)
+        bad_idx = ['116', 116, ('116',), ('116', '142')]
+        fake_save = {
+            'should_not_be_saved_due_to_error.json': self.results.save_individual_parameters_json,
+            'should_not_be_saved_due_to_error.csv': self.results.save_individual_parameters_csv,
+            f'should_not_be_saved_due_to_error{self.torch_save_suffix}': self.results.save_individual_parameters_torch,
+        }
+        for fake_path, saving_method in fake_save.items():
+            for idx in bad_idx:
+                with self.assertRaises(ValueError, msg=dict(idx=idx, path=fake_path)):
+                    saving_method(os.path.join(test_tmp_dir, fake_path), idx=idx)
 
-    def test_save_individual_parameters_torch(self):
-
-        path_original = os.path.join(test_data_dir, "individual_parameters",
-                                     f"data_tiny-individual_parameters{self.torch_save_suffix}")
-        path_copy = os.path.join(test_data_dir, "individual_parameters",
-                                 f"data_tiny-individual_parameters-copy{self.torch_save_suffix}")
-        self.results.save_individual_parameters_torch(path_copy)
-        self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
-
-        # Test to save only several subjects
-        idx = ['116', '142', '169']
-        path_original = os.path.join(test_data_dir, "individual_parameters",
-                                     f"data_tiny-individual_parameters-3subjects{self.torch_save_suffix}")
-        path_copy = os.path.join(test_data_dir, "individual_parameters",
-                                 f"data_tiny-individual_parameters-3subjects-copy{self.torch_save_suffix}")
-        self.results.save_individual_parameters_torch(path_copy, idx)
-        self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
-
-    def test_load_individual_parameters(self, ind_param=None):
+    def test_load_individual_parameters(self, ind_param=None, nb_individuals=17):
         if ind_param is None:
             ind_param = self.results.individual_parameters
         self.assertEqual(type(ind_param), dict)
@@ -121,38 +110,28 @@ class ResultTest(unittest.TestCase):
             self.assertEqual(type(ind_param[key]), torch.Tensor)
             self.assertEqual(ind_param[key].dtype, torch.float32)
             self.assertEqual(ind_param[key].dim(), 2)
-            self.assertEqual(ind_param[key].shape[0], 17)
+            self.assertEqual(ind_param[key].shape[0], nb_individuals)
 
     def test_load_result(self):
-        ind_param_path_json = os.path.join(test_data_dir, "individual_parameters",
-                                           "data_tiny-individual_parameters.json")
-        ind_param_path_csv = os.path.join(test_data_dir, "individual_parameters",
-                                          "data_tiny-individual_parameters.csv")
-        ind_param_path_torch = os.path.join(test_data_dir, "individual_parameters",
-                                            f"data_tiny-individual_parameters{self.torch_save_suffix}")
 
-        cofactors_path = os.path.join(test_data_dir,
-                                      "io",
-                                      "data",
-                                      "data_tiny_covariate.csv")
+        ind_param_input_list = [
+            from_personalize_ip_path("data_tiny-individual_parameters.json"),
+            from_personalize_ip_path("data_tiny-individual_parameters.csv"),
+            from_personalize_ip_path(f"data_tiny-individual_parameters{self.torch_save_suffix}")
+        ]
 
-        data = self.results.data
-        df = data.to_dataframe()
+        data_input_list = [self.data, self.df, example_data_path]
 
-        ind_param_input_list = [ind_param_path_csv, ind_param_path_json, ind_param_path_torch]
-        data_input_list = [data, df, example_data_path]
+        def load_result_and_check_same_as_expected(ind_param, data):
+            results = Result.load_result(data, ind_param, example_data_covars_path)
+            new_df = results.data.to_dataframe()
+            pd.testing.assert_frame_equal(new_df, self.df)
+            self.test_load_individual_parameters(ind_param=results.individual_parameters)
 
         for data_input in data_input_list:
             for ind_param_input in ind_param_input_list:
-                self.launch_test(ind_param_input, data_input, cofactors_path)
-
-    def launch_test(self, ind_param, data, cofactors):
-        results = Result.load_result(data, ind_param, cofactors)
-        df = results.data.to_dataframe()
-        df2 = self.results.data.to_dataframe()
-        self.assertTrue(allclose(df.loc[:, df.columns != 'ID'].values,
-                                 df2.loc[:, df2.columns != 'ID'].values))
-        self.test_load_individual_parameters(ind_param=results.individual_parameters)
+                with self.subTest(ip_path=ind_param_input, data=data_input):
+                    load_result_and_check_same_as_expected(ind_param_input, data_input)
 
     def test_get_error_distribution_dataframe(self):
         leaspy_session = Leaspy.load(hardcoded_model_path('logistic'))

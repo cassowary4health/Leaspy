@@ -42,7 +42,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
     Raises
     ------
-    :class:`.LeaspyModelInputError`
+    :exc:`.LeaspyModelInputError`
         if any inconsistent parameter.
     """
 
@@ -143,7 +143,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             Time-derivative of the geodesic at initial time
 
         G_metric : scalar, `torch.FloatTensor` 0D, 1D or 2D-square
-            The `G(p)` defining the metric as refered in equation (1) just before :
+            The `G(p)` defining the metric as referred in equation (1) just before :
                 * If 0D (scalar): `G` is proportional to the identity matrix
                 * If 1D (vector): `G` is a diagonal matrix (diagonal components > 0)
                 * If 2D (square matrix): `G` is general (SPD)
@@ -153,7 +153,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
         Raises
         ------
-        :class:`.LeaspyModelInputError`
+        :exc:`.LeaspyModelInputError`
             if incoherent metric `G_metric`
         """
 

@@ -69,6 +69,7 @@ class Dataset:
         self.timepoints: torch.FloatTensor = None
         self.values: torch.FloatTensor = None
         self.mask: torch.FloatTensor = None
+        self.cofactors: torch.FloatTensor = None
         self.headers = data.headers
         self.n_individuals: int = None
         self.nb_observations_per_individuals: List[int] = None
@@ -87,6 +88,7 @@ class Dataset:
 
         self._construct_values(data)
         self._construct_timepoints(data)
+        self._construct_cofactors(data)
         self._compute_L2_norm()
 
     def _construct_values(self, data: Data):
@@ -136,6 +138,36 @@ class Dataset:
     def _compute_L2_norm(self):
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0,1)) # 1D tensor of shape (dimension,)
         self.L2_norm = self.L2_norm_per_ft.sum() # sum on all features
+
+    def _construct_cofactors(self, data: Data):
+        self.cofactors_dimension = len(data.cofactors)
+
+        if self.cofactors_dimension > 0:
+            self.cofactors = torch.zeros((data.n_individuals, self.cofactors_dimension), dtype=torch.float32)
+
+            # dictionnary used to map categorical cofactors to numerical values
+            # e.g. {"Female", "Male"} becomes {0.0, 1.0}
+            self.cofactors_association_dict = {}
+
+            def _categorize(cofactor_name: str, value: Any):
+                if cofactor_name not in self.cofactors_association_dict:
+                    self.cofactors_association_dict[cofactor_name] = {"count": 0.0}
+
+                if isinstance(value, str):
+                    if value not in self.cofactors_association_dict[cofactor_name]:
+                        self.cofactors_association_dict[cofactor_name][value] = self.cofactors_association_dict[cofactor_name]["count"]
+                        self.cofactors_association_dict[cofactor_name]["count"] += 1.0
+
+                    return self.cofactors_association_dict[cofactor_name][value]
+
+                else:
+                    return value
+
+            for i, subject in data.iter_to_idx.items():
+                subject_cofactors = data.get_by_idx(subject).cofactors
+                for j, (cofactor_name, value) in enumerate(subject_cofactors.items()):
+                    self.cofactors[i,j] = _categorize(cofactor_name, value)
+                        
 
     def get_times_patient(self, i: int) -> torch.FloatTensor:
         """

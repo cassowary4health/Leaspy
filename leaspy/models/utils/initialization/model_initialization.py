@@ -5,7 +5,7 @@ from scipy import stats
 
 # <!> circular imports
 import leaspy
-from leaspy.exceptions import LeaspyInputError
+from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
 
 #from joblib import Parallel, delayed
 
@@ -147,7 +147,10 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
     """
 
     name = model.name
-    loss = model.loss # has to be set directly at model init and not in algosettings step to be available here
+    noise_model = model.noise_model # has to be set directly at model init and not in algo settings step to be available here
+
+    if not noise_model.startswith('gaussian_'):
+        raise LeaspyModelInputError(f'`lme` initialization is only compatible with Gaussian noise models, not {noise_model}.')
     if model.features != dataset.headers:
         raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {dataset.headers}")
 
@@ -212,11 +215,12 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
     params['xi_std'] = fact_std * (1/xi_var_ft).mean() ** -.5
 
     # Residual gaussian noise
-    if 'diag_noise' in loss:
-        params['noise_std'] = fact_std * lme['noise_std']
-    else:
+    if 'scalar' in noise_model:
         # arithmetic mean on variances
         params['noise_std'] = fact_std * (lme['noise_std'] ** 2).mean().reshape((1,)) ** .5 # 1D tensor
+    else:
+        # one noise-std per feature
+        params['noise_std'] = fact_std * lme['noise_std']
 
     # For multivariate models, xi_mean == 0.
     if name in ['linear', 'logistic']: # isinstance(model, MultivariateModel)

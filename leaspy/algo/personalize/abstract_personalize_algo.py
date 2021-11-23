@@ -1,10 +1,8 @@
 from abc import abstractmethod
-import time
-
-import torch
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.models.utils.noise_model import NoiseModel
 
 
 class AbstractPersonalizeAlgo(AbstractAlgo):
@@ -20,29 +18,21 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
     Attributes
     ----------
-    algo_parameters : dict
-        Algorithm's parameters.
     name : str
         Algorithm's name.
     seed : int, optional
         Algorithm's seed (default None).
-    loss : str
-        Loss to used during algo
+    algo_parameters : dict
+        Algorithm's parameters.
 
     See Also
     --------
     :meth:`.Leaspy.personalize`
     """
 
-    def __init__(self, settings):
+    family = 'personalize'
 
-        super().__init__()
-        self.algo_parameters = settings.parameters
-        self.name = settings.name
-        self.seed = settings.seed
-        self.loss = settings.loss  # TODO remove? only keep in model?
-
-    def run(self, model, data):
+    def run_impl(self, model, dataset):
         r"""
         Main personalize function, wraps the abstract :meth:`._get_individual_parameters` method.
 
@@ -50,7 +40,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         ----------
         model : :class:`~.models.abstract_model.AbstractModel`
             A subclass object of leaspy `AbstractModel`.
-        data : :class:`.Dataset`
+        dataset : :class:`.Dataset`
             Dataset object build with leaspy class objects Data, algo & model
 
         Returns
@@ -58,7 +48,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         individual_parameters : :class:`.IndividualParameters`
             Contains individual parameters.
         noise_std : float or :class:`torch.FloatTensor`
-            The estimated noise (is a tensor if ``'diag_noise'`` in `model.loss`)
+            The estimated noise (is a tensor if `model.noise_model` is ``'gaussian_diagonal'``)
 
             .. math:: = \frac{1}{n_{visits} \times n_{dim}} \sqrt{\sum_{i, j \in [1, n_{visits}] \times [1, n_{dim}]} \varepsilon_{i,j}}
 
@@ -67,39 +57,12 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
             :math:`(t_{i,j})` the time-points and :math:`f` the model's estimator.
         """
 
-        # Set seed
-        self._initialize_seed(self.seed)
-
-        # Init the run
-        time_beginning = time.time()
-
         # Estimate individual parameters
-        individual_parameters = self._get_individual_parameters(model, data)
+        individual_parameters = self._get_individual_parameters(model, dataset)
 
-        # Compute the noise with the estimated individual parameters (per feature or not, depending on model loss)
-        _, dict_pytorch = individual_parameters.to_pytorch()
-        noise_std: torch.FloatTensor
-        if 'diag_noise' in model.loss:
-            squared_diff = model.compute_sum_squared_per_ft_tensorized(data, dict_pytorch).sum(dim=0)  # k tensor
-            noise_std = torch.sqrt(squared_diff.detach() / data.n_observations_per_ft.float())
-
-            # for displaying only
-            noise_map = {ft_name: f'{ft_noise:.4f}' for ft_name, ft_noise in
-                         zip(model.features, noise_std.view(-1).tolist())}
-            print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
-            print_noise = '\n'.join(print_noise.split(', '))
-        else:
-            squared_diff = model.compute_sum_squared_tensorized(data, dict_pytorch).sum()
-            noise_std = torch.sqrt(squared_diff.detach() / data.n_observations)
-            # for displaying only
-            print_noise = f'{noise_std.item():.4f}'
-
-        # Print run infos
-        time_end = time.time()
-        diff_time = (time_end - time_beginning)
-
-        print("\nThe standard deviation of the noise at the end of the personalization is:\n" + print_noise)
-        print(f"\nPersonalization {self.name} took: " + self.convert_timer(diff_time))
+        # Compute the noise with the estimated individual parameters (per feature or not, depending on model noise)
+        _, individual_params_torch = individual_parameters.to_pytorch()
+        noise_std = NoiseModel.rmse_model(model, dataset, individual_params_torch)
 
         return individual_parameters, noise_std
 

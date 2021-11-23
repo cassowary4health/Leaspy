@@ -22,12 +22,14 @@ class AbstractMultivariateModelTest(ManifoldModelTest_Mixin):
         self.assertEqual(type(model), AbstractMultivariateModel)
         self.assertEqual(model.name, 'dummy')
 
-        # Test common initialization with univariate
+        # Test common initialization with univariate / manifold model
         self.check_common_attrs(model)
 
         # Test specific multivariate initialization
         self.assertEqual(model.dimension, None)
         self.assertEqual(model.source_dimension, None)
+        self.assertEqual(model.noise_model, 'gaussian_diagonal')
+
         self.assertEqual(model.parameters['betas'], None)
         self.assertEqual(model.parameters['sources_mean'], None)
         self.assertEqual(model.parameters['sources_std'], None)

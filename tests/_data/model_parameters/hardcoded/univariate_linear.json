@@ -2,7 +2,7 @@
   "leaspy_version": "1.1",
   "name": "univariate_linear",
   "features": ["feature"],
-  "loss": "MSE",
+  "noise_model": "gaussian_scalar",
   "parameters": {
     "g": 0.5,
     "tau_mean": 78.0,

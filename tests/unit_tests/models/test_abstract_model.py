@@ -18,7 +18,7 @@ class AbstractModelTest(LeaspyTestCase):
         self.assertFalse(model.is_initialized)
         self.assertEqual(model.name, "dummy_abstractmodel")
         self.assertEqual(model.parameters, None)
-        self.assertIsInstance(model.distribution, torch.distributions.normal.Normal)
+        self.assertIs(model.regularization_distribution_factory, torch.distributions.normal.Normal)
 
         # Test the presence of all these essential methods
         main_methods = ['load_parameters', 'get_individual_variable_name', 'compute_sum_squared_tensorized',
@@ -66,8 +66,12 @@ class AbstractModelTest(LeaspyTestCase):
         """
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
             with self.subTest(model_name=model_name):
-                leaspy = Leaspy(model_name)
-                settings = AlgorithmSettings('mcmc_saem', n_iter=50, seed=0)
+                extra_kws = {}
+                if 'univariate' not in model_name:
+                    extra_kws['source_dimension'] = 2  # force so not to get a warning
+
+                leaspy = Leaspy(model_name, **extra_kws)
+                settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
 
                 data = self.get_suited_test_data_for_model(model_name)
 
@@ -91,8 +95,12 @@ class AbstractModelTest(LeaspyTestCase):
         """
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
             with self.subTest(model_name=model_name):
-                leaspy = Leaspy(model_name, loss="crossentropy")
-                settings = AlgorithmSettings('mcmc_saem', n_iter=50, seed=0)
+                extra_kws = {}
+                if 'univariate' not in model_name:
+                    extra_kws['source_dimension'] = 2  # force so not to get a warning
+
+                leaspy = Leaspy(model_name, noise_model='bernoulli', **extra_kws)
+                settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
 
                 data = self.get_suited_test_data_for_model(model_name + '_binary')
 
@@ -197,7 +205,7 @@ class AbstractModelTest(LeaspyTestCase):
     #     # TODO not sure it is the right place to test that
     #     # multivariate
     #     leaspy_object = self.get_hardcoded_model('logistic_scalar_noise')
-    #     abstract_model = AbstractModel("logistic")
+    #     abstract_model = AbstractModel('logistic')
     #     abstract_model.load_parameters(leaspy_object.model.parameters)
     #
     #     ip = {

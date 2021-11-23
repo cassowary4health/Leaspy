@@ -4,7 +4,7 @@
   "features": ["feature_0", "feature_1", "feature_2", "feature_3"],
   "dimension": 4,
   "source_dimension": 2,
-  "loss": "MSE",
+  "noise_model": "gaussian_scalar",
   "parameters": {
     "g": [0.0, 0.0, 0.0, 0.0],
     "tau_mean": 75.0,

@@ -10,6 +10,7 @@ from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.attributes.abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+from leaspy.models.utils.noise_model import NoiseModel
 
 from leaspy.utils.docs import doc_with_super
 from leaspy.exceptions import LeaspyModelInputError
@@ -33,9 +34,12 @@ class AbstractMultivariateModel(AbstractModel):
         if inconsistent hyperparameters
     """
     def __init__(self, name: str, **kwargs):
+
         super().__init__(name)
+
         self.source_dimension: int = None
-        self.dimension: int = None
+        self.noise_model = 'gaussian_diagonal'
+
         self.parameters = {
             "g": None,
             "betas": None,
@@ -58,7 +62,7 @@ class AbstractMultivariateModel(AbstractModel):
             }
         }
 
-        # load hyperparameters
+        # Load hyperparameters at end to overwrite default for new hyperparameters
         self.load_hyperparameters(kwargs)
 
     """
@@ -109,21 +113,26 @@ class AbstractMultivariateModel(AbstractModel):
         pass
 
     def load_hyperparameters(self, hyperparameters):
-        if 'dimension' in hyperparameters.keys():
-            self.dimension = hyperparameters['dimension']
-        if 'source_dimension' in hyperparameters.keys():
-            self.source_dimension = hyperparameters['source_dimension']
+
+        expected_hyperparameters = ('features', 'dimension', 'source_dimension')
+
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
-        if 'loss' in hyperparameters.keys():
-            self.loss = hyperparameters['loss']
 
-        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension')
-        unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
-        if len(unexpected_hyperparameters) > 0:
-            raise LeaspyModelInputError(
-                    f"Only {expected_hyperparameters} are valid hyperparameters for an AbstractMultivariateModel! "
-                    f"Unknown hyperparameters: {unexpected_hyperparameters}.")
+        if 'dimension' in hyperparameters.keys():
+            if self.features and hyperparameters['dimension'] != len(self.features):
+                raise LeaspyModelInputError(f"Dimension provided ({hyperparameters['dimension']}) does not match features ({len(self.features)})")
+            self.dimension = hyperparameters['dimension']
+
+        if 'source_dimension' in hyperparameters.keys():
+            if not ((hyperparameters['source_dimension'] >= 0) and (not self.dimension or hyperparameters['source_dimension'] <= self.dimension - 1)):
+                raise LeaspyModelInputError(f"Source dimension should in [0, dimension - 1], not {hyperparameters['source_dimension']}")
+            self.source_dimension = hyperparameters['source_dimension']
+
+        # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
+        expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
+
+        self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
     def save(self, path, with_mixing_matrix=True, **kwargs):
         """
@@ -158,7 +167,7 @@ class AbstractMultivariateModel(AbstractModel):
             'features': self.features,
             'dimension': self.dimension,
             'source_dimension': self.source_dimension,
-            'loss': self.loss,
+            'noise_model': self.noise_model,
             'parameters': model_parameters_save
         }
 

@@ -2,6 +2,7 @@ import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
+from leaspy.models.utils.noise_model import NoiseModel
 
 from leaspy.utils.docs import doc_with_super
 
@@ -142,7 +143,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2) # no sum on features...
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2) # no sum on features...
 
-        if self.loss == 'crossentropy':
+        if self.noise_model == 'bernoulli':
             sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters,
                                                                                                   attribute_type="MCMC")
 
@@ -161,17 +162,11 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
-        # TODO: same as MultivariateModel, should we factorize code?
         param_ind = self.get_param_from_real(realizations)
-        # TODO : Why is it MCMC-SAEM? SHouldn't it be computed with the parameters?
-        if 'diag_noise' in self.loss:
-            squared_diff_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type='MCMC').sum(dim=0) # sum on individuals
-            self.parameters['noise_std'] = torch.sqrt(squared_diff_per_ft / data.n_observations_per_ft.float())
-        else:
-            squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type='MCMC').sum() # sum on individuals
-            self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
+        # TODO : Why is it 'MCMC'? Shouldn't it be computed with the true parameters?
+        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
-        if self.loss == 'crossentropy':
+        if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
                                                                                             attribute_type="MCMC").sum()
 
@@ -193,7 +188,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
         # TODO: same as MultivariateModel, should we factorize code?
-        if 'diag_noise' in self.loss:
+        if 'diagonal' in self.noise_model:
             # keep feature dependence on feature to update diagonal noise (1 free param per feature)
             S1 = data.L2_norm_per_ft
             S2 = suff_stats['obs_x_reconstruction'].sum(dim=(0,1))
@@ -207,7 +202,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
             self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
 
-        if self.loss == 'crossentropy':
+        if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
 
     ###################################

@@ -1,8 +1,6 @@
-import time
 from abc import abstractmethod
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-from leaspy.exceptions import LeaspyAlgoInputError
 
 
 class AbstractFitAlgo(AbstractAlgo):
@@ -21,18 +19,18 @@ class AbstractFitAlgo(AbstractAlgo):
     :meth:`.Leaspy.fit`
     """
 
-    def __init__(self):
+    family = "fit"
 
-        super().__init__()
-        self.current_iteration = 0  # TODO change to None ?
+    def __init__(self, settings):
 
-        # TODO? init from settings instead of doing it in subclasses like `AbstractFitMCMC`
+        super().__init__(settings)
+        self.current_iteration = 0
 
     ###########################
     # Core
     ###########################
 
-    def run(self, model, dataset):
+    def run_impl(self, model, dataset):
         """
         Main method, run the algorithm.
 
@@ -50,18 +48,12 @@ class AbstractFitAlgo(AbstractAlgo):
 
         Returns
         -------
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-            The optimized parameters.
+        2-tuple:
+            * realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+                The optimized parameters.
+            * None : placeholder for noise-std
 
         """
-
-        # Check algo is well-defined
-        if self.algo_parameters is None:
-            raise LeaspyAlgoInputError('The fit algorithm was not properly created.')
-
-        # Initialize Model
-        time_beginning = time.time()
-        self._initialize_seed(self.seed)
 
         # Initialize first the random variables
         # TODO : Check if needed - model.initialize_random_variables(dataset)
@@ -76,7 +68,7 @@ class AbstractFitAlgo(AbstractAlgo):
         self._initialize_algo(dataset, model, realizations)
 
         if self.algo_parameters['progress_bar']:
-            self.display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
+            self._display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
 
         # Iterate
         for it in range(self.algo_parameters['n_iter']):
@@ -90,22 +82,9 @@ class AbstractFitAlgo(AbstractAlgo):
                 self.output_manager.iteration(self, dataset, model, realizations)
 
             if self.algo_parameters['progress_bar']:
-                self.display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
+                self._display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
 
-        if 'diag_noise' in model.loss:
-            noise_map = {ft_name: f'{ft_noise:.4f}' for ft_name, ft_noise in zip(model.features, model.parameters['noise_std'].view(-1).tolist())}
-            print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
-            print_noise = '\n'.join(print_noise.split(', '))
-        else:
-            print_noise = f"{model.parameters['noise_std'].item():.4f}"
-
-        time_end = time.time()
-        diff_time = (time_end - time_beginning)
-
-        print("\nThe standard deviation of the noise at the end of the calibration is:\n" + print_noise)
-        print("\nCalibration took: " + self.convert_timer(diff_time))
-
-        return realizations
+        return realizations, None
 
     @abstractmethod
     def iteration(self, dataset, model, realizations):
@@ -176,7 +155,6 @@ class AbstractFitAlgo(AbstractAlgo):
     ###########################
 
     def __str__(self):
-        out = ""
-        out += "=== ALGO ===\n"
+        out = "=== ALGO ===\n"
         out += f"Iteration {self.current_iteration}"
         return out

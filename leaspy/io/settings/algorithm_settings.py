@@ -2,8 +2,7 @@ import json
 import os
 import warnings
 
-from leaspy.models.utils import DEFAULT_LOSS, VALID_LOSSES
-from leaspy.io.settings import default_data_dir
+from leaspy.io.settings import algo_default_data_dir
 from leaspy.io.settings.outputs_settings import OutputsSettings
 from leaspy.algo.algo_factory import AlgoFactory
 
@@ -49,11 +48,6 @@ class AlgorithmSettings:
         Used in ``scipy_minimize`` algorithm to perform a `LBFGS` instead of a `Powell` algorithm.
     n_jobs : int, optional, default 1
         Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
-    loss : {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
-        The wanted loss.
-            * ``'MSE'``: MSE of all features
-            * ``'MSE_diag_noise'``: MSE per feature
-            * ``'crossentropy'``: used when the features are binary
     progress_bar : bool, optional, default False
         Used to display a progress bar during computation.
 
@@ -69,11 +63,6 @@ class AlgorithmSettings:
       according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
     seed : int, optional, default None
       Used for stochastic algorithms.
-    loss : {'MSE', 'MSE_diag_noise', 'crossentropy'}, optional, default 'MSE'
-      The wanted loss.
-          * ``'MSE'``: MSE of all features
-          * ``'MSE_diag_noise'``: MSE per feature
-          * ``'crossentropy'``: used when the features are binary
     parameters : dict
       Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
     logs : :class:`.OutputsSettings`, optional
@@ -139,10 +128,9 @@ class AlgorithmSettings:
         self.seed: Optional[int] = None
         self.algorithm_initialization_method: str = None # Initialization of the algorithm itself
         self.model_initialization_method: str = None # Initialization of the model parameters (independantly of the algorithm)
-        self.loss: str = None  # TODO remove?
         self.logs = None
 
-        default_algo_settings_path = os.path.join(default_data_dir, 'default_' + name + '.json')
+        default_algo_settings_path = os.path.join(algo_default_data_dir, 'default_' + name + '.json')
 
         if os.path.isfile(default_algo_settings_path):
             self._load_default_values(default_algo_settings_path)
@@ -200,8 +188,8 @@ class AlgorithmSettings:
             algorithm_settings.model_initialization_method = cls._get_model_initialization_method(settings)
 
         if 'loss' in settings.keys():
-            print('You overwrote the algorithm default loss')
-        algorithm_settings.loss = cls._get_loss(settings)
+            raise LeaspyAlgoInputError('`loss` keyword for AlgorithmSettings is not supported any more. '
+                                       'Please define `noise_model` directly in your Leaspy model.')
 
         return algorithm_settings
 
@@ -231,8 +219,7 @@ class AlgorithmSettings:
             "parameters": self.parameters,
             "algorithm_initialization_method": self.algorithm_initialization_method,
             "model_initialization_method": self.model_initialization_method,
-            "loss": self.loss,
-            "logs": self.logs
+            "logs": self.logs  # really needed? I think it is not properly handled if reloaded then...
         }
 
         # Default json.dump kwargs:
@@ -301,7 +288,6 @@ class AlgorithmSettings:
             'seed': self._get_seed,
             'algorithm_initialization_method': self._get_algorithm_initialization_method,
             'model_initialization_method': self._get_model_initialization_method,
-            'loss': self._get_loss,
         }
 
         for k, v in kwargs.items():
@@ -391,7 +377,6 @@ class AlgorithmSettings:
         if settings['name'] == 'lme_fit':
             return
 
-        self.loss = self._get_loss(settings)
         self.algorithm_initialization_method = self._get_algorithm_initialization_method(settings)
 
         if settings['name'] in AlgoFactory._algos['fit']:
@@ -417,9 +402,6 @@ class AlgorithmSettings:
 
         if settings['name'] == 'lme_fit':
             return
-
-        if 'loss' not in settings.keys():
-            warnings.warn(error_tpl.format('loss') + f" Its value will be '{DEFAULT_LOSS}' by default")
 
         if 'algorithm_initialization_method' not in settings.keys():
             raise LeaspyAlgoInputError(error_tpl.format('algorithm_initialization_method'))
@@ -457,16 +439,4 @@ class AlgorithmSettings:
             return None
         # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
         return settings['model_initialization_method']
-
-    @staticmethod
-    def _get_loss(settings):
-        if 'loss' not in settings.keys():
-            # Return default value for the loss
-            # TODO? Emit a warning / log this info?
-            return DEFAULT_LOSS
-        elif settings['loss'] in VALID_LOSSES:
-            return settings['loss']
-        else:
-            raise LeaspyAlgoInputError(f"The loss provided is not recognised. Should be one of {VALID_LOSSES}")
-
 

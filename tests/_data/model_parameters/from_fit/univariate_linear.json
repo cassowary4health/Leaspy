@@ -4,7 +4,7 @@
   "features": [
     "Y0"
   ],
-  "loss": "MSE",
+  "noise_model": "gaussian_scalar",
   "parameters": {
     "g": [
       0.49362459778785706

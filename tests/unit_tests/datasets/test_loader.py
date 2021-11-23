@@ -35,7 +35,7 @@ class LoaderTest(LeaspyTestCase):
         leaspy_instance = Loader.load_leaspy_instance('parkinson-putamen-train')
         self.assertEqual(leaspy_instance.type, 'univariate_logistic')
         self.assertEqual(leaspy_instance.model.features, ['PUTAMEN'])
-        self.assertEqual(leaspy_instance.model.loss, 'MSE')
+        self.assertEqual(leaspy_instance.model.noise_model, 'gaussian_scalar')
 
         parameters = {"g": tensor([-0.7901085019111633]),
                       "tau_mean": tensor(64.18125915527344),

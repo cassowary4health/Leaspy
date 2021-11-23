@@ -26,6 +26,10 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
             data_full_path = cls.test_data_path('data_mock', data_path)
             data = Data.from_csv_file(data_full_path, **data_kws)
 
+        # force correct feature names for tests
+        assert len(leaspy.model.features) == len(data.headers), "Bad dimension"
+        leaspy.model.features = data.headers
+
         # create the personalize algo settings (from path or name + params)
         algo_settings = cls.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
 
@@ -162,7 +166,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
     """
     def test_personalize_gradientdescent(self):
         # Inputs
-        data = Data.from_csv_file(example_data_path)
+        data = Data.from_csv_file(self.example_data_path)
 
         # Initialize
         leaspy = Leaspy.load(...)

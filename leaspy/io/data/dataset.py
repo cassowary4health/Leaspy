@@ -167,10 +167,11 @@ class Dataset:
 
     @staticmethod
     def _check_model_compatibility(data: Data, model: AbstractModel):
-        if model.dimension is None:
-            return
-        if data.dimension != model.dimension:
+        if model.dimension is not None and data.dimension != model.dimension:
             raise LeaspyInputError(f"Unmatched dimensions: {model.dimension} (model) ≠ {data.dimension} (data).")
+
+        if model.features is not None and data.headers != model.features:
+            raise LeaspyInputError(f"Unmatched features: {model.features} (model) ≠ {data.headers} (data).")
 
     @staticmethod
     def _check_algo_compatibility(data: Data, algo: AbstractAlgo):

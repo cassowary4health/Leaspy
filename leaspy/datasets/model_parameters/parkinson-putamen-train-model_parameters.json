@@ -4,7 +4,7 @@
   "features": [
     "PUTAMEN"
   ],
-  "loss": "MSE",
+  "noise_model": "gaussian_scalar",
   "parameters": {
     "g": [
       -0.7901085019111633

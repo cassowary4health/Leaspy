@@ -4,9 +4,8 @@ import torch
 from joblib import Parallel, delayed
 from scipy.optimize import minimize
 
-from leaspy.models.utils import DEFAULT_LOSS
 from leaspy.io.outputs.individual_parameters import IndividualParameters
-from .abstract_personalize_algo import AbstractPersonalizeAlgo
+from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
 
 from leaspy.exceptions import LeaspyAlgoInputError
 
@@ -21,6 +20,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
     settings : :class:`.AlgorithmSettings`
         Settings of the algorithm.
     """
+
+    name = 'scipy_minimize'
 
     def __init__(self, settings):
         super().__init__(settings)
@@ -213,7 +214,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         Raises
         ------
         :exc:`.LeaspyAlgoInputError`
-            if algorithm loss is not valid.
+            if noise model is not currently supported by algorithm.
+            TODO: everything that is not generic here concerning noise structure should be handle by model/NoiseModel directly!!!!
         """
 
         # Extra arguments passed by scipy minimize
@@ -238,8 +240,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # Placeholder for result (objective and, if needed, gradient)
         res = {}
 
-        # Different losses implemented
-        if 'MSE' in model.loss:
+        # Loss is based on log-likelihood for model, which ultimately depends on noise structure
+        # TODO: should be directly handled in model or NoiseModel
+        if 'gaussian' in model.noise_model:
             noise_var = model.parameters['noise_std'] * model.parameters['noise_std']
             noise_var = noise_var.expand((1, model.dimension)) # tensor 1,n_fts (works with diagonal noise or scalar noise)
             res['objective'] = torch.sum((0.5 / noise_var) @ (diff * diff).t()) # <!> noise per feature
@@ -247,7 +250,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             if with_gradient:
                 res['gradient'] = torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0,1))
 
-        elif model.loss == 'crossentropy':
+        elif model.noise_model == 'bernoulli':
             predicted = torch.clamp(predicted, 1e-38, 1. - 1e-7)  # safety before taking the log # @P-E: why clamping not symmetric?
             neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
             neg_crossentropy[nans] = 0. # set nans to zero, not to count in the sum
@@ -258,7 +261,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
 
         else:
-            raise LeaspyAlgoInputError(f"Model loss '{model.loss}' is currently not implemented in 'scipy_minimize' algorithm..."
+            raise LeaspyAlgoInputError(f"'{model.noise_model}' noise is currently not implemented in 'scipy_minimize' algorithm. "
                                        f"Please open an issue on Gitlab if needed.")
 
         ## Regularity term
@@ -348,10 +351,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         individual_params_tensorized, err = self._get_individual_parameters_patient(model, times, values, patient_id=patient_id)
 
         if self.algo_parameters.get('progress_bar', True):
-            self.display_progress_bar(it, data.n_individuals, suffix='subjects')
-
-        #return {k: v for k, v in zip(p_names, ind_patient)}
-        #return individual_params_tensorized
+            self._display_progress_bar(it, data.n_individuals, suffix='subjects')
 
         # transformation is needed because of IndividualParameters expectations...
         return {k: v.item() if k != 'sources' else v.detach().squeeze(0).tolist() for k,v in individual_params_tensorized.items()}
@@ -373,23 +373,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual parameters of all patients.
         """
 
-        # <!> NEW: loss belongs to model! handling previous behavior, a bit dirty...
-        # TODO: to be removed when algorithm.loss attribute will be completely removed!
-        if self.loss is not None and self.loss != DEFAULT_LOSS: # non default loss from algorithm (to be removed / deprecated)
-            if self.loss != model.loss:
-                raise LeaspyAlgoInputError(f"You provided inconsistent losses: '{model.loss}' (for model) != '{self.loss}' (for algo)."
-                                            "Please define the loss only in the modle, not in the algorithm settings.")
-        else:
-            pass
-            ## set algo loss from model
-            # self.loss = model.loss
-
         individual_parameters = IndividualParameters()
 
-        #p_names = model.get_individual_variable_name()
-
         if self.algo_parameters.get('progress_bar', True):
-            self.display_progress_bar(-1, data.n_individuals, suffix='subjects')
+            self._display_progress_bar(-1, data.n_individuals, suffix='subjects')
 
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
             delayed(self._get_individual_parameters_patient_master)(it_pat, data, model, patient_id=id_pat)

@@ -20,12 +20,12 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         settings = AlgorithmSettings(name)
         self.assertEqual(settings.name, name)
         self.assertEqual(settings.parameters, json_data['parameters'])
-        self.assertEqual(settings.parameters['use_jacobian'], False)
+        self.assertEqual(settings.parameters['use_jacobian'], True)
         self.assertEqual(settings.seed, None)
 
     def test_jacobian_personalization(self):
-        settings = AlgorithmSettings('scipy_minimize', use_jacobian=True)
-        self.assertEqual(settings.parameters['use_jacobian'], True)
+        settings = AlgorithmSettings('scipy_minimize', use_jacobian=False)
+        self.assertEqual(settings.parameters['use_jacobian'], False)
 
     def test_constant_prediction_algorithm(self):
         settings = AlgorithmSettings('constant_prediction')
@@ -60,6 +60,7 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         self.assertEqual(settings.name, name)
         self.assertEqual(settings.parameters, json_data['parameters'])
         self.assertEqual(settings.seed, 10)
+        self.assertEqual(settings.parameters['progress_bar'], True)
 
     def test_constructor_by_loading_json(self):
         # Constructor by loading a json file

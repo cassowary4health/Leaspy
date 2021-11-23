@@ -7,6 +7,7 @@ from leaspy import __version__
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+from leaspy.models.utils.noise_model import NoiseModel
 
 from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
@@ -42,9 +43,13 @@ class UnivariateModel(AbstractModel):
     }
 
     def __init__(self, name: str, **kwargs):
+
         super().__init__(name)
+
         self.dimension = 1
         self.source_dimension = 0  # TODO, None ???
+        self.noise_model = 'gaussian_scalar'
+
         self.parameters = {
             "g": None,
             "tau_mean": None, "tau_std": None,
@@ -67,7 +72,7 @@ class UnivariateModel(AbstractModel):
         # subtype of univariate model
         self._subtype_suffix = self._check_subtype()
 
-        # load hyperparameters
+        # Load hyperparameters at end to overwrite default for new hyperparameters
         self.load_hyperparameters(kwargs)
 
     def _check_subtype(self):
@@ -88,7 +93,7 @@ class UnivariateModel(AbstractModel):
             'name': self.name,
             'features': self.features,
             #'dimension': 1,
-            'loss': self.loss,
+            'noise_model': self.noise_model,
             'parameters': model_parameters_save
         }
 
@@ -104,13 +109,14 @@ class UnivariateModel(AbstractModel):
 
     def load_hyperparameters(self, hyperparameters: dict):
 
+        expected_hyperparameters = ('features',)
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
-        if 'loss' in hyperparameters.keys():
-            self.loss = hyperparameters['loss']
-        if any([key not in ('features', 'loss') for key in hyperparameters.keys()]):
-            raise LeaspyModelInputError("Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
-                                       f"You gave {hyperparameters}.")
+
+        # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
+        expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
+
+        self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
     def initialize(self, dataset, method="default"):
 
@@ -320,7 +326,7 @@ class UnivariateModel(AbstractModel):
         sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2)
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2)
 
-        if self.loss == 'crossentropy':
+        if self.noise_model == 'bernoulli':
             sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters, attribute_type=True)
 
         return sufficient_statistics
@@ -337,12 +343,12 @@ class UnivariateModel(AbstractModel):
         self.parameters['tau_std'] = torch.std(tau)
 
         param_ind = self.get_param_from_real(realizations)
-        squared_diff = self.compute_sum_squared_tensorized(data, param_ind, attribute_type=True).sum()
-        self.parameters['noise_std'] = torch.sqrt(squared_diff / data.n_observations)
+        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type=True)
 
-        if self.loss == 'crossentropy':
+        if self.noise_model == 'bernoulli':
             crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type=True).sum()
             self.parameters['crossentropy'] = crossentropy
+
         # Stochastic sufficient statistics used to update the parameters of the model
 
     def update_model_parameters_normal(self, data, suff_stats):
@@ -365,7 +371,7 @@ class UnivariateModel(AbstractModel):
 
         self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
 
-        if self.loss == 'crossentropy':
+        if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
 
 

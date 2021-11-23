@@ -3,9 +3,6 @@ import torch
 from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
 from leaspy.algo.utils.samplers import AlgoWithSamplersMixin
 
-from leaspy.models.utils import DEFAULT_LOSS
-from leaspy.exceptions import LeaspyAlgoInputError
-
 
 class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
     """
@@ -29,25 +26,20 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
 
     def __init__(self, settings):
 
-        super().__init__()
-
-        # Algorithm parameters
-        self.algo_parameters = settings.parameters
-        self.seed = settings.seed
-        self.loss = settings.loss  # to be removed?!
-
-        # Realizations and samplers
-        self.realizations = None
-        #self.task = None
-        self.current_iteration = 0
+        super().__init__(settings)
 
         # Annealing
+        # TODO? move all annealing related stuff in a dedicated mixin?
         self.temperature_inv = 1
         self.temperature = 1
 
     ###########################
     ## Initialization
     ###########################
+
+    @property
+    def _do_annealing(self) -> bool:
+        return self.algo_parameters.get('annealing', {}).get('do_annealing', False)
 
     def _initialize_algo(self, data, model, realizations):
         """
@@ -58,23 +50,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-
-        Raises
-        ------
-        :exc:`.LeaspyAlgoInputError`
-            If inconsistent parameter between model & algo
         """
-
-        # TODO: change this behavior: loss should only come from algo!
-        # handling loss, a bit dirty...
-        if model.loss != DEFAULT_LOSS: # non default loss from model
-            if self.loss not in [DEFAULT_LOSS, model.loss]:
-                raise LeaspyAlgoInputError(f"You provided inconsistent loss: '{model.loss}' for model and '{self.loss}' for algo.")
-            # set algo loss to the one from model
-            self.loss = model.loss
-        else:
-            # set model loss from algo
-            model.loss = self.loss
 
         # MCMC toolbox (cache variables for speed-ups + tricks)
         model.initialize_MCMC_toolbox()
@@ -82,15 +58,16 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         # Samplers
         self._initialize_samplers(model, data)
         self._initialize_sufficient_statistics(data, model, realizations)
-        if self.algo_parameters['annealing']['do_annealing']:
+        if self._do_annealing:
             self._initialize_annealing()
+
         return realizations
 
     def _initialize_annealing(self):
         """
         Initialize annealing, setting initial temperature and number of iterations.
         """
-        if self.algo_parameters['annealing']['do_annealing']:
+        if self._do_annealing:
             if self.algo_parameters['annealing']['n_iter'] is None:
                 self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['n_iter'] / 2)
 
@@ -148,7 +125,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         # self.likelihood.update_likelihood(data, model, realizations)
 
         # Annealing
-        if self.algo_parameters['annealing']['do_annealing']:
+        if self._do_annealing:
             self._update_temperature()
 
     def _update_temperature(self):
@@ -171,16 +148,17 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
     ###########################
 
     def __str__(self):
-        out = ""
-        out += "=== ALGO ===\n"
+        out = "=== ALGO ===\n"
         out += f"Instance of {self.name} algo\n"
         out += f"Iteration {self.current_iteration}\n"
+
         out += "=Samplers\n"
         for sampler_name, sampler in self.samplers.items():
             acceptation_rate = torch.mean(sampler.acceptation_temp.detach()).item()
             out += f"    {sampler_name} rate : {acceptation_rate:.2%}, std: {sampler.std.mean():.5f}\n"
 
-        if self.algo_parameters['annealing']['do_annealing']:
+        if self._do_annealing:
             out += "Annealing\n"
             out += f"Temperature : {self.temperature}"
+
         return out

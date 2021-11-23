@@ -52,7 +52,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
 
         self.generic_usecase(
             'logistic', model_codename='logistic_scalar_noise',
-            loss='MSE', source_dimension=2,
+            noise_model='gaussian_scalar', source_dimension=2,
             fit_algo_params=dict(n_iter=100, seed=0),
             perso_algo = 'mode_real', expected_noise_std=0.09753, # in perso
         )
@@ -62,7 +62,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
 
         self.generic_usecase(
             'logistic', model_codename='logistic_diag_noise',
-            loss='MSE_diag_noise', source_dimension=2,
+            noise_model='gaussian_diagonal', source_dimension=2,
             fit_algo_params=dict(n_iter=100, seed=0),
             perso_algo = 'mode_real', expected_noise_std=[], # in perso
         )
@@ -72,7 +72,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
 
         self.generic_usecase(
             'logistic', model_codename='logistic_binary',
-            loss='crossentropy', source_dimension=2,
+            noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=100, seed=0),
             perso_algo = 'mode_real', expected_noise_std=[], # in perso
         )

@@ -1,11 +1,20 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import sys
 from abc import ABC, abstractmethod
+import time
+import random
 
 import numpy as np
 import torch
 
 from leaspy.io.logs.fit_output_manager import FitOutputManager
-from leaspy.utils.typing import KwargsType, Optional, Any
+from leaspy.utils.typing import KwargsType, Optional, Tuple, Any
+from leaspy.exceptions import LeaspyModelInputError, LeaspyAlgoInputError
+
+if TYPE_CHECKING:
+    from leaspy.models.abstract_model import AbstractModel
 
 
 class AbstractAlgo(ABC):
@@ -13,10 +22,23 @@ class AbstractAlgo(ABC):
     Abstract class containing common methods for all algorithm classes.
     These classes are child classes of `AbstractAlgo`.
 
+    Parameters
+    ----------
+    name : str
+    family : str
+        cf. attributes
+    parameters : KwargsType
+        cf. attribute `algo_parameters`
+
     Attributes
     ----------
     name : str
         Name of the algorithm.
+    family : str
+        Family of the algorithm. For now, valid families are:
+            * ``'fit'```
+            * ``'personalize'```
+            * ``'simulate'``
     algo_parameters : dict
         Contains the algorithm's parameters. These ones are set by a
         :class:`.AlgorithmSettings` class object.
@@ -26,11 +48,22 @@ class AbstractAlgo(ABC):
         Optional output manager of the algorithm
     """
 
-    def __init__(self):
-        self.name: str = None
-        self.algo_parameters: KwargsType = None
+    # Identifier of algorithm (classes variables)
+    name: str = None
+    family: str = None
+
+    # Format used to display noise std-dev values
+    _log_noise_fmt = '.2%'
+
+    def __init__(self, settings):
+
+        if settings.name != self.name:
+            raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
+
+        self.seed = settings.seed
+        self.algo_parameters = settings.parameters
+
         self.output_manager: Optional[FitOutputManager] = None
-        self.seed: Optional[int] = None
 
     ###########################
     # Initialization
@@ -38,7 +71,7 @@ class AbstractAlgo(ABC):
     @staticmethod
     def _initialize_seed(seed: Optional[int]):
         """
-        Set :mod:`numpy` and :mod:`torch` seeds and display it (static method).
+        Set :mod:`random`, :mod:`numpy` and :mod:`torch` seeds and display it (static method).
 
         Notes - numpy seed is needed for reproducibility for the simulation algorithm which use the scipy kernel
         density estimation function. Indeed, scipy use numpy random seed.
@@ -49,8 +82,10 @@ class AbstractAlgo(ABC):
             The wanted seed
         """
         if seed is not None:
+            random.seed(seed)
             np.random.seed(seed)
             torch.manual_seed(seed)
+            # TODO: use logger instead (level=INFO)
             print(f" ==> Setting seed to {seed}")
 
     ###########################
@@ -58,9 +93,9 @@ class AbstractAlgo(ABC):
     ###########################
 
     @abstractmethod
-    def run(self, model, dataset) -> Any:
+    def run_impl(self, model: AbstractModel, *args, **extra_kwargs) -> Tuple[Any, Optional[torch.FloatTensor]]:
         """
-        Main method, run the algorithm.
+        Run the algorithm (actual implementation), to be implemented in children classes.
 
         TODO fix proper abstract class
 
@@ -73,7 +108,9 @@ class AbstractAlgo(ABC):
 
         Returns
         -------
-        Depends on algorithm class: TODO change?
+        A 2-tuple containing:
+            * the result to send back to user
+            * optional float tensor representing noise std-dev (to be printed)
 
         See Also
         --------
@@ -82,6 +119,60 @@ class AbstractAlgo(ABC):
         :class:`.SimulationAlgorithm`
         """
         pass
+
+    def run(self, model: AbstractModel, *args, return_noise: bool = False, **extra_kwargs) -> Any:
+        """
+        Main method, run the algorithm.
+
+        TODO fix proper abstract class method: input depends on algorithm... (esp. simulate != from others...)
+
+        Parameters
+        ----------
+        model : :class:`~.models.abstract_model.AbstractModel`
+            The used model.
+        dataset : :class:`.Dataset`
+            Contains all the subjects' observations with corresponding timepoints, in torch format to speed up computations.
+        return_noise : bool (default False), keyword only
+            Should the algorithm return main output and optional noise output as a 2-tuple?
+
+        Returns
+        -------
+        Depends on algorithm class: TODO change?
+
+        See Also
+        --------
+        :class:`.AbstractFitAlgo`
+        :class:`.AbstractPersonalizeAlgo`
+        :class:`.SimulationAlgorithm`
+        """
+
+        # Check algo is well-defined
+        if self.algo_parameters is None:
+            raise LeaspyAlgoInputError(f'The `{self.name}` algorithm was not properly created.')
+
+        # Set seed if needed
+        self._initialize_seed(self.seed)
+
+        # Init the run
+        time_beginning = time.time()
+
+        # Get the results (with noise)
+        output, noise_std = self.run_impl(model, *args, **extra_kwargs)
+
+        # Print run infos
+        duration_in_seconds = time.time() - time_beginning
+
+        noise_repr = self._noise_std_repr(noise_std, model=model)
+        if noise_repr is not None:
+            print(f"\nThe standard deviation of the noise at the end of the {self.family} is:\n{noise_repr}")
+
+        print(f"\n{self.family.title()} with `{self.name}` took: {self._duration_to_str(duration_in_seconds)}")
+
+        # Return only output part
+        if return_noise:
+            return output, noise_std
+        else:
+            return output
 
     ###########################
     # Getters / Setters
@@ -129,6 +220,7 @@ class AbstractAlgo(ABC):
         for k, v in parameters.items():
             if k in self.algo_parameters.keys():
                 previous_v = self.algo_parameters[k]
+                # TODO? log it instead (level=INFO or DEBUG)
                 print(f"Replacing {k} parameter from value {previous_v} to value {v}")
             self.algo_parameters[k] = v
 
@@ -159,9 +251,11 @@ class AbstractAlgo(ABC):
             self.output_manager = FitOutputManager(output_settings)
 
     @staticmethod
-    def display_progress_bar(iteration, n_iter, suffix, n_step_default=50):
+    def _display_progress_bar(iteration, n_iter, suffix, n_step_default=50):
         """
         Display a progression bar while running algorithm, simply based on `sys.stdout`.
+
+        TODO: use tqdm instead?
 
         Parameters
         ----------
@@ -191,17 +285,64 @@ class AbstractAlgo(ABC):
                     '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration + 1, n_iter) + suffix)
                 sys.stdout.flush()
 
+    def _noise_std_repr(self, noise_std: Optional[torch.FloatTensor], model: AbstractModel) -> Optional[str]:
+        """
+        Get a nice string representation of noise std-dev for a given model.
+
+        TODO? move this code into a NoiseModel helper class
+
+
+        Parameters
+        ----------
+        noise_std : :class:`torch.FloatTensor`
+            Std-deviation of noise (tensor).
+        model : :class:`.AbstractModel`
+            Model that noise was estimated on.
+
+        Returns
+        -------
+        str
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            If model and noise are inconsistent.
+        """
+        if noise_std is None:
+            return
+
+        noise_elts = np.array(noise_std).reshape(-1).tolist()  # can be torch tensor or numpy array (LME, constant model ...)
+        noise_elts_nb = len(noise_elts)
+
+        # in SimulationAlgorithm you may want to format a noise which is not compliant with the one from model so we don't rely on kwd
+        #if getattr(model, 'noise_model', None) == 'gaussian_diagonal':
+        if noise_elts_nb != 1:
+            if noise_elts_nb != model.dimension:
+                raise LeaspyModelInputError(f'Number of features ({model.dimension}) does not match with '
+                                            f'number of diagonal terms of noise ({noise_elts_nb}).')
+
+            noise_map = {ft_name: f'{ft_noise:{self._log_noise_fmt}}'
+                         for ft_name, ft_noise in zip(model.features, noise_elts)}
+            print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
+            print_noise = '\n'.join(print_noise.split(', '))
+        else:
+            if hasattr(noise_std, 'item'):
+                noise_std = noise_std.item()
+            print_noise = f"{noise_std:{self._log_noise_fmt}}"
+
+        return print_noise
+
     @staticmethod
-    def convert_timer(d: float) -> str:
+    def _duration_to_str(seconds: float, seconds_fmt='.3g') -> str:
         """
         Convert a float representing computation time in seconds to a string giving time in hour, minutes and
         seconds ``%h %min %s``.
 
-        If less than one hour, do not return hours. If less than a minute, do not return minuts.
+        If less than one hour, do not return hours. If less than a minute, do not return minutes.
 
         Parameters
         ----------
-        d : float
+        seconds : float
             Computation time
 
         Returns
@@ -209,13 +350,16 @@ class AbstractAlgo(ABC):
         str
             Time formating in hour, minutes and seconds.
         """
-        s = d % 60
-        m = (d % 3600) // 60
-        h = d // 3600
+        h = int(seconds // 3600)
+        m = int((seconds % 3600) // 60)
+        s = seconds % 60  # float
 
-        res = '%ds' % s
+        res = ''
         if m:
-            res = '%dmin ' % m + res
-        if h:
-            res = '%dh ' % h + res
+            if h:
+                res += f'{h}h '
+            res += f'{m}m '
+        res += f'{s:{seconds_fmt}}s'
+
         return res
+

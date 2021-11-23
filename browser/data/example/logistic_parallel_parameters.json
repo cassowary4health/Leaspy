@@ -9,7 +9,7 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
-  "loss": "MSE",
+  "noise_model": "gaussian_scalar",
   "parameters": {
     "g": 0.7914233803749084,
     "tau_mean": 72.07982635498047,

@@ -2,7 +2,7 @@
   "leaspy_version": "1.1",
   "name": "univariate_logistic",
   "features": ["feature"],
-  "loss": "MSE",
+  "noise_model": "gaussian_scalar",
   "parameters": {
     "g": 1.0,
     "tau_mean": 70.0,

@@ -34,10 +34,11 @@ class Realization:
     tensor_realizations : :class:`torch.Tensor`
         Actual realizations, whose shape is given by `shape`
     """
-    def __init__(self, name: ParamType, shape: Tuple[int, ...], variable_type: str):
+    def __init__(self, name: ParamType, shape: Tuple[int, ...], variable_type: str, rv_type: str = None):
         self.name = name
         self.shape = shape
         self.variable_type = variable_type
+        self.rv_type = rv_type
         self._tensor_realizations: torch.FloatTensor = None
 
     @classmethod
@@ -87,10 +88,20 @@ class Realization:
         if self.variable_type == "population":
             self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
         elif self.variable_type == 'individual':
-
-            distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
-                                                             scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized
-            self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
+            if self.rv_type == 'linked':
+                if self.name == 'v0':
+                    self._tensor_realizations: torch.Tensor = torch.zeros((n_individuals, *self.shape), device=model.device)
+                elif self.name == 'tau_mean':
+                    self._tensor_realizations: torch.Tensor = torch.zeros((n_individuals, *self.shape), device=model.device)
+            else:
+                if f"{self.name}_mean" in model.parameters:
+                    distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
+                                                                 scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized
+                else:
+                    mean = model.get_intersept(f"{self.name}_mean")
+                    distribution = torch.distributions.normal.Normal(loc=mean,
+                                                                 scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized
+                self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{self.variable_type}'.")
 

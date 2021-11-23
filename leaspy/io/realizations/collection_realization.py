@@ -42,7 +42,7 @@ class CollectionRealization:
         # Indices
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
-            realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
+            realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'], info_variable['rv_type'])
             realization.initialize(n_individuals, model, scale_individual=scale_individual)  ## TODO Check with Raphael
             self.realizations[variable] = realization
 

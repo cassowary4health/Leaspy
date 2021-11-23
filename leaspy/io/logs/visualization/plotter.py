@@ -420,6 +420,8 @@ class Plotter:
             if key not in ['betas']:
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+                if key in ['link']:
+                    df_convergence = df_convergence.drop(columns=range(model.cofactors_dimension+1, df_convergence.shape[1]+1, model.cofactors_dimension+1))
                 df_convergence.index.rename("iter", inplace=True)
                 df_convergence.plot(ax=ax[y_position], legend=False)
                 ax[y_position].set_title(key)
@@ -432,27 +434,28 @@ class Plotter:
                     ax[y_position].set_title(key)
 
         for i, key in enumerate(reals_ind_name):
-            import_path_mean = os.path.join(path, f"{key}_mean.csv")
-            df_convergence_mean = pd.read_csv(import_path_mean, index_col=0, header=None)
-            df_convergence_mean.index.rename("iter", inplace=True)
+            if key != 'v0' and key != 'tau_mean':
+                import_path_mean = os.path.join(path, f"{key}_mean.csv")
+                df_convergence_mean = pd.read_csv(import_path_mean, index_col=0, header=None)
+                df_convergence_mean.index.rename("iter", inplace=True)
 
-            import_path_var = os.path.join(path, f"{key}_std.csv")
-            df_convergence_var = pd.read_csv(import_path_var, index_col=0, header=None)
-            df_convergence_var.index.rename("iter", inplace=True)
+                import_path_var = os.path.join(path, f"{key}_std.csv")
+                df_convergence_var = pd.read_csv(import_path_var, index_col=0, header=None)
+                df_convergence_var.index.rename("iter", inplace=True)
 
-            df_convergence_mean.columns = [f"{key}_mean"]
-            df_convergence_var.columns = [f"{key}_sigma"] # is it variance or std-dev??
+                df_convergence_mean.columns = [f"{key}_mean"]
+                df_convergence_var.columns = [f"{key}_sigma"] # is it variance or std-dev??
 
-            df_convergence = pd.concat([df_convergence_mean, df_convergence_var], axis=1)
+                df_convergence = pd.concat([df_convergence_mean, df_convergence_var], axis=1)
 
-            y_position += 1
-            df_convergence.plot(use_index=True, y=f"{key}_mean", ax=ax[y_position], legend=False)
+                y_position += 1
+                df_convergence.plot(use_index=True, y=f"{key}_mean", ax=ax[y_position], legend=False)
 
-            mu, sd = df_convergence[f"{key}_mean"], np.sqrt(df_convergence[f"{key}_sigma"]) # is it variance or std-dev??
-            ax[y_position].fill_between(df_convergence.index,
-                                        mu - sd, mu + sd,
-                                        color='b', alpha=0.2)
-            ax[y_position].set_title(key)
+                mu, sd = df_convergence[f"{key}_mean"], np.sqrt(df_convergence[f"{key}_sigma"]) # is it variance or std-dev??
+                ax[y_position].fill_between(df_convergence.index,
+                                            mu - sd, mu + sd,
+                                            color='b', alpha=0.2)
+                ax[y_position].set_title(key)
 
         plt.tight_layout()
         plt.savefig(path_saveplot_2)

@@ -172,6 +172,8 @@ class FitOutputManager:
                 # P0, V0
                 elif value.shape[0] == 1 and len(value.shape) > 1:
                     model_parameters_save[key] = value[0].tolist()
+                elif value.shape[0] > 1 and len(value.shape) > 1:
+                    model_parameters_save[key] = value.flatten().tolist()
             elif value.ndim == 1:
                 model_parameters_save[key] = value.tolist()
             else:  # ndim == 0

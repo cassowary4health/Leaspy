@@ -2,6 +2,7 @@ import os
 import json
 
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+from leaspy.io.settings import algo_default_data_dir
 
 from tests import LeaspyTestCase
 
@@ -12,7 +13,7 @@ class AlgorithmSettingsTest(LeaspyTestCase):
 
         # Default constructor
         name = 'scipy_minimize'
-        path = os.path.join(self.default_algo_dir, 'default_' + name + '.json')
+        path = os.path.join(algo_default_data_dir, 'default_' + name + '.json')
 
         with open(path) as fp:
             json_data = json.load(fp)
@@ -48,7 +49,7 @@ class AlgorithmSettingsTest(LeaspyTestCase):
     def test_default_constructor_with_kwargs(self):
         # Default constructor with kwargs
         name = 'mcmc_saem'
-        path = os.path.join(self.default_algo_dir, 'default_' + name + '.json')
+        path = os.path.join(algo_default_data_dir, 'default_' + name + '.json')
 
         with open(path) as fp:
             json_data = json.load(fp)

@@ -50,11 +50,16 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
 
     def test_usecase_logistic_scalar_noise(self):
 
+        # Simulation parameters
+        custom_delays_vis = lambda n: [.5]*min(n, 2) + [1.]*max(0, n-2)  # OLD weird delays between visits
+        simul_params=dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100)  # noise=...
+
         self.generic_usecase(
             'logistic', model_codename='logistic_scalar_noise',
             noise_model='gaussian_scalar', source_dimension=2,
             fit_algo_params=dict(n_iter=100, seed=0),
-            perso_algo = 'mode_real', expected_noise_std=0.09753, # in perso
+            perso_algo='mode_real', expected_noise_std=0.09753, # in perso
+            simulate_algo_params=simul_params,
         )
 
     @unittest.skip('TODO')
@@ -64,7 +69,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             'logistic', model_codename='logistic_diag_noise',
             noise_model='gaussian_diagonal', source_dimension=2,
             fit_algo_params=dict(n_iter=100, seed=0),
-            perso_algo = 'mode_real', expected_noise_std=[], # in perso
+            perso_algo='mode_real', expected_noise_std=[], # in perso
         )
 
     @unittest.skip('TODO')
@@ -74,7 +79,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             'logistic', model_codename='logistic_binary',
             noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=100, seed=0),
-            perso_algo = 'mode_real', expected_noise_std=[], # in perso
+            perso_algo='mode_real', expected_noise_std=[], # in perso
         )
 
     # TODO? univariate_*, linear

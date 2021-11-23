@@ -48,12 +48,12 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
             warnings.simplefilter('ignore', DeprecationWarning)
             self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
             self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
-            self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
+            self.assertEqual(len(simulation_results.get_parameter_distribution('sources_0')), n)
 
         path_expected_sim_res = self.test_data_path("simulation", expected_results_file)
 
         ## uncomment to re-generate simulation results
-        #simulation_results.data.to_dataframe().to_csv(path_expected_sim_res, index=False)
+        #simulation_results.data.to_dataframe().to_csv(path_expected_sim_res, index=False, float_format='{:.6g}'.format)
 
         # Test the reproducibility of simulate
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13

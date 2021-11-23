@@ -122,7 +122,8 @@ class Leaspy:
             # it will only be set at the beginning of `algorithm.run` just afterwards
             # so a `initialization_method='random'` won't be reproducible for now, TODO?
             initialization_method = algorithm_settings.model_initialization_method
-            self.model.initialize(dataset, initialization_method)
+            precomputed_initialization = algorithm_settings.parameters.get('precomputed_initialization', None)
+            self.model.initialize(dataset, initialization_method, precomputed=precomputed_initialization)
         algorithm.run(self.model, dataset)
 
 

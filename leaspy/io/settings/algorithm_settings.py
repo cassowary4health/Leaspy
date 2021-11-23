@@ -319,6 +319,8 @@ class AlgorithmSettings:
             elif k in self.parameters:
                 self.parameters[k] = v
 
+            elif k == 'precomputed_initialization':
+                self.parameters[k] = v
             else:
                 warnings.warn(f"The parameter '{k}' you provided is unknown and thus was skipped.")
 

@@ -653,13 +653,25 @@ class AbstractModel(ABC):
             mean = self.parameters[realization.name]
             # TODO : Sure it is only MCMC_toolbox?
             std = self.MCMC_toolbox['priors'][f"{realization.name}_std"]
+            return self.compute_regularity_variable(realization.tensor_realizations, mean, std)
         elif realization.variable_type == 'individual':
-            mean = self.parameters[f"{realization.name}_mean"]
-            std = self.parameters[f"{realization.name}_std"]
+            if realization.rv_type != 'linked':
+                if realization.name == 'tau':
+                    try:
+                        mean = self.compute_individual_tau_means(self.cofactors.t()).reshape(-1,1)
+                    except AttributeError:
+                        mean = self.parameters[f"{realization.name}_mean"]
+
+                else:
+                    mean = self.parameters[f"{realization.name}_mean"]
+                    
+                std = self.parameters[f"{realization.name}_std"]
+                return self.compute_regularity_variable(realization.tensor_realizations, mean, std)
+            else:
+                return torch.zeros(realization.tensor_realizations.shape[0], 1, device=self.device)
         else:
             raise LeaspyModelInputError(f"Variable type '{realization.variable_type}' not known, should be 'population' or 'individual'.")
 
-        return self.compute_regularity_variable(realization.tensor_realizations, mean, std)
 
     def compute_regularity_variable(self, value: torch.FloatTensor, mean: torch.FloatTensor, std: torch.FloatTensor) -> torch.FloatTensor:
         """
@@ -794,6 +806,9 @@ class AbstractModel(ABC):
         if self.device != device:
             for parameter in self.parameters:
                 self.parameters[parameter] = self.parameters[parameter].to(device)
+
+            if hasattr(self, "cofactors"):
+                self.cofactors = self.cofactors.to(device)
 
             if hasattr(self, "attributes"):
                 self.attributes.move_to_device(device)

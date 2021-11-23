@@ -14,7 +14,7 @@ tau_std = 5.
 noise_std = .1
 sources_std = 1.
 
-def initialize_parameters(model, dataset, method="default"):
+def initialize_parameters(model, dataset, method="default", precomputed=None):
     """
     Initialize the model's group parameters given its name & the scores of all subjects.
 
@@ -62,6 +62,8 @@ def initialize_parameters(model, dataset, method="default"):
     elif name == 'mixed_linear-logistic':
         raise NotImplementedError
         #parameters = initialize_logistic(model, dataset, method)
+    elif name == 'logistic_link':
+        parameters = initialize_logistic_link(model, dataset, method, precomputed)
     else:
         raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
 
@@ -314,6 +316,95 @@ def initialize_logistic(model, dataset, method):
 
     return parameters
 
+def initialize_logistic_link(model, dataset, method, precomputed=None):
+    """
+    Initialize the logistic model's group parameters.
+
+    Parameters
+    ----------
+    model : :class:`.AbstractModel`
+        The model to initialize.
+    dataset : :class:`.Dataset`
+        Contains the individual scores.
+    method : str
+        Must be one of:
+            * ``'default'``: initialize at mean.
+            * ``'random'``:  initialize with a gaussian realization with same mean and variance.
+
+    Returns
+    -------
+    parameters : dict [str, `torch.Tensor`]
+        Contains the initialized model's group parameters.
+        The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
+
+    Raises
+    ------
+    :exc:`.LeaspyInputError`
+        If method is not handled
+    """
+
+    # Get the slopes / values / times mu and sigma
+    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
+    values_mu, values_sigma = compute_patient_values_distribution(dataset)
+    time_mu, time_sigma = compute_patient_time_distribution(dataset)
+
+    # Method
+    if method == "default":
+        slopes = slopes_mu
+        values = values_mu
+        time = time_mu
+    elif method == "random":
+        slopes = torch.normal(slopes_mu, slopes_sigma)
+        values = torch.normal(values_mu, values_sigma)
+        time = torch.normal(time_mu, time_sigma)
+    else:
+        raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
+
+    # Check that slopes are >0, values between 0 and 1
+    slopes = slopes.clamp(min=1e-2)
+    values = values.clamp(min=1e-2, max=1-1e-2)
+
+
+    # Do transformations
+    t0 = time.clone().detach()
+    #v0_array = slopes.log().detach()
+    g_array = torch.log(1. / values - 1.).detach() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
+    betas = torch.zeros((model.dimension - 1, model.source_dimension))
+
+    link = torch.zeros(model.link_shape)
+
+    if precomputed is not None:
+        concat = torch.cat((precomputed['v0'], t0.reshape(1)))
+        assert(concat.shape[0] == model.link_shape[0])
+
+        link[:,-1] = concat
+  
+    # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
+    # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
+
+    # Create smart initialization dictionary
+    if 'univariate' in model.name:
+        raise NotImplementedError("No univariate link model")
+
+    else:
+        parameters = {
+            'g': g_array,
+            'link': link,
+            'betas': betas,
+            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'xi_mean': torch.tensor(0., dtype=torch.float32),
+            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
+            'sources_mean': torch.tensor(0., dtype=torch.float32),
+            'sources_std': torch.tensor(sources_std, dtype=torch.float32),
+            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
+        }
+
+    return parameters
+
+
+    
+    pass
 
 def initialize_logistic_parallel(model, dataset, method):
     """

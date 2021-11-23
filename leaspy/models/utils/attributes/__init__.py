@@ -1,4 +1,5 @@
 from .logistic_attributes import LogisticAttributes
+from .logistic_link_attributes import LogisticLinkAttributes
 from .linear_attributes import LinearAttributes
 from .logistic_parallel_attributes import LogisticParallelAttributes
 from .attributes_factory import AttributesFactory

@@ -1,6 +1,6 @@
 import torch
 
-from .abstract_manifold_model_attributes import AbstractManifoldModelAttributes
+from .abstract_manifold_model_link_attributes import AbstractManifoldModelLinkAttributes
 
 
 class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
@@ -93,7 +93,7 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
             self._compute_link(values)
 
         if self.has_sources:
-
+            return
             recompute_ortho_basis = compute_positions or compute_velocities
 
             if recompute_ortho_basis:

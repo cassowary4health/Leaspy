@@ -2,6 +2,7 @@ from .abstract_model import AbstractModel
 
 from .univariate_model import UnivariateModel
 from .multivariate_model import MultivariateModel
+from .multivariate_link_model import MultivariateLinkModel
 from .multivariate_parallel_model import MultivariateParallelModel
 from .constant_model import ConstantModel
 from .lme_model import LMEModel
@@ -17,6 +18,8 @@ all_models = {
     'linear': MultivariateModel,
     'mixed_linear-logistic': MultivariateModel,
     'logistic_parallel': MultivariateParallelModel,
+
+    'logistic_link': MultivariateLinkModel,
 
     # naive models (for benchmarks)
     'lme': LMEModel,

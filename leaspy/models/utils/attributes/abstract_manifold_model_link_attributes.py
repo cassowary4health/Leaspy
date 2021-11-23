@@ -86,7 +86,7 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
         if self.univariate:
             raise NotImplementedError("no univariate link model")
         else:
-            return self.positions, self.link, self.mixing_matrix
+            return self.positions, self.link 
 
     def _compute_betas(self, values: DictParamsTorch):
         """
@@ -286,7 +286,7 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
         """
 
         assert 0 <= strip_col < self.dimension
-        ej = torch.zeros(self.dimension, dtype=torch.float32)
+        ej = torch.zeros(self.dimension, dtype=torch.float32, device=self.device)
         ej[strip_col] = 1.
 
         alpha = -torch.sign(dgamma_t0[strip_col]) * torch.norm(dgamma_t0)
@@ -295,7 +295,7 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
 
         ## Classical Householder method (to get an orthonormal basis for the canonical inner product)
         ## Q = I_n - 2 v • v'
-        q_matrix = torch.eye(self.dimension) - 2 * v_vector.view(-1,1) * v_vector
+        q_matrix = torch.eye(self.dimension, device=self.device) - 2 * v_vector.view(-1,1) * v_vector
 
         # first component of basis is a unit vector (for metric norm) collinear to `dgamma_t0`
         #self.orthonormal_basis = q_matrix[:, 1:]

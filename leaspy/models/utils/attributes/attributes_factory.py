@@ -1,7 +1,7 @@
 import torch
 
 from leaspy.models.utils.attributes.abstract_attributes import AbstractAttributes
-from leaspy.models.utils.attributes import LogisticParallelAttributes, LogisticAttributes, LinearAttributes
+from leaspy.models.utils.attributes import LogisticParallelAttributes, LogisticAttributes, LogisticLinkAttributes, LinearAttributes
 
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -13,6 +13,7 @@ class AttributesFactory:
 
     _attributes = {
         'logistic': LogisticAttributes,
+        'logistic_link': LogisticLinkAttributes,
         'univariate_logistic': LogisticAttributes,
 
         'logistic_parallel': LogisticParallelAttributes,

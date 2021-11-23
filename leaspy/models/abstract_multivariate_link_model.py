@@ -16,7 +16,7 @@ from leaspy.exceptions import LeaspyModelInputError
 
 
 @doc_with_super()
-class AbstractMultivariateModel(AbstractModel):
+class AbstractMultivariateLinkModel(AbstractModel):
     """
     Contains the common attributes & methods of the multivariate models.
 
@@ -35,7 +35,11 @@ class AbstractMultivariateModel(AbstractModel):
     def __init__(self, name: str, **kwargs):
         super().__init__(name)
         self.source_dimension: int = None
+        
         self.dimension: int = None
+        self.cofactors_dimension: int = None
+        self.cofactors: torch.Tensor = None
+        self.link_shape: torch.Size = None
         self.parameters = {
             "g": None,
             "betas": None,
@@ -73,11 +77,15 @@ class AbstractMultivariateModel(AbstractModel):
     def initialize(self, dataset, method="default", precomputed=None):
         self.dimension = dataset.dimension
         self.features = dataset.headers
+        self.cofactors_dimension = dataset.cofactors_dimension
+        self.cofactors = dataset.cofactors
+        self.link_shape = torch.Size([self.dimension+1, self.cofactors_dimension+1])
+
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
 
-        self.parameters = initialize_parameters(self, dataset, method)
+        self.parameters = initialize_parameters(self, dataset, method, precomputed=precomputed)
 
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension, self.device)
         self.attributes.update(['all'], self.parameters)
@@ -189,8 +197,9 @@ class AbstractMultivariateModel(AbstractModel):
         """
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32, device=self.device),
-            'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32, device=self.device),
-            'sources': torch.zeros(self.source_dimension, dtype=torch.float32, device=self.device)
+            'tau': torch.tensor([self.get_intersept('tau_mean')], dtype=torch.float32, device=self.device),
+            'sources': torch.zeros(self.source_dimension, dtype=torch.float32, device=self.device),
+            'v0': torch.exp(self.get_intersept('v0')[None,:])
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)

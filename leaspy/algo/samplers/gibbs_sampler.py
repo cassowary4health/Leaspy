@@ -156,6 +156,10 @@ class GibbsSampler(AbstractSampler):
             # Update intermediary model variables if necessary
             model.update_MCMC_toolbox([self.name], realizations)
 
+            if self.name == 'link':
+                realizations['v0'].tensor_realizations = model.compute_individual_speeds(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
+                realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone()
+
             # Compute the attachment and regularity
             new_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
             new_regularity = model.compute_regularity_realization(realization).sum()
@@ -172,6 +176,10 @@ class GibbsSampler(AbstractSampler):
                 realization.tensor_realizations = previous_reals_pop
                 # Update intermediary model variables if necessary
                 model.update_MCMC_toolbox([self.name], realizations)
+                if self.name == 'link':
+                    realizations['v0'].tensor_realizations = model.compute_individual_speeds(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
+                    realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone()
+
                 # force re-compute on next iteration
                 self.previous_attachment = self.previous_regularity = None
             else:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import warnings
 
 import numpy as np
 
+from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.exceptions import LeaspyAlgoInputError
 from leaspy.utils.typing import FeatureType, List
@@ -12,7 +14,7 @@ if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
 
 
-class ConstantPredictionAlgorithm(): # AbstractAlgo
+class ConstantPredictionAlgorithm(AbstractAlgo):
     r"""
     ConstantPredictionAlgorithm is the algorithm that outputs a constant prediction
 
@@ -39,24 +41,23 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         If any invalid setting for the algorithm
     """
 
+    name = 'constant_prediction'
+    family = 'personalize'
+
     _prediction_types = {'last', 'last_known', 'max', 'mean'}
 
     def __init__(self, settings):
 
-        # super().__init__()
-        self.name = 'constant_prediction'
-        if settings.name != self.name:
-            raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
+        super().__init__(settings)
 
         if settings.parameters['prediction_type'] not in self._prediction_types:
             raise LeaspyAlgoInputError(f'The `prediction_type` of the constant prediction should be in {self._prediction_types}')
+
         self.prediction_type = settings.parameters['prediction_type']
 
-    def run(self, model: ConstantModel, dataset: Dataset):
+    def run_impl(self, model: ConstantModel, dataset: Dataset):
         """
         Main method, refer to abstract definition in :meth:`~.algo.personalize.abstract_personalize_algo.AbstractPersonalizeAlgo.run`.
-
-        TODO fix proper inheritance
 
         Parameters
         ----------
@@ -76,8 +77,6 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         # always overwrite model features (no fit process)
         # TODO? we could fit the model before, only to recover model features, and then check at personalize that is the same (as in others personalize algos...)
 
-        features = dataset.headers
-
         # Always overwrite model features (no fit for constant model...)
         model.initialize(dataset)
 
@@ -86,11 +85,11 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
             idx = dataset.indices[it]
             times = dataset.get_times_patient(it)
             values = dataset.get_values_patient(it).numpy()
-            ind_ip = self._get_individual_last_values(times, values, fts=features)
+            ind_ip = self._get_individual_last_values(times, values, fts=model.features)
 
             ip.add_individual_parameters(str(idx), ind_ip)
 
-        return ip, 0 # TODO? evaluate rmse?
+        return ip, None # TODO? evaluate rmse?
 
     def _get_individual_last_values(self, times, values, *, fts: List[FeatureType]):
         """
@@ -145,4 +144,6 @@ class ConstantPredictionAlgorithm(): # AbstractAlgo
         """
         Not implemented.
         """
+        if settings is not None:
+            warnings.warn('Settings logs in constant prediction algorithm is not supported.')
         return

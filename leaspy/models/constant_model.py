@@ -55,8 +55,8 @@ class ConstantModel(GenericModel):
 
         super().__init__(name, **kwargs)
 
-        # no more initialization needed for constant model (in particular: no fit)
-        # features will be evaluated at "personalization"
+        # no fit algorithm is needed for constant model; every "personalization" will re-initialize model
+        # however, we need to mock that model is personalization-ready by setting self.is_initialized (API requirement)
         self.is_initialized = True
 
     def compute_individual_trajectory(self, timepoints, ip):

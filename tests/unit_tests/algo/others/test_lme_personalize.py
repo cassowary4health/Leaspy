@@ -27,7 +27,9 @@ class LMEPersonalizeAlgorithmTest(LeaspyTestCase):
                            "ages_std": 1.,
                            "fe_params": np.array([0.3333016, 1.]),
                            "cov_re": np.array([[0.4523892]]),
-                           "cov_re_unscaled_inv": np.array([[1/1.41324825e+10]])}
+                           "cov_re_unscaled_inv": np.array([[1/1.41324825e+10]]),
+                           "noise_std": 0.111 # fake value to be displayed...
+                         }
         cls.model.features = ['feat1']
         cls.model.load_parameters(cls.parameters)
         cls.settings = AlgorithmSettings('lme_personalize')
@@ -66,6 +68,6 @@ class LMEPersonalizeAlgorithmTest(LeaspyTestCase):
         data = Data.from_dataframe(df)
         self.dataset = Dataset(data)
         ip = self.algo.run(model=self.model, dataset=self.dataset)
-        self.assertAlmostEqual(ip[0]._individual_parameters['pat1']['random_intercept'], 3, 0)
-        self.assertAlmostEqual(ip[0]._individual_parameters['pat2']['random_intercept'], 15, 0)
-        self.assertAlmostEqual(ip[0]._individual_parameters['pat3']['random_intercept'], 6, 0)
+        self.assertAlmostEqual(ip._individual_parameters['pat1']['random_intercept'], 3, 0)
+        self.assertAlmostEqual(ip._individual_parameters['pat2']['random_intercept'], 15, 0)
+        self.assertAlmostEqual(ip._individual_parameters['pat3']['random_intercept'], 6, 0)

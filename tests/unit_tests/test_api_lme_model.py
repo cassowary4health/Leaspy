@@ -7,6 +7,7 @@ import statsmodels.formula.api as smf
 from statsmodels.regression.mixed_linear_model import MixedLMParams
 
 from leaspy import Data, Leaspy, AlgorithmSettings
+from leaspy.algo.others.lme_fit import LMEFitAlgorithm
 
 from tests import LeaspyTestCase
 
@@ -40,6 +41,12 @@ class LMEModelAPITest(LeaspyTestCase):
 
         cls.data_new_ix = Data.from_dataframe(data_df_others_ix)
 
+        cls.default_lme_fit_params = {
+            'with_random_slope_age': None,  # to be completely removed at a point
+            'force_independent_random_effects': False,
+            'method': ['lbfgs', 'bfgs', 'powell']
+        }
+
     def test_bivariate_data(self):
         bivariate_data = Data.from_dataframe(pd.DataFrame({
             'ID': [1, 1, 1, 2, 2, 2],
@@ -58,20 +65,15 @@ class LMEModelAPITest(LeaspyTestCase):
         # Leaspy model
         lsp = Leaspy('lme')
         self.assertIsNone(lsp.model.features)
-        self.assertEqual(lsp.model.with_random_slope_age, True)
+        self.assertEqual(lsp.model.with_random_slope_age, True)  # new default
+        lsp.model.load_hyperparameters(dict(with_random_slope_age=False))
+        self.assertEqual(lsp.model.with_random_slope_age, False)
 
         # Settings
-        settings = AlgorithmSettings('lme_fit', with_random_slope_age=False)
+        settings = AlgorithmSettings('lme_fit')
+        self.assertDictEqual(settings.parameters, self.default_lme_fit_params)
 
-        self.assertDictEqual(settings.parameters, {
-            'with_random_slope_age': False,
-            'force_independent_random_effects': False,
-            'method': ['lbfgs', 'bfgs', 'powell']
-        })
-
-        # Deprecated behavior: (re)set of model `with_random_slope_age` from algorithm setting
-        with self.assertWarns(FutureWarning):
-            lsp.fit(self.data, settings)
+        lsp.fit(self.data, settings)
 
         self.assertListEqual(lsp.model.features, ['Y0'])
         self.assertEqual(lsp.model.with_random_slope_age, False)
@@ -182,12 +184,7 @@ class LMEModelAPITest(LeaspyTestCase):
 
         # Settings
         settings = AlgorithmSettings('lme_fit')
-
-        self.assertDictEqual(settings.parameters, {
-            'with_random_slope_age': None, # deprecated (in model only)
-            'force_independent_random_effects': False,
-            'method': ['lbfgs', 'bfgs', 'powell']
-        })
+        self.assertDictEqual(settings.parameters, self.default_lme_fit_params)
 
         lsp.fit(self.data, settings)
 
@@ -220,9 +217,9 @@ class LMEModelAPITest(LeaspyTestCase):
         settings = AlgorithmSettings('lme_fit', force_independent_random_effects=True)
 
         self.assertDictEqual(settings.parameters, {
-            'with_random_slope_age': None, # deprecated (in model only) # To be removed soon
+            **self.default_lme_fit_params,
             'force_independent_random_effects': True,
-            'method': ['lbfgs', 'bfgs']
+            'method': ['lbfgs', 'bfgs']  # powell method not supported
         })
 
         # Leaspy
@@ -243,3 +240,32 @@ class LMEModelAPITest(LeaspyTestCase):
         )
         self.check_consistency_sm(lsp.model.parameters, ip, re_formula='~1+TIME_norm', free=free)
 
+    def test_deprecated_hyperparameter_in_algo(self):
+        # Test deprecation behavior (test to be removed with this old behavior will be removed)
+
+        ## 1: Overwrite LME hyperparameter from LME fit algo
+        settings = AlgorithmSettings('lme_fit', with_random_slope_age=False)
+        algo = LMEFitAlgorithm(settings)
+        self.assertEqual(algo._model_hyperparams_to_set, {'with_random_slope_age': False})
+
+        lsp = Leaspy('lme')
+        self.assertEqual(lsp.model.with_random_slope_age, True)
+        with self.assertWarns(FutureWarning):
+            lsp.fit(self.data, settings)
+
+        self.assertEqual(lsp.model.with_random_slope_age, False)
+
+        ## 2: No warning if hyperparameter set to None (--> default)
+        settings = AlgorithmSettings('lme_fit', with_random_slope_age=None)
+        algo = LMEFitAlgorithm(settings)
+        self.assertEqual(algo._model_hyperparams_to_set, {'with_random_slope_age': None})
+
+        settings = AlgorithmSettings('lme_fit')
+        algo = LMEFitAlgorithm(settings)
+        self.assertEqual(algo._model_hyperparams_to_set, {'with_random_slope_age': None})
+
+        # no effect on model hyperparameter
+        lsp = Leaspy('lme', with_random_slope_age=False)
+        self.assertEqual(lsp.model.with_random_slope_age, False)
+        lsp.fit(self.data, settings)
+        self.assertEqual(lsp.model.with_random_slope_age, False)

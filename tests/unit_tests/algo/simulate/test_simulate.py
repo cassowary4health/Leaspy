@@ -179,7 +179,7 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         self._check_bin_values(r)
 
         # noise: inherit_struct
-        settings = AlgorithmSettings('simulation')
+        settings = AlgorithmSettings('simulation', seed=0)
         self.assertEqual(settings.parameters['noise'], 'inherit_struct')
 
         for lsp_obj in [lsp_scal, lsp_diag, lsp_bin]:

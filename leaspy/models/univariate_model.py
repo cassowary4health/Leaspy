@@ -114,6 +114,7 @@ class UnivariateModel(AbstractModel):
             self.features = hyperparameters['features']
 
         # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
+        # TODO? forbid the usage of `gaussian_diagonal` noise for such model?
         expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
 
         self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)

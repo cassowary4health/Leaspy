@@ -1,6 +1,7 @@
 from abc import abstractmethod
 import json
 import math
+import warnings
 
 import torch
 
@@ -75,11 +76,22 @@ class AbstractMultivariateModel(AbstractModel):
     """
 
     def initialize(self, dataset, method="default"):
+
+        if dataset.dimension < 2:
+            raise LeaspyModelInputError("A multivariate model should have at least 2 features but your dataset "
+                                        f"only contains {dataset.dimension} features ({dataset.headers}).")
+
         self.dimension = dataset.dimension
         self.features = dataset.headers
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
+            warnings.warn('You did not provide `source_dimension` hyperparameter for multivariate model, '
+                          f'setting it to ⌊√dimension⌋ = {self.source_dimension}.')
+
+        elif not (isinstance(self.source_dimension, int) and 0 <= self.source_dimension < self.dimension):
+            raise LeaspyModelInputError(f"Sources dimension should be an integer in [0, dimension - 1[ "
+                                        f"but you provided `source_dimension` = {self.source_dimension} whereas `dimension` = {self.dimension}")
 
         self.parameters = initialize_parameters(self, dataset, method)
 

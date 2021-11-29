@@ -38,6 +38,10 @@ class LMEFitAlgorithmTest(LeaspyTestCase):
         cls.settings = AlgorithmSettings('lme_fit')
         cls.algo = LMEFitAlgorithm(cls.settings)
 
+    def test_constructor(self):
+        self.assertFalse(self.algo.deterministic)
+        self.assertEqual(self.algo.family, 'fit')
+
     def test_get_reformated(self):
         ages = self.algo._get_reformated(self.dataset, 'timepoints')
         expected_ages = np.array(self.dataframe.sort_index(axis=0).index.get_level_values('TIME'))[1:]

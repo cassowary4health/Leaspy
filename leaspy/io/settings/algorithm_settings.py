@@ -33,7 +33,7 @@ class AlgorithmSettings:
                 * ``'simulation'``
 
     model_initialization_method : str, optional
-        For fit algorithms, give a model initialization method,
+        For **fit** algorithms only, give a model initialization method,
         according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
     algo_initialization_method : str, optional
         Personalize the algorithm initialization method,
@@ -45,7 +45,7 @@ class AlgorithmSettings:
     seed : int, optional, default None
         Used for stochastic algorithms.
     use_jacobian : bool, optional, default False
-        Used in ``scipy_minimize`` algorithm to perform a `LBFGS` instead of a `Powell` algorithm.
+        Used in ``scipy_minimize`` algorithm to perform a `L-BFGS` instead of a `Powell` algorithm.
     n_jobs : int, optional, default 1
         Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
     progress_bar : bool, optional, default False
@@ -122,12 +122,16 @@ class AlgorithmSettings:
         ]
     }
 
+    # known keys for all algorithms (<!> not all of them are mandatory!)
+    _known_keys = ['name', 'seed', 'algorithm_initialization_method', 'model_initialization_method', 'parameters', 'logs']
+
     def __init__(self, name: str, **kwargs):
+
         self.name = name
         self.parameters: KwargsType = None # {}
         self.seed: Optional[int] = None
         self.algorithm_initialization_method: str = None # Initialization of the algorithm itself
-        self.model_initialization_method: str = None # Initialization of the model parameters (independantly of the algorithm)
+        self.model_initialization_method: str = None # Initialization of the model parameters (independently of the algorithm, for fit family only)
         self.logs = None
 
         default_algo_settings_path = os.path.join(algo_default_data_dir, 'default_' + name + '.json')
@@ -136,7 +140,26 @@ class AlgorithmSettings:
             self._load_default_values(default_algo_settings_path)
         else:
             raise LeaspyAlgoInputError(f"The algorithm name '{name}' you provided does not exist")
+
         self._manage_kwargs(kwargs)
+        self.check_consistency()
+
+    @property
+    def algo_class(self):
+        """Class of the algorithm derived from its name (shorthand)."""
+        return AlgoFactory.get_class(self.name)
+
+    def check_consistency(self) -> None:
+        """
+        Check internal consistency of algorithm settings and warn or raise a `LeaspyAlgoInputError` if not.
+        """
+        algo_family = self.algo_class.family
+        if self.model_initialization_method is not None and algo_family != 'fit':
+            warnings.warn('You should not define `model_initialization_method` in your algorithm: '
+                          f'"{self.name}" is not a `fit` algorithm so it has no effect.')
+
+        if self.seed is not None and self.algo_class.deterministic:
+            warnings.warn(f'You can skip defining `seed` since the algorithm {self.name} is deterministic.')
 
     @classmethod
     def load(cls, path_to_algorithm_settings: str):
@@ -191,6 +214,14 @@ class AlgorithmSettings:
             raise LeaspyAlgoInputError('`loss` keyword for AlgorithmSettings is not supported any more. '
                                        'Please define `noise_model` directly in your Leaspy model.')
 
+        # Unknown keys
+        # TODO: this class should really be refactored so not to copy in 3 methods same stuff (manage_kwars, load & _check_default_settings)
+        unknown_keys = set(settings.keys()).difference(cls._known_keys)
+        if unknown_keys:
+            raise LeaspyAlgoInputError(f'Unexpected keys {unknown_keys} in algorithm settings.')
+
+        algorithm_settings.check_consistency()
+
         return algorithm_settings
 
     def save(self, path: str, **kwargs):
@@ -216,11 +247,19 @@ class AlgorithmSettings:
         json_settings = {
             "name": self.name,
             "seed": self.seed,
-            "parameters": self.parameters,
             "algorithm_initialization_method": self.algorithm_initialization_method,
-            "model_initialization_method": self.model_initialization_method,
-            "logs": self.logs  # really needed? I think it is not properly handled if reloaded then...
         }
+
+        algo_family = self.get_algo_family()
+        if algo_family == 'fit':
+            json_settings['model_initialization_method'] = self.model_initialization_method
+
+        if self.logs is not None:
+            # really needed? I think it is not properly handled if reloaded then...
+            json_settings['logs'] = self.logs
+
+        # append parameters key after "hyperparameters"
+        json_settings['parameters'] = self.parameters
 
         # Default json.dump kwargs:
         kwargs = {'indent': 2, **kwargs}
@@ -245,7 +284,7 @@ class AlgorithmSettings:
                 Saves the values to display in pdf every N iterations.
             * save_periodicity: int, optional, default 50
                 Saves the values in csv files every N iterations.
-            * overwrite_logs_folder: bool, optionl, default False
+            * overwrite_logs_folder: bool, optional, default False
                 Set it to ``True`` to overwrite the content of the folder in ``path``.
 
         Notes
@@ -300,6 +339,7 @@ class AlgorithmSettings:
                 self.parameters[k] = v
 
             else:
+                # TODO: warn with all unknown parameters? (and use `self._known_keys`)
                 warnings.warn(f"The parameter '{k}' you provided is unknown and thus was skipped.")
 
         # dynamic default parameters
@@ -367,45 +407,42 @@ class AlgorithmSettings:
         self.name = self._get_name(settings)
         self.parameters = self._get_parameters(settings)
 
-        if settings['name'] == 'constant_prediction':
-            return
-        if settings['name'] == 'lme_personalize':
-            return
-
-        self.seed = self._get_seed(settings)
-
-        if settings['name'] == 'lme_fit':
-            return
-
         self.algorithm_initialization_method = self._get_algorithm_initialization_method(settings)
 
-        if settings['name'] in AlgoFactory._algos['fit']:
+        # optional hyperparameters depending on type of algorithm
+        algo_class = self.algo_class
+
+        if not algo_class.deterministic:
+            self.seed = self._get_seed(settings)
+
+        if algo_class.family == 'fit':
             self.model_initialization_method = self._get_model_initialization_method(settings)
 
-    @staticmethod
-    def _check_default_settings(settings):
+    @classmethod
+    def _check_default_settings(cls, settings):
 
+        # Unknown keys
+        unknown_keys = set(settings.keys()).difference(cls._known_keys)
+        if unknown_keys:
+            raise LeaspyAlgoInputError(f'Unexpected keys {unknown_keys} in algorithm settings.')
+
+        # Missing keys
         error_tpl = "The '{}' key is missing in the algorithm settings (JSON file) you are loading."
 
-        # TODO: This should probably be in the ests
         for mandatory_key in ['name', 'parameters']:
             if mandatory_key not in settings.keys():
                 raise LeaspyAlgoInputError(error_tpl.format(mandatory_key))
 
-        if settings['name'] == 'constant_prediction':
-            return
-        if settings['name'] == 'lme_personalize':
-            return
+        algo_class = AlgoFactory.get_class(settings['name'])
 
-        if 'seed' not in settings.keys():
+        if not algo_class.deterministic and 'seed' not in settings.keys():
             raise LeaspyAlgoInputError(error_tpl.format('seed'))
-
-        if settings['name'] == 'lme_fit':
-            return
 
         if 'algorithm_initialization_method' not in settings.keys():
             raise LeaspyAlgoInputError(error_tpl.format('algorithm_initialization_method'))
 
+        if algo_class.family == 'fit' and 'model_initialization_method' not in settings.keys():
+            raise LeaspyAlgoInputError(error_tpl.format('model_initialization_method'))
 
     @staticmethod
     def _get_name(settings):

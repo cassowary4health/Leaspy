@@ -30,6 +30,8 @@ class TestAbstractAlgo(LeaspyTestCase):
         self.assertEqual(algo.name, None)
         self.assertEqual(algo.output_manager, None)
         self.assertEqual(algo.seed, None)
+        self.assertIsNone(algo.family)
+        self.assertFalse(algo.deterministic)
 
     @LeaspyTestCase.allow_abstract_class_init(AbstractAlgo)
     def test_initialize_seed(self):

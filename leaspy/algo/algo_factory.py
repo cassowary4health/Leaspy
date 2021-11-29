@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Type
+
+from collections import ChainMap
 
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 # from leaspy.algo.fit.gradient_descent import GradientDescent
@@ -52,6 +54,17 @@ class AlgoFactory:
             'simulation': SimulationAlgorithm
         }
     }
+
+    @classmethod
+    def get_class(cls, name: str) -> Type[AbstractAlgo]:
+        """Get the class of the algorithm identified as `name`."""
+        klasses = ChainMap(*cls._algos.values())
+        klass = klasses.get(name, None)
+
+        if klass is None:
+            raise LeaspyAlgoInputError(f'Your algorithm "{name}" should be part of the known algorithms: {cls._algos}.')
+
+        return klass
 
     @classmethod
     def algo(cls, algorithm_family: str, settings) -> AbstractAlgo:

@@ -45,6 +45,8 @@ class LMEPersonalizeAlgorithmTest(LeaspyTestCase):
 
     def test_constructor(self):
         self.assertEqual(self.algo.name, 'lme_personalize')
+        self.assertTrue(self.algo.deterministic)
+        self.assertEqual(self.algo.family, 'personalize')
 
     def test_remove_nans(self):
         new_values, new_times = self.algo._remove_nans(self.values, self.times)

@@ -1,7 +1,7 @@
 {
   "name": "mcmc_saem",
   "seed": null,
-  "initialization_method": "default",
+  "algorithm_initialization_method": "default",
   "parameters": {
     "n_burn_in_iter": 1700,
     "n_iter": 2000,

@@ -39,6 +39,9 @@ class AbstractAlgo(ABC):
             * ``'fit'```
             * ``'personalize'```
             * ``'simulate'``
+    deterministic : bool
+        True, if and only if algorithm does not involve in randomness.
+        Setting a seed and such algorithms will be useless.
     algo_parameters : dict
         Contains the algorithm's parameters. These ones are set by a
         :class:`.AlgorithmSettings` class object.
@@ -51,6 +54,7 @@ class AbstractAlgo(ABC):
     # Identifier of algorithm (classes variables)
     name: str = None
     family: str = None
+    deterministic: bool = False
 
     # Format used to display noise std-dev values
     _log_noise_fmt = '.2%'

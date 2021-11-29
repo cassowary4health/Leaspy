@@ -73,4 +73,3 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         settings = AlgorithmSettings.load(path)
         self.assertEqual(settings.name, 'mcmc_saem')
         self.assertEqual(settings.parameters, json_data['parameters'])
-

@@ -35,6 +35,8 @@ class ConstantPredictionAlgorithmTest(LeaspyTestCase):
         algo = ConstantPredictionAlgorithm(settings)
         self.assertEqual(algo.name, 'constant_prediction')
         self.assertEqual(algo.prediction_type, 'last')
+        self.assertTrue(algo.deterministic)
+        self.assertEqual(algo.family, 'personalize')
 
         for prediction_type in ['last', 'last_known', 'max', 'mean']:
             settings = AlgorithmSettings('constant_prediction', prediction_type=prediction_type)

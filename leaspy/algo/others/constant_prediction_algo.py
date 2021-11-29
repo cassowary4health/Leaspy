@@ -20,7 +20,7 @@ class ConstantPredictionAlgorithm(AbstractAlgo):
 
     It is associated to :class:`~.models.constant_model.ConstantModel`
 
-    TODO: fix algorithm inheritance (more genericity needed)
+    TODO: it should be a child of `AbstractPersonalizeAlgorithm` (refactoring needed)
 
     Parameters
     ----------
@@ -43,6 +43,7 @@ class ConstantPredictionAlgorithm(AbstractAlgo):
 
     name = 'constant_prediction'
     family = 'personalize'
+    deterministic = True
 
     _prediction_types = {'last', 'last_known', 'max', 'mean'}
 

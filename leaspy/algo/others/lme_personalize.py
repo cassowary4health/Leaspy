@@ -12,6 +12,8 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
     r"""
     Personalization algorithm associated to :class:`~.models.lme_model.LMEModel`
 
+    TODO: it should be a child of `AbstractPersonalizeAlgorithm` (refactoring needed)
+
     Parameters
     ----------
     settings : :class:`.AlgorithmSettings`
@@ -25,6 +27,7 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
 
     name = 'lme_personalize'
     family = 'personalize'
+    deterministic = True
 
     def run_impl(self, model, dataset):
         """

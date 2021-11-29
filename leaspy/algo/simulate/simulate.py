@@ -81,7 +81,7 @@ class SimulationAlgorithm(AbstractAlgo):
             * function : n (int >= 1) => 1D numpy.ndarray[float > 0] of length `n` giving delay between visits (e.g.: 3 => [0.5, 1.5, 1.])
     noise : str or float or array-like[float], optional
         Wanted level of gaussian noise in the generated scores:
-            * Set noise to ``None`` will lead to patients exactly following logistic curves (no noise added).
+            * Set noise to ``None`` will lead to patients follow the model exactly (no noise added).
             * Set to ``'inherit_struct'`` (or deprecated ``'default'``), the noise added will follow the model noise structure
               and for Gaussian noise it will be computed from reconstruction errors on data & individual parameters provided.
             * Set noise to ``'model'``, the noise added will follow the model noise structure as well as its values.

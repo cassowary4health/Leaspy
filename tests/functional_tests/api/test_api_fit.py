@@ -147,7 +147,7 @@ class LeaspyFitTest(unittest.TestCase):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_scalar_noise', loss='MSE', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=False, # TODO: True when ready
+                                     check_model=False,  # TODO: True when ready
                                      check_kws=dict(atol=tol))
 
         self.assertAlmostEqual(leaspy.model.parameters['g'], 1.6102, delta=tol)
@@ -164,7 +164,7 @@ class LeaspyFitTest(unittest.TestCase):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise', loss='MSE_diag_noise', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=False, # TODO: True when ready
+                                     check_model=False,  # TODO: True when ready
                                      check_kws=dict(atol=tol))
 
         self.assertAlmostEqual(leaspy.model.parameters['g'], 1.6642, delta=tol)
@@ -208,7 +208,7 @@ class LeaspyFitTest(unittest.TestCase):
 
         leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise', loss='MSE', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=False, # TODO: True when ready
+                                     check_model=False,  # TODO: True when ready
                                      check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
                                                                                'tau_std': dict(atol=tol_tau)}))
 

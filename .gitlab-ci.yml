@@ -113,8 +113,7 @@ pages:
   rules:
     - if: $CI_COMMIT_BRANCH # == $CI_DEFAULT_BRANCH
   tags:
-    - linux  # arbitrary choice...
-    - shell
+    - shell  # arbitrary choice...
   dependencies:
     - tests
   script:
@@ -132,8 +131,7 @@ prepare_metadata:
   rules:
     - if: $CI_COMMIT_TAG
   tags:
-    - linux  # arbitrary choice...
-    - shell
+    - shell  # arbitrary choice...
   variables:
     VERSION_PYTHON_FILE: leaspy/__init__.py
     VERSION_REGEX: '^__version__\s*=\s*[\x27"](.+)[\x27"].*$'  # \x27 is for single quote
@@ -149,6 +147,34 @@ prepare_metadata:
   artifacts:
     reports:
       dotenv: $PKG_METADATA_FILE
+
+# Code quality & static application security pipelines from Gitlab
+include:
+  # https://docs.gitlab.com/ee/user/project/merge_requests/code_quality.html
+  - template: Code-Quality.gitlab-ci.yml
+  # https://docs.gitlab.com/ee/user/application_security/sast/
+  - template: Security/SAST.gitlab-ci.yml
+
+code_quality:
+  rules:
+    - if: $CODE_QUALITY_DISABLED
+      when: never
+    - if: $CI_COMMIT_BRANCH  # not on tags...
+  tags:
+    - linux  # must have docker
+    - shell  # but don't do docker in docker (slow)...
+  needs: []  # no dependencies (docker execution)
+  artifacts:
+    when: always
+    paths: [gl-code-quality-report.json]
+
+sast:
+  variables:
+    SAST_EXCLUDED_ANALYZERS: eslint  # some js in browser...
+    SAST_EXCLUDED_PATHS: 'build, dist, docs, tests' # browser, example
+  tags:
+    - docker
+  needs: []  # no dependencies (docker execution)
 
 # Trigger child pipeline for conditional release jobs
 releases:

@@ -28,12 +28,3 @@ from_personalize_ip_path = lambda ip_file: os.path.join(from_personalize_ips_fol
 
 # to store temporary data (used during tests)
 test_tmp_dir = os.path.join(test_data_dir, "_tmp")
-
-
-from unittest.mock import patch
-
-def allow_abstract_class_init(abc_klass):
-    """
-    Decorator to allow to instantiate an abstract class (for testing only)
-    """
-    return patch.multiple(abc_klass, __abstractmethods__=set())

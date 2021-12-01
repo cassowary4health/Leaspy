@@ -6,11 +6,10 @@ import warnings
 
 import pandas as pd
 import torch
-from numpy import allclose
 
 from leaspy import Data, Leaspy, Result
 from tests import example_data_path, example_data_covars_path, \
-                  test_data_dir, test_tmp_dir, hardcoded_model_path, from_personalize_ip_path
+                  test_tmp_dir, hardcoded_model_path, from_personalize_ip_path
 
 
 class ResultTest(unittest.TestCase):
@@ -134,7 +133,7 @@ class ResultTest(unittest.TestCase):
                     load_result_and_check_same_as_expected(ind_param_input, data_input)
 
     def test_get_error_distribution_dataframe(self):
-        leaspy_session = Leaspy.load(hardcoded_model_path('logistic'))
+        leaspy_session = Leaspy.load(hardcoded_model_path('logistic_scalar_noise'))
         self.results.get_error_distribution_dataframe(leaspy_session.model)
 
     ###############################################################

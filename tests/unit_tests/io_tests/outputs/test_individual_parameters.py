@@ -1,22 +1,17 @@
 import os
 import unittest
-import pandas as pd
-import torch
-import numpy as np
 import json
 import warnings
 
-from leaspy.io.outputs.individual_parameters import IndividualParameters
-from tests import test_tmp_dir, hardcoded_ip_path
+import numpy as np
+import pandas as pd
+import torch
 
-def ordered(obj):
-    """Utils function to sort `obj` recursively at all levels (in-depth)."""
-    if isinstance(obj, dict):
-        return sorted((k, ordered(v)) for k, v in obj.items())
-    elif isinstance(obj, list):
-        return sorted(ordered(x) for x in obj)
-    else:
-        return obj
+from leaspy.io.outputs.individual_parameters import IndividualParameters
+
+from tests import test_tmp_dir, hardcoded_ip_path
+from tests.helpers import TestHelpers
+
 
 class IndividualParametersTest(unittest.TestCase):
 
@@ -274,10 +269,11 @@ class IndividualParametersTest(unittest.TestCase):
         ip._save_json(test_path)
 
         with open(self.path_json, 'r') as f1, open(test_path, 'r') as f2:
-            file1 = json.load(f1)
-            file2 = json.load(f2)
+            ip1 = json.load(f1)
+            ip2 = json.load(f2)
 
-        self.assertEqual(ordered(file1), ordered(file2))
+        self.assertEqual(TestHelpers.ordered_containers(ip1, sort_seqs=()),
+                         TestHelpers.ordered_containers(ip2, sort_seqs=()))
 
         os.remove(test_path)
 
@@ -323,10 +319,11 @@ class IndividualParametersTest(unittest.TestCase):
         ip.save(path_json_test)
 
         with open(self.path_json, 'r') as f1, open(path_json_test, 'r') as f2:
-            file1 = json.load(f1)
-            file2 = json.load(f2)
+            ip1 = json.load(f1)
+            ip2 = json.load(f2)
 
-        self.assertEqual(ordered(file1), ordered(file2))
+        self.assertEqual(TestHelpers.ordered_containers(ip1, sort_seqs=()),
+                         TestHelpers.ordered_containers(ip2, sort_seqs=()))
 
         os.remove(path_json_test)
 

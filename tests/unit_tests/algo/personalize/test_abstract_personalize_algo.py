@@ -1,14 +1,14 @@
-from tests import allow_abstract_class_init
 import unittest
 
 from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
-from tests import allow_abstract_class_init
+from tests.helpers import TestHelpers
+
 
 class AbstractPersonalizeAlgoTest(unittest.TestCase):
 
-    @allow_abstract_class_init(AbstractPersonalizeAlgo)
+    @TestHelpers.allow_abstract_class_init(AbstractPersonalizeAlgo)
     def test_constructor(self):
         settings = AlgorithmSettings('scipy_minimize')
 

@@ -5,7 +5,6 @@ import torch
 from leaspy import Data, Leaspy
 from leaspy.io.data.dataset import Dataset
 from leaspy.algo.samplers.gibbs_sampler import GibbsSampler
-# from . import dummy_ind_variable_infos
 
 from tests import example_data_path, hardcoded_model_path
 
@@ -21,7 +20,7 @@ class SamplerTest(unittest.TestCase):
         n_draw = 50
         temperature_inv = 1.0
 
-        path_model_sampler = hardcoded_model_path('logistic')
+        path_model_sampler = hardcoded_model_path('logistic_scalar_noise')
 
         data = Dataset(Data.from_csv_file(example_data_path))
         leaspy = Leaspy.load(path_model_sampler)
@@ -62,7 +61,7 @@ class SamplerTest(unittest.TestCase):
         n_draw = 200
         # temperature_inv = 1.0
 
-        path_model_sampler = hardcoded_model_path('logistic')
+        path_model_sampler = hardcoded_model_path('logistic_scalar_noise')
 
         # data = Dataset(Data.from_csv_file(example_data_path))
         leaspy = Leaspy.load(path_model_sampler)
@@ -82,7 +81,7 @@ class SamplerTest(unittest.TestCase):
         n_draw = 200
         # temperature_inv = 1.0
 
-        path_model_sampler = hardcoded_model_path('logistic')
+        path_model_sampler = hardcoded_model_path('logistic_scalar_noise')
 
         # data = Dataset(Data.from_csv_file(example_data_path))
         leaspy = Leaspy.load(path_model_sampler)

@@ -9,12 +9,12 @@ from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.model_factory import ModelFactory
 
 from tests import example_data_path, binary_data_path, hardcoded_model_path
-from tests import allow_abstract_class_init
+from tests.helpers import TestHelpers
 
 
 class AbstractModelTest(unittest.TestCase):
 
-    @allow_abstract_class_init(AbstractModel)
+    @TestHelpers.allow_abstract_class_init(AbstractModel)
     def test_abstract_model_constructor(self):
         """
         Test initialization of abstract model class object.
@@ -40,12 +40,12 @@ class AbstractModelTest(unittest.TestCase):
             self.assertIn(attribute, present_attributes)
         # TODO: use python's hasattr and issubclass
 
-    @allow_abstract_class_init(AbstractModel)
+    @TestHelpers.allow_abstract_class_init(AbstractModel)
     def test_load_parameters(self):
         """
         Test the method load_parameters.
         """
-        leaspy_object = Leaspy.load(hardcoded_model_path('logistic'))
+        leaspy_object = Leaspy.load(hardcoded_model_path('logistic_scalar_noise'))
 
         abstract_model = AbstractModel("dummy_model")
 
@@ -201,11 +201,11 @@ class AbstractModelTest(unittest.TestCase):
                             self.assertEqual(v.dim(), 2)
                             self.assertEqual(v.shape, (1, src_dim if (k == 'sources') else 1))
 
-    # @allow_abstract_class_init(AbstractModel)
+    # @TestHelpers.allow_abstract_class_init(AbstractModel)
     # def test_compute_individual_trajectory(self):
     #     # TODO not sure it is the right place to test that
     #     # multivariate
-    #     leaspy_object = Leaspy.load(hardcoded_model_path('logistic'))
+    #     leaspy_object = Leaspy.load(hardcoded_model_path('logistic_scalar_noise'))
     #     abstract_model = AbstractModel("logistic")
     #     abstract_model.load_parameters(leaspy_object.model.parameters)
     #

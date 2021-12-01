@@ -2,50 +2,71 @@ import os
 import unittest
 
 import torch
-import pandas as pd
 
-from leaspy import Leaspy, Data, AlgorithmSettings
-from tests import example_data_path, test_data_dir, hardcoded_model_path
+from leaspy import Leaspy, IndividualParameters
+
+from tests import test_data_dir, hardcoded_model_path
+from tests.helpers import TestHelpers
 
 
 class LeaspyPersonalizeTest(unittest.TestCase):
 
+    @staticmethod
+    def generic_personalization(hardcoded_model_name: str, *, algo_path: str = None,
+                                algo_name: str = None, **algo_params):
+        """Helper for a generic personalization in following tests."""
+
+        # load saved model (hardcoded values)
+        leaspy = Leaspy.load(hardcoded_model_path(hardcoded_model_name))
+
+        # load the right data
+        data = TestHelpers.get_data_for_model(hardcoded_model_name)
+
+        # create the personalize algo settings
+        algo_settings = TestHelpers.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
+
+        # return results of personalization
+        ips, noise = leaspy.personalize(data, settings=algo_settings, return_noise=True)
+
+        return ips, noise, leaspy # data?
+
+    def check_consistency_personalize_outputs(self, ips, noise_std, expected_noise_std, *, tol_noise = 5e-3):
+
+        self.assertIsInstance(ips, IndividualParameters)
+        self.assertIsInstance(noise_std, torch.Tensor)
+
+        if isinstance(expected_noise_std, float):
+            self.assertEqual(noise_std.numel(), 1) # scalar noise
+            self.assertAlmostEqual(noise_std.item(), expected_noise_std, delta=tol_noise)
+        else:
+            # vector of noises (for diag_noise)
+            self.assertEqual(noise_std.numel(), len(expected_noise_std)) # diagonal noise
+            diff_noise = noise_std - torch.tensor(expected_noise_std)
+            self.assertAlmostEqual((diff_noise ** 2).sum(), 0., msg=f'Noise != Expected: {noise_std.tolist()} != {expected_noise_std}',
+                                   delta=tol_noise**2)
+
     # Test MCMC-SAEM
-    def test_personalize_meanreal_logistic(self, tol_noise=1e-3):
+    def test_personalize_mean_real_logistic(self, tol_noise=1e-3):
         """
         Load logistic model from file, and personalize it to data from ...
         """
-        # Inputs
-        data = Data.from_csv_file(example_data_path)
-
-        # Initialize
-        leaspy = Leaspy.load(hardcoded_model_path('logistic'))
-
-        # Launch algorithm
+        # Load saved algorithm
         path_settings = os.path.join(test_data_dir, 'settings', 'algo', 'settings_mean_real.json')
-        algo_personalize_settings = AlgorithmSettings.load(path_settings)
-        _, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
+        ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.assertAlmostEqual(noise_std.item(), 0.11631, delta=tol_noise)
+        self.check_consistency_personalize_outputs(ips, noise_std, expected_noise_std=0.11631, tol_noise=tol_noise)
 
-    def test_personalize_modereal_logistic(self, tol_noise=1e-3):
+    def test_personalize_mode_real_logistic(self, tol_noise=1e-3):
         """
         Load logistic model from file, and personalize it to data from ...
         """
-        # Inputs
-        data = Data.from_csv_file(example_data_path)
-
-        # Initialize
-        leaspy = Leaspy.load(hardcoded_model_path('logistic'))
-
-        # Launch algorithm
+        # Load saved algorithm
         path_settings = os.path.join(test_data_dir, 'settings', 'algo', 'settings_mode_real.json')
-        algo_personalize_settings = AlgorithmSettings.load(path_settings)
-        _, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
+        ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.assertAlmostEqual(noise_std.item(), 0.11711, delta=tol_noise)
+        self.check_consistency_personalize_outputs(ips, noise_std, expected_noise_std=0.11711, tol_noise=tol_noise)
 
-    def test_personalize_scipy_models(self, tol_noise=5e-3):
+    def test_personalize_scipy_minimize(self, tol_noise=5e-3):
         """
         Load data and compute its personalization on various models
         with scipy minimize personalization (with and without jacobian)
@@ -56,49 +77,31 @@ class LeaspyPersonalizeTest(unittest.TestCase):
 
         for (model_name, use_jacobian), expected_noise_std in {
 
-            ('logistic', False):               0.118869,
-            ('logistic', True):                0.118774,
+            ('logistic_scalar_noise', False):               0.118869,
+            ('logistic_scalar_noise', True):                0.118774,
             ('logistic_diag_noise_id', False): [0.1414, 0.0806, 0.0812, 0.1531],
             ('logistic_diag_noise_id', True):  [0.1414, 0.0804, 0.0811, 0.1529],
             ('logistic_diag_noise', False):    [0.156, 0.0595, 0.0827, 0.1515],
             ('logistic_diag_noise', True):     [0.1543, 0.0597, 0.0827, 0.1509],
-            ('logistic_parallel', False):      0.0960,
-            ('logistic_parallel', True):       0.0956,
+            ('logistic_parallel_scalar_noise', False):      0.0960,
+            ('logistic_parallel_scalar_noise', True):       0.0956,
             ('univariate_logistic', False):    0.134107,
             ('univariate_logistic', True):     0.134116,
             ('univariate_linear', False):      0.081208,
             ('univariate_linear', True):       0.081208,
-            ('linear', False):                 0.124072,
-            ('linear', True):                  0.124071,
+            ('linear_scalar_noise', False):                 0.124072,
+            ('linear_scalar_noise', True):                  0.124071,
+
+            # TODO: binary (crossentropy) models here
 
         }.items():
 
             with self.subTest(model_name=model_name, use_jacobian=use_jacobian):
-                # load data
-                if 'univariate' not in model_name:
-                    data = Data.from_csv_file(example_data_path)
-                else:
-                    df = pd.read_csv(example_data_path)
-                    data = Data.from_dataframe(df.iloc[:,:3]) # one feature column
-
-                # load saved model (hardcoded values)
-                leaspy = Leaspy.load(hardcoded_model_path(model_name))
-
-                # scipy algo (with/without jacobian)
-                algo_personalize_settings = AlgorithmSettings('scipy_minimize', seed=0, use_jacobian=use_jacobian)
 
                 # only look at residual MSE to detect any regression in personalization
-                _, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
+                ips, noise_std, _ = self.generic_personalization(model_name, algo_name='scipy_minimize', seed=0, use_jacobian=use_jacobian)
 
-                if isinstance(expected_noise_std, float):
-                    self.assertEqual(noise_std.numel(), 1) # scalar noise
-                    self.assertAlmostEqual(noise_std.item(), expected_noise_std, delta=tol_noise)
-                else:
-                    # vector of noises (for diag_noise)
-                    diff_noise = noise_std - torch.tensor(expected_noise_std)
-                    msg = f'Model: {model_name}. Jacobien: {use_jacobian}. Noise: {noise_std}\n'
-                    self.assertAlmostEqual((diff_noise ** 2).sum(), 0., msg=msg, delta=tol_noise**2)
-
+                self.check_consistency_personalize_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise)
 
     # TODO : problem with nans
     """

@@ -223,7 +223,7 @@ class LeaspyTest(unittest.TestCase):
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
-    def test_load_save_load(self):
+    def test_load_save_load(self, *, atol=1e-4):
         """
         Test loading, saving and loading again all models (hardcoded and functional)
         """
@@ -234,9 +234,9 @@ class LeaspyTest(unittest.TestCase):
         # hardcoded models
         for model_path in glob(os.path.join(hardcoded_models_folder, '*.json')):
             with self.subTest(model_path=model_path):
-                check_consistent_load_save(Leaspy.load(model_path), model_path)
+                check_consistent_load_save(Leaspy.load(model_path), model_path, atol=atol)
 
         # functional models (OK because no direct test on values)
         for model_path in glob(os.path.join(from_fit_models_folder, '*.json')):
             with self.subTest(model_path=model_path):
-                check_consistent_load_save(Leaspy.load(model_path), model_path)
+                check_consistent_load_save(Leaspy.load(model_path), model_path, atol=atol)

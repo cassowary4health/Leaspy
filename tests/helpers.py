@@ -5,7 +5,7 @@ from unittest import TestCase
 import numpy as np
 import pandas as pd
 
-from leaspy import Data, AlgorithmSettings, exceptions #, Leaspy,
+from leaspy import Data, AlgorithmSettings #, Leaspy,
 from tests import example_data_path, binary_data_path
 
 

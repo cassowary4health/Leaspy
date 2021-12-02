@@ -24,7 +24,7 @@ class LeaspyTest(unittest.TestCase):
     def generic_usecase(self, model_name: str, model_codename: str, *,
                         expected_noise_std, # in perso
                         perso_algo: str, fit_algo='mcmc_saem', simulate_algo='simulation',
-                        fit_check_kws = dict(),
+                        fit_check_kws = dict(atol=1e-3),
                         fit_algo_params=dict(seed=0), perso_algo_params=dict(seed=0), simulate_algo_params=dict(seed=0),
                         **model_hyperparams):
         """

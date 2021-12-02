@@ -26,7 +26,9 @@ class LeaspyFitTest(unittest.TestCase):
     @classmethod
     def generic_fit(cls, model_name: str, model_codename: str, *,
                     algo_name='mcmc_saem', algo_params: dict = {},
-                    print_model: bool = False, check_model: bool = True, check_kws: dict = {}, save_model: bool = False,
+                    print_model: bool = False,
+                    check_model: bool = True, check_kws: dict = {},
+                    save_model: bool = False,
                     **model_hyperparams):
         """Helper for a generic calibration in following tests."""
 

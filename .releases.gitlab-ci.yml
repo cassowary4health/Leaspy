@@ -3,8 +3,8 @@ default:
   retry: 0  # job is not retried if failed
   interruptible: true  # by default jobs should be canceled when a newer pipeline starts before jobs complete
   tags:
-    - linux  # arbitrary choice...
-    - shell
+    - conda
+    - linux  # arbitrary choice (needs `leaspy_deploy` conda env)
   before_script:
     # <!> do not delete the corresponding env in linux CI machine
     - conda activate leaspy_deploy

@@ -29,7 +29,7 @@ update_conda_macos:
   extends: .update_conda
   tags:
     - macos
-    - shell
+    - conda
   rules:
     - if: $CI_COMMIT_BRANCH  # job not needed for latter deploy jobs (executed on linux only)
 
@@ -37,7 +37,7 @@ update_conda_linux:
   extends: .update_conda
   tags:
     - linux
-    - shell
+    - conda
   # leave this job for latter deploy jobs (executed on linux only & using conda)
 
 # Base job for jobs looping on Python environment and testing different OS
@@ -51,11 +51,12 @@ update_conda_linux:
     CONDA_ENV_NAME: 'leaspy_env_${PYTHON_VERSION}_${CI_COMMIT_BRANCH}'
   tags:
     - $CI_RUNNER_TAG  # new possibility since Gitlab Runner 14.1
-    - shell
+    - conda
   rules:
     - if: $CI_COMMIT_BRANCH
 
 # Create proper conda environments for tests
+# TODO? for linux, use Python Docker images instead. (no need for conda...)
 create_conda_envs:
   stage: build
   extends: .one_for_each_python_version_and_runner_os
@@ -113,7 +114,7 @@ pages:
   rules:
     - if: $CI_COMMIT_BRANCH # == $CI_DEFAULT_BRANCH
   tags:
-    - shell  # arbitrary choice...
+    - bash  # arbitrary choice...
   dependencies:
     - tests
   script:
@@ -131,7 +132,7 @@ prepare_metadata:
   rules:
     - if: $CI_COMMIT_TAG
   tags:
-    - shell  # arbitrary choice...
+    - bash  # arbitrary choice...
   variables:
     VERSION_PYTHON_FILE: leaspy/__init__.py
     VERSION_REGEX: '^__version__\s*=\s*[\x27"](.+)[\x27"].*$'  # \x27 is for single quote
@@ -161,9 +162,12 @@ code_quality:
       when: never
     - if: $CI_COMMIT_BRANCH  # not on tags...
   tags:
-    - linux  # must have docker
-    - shell  # but don't do docker in docker (slow)...
-  needs: []  # no dependencies (docker execution)
+    # must have docker
+    # but <!> if inside a Docker be sure to prevent Docker-in-Docker as it'd be extremely slow (reload of images every time...)
+    # cf. https://docs.gitlab.com/ee/user/project/merge_requests/code_quality.html#set-up-a-private-runner-for-code-quality-without-docker-in-docker
+    - with-docker
+  services: []  # shut off Docker-in-Docker
+  needs: []     # no dependencies (docker execution)
   artifacts:
     when: always
     paths: [gl-code-quality-report.json]

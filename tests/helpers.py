@@ -44,13 +44,26 @@ class TestHelpers:
             return AlgorithmSettings(name, **params)
 
     @classmethod
-    def ordered_containers(cls, obj, *, sort_seqs=(list, set, frozenset)): # tuple
-        """Utils function to sort `obj` recursively at all levels (in-depth)."""
+    def deep_sort(cls, obj, *, sort_seqs=(list, set, frozenset)): # tuple
+        """
+        Utils function to sort `obj` recursively at all levels.
+
+        Dictionaries are always converted to a key-sorted list [(key_1, deep_sorted_value_1), ...]
+        Other containers may be sorted depending on `sort_seqs` parameter.
+
+        Parameters
+        ----------
+        obj : Any
+            Object to sort recursively.
+        sort_seqs : tuple[class / type]
+            The sequences that should be sorted (and converted to list).
+            Can be empty so not that sort any of those but dictionaries.
+        """
         if isinstance(obj, dict):
-            return sorted( ((k, cls.ordered_containers(v, sort_seqs=sort_seqs)) for k, v in obj.items()),
+            return sorted( ((k, cls.deep_sort(v, sort_seqs=sort_seqs)) for k, v in obj.items()),
                           key=lambda tup: tup[0])
         elif isinstance(obj, sort_seqs):
-            return sorted(cls.ordered_containers(x, sort_seqs=sort_seqs) for x in obj)
+            return sorted(cls.deep_sort(x, sort_seqs=sort_seqs) for x in obj)
         else:
             return obj
 

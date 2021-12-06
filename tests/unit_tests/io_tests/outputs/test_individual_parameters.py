@@ -272,8 +272,8 @@ class IndividualParametersTest(unittest.TestCase):
             ip1 = json.load(f1)
             ip2 = json.load(f2)
 
-        self.assertEqual(TestHelpers.ordered_containers(ip1, sort_seqs=()),
-                         TestHelpers.ordered_containers(ip2, sort_seqs=()))
+        self.assertEqual(TestHelpers.deep_sort(ip1, sort_seqs=()),
+                         TestHelpers.deep_sort(ip2, sort_seqs=()))
 
         os.remove(test_path)
 
@@ -322,8 +322,8 @@ class IndividualParametersTest(unittest.TestCase):
             ip1 = json.load(f1)
             ip2 = json.load(f2)
 
-        self.assertEqual(TestHelpers.ordered_containers(ip1, sort_seqs=()),
-                         TestHelpers.ordered_containers(ip2, sort_seqs=()))
+        self.assertEqual(TestHelpers.deep_sort(ip1, sort_seqs=()),
+                         TestHelpers.deep_sort(ip2, sort_seqs=()))
 
         os.remove(path_json_test)
 

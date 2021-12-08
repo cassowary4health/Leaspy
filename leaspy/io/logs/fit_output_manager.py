@@ -251,6 +251,11 @@ class FitOutputManager:
         """
         path_iteration = os.path.join(self.path_plot_patients, f'plot_patients_{iteration}.pdf')
         param_ind = model.get_param_from_real(realizations)
+
+        with open(os.path.join(self.path_plot_patients, f'patients_ip_{iteration}.pickle'), 'wb+') as pickle_file:
+            import pickle
+            pickle.dump(param_ind, pickle_file)
+
         self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind,
                                                   self.plot_options['maximum_patient_number'])
 

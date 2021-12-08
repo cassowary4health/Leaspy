@@ -115,7 +115,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         infos_variables = model.random_variable_informations()
         self.samplers = dict.fromkeys(infos_variables.keys())
         for variable, info in infos_variables.items():
-            if info["type"] == "individual":
+            if info["type"] == "individual" and info["rv_type"] != "linked":
                 if self.algo_parameters['sampler_ind'] == 'Gibbs':
                     self.samplers[variable] = GibbsSampler(info, data.n_individuals, device=self.device)
                 else:
@@ -165,7 +165,8 @@ class AbstractFitMCMC(AbstractFitAlgo):
         for key in realizations.reals_pop_variable_names:
             self.samplers[key].sample(data, model, realizations, self.temperature_inv)
         for key in realizations.reals_ind_variable_names:
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv)
+            if model.random_variable_informations()[key]['rv_type'] != 'linked':
+                self.samplers[key].sample(data, model, realizations, self.temperature_inv)
 
         # Maximization step
         self._maximization_step(data, model, realizations)

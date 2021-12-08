@@ -420,7 +420,7 @@ class Plotter:
             if key not in ['betas']:
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
-                if key in ['link']:
+                if 'link' in key:
                     df_convergence = df_convergence.drop(columns=range(model.cofactors_dimension+1, df_convergence.shape[1]+1, model.cofactors_dimension+1))
                 df_convergence.index.rename("iter", inplace=True)
                 df_convergence.plot(ax=ax[y_position], legend=False)

@@ -38,6 +38,8 @@ class GibbsSampler(AbstractSampler):
         if info["type"] == "population":
             # Proposition variance is adapted independantly on each dimension of the population variable
             self.std = 0.005 * torch.ones(size=self.shape, device=self.device) # TODO hyperparameter here
+            if info["name"] == "link_t_mean":
+                self.std = 0.05 * torch.ones(size=self.shape, device=self.device) # TODO hyperparameter here
         elif info["type"] == "individual":
             # Proposition variance is adapted independantly on each patient, but is the same for multiple dimensions
             # TODO : gérer les shapes !!! Necessary for sources
@@ -156,13 +158,20 @@ class GibbsSampler(AbstractSampler):
             # Update intermediary model variables if necessary
             model.update_MCMC_toolbox([self.name], realizations)
 
-            if self.name == 'link':
+            if self.name == 'link_v0':
                 realizations['v0'].tensor_realizations = model.compute_individual_speeds(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
-                realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone()
+
+            if self.name == 'link_t_mean':
+                realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone().reshape(-1,1)
 
             # Compute the attachment and regularity
             new_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
             new_regularity = model.compute_regularity_realization(realization).sum()
+
+            # if self.name == 'link_t_mean' or self.name == 'link_v0':
+            #     print(f"For {self.name}:") 
+            #     print(f"Before sampling :\n\tattachment = {self.previous_attachment}\n\tregularity = {self.previous_regularity}")
+            #     print(f"After sampling :\n\tattachment = {new_attachment}\n\tregularity= {new_regularity}\n")
 
             alpha = torch.exp(-((new_regularity - self.previous_regularity) * temperature_inv +
                                 (new_attachment - self.previous_attachment)))
@@ -176,9 +185,10 @@ class GibbsSampler(AbstractSampler):
                 realization.tensor_realizations = previous_reals_pop
                 # Update intermediary model variables if necessary
                 model.update_MCMC_toolbox([self.name], realizations)
-                if self.name == 'link':
+                if self.name == 'link_v0':
                     realizations['v0'].tensor_realizations = model.compute_individual_speeds(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
-                    realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone()
+                if self.name == 'link_t_mean':
+                    realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone().reshape(-1,1)
 
                 # force re-compute on next iteration
                 self.previous_attachment = self.previous_regularity = None

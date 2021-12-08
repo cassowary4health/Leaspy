@@ -39,11 +39,15 @@ class AbstractMultivariateLinkModel(AbstractModel):
         self.dimension: int = None
         self.cofactors_dimension: int = None
         self.cofactors: torch.Tensor = None
-        self.link_shape: torch.Size = None
+        self.link_v0_shape = None
+        self.link_t_mean_shape = None
+
         self.parameters = {
             "g": None,
             "betas": None,
-            "tau_mean": None, "tau_std": None,
+            "tau_std": None,
+            "link_v0": None,
+            "link_t_mean": None,
             "xi_mean": None, "xi_std": None,
             "sources_mean": None, "sources_std": None,
             "noise_std": None
@@ -79,7 +83,9 @@ class AbstractMultivariateLinkModel(AbstractModel):
         self.features = dataset.headers
         self.cofactors_dimension = dataset.cofactors_dimension
         self.cofactors = dataset.cofactors
-        self.link_shape = torch.Size([self.dimension+1, self.cofactors_dimension+1])
+        #self.link_shape = torch.Size([self.dimension+1, self.cofactors_dimension+1])
+        self.link_v0_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
+        self.link_t_mean_shape = torch.Size([1, self.cofactors_dimension+1])
 
 
         if self.source_dimension is None:
@@ -197,9 +203,10 @@ class AbstractMultivariateLinkModel(AbstractModel):
         """
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32, device=self.device),
-            'tau': torch.tensor([self.get_intersept('tau_mean')], dtype=torch.float32, device=self.device),
+            'tau': torch.tensor(0.0),#torch.tensor([self.get_intersept('tau_mean')], dtype=torch.float32, device=self.device),
             'sources': torch.zeros(self.source_dimension, dtype=torch.float32, device=self.device),
-            'v0': torch.exp(self.get_intersept('v0')[None,:])
+            'v0': torch.exp(self.get_intersept('v0')[None,:]),
+            'tau_mean': self.get_intersept('tau_mean')[None,:],
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)

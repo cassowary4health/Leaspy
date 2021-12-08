@@ -54,7 +54,8 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
         super().__init__(name, dimension, source_dimension, device)
 
         self.positions: torch.FloatTensor = None
-        self.link: torch.FloatTensor = None
+        self.link_v0: torch.FloatTensor = None
+        self.link_t_mean: torch.FloatTensor = None
 
         if self.univariate:
             raise NotImplementedError("no univariate link model")
@@ -67,7 +68,7 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
             self.betas: torch.FloatTensor = None
             self.mixing_matrix: torch.FloatTensor = None
             self.orthonormal_basis: torch.FloatTensor = None
-            self.update_possibilities = ('all', 'g', 'link', 'betas')
+            self.update_possibilities = ('all', 'g', 'link_v0', 'link_t_mean', 'betas')
 
     def get_attributes(self):
         """
@@ -86,7 +87,8 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
         if self.univariate:
             raise NotImplementedError("no univariate link model")
         else:
-            return self.positions, self.link 
+            link_dict = {'v0': self.link_v0, 't_mean' : self.link_t_mean}
+            return self.positions, link_dict 
 
     def _compute_betas(self, values: DictParamsTorch):
         """

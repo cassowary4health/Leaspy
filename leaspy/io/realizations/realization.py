@@ -90,15 +90,20 @@ class Realization:
         elif self.variable_type == 'individual':
             if self.rv_type == 'linked':
                 if self.name == 'v0':
-                    self._tensor_realizations: torch.Tensor = torch.zeros((n_individuals, *self.shape), device=model.device)
+                    self._tensor_realizations: torch.Tensor = model.get_intersept("v0").repeat(n_individuals,1)
                 elif self.name == 'tau_mean':
-                    self._tensor_realizations: torch.Tensor = torch.zeros((n_individuals, *self.shape), device=model.device)
+                    self._tensor_realizations: torch.Tensor = model.get_intersept("tau_mean").repeat(n_individuals, 1)
             else:
-                if f"{self.name}_mean" in model.parameters:
+                if model.name == "logistic_link" and self.name == "tau":
+                    distribution = torch.distributions.normal.Normal(loc=torch.tensor(0.),
+                                                                 scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized                    
+                elif f"{self.name}_mean" in model.parameters:
                     distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
                                                                  scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized
                 else:
-                    mean = model.get_intersept(f"{self.name}_mean")
+                    mean = model.get_intersept(f"{self.name}_mean").squeeze()
+                    if self.name == 'tau':
+                        mean = mean.squeeze()
                     distribution = torch.distributions.normal.Normal(loc=mean,
                                                                  scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized
                 self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))

@@ -372,13 +372,16 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
     g_array = torch.log(1. / values - 1.).detach() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
     betas = torch.zeros((model.dimension - 1, model.source_dimension))
 
-    link = torch.zeros(model.link_shape)
+    link_v0 = torch.zeros(model.link_v0_shape)
+    link_t_mean = torch.zeros(model.link_t_mean_shape)
+
+    link_t_mean[:, -1] = t0
 
     if precomputed is not None:
-        concat = torch.cat((precomputed['v0'], t0.reshape(1)))
-        assert(concat.shape[0] == model.link_shape[0])
-
-        link[:,-1] = concat
+        if 'v0' in precomputed:
+            link_v0[:, -1] = precomputed['v0']
+        if 't_mean' in precomputed:
+            link_t_mean[:, -1] = precomputed['t_mean']
   
     # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
@@ -390,7 +393,8 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
     else:
         parameters = {
             'g': g_array,
-            'link': link,
+            'link_v0': link_v0,
+            'link_t_mean': link_t_mean,
             'betas': betas,
             'tau_std': torch.tensor(tau_std, dtype=torch.float32),
             'xi_mean': torch.tensor(0., dtype=torch.float32),
@@ -401,10 +405,6 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
         }
 
     return parameters
-
-
-    
-    pass
 
 def initialize_logistic_parallel(model, dataset, method):
     """

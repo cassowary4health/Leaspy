@@ -658,7 +658,8 @@ class AbstractModel(ABC):
             if realization.rv_type != 'linked':
                 if realization.name == 'tau':
                     try:
-                        mean = self.compute_individual_tau_means(self.cofactors.t()).reshape(-1,1)
+                        #mean = realization['tau_mean'].reshape(-1,1)
+                        mean = self.compute_individual_tau_means(self.cofactors.t(), attribute_type="MCMC").reshape(-1,1)
                     except AttributeError:
                         mean = self.parameters[f"{realization.name}_mean"]
 

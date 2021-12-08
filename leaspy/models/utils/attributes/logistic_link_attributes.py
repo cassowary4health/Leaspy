@@ -74,7 +74,8 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
 
         compute_betas = False
         compute_positions = False
-        compute_link = False
+        compute_link_v0 = False
+        compute_link_t_mean = False
 
         if 'all' in names_of_changed_values:
             names_of_changed_values = self.update_possibilities  # make all possible updates
@@ -82,15 +83,19 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
             compute_betas = True
         if 'g' in names_of_changed_values:
             compute_positions = True
-        if 'link' in names_of_changed_values:
-            compute_link = True
+        if 'link_v0' in names_of_changed_values:
+            compute_link_v0 = True
+        if 'link_t_mean' in names_of_changed_values:
+            compute_link_t_mean = True
 
         if compute_betas:
             self._compute_betas(values)
         if compute_positions:
             self._compute_positions(values)
-        if compute_link:
-            self._compute_link(values)
+        if compute_link_v0:
+            self._compute_link_v0(values)
+        if compute_link_t_mean:
+            self._compute_link_t_mean(values)
 
         if self.has_sources:
             return
@@ -111,7 +116,7 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
         """
         self.positions = torch.exp(values['g'])
 
-    def _compute_link(self, values):
+    def _compute_link_v0(self, values):
         """
         Update the attribute ``link``.
 
@@ -119,7 +124,17 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
         ----------
         values : dict [str, `torch.Tensor`]
         """        
-        self.link = values['link'].clone()
+        self.link_v0 = values['link_v0'].clone()
+
+    def _compute_link_t_mean(self, values):
+        """
+        Update the attribute ``link``.
+
+        Parameters
+        ----------
+        values : dict [str, `torch.Tensor`]
+        """        
+        self.link_t_mean = values['link_t_mean'].clone()
 
     def _compute_orthonormal_basis(self):
         """

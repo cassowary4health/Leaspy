@@ -552,7 +552,7 @@ class AbstractModel(ABC):
             attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
 
         else:
-            raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCT}')
+            raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 
         return attachment.reshape((data.n_individuals,)) # 1D tensor of shape(n_individuals,)
 

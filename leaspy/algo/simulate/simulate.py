@@ -516,7 +516,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         if self.noise is None:
             # no noise at all (will send back raw values upon call)
-            return NoiseModel()
+            return NoiseModel(None)
 
         elif isinstance(self.noise, str):
 
@@ -534,8 +534,8 @@ class SimulationAlgorithm(AbstractAlgo):
             except Exception:
                 raise LeaspyAlgoInputError('The "noise" parameter should be a float or array-like[float] when neither a string nor None.')
 
-            noise_model = 'gaussian_scalar' if noise_scale.numel() == 1 else 'gaussian_diagonal'
-            return NoiseModel.from_model(model, noise_model, scale=noise_scale)
+            noise_struct = 'gaussian_scalar' if noise_scale.numel() == 1 else 'gaussian_diagonal'
+            return NoiseModel.from_model(model, noise_struct, scale=noise_scale)
 
     @staticmethod
     def _get_reparametrized_age(timepoints, tau, xi, tau_mean):

@@ -2,6 +2,7 @@ from typing import List
 
 import torch
 
+from leaspy.models.utils.noise_struct import NoiseStruct, NOISE_STRUCTS
 from leaspy.models.utils.noise_model import NoiseModel
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
@@ -55,7 +56,7 @@ class FakeModel:
         assert s.shape == (1, self.dimension)
         return s
 
-class TestNoiseModel(LeaspyTestCase):
+class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
 
     def assertEqual(self, a, b):
         if isinstance(a, torch.Tensor):
@@ -85,16 +86,22 @@ class TestNoiseModel(LeaspyTestCase):
         cls.models = {
             'bernoulli': FakeModel(cls.dataset.headers, 'bernoulli'),
             'gaussian_scalar': FakeModel(cls.dataset.headers, 'gaussian_scalar', noise_std=0.0314),
-            'gaussian_diagonal': FakeModel(cls.dataset.headers, 'gaussian_diagonal', noise_std=torch.tensor([.04, .05, .06, .0314])),
+            'gaussian_diagonal': FakeModel(cls.dataset.headers, 'gaussian_diagonal',
+                                           noise_std=torch.tensor([.04, .05, .06, .0314])),
         }
 
     def setUp(self) -> None:
         torch.random.manual_seed(42)
 
+    def test_predefined_noise_structs(self):
+        for noise_struct_name, noise_struct in NOISE_STRUCTS.items():
+            self.assertIsInstance(noise_struct, NoiseStruct, msg=noise_struct_name)
+
     def test_no_noise(self):
         nm = NoiseModel(None)
-        self.assertIsNone(nm.name)
-        self.assertIsNone(nm.distribution_factory)
+        # self.assertIsNone(nm.name)
+        self.assertEqual(nm.struct, NoiseStruct())
+        self.assertIsNone(nm.struct.distribution_factory)
         self.assertEqual(nm.distributions_kws, {})
         self.assertIsNone(nm.scale)
 
@@ -105,7 +112,8 @@ class TestNoiseModel(LeaspyTestCase):
             self.assertIs(sampler(), t)
             self.assertIs(nm.sample_around(t), t)
             # no random variable
-            self.assertIsNone(nm.rv_around(t))
+            with self.assertRaises(Exception):
+                nm.rv_around(t)  # RV is undefined for no-noise!
 
     def test_bad_noise_model(self):
 
@@ -121,13 +129,14 @@ class TestNoiseModel(LeaspyTestCase):
     def test_bernoulli_model(self):
 
         nm = NoiseModel('bernoulli')
-        self.assertEqual(nm.name, 'bernoulli')
-        self.assertEqual(nm.distribution_factory, torch.distributions.Bernoulli)
+        # self.assertEqual(nm.name, 'bernoulli')
+        self.assertIsInstance(nm.struct, NoiseStruct)
+        self.assertEqual(nm.struct.distribution_factory, torch.distributions.Bernoulli)
         self.assertEqual(nm.distributions_kws, {})
         self.assertIsNone(nm.scale)
 
         # check compat with canonically associated model
-        nm.check_compat_with_model(self.models[nm.name])
+        nm.check_compat_with_model(self.models['bernoulli'])
 
         for shape in [(), (1,), (2, 3), (5, 2)]:
             probs = torch.randn(shape).clamp(min=1e-3, max=1-1e-3)
@@ -162,19 +171,19 @@ class TestNoiseModel(LeaspyTestCase):
 
     def test_gaussian_model(self):
 
-        for noise_struct, scale in {
+        for noise_struct_name, scale in {
                 'gaussian_scalar': FakeModel.MOCK_NOISE_STD_SCALAR,
                 'gaussian_diagonal': FakeModel.MOCK_NOISE_STD_DIAG
             }.items():
 
-            nm = NoiseModel(noise_struct, scale=scale)
-            self.assertEqual(nm.name, noise_struct)
-            self.assertEqual(nm.distribution_factory, torch.distributions.Normal)
+            nm = NoiseModel(noise_struct_name, scale=scale)
+            # self.assertEqual(nm.name, noise_struct)
+            self.assertEqual(nm.struct.distribution_factory, torch.distributions.Normal)
             self.assertDictWithTensorsMatch(nm.distributions_kws, {'scale': scale})
             self.assertEqual(nm.scale, scale)
 
             # check compat with canonically associated model
-            nm.check_compat_with_model(self.models[noise_struct])
+            nm.check_compat_with_model(self.models[noise_struct_name])
 
             for shape in [(), (1,), (4, scale.numel()), (3, 5, scale.numel())]:
                 locs = torch.randn(shape)
@@ -193,25 +202,25 @@ class TestNoiseModel(LeaspyTestCase):
 
             # errors in input
             with self.assertRaises(Exception):
-                NoiseModel(noise_struct)  # no scale...
+                NoiseModel(noise_struct_name)  # no scale...
             with self.assertRaises(Exception):
-                NoiseModel(noise_struct, Scale=5.)  # bad param name
+                NoiseModel(noise_struct_name, Scale=5.)  # bad param name
             with self.assertRaises(Exception):
-                NoiseModel(noise_struct, bad_param=5.)  # bad param name
+                NoiseModel(noise_struct_name, bad_param=5.)  # bad param name
             with self.assertRaises(Exception):
-                NoiseModel(noise_struct, scale=scale, bad_param=5.)  # bad extra param
+                NoiseModel(noise_struct_name, scale=scale, bad_param=5.)  # bad extra param
 
             # errors in scale
             with self.assertRaises(Exception):
                 # bad 0-std-dev
-                NoiseModel(noise_struct, scale=0.)(torch.tensor([1.]))
+                NoiseModel(noise_struct_name, scale=0.).sample_around(torch.tensor([1.]))
             #with self.assertRaises(Exception):
             #    nm.sample_around(.5)  # bad type --> OK accepted
             with self.assertRaises(Exception):
                 nm.sample_around('0.5')  # bad type
 
-            # incompat locs & shape
-            if 'diagonal' in noise_struct:
+            # in-compat locs & shape
+            if 'diagonal' in noise_struct_name:
                 with self.assertRaises(Exception):
                     nm.sample_around(torch.zeros((len(scale)+1,)))
                 with self.assertRaises(Exception):
@@ -235,8 +244,8 @@ class TestNoiseModel(LeaspyTestCase):
 
         for mod in self.models.values():
             nm = NoiseModel.from_model(mod)
-            self.assertEqual(nm.name, mod.noise_model)
-            self.assertIsNotNone(nm.distribution_factory)
+            # self.assertEqual(nm.name, mod.noise_model)
+            self.assertIsNotNone(nm.struct.distribution_factory)
             self.assertDictWithTensorsMatch(nm.distributions_kws, mod._kws('scale', mode='model'))
 
         # errors in input
@@ -263,9 +272,19 @@ class TestNoiseModel(LeaspyTestCase):
                 else:
                     nm = nm_factory()
 
-                self.assertEqual(nm.name, mod.noise_model)
-                self.assertIsNotNone(nm.distribution_factory)
+                # self.assertEqual(nm.name, mod.noise_model)
+                self.assertIsNotNone(nm.struct.distribution_factory)
                 self.assertDictWithTensorsMatch(nm.distributions_kws, mod._kws('scale', mode='mock'))
+
+        # test errors (in-compat with model)
+        with self.assertRaises(Exception):
+            NoiseModel.from_model(self.models['gaussian_scalar'], 'inherit_struct', scale=FakeModel.MOCK_NOISE_STD_DIAG)
+        with self.assertRaises(Exception):
+            NoiseModel.from_model(self.models['gaussian_diagonal'], 'inherit_struct', scale=[.3, .2])  # bad nb of features
+        with self.assertRaises(Exception):
+            NoiseModel.from_model(self.models['bernoulli'], 'inherit_struct', not_needed_param=42)
+        with self.assertRaises(Exception):
+            NoiseModel.from_model(self.models['gaussian_diagonal'], 'inherit_struct')  # missing `scale`
 
     def test_noise_from_model_reconstruction_in_data(self):
 

@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 import warnings
 
 import torch
 
-from leaspy.exceptions import LeaspyAlgoInputError, LeaspyInputError, LeaspyModelInputError
+from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
 from leaspy.utils.typing import TypeVar, KwargsType, Tuple, Callable, Optional, DictParamsTorch
+from leaspy.models.utils.noise_struct import NoiseStruct, NOISE_STRUCTS
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
@@ -31,39 +32,37 @@ class NoiseModel:
 
     Parameters
     ----------
-    noise_struct : str, optional
-        Noise structure requested. Multiple options:
-            * None: no noise at all (default)
-            * 'bernoulli': Bernoulli realization
-            * 'gaussian_scalar': Gaussian noise with scalar std-dev, to give as `scale` parameter
-            * 'gaussian_diagonal': Gaussian noise with 1 std-dev per feature (<!> order), to give as `scale` parameter
-    **noise_kws : :class:`torch.FloatTensor`, optional
-        Only needed and expected for Gaussian noise: the std-dev requested for noise.
+    noise_struct : NoiseStruct, or str in `VALID_NOISE_STRUCTS`, or None
+        The noise structure to build noise model upon.
+        If this is a string, noise structure will be searched among pre-defined noise structures:
+            * `'bernoulli'`: Bernoulli realization
+            * `'gaussian_scalar'`: Gaussian noise with scalar std-dev, to give as `scale` parameter
+            * `'gaussian_diagonal'`: Gaussian noise with 1 std-dev per feature (<!> order), to give as `scale` parameter
+        If None: no noise at all (in particular, ultimately `sample(r)_around(values)` will just return `values`)
+    **noise_kws
+        Keyword arguments to fully characterize the noise structure.
+        For now, only one parameter is supported, for Gaussian noise structures:
+            * `scale` (:class:`torch.FloatTensor`): the std-dev requested for noise.
 
     Attributes
     ----------
-    name : str
-        Correspond to the parameter `noise_struct`
-    distribution_factory : function [torch.Tensor, **kws] -> torch.distributions.Distribution
-        A function taking a :class:`torch.Tensor` of values first, possible keyword arguments
-        and returning a noise generator (instance of class :class:`torch.distributions.Distribution`),
-        which can sample around these values with respect to noise structure.
+    struct : NoiseStruct
+        The noise structure, which contains its metadata / characteristics.
     distributions_kws : dict[str, Any]
-        Extra keyword parameters to be passed to `distribution_factory` apart the centering values.
+        Extra keyword parameters to be passed to `struct.distribution_factory` apart the centering values.
 
     Raises
     ------
     :exc:`.LeaspyInputError`
-        If `noise_sruct` is not supported.
+        If `noise_struct` is not supported.
+
+    See also
+    --------
+    :meth:`NoiseModel.from_model`
     """
 
-    """Mapping from naming of noise parameter in Leaspy model to the related torch distribution parameters."""
-    model_params_to_distributions_kws = {
-        'noise_std': 'scale',  # useful for Gaussian distribution
-    }
-
-    """Valid structures for noise."""
-    VALID_NOISE_STRUCT = {'bernoulli', 'gaussian_scalar', 'gaussian_diagonal'}
+    """Valid structures for noise (except None)."""
+    VALID_NOISE_STRUCTS = {k for k in NOISE_STRUCTS.keys() if k is not None}
 
     """For backward-compatibility only."""
     OLD_MAPPING_FROM_LOSS = {
@@ -72,74 +71,53 @@ class NoiseModel:
         'crossentropy': 'bernoulli'
     }
 
+    def __init__(self, noise_struct: Union[NoiseStruct, str, None], **noise_kws):
+
+        if isinstance(noise_struct, NoiseStruct):
+            self.struct = noise_struct
+        else:
+            self.struct = self.get_named_noise_struct(noise_struct)
+
+        noise_kws_keys = set(noise_kws.keys())
+        expected_noise_kws = set(self.struct.model_kws_to_dist_kws.values())
+
+        # Validate the noise keyword arguments that were sent
+        pbs = []
+        missing_parameters = expected_noise_kws.difference(noise_kws_keys)
+        unexpected_parameters = noise_kws_keys.difference(expected_noise_kws)
+        if missing_parameters:
+            pbs.append(f'should have {missing_parameters} parameters')
+        if unexpected_parameters:
+            pbs.append(f'should NOT have {unexpected_parameters} parameters')
+        if pbs:
+            raise LeaspyInputError(f"`noise_struct` = '{noise_struct}' {' but '.join(pbs)}.")
+
+        # validate & clean the noise parameters
+        self.distributions_kws = self.struct.validate_dist_kws(noise_kws)
 
     @classmethod
-    @property
-    def distribution_kws_to_model_params(cls):
-        """Mapping from torch distribution parameters to the related noise parameter naming in Leaspy model."""
-        return {v: k for k, v in cls.model_params_to_distributions_kws.items()}
+    def get_named_noise_struct(cls, name: Optional[str]) -> NoiseStruct:
+        """Helper to get a default noise structure from its name."""
+        noise_struct = NOISE_STRUCTS.get(name, None)
 
-    def __init__(self, noise_struct: str = None, **noise_kws):
-
-        self.name = noise_struct
-        self.distribution_factory: Optional[Callable[..., torch.distributions.Distribution]] = None
-        self.distributions_kws: KwargsType = {}
-
-        noise_struct_supported = False
-        noise_kws_keys = set(noise_kws.keys())
-
-        # Various possibilities for noise structure
         if noise_struct is None:
-            noise_struct_supported = True
-            if noise_kws_keys:
-                raise LeaspyAlgoInputError(f"`noise_struct` = None should not have {noise_kws_keys} parameters.")
+            raise LeaspyInputError(f"`noise_struct` = '{name}' is not supported. "
+                                   f"Please use one among {cls.VALID_NOISE_STRUCTS} or None.")
 
-        elif noise_struct == 'bernoulli':
-            noise_struct_supported = True
-            self.distribution_factory = torch.distributions.bernoulli.Bernoulli
-            if noise_kws_keys:
-                raise LeaspyAlgoInputError(f"`noise_struct` = 'bernoulli' should not have {noise_kws_keys} parameters.")
+        return noise_struct
 
-        elif 'gaussian' in noise_struct:
-            # 'gaussian_scalar' or 'gaussian_diagonal' for now
-            self.distribution_factory = torch.distributions.normal.Normal
-
-            if noise_kws_keys != {'scale'}:
-                raise LeaspyAlgoInputError("Only `scale` (= noise std-dev) is expected for Gaussian noise.")
-
-            if not isinstance(noise_kws['scale'], torch.Tensor):
-                noise_kws = torch.tensor(noise_kws['scale'])
-            noise_scale = noise_kws['scale'].view(-1)
-            self.distributions_kws = {'scale': noise_scale}
-
-            # 1 noise per feature (manually specified)
-            if noise_struct == 'gaussian_scalar':
-                noise_struct_supported = True
-
-                if len(noise_scale) != 1:
-                    raise LeaspyInputError(f"You have provided a noise `scale` ({noise_scale}) of dimension {len(noise_scale)} whereas the "
-                                           "`noise_struct` = 'gaussian_scalar' you requested requires a univariate scale (e.g. `scale = 0.1`).")
-
-            elif noise_struct == 'gaussian_diagonal':
-                # allow univariate scale with 'gaussian_diagonal'
-                noise_struct_supported = True
-
-
-        if not noise_struct_supported:
-            raise LeaspyInputError(f"`noise_struct` = '{noise_struct}' is not supported. "
-                                   f"Please use one noise structure among {self.VALID_NOISE_STRUCT} or None.")
-
-    @property
-    def scale(self) -> Optional[torch.FloatTensor]:
-        """A quick short-cut for scale of Gaussian noises."""
-        return self.distributions_kws.get('scale', None)
+    def check_compat_with_model(self, model: AbstractModel):
+        """Raise if `noise_model` is not compatible with `model` (consistency checks)."""
+        self.struct.with_contextual_validators(model=model).validate_dist_kws(self.distributions_kws)
 
     @classmethod
     def from_model(cls, model: AbstractModel, noise_struct: str = 'model', **noise_kws):
         """
-        Initialize a noise model as in the regular initialization but with special keywords to derive it from model own noise.
+        Initialize a noise model as in the `from_name` initialization but with special keywords
+        so to easily inherit noise model from the one of an existing model.
 
-        It also automatically performs some consistency checks between noise provided and model.
+        It also automatically performs some consistency checks between model and noise parameters provided.
+        As of now, it is mainly useful for simulation algorithm.
 
         Parameters
         ----------
@@ -160,6 +138,7 @@ class NoiseModel:
         -------
         :class:`.NoiseModel`
         """
+        get_noise_parameters_from_model = False
 
         if noise_struct in ['inherit_struct', 'model', 'default']:
 
@@ -168,52 +147,52 @@ class NoiseModel:
                               "use 'inherit_struct' instead for same behavior.", FutureWarning)
 
             if noise_struct == 'model':
-                if noise_kws:
-                    raise LeaspyAlgoInputError("Extra keyword arguments to specify noise should NOT be provided "
-                                               "when `noise_struct` = 'model' in NoiseModel.from_model.")
+                get_noise_parameters_from_model = True
 
-                # use all noise parameters directly from model parameters (if any)
-                # for now there is only 'noise_std' available and for gaussian noise only
-                # TODO: we could also only use them as default values, possibly overwritten by noise_kws
-                noise_kws = {
-                    cls.model_params_to_distributions_kws[model_param]: model_val
-                    for model_param, model_val in model.parameters.items()
-                    if model_param in cls.model_params_to_distributions_kws
-                    and not (model_val is None or model.noise_model == 'bernoulli')
-                    # previous line needed because `noise_std` is included in 'bernoulli' models even if not part of true model parameters!
-                }
-
-            # substitute 'noise_struct' str with model one ("structure" only, not parameters unless if it was 'model')
+            # define the 'noise_struct' from the model one (_structure_ only, not parameters unless if it was 'model')
             noise_struct = model.noise_model
 
+        # get default, named, noise structure
+        noise_struct_obj = cls.get_named_noise_struct(noise_struct)
+
+        # complete validators of noise structure with dynamic ones, that depend on model information
+        noise_struct_obj = noise_struct_obj.with_contextual_validators(model=model)
+
+        if get_noise_parameters_from_model:
+            # TODO? we could also only use model noise parameters as default values, possibly overwritten by noise_kws
+            if noise_kws:
+                raise LeaspyInputError("Extra keyword arguments to specify noise should NOT be provided "
+                                       "when `noise_struct` = 'model' in NoiseModel.from_model.")
+
+            # use all noise parameters directly from model parameters (if any)
+            # for now there is only 'noise_std' available and for gaussian noise only
+            # the mapping of parameters is specific to a noise structure to be general
+            model_kws_to_dist_kws = noise_struct_obj.model_kws_to_dist_kws
+            noise_kws = {
+                model_kws_to_dist_kws[model_param]: model_val
+                for model_param, model_val in model.parameters.items()
+                if model_param in model_kws_to_dist_kws
+            }
+
         # Instantiate noise model normally (with the special keywords having been substituted)
-        noise_gen = cls(noise_struct, **noise_kws)
+        # In particular compat with model will be checked here thanks to previous dynamic validators
+        return cls(noise_struct_obj, **noise_kws)
 
-        # Check the compatibility with model
-        noise_gen.check_compat_with_model(model)
-
-        return noise_gen
-
-    def check_compat_with_model(self, model: AbstractModel):
-        """Raise if `noise_model` is not compatible with `model` (consistency checks)."""
-
-        # only check 'gaussian_diagonal' for now
-        if self.name == 'gaussian_diagonal':
-            noise_scale_numel = self.scale.numel()
-            if noise_scale_numel != model.dimension:
-                raise LeaspyInputError(
-                        "You requested a 'gaussian_diagonal' noise. However, the attribute `scale` you gave has "
-                        f"{noise_scale_numel} elements, which mismatches with model dimension of {model.dimension}. "
-                        f"Please give a list of std-dev for every features {model.features}, in order.")
+    @property
+    def scale(self) -> Optional[torch.FloatTensor]:
+        """A quick short-cut for scale of Gaussian noises (really useful??)."""
+        return self.distributions_kws.get('scale', None)
 
     def rv_around(self, loc: torch.FloatTensor) -> torch.distributions.Distribution:
         """Return the torch distribution centred around values (only if noise is not None)."""
-        if self.distribution_factory is not None:
-            return self.distribution_factory(loc, **self.distributions_kws)
+        if self.struct.distribution_factory is None:
+            raise LeaspyInputError('Random variable around values is undefined when there is no noise.')
+
+        return self.struct.distribution_factory(loc, **self.distributions_kws)
 
     def sampler_around(self, loc: torch.FloatTensor) -> Callable[[], torch.FloatTensor]:
         """Return the noise sampling function around input values."""
-        if self.distribution_factory is None:
+        if self.struct.distribution_factory is None:
             # No noise: return raw values (no copy)
             return constant_return_factory(loc)
         else:
@@ -221,8 +200,10 @@ class NoiseModel:
 
     def sample_around(self, model_loc_values: torch.FloatTensor) -> torch.FloatTensor:
         """Realization around `model_loc_values` with respect to noise model."""
-        return self.sampler_around(model_loc_values)()  # Better to store sampler if multiple calls needed
+        # <!> Better to store sampler if multiple calls needed
+        return self.sampler_around(model_loc_values)()
 
+    ## HELPER METHODS ##
     @staticmethod
     def rmse_model(model: AbstractModel, dataset: Dataset, individual_params: DictParamsTorch, *,
                    scalar: bool = None, **computation_kwargs) -> torch.FloatTensor:
@@ -303,8 +284,9 @@ class NoiseModel:
         # END
 
         if 'noise_model' in hyperparams.keys():
-            if hyperparams['noise_model'] not in cls.VALID_NOISE_STRUCT:
-                raise LeaspyModelInputError(f'`noise_model` should be in {cls.VALID_NOISE_STRUCT}, not "{hyperparams["noise_model"]}".')
+            if hyperparams['noise_model'] not in cls.VALID_NOISE_STRUCTS:
+                raise LeaspyModelInputError(f'`noise_model` should be in {cls.VALID_NOISE_STRUCTS}, '
+                                            f'not "{hyperparams["noise_model"]}".')
             model.noise_model = hyperparams['noise_model']
 
         return ('loss', 'noise_model')

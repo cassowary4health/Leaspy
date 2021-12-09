@@ -32,7 +32,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
             self.check_model_factory_constructor(leaspy.model)
 
-        for noise_model in NoiseModel.VALID_NOISE_STRUCT:
+        for noise_model in NoiseModel.VALID_NOISE_STRUCTS:
             leaspy = Leaspy('logistic', noise_model=noise_model)
             self.assertEqual(leaspy.type, 'logistic')
             self.assertEqual(leaspy.model.noise_model, noise_model)

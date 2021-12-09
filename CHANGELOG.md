@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - [DEFAULTS] Some default configuration values changed for some algorithms & models:
   - LME model now has `with_random_slope_age` = True by default
   - `mcmc_saem` and `scipy_minimize` now have `progress_bar` = True by default
-  - `scipy_minimize` now has `use_jacobian` = True by default
+  - `scipy_minimize` now has `use_jacobian` = True by default (fallback to False when not implemented, with a warning)
   - Multivariate models now have `gaussian_diagonal` noise structure by default
   - `simulation` algorithm now has constant delay of 6 months between simulated visits by default
 - [DEPRECATION] Some classes were deprecated:

@@ -1,6 +1,9 @@
 import numpy as np
+import pandas as pd
 import torch
 
+from leaspy.io.data.data import Data
+from leaspy.io.data.dataset import Dataset
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
@@ -52,6 +55,23 @@ class ScipyMinimizeTest(LeaspyTestCase):
         multivariate_model = self.get_hardcoded_model('logistic_scalar_noise')
         param = algo._initialize_parameters(multivariate_model.model)
         self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2/7.1]), torch.tensor([0.]), torch.tensor([0.])])
+
+    def test_fallback_without_jacobian(self):
+        model = self.get_hardcoded_model('logistic_scalar_noise').model
+
+        # pretend as if compute_jacobian_tensorized was not implemented
+        def not_implemented_compute_jacobian_tensorized(tpts, ips, **kws):
+            raise NotImplementedError
+
+        model.compute_jacobian_tensorized = not_implemented_compute_jacobian_tensorized
+
+        mini_dataset = Dataset(self.get_suited_test_data_for_model('logistic_scalar_noise'))
+
+        settings = AlgorithmSettings('scipy_minimize') #, use_jacobian=True) # default
+        algo = ScipyMinimize(settings)
+
+        with self.assertWarnsRegex(UserWarning, r'`use_jacobian\s?=\s?False`'):
+            algo._get_individual_parameters(model, mini_dataset)
 
     def test_get_reconstruction_error(self):
         leaspy = self.get_hardcoded_model('logistic_scalar_noise')
@@ -115,7 +135,8 @@ class ScipyMinimizeTest(LeaspyTestCase):
         # Test without nan
         output = algo._get_individual_parameters_patient(leaspy.model,
                                 torch.tensor(times, dtype=torch.float32),
-                                torch.tensor(values, dtype=torch.float32))
+                                torch.tensor(values, dtype=torch.float32),
+                                with_jac=algo_kwargs['use_jacobian'])
 
         return output
 

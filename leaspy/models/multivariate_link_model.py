@@ -62,7 +62,7 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         pass
 
     @staticmethod
-    def time_reparametrization_link(timepoints: torch.FloatTensor, xi: torch.FloatTensor, tau: torch.FloatTensor, tau_mean: torch.FloatTensor) -> torch.FloatTensor:
+    def time_reparametrization_link(timepoints: torch.FloatTensor, xi: torch.FloatTensor, tau: torch.FloatTensor) -> torch.FloatTensor:
         """
         Tensorized time reparametrization formula
 
@@ -82,7 +82,7 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         :class:`torch.Tensor` of same shape as `timepoints`
         """
         #print(f"Shapes xi {xi.shape}, timepoints {timepoints.shape}, tau_mean {tau_mean.shape}, tau {tau.shape}")
-        return torch.exp(xi) * (timepoints - tau_mean - tau)
+        return torch.exp(xi) * (timepoints - tau)
 
     def compute_individual_tensorized_logistic_link(self, timepoints, ind_parameters, attribute_type=None):
 
@@ -92,9 +92,10 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         b = g_plus_1 * g_plus_1 / g
 
         # Individual parameters
-        xi, tau, tau_mean, v0 = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['tau_mean'], ind_parameters['v0']
+        # xi, tau, tau_mean, v0 = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['tau_mean'], ind_parameters['v0']
+        xi, tau, v0 = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['v0']
 
-        reparametrized_time = self.time_reparametrization_link(timepoints, xi, tau, tau_mean)
+        reparametrized_time = self.time_reparametrization_link(timepoints, xi, tau)
         # Log likelihood computation
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
         #v0 = v0.reshape(1, 1, -1) # not needed, automatic broadcast on last dim (n_features)
@@ -187,12 +188,13 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
             self.MCMC_toolbox['priors']['link_v0_mean'] = self.parameters['link_v0'].clone().detach()
             self.MCMC_toolbox['priors']['s_link_v0'] = 0.1
 
-            self.MCMC_toolbox['priors']['link_t_mean_mean'] = self.parameters['link_t_mean'].clone().detach()
-            self.MCMC_toolbox['priors']['s_link_t_mean'] = 0.1
+        #    self.MCMC_toolbox['priors']['link_t_mean_mean'] = self.parameters['link_t_mean'].clone().detach()
+        #    self.MCMC_toolbox['priors']['s_link_t_mean'] = 0.1
 
         if set_std_prior:
-            self.MCMC_toolbox['priors']['sigma_tau_zero'] = 5.
-            self.MCMC_toolbox['priors']['mass_sigma_tau_zero'] = 500.
+            pass
+            #self.MCMC_toolbox['priors']['sigma_tau_zero'] = 5.
+            #self.MCMC_toolbox['priors']['mass_sigma_tau_zero'] = 500.
         if set_v0_prior:
             self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
             self.MCMC_toolbox['priors']['s_v0'] = 0.1
@@ -205,8 +207,8 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
             values['g'] = realizations['g'].tensor_realizations
         if any(c in L for c in ('link_v0', 'all')):
             values['link_v0'] = realizations['link_v0'].tensor_realizations
-        if any(c in L for c in ('link_t_mean', 'all')):
-            values['link_t_mean'] = realizations['link_t_mean'].tensor_realizations                        
+        # if any(c in L for c in ('link_t_mean', 'all')):
+        #    values['link_t_mean'] = realizations['link_t_mean'].tensor_realizations 
         if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
 
@@ -233,13 +235,13 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
 
         # <!> by doing this here, we change v0 and thus orthonormal basis and mixing matrix,
         #     the betas / sources are not related to the previous orthonormal basis...
-        realizations = self._center_tau_realizations(realizations)
+        #realizations = self._center_tau_realizations(realizations)
         realizations = self._center_xi_realizations(realizations)
 
         sufficient_statistics = {
             'g': realizations['g'].tensor_realizations,
             'link_v0': realizations['link_v0'].tensor_realizations,
-            'link_t_mean': realizations['link_t_mean'].tensor_realizations,
+        #    'link_t_mean': realizations['link_t_mean'].tensor_realizations,
             'v0': realizations['v0'].tensor_realizations,
             'tau': realizations['tau'].tensor_realizations,
             'tau_sqrd': torch.pow(realizations['tau'].tensor_realizations, 2),
@@ -273,7 +275,7 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
 
         # <!> by doing this here, we change v0 and thus orthonormal basis and mixing matrix,
         #     the betas / sources are not related to the previous orthonormal basis...
-        realizations = self._center_tau_realizations(realizations)
+        # realizations = self._center_tau_realizations(realizations)
         realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm
@@ -290,16 +292,15 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         else:
             self.parameters['link_v0'] = link_v0_emp
 
-        link_t_mean_emp = realizations['link_t_mean'].tensor_realizations.detach()
-        if self.MCMC_toolbox['priors'].get('link_t_mean_mean', None) is not None:
-            link_t_mean_mean = self.MCMC_toolbox['priors']['link_t_mean_mean']
-            s_link_t_mean = self.MCMC_toolbox['priors']['s_link_t_mean']
-            sigma_link_t_mean = self.MCMC_toolbox['priors']['link_t_mean_std']
-            self.parameters['link_t_mean'] = (1 / (1 / (s_link_t_mean ** 2) + 1 / (sigma_link_t_mean ** 2))) * (
-            link_t_mean_emp / (sigma_link_t_mean ** 2) + link_t_mean_mean / (s_link_t_mean ** 2))
-
-        else:
-            self.parameters['link_t_mean'] = link_t_mean_emp            
+        # link_t_mean_emp = realizations['link_t_mean'].tensor_realizations.detach()
+        # if self.MCMC_toolbox['priors'].get('link_t_mean_mean', None) is not None:
+        #     link_t_mean_mean = self.MCMC_toolbox['priors']['link_t_mean_mean']
+        #     s_link_t_mean = self.MCMC_toolbox['priors']['s_link_t_mean']
+        #     sigma_link_t_mean = self.MCMC_toolbox['priors']['link_t_mean_std']
+        #     self.parameters['link_t_mean'] = (1 / (1 / (s_link_t_mean ** 2) + 1 / (sigma_link_t_mean ** 2))) * (
+        #    link_t_mean_emp / (sigma_link_t_mean ** 2) + link_t_mean_mean / (s_link_t_mean ** 2))
+        # else:
+        #    self.parameters['link_t_mean'] = link_t_mean_emp
 
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations.detach()
@@ -350,7 +351,7 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         # TODO : 2. Set the mean of xi to 0 and add it to the mean of V_k
         self.parameters['g'] = suff_stats['g']
         self.parameters['link_v0'] = suff_stats['link_v0']
-        self.parameters['link_t_mean'] = suff_stats['link_t_mean']
+        # self.parameters['link_t_mean'] = suff_stats['link_t_mean']
 
         if self.source_dimension != 0:
             self.parameters['betas'] = suff_stats['betas']
@@ -443,12 +444,13 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
             "rv_type": "gaussian"
         }
 
-        tau_mean_infos = {
-            "name": "tau_mean",
-            "shape": torch.Size([1]),
-            "type": "individual",
-            "rv_type": "linked"
-        }
+        # tau_mean_infos = {
+        #     "name": "tau_mean",
+        #     "shape": torch.Size([1]),
+        #     "type": "individual",
+        #     "rv_type": "linked"
+        # }
+        #
 
         xi_infos = {
             "name": "xi",
@@ -467,10 +469,10 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         variables_infos = {
             "g": g_infos,
             "link_v0": link_v0_infos,
-            "link_t_mean": link_t_mean_infos,
+            #"link_t_mean": link_t_mean_infos,
             "v0": v0_infos,
             "tau": tau_infos,
-            "tau_mean": tau_mean_infos,
+            #"tau_mean": tau_mean_infos,
             "xi": xi_infos,
         }        
 

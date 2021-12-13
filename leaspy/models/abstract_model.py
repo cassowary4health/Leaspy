@@ -656,10 +656,11 @@ class AbstractModel(ABC):
             return self.compute_regularity_variable(realization.tensor_realizations, mean, std)
         elif realization.variable_type == 'individual':
             if realization.rv_type != 'linked':
-                if realization.name == 'tau':
+                if realization.name == 'tau' and False:
                     try:
                         #mean = realization['tau_mean'].reshape(-1,1)
                         mean = self.compute_individual_tau_means(self.cofactors.t(), attribute_type="MCMC").reshape(-1,1)
+                        print(f"should not happen : {mean}")
                     except AttributeError:
                         mean = self.parameters[f"{realization.name}_mean"]
 

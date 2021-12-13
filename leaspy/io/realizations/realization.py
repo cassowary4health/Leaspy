@@ -94,7 +94,7 @@ class Realization:
                 elif self.name == 'tau_mean':
                     self._tensor_realizations: torch.Tensor = model.get_intersept("tau_mean").repeat(n_individuals, 1)
             else:
-                if model.name == "logistic_link" and self.name == "tau":
+                if model.name == "logistic_link" and self.name == "tau" and False:
                     distribution = torch.distributions.normal.Normal(loc=torch.tensor(0.),
                                                                  scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized                    
                 elif f"{self.name}_mean" in model.parameters:

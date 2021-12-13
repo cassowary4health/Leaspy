@@ -203,10 +203,11 @@ class AbstractMultivariateLinkModel(AbstractModel):
         """
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32, device=self.device),
-            'tau': torch.tensor(0.0),#torch.tensor([self.get_intersept('tau_mean')], dtype=torch.float32, device=self.device),
+            #'tau': torch.tensor(0.0),#torch.tensor([self.get_intersept('tau_mean')], dtype=torch.float32, device=self.device),
             'sources': torch.zeros(self.source_dimension, dtype=torch.float32, device=self.device),
             'v0': torch.exp(self.get_intersept('v0')[None,:]),
-            'tau_mean': self.get_intersept('tau_mean')[None,:],
+            # 'tau_mean': self.parameters['tau_mean'],#self.get_intersept('tau_mean')[None,:],
+            'tau': self.parameters['tau_mean'],#self.get_intersept('tau_mean')[None,:],
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)

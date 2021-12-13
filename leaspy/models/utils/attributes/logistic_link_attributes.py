@@ -75,7 +75,7 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
         compute_betas = False
         compute_positions = False
         compute_link_v0 = False
-        compute_link_t_mean = False
+        # compute_link_t_mean = False
 
         if 'all' in names_of_changed_values:
             names_of_changed_values = self.update_possibilities  # make all possible updates
@@ -85,8 +85,8 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
             compute_positions = True
         if 'link_v0' in names_of_changed_values:
             compute_link_v0 = True
-        if 'link_t_mean' in names_of_changed_values:
-            compute_link_t_mean = True
+        # if 'link_t_mean' in names_of_changed_values:
+        #    compute_link_t_mean = True
 
         if compute_betas:
             self._compute_betas(values)
@@ -94,8 +94,8 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
             self._compute_positions(values)
         if compute_link_v0:
             self._compute_link_v0(values)
-        if compute_link_t_mean:
-            self._compute_link_t_mean(values)
+        # if compute_link_t_mean:
+        #    self._compute_link_t_mean(values)
 
         if self.has_sources:
             return

@@ -1,23 +1,12 @@
 import unittest
 
-from tests import LeaspyTestCase
+# <!> do not import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
+from .test_api_fit import LeaspyFitTest_Mixin
+from .test_api_personalize import LeaspyPersonalizeTest_Mixin
+from .test_api_simulate import LeaspySimulateTest_Mixin
 
 
-class LeaspyTest(LeaspyTestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        # <!> do not import those tests at top-level, otherwise their tests will be duplicated...
-        from .test_api_fit import LeaspyFitTest
-        from .test_api_personalize import LeaspyPersonalizeTest
-        from .test_api_simulate import LeaspySimulateTest
-
-        cls.generic_fit = LeaspyFitTest.generic_fit
-        #self.generic_personalize = ...
-        #self.generic_simulate = ...
-
-        cls.check_personalize = LeaspyPersonalizeTest().check_consistency_personalize_outputs
-        cls.check_simulate = LeaspySimulateTest().check_consistency_of_simulation_results
+class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimulateTest_Mixin):
 
     def generic_usecase(self, model_name: str, model_codename: str, *,
                         expected_noise_std, # in perso
@@ -48,7 +37,9 @@ class LeaspyTest(LeaspyTestCase):
         # Personalize
         algo_personalize_settings = self.get_algo_settings(name=perso_algo, **perso_algo_params)
         individual_parameters, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
-        self.check_personalize(individual_parameters, noise_std, expected_noise_std=expected_noise_std, tol_noise=1e-2)
+        self.check_consistency_of_personalization_outputs(
+                individual_parameters, noise_std,
+                expected_noise_std=expected_noise_std, tol_noise=1e-2)
 
         ## Plot TODO
         #path_output = os.path.join(test_data_dir, "plots")
@@ -60,8 +51,8 @@ class LeaspyTest(LeaspyTestCase):
         simulation_settings = self.get_algo_settings(name=simulate_algo, **simulate_algo_params)
         simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)
 
-        self.check_simulate(simulation_settings, simulation_results, data,
-                            expected_results_file=f'simulation_results_{model_codename}.csv')
+        self.check_consistency_of_simulation_results(simulation_settings, simulation_results, data,
+                expected_results_file=f'simulation_results_{model_codename}.csv')
 
     def test_usecase_logistic_scalar_noise(self):
 

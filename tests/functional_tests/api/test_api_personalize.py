@@ -7,7 +7,8 @@ from leaspy import IndividualParameters
 from tests import LeaspyTestCase
 
 
-class LeaspyPersonalizeTest(LeaspyTestCase):
+class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
+    """Mixin holding generic personalization methods that may be safely reused in other tests (no actual test here)."""
 
     @classmethod
     def generic_personalization(cls, hardcoded_model_name: str, *,
@@ -28,7 +29,7 @@ class LeaspyPersonalizeTest(LeaspyTestCase):
 
         return ips, noise, leaspy # data?
 
-    def check_consistency_personalize_outputs(self, ips, noise_std, expected_noise_std, *, tol_noise = 5e-3):
+    def check_consistency_of_personalization_outputs(self, ips, noise_std, expected_noise_std, *, tol_noise = 5e-3):
 
         self.assertIsInstance(ips, IndividualParameters)
         self.assertIsInstance(noise_std, torch.Tensor)
@@ -40,8 +41,10 @@ class LeaspyPersonalizeTest(LeaspyTestCase):
             # vector of noises (for diag_noise)
             self.assertEqual(noise_std.numel(), len(expected_noise_std)) # diagonal noise
             diff_noise = noise_std - torch.tensor(expected_noise_std)
-            self.assertAlmostEqual((diff_noise ** 2).sum(), 0., msg=f'Noise != Expected: {noise_std.tolist()} != {expected_noise_std}',
-                                   delta=tol_noise**2)
+            self.assertAlmostEqual((diff_noise ** 2).sum(), 0., delta=tol_noise**2,
+                                   msg=f'Noise != Expected: {noise_std.tolist()} != {expected_noise_std}')
+
+class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 
     # Test MCMC-SAEM
     def test_personalize_mean_real_logistic(self, tol_noise=1e-3):
@@ -52,7 +55,7 @@ class LeaspyPersonalizeTest(LeaspyTestCase):
         path_settings = os.path.join(self.test_data_dir, 'settings', 'algo', 'settings_mean_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_personalize_outputs(ips, noise_std, expected_noise_std=0.11631, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.11631, tol_noise=tol_noise)
 
     def test_personalize_mode_real_logistic(self, tol_noise=1e-3):
         """
@@ -62,7 +65,7 @@ class LeaspyPersonalizeTest(LeaspyTestCase):
         path_settings = os.path.join(self.test_data_dir, 'settings', 'algo', 'settings_mode_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_personalize_outputs(ips, noise_std, expected_noise_std=0.11711, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.11711, tol_noise=tol_noise)
 
     def test_personalize_scipy_minimize(self, tol_noise=5e-3):
         """
@@ -99,7 +102,7 @@ class LeaspyPersonalizeTest(LeaspyTestCase):
                 # only look at residual MSE to detect any regression in personalization
                 ips, noise_std, _ = self.generic_personalization(model_name, algo_name='scipy_minimize', seed=0, use_jacobian=use_jacobian)
 
-                self.check_consistency_personalize_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise)
+                self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise)
 
     # TODO : problem with nans
     """

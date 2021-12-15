@@ -97,9 +97,7 @@ class ResultTest(LeaspyTestCase):
                 with self.assertRaises(ValueError, msg=dict(idx=idx, path=fake_path)):
                     saving_method(os.path.join(self.test_tmp_dir, fake_path), idx=idx)
 
-    def test_load_individual_parameters(self, ind_param=None, nb_individuals=17):
-        if ind_param is None:
-            ind_param = self.results.individual_parameters
+    def generic_check_individual_parameters(self, ind_param, *, nb_individuals: int):
         self.assertEqual(type(ind_param), dict)
         self.assertEqual(list(ind_param.keys()), ['tau', 'xi', 'sources'])
         for key in ind_param.keys():
@@ -107,6 +105,9 @@ class ResultTest(LeaspyTestCase):
             self.assertEqual(ind_param[key].dtype, torch.float32)
             self.assertEqual(ind_param[key].dim(), 2)
             self.assertEqual(ind_param[key].shape[0], nb_individuals)
+
+    def test_load_individual_parameters(self):
+        self.generic_check_individual_parameters(self.results.individual_parameters, nb_individuals=17)
 
     def test_load_result(self):
 
@@ -122,7 +123,7 @@ class ResultTest(LeaspyTestCase):
             results = Result.load_result(data, ind_param, cofactors=self.example_data_covars_path)
             new_df = results.data.to_dataframe()
             pd.testing.assert_frame_equal(new_df, self.df)
-            self.test_load_individual_parameters(ind_param=results.individual_parameters)
+            self.generic_check_individual_parameters(ind_param=results.individual_parameters, nb_individuals=17)
 
         for data_input in data_input_list:
             for ind_param_input in ind_param_input_list:

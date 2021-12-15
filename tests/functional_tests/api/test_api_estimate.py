@@ -2,8 +2,7 @@ import numpy as np
 
 from tests import LeaspyTestCase
 
-
-class LeaspyEstimateTest(LeaspyTestCase):
+class LeaspyEstimateTest_Mixin(LeaspyTestCase):
 
     def check_almost_equal_for_all_ind_tpts(self, a, b, tol=1e-5):
         # TODO? use `self.assertDictAlmostEqual` instead???
@@ -22,6 +21,9 @@ class LeaspyEstimateTest(LeaspyTestCase):
                 print(estimations)
 
                 self.check_almost_equal_for_all_ind_tpts(estimations, expected_ests)
+
+
+class LeaspyEstimateTest(LeaspyEstimateTest_Mixin):
 
     def test_estimate_multivariate(self):
 

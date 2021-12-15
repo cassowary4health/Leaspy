@@ -1,14 +1,10 @@
 import numpy as np
 
-from tests import LeaspyTestCase
+# never import a real test case at top-level so to not duplicate tests, only tests MIXINS!
+from .test_api_estimate import LeaspyEstimateTest_Mixin
 
 
-class LeaspyEstimateInverseTest(LeaspyTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        from .test_api_estimate import LeaspyEstimateTest # do not import at top-level so to not duplicate tests
-        cls.check_almost_equal_for_all_ind_tpts = LeaspyEstimateTest().check_almost_equal_for_all_ind_tpts
+class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
 
     def test_estimate_ages_from_biomarker_values_univariate(self):
         # TODO: test that doesn't rely on estimate ? (rather on estimate 'theoretical' results)

@@ -1,12 +1,13 @@
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 
-from tests import LeaspyTestCase
+# <!> do not import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
+from tests.unit_tests.models.test_univariate_model import ManifoldModelTest_Mixin
 
 
-class AbstractMultivariateModelTest(LeaspyTestCase):
+class AbstractMultivariateModelTest(ManifoldModelTest_Mixin):
 
-    @LeaspyTestCase.allow_abstract_class_init(AbstractMultivariateModel)
-    def test_constructor_abstract_multivariate(self, model=None):
+    @ManifoldModelTest_Mixin.allow_abstract_class_init(AbstractMultivariateModel)
+    def test_constructor_abstract_multivariate(self):
         """
         Test attribute's initialization of leaspy abstract multivariate model
 
@@ -15,18 +16,14 @@ class AbstractMultivariateModelTest(LeaspyTestCase):
         model : :class:`~.models.abstract_model.AbstractModel`, optional (default None)
             An instance of a subclass of leaspy AbstractModel.
         """
-        # <!> do not import at top-level otherwise tests from univariate model will be duplicated!
-        from tests.unit_tests.models.test_univariate_model import UnivariateModelTest
-        check_basic_attrs = UnivariateModelTest().check_common_attrs
 
-        if model is None:
-            # Abstract Multivariate Model
-            model = AbstractMultivariateModel('dummy')
-            self.assertEqual(type(model), AbstractMultivariateModel)
-            self.assertEqual(model.name, 'dummy')
+        # Abstract Multivariate Model
+        model = AbstractMultivariateModel('dummy')
+        self.assertEqual(type(model), AbstractMultivariateModel)
+        self.assertEqual(model.name, 'dummy')
 
         # Test common initialization with univariate
-        check_basic_attrs(model)
+        self.check_common_attrs(model)
 
         # Test specific multivariate initialization
         self.assertEqual(model.dimension, None)

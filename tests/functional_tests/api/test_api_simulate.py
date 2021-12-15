@@ -10,7 +10,8 @@ from leaspy.io.outputs.result import Result
 from tests import LeaspyTestCase
 
 
-class LeaspySimulateTest(LeaspyTestCase):
+class LeaspySimulateTest_Mixin(LeaspyTestCase):
+    """Mixin holding generic simulation methods that may be safely reused in other tests (no actual test here)."""
 
     @classmethod
     def generic_simulate(cls, hardcoded_model_name: str, hardcoded_ip_name: str, *,
@@ -35,20 +36,9 @@ class LeaspySimulateTest(LeaspyTestCase):
         # return result objects
         return simulation_results
 
-    @unittest.skip('TODO')
-    def test_simulate_for_some_models(self):
-
-        # TODO: hardcode a file with individuals parameters for each individual from data tiny!
-
-        for model_codename, hardcoded_ip_file, simulation_params in [
-            ('logistic_scalar_noise', ..., dict(number_of_subjects=100)),
-            ('logistic_diag_noise', ..., dict(number_of_subjects=100)),
-            ('logistic_binary', ..., dict(number_of_subjects=100)),
-        ]:
-            with self.subTest(model_codename=model_codename, **simulation_params):
-                simulation_results = self.generic_simulate(model_codename, hardcoded_ip_file, **simulation_params)
 
     def check_consistency_of_simulation_results(self, simulation_settings, simulation_results, data, *, expected_results_file):
+        # TODO: refact, so dirty!
 
         self.assertIsInstance(simulation_results, Result)
         self.assertEqual(simulation_results.data.headers, data.headers)
@@ -111,3 +101,18 @@ class LeaspySimulateTest(LeaspyTestCase):
                              % (count, simulation_df.shape[0])
         # For loop before the last self.assert - otherwise no display is made
         self.assertTrue(simulation_is_reproducible, error_message)
+
+class LeaspySimulateTest(LeaspySimulateTest_Mixin):
+
+    @unittest.skip('TODO')
+    def test_simulate_for_some_models(self):
+
+        # TODO: hardcode a file with individuals parameters for each individual from data tiny!
+
+        for model_codename, hardcoded_ip_file, simulation_params in [
+            ('logistic_scalar_noise', ..., dict(number_of_subjects=100)),
+            ('logistic_diag_noise', ..., dict(number_of_subjects=100)),
+            ('logistic_binary', ..., dict(number_of_subjects=100)),
+        ]:
+            with self.subTest(model_codename=model_codename, **simulation_params):
+                simulation_results = self.generic_simulate(model_codename, hardcoded_ip_file, **simulation_params)

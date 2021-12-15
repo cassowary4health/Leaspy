@@ -3,10 +3,9 @@ from leaspy.models.model_factory import ModelFactory
 
 from tests import LeaspyTestCase
 
+class ModelFactoryTest_Mixin(LeaspyTestCase):
 
-class ModelFactoryTest(LeaspyTestCase):
-
-    def test_model_factory_constructor(self, model=None):
+    def check_model_factory_constructor(self, model):
         """
         Test initialization of leaspy model.
 
@@ -15,12 +14,16 @@ class ModelFactoryTest(LeaspyTestCase):
         model : str, optional (default None)
             Name of the model
         """
-        if model is None:
-            for name, klass in all_models.items():
-                self.test_model_factory_constructor(ModelFactory.model(name))
-        else:
-            # valid name (preconditon)
-            self.assertEqual(type(model), all_models[model.name])
+        # valid name (preconditon)
+        self.assertIn(model.name, all_models)
+        self.assertEqual(type(model), all_models[model.name])
+
+class ModelFactoryTest(ModelFactoryTest_Mixin):
+
+    def test_model_factory_constructor(self):
+        for name in all_models.keys():
+            with self.subTest(model_name=name):
+                self.check_model_factory_constructor(model=ModelFactory.model(name))
 
     def test_lower_case(self):
         """Test lower case"""

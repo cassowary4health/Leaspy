@@ -7,26 +7,24 @@ from leaspy.api import Leaspy
 from leaspy.models.model_factory import ModelFactory
 from leaspy.models.utils import VALID_LOSSES
 
-from tests import LeaspyTestCase
+# <!> do not import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
+from tests.functional_tests.api.test_api_fit import LeaspyFitTest_Mixin
+from tests.unit_tests.models.test_model_factory import ModelFactoryTest_Mixin
 
 
-class LeaspyTest(LeaspyTestCase):
+class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
     def test_constructor(self):
         """
         Test attribute's initialization of leaspy univariate model
         """
-
-        # <!> we should not import this TestCase at top-level otherwise its tests will be duplicated for this file too!
-        from tests.unit_tests.models.test_model_factory import ModelFactoryTest
-
         for name in ['univariate_logistic', 'univariate_linear', 'linear', 'logistic', 'logistic_parallel',
                      'mixed_linear-logistic']:
             leaspy = Leaspy(name, loss='MSE')
             self.assertEqual(leaspy.type, name)
             self.assertEqual(leaspy.model.loss, 'MSE')
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
-            ModelFactoryTest().test_model_factory_constructor(leaspy.model)
+            self.check_model_factory_constructor(leaspy.model)
 
         for loss in VALID_LOSSES:
             leaspy = Leaspy('logistic', loss=loss)
@@ -226,16 +224,13 @@ class LeaspyTest(LeaspyTestCase):
         """
         Test loading, saving and loading again all models (hardcoded and functional)
         """
-        # <!> we should not import this TestCase at top-level otherwise its tests will be duplicated for this file too!
-        from tests.functional_tests.api.test_api_fit import LeaspyFitTest
-        check_consistent_load_save = LeaspyFitTest().check_model_consistency
 
         # hardcoded models
         for model_path in glob(os.path.join(self.hardcoded_models_folder, '*.json')):
             with self.subTest(model_path=model_path):
-                check_consistent_load_save(Leaspy.load(model_path), model_path, atol=atol)
+                self.check_model_consistency(Leaspy.load(model_path), model_path, atol=atol)
 
         # functional models (OK because no direct test on values)
         for model_path in glob(os.path.join(self.from_fit_models_folder, '*.json')):
             with self.subTest(model_path=model_path):
-                check_consistent_load_save(Leaspy.load(model_path), model_path, atol=atol)
+                self.check_model_consistency(Leaspy.load(model_path), model_path, atol=atol)

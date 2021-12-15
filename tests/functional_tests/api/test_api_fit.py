@@ -9,20 +9,10 @@ from leaspy import Leaspy
 from tests import LeaspyTestCase
 
 
-# Weirdly, some results are perfectly reproducible on local mac + CI linux but not on CI mac...
-# Increasing tolerances so to pass despite these reproducibility issues...
-class LeaspyFitTest(LeaspyTestCase):
+class LeaspyFitTest_Mixin(LeaspyTestCase):
+    """Mixin holding generic fit methods that may be safely reused in other tests (no actual test here)."""
 
-    """
-    # Etienne, 2021/12/01:
-    # I disable many `check_model` (newly introduced) in following tests as values hardcoded in tests & in files diverged
-    # an option should be to (i) remove those hardcoded values (error-prone) and (ii) re-generate saved model parameters
-    # and (iii) check that all tests are passing on different architectures and packages dependencies (with sufficient tolerance)
-    # <!> there are hints indicating that there was a reproducibility gap after PyTorch >= 1.7
-    """
-
-    @classmethod
-    def generic_fit(cls, model_name: str, model_codename: str, *,
+    def generic_fit(self, model_name: str, model_codename: str, *,
                     algo_name='mcmc_saem', algo_params: dict = {},
                     print_model: bool = False,
                     check_model: bool = True, check_kws: dict = {},
@@ -31,13 +21,13 @@ class LeaspyFitTest(LeaspyTestCase):
         """Helper for a generic calibration in following tests."""
 
         # load the right data
-        data = cls.get_suited_test_data_for_model(model_codename)
+        data = self.get_suited_test_data_for_model(model_codename)
 
         # create a new leaspy object containing the model
         leaspy = Leaspy(model_name, **model_hyperparams)
 
         # create the fit algo settings
-        algo_settings = cls.get_algo_settings(name=algo_name, **algo_params)
+        algo_settings = self.get_algo_settings(name=algo_name, **algo_params)
 
         # calibrate model
         leaspy.fit(data, settings=algo_settings)
@@ -47,11 +37,11 @@ class LeaspyFitTest(LeaspyTestCase):
             print(leaspy.model.parameters)
 
         # path to expected
-        expected_model_path = cls.from_fit_model_path(model_codename)
+        expected_model_path = self.from_fit_model_path(model_codename)
 
         # check that values in already saved file are same than the ones in fitted model
         if check_model:
-            cls().check_model_consistency(leaspy, expected_model_path, **check_kws)
+            self.check_model_consistency(leaspy, expected_model_path, **check_kws)
 
         ## set `save_model=True` to re-generate example model
         ## <!> use carefully (only when needed following breaking changes in model)
@@ -81,6 +71,19 @@ class LeaspyFitTest(LeaspyTestCase):
         os.remove(path_to_tmp_saved_model)
 
         self.assertDictAlmostEqual(model_parameters_new, expected_model_parameters, **allclose_kwds)
+
+
+# Weirdly, some results are perfectly reproducible on local mac + CI linux but not on CI mac...
+# Increasing tolerances so to pass despite these reproducibility issues...
+class LeaspyFitTest(LeaspyFitTest_Mixin):
+
+    """
+    # Etienne, 2021/12/01:
+    # I disable many `check_model` (newly introduced) in following tests as values hardcoded in tests & in files diverged
+    # an option should be to (i) remove those hardcoded values (error-prone) and (ii) re-generate saved model parameters
+    # and (iii) check that all tests are passing on different architectures and packages dependencies (with sufficient tolerance)
+    # <!> there are hints indicating that there was a reproducibility gap after PyTorch >= 1.7
+    """
 
     # Test MCMC-SAEM
     def test_fit_logistic_scalar_noise(self, tol=5e-2, tol_tau=2e-1):

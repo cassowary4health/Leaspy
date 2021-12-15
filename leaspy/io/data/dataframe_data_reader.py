@@ -57,7 +57,7 @@ class DataframeDataReader:
         self.headers = df.columns.values.tolist()
 
         for (idx, timepoint), v in df.iterrows():
-            if timepoint != timepoint:
+            if pd.isna(timepoint):
                 raise LeaspyDataInputError(f'One of the time value of individual {idx} is NaN')
 
             observation = v.values

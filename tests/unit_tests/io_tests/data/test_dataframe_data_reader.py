@@ -41,3 +41,20 @@ class DataframeDataReaderTest(LeaspyTestCase):
         self.assertEqual(reader.dimension, 3)
         self.assertEqual(reader.n_individuals, 5)
         self.assertEqual(reader.n_visits, 18)
+
+    def test_load_data_with_missing_values(self):
+        # only test that it works!
+        path = os.path.join(self.test_data_dir, 'data_mock', 'missing_data', 'sparse_data.csv')
+        df = pd.read_csv(path)
+        reader = DataframeDataReader(df)
+
+        self.assertEqual(reader.dimension, 4)
+        self.assertEqual(reader.n_individuals, 2)
+        self.assertEqual(reader.individuals.keys(), {'S1', 'S2'})
+        self.assertEqual(reader.n_visits, 14)
+
+        nans_count_S1 = pd.DataFrame(reader.individuals['S1'].observations, columns=reader.headers).isna().sum(axis=0)
+        pd.testing.assert_series_equal(nans_count_S1, pd.Series({'Y0': 5, 'Y1': 5, 'Y2': 5, 'Y3': 5}))
+
+        nans_count_S2 = pd.DataFrame(reader.individuals['S2'].observations, columns=reader.headers).isna().sum(axis=0)
+        pd.testing.assert_series_equal(nans_count_S2, pd.Series({'Y0': 6, 'Y1': 6, 'Y2': 6, 'Y3': 6}))

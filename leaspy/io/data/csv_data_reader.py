@@ -1,4 +1,5 @@
 import csv
+import math
 
 from leaspy.io.data.individual_data import IndividualData
 from leaspy.exceptions import LeaspyDataInputError
@@ -39,19 +40,23 @@ class CSVDataReader:
 
     @staticmethod
     def _get_timepoint(idx, timepoint):
-        if timepoint != timepoint:
-            raise LeaspyDataInputError(f"One of the time value of individual '{idx}' is NaN")
         try:
-            return float(timepoint)
+            timepoint = float(timepoint)
         except Exception:
-            raise LeaspyDataInputError(f"The timepoint '{timepoint}' of individual '{idx}' cannot be converted to float")
+            raise LeaspyDataInputError(f"The timepoint `{timepoint}` of individual `{idx}` cannot be converted to a float")
+
+        if math.isnan(timepoint):
+            raise LeaspyDataInputError(f"One of the time value of individual `{idx}` is NaN")
+
+        return timepoint
 
     @staticmethod
     def _get_observation(idx, timepoint, observation):
         try:
-            return [float(_) for _ in observation]
+            # missing values in CSV are coded as empty values or "nan" (case insensitive)
+            return [float(_) if _ != '' else float('nan') for _ in observation]
         except Exception:
-            raise LeaspyDataInputError(f"The observations of individual '{idx}' at time '{timepoint}' cannot be converted to float")
+            raise LeaspyDataInputError(f"Some observations of individual `{idx}` at time `{timepoint}` cannot be converted to floats")
 
     def _check_observation(self, observation):
         if self.dimension is None:

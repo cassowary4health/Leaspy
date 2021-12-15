@@ -229,14 +229,18 @@ class LeaspyTestCase(TestCase):
 
         try:
             eq_or_almost_eq = np.allclose(left, right, **allclose_kws)
-        except Exception:  #
+        except Exception as e:
+            if 'got an unexpected keyword argument' in str(e):
+                # invalid argument send to `numpy.allclose`, raise for that!
+                raise e
             # test for true equality when numpy.allclose failed for some reason
             cmp_suffix = ''
-            eq_or_almost_eq = bool(left == right)
-        except Exception:
-            # sometimes the previous equality test raise an error so it should be handled!
-            # (example in case we are trying to compare arrays without the same shape)
-            eq_or_almost_eq = False
+            try:
+                eq_or_almost_eq = bool(left == right)
+            except Exception:
+                # sometimes the previous equality test raise an error so it should be handled!
+                # (example in case we are trying to compare arrays without the same shape)
+                eq_or_almost_eq = False
 
         if not eq_or_almost_eq:
             # we try to convert non numpy arrays (nor torch tensors) to numpy arrays
@@ -337,6 +341,7 @@ class LeaspyTestCase(TestCase):
 
     def assertDictAlmostEqual(self, left: dict, right: dict, *,
                               left_desc: str = 'new', right_desc: str = 'expected',
+                              msg: Any = None,
                               allclose_custom: Dict[str, KwargsType] = {}, **allclose_defaults) -> None:
         """
         Assert that two dictionaries are equal (in-depth) with numerical values checked with customizable tolerances.
@@ -345,12 +350,15 @@ class LeaspyTestCase(TestCase):
         Parameters
         ----------
         cf. `check_nested_dict_almost_equal` for main parameters
+
+        msg : optional str
+            Prefix for error messages
         """
         pbs = self.check_nested_dict_almost_equal(left, right, left_desc=left_desc, right_desc=right_desc,
                                                   allclose_custom=allclose_custom, **allclose_defaults)
 
         if pbs:
-            self.fail("\n".join(pbs))
+            self.fail("\n".join([str(msg), *pbs] if msg else pbs))
 
     def assertOrderedDictEqual(self, a: dict, b: dict, *, msg: str = None):
         """Ordered version of assertDictEqual."""

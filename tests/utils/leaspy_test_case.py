@@ -15,7 +15,7 @@ KwargsType = Dict[str, Any]
 # update print config (especially to have nicer float display in case of errors)
 # sadly there are no such option for builtin floats and builtin containers of floats...
 PRINT_OPTIONS = dict(precision=4, threshold=100)
-np.set_printoptions(**PRINT_OPTIONS)
+np.set_printoptions(**PRINT_OPTIONS)  # floatmode='maxprec'
 torch.set_printoptions(**PRINT_OPTIONS)
 
 
@@ -179,9 +179,26 @@ class LeaspyTestCase(TestCase):
         return obj
 
     @classmethod
+    def nice_repr_of_object(cls, obj: Any) -> str:
+        """Helper function to have nice (short) string for objects (esp. for floats and objects containing them)."""
+
+        # check for numpy.array / torch.tensor "scalars"
+        if hasattr(obj, 'ndim') and obj.ndim == 0:
+            obj = obj.item()
+
+        if isinstance(obj, float):
+            return f"{obj:.{1+PRINT_OPTIONS['precision']}g}"
+        else:
+            # try to cast object as numpy array so representation is nicer
+            obj_casted = cls.try_cast_as_numpy_array(obj)
+
+            # we use `str`, and not `repr`, to be shorter (no information on type)
+            return str(obj_casted)
+
+    @classmethod
     def is_equal_or_almost_equal(cls, left: Any, right: Any, *,
                                  allclose_kws: KwargsType = {},
-                                 ineq_msg_template: str = 'Values are different{cmp_suffix}:\n`{left_desc}` -> {left_casted} != {right_casted} <- `{right_desc}`',
+                                 ineq_msg_template: str = 'Values are different{cmp_suffix}:\n`{left_desc}` -> {left_repr} != {right_repr} <- `{right_desc}`',
                                  **vars_for_ineq_msg) -> Optional[str]:
         """
         Check for equality, or almost equality when relevant, of two objects.
@@ -225,10 +242,10 @@ class LeaspyTestCase(TestCase):
             # we try to convert non numpy arrays (nor torch tensors) to numpy arrays
             # this is only useful to have nicer error messages (thanks to `numpy.set_printoptions`)
             # (we could also use reprlib.Repr to customize built-in representation of floats and objects containing floats)
-            left_casted = cls.try_cast_as_numpy_array(left)
-            right_casted = cls.try_cast_as_numpy_array(right)
+            left_repr = cls.nice_repr_of_object(left)
+            right_repr = cls.nice_repr_of_object(right)
 
-            return ineq_msg_template.format(left=left, left_casted=left_casted, right=right, right_casted=right_casted,
+            return ineq_msg_template.format(left=left, left_repr=left_repr, right=right, right_repr=right_repr,
                                             cmp_suffix=cmp_suffix, **vars_for_ineq_msg)
 
     @classmethod

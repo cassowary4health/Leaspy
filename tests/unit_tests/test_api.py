@@ -1,5 +1,4 @@
 import os
-import unittest
 from glob import glob
 
 import torch
@@ -8,10 +7,10 @@ from leaspy.api import Leaspy
 from leaspy.models.model_factory import ModelFactory
 from leaspy.models.utils import VALID_LOSSES
 
-from tests import hardcoded_model_path, hardcoded_models_folder, from_fit_models_folder
+from tests import LeaspyTestCase
 
 
-class LeaspyTest(unittest.TestCase):
+class LeaspyTest(LeaspyTestCase):
 
     def test_constructor(self):
         """
@@ -47,7 +46,7 @@ class LeaspyTest(unittest.TestCase):
 
     def test_load_hyperparameters(self):
 
-        leaspy = Leaspy.load(hardcoded_model_path('logistic_diag_noise'))
+        leaspy = self.get_hardcoded_model('logistic_diag_noise')
         leaspy.model.load_hyperparameters({'source_dimension': 3, 'loss': 'crossentropy'})
 
         self.assertEqual(leaspy.model.source_dimension, 3)
@@ -57,7 +56,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a logistic model from a json file
         """
-        leaspy = Leaspy.load(hardcoded_model_path('logistic_scalar_noise'))
+        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
 
         # Test the name
         self.assertEqual(leaspy.type, 'logistic')
@@ -93,7 +92,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a logistic parallel model from a json file
         """
-        leaspy = Leaspy.load(hardcoded_model_path('logistic_parallel_scalar_noise'))
+        leaspy = self.get_hardcoded_model('logistic_parallel_scalar_noise')
 
         # Test the name
         self.assertEqual(leaspy.type, 'logistic_parallel')
@@ -129,7 +128,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a linear model from a json file
         """
-        leaspy = Leaspy.load(hardcoded_model_path('linear_scalar_noise'))
+        leaspy = self.get_hardcoded_model('linear_scalar_noise')
 
         # Test the name
         self.assertEqual(leaspy.type, 'linear')
@@ -165,7 +164,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a linear model from a json file
         """
-        leaspy = Leaspy.load(hardcoded_model_path('univariate_logistic'))
+        leaspy = self.get_hardcoded_model('univariate_logistic')
 
         # Test the name
         self.assertEqual(leaspy.type, 'univariate_logistic')
@@ -196,7 +195,7 @@ class LeaspyTest(unittest.TestCase):
         """
         Test the initialization of a linear model from a json file
         """
-        leaspy = Leaspy.load(hardcoded_model_path('univariate_linear'))
+        leaspy = self.get_hardcoded_model('univariate_linear')
 
         # Test the name
         self.assertEqual(leaspy.type, 'univariate_linear')
@@ -232,11 +231,11 @@ class LeaspyTest(unittest.TestCase):
         check_consistent_load_save = LeaspyFitTest().check_model_consistency
 
         # hardcoded models
-        for model_path in glob(os.path.join(hardcoded_models_folder, '*.json')):
+        for model_path in glob(os.path.join(self.hardcoded_models_folder, '*.json')):
             with self.subTest(model_path=model_path):
                 check_consistent_load_save(Leaspy.load(model_path), model_path, atol=atol)
 
         # functional models (OK because no direct test on values)
-        for model_path in glob(os.path.join(from_fit_models_folder, '*.json')):
+        for model_path in glob(os.path.join(self.from_fit_models_folder, '*.json')):
             with self.subTest(model_path=model_path):
                 check_consistent_load_save(Leaspy.load(model_path), model_path, atol=atol)

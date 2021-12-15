@@ -1,20 +1,15 @@
-import unittest
-import os
-
-import pandas as pd
 import torch
 
-from leaspy import AlgorithmSettings, Data, Leaspy
+from leaspy import AlgorithmSettings, Leaspy
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.model_factory import ModelFactory
 
-from tests import example_data_path, binary_data_path, hardcoded_model_path
-from tests.helpers import TestHelpers
+from tests import LeaspyTestCase
 
 
-class AbstractModelTest(unittest.TestCase):
+class AbstractModelTest(LeaspyTestCase):
 
-    @TestHelpers.allow_abstract_class_init(AbstractModel)
+    @LeaspyTestCase.allow_abstract_class_init(AbstractModel)
     def test_abstract_model_constructor(self):
         """
         Test initialization of abstract model class object.
@@ -40,12 +35,12 @@ class AbstractModelTest(unittest.TestCase):
             self.assertIn(attribute, present_attributes)
         # TODO: use python's hasattr and issubclass
 
-    @TestHelpers.allow_abstract_class_init(AbstractModel)
+    @LeaspyTestCase.allow_abstract_class_init(AbstractModel)
     def test_load_parameters(self):
         """
         Test the method load_parameters.
         """
-        leaspy_object = Leaspy.load(hardcoded_model_path('logistic_scalar_noise'))
+        leaspy_object = self.get_hardcoded_model('logistic_scalar_noise')
 
         abstract_model = AbstractModel("dummy_model")
 
@@ -70,49 +65,45 @@ class AbstractModelTest(unittest.TestCase):
         Check if the following models run with the following algorithms.
         """
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
-            leaspy = Leaspy(model_name)
-            settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
+            with self.subTest(model_name=model_name):
+                leaspy = Leaspy(model_name)
+                settings = AlgorithmSettings('mcmc_saem', n_iter=50, seed=0)
 
-            df = pd.read_csv(example_data_path)
-            if model_name == 'univariate_linear' or model_name == 'univariate_logistic':
-                df = df.iloc[:, :3]
-            data = Data.from_dataframe(df)
+                data = self.get_suited_test_data_for_model(model_name)
 
-            leaspy.fit(data, settings)
+                leaspy.fit(data, settings)
 
-            methods = ['mode_real', 'mean_real', 'scipy_minimize']
-            #if model_name not in ['logistic', 'logistic_parallel']:
-            #    # problem with nans with 'gradient_descent_personalize' in multivariate logistic models
-            #    methods.append('gradient_descent_personalize')
+                methods = ['mode_real', 'mean_real', 'scipy_minimize']
+                #if model_name not in ['logistic', 'logistic_parallel']:
+                #    # problem with nans with 'gradient_descent_personalize' in multivariate logistic models
+                #    methods.append('gradient_descent_personalize')
 
-            for method in methods:
-                burn_in_kw = dict() # not for all algos
-                if '_real' in method:
-                    burn_in_kw = dict(n_burn_in_iter=90, )
-                settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
-                result = leaspy.personalize(data, settings)
+                for method in methods:
+                    burn_in_kw = dict() # not for all algos
+                    if '_real' in method:
+                        burn_in_kw = dict(n_burn_in_iter=90, )
+                    settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
+                    result = leaspy.personalize(data, settings)
 
     def test_all_model_run_crossentropy(self):
         """
         Check if the following models run with the following algorithms.
         """
         for model_name in ('linear', 'univariate_logistic', 'univariate_linear', 'logistic', 'logistic_parallel'):
-            leaspy = Leaspy(model_name, loss="crossentropy")
-            settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
+            with self.subTest(model_name=model_name):
+                leaspy = Leaspy(model_name, loss="crossentropy")
+                settings = AlgorithmSettings('mcmc_saem', n_iter=50, seed=0)
 
-            df = pd.read_csv(binary_data_path)
-            if model_name == 'univariate_linear' or model_name == 'univariate_logistic':
-                df = df.iloc[:, :3]
-            data = Data.from_dataframe(df)
+                data = self.get_suited_test_data_for_model(model_name + '_binary')
 
-            leaspy.fit(data, settings)
+                leaspy.fit(data, settings)
 
-            for method in ['scipy_minimize']:
-                burn_in_kw = dict() # not for all algos
-                if '_real' in method:
-                    burn_in_kw = dict(n_burn_in_iter=90, )
-                settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
-                result = leaspy.personalize(data, settings)
+                for method in ['scipy_minimize']:
+                    burn_in_kw = dict() # not for all algos
+                    if '_real' in method:
+                        burn_in_kw = dict(n_burn_in_iter=90, )
+                    settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
+                    result = leaspy.personalize(data, settings)
 
     def test_tensorize_2D(self):
 
@@ -132,7 +123,7 @@ class AbstractModelTest(unittest.TestCase):
 
     def test_audit_individual_parameters(self):
 
-        # tuple: (valid,nb_inds,src_dim), ips_as_dict
+        # tuple: (valid, nb_inds, src_dim), ips_as_dict
         all_ips = [
             # 0 individual
             ((True, 0, 0), {'tau':[],'xi':[]}),
@@ -161,7 +152,7 @@ class AbstractModelTest(unittest.TestCase):
             (lambda src_dim: src_dim >= 0, ModelFactory.model('logistic'))
         ]:
 
-            for (valid,n_inds,src_dim), ips in all_ips:
+            for (valid, n_inds, src_dim), ips in all_ips:
 
                 if m.name == 'logistic':
                     m.source_dimension = src_dim
@@ -201,11 +192,11 @@ class AbstractModelTest(unittest.TestCase):
                             self.assertEqual(v.dim(), 2)
                             self.assertEqual(v.shape, (1, src_dim if (k == 'sources') else 1))
 
-    # @TestHelpers.allow_abstract_class_init(AbstractModel)
+    # @LeaspyTestCase.allow_abstract_class_init(AbstractModel)
     # def test_compute_individual_trajectory(self):
     #     # TODO not sure it is the right place to test that
     #     # multivariate
-    #     leaspy_object = Leaspy.load(hardcoded_model_path('logistic_scalar_noise'))
+    #     leaspy_object = self.get_hardcoded_model('logistic_scalar_noise')
     #     abstract_model = AbstractModel("logistic")
     #     abstract_model.load_parameters(leaspy_object.model.parameters)
     #

@@ -1,10 +1,10 @@
-import unittest
-
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.univariate_model import UnivariateModel
 
+from tests import LeaspyTestCase
 
-class UnivariateModelTest(unittest.TestCase):
+
+class UnivariateModelTest(LeaspyTestCase):
 
     def check_common_attrs(self, model):
         self.assertTrue(issubclass(model.__class__, AbstractModel))

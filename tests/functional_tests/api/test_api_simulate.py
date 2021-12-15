@@ -5,31 +5,29 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from leaspy import Leaspy, Data, IndividualParameters
 from leaspy.io.outputs.result import Result
 
-from tests import hardcoded_model_path, hardcoded_ip_path, test_data_dir
-from tests.helpers import TestHelpers
+from tests import LeaspyTestCase
 
 
-class LeaspySimulateTest(unittest.TestCase):
+class LeaspySimulateTest(LeaspyTestCase):
 
-    @staticmethod
-    def generic_simulate(hardcoded_model_name: str, hardcoded_ip_name: str, *,
+    @classmethod
+    def generic_simulate(cls, hardcoded_model_name: str, hardcoded_ip_name: str, *,
                          algo_name='simulation', **algo_params):
         """Helper for a generic simulation in following tests."""
 
         # load saved model (hardcoded values)
-        leaspy = Leaspy.load(hardcoded_model_path(hardcoded_model_name))
+        leaspy = cls.get_hardcoded_model(hardcoded_model_name)
 
         # load the right data
-        data = TestHelpers.get_data_for_model(hardcoded_model_name)
+        data = cls.get_suited_test_data_for_model(hardcoded_model_name)
 
         # load saved individual parameters
-        individual_parameters = IndividualParameters.load(hardcoded_ip_path(hardcoded_ip_name))
+        individual_parameters = cls.get_hardcoded_individual_params(hardcoded_ip_name)
 
         # create the simulate algo settings
-        simulation_settings = TestHelpers.get_algo_settings(name=algo_name, **algo_params)
+        simulation_settings = cls.get_algo_settings(name=algo_name, **algo_params)
 
         # simulate new subjects and their data
         simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)
@@ -63,7 +61,7 @@ class LeaspySimulateTest(unittest.TestCase):
             self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
             self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
 
-        path_expected_sim_res = os.path.join(test_data_dir, "simulation", expected_results_file)
+        path_expected_sim_res = os.path.join(self.test_data_dir, "simulation", expected_results_file)
 
         ## uncomment to re-generate simulation results
         #simulation_results.data.to_dataframe().to_csv(path_expected_sim_res, index=False)

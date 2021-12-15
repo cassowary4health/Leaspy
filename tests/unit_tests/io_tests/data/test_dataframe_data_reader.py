@@ -1,15 +1,16 @@
 import os
-import unittest
+
 import pandas as pd
 
-from tests import test_data_dir
 from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 
+from tests import LeaspyTestCase
 
-class DataframeDataReaderTest(unittest.TestCase):
+
+class DataframeDataReaderTest(LeaspyTestCase):
 
     def test_constructor_univariate(self):
-        path = os.path.join(test_data_dir, 'data_mock', 'univariate_data.csv')
+        path = os.path.join(self.test_data_dir, 'data_mock', 'univariate_data.csv')
         df = pd.read_csv(path)
 
         reader = DataframeDataReader(df)
@@ -26,7 +27,7 @@ class DataframeDataReaderTest(unittest.TestCase):
         self.assertEqual(reader.n_visits, 33)
 
     def test_constructor_multivariate(self):
-        path = os.path.join(test_data_dir, 'data_mock', 'multivariate_data.csv')
+        path = os.path.join(self.test_data_dir, 'data_mock', 'multivariate_data.csv')
         df = pd.read_csv(path)
 
         reader = DataframeDataReader(df)

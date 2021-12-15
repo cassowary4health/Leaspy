@@ -1,16 +1,12 @@
-import unittest
-
 import numpy as np
 
-from leaspy import Leaspy, IndividualParameters
-
-from tests import hardcoded_model_path, hardcoded_ip_path
+from tests import LeaspyTestCase
 
 
-class LeaspyEstimateTest(unittest.TestCase):
+class LeaspyEstimateTest(LeaspyTestCase):
 
     def check_almost_equal_for_all_ind_tpts(self, a, b, tol=1e-5):
-        # TODO? use helper on nested dict instead?
+        # TODO? use `self.assertDictAlmostEqual` instead???
         self.assertEqual(a.keys(), b.keys())
         for ind_id, a_i_vis in a.items(): # individual
             b_i_vis = b[ind_id]
@@ -21,9 +17,7 @@ class LeaspyEstimateTest(unittest.TestCase):
     def batch_checks(self, ip, tpts, models, expected_ests):
         for model_name in models:
             with self.subTest(model_name=model_name):
-                model_path = hardcoded_model_path(model_name)
-                leaspy = Leaspy.load(model_path)
-
+                leaspy = self.get_hardcoded_model(model_name)
                 estimations = leaspy.estimate(tpts, ip)
                 print(estimations)
 
@@ -31,8 +25,7 @@ class LeaspyEstimateTest(unittest.TestCase):
 
     def test_estimate_multivariate(self):
 
-        ip_path = hardcoded_ip_path('ip_save.json')
-        ip = IndividualParameters.load(ip_path)
+        ip = self.get_hardcoded_individual_params('ip_save.json')
 
         timepoints = {
             'idx1': [78, 81],
@@ -55,8 +48,7 @@ class LeaspyEstimateTest(unittest.TestCase):
 
     def test_estimate_univariate(self):
 
-        ip_path = hardcoded_ip_path('ip_univariate_save.json')
-        ip = IndividualParameters.load(ip_path)
+        ip = self.get_hardcoded_individual_params('ip_univariate_save.json')
 
         timepoints = {
             'idx1': [78, 81],

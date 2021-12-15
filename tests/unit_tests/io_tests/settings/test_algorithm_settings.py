@@ -1,18 +1,18 @@
 import os
 import json
-import unittest
 
-from tests import test_data_dir, default_algo_dir
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
+from tests import LeaspyTestCase
 
-class AlgorithmSettingsTest(unittest.TestCase):
+
+class AlgorithmSettingsTest(LeaspyTestCase):
 
     def test_default_constructor(self):
 
         # Default constructor
         name = 'scipy_minimize'
-        path = os.path.join(default_algo_dir, 'default_' + name + '.json')
+        path = os.path.join(self.default_algo_dir, 'default_' + name + '.json')
 
         with open(path) as fp:
             json_data = json.load(fp)
@@ -48,7 +48,7 @@ class AlgorithmSettingsTest(unittest.TestCase):
     def test_default_constructor_with_kwargs(self):
         # Default constructor with kwargs
         name = 'mcmc_saem'
-        path = os.path.join(default_algo_dir, 'default_' + name + '.json')
+        path = os.path.join(self.default_algo_dir, 'default_' + name + '.json')
 
         with open(path) as fp:
             json_data = json.load(fp)
@@ -63,7 +63,7 @@ class AlgorithmSettingsTest(unittest.TestCase):
 
     def test_constructor_by_loading_json(self):
         # Constructor by loading a json file
-        path = os.path.join(test_data_dir, 'settings', 'algo', 'mcmc_saem_settings.json')
+        path = os.path.join(self.test_data_dir, 'settings', 'algo', 'mcmc_saem_settings.json')
 
         with open(path) as fp:
             json_data = json.load(fp)
@@ -71,5 +71,4 @@ class AlgorithmSettingsTest(unittest.TestCase):
         settings = AlgorithmSettings.load(path)
         self.assertEqual(settings.name, 'mcmc_saem')
         self.assertEqual(settings.parameters, json_data['parameters'])
-
 

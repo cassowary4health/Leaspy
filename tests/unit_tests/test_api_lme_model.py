@@ -1,27 +1,26 @@
-import unittest
 import os
 
 import numpy as np
 import pandas as pd
-
-from tests import example_data_path, test_tmp_dir
-from leaspy import Data, Leaspy, AlgorithmSettings
-
 #import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.regression.mixed_linear_model import MixedLMParams
 
+from leaspy import Data, Leaspy, AlgorithmSettings
 
-class LMEModelAPITest(unittest.TestCase):
+from tests import LeaspyTestCase
+
+
+class LMEModelAPITest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
         # Data
         # read csv
-        cls.raw_data_df = pd.read_csv(example_data_path, dtype={'ID':str})
+        cls.raw_data_df = pd.read_csv(cls.example_data_path, dtype={'ID': str})
         cls.raw_data_df['TIME'] = round(cls.raw_data_df['TIME'], 3)
 
-        cls.raw_data_df.iloc[30,2] = np.nan
+        cls.raw_data_df.iloc[30, 2] = np.nan
 
         ages = cls.raw_data_df.dropna(subset=['Y0'])['TIME']
         cls.ages_mean, cls.ages_std = ages.mean(), ages.std(ddof=0)
@@ -90,7 +89,7 @@ class LMEModelAPITest(unittest.TestCase):
         # check statsmodels consistency
         self.check_consistency_sm(lsp.model.parameters, ip, re_formula='~1')
 
-        # Personalize that shouldnt work (different feature)
+        # Personalize that shouldn't work (different feature)
         with self.assertRaises(ValueError):
             lsp.personalize(Data.from_dataframe(self.raw_data_df[["ID", "TIME", "Y1"]]), settings)
 
@@ -197,7 +196,7 @@ class LMEModelAPITest(unittest.TestCase):
         print(repr(lsp.model.parameters))
 
         # + test save/load
-        model_path = os.path.join(test_tmp_dir, 'lme_model_1.json')
+        model_path = os.path.join(self.test_tmp_dir, 'lme_model_1.json')
         lsp.save(model_path)
         del lsp
 

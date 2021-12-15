@@ -1,20 +1,13 @@
-# from os import path
-# from subprocess import Popen
-import unittest
-
-import torch.random
+import torch
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-# from leaspy.io.settings.algorithm_settings import AlgorithmSettings
-# from leaspy.utils.logs.fit_output_manager import FitOutputManager
 
-# from tests import test_data_dir
-from tests.helpers import TestHelpers
+from tests import LeaspyTestCase
 
 
-class Test(unittest.TestCase):
+class TestAbstractAlgo(LeaspyTestCase):
 
-    @TestHelpers.allow_abstract_class_init(AbstractAlgo)
+    @LeaspyTestCase.allow_abstract_class_init(AbstractAlgo)
     def test_constructor(self):
         algo = AbstractAlgo()
         self.assertEqual(algo.algo_parameters, None)
@@ -22,14 +15,14 @@ class Test(unittest.TestCase):
         self.assertEqual(algo.output_manager, None)
         self.assertEqual(algo.seed, None)
 
-    @TestHelpers.allow_abstract_class_init(AbstractAlgo)
+    @LeaspyTestCase.allow_abstract_class_init(AbstractAlgo)
     def test_initialize_seed(self):
         algo = AbstractAlgo()
         seed = torch.randint(10000, (1,)).item()
         algo._initialize_seed(seed)
         self.assertEqual(seed, torch.random.initial_seed())
 
-    @TestHelpers.allow_abstract_class_init(AbstractAlgo)
+    @LeaspyTestCase.allow_abstract_class_init(AbstractAlgo)
     def test_load_parameters(self):
         algo = AbstractAlgo()
         algo.algo_parameters = {'param1': 1, 'param2': 2}
@@ -40,7 +33,7 @@ class Test(unittest.TestCase):
         self.assertEqual(algo.algo_parameters['param2'], 2)
         self.assertEqual(algo.algo_parameters['param3'], 3)
 
-    @TestHelpers.allow_abstract_class_init(AbstractAlgo)
+    @LeaspyTestCase.allow_abstract_class_init(AbstractAlgo)
     def test_set_output_manager(self):
         algo = AbstractAlgo()
         algo.set_output_manager(None)

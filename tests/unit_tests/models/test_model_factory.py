@@ -1,10 +1,10 @@
-import unittest
-
 from leaspy.models import all_models, UnivariateModel
 from leaspy.models.model_factory import ModelFactory
 
+from tests import LeaspyTestCase
 
-class ModelFactoryTest(unittest.TestCase):
+
+class ModelFactoryTest(LeaspyTestCase):
 
     def test_model_factory_constructor(self, model=None):
         """
@@ -46,24 +46,26 @@ class ModelFactoryTest(unittest.TestCase):
         """Test if kwargs are ok"""
         # --- Univariate
         for name in ('univariate_linear', 'univariate_logistic'):
-            model = ModelFactory.model(name, features=['t1','t2','t3'], loss='test_loss')
-            self.assertEqual(model.features, ['t1','t2','t3'])
-            self.assertEqual(model.loss, 'test_loss')
-            with self.assertRaises(ValueError) as err:
-                ModelFactory.model(name, source_dimension=2, dimension=3)
-                hyperparameters = {'source_dimension': 2, 'dimension': 3}
-                self.assertEqual(str(err), "Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
-                                           f"You gave {hyperparameters}.")
+            with self.subTest(model_name=name):
+                model = ModelFactory.model(name, features=['t1','t2','t3'], loss='test_loss')
+                self.assertEqual(model.features, ['t1','t2','t3'])
+                self.assertEqual(model.loss, 'test_loss')
+                with self.assertRaises(ValueError) as err:
+                    ModelFactory.model(name, source_dimension=2, dimension=3)
+                    hyperparameters = {'source_dimension': 2, 'dimension': 3}
+                    self.assertEqual(str(err), "Only <features> and <loss> are valid hyperparameters for an UnivariateModel!"
+                                            f"You gave {hyperparameters}.")
 
         # -- Multivariate
         for name in ('linear', 'logistic', 'logistic_parallel'):
-            model = ModelFactory.model(name, features=['t1','t2','t3'], loss='test_loss', source_dimension=2, dimension=3)
-            self.assertEqual(model.features, ['t1','t2','t3'])
-            self.assertEqual(model.loss, 'test_loss')
-            self.assertEqual(model.dimension, 3) # TODO: automatic from length of features?
-            self.assertEqual(model.source_dimension, 2)
-            with self.assertRaises(ValueError) as err:
-                ModelFactory.model(name, blabla=2)
-                hyperparameters = {'blabla': 2}
-                self.assertEqual(str(err), "Only <features>, <loss>, <dimension> and <source_dimension> are valid "
-                                           f"hyperparameters for an AbstractMultivariateModel! You gave {hyperparameters}.")
+            with self.subTest(model_name=name):
+                model = ModelFactory.model(name, features=['t1','t2','t3'], loss='test_loss', source_dimension=2, dimension=3)
+                self.assertEqual(model.features, ['t1','t2','t3'])
+                self.assertEqual(model.loss, 'test_loss')
+                self.assertEqual(model.dimension, 3) # TODO: automatic from length of features?
+                self.assertEqual(model.source_dimension, 2)
+                with self.assertRaises(ValueError) as err:
+                    ModelFactory.model(name, blabla=2)
+                    hyperparameters = {'blabla': 2}
+                    self.assertEqual(str(err), "Only <features>, <loss>, <dimension> and <source_dimension> are valid "
+                                            f"hyperparameters for an AbstractMultivariateModel! You gave {hyperparameters}.")

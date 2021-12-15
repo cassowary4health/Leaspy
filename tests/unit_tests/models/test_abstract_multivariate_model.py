@@ -1,12 +1,11 @@
-import unittest
-
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 
-from tests.helpers import TestHelpers
+from tests import LeaspyTestCase
 
-class AbstractMultivariateModelTest(unittest.TestCase):
 
-    @TestHelpers.allow_abstract_class_init(AbstractMultivariateModel)
+class AbstractMultivariateModelTest(LeaspyTestCase):
+
+    @LeaspyTestCase.allow_abstract_class_init(AbstractMultivariateModel)
     def test_constructor_abstract_multivariate(self, model=None):
         """
         Test attribute's initialization of leaspy abstract multivariate model

@@ -1,15 +1,18 @@
-import unittest
-
 import torch
 
-from leaspy import Data, Leaspy
 from leaspy.io.data.dataset import Dataset
 from leaspy.algo.samplers.gibbs_sampler import GibbsSampler
 
-from tests import example_data_path, hardcoded_model_path
+from tests import LeaspyTestCase
 
 
-class SamplerTest(unittest.TestCase):
+class SamplerTest(LeaspyTestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.leaspy = cls.get_hardcoded_model('logistic_scalar_noise')
+        cls.data = cls.get_suited_test_data_for_model('logistic_scalar_noise')
+        cls.dataset = Dataset(cls.data)
 
     def test_sample(self):
         """
@@ -20,18 +23,14 @@ class SamplerTest(unittest.TestCase):
         n_draw = 50
         temperature_inv = 1.0
 
-        path_model_sampler = hardcoded_model_path('logistic_scalar_noise')
-
-        data = Dataset(Data.from_csv_file(example_data_path))
-        leaspy = Leaspy.load(path_model_sampler)
-        realizations = leaspy.model.get_realization_object(n_patients)
+        realizations = self.leaspy.model.get_realization_object(n_patients)
 
         # Test with taus
         var_name = 'tau'
-        gsampler = GibbsSampler(leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
         random_draws = []
         for i in range(n_draw):
-            gsampler.sample(data, leaspy.model, realizations, temperature_inv)
+            gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv)
             random_draws.append(realizations[var_name].tensor_realizations.clone())
 
         stack_random_draws = torch.stack(random_draws)
@@ -43,10 +42,10 @@ class SamplerTest(unittest.TestCase):
 
         # Test with g
         var_name = 'g'
-        gsampler = GibbsSampler(leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
         random_draws = []
         for i in range(n_draw):
-            gsampler.sample(data, leaspy.model, realizations, temperature_inv)
+            gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv)
             random_draws.append(realizations[var_name].tensor_realizations.clone())
 
         stack_random_draws = torch.stack(random_draws)
@@ -61,15 +60,11 @@ class SamplerTest(unittest.TestCase):
         n_draw = 200
         # temperature_inv = 1.0
 
-        path_model_sampler = hardcoded_model_path('logistic_scalar_noise')
-
-        # data = Dataset(Data.from_csv_file(example_data_path))
-        leaspy = Leaspy.load(path_model_sampler)
-        # realizations = leaspy.model.get_realization_object(n_patients)
+        # realizations = self.leaspy.model.get_realization_object(n_patients)
 
         # Test with taus
         var_name = 'tau'
-        gsampler = GibbsSampler(leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
 
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))
@@ -81,15 +76,11 @@ class SamplerTest(unittest.TestCase):
         n_draw = 200
         # temperature_inv = 1.0
 
-        path_model_sampler = hardcoded_model_path('logistic_scalar_noise')
-
-        # data = Dataset(Data.from_csv_file(example_data_path))
-        leaspy = Leaspy.load(path_model_sampler)
-        # realizations = leaspy.model.get_realization_object(n_patients)
+        # realizations = self.leaspy.model.get_realization_object(n_patients)
 
         # Test with taus
         var_name = 'tau'
-        gsampler = GibbsSampler(leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
 
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))

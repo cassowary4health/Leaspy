@@ -1,29 +1,27 @@
 import os
-import unittest
 
 import torch
 
-from leaspy import Leaspy, IndividualParameters
+from leaspy import IndividualParameters
 
-from tests import test_data_dir, hardcoded_model_path
-from tests.helpers import TestHelpers
+from tests import LeaspyTestCase
 
 
-class LeaspyPersonalizeTest(unittest.TestCase):
+class LeaspyPersonalizeTest(LeaspyTestCase):
 
-    @staticmethod
-    def generic_personalization(hardcoded_model_name: str, *, algo_path: str = None,
-                                algo_name: str = None, **algo_params):
+    @classmethod
+    def generic_personalization(cls, hardcoded_model_name: str, *,
+                                algo_path: str = None, algo_name: str = None, **algo_params):
         """Helper for a generic personalization in following tests."""
 
         # load saved model (hardcoded values)
-        leaspy = Leaspy.load(hardcoded_model_path(hardcoded_model_name))
+        leaspy = cls.get_hardcoded_model(hardcoded_model_name)
 
         # load the right data
-        data = TestHelpers.get_data_for_model(hardcoded_model_name)
+        data = cls.get_suited_test_data_for_model(hardcoded_model_name)
 
-        # create the personalize algo settings
-        algo_settings = TestHelpers.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
+        # create the personalize algo settings (from path or name + params)
+        algo_settings = cls.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
 
         # return results of personalization
         ips, noise = leaspy.personalize(data, settings=algo_settings, return_noise=True)
@@ -51,7 +49,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         Load logistic model from file, and personalize it to data from ...
         """
         # Load saved algorithm
-        path_settings = os.path.join(test_data_dir, 'settings', 'algo', 'settings_mean_real.json')
+        path_settings = os.path.join(self.test_data_dir, 'settings', 'algo', 'settings_mean_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
         self.check_consistency_personalize_outputs(ips, noise_std, expected_noise_std=0.11631, tol_noise=tol_noise)
@@ -61,7 +59,7 @@ class LeaspyPersonalizeTest(unittest.TestCase):
         Load logistic model from file, and personalize it to data from ...
         """
         # Load saved algorithm
-        path_settings = os.path.join(test_data_dir, 'settings', 'algo', 'settings_mode_real.json')
+        path_settings = os.path.join(self.test_data_dir, 'settings', 'algo', 'settings_mode_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
         self.check_consistency_personalize_outputs(ips, noise_std, expected_noise_std=0.11711, tol_noise=tol_noise)

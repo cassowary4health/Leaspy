@@ -1,20 +1,17 @@
-import unittest
-
 import numpy as np
 import torch
 
-from leaspy.api import Leaspy
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
-from tests import hardcoded_model_path
+from tests import LeaspyTestCase
 
 # test tolerance, lack of precision btw different machines... (no exact reproducibility in scipy.optimize.minimize?)
 tol = 3e-3
 tol_tau = 1e-2
 
 
-class ScipyMinimizeTest(unittest.TestCase):
+class ScipyMinimizeTest(LeaspyTestCase):
 
     def check_individual_parameters(self, ips, *, tau, xi, tol_tau, tol_xi, sources=None, tol_sources=None):
 
@@ -47,20 +44,17 @@ class ScipyMinimizeTest(unittest.TestCase):
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
 
-        univariate_path = hardcoded_model_path('univariate_logistic')
-        univariate_model = Leaspy.load(univariate_path)
+        univariate_model = self.get_hardcoded_model('univariate_logistic')
         param = algo._initialize_parameters(univariate_model.model)
 
         self.assertEqual(param, [torch.tensor([-1.0/0.01]), torch.tensor([70.0/2.5])])
 
-        multivariate_path = hardcoded_model_path('logistic_scalar_noise')
-        multivariate_model = Leaspy.load(multivariate_path)
+        multivariate_model = self.get_hardcoded_model('logistic_scalar_noise')
         param = algo._initialize_parameters(multivariate_model.model)
         self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2/7.1]), torch.tensor([0.]), torch.tensor([0.])])
 
     def test_get_reconstruction_error(self):
-        multivariate_path = hardcoded_model_path('logistic_scalar_noise')
-        leaspy = Leaspy.load(multivariate_path)
+        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
 
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
@@ -81,8 +75,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertAlmostEqual(torch.sum((err - output)**2).item(), 0, delta=1e-8)
 
     def test_get_regularity(self):
-        multivariate_path = hardcoded_model_path('logistic_scalar_noise')
-        leaspy = Leaspy.load(multivariate_path)
+        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
 
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
@@ -107,9 +100,9 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertTupleEqual(reg_grads['tau'].shape, (1,1))
         self.assertTupleEqual(reg_grads['sources'].shape, (1,2))
 
-    def get_individual_parameters_patient(self, model_name, times, values, *, loss, **algo_kwargs):
+    def get_individual_parameters_patient(self, model_name: str, times, values, *, loss, **algo_kwargs):
         # already a functional test in fact...
-        leaspy = Leaspy.load(hardcoded_model_path(model_name))
+        leaspy = self.get_hardcoded_model(model_name)
         leaspy.model.load_hyperparameters({'loss': loss})
 
         settings = AlgorithmSettings('scipy_minimize', seed=0, **algo_kwargs)  # loss=loss (not need: loss comes from model now)

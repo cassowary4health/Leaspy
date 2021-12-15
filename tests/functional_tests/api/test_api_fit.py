@@ -1,5 +1,4 @@
 import os
-import unittest
 import warnings
 import json
 
@@ -7,13 +6,12 @@ import torch
 
 from leaspy import Leaspy
 
-from tests import from_fit_model_path, test_tmp_dir
-from tests.helpers import TestHelpers
+from tests import LeaspyTestCase
 
 
 # Weirdly, some results are perfectly reproducible on local mac + CI linux but not on CI mac...
 # Increasing tolerances so to pass despite these reproducibility issues...
-class LeaspyFitTest(unittest.TestCase):
+class LeaspyFitTest(LeaspyTestCase):
 
     """
     # Etienne, 2021/12/01:
@@ -33,13 +31,13 @@ class LeaspyFitTest(unittest.TestCase):
         """Helper for a generic calibration in following tests."""
 
         # load the right data
-        data = TestHelpers.get_data_for_model(model_codename)
+        data = cls.get_suited_test_data_for_model(model_codename)
 
         # create a new leaspy object containing the model
         leaspy = Leaspy(model_name, **model_hyperparams)
 
         # create the fit algo settings
-        algo_settings = TestHelpers.get_algo_settings(name=algo_name, **algo_params)
+        algo_settings = cls.get_algo_settings(name=algo_name, **algo_params)
 
         # calibrate model
         leaspy.fit(data, settings=algo_settings)
@@ -48,15 +46,18 @@ class LeaspyFitTest(unittest.TestCase):
         if print_model:
             print(leaspy.model.parameters)
 
+        # path to expected
+        expected_model_path = cls.from_fit_model_path(model_codename)
+
         # check that values in already saved file are same than the ones in fitted model
         if check_model:
-            cls().check_model_consistency(leaspy, from_fit_model_path(model_codename), **check_kws)
+            cls().check_model_consistency(leaspy, expected_model_path, **check_kws)
 
         ## set `save_model=True` to re-generate example model
         ## <!> use carefully (only when needed following breaking changes in model)
         if save_model:
-            leaspy.save(from_fit_model_path(model_codename), indent=2)
-            warnings.warn(f'<!> You overwrote previous model in "{from_fit_model_path(model_codename)}"...')
+            leaspy.save(expected_model_path, indent=2)
+            warnings.warn(f'<!> You overwrote previous model in "{expected_model_path}"...')
 
         # return leaspy & data objects
         return leaspy, data
@@ -64,7 +65,7 @@ class LeaspyFitTest(unittest.TestCase):
     def check_model_consistency(self, leaspy: Leaspy, path_to_backup_model: str, **allclose_kwds):
         # Temporary save parameters and check consistency with previously saved model
 
-        path_to_tmp_saved_model = os.path.join(test_tmp_dir, os.path.basename(path_to_backup_model))
+        path_to_tmp_saved_model = os.path.join(self.test_tmp_dir, os.path.basename(path_to_backup_model))
         leaspy.save(path_to_tmp_saved_model)
 
         with open(path_to_backup_model, 'r') as f1:
@@ -79,7 +80,7 @@ class LeaspyFitTest(unittest.TestCase):
         # Remove the temporary file saved (before asserts since they may fail!)
         os.remove(path_to_tmp_saved_model)
 
-        TestHelpers.assert_nested_dict_almost_equal(self, model_parameters_new, expected_model_parameters, **allclose_kwds)
+        self.assertDictAlmostEqual(model_parameters_new, expected_model_parameters, **allclose_kwds)
 
     # Test MCMC-SAEM
     def test_fit_logistic_scalar_noise(self, tol=5e-2, tol_tau=2e-1):

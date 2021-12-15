@@ -1,10 +1,11 @@
 import torch
-import unittest
 
 from leaspy.models.utils.attributes.logistic_attributes import LogisticAttributes
 
+from tests import LeaspyTestCase
 
-class AttributesLogisticTest(unittest.TestCase):
+
+class AttributesLogisticTest(LeaspyTestCase):
 
     def test_constructor(self):
         attributes = LogisticAttributes('logistic', 6, 2)

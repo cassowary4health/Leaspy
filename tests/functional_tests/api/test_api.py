@@ -1,11 +1,9 @@
 import unittest
 
-from leaspy import Leaspy, AlgorithmSettings
-
-from tests import from_fit_model_path
+from tests import LeaspyTestCase
 
 
-class LeaspyTest(unittest.TestCase):
+class LeaspyTest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -38,18 +36,17 @@ class LeaspyTest(unittest.TestCase):
         6 - Simulate new patients
         """
         filename_expected_model = model_codename + '_for_test_api'
-        path_to_backup_model = from_fit_model_path(filename_expected_model)
 
         leaspy, data = self.generic_fit(model_name, filename_expected_model, **model_hyperparams,
                                         algo_name=fit_algo, algo_params=fit_algo_params,
                                         check_model=True, check_kws=fit_check_kws)
 
         # unlink 1st functional fit test from next steps...
-        leaspy = Leaspy.load(path_to_backup_model)
+        leaspy = self.get_from_fit_model(filename_expected_model)
         self.assertTrue(leaspy.model.is_initialized)
 
         # Personalize
-        algo_personalize_settings = AlgorithmSettings(perso_algo, **perso_algo_params)
+        algo_personalize_settings = self.get_algo_settings(name=perso_algo, **perso_algo_params)
         individual_parameters, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
         self.check_personalize(individual_parameters, noise_std, expected_noise_std=expected_noise_std, tol_noise=1e-2)
 
@@ -60,7 +57,7 @@ class LeaspyTest(unittest.TestCase):
         #plt.close()
 
         # Simulate
-        simulation_settings = AlgorithmSettings(simulate_algo, **simulate_algo_params)
+        simulation_settings = self.get_algo_settings(name=simulate_algo, **simulate_algo_params)
         simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)
 
         self.check_simulate(simulation_settings, simulation_results, data,

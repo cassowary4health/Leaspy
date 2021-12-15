@@ -1,12 +1,9 @@
-import unittest
-
 import numpy as np
 
-from leaspy import Leaspy, IndividualParameters
+from tests import LeaspyTestCase
 
-from tests import hardcoded_model_path, hardcoded_ip_path
 
-class LeaspyEstimateInverseTest(unittest.TestCase):
+class LeaspyEstimateInverseTest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -18,10 +15,8 @@ class LeaspyEstimateInverseTest(unittest.TestCase):
 
         # univariate logistic model
         # feat is "feature"
-        model_parameters_path = hardcoded_model_path('univariate_logistic')
-        leaspy = Leaspy.load(model_parameters_path)
-        ip_path = hardcoded_ip_path('ip_univariate_save.json')
-        ip = IndividualParameters.load(ip_path)
+        leaspy = self.get_hardcoded_model('univariate_logistic')
+        ip = self.get_hardcoded_individual_params('ip_univariate_save.json')
         timepoints = {
             'idx1': [78, 81],
             'idx2': [71],
@@ -89,11 +84,8 @@ class LeaspyEstimateInverseTest(unittest.TestCase):
     def test_estimate_ages_from_biomarker_values_multivariate(self):
         # multivariate logistic model
         # feats are "feature_0", ...
-        model_parameters_path = hardcoded_model_path('logistic_scalar_noise')
-        leaspy = Leaspy.load(model_parameters_path)
-
-        ip_path = hardcoded_ip_path('ip_save.json')
-        ip = IndividualParameters.load(ip_path)
+        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
+        ip = self.get_hardcoded_individual_params('ip_save.json')
 
         timepoints = {
             'idx1': [78, 81],

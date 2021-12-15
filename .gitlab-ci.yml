@@ -79,17 +79,14 @@ create_conda_envs:
     - pip install -U -r requirements.txt
     - pip install -U -r requirements_dev.txt
 
-## only delete the created conda environment for branch when in a MR
-## TODO? always delete them? (in a `after_script` section)
-#remove_conda_envs:
-#  stage: .post
-#  extends: .one_for_each_python_version_and_runner_os
-#  retry: 2
-#  interruptible: false
-#  rules:
-#    - if: $CI_MERGE_REQUEST_ID
-#  script:
-#    - conda env remove --yes --name $CONDA_ENV_NAME
+## ALWAYS delete the created conda environment since otherwise there is quickly no space left on CI machines
+remove_conda_envs:
+  stage: .post
+  extends: .one_for_each_python_version_and_runner_os
+  retry: 2
+  interruptible: false
+  script:
+    - conda env remove --yes --name $CONDA_ENV_NAME
 
 # Run the whole test suite and report results
 tests:

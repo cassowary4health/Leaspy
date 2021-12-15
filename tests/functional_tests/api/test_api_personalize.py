@@ -2,7 +2,7 @@ import os
 
 import torch
 
-from leaspy import IndividualParameters
+from leaspy import Data, IndividualParameters
 
 from tests import LeaspyTestCase
 
@@ -11,7 +11,7 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
     """Mixin holding generic personalization methods that may be safely reused in other tests (no actual test here)."""
 
     @classmethod
-    def generic_personalization(cls, hardcoded_model_name: str, *,
+    def generic_personalization(cls, hardcoded_model_name: str, *, data_path: str = None,
                                 algo_path: str = None, algo_name: str = None, **algo_params):
         """Helper for a generic personalization in following tests."""
 
@@ -19,7 +19,13 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
         leaspy = cls.get_hardcoded_model(hardcoded_model_name)
 
         # load the right data
-        data = cls.get_suited_test_data_for_model(hardcoded_model_name)
+        if data_path is None:
+            # automatic (main test data)
+            data = cls.get_suited_test_data_for_model(hardcoded_model_name)
+        else:
+            # relative path to data (csv expected)
+            data_full_path = os.path.join(cls.test_data_dir, 'data_mock', data_path)
+            data = Data.from_csv_file(data_full_path)
 
         # create the personalize algo settings (from path or name + params)
         algo_settings = cls.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
@@ -103,6 +109,54 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 ips, noise_std, _ = self.generic_personalization(model_name, algo_name='scipy_minimize', seed=0, use_jacobian=use_jacobian)
 
                 self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise)
+
+    def test_scipy_minimize_robustness_to_data_sparsity(self, rtol=2e-2, atol=5e-3):
+        """
+        In this test, we check that estimated individual parameters are the same no matter if data is sparse
+        (i.e. multiple really close visits with many missing values) or data is 'merged' in a rounded visit.
+
+        TODO? we could build a mock dataset to also check same property for calibration :)
+        """
+
+        for (model_name, use_jacobian), expected_noise_std in {
+
+            ('logistic_scalar_noise', False):               0.1161,
+            ('logistic_scalar_noise', True):                0.1162,
+            ('logistic_diag_noise_id', False): [0.0865, 0.0358, 0.0564, 0.2049],
+            ('logistic_diag_noise_id', True):  [0.0865, 0.0359, 0.0564, 0.2050],
+            ('logistic_diag_noise', False):    [0.0824, 0.0089, 0.0551, 0.1819],
+            ('logistic_diag_noise', True):     [0.0824, 0.0089, 0.0552, 0.1819],
+            ('logistic_parallel_scalar_noise', False):      0.1525,
+            ('logistic_parallel_scalar_noise', True):       0.1872,
+            ('linear_scalar_noise', False):                 0.1699,
+            ('linear_scalar_noise', True):                  0.1699,
+
+            # univariate would be quite useless
+            # TODO: binary (crossentropy) models here
+
+        }.items():
+
+            subtest = dict(model_name=model_name, use_jacobian=use_jacobian)
+            with self.subTest(**subtest):
+
+                common_params = dict(algo_name='scipy_minimize', seed=0, use_jacobian=use_jacobian)
+
+                ips_sparse, noise_sparse, _ = self.generic_personalization(model_name, **common_params,
+                                                                           data_path='missing_data/sparse_data.csv')
+
+                ips_merged, noise_merged, _ = self.generic_personalization(model_name, **common_params,
+                                                                           data_path='missing_data/merged_data.csv')
+
+                indices_sparse, ips_sparse_torch = ips_sparse.to_pytorch()
+                indices_merged, ips_merged_torch = ips_merged.to_pytorch()
+
+                # same individuals
+                self.assertEqual(indices_sparse, indices_merged, msg=subtest)
+                # same individual parameters (up to rounding errors)
+                self.assertDictAlmostEqual(ips_sparse_torch, ips_merged_torch, rtol=rtol, atol=atol, msg=subtest)
+                # same noise between them and as expected
+                self.assertTrue(torch.allclose(noise_sparse, noise_merged, atol=atol), msg=subtest)
+                self.assertTrue(torch.allclose(noise_merged, torch.tensor(expected_noise_std), atol=atol), msg=subtest)
 
     # TODO : problem with nans
     """

@@ -40,7 +40,7 @@ check_env:
     - echo $TAG_WITHOUT_PREFIX
     - echo $PKG_VERSION
     - echo $PKG_VERSION_WITHOUT_DEV_SUFFIX
-    - envsubst < .pypirc.in > .pypirc  # substitute environment variables in template .pypirc
+    - envsubst < ci/.pypirc.in > .pypirc  # substitute environment variables in template .pypirc
     # update all packages in conda deploy env for later steps
     - conda upgrade --all --yes
     - '[[ "$CI_DEBUG" == "1" ]] && conda info || true'

@@ -32,7 +32,7 @@ class LeaspyTestCase(TestCase):
     - to have transparent temporary folders for tests
     """
 
-    ### PATHS ###
+    ### ATTRIBUTES AND METHODS TO EASE THE MANAGEMENT OF (TEST) PATHS & TMP FILES ###
 
     # Main directories
     test_root_dir = os.path.join(os.path.dirname(__file__), "..")
@@ -306,6 +306,8 @@ class LeaspyTestCase(TestCase):
         """
         Check for equality of two dictionaries (in-depth) with numerical values checked with customizable tolerances.
         It returns a list of issues / differences as strings if any.
+
+        Rather use `assertDictAlmostEqual` in your tests which wraps this method.
 
         Parameters
         ----------

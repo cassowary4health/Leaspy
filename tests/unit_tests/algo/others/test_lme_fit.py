@@ -27,7 +27,7 @@ class LMEFitAlgorithmTest(LeaspyTestCase):
         # add a nan
         df.loc[('pat1', 0)] = np.nan
         cls.dataframe = df
-        data = Data.from_dataframe(df)
+        data = Data.from_dataframe(df, drop_full_nan=False)  # otherwise first visit of pat1 is dropped and then order of subjects is not as originally expected.........
         cls.dataset = Dataset(data)
         # models
         cls.model = LMEModel('lme', with_random_slope_age=False)

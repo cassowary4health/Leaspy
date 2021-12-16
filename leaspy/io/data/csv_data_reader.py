@@ -1,89 +1,32 @@
-import csv
-import math
+import pandas as pd
 
-from leaspy.io.data.individual_data import IndividualData
-from leaspy.exceptions import LeaspyDataInputError
+from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 
 
-class CSVDataReader:
+class CSVDataReader(DataframeDataReader):
     """
     Methods to convert `csv files` to `Leaspy`-compliant data containers.
+
+    Only a wrapper for :func:`pandas.read_csv` and :class:`.DataframeDataReader`.
 
     Parameters
     ----------
     path : str
-        Path to csv file
+        Path to the csv file to load (with its extension)
+    pd_read_csv_kws : kwargs
+        Keyword arguments passed to :func:`pandas.read_csv`
+    **df_reader_kws
+        Keyword arguments passed to :class:`.DataframeDataReader`
 
     Raises
     ------
     :exc:`.LeaspyDataInputError`
     """
-    def __init__(self, path):
-        self.individuals = {}
-        self.iter_to_idx = {}
-        self.headers = None
-        self.dimension = None
-        self.n_individuals = 0
-        self.n_visits = 0
+    def __init__(self, path: str, pd_read_csv_kws: dict = {}, **df_reader_kws):
 
-        self._read(path)
+        # enforce ID to be interpreted as string as default (can be overwritten)
+        pd_read_csv_kws = {'dtype': {'ID': str}, **pd_read_csv_kws}
 
-    def _check_headers(self, csv_headers):
-        if len(csv_headers) < 3:
-            raise LeaspyDataInputError("There must be at least three columns in the input dataset")
-        if csv_headers[0].upper() != 'ID':
-            raise LeaspyDataInputError("The first column of the input csv must be 'ID'")
-        if csv_headers[1].upper() != 'TIME':
-            raise LeaspyDataInputError("The second column of the input csv must be 'TIME'")
-
-        self.headers = csv_headers[2:]
-
-    @staticmethod
-    def _get_timepoint(idx, timepoint):
-        try:
-            timepoint = float(timepoint)
-        except Exception:
-            raise LeaspyDataInputError(f"The timepoint `{timepoint}` of individual `{idx}` cannot be converted to a float")
-
-        if math.isnan(timepoint):
-            raise LeaspyDataInputError(f"One of the time value of individual `{idx}` is NaN")
-
-        return timepoint
-
-    @staticmethod
-    def _get_observation(idx, timepoint, observation):
-        try:
-            # missing values in CSV are coded as empty values or "nan" (case insensitive)
-            return [float(_) if _ != '' else float('nan') for _ in observation]
-        except Exception:
-            raise LeaspyDataInputError(f"Some observations of individual `{idx}` at time `{timepoint}` cannot be converted to floats")
-
-    def _check_observation(self, observation):
-        if self.dimension is None:
-            self.dimension = len(observation)
-        elif len(observation) != self.dimension:
-            raise LeaspyDataInputError(f'Number of features mismatch: {len(observation)} != {self.dimension}')
-
-    def _read(self, path):
-        # Read csv
-        with open(path, newline='') as f:
-            csv_reader = csv.reader(f)
-            csv_headers = next(csv_reader)
-            self._check_headers(csv_headers)
-
-            # Add new individuals
-            for row in csv_reader:
-                idx = row[0]
-                timepoint = self._get_timepoint(idx, row[1])
-                observation = self._get_observation(idx, timepoint, row[2:])
-                if observation is not None:
-                    self._check_observation(observation)
-
-                    if idx not in self.individuals:
-                        self.individuals[idx] = IndividualData(idx)
-                        self.iter_to_idx[self.n_individuals] = idx
-                        self.n_individuals += 1
-
-                    self.individuals[idx].add_observation(timepoint, observation)
-                    self.n_visits += 1
+        df = pd.read_csv(path, **pd_read_csv_kws)
+        super().__init__(df, **df_reader_kws)
 

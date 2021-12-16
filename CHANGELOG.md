@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-# [1.2.0] - 2021-11-02
+# [1.2.0] - 2021-12-16
 - [CODE] Broad use of type annotations in Leaspy package
 - [COMPAT] As a consequence support of Python 3.6 is dropped
 - [COMPAT] PyTorch >=1.7 is now supported, as well as Python 3.9
@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - [FEAT] Implementation of model "inverse" in API to get age according to model for a given feature value: `Leaspy.estimate_ages_from_biomarker_values`
 - [FIX] Simulation algorithm is fixed (shape issue)
 - [LICENSE] Changing GPL license to BSD 3-Clause license - active only for current and future releases
+- [REFACT] Readers now implement more checks on input data; CSVDataReader now calls `pandas.read_csv` internally
 
 # [1.1.2] - 2021-04-13
 - **Fix computation of orthonormal basis for leaspy multivariate models:**

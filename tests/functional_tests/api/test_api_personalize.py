@@ -11,7 +11,8 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
     """Mixin holding generic personalization methods that may be safely reused in other tests (no actual test here)."""
 
     @classmethod
-    def generic_personalization(cls, hardcoded_model_name: str, *, data_path: str = None,
+    def generic_personalization(cls, hardcoded_model_name: str, *,
+                                data_path: str = None, data_kws: dict = {},
                                 algo_path: str = None, algo_name: str = None, **algo_params):
         """Helper for a generic personalization in following tests."""
 
@@ -25,7 +26,7 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
         else:
             # relative path to data (csv expected)
             data_full_path = os.path.join(cls.test_data_dir, 'data_mock', data_path)
-            data = Data.from_csv_file(data_full_path)
+            data = Data.from_csv_file(data_full_path, **data_kws)
 
         # create the personalize algo settings (from path or name + params)
         algo_settings = cls.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
@@ -142,7 +143,8 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 common_params = dict(algo_name='scipy_minimize', seed=0, use_jacobian=use_jacobian)
 
                 ips_sparse, noise_sparse, _ = self.generic_personalization(model_name, **common_params,
-                                                                           data_path='missing_data/sparse_data.csv')
+                                                                           data_path='missing_data/sparse_data.csv',
+                                                                           data_kws={'drop_full_nan': False})
 
                 ips_merged, noise_merged, _ = self.generic_personalization(model_name, **common_params,
                                                                            data_path='missing_data/merged_data.csv')

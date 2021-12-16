@@ -31,6 +31,14 @@ class Plotter:
             output_path = os.getcwd()
         self.output_path = output_path
 
+        # https://stackoverflow.com/questions/40395659/view-and-then-close-the-figure-automatically-in-matplotlib/40395799
+        self._block = False
+        self._show = True
+
+    def plt_show(self):
+        if self._show:
+            plt.show(block=self._block)
+
     def plot_mean_trajectory(self, model, **kwargs):
         # colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
 
@@ -97,7 +105,7 @@ class Plotter:
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
-        plt.show()
+        self.plt_show()
         plt.close()
 
 
@@ -117,7 +125,9 @@ class Plotter:
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
-        plt.show()
+
+        self.plt_show()
+        plt.close()
 
     def plot_patient_trajectory(self, model, results, indices, **kwargs):
 
@@ -159,7 +169,7 @@ class Plotter:
         ax.legend(custom_lines, labels, loc='upper right')
 
         if 'ax' not in kwargs.keys():
-            plt.show()
+            self.plt_show()
             plt.close()
 
     def plot_from_individual_parameters(self, model, indiv_parameters, timepoints, **kwargs):
@@ -175,25 +185,26 @@ class Plotter:
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
         plt.legend()
-        plt.show()
+        self.plt_show()
         plt.close()
 
 
-    def plot_distribution(self, results, parameter, cofactor=None, **kwargs):
+    def plot_distribution(self, results, parameter: str, cofactor=None, **kwargs):
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+
         distribution = results.get_parameter_distribution(parameter, cofactor)
 
         if cofactor is None:
             ax.hist(distribution)
         else:
-
             for k, v in distribution.items():
                 ax.hist(v, label=k, alpha=0.7)
             plt.legend()
+
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
-        plt.show()
+        self.plt_show()
         plt.close()
 
     def plot_correlation(self, results, parameter_1, parameter_2, cofactor=None, **kwargs):
@@ -213,7 +224,7 @@ class Plotter:
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
-        plt.show()
+        self.plt_show()
         plt.close()
 
     def plot_patients_mapped_on_mean_trajectory(self, model, results):
@@ -233,7 +244,7 @@ class Plotter:
         for i in range(dataset.values.shape[-1]):
             fig, ax = plt.subplots(1, 1)
             # ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
-            for idx in range(50):
+            for idx in range(min(50, len(tau))):
                 ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
                         dataset.values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy(), 'x', )
                 ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
@@ -242,11 +253,14 @@ class Plotter:
             if 'logistic' in model.name:
                 plt.ylim(0, 1)
 
+        self.plt_show()
+        plt.close()
+
     ############## TODO : The next functions are related to the plots during the fit. Disentangle them properly
 
     @staticmethod
     def plot_error(path, dataset, model, param_ind, colors=None, labels=None):
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=False)
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind)
 
         if colors is None:
             colors = cm.rainbow(np.linspace(0, 1, patient_values.shape[-1]))
@@ -277,16 +291,15 @@ class Plotter:
         pdf.savefig(fig)
         plt.close()
         pdf.close()
-        return 0
 
     @staticmethod
-    def plot_patient_reconstructions(path, data, model, param_ind, max_patient_number=10, attribute_type=None):
+    def plot_patient_reconstructions(path, dataset, model, param_ind, max_patient_number=10, attribute_type=None):
 
         colors = cm.Dark2(np.linspace(0, 1, max_patient_number + 2))
 
         fig, ax = plt.subplots(1, 1)
 
-        patient_values = model.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type)
 
         if isinstance(max_patient_number, int):
             patients_list = range(max_patient_number)
@@ -294,11 +307,11 @@ class Plotter:
             patients_list = max_patient_number
 
         for i in patients_list:
-            model_value = patient_values[i, 0:data.nb_observations_per_individuals[i], :]
-            score = data.values[i, 0:data.nb_observations_per_individuals[i], :]
-            ax.plot(data.timepoints[i, 0:data.nb_observations_per_individuals[i]].detach().numpy(),
+            model_value = patient_values[i, 0:dataset.nb_observations_per_individuals[i], :]
+            score = dataset.values[i, 0:dataset.nb_observations_per_individuals[i], :]
+            ax.plot(dataset.timepoints[i, 0:dataset.nb_observations_per_individuals[i]].detach().numpy(),
                     model_value.detach().numpy(), c=colors[i])
-            ax.plot(data.timepoints[i, 0:data.nb_observations_per_individuals[i]].detach().numpy(),
+            ax.plot(dataset.timepoints[i, 0:dataset.nb_observations_per_individuals[i]].detach().numpy(),
                     score.detach().numpy(), c=colors[i], linestyle='--',
                     marker='o')
 
@@ -306,9 +319,9 @@ class Plotter:
                 break
 
         # Plot the mean also
-        # min_time, max_time = torch.min(data.timepoints[data.timepoints>0.0]), torch.max(data.timepoints)
+        # min_time, max_time = torch.min(dataset.timepoints[dataset.timepoints>0.0]), torch.max(dataset.timepoints)
 
-        min_time, max_time = np.percentile(data.timepoints[data.timepoints > 0.0].detach().numpy(), [10, 90])
+        min_time, max_time = np.percentile(dataset.timepoints[dataset.timepoints > 0.0].detach().numpy(), [10, 90])
 
         timepoints = np.linspace(min_time,
                                  max_time,
@@ -326,6 +339,7 @@ class Plotter:
 
     @staticmethod
     def plot_param_ind(path, param_ind):
+        # <!> param_ind is expected to be iterable of values not the usual dictionary
 
         pdf = matplotlib.backends.backend_pdf.PdfPages(path)
         fig, ax = plt.subplots(1, 1)

@@ -304,7 +304,7 @@ class Plotting:
         # features check
         if self.model.is_initialized:
             if data.headers != self.model.features:
-                raise LeaspyInputError('Features provided mismatch between `data` and model: '
+                raise LeaspyInputError('Features provided mismatch between data and model: '
                                       f'{data.headers} != {self.model.features}')
 
         ax, features, features_ix, labels, colors = self._handle_kwargs_begin(kwargs, data.headers)
@@ -474,7 +474,7 @@ class Plotting:
         return self._plot_patients_generic('obs', data, patients_idx = patients_idx, individual_parameters = individual_parameters, reparametrized_ages = True, **kwargs)
 
 
-    def patient_trajectories(self, data, individual_parameters, patients_idx, reparametrized_ages = False, **kwargs):
+    def patient_trajectories(self, data, individual_parameters, patients_idx = 'all', reparametrized_ages = False, **kwargs):
         """
         Plot patient observations together with model individual reconstruction
 

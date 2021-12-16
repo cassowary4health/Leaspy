@@ -6,7 +6,7 @@ from tests import LeaspyTestCase
 
 # TODO: regenerate example models + individual parameters
 
-class DataTest(LeaspyTestCase):
+class LoaderTest(LeaspyTestCase):
 
     def test_load_dataset(self):
         """

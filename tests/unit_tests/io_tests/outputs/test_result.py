@@ -16,6 +16,9 @@ class ResultTest(LeaspyTestCase):
     @classmethod
     def setUpClass(cls):
 
+        # for tmp handling
+        super().setUpClass()
+
         # The list of individuals that were pre-saved for tests on subset of individuals
         cls.idx_sub = ['116', '142', '169']
 
@@ -80,7 +83,7 @@ class ResultTest(LeaspyTestCase):
         for saving_method, ip_original, args, kwargs in to_test:
             with self.subTest(ip_original=ip_original):
                 path_original = self.from_personalize_ip_path(ip_original)
-                path_copy = os.path.join(self.test_tmp_dir, ip_original)
+                path_copy = self.test_tmp_path(ip_original)
                 saving_method(path_copy, *args, **kwargs)
                 self.assertTrue(filecmp.cmp(path_original, path_copy, shallow=False))
                 os.unlink(path_copy)
@@ -95,7 +98,7 @@ class ResultTest(LeaspyTestCase):
         for fake_path, saving_method in fake_save.items():
             for idx in bad_idx:
                 with self.assertRaises(ValueError, msg=dict(idx=idx, path=fake_path)):
-                    saving_method(os.path.join(self.test_tmp_dir, fake_path), idx=idx)
+                    saving_method(self.test_tmp_path(fake_path), idx=idx)
 
     def generic_check_individual_parameters(self, ind_param, *, nb_individuals: int):
         self.assertEqual(type(ind_param), dict)

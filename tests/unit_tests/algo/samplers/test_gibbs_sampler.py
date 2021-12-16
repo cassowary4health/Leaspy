@@ -10,6 +10,9 @@ class SamplerTest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        # for tmp handling
+        super().setUpClass()
+
         cls.leaspy = cls.get_hardcoded_model('logistic_scalar_noise')
         cls.data = cls.get_suited_test_data_for_model('logistic_scalar_noise')
         cls.dataset = Dataset(cls.data)

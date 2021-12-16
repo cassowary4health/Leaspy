@@ -8,6 +8,9 @@ class AttributesUnivariateTest(LeaspyTestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the object for all the tests"""
+        # for tmp handling
+        super().setUpClass()
+
         cls.to_test = {
             'univariate_logistic': LogisticAttributes,
             'univariate_linear': LinearAttributes

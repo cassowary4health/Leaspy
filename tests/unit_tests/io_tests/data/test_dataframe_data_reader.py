@@ -1,5 +1,3 @@
-import os
-
 import pandas as pd
 
 from leaspy.io.data.dataframe_data_reader import DataframeDataReader
@@ -10,7 +8,7 @@ from tests import LeaspyTestCase
 class DataframeDataReaderTest(LeaspyTestCase):
 
     def test_constructor_univariate(self):
-        path = os.path.join(self.test_data_dir, 'data_mock', 'univariate_data.csv')
+        path = self.test_data_path('data_mock', 'univariate_data.csv')
         df = pd.read_csv(path)
 
         reader = DataframeDataReader(df)
@@ -27,7 +25,7 @@ class DataframeDataReaderTest(LeaspyTestCase):
         self.assertEqual(reader.n_visits, 33)
 
     def test_constructor_multivariate(self):
-        path = os.path.join(self.test_data_dir, 'data_mock', 'multivariate_data.csv')
+        path = self.test_data_path('data_mock', 'multivariate_data.csv')
         df = pd.read_csv(path)
 
         reader = DataframeDataReader(df)
@@ -44,7 +42,7 @@ class DataframeDataReaderTest(LeaspyTestCase):
 
     def test_load_data_with_missing_values(self):
         # only test that it works!
-        path = os.path.join(self.test_data_dir, 'data_mock', 'missing_data', 'sparse_data.csv')
+        path = self.test_data_path('data_mock', 'missing_data', 'sparse_data.csv')
         df = pd.read_csv(path)
         reader = DataframeDataReader(df, drop_full_nan=False)
 

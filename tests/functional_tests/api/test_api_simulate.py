@@ -1,4 +1,3 @@
-import os
 import unittest
 import warnings
 
@@ -51,7 +50,7 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
             self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
             self.assertEqual(len(simulation_results.get_parameter_distribution('sources')['sources0']), n)
 
-        path_expected_sim_res = os.path.join(self.test_data_dir, "simulation", expected_results_file)
+        path_expected_sim_res = self.test_data_path("simulation", expected_results_file)
 
         ## uncomment to re-generate simulation results
         #simulation_results.data.to_dataframe().to_csv(path_expected_sim_res, index=False)

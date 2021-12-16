@@ -41,12 +41,6 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
                 individual_parameters, noise_std,
                 expected_noise_std=expected_noise_std, tol_noise=1e-2)
 
-        ## Plot TODO
-        #path_output = os.path.join(test_data_dir, "plots")
-        #plotter = Plotter(path_output)
-        # plotter.plot_mean_trajectory(leaspy.model, save_as="mean_trajectory_plot")
-        #plt.close()
-
         # Simulate
         simulation_settings = self.get_algo_settings(name=simulate_algo, **simulate_algo_params)
         simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)

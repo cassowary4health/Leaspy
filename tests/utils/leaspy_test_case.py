@@ -1,4 +1,5 @@
 import os
+import shutil
 from unittest import TestCase
 from unittest.mock import patch
 from typing import Any, Dict, List, Sized, Tuple, Optional
@@ -9,8 +10,9 @@ import torch
 
 from leaspy import Data, AlgorithmSettings, Leaspy, IndividualParameters
 
-KwargsType = Dict[str, Any]
+from .class_property import classproperty_support, classproperty
 
+KwargsType = Dict[str, Any]
 
 # update print config (especially to have nicer float display in case of errors)
 # sadly there are no such option for builtin floats and builtin containers of floats...
@@ -19,7 +21,7 @@ np.set_printoptions(**PRINT_OPTIONS)  # floatmode='maxprec'
 torch.set_printoptions(**PRINT_OPTIONS)
 
 
-
+@classproperty_support
 class LeaspyTestCase(TestCase):
     """
     This class is intended to be the base class of all leaspy test cases.
@@ -27,28 +29,73 @@ class LeaspyTestCase(TestCase):
     It adds generic attributes methods that are useful for all test cases. In particular:
     - for deep comparison of dictionaries (with tolerance on numerical values)
     - to have access to common paths used in tests
+    - to have transparent temporary folders for tests
     """
 
     ### PATHS ###
 
     # Main directories
     test_root_dir = os.path.join(os.path.dirname(__file__), "..")
-    test_data_dir = os.path.join(test_root_dir, "_data")
+    _test_data_dir = os.path.join(test_root_dir, "_data")
+
+    @classmethod
+    def test_data_path(cls, *rel_path_chunks: str):
+        return os.path.join(cls._test_data_dir, *rel_path_chunks)
 
     # Main mock of data for tests
-    example_data_path = os.path.join(test_data_dir, "data_mock", "data_tiny.csv")
-    example_data_covars_path = os.path.join(test_data_dir, "data_mock", "data_tiny_covariate.csv")
-    binary_data_path = os.path.join(test_data_dir, "data_mock", "binary_data.csv")
+    example_data_path = os.path.join(_test_data_dir, "data_mock", "data_tiny.csv")
+    example_data_covars_path = os.path.join(_test_data_dir, "data_mock", "data_tiny_covariate.csv")
+    binary_data_path = os.path.join(_test_data_dir, "data_mock", "binary_data.csv")
 
     # to store temporary data (used during tests)
-    test_tmp_dir = os.path.join(test_data_dir, "_tmp")
+    _test_tmp_dir = os.path.join(_test_data_dir, "_tmp")
+
+    # to remove content of tmp/classname/ at setUp & tearDown of class
+    TMP_RESET_AT_SETUP: bool = True
+    TMP_REMOVE_AT_END: bool = True
+
+    @classproperty
+    def TMP_SUBFOLDER(cls) -> Tuple[str, ...]:
+        """All tmp files for a given LeaspyTestCase will go to his dedicated tmp subfolder (default to class name)."""
+        return (cls.__name__,)
+
+    @classmethod
+    def test_tmp_path(cls, *rel_path_chunks: str):
+        assert not any('..' in chunk for chunk in rel_path_chunks)  # do search upper folder by error...
+        return os.path.join(cls._test_tmp_dir, *cls.TMP_SUBFOLDER, *rel_path_chunks)
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.reset_tmp_subfolder(force_remove=cls.TMP_RESET_AT_SETUP)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if cls.TMP_REMOVE_AT_END:
+            cls.remove_tmp_subfolder()
+
+    @classmethod
+    def remove_tmp_subfolder(cls, *rel_path_chunks: str):
+        """<!> use carefully, delete folder and all of its content!!!!"""
+        shutil.rmtree(cls.test_tmp_path(*rel_path_chunks))
+
+    @classmethod
+    def reset_tmp_subfolder(cls, *rel_path_chunks: str, force_remove: bool = True):
+        """<!> use carefully, delete folder and all of its content if was existing!!!!"""
+        path = cls.test_tmp_path(*rel_path_chunks)
+        if os.path.isdir(path):
+            if force_remove:
+                cls.remove_tmp_subfolder(*rel_path_chunks)
+                os.makedirs(path)
+            # do not recreate if not forced
+        else:
+            os.makedirs(path)
 
     # default parameters for algos from leaspy
     leaspy_root_dir = os.path.join(test_root_dir, "..", "leaspy")
     default_algo_dir = os.path.join(leaspy_root_dir, "algo", "data")
 
     # hardcoded models: good for unit tests & functional tests independent from fit behavior
-    hardcoded_models_folder = os.path.join(test_data_dir, "model_parameters", "hardcoded")
+    hardcoded_models_folder = os.path.join(_test_data_dir, "model_parameters", "hardcoded")
 
     @classmethod
     def hardcoded_model_path(cls, model_name: str):
@@ -61,7 +108,7 @@ class LeaspyTestCase(TestCase):
         return Leaspy.load(cls.hardcoded_model_path(model_name))
 
     # models generated from fit functional tests, bad for most tests as it may change due to slights changes in fit
-    from_fit_models_folder = os.path.join(test_data_dir, "model_parameters", "from_fit")
+    from_fit_models_folder = os.path.join(_test_data_dir, "model_parameters", "from_fit")
 
     @classmethod
     def from_fit_model_path(cls, model_name: str):
@@ -74,7 +121,7 @@ class LeaspyTestCase(TestCase):
         return Leaspy.load(cls.from_fit_model_path(model_name))
 
     # hardcoded individual parameters: good for unit tests & functional tests independent from personalize behavior
-    hardcoded_ips_folder = os.path.join(test_data_dir, "individual_parameters", "hardcoded")
+    hardcoded_ips_folder = os.path.join(_test_data_dir, "individual_parameters", "hardcoded")
 
     @classmethod
     def hardcoded_ip_path(cls, ip_file: str):
@@ -90,7 +137,7 @@ class LeaspyTestCase(TestCase):
         return IndividualParameters.load(cls.hardcoded_ip_path(ip_file))
 
     # individual parameters from personalize: bad for most tests as it may change due to slights changes in fit and/or personalize
-    from_personalize_ips_folder = os.path.join(test_data_dir, "individual_parameters", "from_personalize")
+    from_personalize_ips_folder = os.path.join(_test_data_dir, "individual_parameters", "from_personalize")
 
     @classmethod
     def from_personalize_ip_path(cls, ip_file: str):
@@ -113,10 +160,10 @@ class LeaspyTestCase(TestCase):
     def get_suited_test_data_for_model(cls, model_name: str) -> Data:
         """Helper to load the right test data for functional tests, depending on model name."""
         if 'binary' in model_name:
-            df = pd.read_csv(cls.binary_data_path)
+            df = pd.read_csv(cls.binary_data_path, dtype={'ID': str})
         else:
             # continuous
-            df = pd.read_csv(cls.example_data_path)
+            df = pd.read_csv(cls.example_data_path, dtype={'ID': str})
 
         if 'univariate' in model_name:
             df = df.iloc[:, :3]  # only pick one feature column (the first after ID & TIME)
@@ -387,3 +434,7 @@ class LeaspyTestCase(TestCase):
     def assertEmpty(self, obj: Sized, *, msg: str = None):
         """Assert length of sized object is zero."""
         self.assertLenEqual(obj, 0, msg=msg)
+
+    def assertHasTmpFile(self, rel_path: str):
+        self.assertTrue(os.path.isfile(self.test_tmp_path(rel_path)),
+                        msg=f'`{rel_path}` was not created.')

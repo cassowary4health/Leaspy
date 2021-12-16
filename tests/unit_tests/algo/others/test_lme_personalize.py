@@ -15,6 +15,10 @@ class LMEPersonalizeAlgorithmTest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls):
+
+        # for tmp handling
+        super().setUpClass()
+
         # Leaspy
         cls.model = LMEModel('lme', with_random_slope_age=False)
         # TODO? redo test with realistic values...?

@@ -16,6 +16,10 @@ class ConstantPredictionAlgorithmTest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls):
+
+        # for tmp handling
+        super().setUpClass()
+
         arr = [
             ['1', 1., 2., 1.],
             ['1', 3., 3., float('nan')], # non-sorted

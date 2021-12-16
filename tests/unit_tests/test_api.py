@@ -1,4 +1,3 @@
-import os
 from glob import glob
 
 import torch
@@ -226,11 +225,11 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         """
 
         # hardcoded models
-        for model_path in glob(os.path.join(self.hardcoded_models_folder, '*.json')):
+        for model_path in glob(self.hardcoded_model_path('*.json')):
             with self.subTest(model_path=model_path):
                 self.check_model_consistency(Leaspy.load(model_path), model_path, atol=atol)
 
         # functional models (OK because no direct test on values)
-        for model_path in glob(os.path.join(self.from_fit_models_folder, '*.json')):
+        for model_path in glob(self.from_fit_model_path('*.json')):
             with self.subTest(model_path=model_path):
                 self.check_model_consistency(Leaspy.load(model_path), model_path, atol=atol)

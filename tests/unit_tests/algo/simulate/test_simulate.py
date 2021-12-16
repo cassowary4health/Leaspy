@@ -13,6 +13,9 @@ class SimulationAlgorithmTest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls):
+        # for tmp handling
+        super().setUpClass()
+
         cls.settings = AlgorithmSettings('simulation')
         cls.algo = SimulationAlgorithm(cls.settings)
         cls.model = cls.get_hardcoded_model('logistic_scalar_noise')

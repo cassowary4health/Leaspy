@@ -15,6 +15,10 @@ class LMEModelAPITest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+
+        # for tmp handling
+        super().setUpClass()
+
         # Data
         # read csv
         cls.raw_data_df = pd.read_csv(cls.example_data_path, dtype={'ID': str})
@@ -196,7 +200,7 @@ class LMEModelAPITest(LeaspyTestCase):
         print(repr(lsp.model.parameters))
 
         # + test save/load
-        model_path = os.path.join(self.test_tmp_dir, 'lme_model_1.json')
+        model_path = self.test_tmp_path('lme_model_1.json')
         lsp.save(model_path)
         del lsp
 

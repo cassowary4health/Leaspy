@@ -1,5 +1,3 @@
-import os
-
 import torch
 
 from leaspy import Data, IndividualParameters
@@ -25,7 +23,7 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
             data = cls.get_suited_test_data_for_model(hardcoded_model_name)
         else:
             # relative path to data (csv expected)
-            data_full_path = os.path.join(cls.test_data_dir, 'data_mock', data_path)
+            data_full_path = cls.test_data_path('data_mock', data_path)
             data = Data.from_csv_file(data_full_path, **data_kws)
 
         # create the personalize algo settings (from path or name + params)
@@ -59,7 +57,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         Load logistic model from file, and personalize it to data from ...
         """
         # Load saved algorithm
-        path_settings = os.path.join(self.test_data_dir, 'settings', 'algo', 'settings_mean_real.json')
+        path_settings = self.test_data_path('settings', 'algo', 'settings_mean_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
         self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.11631, tol_noise=tol_noise)
@@ -69,7 +67,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         Load logistic model from file, and personalize it to data from ...
         """
         # Load saved algorithm
-        path_settings = os.path.join(self.test_data_dir, 'settings', 'algo', 'settings_mode_real.json')
+        path_settings = self.test_data_path('settings', 'algo', 'settings_mode_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
         self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.11711, tol_noise=tol_noise)

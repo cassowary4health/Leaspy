@@ -14,6 +14,10 @@ class LMEFitAlgorithmTest(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls):
+
+        # for tmp handling
+        super().setUpClass()
+
         # TODO? redo test with realistic values...?
         df = pd.DataFrame.from_records((np.arange(3, 3 + 10, 1),
                                         np.arange(15, 15 + 10, 1),

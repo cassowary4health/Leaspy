@@ -32,7 +32,7 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
                                                                       biomarker_values=estimations)
         # with right feature argument
         estimated_ages_2 = leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip,
-                                                                      biomarker_values=estimations, feature='feature')
+                                                                      biomarker_values=estimations, feature='Y0')
 
         # check estimated ages are the original timepoints
         self.check_almost_equal_for_all_ind_tpts(estimated_ages_1, timepoints, tol=0.01)
@@ -79,7 +79,7 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
 
     def test_estimate_ages_from_biomarker_values_multivariate(self):
         # multivariate logistic model
-        # feats are "feature_0", ...
+        # feats are "Y0", ...
         leaspy = self.get_hardcoded_model('logistic_scalar_noise')
         ip = self.get_hardcoded_individual_params('ip_save.json')
 
@@ -121,7 +121,7 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
         with self.assertRaises(ValueError):
             leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip, biomarker_values=estimations_raw)
 
-        for feature in ['feature_0', 'feature_1', 'feature_2', 'feature_3']:
+        for feature in ['Y0', 'Y1', 'Y2', 'Y3']:
             feat_estimations = select_feature_estimation(estimations=estimations_raw, leaspy=leaspy, feature=feature)
 
             # some reshape to do (else shape is (2, 1), when it is supposed to be 2)
@@ -142,6 +142,6 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
         estimated_ages_0 = leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip,
                                                                       biomarker_values={'idx1': 0.4,
                                                                                         'idx2': 0.3},
-                                                                      feature='feature_0')
+                                                                      feature='Y0')
         self.assertAlmostEqual(estimated_ages_0['idx1'], 68.52, 2)
         self.assertAlmostEqual(estimated_ages_0['idx2'], 72.38, 2)

@@ -32,11 +32,17 @@ class DataframeDataReader:
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
         self.headers: List[FeatureType] = None
-        self.dimension: int = None
         self.n_individuals: int = 0
         self.n_visits: int = 0
 
         self._read(df, **read_kws)
+
+    @property
+    def dimension(self):
+        """Number of features in dataset."""
+        if self.headers is None:
+            return
+        return len(self.headers)
 
     @staticmethod
     def _check_headers(columns):
@@ -146,7 +152,6 @@ class DataframeDataReader:
             df.sort_index(inplace=True)
 
         self.headers = df.columns.values.tolist()
-        self.dimension = len(self.headers)
         if self.dimension < 1:
             raise LeaspyDataInputError('Dataframe should have at least 1 feature...')
 

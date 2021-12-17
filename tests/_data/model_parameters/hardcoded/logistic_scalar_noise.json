@@ -1,7 +1,7 @@
 {
   "leaspy_version": "1.1",
   "name": "logistic",
-  "features": ["feature_0", "feature_1", "feature_2", "feature_3"],
+  "features": ["Y0", "Y1", "Y2", "Y3"],
   "dimension": 4,
   "source_dimension": 2,
   "noise_model": "gaussian_scalar",

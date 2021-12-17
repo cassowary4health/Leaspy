@@ -92,20 +92,22 @@ class Dataset:
     def _construct_values(self, data: Data):
 
         batch_size = data.n_individuals
-        x_len = [len(_.timepoints) for _ in data]
+        nbs_vis = [len(_.timepoints) for _ in data]
+        max_nb_vis = max(nbs_vis) if nbs_vis else 0  # handle case when empty dataset
+        print(nbs_vis, max_nb_vis)
         channels = data.dimension
-        values = torch.zeros((batch_size, max(x_len), channels), dtype=torch.float32)
-        padding_mask = torch.zeros((batch_size, max(x_len), channels), dtype=torch.float32)
+        values = torch.zeros((batch_size, max_nb_vis, channels), dtype=torch.float32)
+        padding_mask = torch.zeros((batch_size, max_nb_vis, channels), dtype=torch.float32)
 
         # TODO missing values in mask ?
 
-        for i, d in enumerate(x_len):
+        for i, nb_vis in enumerate(nbs_vis):
             # PyTorch 1.10 warns: Creating a tensor from a list of numpy.ndarrays is extremely slow.
             # Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor.
             # TODO: IndividualData.observations is really badly constructed (list of numpy 1D arrays), we should change this...
             indiv_values = torch.tensor(np.array(data[i].observations), dtype=torch.float32)
-            values[i, 0:d, :] = indiv_values
-            padding_mask[i, 0:d, :] = 1.
+            values[i, 0:nb_vis, :] = indiv_values
+            padding_mask[i, 0:nb_vis, :] = 1.
 
         mask_missingvalues = (~torch.isnan(values)).float()
         # mask should be 0 on visits outside individual's existing visits (he may have fewer visits than the individual with maximum nb of visits)
@@ -115,8 +117,8 @@ class Dataset:
         values[torch.isnan(values)] = 0.  # Set values of missing values to 0.
 
         self.n_individuals = batch_size
-        self.max_observations = max(x_len)
-        self.nb_observations_per_individuals = x_len # list of length n_individuals
+        self.max_observations = max_nb_vis
+        self.nb_observations_per_individuals = nbs_vis # list of length n_individuals
         self.dimension = channels
         self.values = values
         self.mask = mask
@@ -129,9 +131,9 @@ class Dataset:
 
     def _construct_timepoints(self, data: Data):
         self.timepoints = torch.zeros([self.n_individuals, self.max_observations], dtype=torch.float32)
-        x_len = [len(_.timepoints) for _ in data]
-        for i, d in enumerate(x_len):
-            self.timepoints[i, 0:d] = torch.tensor(data[i].timepoints, dtype=torch.float32)
+        nbs_vis = [len(_.timepoints) for _ in data]
+        for i, nb_vis in enumerate(nbs_vis):
+            self.timepoints[i, 0:nb_vis] = torch.tensor(data[i].timepoints, dtype=torch.float32)
 
     def _compute_L2_norm(self):
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0,1)) # 1D tensor of shape (dimension,)

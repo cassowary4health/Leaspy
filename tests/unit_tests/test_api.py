@@ -68,7 +68,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.dimension, 4)
-        self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
+        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
         self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
@@ -104,7 +104,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.dimension, 4)
-        self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
+        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
         self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
@@ -140,7 +140,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.dimension, 4)
-        self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
+        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
         self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
@@ -175,7 +175,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         self.assertEqual(type(leaspy.model), type(ModelFactory.model('univariate_logistic')))
 
         # Test the hyperparameters
-        self.assertEqual(leaspy.model.features, ['feature'])
+        self.assertEqual(leaspy.model.features, ['Y0'])
         self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
         # Test the parameters
@@ -206,7 +206,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         self.assertEqual(type(leaspy.model), type(ModelFactory.model('univariate_linear')))
 
         # Test the hyperparameters
-        self.assertEqual(leaspy.model.features, ['feature'])
+        self.assertEqual(leaspy.model.features, ['Y0'])
         self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
         # Test the parameters

@@ -29,9 +29,6 @@ class PlottingTest(LeaspyTestCase, MatplotlibTest_Mixin):
         cls.dataset = Dataset(cls.data, model=cls.leaspy.model)
         cls.result = Result(cls.data, cls.ips_torch)
 
-        # rename model features to be compatible with data headers
-        cls.leaspy.model.features = cls.data.headers
-
         cls.inds = ['116', '142', '169']
         cls.ind = cls.inds[0]
 

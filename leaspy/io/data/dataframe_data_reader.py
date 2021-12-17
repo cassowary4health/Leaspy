@@ -66,7 +66,8 @@ class DataframeDataReader:
 
         if inferred_dtype == 'integer':
             if (s < 0).any():
-                raise LeaspyDataInputError('All `ID` should be >= 0 when subjects are identified as integers.')
+                raise LeaspyDataInputError('All `ID` should be >= 0 when subjects are identified as integers, '
+                                           'use string identifiers if you need more flexibility.')
         elif inferred_dtype == 'string':
             if (s == '').any():
                 raise LeaspyDataInputError('No `ID` should be empty when subjects are identified as strings.')
@@ -95,7 +96,7 @@ class DataframeDataReader:
         full_of_nans = df.isna().all(axis=0)
         full_of_nans = full_of_nans[full_of_nans].index.tolist()
         if full_of_nans:
-            warnings.warn(f'These columns are full of nans: {full_of_nans}.')
+            warnings.warn(f'These columns only contain nans: {full_of_nans}.')
 
         # check that no 'inf' are present in dataframe
         df_inf = np.isinf(df)

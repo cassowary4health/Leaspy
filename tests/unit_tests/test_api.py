@@ -6,7 +6,7 @@ from leaspy.api import Leaspy
 from leaspy.models.model_factory import ModelFactory
 from leaspy.models.utils import VALID_LOSSES
 
-# <!> do not import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
+# <!> NEVER import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
 from tests.functional_tests.api.test_api_fit import LeaspyFitTest_Mixin
 from tests.unit_tests.models.test_model_factory import ModelFactoryTest_Mixin
 

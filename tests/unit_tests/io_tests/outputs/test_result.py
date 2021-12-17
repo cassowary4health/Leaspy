@@ -51,6 +51,13 @@ class ResultTest(LeaspyTestCase):
             self.assertEqual(len(self.results.individual_parameters[key]), 17)
         self.assertEqual(self.results.noise_std, None)
 
+    def test_get_parameter_name_and_dim(self):
+        f = Result._get_parameter_name_and_dim
+        self.assertEqual(f('sources_12'), ('sources', 12))
+        self.assertEqual(f('abc_def'), ('abc_def', None))
+        self.assertEqual(f('tau'), ('tau', None))
+        self.assertEqual(f('abc_def_5'), ('abc_def', 5))
+
     def test_save_individual_parameters(self):
 
         to_test = [

@@ -685,12 +685,17 @@ class Result:
 
     @staticmethod
     def _get_parameter_name_and_dim(param: str):
-        """Split `sources_34` in parameter name `sources`and parameter dimension `34`, while leaving unchanged `tau`, `xi`, ..."""
-        param_short, *param_dim = param.split('_', maxsplit=1)
+        """Split parameter `abc_def_34` in parameter name `abc_def`and parameter dimension `34`, while leaving unchanged `tau`, `xi`, `abc_def`, ..."""
+        param_short, *param_dim = param.rsplit('_', maxsplit=1)  # from right
+
         if param_dim:
-            return param_short, int(param_dim[0])
-        else:
-            return param_short, None
+            # we found a last "***_NNN", return this split if and only if NNN can be interpreted as an integer
+            try:
+                return param_short, int(param_dim[0])
+            except Exception:
+                pass
+
+        return param, None
 
     def get_parameter_distribution(self, parameter: ParamType, cofactor=None):
         """

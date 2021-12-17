@@ -1,6 +1,6 @@
 import unittest
 
-# <!> do not import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
+# <!> NEVER import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
 from .test_api_fit import LeaspyFitTest_Mixin
 from .test_api_personalize import LeaspyPersonalizeTest_Mixin
 from .test_api_simulate import LeaspySimulateTest_Mixin

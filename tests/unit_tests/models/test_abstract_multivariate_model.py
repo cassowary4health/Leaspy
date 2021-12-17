@@ -1,6 +1,6 @@
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 
-# <!> do not import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
+# <!> NEVER import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
 from tests.unit_tests.models.test_univariate_model import ManifoldModelTest_Mixin
 
 

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - [FIX] Simulation algorithm is fixed (shape issue)
 - [LICENSE] Changing GPL license to BSD 3-Clause license - active only for current and future releases
 - [REFACT] Readers now implement more checks on input data; CSVDataReader now calls `pandas.read_csv` internally
+- [TESTS] Refactoring of tests with a new `LeaspyTestCase`, have a look at `tests/README.md` if you want to add or modify them
 
 # [1.1.2] - 2021-04-13
 - **Fix computation of orthonormal basis for leaspy multivariate models:**

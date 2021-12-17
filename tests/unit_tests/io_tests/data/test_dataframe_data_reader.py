@@ -133,7 +133,7 @@ class DataframeDataReaderTest(LeaspyTestCase):
         with self.assertRaises(ValueError):
             DataframeDataReader(df.assign(Y_bug=[float('-inf')]+[.4]*5))
 
-        with self.assertWarnsRegex(UserWarning, 'full of nan'):
+        with self.assertWarnsRegex(UserWarning, 'only contain nan'):
             DataframeDataReader(df.assign(Y3=[float('nan')]*6))
 
         # check that otherwise it passes

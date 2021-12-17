@@ -1,14 +1,12 @@
-import os
-import unittest
-
-from tests import test_data_dir
 from leaspy.io.settings.model_settings import ModelSettings
 
+from tests import LeaspyTestCase
 
-class ModelSettingsTest(unittest.TestCase):
+
+class ModelSettingsTest(LeaspyTestCase):
 
     def test_model_settings_univariate(self):
-        path_to_model_settings = os.path.join(test_data_dir, 'settings', 'models', 'model_settings_univariate.json')
+        path_to_model_settings = self.test_data_path('settings', 'models', 'model_settings_univariate.json')
         model_settings = ModelSettings(path_to_model_settings)
 
         self.assertEqual(model_settings.name, "univariate")
@@ -22,7 +20,7 @@ class ModelSettingsTest(unittest.TestCase):
         self.assertEqual(model_settings.hyperparameters, {})
 
     def test_model_settings_multivariate(self):
-        path_to_model_settings = os.path.join(test_data_dir, 'settings', 'models', 'model_settings_multivariate.json')
+        path_to_model_settings = self.test_data_path('settings', 'models', 'model_settings_multivariate.json')
         model_settings = ModelSettings(path_to_model_settings)
 
         self.assertEqual(model_settings.name, "multivariate")

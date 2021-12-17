@@ -1,14 +1,14 @@
-import os
-import unittest
+import pandas as pd
 
-from tests import test_data_dir
 from leaspy.io.data.csv_data_reader import CSVDataReader
 
+from tests import LeaspyTestCase
 
-class CSVDataReaderTest(unittest.TestCase):
+
+class CSVDataReaderTest(LeaspyTestCase):
 
     def test_constructor_univariate(self):
-        path = os.path.join(test_data_dir, 'data_mock', 'univariate_data.csv')
+        path = self.test_data_path('data_mock', 'univariate_data.csv')
         reader = CSVDataReader(path)
 
         iter_to_idx = {
@@ -24,7 +24,7 @@ class CSVDataReaderTest(unittest.TestCase):
 
 
     def test_constructor_multivariate(self):
-        path = os.path.join(test_data_dir, 'data_mock', 'multivariate_data.csv')
+        path = self.test_data_path('data_mock', 'multivariate_data.csv')
         reader = CSVDataReader(path)
 
         iter_to_idx = {
@@ -36,3 +36,25 @@ class CSVDataReaderTest(unittest.TestCase):
         self.assertEqual(reader.dimension, 3)
         self.assertEqual(reader.n_individuals, 5)
         self.assertEqual(reader.n_visits, 18)
+
+    def test_load_data_with_missing_values(self):
+        # only test that it works (was not the case previously...)!
+        path = self.test_data_path('data_mock', 'missing_data', 'sparse_data.csv')
+        reader = CSVDataReader(path, drop_full_nan=False)
+
+        self.assertEqual(reader.dimension, 4)
+        self.assertEqual(reader.n_individuals, 2)
+        self.assertEqual(reader.individuals.keys(), {'S1', 'S2'})
+        self.assertEqual(reader.n_visits, 14)
+
+        nans_count_S1 = pd.DataFrame(reader.individuals['S1'].observations, columns=reader.headers).isna().sum(axis=0)
+        pd.testing.assert_series_equal(nans_count_S1, pd.Series({'Y0': 5, 'Y1': 5, 'Y2': 5, 'Y3': 5}))
+
+        nans_count_S2 = pd.DataFrame(reader.individuals['S2'].observations, columns=reader.headers).isna().sum(axis=0)
+        pd.testing.assert_series_equal(nans_count_S2, pd.Series({'Y0': 6, 'Y1': 6, 'Y2': 6, 'Y3': 6}))
+
+        reader = CSVDataReader(path)  # drop_full_nan=True by default
+        self.assertEqual(reader.dimension, 4)
+        self.assertEqual(reader.n_individuals, 2)
+        self.assertEqual(reader.individuals.keys(), {'S1', 'S2'})
+        self.assertEqual(reader.n_visits, 9)

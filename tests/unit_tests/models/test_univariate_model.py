@@ -1,10 +1,10 @@
-import unittest
-
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.univariate_model import UnivariateModel
 
+from tests import LeaspyTestCase
 
-class UnivariateModelTest(unittest.TestCase):
+
+class ManifoldModelTest_Mixin(LeaspyTestCase):
 
     def check_common_attrs(self, model):
         self.assertTrue(issubclass(model.__class__, AbstractModel))
@@ -22,6 +22,8 @@ class UnivariateModelTest(unittest.TestCase):
         self.assertEqual(model.MCMC_toolbox['attributes'], None)
         self.assertEqual(model.MCMC_toolbox['priors']['g_std'], None)
 
+class UnivariateModelTest(ManifoldModelTest_Mixin):
+
     def test_univariate_constructor(self):
         """
         Test attribute's initialization of leaspy univariate model
@@ -35,5 +37,4 @@ class UnivariateModelTest(unittest.TestCase):
             self.assertEqual(model.source_dimension, 0)
 
             self.check_common_attrs(model)
-
 

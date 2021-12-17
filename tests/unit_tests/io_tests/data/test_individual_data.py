@@ -2,8 +2,10 @@ import unittest
 
 from leaspy.io.data.individual_data import IndividualData
 
+from tests import LeaspyTestCase
 
-class IndividualDataTest(unittest.TestCase):
+
+class IndividualDataTest(LeaspyTestCase):
 
     def test_constructor(self):
         data_int = IndividualData(1)

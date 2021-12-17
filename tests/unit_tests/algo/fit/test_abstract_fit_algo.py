@@ -1,7 +1,10 @@
 import unittest
 
+from tests import LeaspyTestCase
 
-class Test(unittest.TestCase):
 
+class TestAbstractFitAlgo(LeaspyTestCase):
+
+    @unittest.skip('TODO')
     def test_constructor(self):
-        return 0
+        pass

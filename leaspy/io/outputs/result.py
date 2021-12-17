@@ -683,6 +683,20 @@ class Result:
         result = set(cofactors)
         return sorted(result)
 
+    @staticmethod
+    def _get_parameter_name_and_dim(param: str):
+        """Split parameter `abc_def_34` in parameter name `abc_def`and parameter dimension `34`, while leaving unchanged `tau`, `xi`, `abc_def`, ..."""
+        param_short, *param_dim = param.rsplit('_', maxsplit=1)  # from right
+
+        if param_dim:
+            # we found a last "***_NNN", return this split if and only if NNN can be interpreted as an integer
+            try:
+                return param_short, int(param_dim[0])
+            except Exception:
+                pass
+
+        return param, None
+
     def get_parameter_distribution(self, parameter: ParamType, cofactor=None):
         """
         .. deprecated:: 1.0
@@ -693,6 +707,7 @@ class Result:
         ----------
         parameter : str
             The wanted parameter's name (ex: 'xi', 'tau', ...).
+            It can also be `sources_i` to only get the i-th dimension of multivariate `sources` parameter.
         cofactor : str, optional (default None)
             The wanted cofactor's name.
 
@@ -723,8 +738,12 @@ class Result:
         """
         warnings.warn("This method will soon be removed!", DeprecationWarning)
 
-        parameter_distribution = self.individual_parameters[parameter]  # torch.tensor class object
+        param_short, param_dim = self._get_parameter_name_and_dim(parameter)
+        parameter_distribution = self.individual_parameters[param_short]  # torch.tensor class object
         # parameter_distribution is of size (N_subjects, N_dimension_of_parameter)
+
+        if param_dim is not None:
+            parameter_distribution = parameter_distribution[:, [param_dim]]
 
         # Check the tensor's dimension is <= 2
         p_ndim = parameter_distribution.ndimension()

@@ -1,15 +1,23 @@
-import unittest
 import numpy as np
+import pandas as pd
+
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 from leaspy.models.lme_model import LMEModel
 from leaspy.algo.others.lme_fit import LMEFitAlgorithm
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
-import pandas as pd
+
+from tests import LeaspyTestCase
 
 
-class LMEFitAlgorithmTest(unittest.TestCase):
-    def setUp(self):
+class LMEFitAlgorithmTest(LeaspyTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+
+        # for tmp handling
+        super().setUpClass()
+
         # TODO? redo test with realistic values...?
         df = pd.DataFrame.from_records((np.arange(3, 3 + 10, 1),
                                         np.arange(15, 15 + 10, 1),
@@ -22,13 +30,13 @@ class LMEFitAlgorithmTest(unittest.TestCase):
         df = df.swaplevel()
         # add a nan
         df.loc[('pat1', 0)] = np.nan
-        self.dataframe = df
-        data = Data.from_dataframe(df)
-        self.dataset = Dataset(data)
+        cls.dataframe = df
+        data = Data.from_dataframe(df, drop_full_nan=False)  # otherwise first visit of pat1 is dropped and then order of subjects is not as originally expected.........
+        cls.dataset = Dataset(data)
         # models
-        self.model = LMEModel('lme', with_random_slope_age=False)
-        self.settings = AlgorithmSettings('lme_fit')
-        self.algo = LMEFitAlgorithm(self.settings)
+        cls.model = LMEModel('lme', with_random_slope_age=False)
+        cls.settings = AlgorithmSettings('lme_fit')
+        cls.algo = LMEFitAlgorithm(cls.settings)
 
     def test_get_reformated(self):
         ages = self.algo._get_reformated(self.dataset, 'timepoints')

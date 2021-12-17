@@ -1,11 +1,11 @@
-import unittest
-
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 
+from tests import LeaspyTestCase
 
-class Test(unittest.TestCase):
+
+class TestAlgoFactory(LeaspyTestCase):
 
     def test_algo(self):
         """Test attributes static method"""

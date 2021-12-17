@@ -1,10 +1,11 @@
 import torch
-import unittest
 
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
 
+from tests import LeaspyTestCase
 
-class AttributesLogisticParallelTest(unittest.TestCase):
+
+class AttributesLogisticParallelTest(LeaspyTestCase):
 
     def test_constructor(self):
         attributes = LogisticParallelAttributes('logistic_parallel', 6, 2)

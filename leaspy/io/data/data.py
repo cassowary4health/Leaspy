@@ -99,15 +99,22 @@ class Data:
         self.cofactors += cofactors
 
     @staticmethod
-    def from_csv_file(path: str):
+    def from_csv_file(path: str, **kws):
         """
         Create a `Data` object from a CSV file.
 
+        Parameters
+        ----------
+        path : str
+            Path to the CSV file to load (with extension)
+        **kws
+            Keyword arguments that are sent to :class:`.CSVDataReader`
+
         Returns
         -------
-        `Data`
+        :class:`.Data`
         """
-        reader = CSVDataReader(path)
+        reader = CSVDataReader(path, **kws)
         return Data._from_reader(reader)
 
     def to_dataframe(self, cofactors=None):
@@ -168,15 +175,22 @@ class Data:
         return df.reset_index()
 
     @staticmethod
-    def from_dataframe(df: pd.DataFrame):
+    def from_dataframe(df: pd.DataFrame, **kws):
         """
         Create a `Data` object from a :class:`pandas.DataFrame`.
+
+        Parameters
+        ----------
+        df : :class:`pandas.DataFrame`
+            Dataframe containing ID, TIME and features.
+        **kws
+            Keyword arguments that are sent to :class:`.DataframeDataReader`
 
         Returns
         -------
         `Data`
         """
-        reader = DataframeDataReader(df)
+        reader = DataframeDataReader(df, **kws)
         return Data._from_reader(reader)
 
     @staticmethod

@@ -1,32 +1,40 @@
-import unittest
 import numpy as np
+import pandas as pd
+import torch
+
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 from leaspy.models.lme_model import LMEModel
 from leaspy.algo.others.lme_personalize import LMEPersonalizeAlgorithm
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
-import torch
-import pandas as pd
+
+from tests import LeaspyTestCase
 
 
-class LMEPersonalizeAlgorithmTest(unittest.TestCase):
-    def setUp(self):
+class LMEPersonalizeAlgorithmTest(LeaspyTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+
+        # for tmp handling
+        super().setUpClass()
+
         # Leaspy
-        self.model = LMEModel('lme', with_random_slope_age=False)
+        cls.model = LMEModel('lme', with_random_slope_age=False)
         # TODO? redo test with realistic values...?
-        self.parameters = {
+        cls.parameters = {
                            "ages_mean": 0.,
                            "ages_std": 1.,
                            "fe_params": np.array([0.3333016, 1.]),
                            "cov_re": np.array([[0.4523892]]),
                            "cov_re_unscaled_inv": np.array([[1/1.41324825e+10]])}
-        self.model.features = ['feat1']
-        self.model.load_parameters(self.parameters)
-        self.settings = AlgorithmSettings('lme_personalize')
-        self.algo = LMEPersonalizeAlgorithm(self.settings)
-        #self.algo.features = ['A']
-        self.times = torch.tensor([0, 2, 4, 6])
-        self.values = np.array([
+        cls.model.features = ['feat1']
+        cls.model.load_parameters(cls.parameters)
+        cls.settings = AlgorithmSettings('lme_personalize')
+        cls.algo = LMEPersonalizeAlgorithm(cls.settings)
+        #cls.algo.features = ['A']
+        cls.times = torch.tensor([0, 2, 4, 6])
+        cls.values = np.array([
             [2.],
             [4.],
             [float('nan')],

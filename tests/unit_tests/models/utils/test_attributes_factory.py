@@ -1,10 +1,10 @@
-import unittest
-
 from leaspy.models.utils.attributes.attributes_factory import AttributesFactory
 from leaspy.models.utils.attributes.logistic_attributes import LogisticAttributes
 
+from tests import LeaspyTestCase
 
-class AttributesFactoryTest(unittest.TestCase):
+
+class AttributesFactoryTest(LeaspyTestCase):
 
     def test_attributes(self):
         """Test attributes static method"""

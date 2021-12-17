@@ -1,4 +1,3 @@
-import unittest
 from math import isnan
 
 import pandas as pd
@@ -10,10 +9,17 @@ from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 from leaspy.models.constant_model import ConstantModel
 from leaspy.algo.others.constant_prediction_algo import ConstantPredictionAlgorithm
 
+from tests import LeaspyTestCase
 
-class ConstantPredictionAlgorithmTest(unittest.TestCase):
 
-    def setUp(self):
+class ConstantPredictionAlgorithmTest(LeaspyTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+
+        # for tmp handling
+        super().setUpClass()
+
         arr = [
             ['1', 1., 2., 1.],
             ['1', 3., 3., float('nan')], # non-sorted
@@ -22,7 +28,7 @@ class ConstantPredictionAlgorithmTest(unittest.TestCase):
 
         df = pd.DataFrame(data=arr, columns=['ID', 'TIME', 'A', 'B']).set_index(['ID', 'TIME'])
         data = Data.from_dataframe(df)
-        self.dataset = Dataset(data)
+        cls.dataset = Dataset(data)
 
     def test_constructor(self):
         settings = AlgorithmSettings('constant_prediction')

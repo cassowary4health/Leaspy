@@ -1,12 +1,15 @@
 import unittest
 
+from tests import LeaspyTestCase
 
-class OutputSettingsTest(unittest.TestCase):
 
+class OutputSettingsTest(LeaspyTestCase):
+
+    @unittest.skip('TODO')
     def test_constructor(self):
         # TODO : En fonction du cas d'usage qui est retenu dans le OutputsSettings
-        return 0
+        pass
 
+    @unittest.skip('TODO')
     def test_path_creation(self):
-        # TODO
-        return 0
+        pass

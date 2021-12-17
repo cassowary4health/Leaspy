@@ -1,12 +1,12 @@
-import unittest
-
 from torch import tensor
 
 from leaspy.datasets.loader import Loader
 
+from tests import LeaspyTestCase
+
 # TODO: regenerate example models + individual parameters
 
-class DataTest(unittest.TestCase):
+class LoaderTest(LeaspyTestCase):
 
     def test_load_dataset(self):
         """

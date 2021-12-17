@@ -1,19 +1,17 @@
-import os
-import unittest
-
 import numpy as np
 import torch
 
-from leaspy.api import Leaspy
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
-from tests import hardcoded_model_path
 
-# test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)
+from tests import LeaspyTestCase
+
+# test tolerance, lack of precision btw different machines... (no exact reproducibility in scipy.optimize.minimize?)
 tol = 3e-3
 tol_tau = 1e-2
 
-class ScipyMinimizeTest(unittest.TestCase):
+
+class ScipyMinimizeTest(LeaspyTestCase):
 
     def check_individual_parameters(self, ips, *, tau, xi, tol_tau, tol_xi, sources=None, tol_sources=None):
 
@@ -46,20 +44,17 @@ class ScipyMinimizeTest(unittest.TestCase):
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
 
-        univariate_path = hardcoded_model_path('univariate_logistic')
-        univariate_model = Leaspy.load(univariate_path)
+        univariate_model = self.get_hardcoded_model('univariate_logistic')
         param = algo._initialize_parameters(univariate_model.model)
 
         self.assertEqual(param, [torch.tensor([-1.0/0.01]), torch.tensor([70.0/2.5])])
 
-        multivariate_path = hardcoded_model_path('logistic')
-        multivariate_model = Leaspy.load(multivariate_path)
+        multivariate_model = self.get_hardcoded_model('logistic_scalar_noise')
         param = algo._initialize_parameters(multivariate_model.model)
         self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2/7.1]), torch.tensor([0.]), torch.tensor([0.])])
 
     def test_get_reconstruction_error(self):
-        multivariate_path = hardcoded_model_path('logistic')
-        leaspy = Leaspy.load(multivariate_path)
+        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
 
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
@@ -80,8 +75,7 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertAlmostEqual(torch.sum((err - output)**2).item(), 0, delta=1e-8)
 
     def test_get_regularity(self):
-        multivariate_path = hardcoded_model_path('logistic')
-        leaspy = Leaspy.load(multivariate_path)
+        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
 
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
@@ -106,9 +100,9 @@ class ScipyMinimizeTest(unittest.TestCase):
         self.assertTupleEqual(reg_grads['tau'].shape, (1,1))
         self.assertTupleEqual(reg_grads['sources'].shape, (1,2))
 
-    def get_individual_parameters_patient(self, model_name, times, values, *, loss, **algo_kwargs):
+    def get_individual_parameters_patient(self, model_name: str, times, values, *, loss, **algo_kwargs):
         # already a functional test in fact...
-        leaspy = Leaspy.load(hardcoded_model_path(model_name))
+        leaspy = self.get_hardcoded_model(model_name)
         leaspy.model.load_hyperparameters({'loss': loss})
 
         settings = AlgorithmSettings('scipy_minimize', seed=0, **algo_kwargs)  # loss=loss (not need: loss comes from model now)
@@ -157,14 +151,14 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         for (model_name, use_jacobian), expected_dict in {
 
-            ('logistic', False): {
+            ('logistic_scalar_noise', False): {
                 'tau': 78.5750,
                 'xi': -0.0919,
                 'sources': [0.3517, 0.1662],
                 'err': [[-0.49765, -0.31615,  -0.351310, -0.44945],
                         [ 0.00825,  0.06638,  0.139204,  0.00413 ]],
             },
-            ('logistic', True): {
+            ('logistic_scalar_noise', True): {
                 'tau': 78.5750,
                 'xi': -0.0918,
                 'sources': [0.3483, 0.1678],
@@ -199,14 +193,14 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         for (model_name, use_jacobian), expected_dict in {
 
-            ('logistic', False): {
+            ('logistic_scalar_noise', False): {
                 'tau': 77.5558,
                 'xi': -0.0989,
                 'sources': [-0.9805,  0.7745],
                 'err': [[-0.4981, -0.0895, -0.1161,     0.],
                         [-0.0398,     0.,     0.,  0.0863]]
             },
-            ('logistic', True):  {
+            ('logistic_scalar_noise', True):  {
                 'tau': 77.5555,
                 'xi': -0.0990,
                 'sources': [-0.9799,  0.7743],
@@ -240,14 +234,14 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         for (model_name, use_jacobian), expected_dict in {
 
-            ('logistic', False): {
+            ('logistic_scalar_noise', False): {
                 'tau': 70.6041,
                 'xi': -0.0458,
                 'sources': [0.9961, 1.2044],
                 'err': [[ 1.2993e-03, -6.2189e-02,  4.8657e-01, -4.1219e-01],
                         [ 2.4171e-01, -9.4945e-03, -8.5862e-02, -4.0013e-04]]
             },
-            ('logistic', True): {
+            ('logistic_scalar_noise', True): {
                 'tau': 70.5971,
                 'xi': -0.0471,
                 'sources': [0.9984, 1.2037],
@@ -281,14 +275,14 @@ class ScipyMinimizeTest(unittest.TestCase):
 
         for (model_name, use_jacobian), expected_dict in {
 
-            ('logistic', False): {
+            ('logistic_scalar_noise', False): {
                 'tau': 75.7494,
                 'xi': -0.0043,
                 'sources': [0.4151, 1.0180],
                 'err': [[ 2.7332e-04, -0.30629,  0.22526,        0.],
                         [ 0.077974,         0.,       0., -0.036894]]
             },
-            ('logistic', True): {
+            ('logistic_scalar_noise', True): {
                 'tau': 75.7363,
                 'xi': -0.0038,
                 'sources': [0.4146, 1.0160],

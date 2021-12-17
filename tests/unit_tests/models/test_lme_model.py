@@ -1,8 +1,9 @@
-import unittest
 from leaspy.models.lme_model import LMEModel
 
+from tests import LeaspyTestCase
 
-class LMEModelTest(unittest.TestCase):
+
+class LMEModelTest(LeaspyTestCase):
 
     def test_constructor(self):
         model = LMEModel('lme')

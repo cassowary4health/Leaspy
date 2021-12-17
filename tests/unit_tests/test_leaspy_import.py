@@ -1,18 +1,18 @@
-import unittest
+from tests import LeaspyTestCase
 
 
-class ImportTest(unittest.TestCase):
+class ImportTest(LeaspyTestCase):
 
     def test_import(self):
         def __import():
             import leaspy
-            print(leaspy)
+            # print(leaspy)
         self.__import_or_fail(__import)
 
     def test_import_as(self):
         def __import():
             import leaspy as lp
-            print(lp)
+            # print(lp)
         self.__import_or_fail(__import)
 
     def test_import_main_klass_from(self):

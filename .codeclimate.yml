@@ -1,0 +1,102 @@
+# https://docs.codeclimate.com/docs/default-analysis-configuration
+# https://docs.gitlab.com/ee/user/project/merge_requests/code_quality.html
+
+version: "2"
+
+checks:
+  # https://docs.codeclimate.com/docs/advanced-configuration
+  argument-count:
+    config:
+      threshold: 4
+  complex-logic:
+    config:
+      threshold: 4
+  file-lines:
+    config:
+      threshold: 250
+  method-complexity:
+    config:
+      threshold: 5
+  method-count:
+    config:
+      threshold: 20
+  method-lines:
+    config:
+      threshold: 25
+  nested-control-flow:
+    config:
+      threshold: 4
+  return-statements:
+    config:
+      threshold: 4
+  #similar-code:
+    #config:
+    #  threshold: # language-specific defaults. an override will affect all languages.
+  #identical-code:
+    #config:
+    #  threshold: # language-specific defaults. an override will affect all languages.
+
+exclude_paths:
+  - "browser/"
+  - "build/"
+  - "dist/"
+  - "docs/"
+  - "example/"
+  - "tests/"
+  - "**/_legacy/"
+
+plugins:
+  # https://docs.codeclimate.com/docs/list-of-engines
+
+  sonar-python:
+    # https://docs.codeclimate.com/docs/sonar-python
+    enabled: true
+    config:
+      tests_patterns:
+        - tests/*.py
+      minimum_severity: major
+
+  #pep8:
+  #  enabled: true
+  ##config in section [pep8] of setup.cfg: cf. https://pep8.readthedocs.io/en/latest/intro.html#configuration
+
+  #bandit:
+  #  enabled: true
+  ##config in .bandit.yml
+
+  #pylint:
+  #  enabled: true
+  ##config in .pylintrc
+
+  duplication:
+    # https://docs.codeclimate.com/docs/duplication
+    enabled: true
+    config:
+      languages:
+        python:
+          python_version: 3
+          mass_threshold: 32
+
+  radon:
+    # https://docs.codeclimate.com/docs/radon
+    enabled: true
+    #channel: beta
+    config:
+      python_version: 3
+      threshold: "C" # "B"
+
+  markdownlint:
+    # https://docs.codeclimate.com/docs/markdownlint
+    enabled: true
+    ##config in .mdlrc
+
+  fixme:
+    # https://docs.codeclimate.com/docs/fixme
+    enabled: true
+    config:
+      strings:
+      - FIXME
+      - BUG
+      - HACK
+      - XXX
+      #- TODO

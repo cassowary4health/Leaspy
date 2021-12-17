@@ -1,16 +1,14 @@
-import unittest
-import pandas as pd
-from tests import example_data_path
-from leaspy import Data, Leaspy, AlgorithmSettings
-
+from leaspy import Leaspy, AlgorithmSettings
 from leaspy.models.constant_model import ConstantModel
 
+from tests import LeaspyTestCase
 
-class ConstantModelAPITest(unittest.TestCase):
+
+class ConstantModelAPITest(LeaspyTestCase):
 
     def test_run(self):
         # Data
-        data = Data.from_csv_file(example_data_path)
+        data = self.get_suited_test_data_for_model('constant_multivariate')
 
         # Settings
         # The `prediction_type` could be `last`, `last_known`, `max` or `mean`

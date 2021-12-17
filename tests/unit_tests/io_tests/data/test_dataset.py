@@ -1,16 +1,15 @@
-import os
-import unittest
 import torch
 
-from tests import test_data_dir
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 
+from tests import LeaspyTestCase
 
-class DatasetTest(unittest.TestCase):
+
+class DatasetTest(LeaspyTestCase):
 
     def test_constructor_univariate(self):
-        path_to_data = os.path.join(test_data_dir, 'data_mock', 'univariate_data_for_dataset.csv')
+        path_to_data = self.test_data_path('data_mock', 'univariate_data_for_dataset.csv')
         data = Data.from_csv_file(path_to_data)
         dataset = Dataset(data)
 
@@ -30,7 +29,7 @@ class DatasetTest(unittest.TestCase):
         self.assertTrue(torch.equal(dataset.mask, mask))
 
     def test_constructor_multivariate(self):
-        path_to_data = os.path.join(test_data_dir, 'data_mock', 'multivariate_data_for_dataset.csv')
+        path_to_data = self.test_data_path('data_mock', 'multivariate_data_for_dataset.csv')
         data = Data.from_csv_file(path_to_data)
         dataset = Dataset(data)
 

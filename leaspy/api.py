@@ -77,7 +77,7 @@ class Leaspy:
     def type(self) -> str:
         return self.model.name
 
-    def fit(self, data: Data, algorithm_settings: AlgorithmSettings):
+    def fit(self, data: Data, settings: AlgorithmSettings):
         r"""
         Estimate the model's parameters :math:`\theta` for a given dataset and a given algorithm.
 
@@ -87,7 +87,7 @@ class Leaspy:
         ----------
         data : :class:`.Data`
             Contains the information of the individuals, in particular the time-points :math:`(t_{i,j})` and the observations :math:`(y_{i,j})`.
-        algorithm_settings : :class:`.AlgorithmSettings`
+        settings : :class:`.AlgorithmSettings`
             Contains the algorithm's settings.
 
         Examples
@@ -115,22 +115,22 @@ class Leaspy:
         xi_std : 0.5421289801597595
         noise_std : 0.021265486255288124
         """
-        algorithm = AlgoFactory.algo("fit", algorithm_settings)
+        algorithm = AlgoFactory.algo("fit", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
         if not self.model.is_initialized:
             # at this point randomness is not yet fixed even if seed was set in AlgoSettings
             # it will only be set at the beginning of `algorithm.run` just afterwards
             # so a `initialization_method='random'` won't be reproducible for now, TODO?
-            initialization_method = algorithm_settings.model_initialization_method
+            initialization_method = settings.model_initialization_method
             self.model.initialize(dataset, initialization_method)
         algorithm.run(self.model, dataset)
 
 
-    def calibrate(self, data: Data, algorithm_settings: AlgorithmSettings):
+    def calibrate(self, data: Data, settings: AlgorithmSettings):
         r"""
         Duplicates of the :meth:`~.Leaspy.fit` method.
         """
-        self.fit(data, algorithm_settings)
+        self.fit(data, settings)
 
     def personalize(self, data: Data, settings: AlgorithmSettings, return_noise: bool = False):
         r"""

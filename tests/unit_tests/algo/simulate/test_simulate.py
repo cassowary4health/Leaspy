@@ -1,32 +1,34 @@
-import os
-import unittest
-
 import numpy as np
 import pandas as pd
 import torch
 
-from leaspy import AlgorithmSettings, Data, Leaspy
+from leaspy import AlgorithmSettings, Data
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
 from leaspy.io.outputs.result import Result
-from tests import example_data_path, example_data_covars_path, hardcoded_model_path
+
+from tests import LeaspyTestCase
 
 
-class SimulationAlgorithmTest(unittest.TestCase):
+class SimulationAlgorithmTest(LeaspyTestCase):
 
-    def setUp(self):
-        self.settings = AlgorithmSettings('simulation')
-        self.algo = SimulationAlgorithm(self.settings)
+    @classmethod
+    def setUpClass(cls):
+        # for tmp handling
+        super().setUpClass()
+
+        cls.settings = AlgorithmSettings('simulation')
+        cls.algo = SimulationAlgorithm(cls.settings)
+        cls.model = cls.get_hardcoded_model('logistic_scalar_noise')
 
         # reused data, model, individual parameters
-        self.data = Data.from_csv_file(example_data_path)
-        cofactors = pd.read_csv(example_data_covars_path, dtype={'ID': str}, index_col='ID')
-        self.data.load_cofactors(cofactors, ["Treatments"])
+        cls.data = cls.get_suited_test_data_for_model('logistic_scalar_noise')
+        cofactors = pd.read_csv(cls.example_data_covars_path, dtype={'ID': str}, index_col='ID')
+        cls.data.load_cofactors(cofactors, ["Treatments"])
 
-        self.model = Leaspy.load(hardcoded_model_path('logistic'))
         perso_settings = AlgorithmSettings('mode_real')
-        self.individual_parameters = self.model.personalize(self.data, perso_settings)
+        cls.individual_parameters = cls.model.personalize(cls.data, perso_settings)
 
-    def test_construtor(self):
+    def test_constructor(self):
         """
         Test the initialization.
         """
@@ -171,7 +173,6 @@ class SimulationAlgorithmTest(unittest.TestCase):
                         "Generated scores contain scores outside the bounds")
 
     def test_simulate_univariate(self):
-        from leaspy import AlgorithmSettings, Data
         from leaspy.datasets import Loader
 
         putamen_df = Loader.load_dataset('parkinson-putamen-train_and_test')

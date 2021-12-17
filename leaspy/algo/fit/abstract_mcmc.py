@@ -1,14 +1,13 @@
 import torch
 
 from .abstract_fit_algo import AbstractFitAlgo
-from ..samplers.gibbs_sampler import GibbsSampler
-from ..samplers.hmc_sampler import HMCSampler
 
 from leaspy.models.utils import DEFAULT_LOSS
 from leaspy.exceptions import LeaspyAlgoInputError
+from leaspy.algo.samplers.algo_with_samplers import AlgoWithSamplersMixin
 
 
-class AbstractFitMCMC(AbstractFitAlgo):
+class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
     """
     Abstract class containing common method for all `fit` algorithm classes based on `Monte-Carlo Markov Chains` (MCMC).
 
@@ -40,7 +39,6 @@ class AbstractFitMCMC(AbstractFitAlgo):
         # Realizations and samplers
         self.realizations = None
         #self.task = None
-        self.samplers = None
         self.current_iteration = 0
 
         # Annealing
@@ -99,29 +97,6 @@ class AbstractFitMCMC(AbstractFitAlgo):
         self.temperature = self.algo_parameters['annealing']['initial_temperature']
         self.temperature_inv = 1 / self.temperature
 
-    def _initialize_samplers(self, model, data):
-        """
-        Instanciate samplers for Gibbs / HMC sampling as a dictionnary samplers {variable_name: sampler}
-
-        Parameters
-        ----------
-        data : :class:`.Dataset`
-        model : :class:`~.models.abstract_model.AbstractModel`
-        """
-        infos_variables = model.random_variable_informations()
-        self.samplers = dict.fromkeys(infos_variables.keys())
-        for variable, info in infos_variables.items():
-            if info["type"] == "individual":
-                if self.algo_parameters['sampler_ind'] == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
-                else:
-                    self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
-            else:
-                if self.algo_parameters['sampler_pop'] == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
-                else:
-                    self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
-
     def _initialize_sufficient_statistics(self, data, model, realizations):
         """
         Initialize the sufficient statistics.
@@ -147,7 +122,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         """
         MCMC-SAEM iteration.
 
-        1. Sample : MC sample successively of the populatin and individual variales
+        1. Sample : MC sample successively of the population and individual variales
         2. Maximization step : update model parameters from current population/individual variables values.
 
         Parameters
@@ -209,7 +184,3 @@ class AbstractFitMCMC(AbstractFitAlgo):
             out += "Annealing\n"
             out += f"Temperature : {self.temperature}"
         return out
-
-    #############
-    ## HMC
-    #############

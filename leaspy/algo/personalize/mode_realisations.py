@@ -2,12 +2,11 @@ import torch
 
 from leaspy.io.realizations.realization import Realization
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
-from ..samplers.gibbs_sampler import GibbsSampler
-from ..samplers.hmc_sampler import HMCSampler
+from ..samplers.algo_with_samplers import AlgoWithSamplersMixin
 from ...io.outputs.individual_parameters import IndividualParameters
 
 
-class ModeReal(AbstractPersonalizeAlgo):
+class ModeReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
     """
     Sampler based algorithm, individual parameters are derivated as the most frequent realization for `n_samples` samplings.
 
@@ -21,22 +20,6 @@ class ModeReal(AbstractPersonalizeAlgo):
 
         # Algorithm parameters
         super().__init__(settings)
-
-    # TODO cloned --> factorize in a utils ???
-    def _initialize_samplers(self, model, data):
-        infos_variables = model.random_variable_informations()
-        self.samplers = dict.fromkeys(infos_variables.keys())
-        for variable, info in infos_variables.items():
-            if info["type"] == "individual":
-                if self.algo_parameters['sampler_ind'] == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
-                else:
-                    self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
-            else:
-                if self.algo_parameters['sampler_pop'] == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
-                else:
-                    self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
 
     def _initialize_annealing(self):
         if self.algo_parameters['annealing']['do_annealing']:

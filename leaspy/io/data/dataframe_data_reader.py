@@ -92,7 +92,7 @@ class DataframeDataReader:
                                            f'please double check these individuals:\n{individuals_with_at_least_1_bad_tpt}.')
 
     @classmethod
-    def _check_features(cls, df: pd.DataFrame) -> None:
+    def _check_features(cls, df: pd.DataFrame) -> pd.DataFrame:
         """Check requirements on features."""
         types_nok = {ft: dtype for ft, dtype in df.dtypes.items() if not cls._check_numeric_type(dtype)}
         if types_nok:
@@ -104,11 +104,20 @@ class DataframeDataReader:
         if full_of_nans:
             warnings.warn(f'These columns only contain nans: {full_of_nans}.')
 
+        try:
+            # it is needed so to always use numpy.nan as nans even if pd.NA were used originally
+            df = df.astype(float)
+        except Exception as e:
+            raise LeaspyDataInputError('Cannot safely convert dataframe to float type.') from e
+
         # check that no 'inf' are present in dataframe
-        df_inf = np.isinf(df)
-        df_inf_rows_and_cols = df_inf.where(df_inf).dropna(how='all', axis=0).dropna(how='all', axis=1)
+        df_inf = np.isinf(df)  # numpy.nan are considered finite :)
+        df_inf_rows_and_cols = df.where(df_inf).dropna(how='all', axis=0).dropna(how='all', axis=1).fillna('')
         if len(df_inf_rows_and_cols) != 0:
             raise LeaspyDataInputError(f'Values may be nan but not infinite, double check your data:\n{df_inf_rows_and_cols}')
+
+        # dataframe that can safely be used downstream
+        return df
 
     def _read(self, df: pd.DataFrame, *, drop_full_nan: bool = True, sort_index: bool = False):
 
@@ -155,7 +164,7 @@ class DataframeDataReader:
         if self.dimension < 1:
             raise LeaspyDataInputError('Dataframe should have at least 1 feature...')
 
-        self._check_features(df)
+        df = self._check_features(df)
 
         for (idx_subj, timepoint), observations in df.iterrows():
 

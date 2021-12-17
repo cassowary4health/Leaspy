@@ -40,10 +40,11 @@ update_conda_linux:
     - conda
   # leave this job for latter deploy jobs (executed on linux only & using conda)
 
-check_tests:
+check_repo:
   stage: .pre
   script:
-    - bash "ci/check_tests.sh"
+    - for file in ci/check_*.sh; do bash "$file" || NOK=1; done
+    - '[[ -z $NOK ]]'
   tags:
     - bash  # no matter macos or linux
   rules:
@@ -138,11 +139,11 @@ prepare_metadata:
   rules:
     - if: $CI_COMMIT_TAG
   tags:
-    - shell  # arbitrary choice...
+    - shell  # arbitrary choice as long as shell is supported
   variables:
     VERSION_PYTHON_FILE: leaspy/__init__.py
-    VERSION_REGEX: '^__version__\s*=\s*[\x27"](.+)[\x27"].*$'  # \x27 is for single quote
-    VERSION_DEV_SUFFIX_REGEX: '[^0-9]?(dev|alpha|beta|pre|rc).*$'  # TODO? also handle case of ".post*" suffixed releases?
+    VERSION_REGEX: "^__version__ = '(.+)'.*$"  # beware not to change quotes nor spacing between '=' in version file!
+    VERSION_DEV_SUFFIX_REGEX: '[-_\.]?(dev|alpha|beta|pre|rc).*$'  # TODO? also handle case of ".post*" suffixed releases?
     PKG_METADATA_FILE: package.env
   script:
     - echo "TAG_WITHOUT_PREFIX=${CI_COMMIT_TAG#v}" > $PKG_METADATA_FILE
@@ -181,7 +182,7 @@ code_quality:
 sast:
   variables:
     SAST_EXCLUDED_ANALYZERS: eslint  # some js in browser...
-    SAST_EXCLUDED_PATHS: 'build, dist, docs, tests' # browser, example
+    SAST_EXCLUDED_PATHS: 'build, ci, dist, docs, tests' # browser, example
   tags:
     - docker
   needs: []  # no dependencies (docker execution)

@@ -39,6 +39,7 @@ checks:
 exclude_paths:
   - "browser/"
   - "build/"
+  - "ci/"
   - "dist/"
   - "docs/"
   - "example/"

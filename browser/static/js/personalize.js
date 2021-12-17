@@ -1,9 +1,10 @@
 addIndividualData = (scores) => {
   var ages = scores['TIME']
   for(var i=0; i < parameters['dimension']; ++i) {
+    feature_name = parameters['features'][i]
     dataset = {
       label : '',
-      data: convertData(ages, scores[String(i)]),
+      data: convertData(ages, scores[feature_name]),
       showLine: false,
       fill: true,
       pointBorderColor: 'rgb(0, 0, 0)',
@@ -46,9 +47,7 @@ personalize = () => {
     data: JSON.stringify(data),
     dataType: 'json',
     url: '/',
-    success: function (result) {
-      individualFit(result);
-    }
+    success: individualFit
   });
 
 }

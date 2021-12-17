@@ -1,7 +1,8 @@
-import os, sys
+import os
+import sys
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 # Add leaspy source to path (overwrite any existing leaspy package by inserting instead of appending)
@@ -9,6 +10,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from leaspy import Leaspy, Data, AlgorithmSettings
 
+
+def non_float_to_nan(obj):
+    try:
+        return float(obj)
+    except Exception:
+        return np.nan
 
 def convert_data(data):
 
@@ -21,11 +28,10 @@ def convert_data(data):
     ages = np.array(ages, dtype=np.float32)
 
     # Scores
-    empty_str_to_nan = lambda s: float(s) if s else np.nan
-    scores = [list(map(empty_str_to_nan, _[1:])) for _ in data['scores'] if _[0]]
+    scores = [list(map(non_float_to_nan, _[1:])) for _ in data['scores'] if _[0]]
     scores = np.array(scores, dtype=np.float32)
     scores = pd.DataFrame(data=scores,
-                          columns=[str(_) for _ in range(len(scores[0]))])
+                          columns=data['model']['features'])
     scores['ID'] = "patient"
     scores['TIME'] = ages
 
@@ -37,27 +43,21 @@ def convert_data(data):
 def get_individual_parameters(data):
     # Data
     leaspy_data = convert_data(data)
-    df = leaspy_data.to_dataframe().set_index(['ID', 'TIME'])
-
-    # Replace nans by None to be JSON-compliant
-    df = df.mask(df.isna(), None)
 
     # Algorithm
-    settings = AlgorithmSettings('scipy_minimize', use_jacobian=True)
+    settings = AlgorithmSettings('scipy_minimize', seed=0, progress_bar=False, use_jacobian=True)
 
     # Leaspy
-
-    #leaspy = Leaspy.load(data['model'])
-    # TO CORRECT
-    #if data['model']['name'] == 'logistic_parallel':
     leaspy = Leaspy.load(data['model'])
-    #elif data['model']['name'] == 'logistic':
-    #    leaspy = Leaspy.load(os.path.join(os.getcwd(), 'data', 'example', 'parkinson_model.json'))
     individual_parameters = leaspy.personalize(leaspy_data, settings=settings)
+
+    # Replace nans by None to be JSON-compliant
+    df = leaspy_data.to_dataframe().set_index('ID').fillna(np.nan)
+    df = df.replace([np.nan], [None])
 
     output = {
         'individual_parameters': individual_parameters["patient"],
-        'scores': df.reset_index('TIME').to_dict(orient='list')
+        'scores': df.to_dict(orient='list')
     }
 
     return output

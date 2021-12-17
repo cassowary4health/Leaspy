@@ -7,7 +7,7 @@ var age_max = 110;
 var age_step = 0.1;
 var leg_yprecision = 2;
 
-var parameters = '';
+var parameters = {};
 var ages = '';
 var plotColors = ['rgb(231, 76, 60)', 'rgb(241, 196, 15)', 'rgb(149, 165, 166)', 'rgb(46, 204, 113)',
 'rgb(0,71,179)', 'rgb(246,113,85)', 'rgb(153, 102, 51)', 'rgb(0, 179, 0)', 'rgb(102, 0, 255)', 'rgb(,,)',
@@ -223,6 +223,7 @@ initPlot = () => {
 
 initModel = (e) => {
   parameters = JSON.parse(e.target.result);
+  parameters['dimension'] = parameters['features'].length;
   reinitModel(parameters);
 }
 
@@ -339,7 +340,6 @@ initTable = (parameters, individualData) => {
       dataObject.push(unitDataObject);
 
     }
-    console.log(dataObject);
   }
 
 
@@ -371,9 +371,9 @@ initIndividualData = () => {
 }
 
 loadExistingPatient = (e) => {
-    individualData = JSON.parse(e.target.result);
-    resetPatientButton(individualData);
-    initTable(parameters, individualData);
+  individualData = JSON.parse(e.target.result);
+  resetPatientButton(individualData);
+  initTable(parameters, individualData);
 }
 
 document.getElementById("file-input").onchange = function() {

@@ -35,6 +35,8 @@ class ConstantPredictionAlgorithmTest(LeaspyTestCase):
         algo = ConstantPredictionAlgorithm(settings)
         self.assertEqual(algo.name, 'constant_prediction')
         self.assertEqual(algo.prediction_type, 'last')
+        self.assertTrue(algo.deterministic)
+        self.assertEqual(algo.family, 'personalize')
 
         for prediction_type in ['last', 'last_known', 'max', 'mean']:
             settings = AlgorithmSettings('constant_prediction', prediction_type=prediction_type)
@@ -84,8 +86,8 @@ class ConstantPredictionAlgorithmTest(LeaspyTestCase):
             algo = ConstantPredictionAlgorithm(settings)
             model = ConstantModel('constant')
 
-            ip, noise = algo.run(model, self.dataset)
-            self.assertEqual(noise, 0.)
+            ip, noise = algo.run(model, self.dataset, return_noise=True)
+            self.assertEqual(noise, None)
             self.assertListEqual(ip._indices, ['1'])
             self.assertDictEqual(ip._parameters_shape, {'A': (), 'B': ()})
             self.assertEqual(ip._default_saving_type, 'csv')

@@ -1,6 +1,9 @@
 import numpy as np
+import pandas as pd
 import torch
 
+from leaspy.io.data.data import Data
+from leaspy.io.data.dataset import Dataset
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
@@ -29,7 +32,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
 
-        self.assertEqual(algo.algo_parameters, {'n_iter': 100, 'use_jacobian': False, 'n_jobs': 1, "progress_bar": False})
+        self.assertEqual(algo.algo_parameters, {'n_iter': 100, 'use_jacobian': True, 'n_jobs': 1, "progress_bar": True})
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, None)
 
@@ -52,6 +55,23 @@ class ScipyMinimizeTest(LeaspyTestCase):
         multivariate_model = self.get_hardcoded_model('logistic_scalar_noise')
         param = algo._initialize_parameters(multivariate_model.model)
         self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2/7.1]), torch.tensor([0.]), torch.tensor([0.])])
+
+    def test_fallback_without_jacobian(self):
+        model = self.get_hardcoded_model('logistic_scalar_noise').model
+
+        # pretend as if compute_jacobian_tensorized was not implemented
+        def not_implemented_compute_jacobian_tensorized(tpts, ips, **kws):
+            raise NotImplementedError
+
+        model.compute_jacobian_tensorized = not_implemented_compute_jacobian_tensorized
+
+        mini_dataset = Dataset(self.get_suited_test_data_for_model('logistic_scalar_noise'))
+
+        settings = AlgorithmSettings('scipy_minimize') #, use_jacobian=True) # default
+        algo = ScipyMinimize(settings)
+
+        with self.assertWarnsRegex(UserWarning, r'`use_jacobian\s?=\s?False`'):
+            algo._get_individual_parameters(model, mini_dataset)
 
     def test_get_reconstruction_error(self):
         leaspy = self.get_hardcoded_model('logistic_scalar_noise')
@@ -100,14 +120,13 @@ class ScipyMinimizeTest(LeaspyTestCase):
         self.assertTupleEqual(reg_grads['tau'].shape, (1,1))
         self.assertTupleEqual(reg_grads['sources'].shape, (1,2))
 
-    def get_individual_parameters_patient(self, model_name: str, times, values, *, loss, **algo_kwargs):
+    def get_individual_parameters_patient(self, model_name, times, values, *, noise_model, **algo_kwargs):
         # already a functional test in fact...
         leaspy = self.get_hardcoded_model(model_name)
-        leaspy.model.load_hyperparameters({'loss': loss})
+        leaspy.model.load_hyperparameters({'noise_model': noise_model})
 
-        settings = AlgorithmSettings('scipy_minimize', seed=0, **algo_kwargs)  # loss=loss (not need: loss comes from model now)
+        settings = AlgorithmSettings('scipy_minimize', seed=0, **algo_kwargs)
         algo = ScipyMinimize(settings)
-        # self.assertEqual(algo.loss, loss)
 
         # manually initialize seed since it's not done by algo itself (no call to run afterwards)
         algo._initialize_seed(algo.seed)
@@ -116,7 +135,8 @@ class ScipyMinimizeTest(LeaspyTestCase):
         # Test without nan
         output = algo._get_individual_parameters_patient(leaspy.model,
                                 torch.tensor(times, dtype=torch.float32),
-                                torch.tensor(values, dtype=torch.float32))
+                                torch.tensor(values, dtype=torch.float32),
+                                with_jac=algo_kwargs['use_jacobian'])
 
         return output
 
@@ -135,7 +155,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
         }.items():
 
             individual_parameters, err = self.get_individual_parameters_patient(model_name,
-                                                    times, values, loss='MSE', use_jacobian=use_jacobian)
+                                                    times, values, noise_model='gaussian_scalar', use_jacobian=use_jacobian)
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,
@@ -171,7 +191,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
         }.items():
 
             individual_parameters, err = self.get_individual_parameters_patient(model_name,
-                                                    times, values, loss='MSE', use_jacobian=use_jacobian)
+                                                    times, values, noise_model='gaussian_scalar', use_jacobian=use_jacobian)
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,
@@ -213,7 +233,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
         }.items():
 
             individual_parameters, err = self.get_individual_parameters_patient(model_name,
-                                                    times, values, loss='MSE', use_jacobian=use_jacobian)
+                                                    times, values, noise_model='gaussian_scalar', use_jacobian=use_jacobian)
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,
@@ -253,7 +273,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
             individual_parameters, err = self.get_individual_parameters_patient(model_name,
                                                     times, values, use_jacobian=use_jacobian,
-                                                    loss='crossentropy')
+                                                    noise_model='bernoulli')
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,
@@ -296,7 +316,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
             individual_parameters, err = self.get_individual_parameters_patient(model_name,
                                                     times, values, use_jacobian=use_jacobian,
-                                                    loss='crossentropy')
+                                                    noise_model='bernoulli')
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,

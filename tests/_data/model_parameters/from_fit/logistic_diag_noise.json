@@ -9,7 +9,7 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
-  "loss": "MSE_diag_noise",
+  "noise_model": "gaussian_diagonal",
   "parameters": {
     "g": [
       0.05097980052232742,

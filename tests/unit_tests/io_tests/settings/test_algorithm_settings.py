@@ -2,6 +2,7 @@ import os
 import json
 
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+from leaspy.io.settings import algo_default_data_dir
 
 from tests import LeaspyTestCase
 
@@ -12,7 +13,7 @@ class AlgorithmSettingsTest(LeaspyTestCase):
 
         # Default constructor
         name = 'scipy_minimize'
-        path = os.path.join(self.default_algo_dir, 'default_' + name + '.json')
+        path = os.path.join(algo_default_data_dir, 'default_' + name + '.json')
 
         with open(path) as fp:
             json_data = json.load(fp)
@@ -20,12 +21,12 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         settings = AlgorithmSettings(name)
         self.assertEqual(settings.name, name)
         self.assertEqual(settings.parameters, json_data['parameters'])
-        self.assertEqual(settings.parameters['use_jacobian'], False)
+        self.assertEqual(settings.parameters['use_jacobian'], True)
         self.assertEqual(settings.seed, None)
 
     def test_jacobian_personalization(self):
-        settings = AlgorithmSettings('scipy_minimize', use_jacobian=True)
-        self.assertEqual(settings.parameters['use_jacobian'], True)
+        settings = AlgorithmSettings('scipy_minimize', use_jacobian=False)
+        self.assertEqual(settings.parameters['use_jacobian'], False)
 
     def test_constant_prediction_algorithm(self):
         settings = AlgorithmSettings('constant_prediction')
@@ -48,7 +49,7 @@ class AlgorithmSettingsTest(LeaspyTestCase):
     def test_default_constructor_with_kwargs(self):
         # Default constructor with kwargs
         name = 'mcmc_saem'
-        path = os.path.join(self.default_algo_dir, 'default_' + name + '.json')
+        path = os.path.join(algo_default_data_dir, 'default_' + name + '.json')
 
         with open(path) as fp:
             json_data = json.load(fp)
@@ -60,6 +61,7 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         self.assertEqual(settings.name, name)
         self.assertEqual(settings.parameters, json_data['parameters'])
         self.assertEqual(settings.seed, 10)
+        self.assertEqual(settings.parameters['progress_bar'], True)
 
     def test_constructor_by_loading_json(self):
         # Constructor by loading a json file
@@ -71,4 +73,3 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         settings = AlgorithmSettings.load(path)
         self.assertEqual(settings.name, 'mcmc_saem')
         self.assertEqual(settings.parameters, json_data['parameters'])
-

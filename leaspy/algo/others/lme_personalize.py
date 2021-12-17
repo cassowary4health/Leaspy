@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import statsmodels.api as sm
 
@@ -5,12 +7,12 @@ from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.models.lme_model import LMEModel
 
-from leaspy.exceptions import LeaspyAlgoInputError, LeaspyInputError
-
 
 class LMEPersonalizeAlgorithm(AbstractAlgo):
     r"""
     Personalization algorithm associated to :class:`~.models.lme_model.LMEModel`
+
+    TODO: it should be a child of `AbstractPersonalizeAlgorithm` (refactoring needed)
 
     Parameters
     ----------
@@ -21,22 +23,13 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
     Attributes
     ----------
     name : ``'lme_personalize'``
-
-    Raises
-    ------
-    :exc:`.LeaspyAlgoInputError`
-        if bad configuration of algorithm
     """
 
-    def __init__(self, settings):
+    name = 'lme_personalize'
+    family = 'personalize'
+    deterministic = True
 
-        super().__init__()
-
-        self.name = 'lme_personalize'
-        if settings.name != self.name:
-            raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
-
-    def run(self, model, dataset):
+    def run_impl(self, model, dataset):
         """
         Main method, refer to abstract definition in :meth:`~.algo.personalize.abstract_personalize_algo.AbstractPersonalizeAlgo.run`.
 
@@ -55,17 +48,7 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
             Contains individual parameters.
         noise_std : float
             The estimated noise
-
-        Raises
-        ------
-        :exc:`.LeaspyInputError`
-            if data and model mismatch
         """
-
-        if model.features != dataset.headers:
-            raise LeaspyInputError(
-                "LME model was not fitted on the same features than those you want to personalize on. "
-                f"Model features : {model.features}, data features: {dataset.headers}")
 
         ip = IndividualParameters()
         residuals = []
@@ -153,4 +136,6 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
         """
         Not implemented.
         """
+        if settings is not None:
+            warnings.warn('Settings logs in lme personalize algorithm is not supported.')
         return

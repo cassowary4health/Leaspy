@@ -10,8 +10,17 @@ class AbstractPersonalizeAlgoTest(LeaspyTestCase):
     def test_constructor(self):
         settings = AlgorithmSettings('scipy_minimize')
 
+        AbstractPersonalizeAlgo.name = 'scipy_minimize'  # new logic this is now a class attribute...
+
         algo = AbstractPersonalizeAlgo(settings)
-        self.assertEqual(algo.algo_parameters, {'n_iter': 100, 'n_jobs': 1, "use_jacobian":False, "progress_bar": False})
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, None)
+
+        # check default values
+        self.assertEqual(algo.algo_parameters, {
+            'n_iter': 100,
+            'n_jobs': 1,
+            'use_jacobian': True,
+            'progress_bar': True
+        })
 

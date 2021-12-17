@@ -9,7 +9,7 @@ import numpy as np
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.models.lme_model import LMEModel
-from leaspy.exceptions import LeaspyAlgoInputError, LeaspyDataInputError
+from leaspy.exceptions import LeaspyDataInputError
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
@@ -36,36 +36,32 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
     See Also
     --------
     :class:`statsmodels.regression.mixed_linear_model.MixedLM`
-
-    Raises
-    ------
-    :exc:`.LeaspyAlgoInputError`
-        if bad configuration of algorithm
     """
+
+    name = 'lme_fit'
+    family = 'fit'
 
     def __init__(self, settings):
 
-        super().__init__()
-
-        self.name = 'lme_fit'
-        if settings.name != self.name:
-            raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
+        super().__init__(settings)
 
         params = settings.parameters.copy()
 
-        # Algorithm parameters
-        self.hyperparams = {
+        # Get model hyperparameters from fit algorithm parameters
+        # deprecated only for backward-compat (to be removed soon...),
+        self._model_hyperparams_to_set = {
             hp_name: params.pop(hp_name)
-            for hp_name in [
-                "force_independent_random_effects", # only an algo setting
-                *LMEModel._hyperparameters.keys() # for backward-compat (to be removed soon...)
-            ]
+            for hp_name in LMEModel._hyperparameters.keys()
             if hp_name in params
         }
-        self.sm_fit_parameters = params # popped from other params
-        self.seed = settings.seed
 
-    def run(self, model: LMEModel, dataset: Dataset):
+        # Algorithm true parameters
+        self.force_independent_random_effects = params.pop('force_independent_random_effects')
+
+        # Remaining parameters are parameters of statsmodels `fit` method
+        self.sm_fit_parameters = params # popped from other params
+
+    def run_impl(self, model: LMEModel, dataset: Dataset):
         """
         Main method, refer to abstract definition in :meth:`~.algo.fit.abstract_fit_algo.AbstractFitAlgo.run`.
 
@@ -77,11 +73,17 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
             A subclass object of leaspy `LMEModel`.
         dataset : :class:`.Dataset`
             Dataset object build with leaspy class objects Data, algo & model
+
+        Returns
+        -------
+        2-tuple:
+            * None
+            * noise scale (std-dev), scalar
         """
 
         # DEPRECATED - TO BE REMOVED: Store some algo "hyperparameters" for the model
         model_hps_in_algo_settings = {
-            hp: v for hp, v in self.hyperparams.items()
+            hp: v for hp, v in self._model_hyperparams_to_set.items()
             if hp in model._hyperparameters.keys() and v is not None
         }
         if len(model_hps_in_algo_settings) != 0:
@@ -89,9 +91,6 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
                           'The current behaviour will soon be dropped.', FutureWarning)
             model.load_hyperparameters(model_hps_in_algo_settings)
         # END DEPRECATED
-
-        # Initialize seed
-        self._initialize_seed(self.seed)
 
         # get data
         ages = self._get_reformated(dataset, 'timepoints')
@@ -107,7 +106,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         if model.with_random_slope_age:
             exog_re = X
 
-            if self.hyperparams['force_independent_random_effects']:
+            if self.force_independent_random_effects:
                 free = MixedLMParams.from_components(
                     fe_params=np.ones(2),
                     cov_re=np.eye(2)
@@ -142,9 +141,8 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         # update model parameters
         model.load_parameters(parameters)
 
-        # display `(fitted_lme.resid ** 2).mean() ** .5` instead?
-        print_noise = f"{model.parameters['noise_std'].item():.4f}"
-        print("The standard deviation of the noise at the end of the calibration is: " + print_noise)
+        # return `(fitted_lme.resid ** 2).mean() ** .5` instead of scale?
+        return None, parameters['noise_std']
 
     @staticmethod
     def _get_reformated(dataset, elem):
@@ -170,4 +168,6 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         """
         Not implemented.
         """
+        if settings is not None:
+            warnings.warn('Settings logs in lme fit algorithm is not supported.')
         return

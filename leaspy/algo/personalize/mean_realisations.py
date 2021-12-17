@@ -1,13 +1,15 @@
 import torch
 
-from .abstract_personalize_algo import AbstractPersonalizeAlgo
-from ..samplers.algo_with_samplers import AlgoWithSamplersMixin
-from ...io.outputs.individual_parameters import IndividualParameters
+from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
+from leaspy.algo.utils.samplers import AlgoWithSamplersMixin
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 
 class MeanReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
     """
     Sampler based algorithm, individual parameters are derivated as the mean realization for `n_samples` samplings.
+
+    TODO many stuff is duplicated between this class & mean_real (& other mcmc stuff) --> refactorize???
 
     Parameters
     ----------
@@ -15,16 +17,14 @@ class MeanReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
         Settings of the algorithm.
     """
 
-    def __init__(self, settings):
-
-        # Algorithm parameters
-        super().__init__(settings)
+    name = 'mean_real'
 
     def _initialize_annealing(self):
         if self.algo_parameters['annealing']['do_annealing']:
             if self.algo_parameters['annealing']['n_iter'] is None:
                 self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['n_iter'] / 2)
 
+        # Etienne: This is misleading because it will be executed even if no annealing
         self.temperature = self.algo_parameters['annealing']['initial_temperature']
         self.temperature_inv = 1 / self.temperature
 

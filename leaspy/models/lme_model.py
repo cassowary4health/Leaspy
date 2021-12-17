@@ -79,9 +79,6 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
         'with_random_slope_age': True
     }
 
-    def __init__(self, name: str, **kwargs):
-        super().__init__(name, **kwargs)
-
     def validate_compatibility_of_dataset(self, dataset: Dataset):
         """
         Raise if the given dataset is not compatible with the current model.

@@ -217,7 +217,7 @@ class Data:
             Contains the individuals' ID.
         timepoints : list[array-like 1D]
             For each individual ``i``, list of ages at visits.
-            Number of timepoints is refered below as ``n_timepoints_i``
+            Number of timepoints is referred below as ``n_timepoints_i``
         values : list[array-like 2D]
             For each individual ``i``, all values at visits.
             Shape is ``(n_timepoints_i, n_features)``.
@@ -227,11 +227,12 @@ class Data:
         Returns
         -------
         `Data`
-            Data class object with all ID, timepoints, values and feautures' names.
+            Data class object with all ID, timepoints, values and features' names.
         """
         data = Data()
-        data.dimension = len(values[0][0])
+
         data.headers = headers
+        data.dimension = len(headers)
 
         for i, idx in enumerate(indices):
             # Create individual

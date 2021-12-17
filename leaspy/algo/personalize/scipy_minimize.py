@@ -1,12 +1,12 @@
 from pprint import pformat
+import warnings
 
 import torch
 from joblib import Parallel, delayed
 from scipy.optimize import minimize
 
-from leaspy.models.utils import DEFAULT_LOSS
 from leaspy.io.outputs.individual_parameters import IndividualParameters
-from .abstract_personalize_algo import AbstractPersonalizeAlgo
+from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
 
 from leaspy.exceptions import LeaspyAlgoInputError
 
@@ -22,6 +22,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         Settings of the algorithm.
     """
 
+    name = 'scipy_minimize'
+
     def __init__(self, settings):
         super().__init__(settings)
 
@@ -35,6 +37,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         }
 
         if self.algo_parameters['use_jacobian']:
+            # <!> this custom params will remain even if falling back to without jacobian when not implemented
             self.minimize_kwargs = {
                 'method': "BFGS",
                 'options': {
@@ -45,7 +48,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             }
 
         # logging function for convergence warnings
-        # (patient_id: str, scipy_optiminize_result_dict) -> None
+        # (patient_id: str, scipy_minize_result_dict) -> None
         if hasattr(settings, 'logger'):
             self.logger = settings.logger
         else:
@@ -132,7 +135,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Model values minus real values.
         """
 
-        # computation for 1 individual (level dropped after calculuus)
+        # computation for 1 individual (level dropped after computation)
         predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters).squeeze(0)
 
         return predicted - values
@@ -213,7 +216,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         Raises
         ------
         :exc:`.LeaspyAlgoInputError`
-            if algorithm loss is not valid.
+            if noise model is not currently supported by algorithm.
+            TODO: everything that is not generic here concerning noise structure should be handle by model/NoiseModel directly!!!!
         """
 
         # Extra arguments passed by scipy minimize
@@ -238,8 +242,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # Placeholder for result (objective and, if needed, gradient)
         res = {}
 
-        # Different losses implemented
-        if 'MSE' in model.loss:
+        # Loss is based on log-likelihood for model, which ultimately depends on noise structure
+        # TODO: should be directly handled in model or NoiseModel
+        if 'gaussian' in model.noise_model:
             noise_var = model.parameters['noise_std'] * model.parameters['noise_std']
             noise_var = noise_var.expand((1, model.dimension)) # tensor 1,n_fts (works with diagonal noise or scalar noise)
             res['objective'] = torch.sum((0.5 / noise_var) @ (diff * diff).t()) # <!> noise per feature
@@ -247,7 +252,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             if with_gradient:
                 res['gradient'] = torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0,1))
 
-        elif model.loss == 'crossentropy':
+        elif model.noise_model == 'bernoulli':
             predicted = torch.clamp(predicted, 1e-38, 1. - 1e-7)  # safety before taking the log # @P-E: why clamping not symmetric?
             neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
             neg_crossentropy[nans] = 0. # set nans to zero, not to count in the sum
@@ -258,7 +263,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
 
         else:
-            raise LeaspyAlgoInputError(f"Model loss '{model.loss}' is currently not implemented in 'scipy_minimize' algorithm..."
+            raise LeaspyAlgoInputError(f"'{model.noise_model}' noise is currently not implemented in 'scipy_minimize' algorithm. "
                                        f"Please open an issue on Gitlab if needed.")
 
         ## Regularity term
@@ -277,7 +282,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             # result is objective only
             return res['objective'].item()
 
-    def _get_individual_parameters_patient(self, model, times, values, *, patient_id=None):
+    def _get_individual_parameters_patient(self, model, times, values, *, with_jac: bool, patient_id=None):
         """
         Compute the individual parameter by minimizing the objective loss function with scipy solver.
 
@@ -289,6 +294,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual ages corresponding to the given ``values``.
         values : :class:`torch.Tensor` [n_tpts, n_fts]
             Contains the individual true scores corresponding to the given ``times``.
+        with_jac : bool
+            Should we speed-up the minimization by sending exact gradient of optimized function?
         patient_id : str (or None)
             ID of patient (essentially here for logging purposes when no convergence)
 
@@ -299,9 +306,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         reconstruction error : :class:`torch.Tensor` [n_tpts, n_features]
             Model values minus real values.
         """
-
-        # optimize by sending exact gradient of optimized function?
-        with_jac = self.algo_parameters.get('use_jacobian', False)
 
         initial_value = self._initialize_parameters(model)
         res = minimize(self.obj,
@@ -315,16 +319,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         err_f = self._get_reconstruction_error(model, times, values, individual_params_f)
 
         if not res.success:
-            if not self.algo_parameters['use_jacobian']:
-                res['reconstruction_mae'] = round(err_f.abs().mean().item(),5) # all tpts & fts instead of mean?
-                res['individual_parameters'] = individual_params_f
-                #del res['x']
-
-                self.logger(patient_id, res)
+            # log full results if optimization failed
+            res['reconstruction_mae'] = err_f.abs().mean().item() # all tpts & fts instead of mean?
+            res['individual_parameters'] = individual_params_f
+            self.logger(patient_id, res)
 
         return individual_params_f, err_f
 
-    def _get_individual_parameters_patient_master(self, it, data, model, *, patient_id=None):
+    def _get_individual_parameters_patient_master(self, it, data, model, *, with_jac: bool, patient_id=None):
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
@@ -332,10 +334,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ----------
         it : int
             The iteration number.
-        model : :class:`.AbstractModel`
-            Model used to compute the group average parameters.
         data : :class:`.Dataset`
             Contains the individual scores.
+        model : :class:`.AbstractModel`
+            Model used to compute the group average parameters.
+        with_jac : bool
+            Should we speed-up the minimization by sending exact gradient of optimized function?
+        patient_id : str (or None)
+            ID of patient (essentially here for logging purposes when no convergence)
 
         Returns
         -------
@@ -345,16 +351,25 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         times = data.get_times_patient(it)  # torch.Tensor[n_tpts]
         values = data.get_values_patient(it)  # torch.Tensor[n_tpts, n_fts]
 
-        individual_params_tensorized, err = self._get_individual_parameters_patient(model, times, values, patient_id=patient_id)
+        individual_params_tensorized, err = self._get_individual_parameters_patient(model, times, values,
+                                                                                    with_jac=with_jac, patient_id=patient_id)
 
         if self.algo_parameters.get('progress_bar', True):
-            self.display_progress_bar(it, data.n_individuals, suffix='subjects')
-
-        #return {k: v for k, v in zip(p_names, ind_patient)}
-        #return individual_params_tensorized
+            self._display_progress_bar(it, data.n_individuals, suffix='subjects')
 
         # transformation is needed because of IndividualParameters expectations...
-        return {k: v.item() if k != 'sources' else v.detach().squeeze(0).tolist() for k,v in individual_params_tensorized.items()}
+        return {k: v.item() if k != 'sources' else v.detach().squeeze(0).tolist()
+                for k,v in individual_params_tensorized.items()}
+
+    def is_jacobian_implemented(self, model) -> bool:
+        """Check that the jacobian of model is implemented."""
+        default_individual_params = self._pull_individual_parameters(self._initialize_parameters(model), model)
+        empty_tpts = torch.tensor([[]], dtype=torch.float32)
+        try:
+            model.compute_jacobian_tensorized(empty_tpts, default_individual_params)
+            return True
+        except NotImplementedError:
+            return False
 
     def _get_individual_parameters(self, model, data):
         """
@@ -373,26 +388,20 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual parameters of all patients.
         """
 
-        # <!> NEW: loss belongs to model! handling previous behavior, a bit dirty...
-        # TODO: to be removed when algorithm.loss attribute will be completely removed!
-        if self.loss is not None and self.loss != DEFAULT_LOSS: # non default loss from algorithm (to be removed / deprecated)
-            if self.loss != model.loss:
-                raise LeaspyAlgoInputError(f"You provided inconsistent losses: '{model.loss}' (for model) != '{self.loss}' (for algo)."
-                                            "Please define the loss only in the modle, not in the algorithm settings.")
-        else:
-            pass
-            ## set algo loss from model
-            # self.loss = model.loss
-
         individual_parameters = IndividualParameters()
 
-        #p_names = model.get_individual_variable_name()
-
         if self.algo_parameters.get('progress_bar', True):
-            self.display_progress_bar(-1, data.n_individuals, suffix='subjects')
+            self._display_progress_bar(-1, data.n_individuals, suffix='subjects')
+
+        # optimize by sending exact gradient of optimized function?
+        with_jac = self.algo_parameters['use_jacobian']
+        if with_jac and not self.is_jacobian_implemented(model):
+            warnings.warn('In `scipy_minimize` you requested `use_jacobian=True` but it is not implemented in your model'
+                          f'"{model.name}". Falling back to `use_jacobian=False`...')
+            with_jac = False
 
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
-            delayed(self._get_individual_parameters_patient_master)(it_pat, data, model, patient_id=id_pat)
+            delayed(self._get_individual_parameters_patient_master)(it_pat, data, model, with_jac=with_jac, patient_id=id_pat)
             for it_pat, id_pat in enumerate(data.indices))
 
         for it_pat, ind_params_pat in enumerate(ind_p_all):

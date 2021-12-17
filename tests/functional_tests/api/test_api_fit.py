@@ -88,7 +88,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
     # Test MCMC-SAEM
     def test_fit_logistic_scalar_noise(self, tol=5e-2, tol_tau=2e-1):
 
-        leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise', loss='MSE', source_dimension=2,
+        leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=False,  # TODO: True when ready
                                      check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
@@ -114,7 +114,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
     # Test MCMC-SAEM (1 noise per feature)
     def test_fit_logistic_diag_noise(self, tol=6e-2, tol_tau=2e-1):
 
-        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise', loss='MSE_diag_noise', source_dimension=2,
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=False,  # TODO: True when ready -> # <!> reproducibility gap for PyTorch >= 1.7?
                                      check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
@@ -151,7 +151,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
     def test_fit_logistic_parallel(self, tol=1e-2):
 
-        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_scalar_noise', loss='MSE', source_dimension=2,
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=False,  # TODO: True when ready
                                      check_kws=dict(atol=tol))
@@ -168,7 +168,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
     def test_fit_logistic_parallel_diag_noise(self, tol=1e-2):
 
-        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise', loss='MSE_diag_noise', source_dimension=2,
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=False,  # TODO: True when ready
                                      check_kws=dict(atol=tol))
@@ -212,7 +212,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
     def test_fit_linear(self, tol=1e-1, tol_tau=2e-1):
 
-        leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise', loss='MSE', source_dimension=2,
+        leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=False,  # TODO: True when ready
                                      check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),

@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Type
+
+from collections import ChainMap
 
 from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 # from leaspy.algo.fit.gradient_descent import GradientDescent
@@ -54,13 +56,24 @@ class AlgoFactory:
     }
 
     @classmethod
-    def algo(cls, algorithm_class: str, settings) -> AbstractAlgo:
+    def get_class(cls, name: str) -> Type[AbstractAlgo]:
+        """Get the class of the algorithm identified as `name`."""
+        klasses = ChainMap(*cls._algos.values())
+        klass = klasses.get(name, None)
+
+        if klass is None:
+            raise LeaspyAlgoInputError(f'Your algorithm "{name}" should be part of the known algorithms: {cls._algos}.')
+
+        return klass
+
+    @classmethod
+    def algo(cls, algorithm_family: str, settings) -> AbstractAlgo:
         """
         Return the wanted algorithm given its name.
 
         Parameters
         ----------
-        algorithm_class : str
+        algorithm_family : str
             Task name, used to check if the algorithm within the input `settings` is compatible with this task.
             Must be one of the following api's name:
                 * `fit`
@@ -73,24 +86,24 @@ class AlgoFactory:
         Returns
         -------
         algorithm : child class of :class:`.AbstractAlgo`
-            The wanted algorithm if it exists and is compatible with algorithm class.
+            The wanted algorithm if it exists and is compatible with algorithm family.
 
         Raises
         ------
         :exc:`.LeaspyAlgoInputError`
-            * if the algorithm class is unknown
-            * if the algorithm name is unknown / does not belong to the wanted algorithm class
+            * if the algorithm family is unknown
+            * if the algorithm name is unknown / does not belong to the wanted algorithm family
         """
         name = settings.name
 
-        if algorithm_class not in cls._algos:
-            raise LeaspyAlgoInputError(f"Algorithm class '{algorithm_class}' is unknown: it must be in {set(cls._algos.keys())}.")
+        if algorithm_family not in cls._algos:
+            raise LeaspyAlgoInputError(f"Algorithm family '{algorithm_family}' is unknown: it must be in {set(cls._algos.keys())}.")
 
-        if name not in cls._algos[algorithm_class]:
-            raise LeaspyAlgoInputError(f"Algorithm '{name}' is unknown or does not belong to '{algorithm_class}' algorithms: it must be in {set(cls._algos[algorithm_class].keys())}.")
+        if name not in cls._algos[algorithm_family]:
+            raise LeaspyAlgoInputError(f"Algorithm '{name}' is unknown or does not belong to '{algorithm_family}' algorithms: it must be in {set(cls._algos[algorithm_family].keys())}.")
 
         # instantiate algorithm with settings and set output manager
-        algorithm = cls._algos[algorithm_class][name](settings)
+        algorithm = cls._algos[algorithm_family][name](settings)
         algorithm.set_output_manager(settings.logs)
 
         return algorithm

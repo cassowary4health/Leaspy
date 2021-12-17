@@ -1,5 +1,6 @@
 {
   "name": "lme_personalize",
+  "algorithm_initialization_method": null,
   "parameters": {
   }
 }

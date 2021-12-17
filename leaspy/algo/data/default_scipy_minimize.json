@@ -1,12 +1,11 @@
 {
   "name": "scipy_minimize",
   "seed": null,
-  "loss": "MSE",
   "algorithm_initialization_method": null,
   "parameters": {
     "n_iter": 100,
-    "use_jacobian": false,
+    "use_jacobian": true,
     "n_jobs": 1,
-    "progress_bar": false
+    "progress_bar": true
   }
 }

@@ -162,7 +162,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
     """
     def test_personalize_gradientdescent(self):
         # Inputs
-        data = Data.from_csv_file(example_data_path)
+        data = Data.from_csv_file(self.example_data_path)
 
         # Initialize
         leaspy = Leaspy.load(...)

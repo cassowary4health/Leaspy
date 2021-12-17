@@ -15,6 +15,4 @@ class TensorMCMCSAEM(AbstractFitMCMC):
     :class:`.AbstractFitMCMC`
     """
 
-    def __init__(self, settings):
-        super().__init__(settings)
-        self.name = "MCMC_SAEM (tensor)"
+    name = 'mcmc_saem'  # OLD: "MCMC_SAEM (tensor)"

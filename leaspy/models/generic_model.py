@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 import itertools
 import json
+import warnings
 
 import torch
 import numpy as np
@@ -60,6 +61,7 @@ class GenericModel(ABC):
         self.features: List[FeatureType] = None
         self.parameters: KwargsType = {}
         #self.dimension = None
+        #self.noise_model = None
 
         self.is_initialized: bool = False # to be explicitly set as True by subclasses if so
 
@@ -103,6 +105,14 @@ class GenericModel(ABC):
         method : str, optional (default None)
             A custom method to initialize the model
         """
+        if self.is_initialized and self.features is not None:
+            # we also test that self.features is not None, since for `ConstantModel`:
+            # `is_initialized`` is True but as a mock for being personalization-ready, without really being initialized!
+            warn_msg = '<!> Re-initializing an already initialized model.'
+            if dataset.headers != self.features:
+                warn_msg += f' Overwritting previous model features ({self.features}) with new ones ({dataset.headers}).'
+            warnings.warn(warn_msg)
+
         self.validate_compatibility_of_dataset(dataset)
         self.features = dataset.headers
         self.is_initialized = True

@@ -395,10 +395,12 @@ class Plotter:
         reals_pop_name = model.get_population_realization_names()
         reals_ind_name = model.get_individual_realization_names()
 
-        if 'MSE' in model.loss:
-            fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 1, 1, figsize=(10, 20))
-        else:
-            fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + 2, 1, figsize=(10, 20))
+        additional_plots = 1
+        if model.noise_model == 'bernoulli':
+            additional_plots += 1 # for crossentropy
+
+        fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + additional_plots, 1,
+                               figsize=(10, 20))
 
         # nonposy is deprecated since Matplotlib 3.3
         mpl_version = mpl.__version__.split('.')
@@ -407,8 +409,8 @@ class Plotter:
         else: # >= 3.3
             yscale_kw = dict(nonpositive='clip')
 
-        # Noise var
-        import_path = os.path.join(path, 'noise_std' + ".csv")
+        # Noise std-dev
+        import_path = os.path.join(path, 'noise_std.csv')
         df_convergence = pd.read_csv(import_path, index_col=0, header=None)
         df_convergence.index.rename("iter", inplace=True)
         y_position = 0
@@ -417,8 +419,8 @@ class Plotter:
         ax[y_position].set_yscale("log", **yscale_kw)
         plt.grid(True)
 
-        if model.loss == 'crossentropy':
-            import_path = os.path.join(path, 'crossentropy' + ".csv")
+        if model.noise_model == 'bernoulli':
+            import_path = os.path.join(path, 'crossentropy.csv')
             df_convergence = pd.read_csv(import_path, index_col=0, header=None)
             df_convergence.index.rename("iter", inplace=True)
             y_position = 1

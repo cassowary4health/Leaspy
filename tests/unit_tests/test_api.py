@@ -1,10 +1,15 @@
 from glob import glob
 
+import pandas as pd
 import torch
 
 from leaspy.api import Leaspy
 from leaspy.models.model_factory import ModelFactory
-from leaspy.models.utils import VALID_LOSSES
+from leaspy.models.utils.noise_model import NoiseModel
+
+# backward-compat test
+from leaspy.io.data.data import Data
+from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
 # <!> NEVER import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
 from tests.functional_tests.api.test_api_fit import LeaspyFitTest_Mixin
@@ -19,16 +24,18 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         """
         for name in ['univariate_logistic', 'univariate_linear', 'linear', 'logistic', 'logistic_parallel',
                      'mixed_linear-logistic']:
-            leaspy = Leaspy(name, loss='MSE')
+
+            default_noise = 'gaussian_scalar' if 'univariate' in name else 'gaussian_diagonal'
+            leaspy = Leaspy(name)
             self.assertEqual(leaspy.type, name)
-            self.assertEqual(leaspy.model.loss, 'MSE')
+            self.assertEqual(leaspy.model.noise_model, default_noise)
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
             self.check_model_factory_constructor(leaspy.model)
 
-        for loss in VALID_LOSSES:
-            leaspy = Leaspy('logistic', loss=loss)
+        for noise_model in NoiseModel.VALID_NOISE_STRUCTS:
+            leaspy = Leaspy('logistic', noise_model=noise_model)
             self.assertEqual(leaspy.type, 'logistic')
-            self.assertEqual(leaspy.model.loss, loss)
+            self.assertEqual(leaspy.model.noise_model, noise_model)
 
         for name in ['linear', 'logistic', 'logistic_parallel', 'mixed_linear-logistic']:
             leaspy = Leaspy(name, source_dimension=2)
@@ -44,10 +51,10 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
     def test_load_hyperparameters(self):
 
         leaspy = self.get_hardcoded_model('logistic_diag_noise')
-        leaspy.model.load_hyperparameters({'source_dimension': 3, 'loss': 'crossentropy'})
+        leaspy.model.load_hyperparameters({'source_dimension': 3, 'noise_model': 'bernoulli'})
 
         self.assertEqual(leaspy.model.source_dimension, 3)
-        self.assertEqual(leaspy.model.loss, 'crossentropy')
+        self.assertEqual(leaspy.model.noise_model, 'bernoulli')
 
     def test_load_logistic_scalar_noise(self):
         """
@@ -61,9 +68,9 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.dimension, 4)
-        self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
+        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
-        self.assertEqual(leaspy.model.loss, 'MSE')
+        self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
         # Test the parameters
         parameters = {
@@ -97,9 +104,9 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.dimension, 4)
-        self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
+        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
-        self.assertEqual(leaspy.model.loss, 'MSE')
+        self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
         # Test the parameters
         parameters = {
@@ -133,9 +140,9 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.dimension, 4)
-        self.assertEqual(leaspy.model.features, ['feature_0', 'feature_1', 'feature_2', 'feature_3'])
+        self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
-        self.assertEqual(leaspy.model.loss, 'MSE')
+        self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
         # Test the parameters
         parameters = {
@@ -168,8 +175,8 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         self.assertEqual(type(leaspy.model), type(ModelFactory.model('univariate_logistic')))
 
         # Test the hyperparameters
-        self.assertEqual(leaspy.model.features, ['feature'])
-        self.assertEqual(leaspy.model.loss, 'MSE')
+        self.assertEqual(leaspy.model.features, ['Y0'])
+        self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
         # Test the parameters
         parameters = {
@@ -199,8 +206,8 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         self.assertEqual(type(leaspy.model), type(ModelFactory.model('univariate_linear')))
 
         # Test the hyperparameters
-        self.assertEqual(leaspy.model.features, ['feature'])
-        self.assertEqual(leaspy.model.loss, 'MSE')
+        self.assertEqual(leaspy.model.features, ['Y0'])
+        self.assertEqual(leaspy.model.noise_model, 'gaussian_scalar')
 
         # Test the parameters
         parameters = {
@@ -233,3 +240,37 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         for model_path in glob(self.from_fit_model_path('*.json')):
             with self.subTest(model_path=model_path):
                 self.check_model_consistency(Leaspy.load(model_path), model_path, atol=atol)
+
+    def test_api_backward_compat_models_saved_before_120_release(self):
+
+        data_full = Data.from_csv_file(self.example_data_path)
+        data_bin = Data.from_dataframe(round(pd.read_csv(self.example_data_path, index_col=[0,1])))
+
+        for model_name, (new_noise_model_kwd, data) in {
+            'logistic_scal_noise': ('gaussian_scalar', data_full),
+            'logistic_diag_noise': ('gaussian_diagonal', data_full),
+            'logistic_bin': ('bernoulli', data_bin),
+        }.items():
+
+            with self.subTest(model_name=model_name):
+                with self.assertWarns(FutureWarning):
+                    # manage to load old model_parameters.json, with a warning about old loss kwd
+                    lsp = self.get_hardcoded_model(f'backward-compat/{model_name}')
+
+                self.assertFalse(hasattr(lsp.model, 'loss'))
+                self.assertTrue(hasattr(lsp.model, 'noise_model'))
+                self.assertEqual(lsp.model.noise_model, new_noise_model_kwd)
+
+                # test api main functions when fitting
+
+                # rename headers as model features (strict mode)
+                data.headers = lsp.model.features
+
+                perso_settings = AlgorithmSettings('scipy_minimize', seed=0)
+                ips = lsp.personalize(data, perso_settings)
+
+                simulate_settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=100)  # noise='inherit_struct'
+                r = lsp.simulate(ips, data, simulate_settings)
+
+                simulate_settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=100, noise='model')
+                r = lsp.simulate(ips, data, simulate_settings)

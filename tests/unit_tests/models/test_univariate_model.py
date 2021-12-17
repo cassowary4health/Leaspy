@@ -35,6 +35,7 @@ class UnivariateModelTest(ManifoldModelTest_Mixin):
             self.assertEqual(model.name, name)
             self.assertEqual(model.dimension, 1)
             self.assertEqual(model.source_dimension, 0)
+            self.assertEqual(model.noise_model, 'gaussian_scalar')
 
             self.check_common_attrs(model)
 

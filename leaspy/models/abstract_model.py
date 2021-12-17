@@ -6,9 +6,9 @@ import copy
 
 import torch
 
-from leaspy.models.utils import DEFAULT_LOSS, VALID_LOSSES
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
+from leaspy.models.utils.noise_model import NoiseModel
 
 from leaspy.exceptions import LeaspyIndividualParamsInputError, LeaspyModelInputError
 from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Optional
@@ -28,6 +28,8 @@ class AbstractModel(ABC):
     ----------
     name : str
         The name of the model
+    **kwargs
+        Hyperparameters for the model
 
     Attributes
     ----------
@@ -39,19 +41,26 @@ class AbstractModel(ABC):
         Names of the model features
     parameters : dict
         Contains the model's parameters
-    loss : str
-        The loss to optimize (``'MSE'``, ``'MSE_diag_noise'`` or ``'crossentropy'``)
-    distribution : :class:`torch.distributions.normal.Normal`
-        Gaussian distribution object to compute variables regularization
+    noise_model : str
+        The noise structure for the model.
+        cf.  :class:`.NoiseModel` to see possible values.
+    regularization_distribution_factory : function dist params -> :class:`torch.distributions.Distribution`
+        Factory of torch distribution to compute log-likelihoods for regularization (gaussian by default)
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, **kwargs):
         self.is_initialized: bool = False
         self.name = name
         self.features: List[FeatureType] = None
+        self.dimension: int = None  # TODO: to be converted into a read-only property (cf. in GenericModel)
         self.parameters: KwargsType = None
-        self.loss: str = DEFAULT_LOSS  # default value, changes when a fit / personalize algo is called, TODO: change to MSE_diag_noise ?
-        self.distribution = torch.distributions.normal.Normal(loc=0., scale=1.)
+        self.noise_model: str = None
+
+        self.regularization_distribution_factory = torch.distributions.normal.Normal
+
+        # load hyperparameters
+        # <!> in children classes with new hyperparameter you should do it manually at end of __init__ to overwrite default values
+        self.load_hyperparameters(kwargs)
 
     @abstractmethod
     def initialize(self, dataset: Dataset, method: str = 'default'):
@@ -96,6 +105,16 @@ class AbstractModel(ABC):
             If any of the consistency checks fail.
         """
         pass
+
+    @classmethod
+    def _raise_if_unknown_hyperparameters(cls, known_hps, given_hps):
+        """Helper function raising a :exc:`.LeaspyModelInputError` if any unknown hyperparameter provided for model."""
+        # TODO: replace with better logic from GenericModel in the future
+        unexpected_hyperparameters = set(given_hps.keys()).difference(known_hps)
+        if len(unexpected_hyperparameters) > 0:
+            raise LeaspyModelInputError(
+                    f"Only {known_hps} are valid hyperparameters for {cls.__qualname__}. "
+                    f"Unknown hyperparameters provided: {unexpected_hyperparameters}.")
 
     @abstractmethod
     def save(self, path: str, **kwargs):
@@ -507,10 +526,14 @@ class AbstractModel(ABC):
         Raises
         ------
         :exc:`.LeaspyModelInputError`
-            If invalid loss for model
+            If invalid `noise_model` for model
         """
 
-        if 'MSE' in self.loss:
+        # TODO: this snippet could be implemented directly in NoiseModel (or subclasses depending on noise structure)
+        if self.noise_model is None:
+            raise LeaspyModelInputError(f'`noise_model` was not set correctly set.')
+
+        elif 'gaussian' in self.noise_model:
             # diagonal noise (squared) [same for all features if it's forced to be a scalar]
             noise_var = self.parameters['noise_std'] * self.parameters['noise_std'] # slight perf improvement over ** 2, k tensor (or scalar tensor)
             noise_var = noise_var.expand((1, data.dimension)) # 1,k tensor (for scalar products just after) # <!> this formula works with scalar noise as well
@@ -520,7 +543,7 @@ class AbstractModel(ABC):
             attachment = (0.5 / noise_var) @ L2_res_per_ind_per_ft.t()
             attachment += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
 
-        elif self.loss == 'crossentropy':
+        elif self.noise_model == 'bernoulli':
             pred = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
             mask = data.mask.float()
 
@@ -529,7 +552,7 @@ class AbstractModel(ABC):
             attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
 
         else:
-            raise LeaspyModelInputError(f'Model loss should be in {VALID_LOSSES}')
+            raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 
         return attachment.reshape((data.n_individuals,)) # 1D tensor of shape(n_individuals,)
 
@@ -658,16 +681,12 @@ class AbstractModel(ABC):
         Parameters
         ----------
         value, mean, std : :class:`torch.Tensor` of same shapes
+
+        Returns
+        -------
+        :class:`torch.Tensor` of same shape than input
         """
-
-        # TODO change to static ???
-        # Instanciate torch distribution
-        # distribution = torch.distributions.normal.Normal(loc=mean, scale=std)
-
-        self.distribution.loc = mean
-        self.distribution.scale = std
-
-        return -self.distribution.log_prob(value)
+        return -self.regularization_distribution_factory(mean, std).log_prob(value)
 
     def get_realization_object(self, n_individuals: int) -> CollectionRealization:
         """

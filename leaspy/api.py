@@ -43,12 +43,12 @@ class Leaspy:
         Keyword arguments directly passed to the model for its initialization (through :meth:`.ModelFactory.model`).
         Refer to the corresponding model to know possible arguments.
 
-        loss : str
+        noise_model : str
             `For manifold-like models`.
-            Set the loss of the model, can be either:
-                * ``'MSE'``: gaussian error, with same standard deviation for all features
-                * ``'MSE_diag_noise'``: gaussian error, with one standard deviation parameter per feature
-                * ``'crossentropy'``: for binary data (Bernoulli realization)
+            Define the noise structure of the model, can be either:
+                * ``'gaussian_scalar'``: gaussian error, with same standard deviation for all features
+                * ``'gaussian_diagonal'``: gaussian error, with one standard deviation parameter per feature (default)
+                * ``'bernoulli'``: for binary data (Bernoulli realization)
 
         source_dimension : int, optional
             `For multivariate models only`.
@@ -132,7 +132,7 @@ class Leaspy:
         """
         self.fit(data, settings)
 
-    def personalize(self, data: Data, settings: AlgorithmSettings, return_noise: bool = False):
+    def personalize(self, data: Data, settings: AlgorithmSettings, *, return_noise: bool = False):
         r"""
         From a model, estimate individual parameters for each `ID` of a given dataset.
         These individual parameters correspond to the random-effects :math:`(z_{i,j})` of the mixed-effects model.
@@ -186,13 +186,15 @@ class Leaspy:
 
         algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data, algo=algorithm, model=self.model)
-        res: Tuple[IndividualParameters, torch.FloatTensor] = algorithm.run(self.model, dataset)
-        individual_parameters, noise_std = res
 
+        # only do the following for proper type hints due to the fact that algorithm.run is improper (return type depends on algorithm class... TODO fix this)
         if return_noise:
-            return individual_parameters, noise_std
-        else:  # default
-            return individual_parameters
+            res: Tuple[IndividualParameters, torch.FloatTensor] = algorithm.run(self.model, dataset, return_noise=True)
+            return res
+        else:
+            # default
+            res: IndividualParameters = algorithm.run(self.model, dataset, return_noise=False)
+            return res
 
     def estimate(self, timepoints: Union[pd.MultiIndex, Dict[IDType, List[float]]], individual_parameters: IndividualParameters, *,
                  to_dataframe: bool = None) -> Union[pd.DataFrame, Dict[IDType, np.ndarray]]:

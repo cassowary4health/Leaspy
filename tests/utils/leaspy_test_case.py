@@ -90,10 +90,6 @@ class LeaspyTestCase(TestCase):
         else:
             os.makedirs(path)
 
-    # default parameters for algos from leaspy
-    leaspy_root_dir = os.path.join(test_root_dir, "..", "leaspy")
-    default_algo_dir = os.path.join(leaspy_root_dir, "algo", "data")
-
     # hardcoded models: good for unit tests & functional tests independent from fit behavior
     hardcoded_models_folder = os.path.join(_test_data_dir, "model_parameters", "hardcoded")
 

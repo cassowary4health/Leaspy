@@ -1,7 +1,7 @@
 {
   "name": "constant_prediction",
+  "algorithm_initialization_method": null,
   "parameters": {
     "prediction_type": "last"
   }
-
 }

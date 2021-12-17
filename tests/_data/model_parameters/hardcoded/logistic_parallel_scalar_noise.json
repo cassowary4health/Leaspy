@@ -1,10 +1,10 @@
 {
   "leaspy_version": "1.1",
   "name": "logistic_parallel",
-  "features": ["feature_0", "feature_1", "feature_2", "feature_3"],
+  "features": ["Y0", "Y1", "Y2", "Y3"],
   "dimension": 4,
   "source_dimension": 2,
-  "loss": "MSE",
+  "noise_model": "gaussian_scalar",
   "parameters": {
     "g": 1.0,
     "tau_mean": 70.4,

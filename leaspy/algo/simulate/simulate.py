@@ -669,7 +669,7 @@ class SimulationAlgorithm(AbstractAlgo):
             mean_observations = model.compute_individual_trajectory(subjects.timepoints[i], indiv_param)
             # Sample observations as realizations of the noise model
             observations = noise_model.sample_around(mean_observations)
-            # Clip in 0-1 for logisitic models (could be out because of noise!)
+            # Clip in 0-1 for logistic models (could be out because of noise!)
             if 'logistic' in model.name:
                 observations = observations.clamp(0, 1)
 

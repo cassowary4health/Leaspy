@@ -245,10 +245,10 @@ class Plotter:
             fig, ax = plt.subplots(1, 1)
             # ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
             for idx in range(min(50, len(tau))):
-                ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
-                        dataset.values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy(), 'x', )
-                ax.plot(reparametrized_time[idx, 0:dataset.nb_observations_per_individuals[idx]].detach().numpy(),
-                        patient_values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy(),
+                ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].detach().numpy(),
+                        dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].detach().numpy(), 'x', )
+                ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].detach().numpy(),
+                        patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].detach().numpy(),
                         alpha=0.8)
             if 'logistic' in model.name:
                 plt.ylim(0, 1)
@@ -273,8 +273,8 @@ class Plotter:
         for i in range(dataset.values.shape[-1]):
             err[i] = []
             for idx in range(patient_values.shape[0]):
-                err[i].extend(dataset.values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy() -
-                              patient_values[idx, 0:dataset.nb_observations_per_individuals[idx], i].detach().numpy())
+                err[i].extend(dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].detach().numpy() -
+                              patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].detach().numpy())
             err['all'].extend(err[i])
             err[i] = np.array(err[i])
         err['all'] = np.array(err['all'])
@@ -307,11 +307,11 @@ class Plotter:
             patients_list = max_patient_number
 
         for i in patients_list:
-            model_value = patient_values[i, 0:dataset.nb_observations_per_individuals[i], :]
-            score = dataset.values[i, 0:dataset.nb_observations_per_individuals[i], :]
-            ax.plot(dataset.timepoints[i, 0:dataset.nb_observations_per_individuals[i]].detach().numpy(),
+            model_value = patient_values[i, 0:dataset.n_visits_per_individual[i], :]
+            score = dataset.values[i, 0:dataset.n_visits_per_individual[i], :]
+            ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].detach().numpy(),
                     model_value.detach().numpy(), c=colors[i])
-            ax.plot(dataset.timepoints[i, 0:dataset.nb_observations_per_individuals[i]].detach().numpy(),
+            ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].detach().numpy(),
                     score.detach().numpy(), c=colors[i], linestyle='--',
                     marker='o')
 

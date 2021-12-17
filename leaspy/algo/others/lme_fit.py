@@ -158,7 +158,7 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
     def _get_reformated_subjects(dataset):
         subjects_with_repeat = []
         for ind, subject in enumerate(dataset.indices):
-            subjects_with_repeat += [subject]*max(dataset.nb_observations_per_individuals) #[ind]
+            subjects_with_repeat += [subject]*max(dataset.n_visits_per_individual) #[ind]
         subjects_with_repeat = np.array(subjects_with_repeat)
         # remove padding & nans
         subjects_with_repeat = subjects_with_repeat[torch.flatten(dataset.mask > 0)]

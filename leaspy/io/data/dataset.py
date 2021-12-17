@@ -35,20 +35,28 @@ class Dataset:
         Number of features
     n_individuals : int
         Number of individuals
-    nb_observations_per_individuals : list[int]
-        Number of observations per individual
-    max_observations : int
-        Maximum number of observation for one individual
-    n_visits : int
-        Total number of visits
     indices : list[ID]
         Order of patients
 
-    timepoints : :class:`torch.FloatTensor`, shape (n_individuals, max_observations)
+    n_visits_per_individual : list[int]
+        Number of visits per individual
+    n_visits_max : int
+        Maximum number of visits for one individual
+    n_visits : int
+        Total number of visits
+
+    n_observations_per_ind_per_ft : :class:`torch.LongTensor`, shape (n_individuals, dimension)
+        Number of observations (not taking into account missing values) per individual per feature
+    n_observations_per_ft : :class:`torch.LongTensor`, shape (dimension,)
+        Total number of observations per feature
+    n_observations : int
+        Total number of observations
+
+    timepoints : :class:`torch.FloatTensor`, shape (n_individuals, n_visits_max)
         Ages of patients at their different visits
-    values : :class:`torch.FloatTensor`, shape (n_individuals, max_observations, dimension,)
+    values : :class:`torch.FloatTensor`, shape (n_individuals, n_visits_max, dimension)
         Values of patients for each visit for each feature
-    mask : :class:`torch.FloatTensor`, shape (n_individuals, max_observations, dimension,)
+    mask : :class:`torch.FloatTensor`, shape (n_individuals, n_visits_max, dimension)
         Binary mask associated to values.
         If 1: value is meaningful
         If 0: value is meaningless (either was nan or does not correspond to a real visit - only here for padding)
@@ -66,19 +74,25 @@ class Dataset:
 
     def __init__(self, data: Data, model: AbstractModel = None, algo: AbstractAlgo = None):
 
+        self.headers = data.headers
+        self.dimension = data.dimension
+        self.n_individuals = data.n_individuals
+        self.n_visits = data.n_visits
+        self.indices = list(data.individuals.keys())
+
         self.timepoints: torch.FloatTensor = None
         self.values: torch.FloatTensor = None
         self.mask: torch.FloatTensor = None
-        self.headers = data.headers
-        self.n_individuals: int = None
-        self.nb_observations_per_individuals: List[int] = None
-        self.max_observations: int = None
-        self.dimension: int = None
-        self.n_visits: int = None
-        #self.individual_parameters = None
-        self.indices = list(data.individuals.keys())
-        self.L2_norm_per_ft: torch.FloatTensor = None # 1D float tensor, shape (dimension,)
-        self.L2_norm: torch.FloatTensor = None # scalar float tensor
+
+        self.n_observations: int = None
+        self.n_observations_per_ft: torch.LongTensor = None
+        self.n_observations_per_ind_per_ft: torch.LongTensor = None
+
+        self.n_visits_per_individual: List[int] = None
+        self.n_visits_max: int = None
+
+        self.L2_norm_per_ft: torch.FloatTensor = None
+        self.L2_norm: torch.FloatTensor = None
 
         if model is not None:
             self._check_model_compatibility(data, model)
@@ -91,17 +105,15 @@ class Dataset:
 
     def _construct_values(self, data: Data):
 
-        batch_size = data.n_individuals
-        nbs_vis = [len(_.timepoints) for _ in data]
-        max_nb_vis = max(nbs_vis) if nbs_vis else 0  # handle case when empty dataset
-        print(nbs_vis, max_nb_vis)
-        channels = data.dimension
-        values = torch.zeros((batch_size, max_nb_vis, channels), dtype=torch.float32)
-        padding_mask = torch.zeros((batch_size, max_nb_vis, channels), dtype=torch.float32)
+        self.n_visits_per_individual = [len(_.timepoints) for _ in data]
+        self.n_visits_max = max(self.n_visits_per_individual) if self.n_visits_per_individual else 0  # handle case when empty dataset
+
+        values = torch.zeros((self.n_individuals, self.n_visits_max, self.dimension), dtype=torch.float32)
+        padding_mask = torch.zeros_like(values)
 
         # TODO missing values in mask ?
 
-        for i, nb_vis in enumerate(nbs_vis):
+        for i, nb_vis in enumerate(self.n_visits_per_individual):
             # PyTorch 1.10 warns: Creating a tensor from a list of numpy.ndarrays is extremely slow.
             # Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor.
             # TODO: IndividualData.observations is really badly constructed (list of numpy 1D arrays), we should change this...
@@ -116,21 +128,16 @@ class Dataset:
 
         values[torch.isnan(values)] = 0.  # Set values of missing values to 0.
 
-        self.n_individuals = batch_size
-        self.max_observations = max_nb_vis
-        self.nb_observations_per_individuals = nbs_vis # list of length n_individuals
-        self.dimension = channels
         self.values = values
         self.mask = mask
-        self.n_visits = data.n_visits
 
         # number of non-nan observations (different levels of aggregation)
-        self.n_observations_per_ind_per_ft = mask.sum(dim=1).int() # 2D int tensor of shape(n_individuals,dimension)
-        self.n_observations_per_ft = self.n_observations_per_ind_per_ft.sum(dim=0) # 1D int tensor of shape(dimension,)
-        self.n_observations = self.n_observations_per_ft.sum().item() # scalar (int)
+        self.n_observations_per_ind_per_ft = mask.sum(dim=1).int()
+        self.n_observations_per_ft = self.n_observations_per_ind_per_ft.sum(dim=0)
+        self.n_observations = self.n_observations_per_ft.sum().item()
 
     def _construct_timepoints(self, data: Data):
-        self.timepoints = torch.zeros([self.n_individuals, self.max_observations], dtype=torch.float32)
+        self.timepoints = torch.zeros([self.n_individuals, self.n_visits_max], dtype=torch.float32)
         nbs_vis = [len(_.timepoints) for _ in data]
         for i, nb_vis in enumerate(nbs_vis):
             self.timepoints[i, 0:nb_vis] = torch.tensor(data[i].timepoints, dtype=torch.float32)
@@ -148,7 +155,7 @@ class Dataset:
         :class:`torch.Tensor`, shape (n_obs_of_patient,)
             Contains float
         """
-        return self.timepoints[i, :self.nb_observations_per_individuals[i]]
+        return self.timepoints[i, :self.n_visits_per_individual[i]]
 
     def get_values_patient(self, i: int) -> torch.FloatTensor:
         """
@@ -159,7 +166,7 @@ class Dataset:
         :class:`torch.Tensor`, shape (n_obs_of_patient, dimension)
             Contains float or nans
         """
-        values = self.values[i, :self.nb_observations_per_individuals[i], :]
+        values = self.values[i, :self.n_visits_per_individual[i], :]
         # mask = self.mask[i].clone().cpu().detach().numpy()[:values.shape[0],:]
         mask = self.mask[i].clone().cpu().detach()[:values.shape[0], :]
         # mask[mask==0] = np.nan

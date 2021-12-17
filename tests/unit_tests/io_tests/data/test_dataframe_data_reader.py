@@ -7,6 +7,16 @@ from tests import LeaspyTestCase
 
 class DataframeDataReaderTest(LeaspyTestCase):
 
+    def setUp(self):
+        # example dataframe for tests
+        self.df = pd.DataFrame({
+            'ID':   ["S1", "S1", "S3", "S3", "S2", "S2"],
+            'TIME': [75, 75.001, 76, 75, 65, 87],
+            'Y0':   [.5, float('nan'), .5, .5, .5, .5],
+            'Y1':   [.4]*6,
+            'Y2':   [.5]*6,
+        })
+
     def test_constructor_univariate(self):
         path = self.test_data_path('data_mock', 'univariate_data.csv')
         df = pd.read_csv(path)
@@ -64,55 +74,50 @@ class DataframeDataReaderTest(LeaspyTestCase):
         self.assertEqual(reader.individuals.keys(), {'S1', 'S2'})
         self.assertEqual(reader.n_visits, 9)
 
-    def test_bad_input(self):
-
-        df = pd.DataFrame({
-            'ID':   ["S1", "S1", "S3", "S3", "S2", "S2"],
-            'TIME': [75, 75.001, 76, 75, 65, 87],
-            'Y0':   [.5, float('nan'), .5, .5, .5, .5],
-            'Y1':   [.4]*6,
-            'Y2':   [.5]*6,
-        })
-
+    def test_index_bad_type(self):
         # bad type (series)
         with self.assertRaises(ValueError):
-            DataframeDataReader(df.set_index(['ID', 'TIME'])['Y0'])
+            DataframeDataReader(self.df.set_index(['ID', 'TIME'])['Y0'])
         with self.assertRaises(ValueError):
             DataframeDataReader({'ID': [], 'TIME': [], 'Y0': []})
 
+    def test_missing_index_level(self):
         # missing indexes
         with self.assertRaises(ValueError):
-            DataframeDataReader(df.drop(columns='ID'))
+            DataframeDataReader(self.df.drop(columns='ID'))
         with self.assertRaises(ValueError):
-            DataframeDataReader(df.drop(columns='TIME'))
+            DataframeDataReader(self.df.drop(columns='TIME'))
         with self.assertRaises(ValueError):
-            DataframeDataReader(df.drop(columns=['ID','TIME']))
+            DataframeDataReader(self.df.drop(columns=['ID','TIME']))
 
+    def test_bad_id(self):
         # bad ID
         with self.assertRaises(ValueError):
             # bad type
-            DataframeDataReader(df.assign(ID=3.14))
+            DataframeDataReader(self.df.assign(ID=3.14))
         with self.assertRaises(ValueError):
             # empty string for 1 individual...
-            DataframeDataReader(df.assign(ID=['']+['S1']*5))
+            DataframeDataReader(self.df.assign(ID=['']+['S1']*5))
         with self.assertRaises(ValueError):
             # nan string
-            DataframeDataReader(df.assign(ID=[pd.NA]+['S1']*5))
+            DataframeDataReader(self.df.assign(ID=[pd.NA]+['S1']*5))
         with self.assertRaises(ValueError):
             # < 0 index for 1 individual
-            DataframeDataReader(df.assign(ID=[-1]+[0]*5))
+            DataframeDataReader(self.df.assign(ID=[-1]+[0]*5))
 
+    def test_bad_time(self):
         # bad TIME
         with self.assertRaises(ValueError):
             # bad type
-            DataframeDataReader(df.assign(TIME=['75.12']*6))
+            DataframeDataReader(self.df.assign(TIME=['75.12']*6))
         with self.assertRaises(ValueError):
             # no nan
-            DataframeDataReader(df.assign(TIME=[float('nan')] + [75.12]*5))
+            DataframeDataReader(self.df.assign(TIME=[float('nan')] + [75.12]*5))
         with self.assertRaises(ValueError):
             # no inf
-            DataframeDataReader(df.assign(TIME=[float('-inf')] + [75.12]*5))
+            DataframeDataReader(self.df.assign(TIME=[float('-inf')] + [75.12]*5))
 
+    def test_bad_duplicated_index(self):
         # no duplicates on index
         with self.assertRaises(ValueError):
             # duplicates after rounding
@@ -121,23 +126,26 @@ class DataframeDataReaderTest(LeaspyTestCase):
                 'TIME': [75, 75-1e-10],
             }))
 
+    def test_bad_dataframe_no_data(self):
         # at least one feature & one row
         with self.assertRaises(ValueError):
-            DataframeDataReader(df[['ID', 'TIME']])
+            DataframeDataReader(self.df[['ID', 'TIME']])
         with self.assertRaises(ValueError):
-            DataframeDataReader(df.iloc[[], :])
+            DataframeDataReader(self.df.iloc[[], :])
 
+    def test_bad_features(self):
         # bad type for a column
         with self.assertRaises(ValueError):
-            DataframeDataReader(df.assign(Y_bug=['0.33']*6))
+            DataframeDataReader(self.df.assign(Y_bug=['0.33']*6))
         with self.assertRaises(ValueError):
-            DataframeDataReader(df.assign(Y_bug=[float('-inf')]+[.4]*5))
+            DataframeDataReader(self.df.assign(Y_bug=[float('-inf')]+[.4]*5))
 
         with self.assertWarnsRegex(UserWarning, 'only contain nan'):
-            DataframeDataReader(df.assign(Y3=[float('nan')]*6))
+            DataframeDataReader(self.df.assign(Y3=[float('nan')]*6))
 
+    def test_ok_when_dataframe_is_ok_even_with_a_missing_value(self):
         # check that otherwise it passes
-        reader = DataframeDataReader(df, sort_index=True)
+        reader = DataframeDataReader(self.df, sort_index=True)
         self.assertEqual(reader.n_individuals, 3)
         self.assertEqual(reader.n_visits, 6)
         self.assertEqual(list(reader.individuals.keys()), ['S1', 'S2', 'S3'])  # re-ordered

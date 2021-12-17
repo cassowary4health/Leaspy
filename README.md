@@ -1,9 +1,10 @@
 [![pipeline status](https://gitlab.com/icm-institute/aramislab/leaspy/badges/master/pipeline.svg)](https://gitlab.com/icm-institute/aramislab/leaspy/commits/master)
 [![documentation status](https://readthedocs.org/projects/leaspy/badge/)](https://leaspy.readthedocs.io)
-![PyPI - license](https://img.shields.io/pypi/l/leaspy)
+[![code coverage](https://gitlab.com/icm-institute/aramislab/leaspy/badges/master/coverage.svg)](https://gitlab.com/icm-institute/aramislab/leaspy/-/graphs/master/charts)
+[![PyPI - license](https://img.shields.io/pypi/l/leaspy)](https://opensource.org/licenses/BSD-3-Clause)
 [![PyPI - version](https://img.shields.io/pypi/v/leaspy)](https://pypi.org/project/leaspy/)
-![PyPI - downloads](https://img.shields.io/pypi/dw/leaspy)
-![PyPI - versions](https://img.shields.io/pypi/pyversions/leaspy)
+[![PyPI - downloads](https://img.shields.io/pypi/dm/leaspy)](https://pypi.org/project/leaspy/)
+[![PyPI - versions](https://img.shields.io/pypi/pyversions/leaspy)](https://pypi.org/project/leaspy/)
 
 # Leaspy - LEArning Spatiotemporal Patterns in Python
 Leaspy is a software package for the statistical analysis of **longitudinal data**, particularly **medical** data that comes in a form of **repeated observations** of patients at different time-points.

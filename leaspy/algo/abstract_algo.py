@@ -165,12 +165,11 @@ class AbstractAlgo(ABC):
 
         # Print run infos
         duration_in_seconds = time.time() - time_beginning
+        print(f"\n{self.family.title()} with `{self.name}` took: {self._duration_to_str(duration_in_seconds)}")
 
         noise_repr = self._noise_std_repr(noise_std, model=model)
         if noise_repr is not None:
-            print(f"\nThe standard deviation of the noise at the end of the {self.family} is:\n{noise_repr}")
-
-        print(f"\n{self.family.title()} with `{self.name}` took: {self._duration_to_str(duration_in_seconds)}")
+            print(f"The standard deviation of the noise at the end of the {self.family} is:\n{noise_repr}")
 
         # Return only output part
         if return_noise:
@@ -337,7 +336,7 @@ class AbstractAlgo(ABC):
         return print_noise
 
     @staticmethod
-    def _duration_to_str(seconds: float, seconds_fmt='.3g') -> str:
+    def _duration_to_str(seconds: float, *, seconds_fmt='.0f') -> str:
         """
         Convert a float representing computation time in seconds to a string giving time in hour, minutes and
         seconds ``%h %min %s``.

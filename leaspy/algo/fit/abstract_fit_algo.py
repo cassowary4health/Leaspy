@@ -84,7 +84,7 @@ class AbstractFitAlgo(AbstractAlgo):
             if self.algo_parameters['progress_bar']:
                 self._display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
 
-        return realizations, None
+        return realizations, model.parameters['noise_std']
 
     @abstractmethod
     def iteration(self, dataset, model, realizations):

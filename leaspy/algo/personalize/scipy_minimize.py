@@ -20,11 +20,21 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
     ----------
     settings : :class:`.AlgorithmSettings`
         Settings of the algorithm.
+
+    Attributes
+    ----------
+    print_convergence_issues : bool
+        Should we display all convergence issues returned by `scipy.optimize`?
+        By default display convergences issues iff not BFGS method
+        Note that it is not used if custom `logger` is defined in settings.
+    minimize_kwargs : kwargs
+        Keyword arguments passed to :func:`scipy.optimize.minimize`
     """
 
     name = 'scipy_minimize'
 
     def __init__(self, settings):
+
         super().__init__(settings)
 
         self.minimize_kwargs = {
@@ -47,13 +57,19 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 'tol': 5e-5
             }
 
+        # by default display convergences issues iff not BFGS method (not used if custom logger defined)
+        self.print_convergence_issues = self.minimize_kwargs['method'].upper() != 'BFGS'
+
         # logging function for convergence warnings
         # (patient_id: str, scipy_minize_result_dict) -> None
         if hasattr(settings, 'logger'):
             self.logger = settings.logger
         else:
-            self.logger = lambda pat_id, res_dict: \
-                print(f"\n<!> {pat_id}:\n\n{pformat(res_dict, indent=1)}\n")
+            if self.print_convergence_issues:
+                self.logger = lambda pat_id, res_dict: \
+                    print(f"\n<!> {pat_id}:\n{pformat(res_dict, indent=1)}\n")
+            else:
+                self.logger = lambda *args, **kwargs: None
 
     def _initialize_parameters(self, model):
         """

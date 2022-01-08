@@ -63,13 +63,46 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         self.assertEqual(settings.seed, 10)
         self.assertEqual(settings.parameters['progress_bar'], True)
 
-    def test_constructor_by_loading_json(self):
-        # Constructor by loading a json file
-        path = self.test_data_path('settings', 'algo', 'mcmc_saem_settings.json')
-
+    def check_loaded_algorithm_settings_and_json_data_match(self, path):
         with open(path) as fp:
             json_data = json.load(fp)
 
+        self.assertIn('name', json_data.keys())
+        self.assertIn('parameters', json_data.keys())
+
         settings = AlgorithmSettings.load(path)
-        self.assertEqual(settings.name, 'mcmc_saem')
+        self.assertEqual(settings.name, json_data['name'])
         self.assertEqual(settings.parameters, json_data['parameters'])
+
+        return json_data
+
+    def test_constructor_by_loading_json(self):
+        # Constructor by loading a json file
+        path = self.test_data_path('settings', 'algo', 'mcmc_saem_settings.json')
+        self.check_loaded_algorithm_settings_and_json_data_match(path)
+
+    def test_save(self):
+
+        algo_settings = AlgorithmSettings('mcmc_saem', seed=42)
+
+        # add logs
+        path_logs = self.test_tmp_path('logs')
+        with self.assertWarnsRegex(UserWarning, 'does not exist'): # path to be created, with a warning
+            algo_settings.set_logs(path_logs)
+
+        # save the settings
+        path_saved = self.test_tmp_path('mcmc_algo_settings_saved.json')
+        algo_settings.save(path_saved)
+
+        json_data = self.check_loaded_algorithm_settings_and_json_data_match(path_saved)
+
+        self.assertEqual(json_data.keys(), {
+            'name',
+            'seed',
+            'algorithm_initialization_method',
+            'model_initialization_method',
+            'parameters',
+            # 'logs'
+        })
+        self.assertEqual(json_data['name'], 'mcmc_saem')
+        self.assertEqual(json_data['seed'], 42)

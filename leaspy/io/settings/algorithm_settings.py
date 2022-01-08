@@ -123,7 +123,7 @@ class AlgorithmSettings:
     }
 
     # known keys for all algorithms (<!> not all of them are mandatory!)
-    _known_keys = ['name', 'seed', 'algorithm_initialization_method', 'model_initialization_method', 'parameters', 'logs']
+    _known_keys = ['name', 'seed', 'algorithm_initialization_method', 'model_initialization_method', 'parameters'] # 'logs' are not handled in exported files
 
     def __init__(self, name: str, **kwargs):
 
@@ -215,7 +215,7 @@ class AlgorithmSettings:
                                        'Please define `noise_model` directly in your Leaspy model.')
 
         # Unknown keys
-        # TODO: this class should really be refactored so not to copy in 3 methods same stuff (manage_kwars, load & _check_default_settings)
+        # TODO: this class should really be refactored so not to copy in 3 methods same stuff (manage_kwargs, load & _check_default_settings)
         unknown_keys = set(settings.keys()).difference(cls._known_keys)
         if unknown_keys:
             raise LeaspyAlgoInputError(f'Unexpected keys {unknown_keys} in algorithm settings.')
@@ -250,13 +250,15 @@ class AlgorithmSettings:
             "algorithm_initialization_method": self.algorithm_initialization_method,
         }
 
-        algo_family = self.get_algo_family()
+        algo_family = self.algo_class.family
         if algo_family == 'fit':
             json_settings['model_initialization_method'] = self.model_initialization_method
 
+        """
+        TODO: save config of logging as well (OutputSettings needs to be JSON serializable...)
         if self.logs is not None:
-            # really needed? I think it is not properly handled if reloaded then...
             json_settings['logs'] = self.logs
+        """
 
         # append parameters key after "hyperparameters"
         json_settings['parameters'] = self.parameters

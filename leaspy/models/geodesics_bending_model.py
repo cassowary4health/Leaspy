@@ -12,7 +12,7 @@ from leaspy.utils.docs import doc_with_super
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.io.settings.model_settings import ModelSettings
 
-import leaspy.models.utils.OptimB as OptimB
+from leaspy.algo.fit import kernel_utils
 
 init_mapping = {"identity": torch.nn.Identity(),
                 "negidentity": lambda x: -x,
@@ -43,13 +43,12 @@ class GeodesicsBending(AbstractMultivariateModel):
     def init_mapping_function(self):
         self.mapping = init_mapping[self.initial_mapping]
 
-    def mapping_reconstruction(self):
+    def update_mapping(self):
         self.init_mapping_function()
-
         weights, control_points = self.parameters["weights"], self.parameters["control_points"]
         W = torch.tensor(weights, dtype=torch.float32).clone().detach()
         X = torch.tensor(control_points, dtype=torch.float32).clone().detach()
-        mapping = OptimB.transformation_B_compose(X, W, self.kernel_settings, self.mapping)
+        mapping = kernel_utils.apply_diffeomorphism(X, W, self.kernel_settings)
         self.mapping = mapping
 
     def initialize(self, dataset, method="default"):
@@ -117,7 +116,7 @@ class GeodesicsBending(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
-        self.mapping_reconstruction()
+        self.update_mapping()
 
         # Load base model
         reader = ModelSettings(self.base_model_path)

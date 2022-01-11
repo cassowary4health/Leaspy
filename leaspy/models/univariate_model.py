@@ -171,6 +171,7 @@ class UnivariateModel(AbstractModel):
         if any(c in L for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
         if any(c in L for c in ('xi_mean', 'all')):
+            # Etienne, 12/01/2022: why is it not mean of xi realizations here?
             values['xi_mean'] = self.parameters['xi_mean']
 
         self.MCMC_toolbox['attributes'].update(L, values)
@@ -279,8 +280,8 @@ class UnivariateModel(AbstractModel):
         alpha = torch.exp(xi).unsqueeze(-1)
 
         derivatives = {
-            'xi' : (reparametrized_time).unsqueeze(-1),
-            'tau' : (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
+            'xi': (reparametrized_time).unsqueeze(-1),
+            'tau': (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
         }
 
         return derivatives

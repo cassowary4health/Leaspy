@@ -21,11 +21,11 @@ class AbstractModelTest(LeaspyTestCase):
         self.assertIs(model.regularization_distribution_factory, torch.distributions.normal.Normal)
 
         # Test the presence of all these essential methods
-        main_methods = ['load_parameters', 'get_individual_variable_name', 'compute_sum_squared_tensorized',
-                        'compute_individual_attachment_tensorized_mcmc', 'compute_individual_attachment_tensorized',
-                        'update_model_parameters', 'update_model_parameters_burn_in',
+        main_methods = ['load_parameters', 'compute_sum_squared_tensorized',
+                        'compute_individual_attachment_tensorized',
+                        'update_model_parameters', 'update_model_parameters_burn_in', 'update_model_parameters_normal',
                         'get_population_realization_names', 'get_individual_realization_names',
-                        'compute_regularity_realization', 'compute_regularity_variable', 'get_realization_object',
+                        'compute_regularity_realization', 'compute_regularity_variable', 'initialize_realizations_for_model',
                         'compute_individual_ages_from_biomarker_values',
                         'compute_individual_ages_from_biomarker_values_tensorized']
 

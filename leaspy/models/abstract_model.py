@@ -11,7 +11,7 @@ from leaspy.io.realizations.realization import Realization
 from leaspy.models.utils.noise_model import NoiseModel
 
 from leaspy.exceptions import LeaspyIndividualParamsInputError, LeaspyModelInputError
-from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Optional
+from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Iterable, Optional
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
@@ -56,6 +56,7 @@ class AbstractModel(ABC):
         self.parameters: KwargsType = None
         self.noise_model: str = None
 
+        # TODO? shouldn't it belong to each random variable specs?
         self.regularization_distribution_factory = torch.distributions.normal.Normal
 
         # load hyperparameters
@@ -63,7 +64,7 @@ class AbstractModel(ABC):
         self.load_hyperparameters(kwargs)
 
     @abstractmethod
-    def initialize(self, dataset: Dataset, method: str = 'default'):
+    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
         """
         Initialize the model given a dataset and an initialization method.
 
@@ -78,7 +79,7 @@ class AbstractModel(ABC):
         """
         pass
 
-    def load_parameters(self, parameters: KwargsType):
+    def load_parameters(self, parameters: KwargsType) -> None:
         """
         Instantiate or update the model's parameters.
 
@@ -90,7 +91,7 @@ class AbstractModel(ABC):
         self.parameters = copy.deepcopy(parameters)
 
     @abstractmethod
-    def load_hyperparameters(self, hyperparameters: KwargsType):
+    def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
         """
         Load model's hyperparameters
 
@@ -107,7 +108,7 @@ class AbstractModel(ABC):
         pass
 
     @classmethod
-    def _raise_if_unknown_hyperparameters(cls, known_hps, given_hps):
+    def _raise_if_unknown_hyperparameters(cls, known_hps: Iterable[str], given_hps: KwargsType) -> None:
         """Helper function raising a :exc:`.LeaspyModelInputError` if any unknown hyperparameter provided for model."""
         # TODO: replace with better logic from GenericModel in the future
         unexpected_hyperparameters = set(given_hps.keys()).difference(known_hps)
@@ -117,7 +118,7 @@ class AbstractModel(ABC):
                     f"Unknown hyperparameters provided: {unexpected_hyperparameters}.")
 
     @abstractmethod
-    def save(self, path: str, **kwargs):
+    def save(self, path: str, **kwargs) -> None:
         """
         Save Leaspy object as json model parameter file.
 
@@ -129,21 +130,6 @@ class AbstractModel(ABC):
             Keyword arguments for json.dump method.
         """
         pass
-
-    def get_individual_variable_name(self):
-        """
-        Return list of names of the individual variables from the model.
-
-        Duplicate of :meth:`.get_individual_realization_names`
-
-        TODO delete one of them
-
-        Returns
-        -------
-        individual_variable_name : list [str]
-            Contains the individual variables' names
-        """
-        return self.get_individual_realization_names()
 
     def compute_sum_squared_per_ft_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
                                               attribute_type=None) -> torch.FloatTensor:
@@ -164,9 +150,9 @@ class AbstractModel(ABC):
         :class:`torch.Tensor` of shape (n_individuals,dimension)
             Contains L2 residual for each subject and each feature
         """
-        res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type)
+        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type)
         r1 = data.mask.float() * (res - data.values) # ijk tensor (i=individuals, j=visits, k=features)
-        return torch.sum(r1 * r1, dim=1)
+        return (r1 * r1).sum(dim=1)  # sum on visits
 
     def compute_sum_squared_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
                                        attribute_type=None) -> torch.FloatTensor:
@@ -188,7 +174,7 @@ class AbstractModel(ABC):
             Contains L2 residual for each subject
         """
         L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type=attribute_type)
-        return torch.sum(L2_res_per_ind_per_ft, dim=1) # sum on features
+        return L2_res_per_ind_per_ft.sum(dim=1)  # sum on features
 
     def _audit_individual_parameters(self, ips: DictParams) -> KwargsType:
         """
@@ -487,26 +473,6 @@ class AbstractModel(ABC):
         """
         pass
 
-    def compute_individual_attachment_tensorized_mcmc(self, data: Dataset, realizations: CollectionRealization):
-        """
-        Compute MCMC attachment of all subjects? One subject? One visit?
-        TODO: complete
-
-        Parameters
-        ----------
-        data : :class:`.Dataset`
-            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        realizations : :class:`.CollectionRealization`
-
-        Returns
-        -------
-        attachment : :class:`torch.Tensor`
-            The subject attachment (?)
-        """
-        param_ind = self.get_param_from_real(realizations)
-        attachment = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC')
-        return attachment
-
     def compute_individual_attachment_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
                                                  attribute_type) -> torch.FloatTensor:
         """
@@ -520,7 +486,7 @@ class AbstractModel(ABC):
         param_ind : dict
             Contain the individual parameters
 
-        attribute_type : Any, optional
+        attribute_type : Any
             Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
@@ -563,7 +529,7 @@ class AbstractModel(ABC):
 
     def update_model_parameters(self, data: Dataset,
                                 reals_or_suff_stats: Union[CollectionRealization, DictParamsTorch], *,
-                                burn_in_phase: bool):
+                                burn_in_phase: bool) -> None:
         """
         Update model parameters (high-level function)
 
@@ -591,7 +557,7 @@ class AbstractModel(ABC):
         self.attributes.update(['all'], self.parameters)
 
     @abstractmethod
-    def update_model_parameters_burn_in(self, data: Dataset, realizations: CollectionRealization):
+    def update_model_parameters_burn_in(self, data: Dataset, realizations: CollectionRealization) -> None:
         """
         Update model parameters (burn-in phase)
 
@@ -603,7 +569,7 @@ class AbstractModel(ABC):
         pass
 
     @abstractmethod
-    def update_model_parameters_normal(self, data: Dataset, suff_stats: DictParamsTorch):
+    def update_model_parameters_normal(self, data: Dataset, suff_stats: DictParamsTorch) -> None:
         """
         Update model parameters (after burn-in phase)
 
@@ -630,7 +596,7 @@ class AbstractModel(ABC):
         """
         pass
 
-    def get_population_realization_names(self):
+    def get_population_realization_names(self) -> List[str]:
         """
         Get names of population variales of the model.
 
@@ -641,7 +607,7 @@ class AbstractModel(ABC):
         return [name for name, value in self.random_variable_informations().items()
                 if value['type'] == 'population']
 
-    def get_individual_realization_names(self):
+    def get_individual_realization_names(self) -> List[str]:
         """
         Get names of individual variales of the model.
 
@@ -668,10 +634,10 @@ class AbstractModel(ABC):
 
         Returns
         -------
-        :class:`torch.Tensor`
+        :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
         """
 
-        # Instanciate torch distribution
+        # Instantiate torch distribution
         if realization.variable_type == 'population':
             mean = self.parameters[realization.name]
             # TODO : Sure it is only MCMC_toolbox?
@@ -688,6 +654,8 @@ class AbstractModel(ABC):
         """
         Compute regularity term (Gaussian distribution), low-level.
 
+        TODO: should be encapsulated in a RandomVariableSpecification class together with other specs of RV.
+
         Parameters
         ----------
         value, mean, std : :class:`torch.Tensor` of same shapes
@@ -698,23 +666,24 @@ class AbstractModel(ABC):
         """
         return -self.regularization_distribution_factory(mean, std).log_prob(value)
 
-    def get_realization_object(self, n_individuals: int) -> CollectionRealization:
+    def initialize_realizations_for_model(self, n_individuals: int, **kwargs) -> CollectionRealization:
         """
-        Initialization of a :class:`.CollectionRealization` used during model fitting.
+        Initialize a :class:`.CollectionRealization` used during model fitting or mode/mean realization personalization.
 
         Parameters
         ----------
         n_individuals : int
             Number of individuals to track
+        **kwargs
+            Keyword arguments passed to :meth:`.CollectionRealization.initialize`.
+            (In particular `scale_individual` to "initialize from values")
 
         Returns
         -------
         :class:`.CollectionRealization`
         """
-
-        # TODO : CollectionRealizations should probably get self.get_info_var rather than all self
         realizations = CollectionRealization()
-        realizations.initialize(n_individuals, self)
+        realizations.initialize(n_individuals, self, **kwargs)
         return realizations
 
     @abstractmethod
@@ -725,12 +694,16 @@ class AbstractModel(ABC):
         Returns
         -------
         dict[str, Any]
+            * name: str
+            * type: 'population' or 'individual'
+            * shape: tuple[int, ...]
+            * rv_type: str (not used, only Gaussian RVs are supported)
         """
         pass
 
-    def smart_initialization_realizations(self, data: Dataset, realizations: CollectionRealization):
+    def smart_initialization_realizations(self, data: Dataset, realizations: CollectionRealization) -> CollectionRealization:
         """
-        Smart initialization of realizations if needed.
+        Smart initialization of realizations if needed (input may be modified in-place).
 
         Default behavior to return `realizations` as they are (no smart trick).
 
@@ -781,6 +754,9 @@ class AbstractModel(ABC):
         """
         Get individual parameters realizations from all model realizations
 
+        <!> The tensors are not cloned and so a link continue to exist between the individual parameters
+            and the underlying tensors of realizations. TODO? change this by cloning?
+
         Parameters
         ----------
         realizations : :class:`.CollectionRealization`
@@ -790,13 +766,7 @@ class AbstractModel(ABC):
         dict[param_name: str, :class:`torch.Tensor` [n_individuals, dims_param]]
             Individual parameters
         """
-
-        individual_parameters = dict.fromkeys(self.get_individual_variable_name())
-
-        for variable_ind in self.get_individual_variable_name():
-            if variable_ind == "sources" and getattr(self, 'source_dimension', 0) == 0:
-                individual_parameters[variable_ind] = None
-            else:
-                individual_parameters[variable_ind] = realizations[variable_ind].tensor_realizations
-
-        return individual_parameters
+        return {
+            variable_ind: realizations[variable_ind].tensor_realizations
+            for variable_ind in self.get_individual_realization_names()
+        }

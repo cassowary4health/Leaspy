@@ -378,6 +378,8 @@ def initialize_logistic_parallel(model, dataset, method):
 
     return {
         'g': g,
+        'deltas': torch.zeros((model.dimension - 1,), dtype=torch.float32),
+        'betas': betas,
         'tau_mean': t0,
         'tau_std': torch.tensor(tau_std, dtype=torch.float32),
         'xi_mean': v0,
@@ -385,8 +387,6 @@ def initialize_logistic_parallel(model, dataset, method):
         'sources_mean': torch.tensor(0., dtype=torch.float32),
         'sources_std': torch.tensor(sources_std, dtype=torch.float32),
         'noise_std': torch.tensor([noise_std], dtype=torch.float32),
-        'deltas': torch.zeros((model.dimension - 1,), dtype=torch.float32),
-        'betas': betas
     }
 
 

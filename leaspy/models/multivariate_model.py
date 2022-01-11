@@ -53,6 +53,7 @@ class MultivariateModel(AbstractMultivariateModel):
         return self.SUBTYPES_SUFFIXES[self.name]
 
     def load_parameters(self, parameters):
+        # TODO? Move this method in higher level class AbstractMultivariateModel? (<!> Attributes class)
         self.parameters = {}
         for k in parameters.keys():
             if k in ['mixing_matrix']:
@@ -232,14 +233,15 @@ class MultivariateModel(AbstractMultivariateModel):
             'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         }
 
-        population_dictionary = self._create_dictionary_of_population_realizations()
-        self.update_MCMC_toolbox(["all"], population_dictionary)
-
         # Initialize hyperpriors
         if set_v0_prior:
             self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
             self.MCMC_toolbox['priors']['s_v0'] = 0.1
             # same on g?
+
+        # TODO? why not passing the ready-to-use collection realizations that is initialized at beginning of fit algo and use it here instead?
+        population_dictionary = self._create_dictionary_of_population_realizations()
+        self.update_MCMC_toolbox(["all"], population_dictionary)
 
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
@@ -259,12 +261,14 @@ class MultivariateModel(AbstractMultivariateModel):
         realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
 
         self.update_MCMC_toolbox(['v0'], realizations)
+        # TODO? this update will lead to re-computing the orthonormal basis,
+        # but then in turn shouldn't we recompute the right betas & sources
+        # so that this operation is ONLY a reparametrization (no other impact)
+
         return realizations
 
     def compute_sufficient_statistics(self, data, realizations):
 
-        # <!> by doing this here, we change v0 and thus orthonormal basis and mixing matrix,
-        #     the betas / sources are not related to the previous orthonormal basis...
         realizations = self._center_xi_realizations(realizations)
 
         sufficient_statistics = {
@@ -294,14 +298,12 @@ class MultivariateModel(AbstractMultivariateModel):
 
         if self.noise_model == 'bernoulli':
             sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
-                                                                                                  attribute_type="MCMC")
+                                                                                                  attribute_type='MCMC')
 
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
 
-        # <!> by doing this here, we change v0 and thus orthonormal basis and mixing matrix,
-        #     the betas / sources are not related to the previous orthonormal basis...
         realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm
@@ -327,30 +329,19 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
+        # by design: sources_mean = 0., sources_std = 1.
+
         param_ind = self.get_param_from_real(realizations)
         self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
         if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
-                                                                                            attribute_type="MCMC").sum()
+                                                                                            attribute_type='MCMC').sum()
 
-        # TODO : This is just for debugging of linear
-        # data_reconstruction = self.compute_individual_tensorized(data.timepoints,
-        #                                                         self.get_param_from_real(realizations),
-        #                                                         attribute_type='MCMC')
-        # norm_0 = data.values * data.values * data.mask.float()
-        # norm_1 = data.values * data_reconstruction * data.mask.float()
-        # norm_2 = data_reconstruction * data_reconstruction * data.mask.float()
-        # S1 = torch.sum(torch.sum(norm_0, dim=2))
-        # S2 = torch.sum(torch.sum(norm_1, dim=2))
-        # S3 = torch.sum(torch.sum(norm_2, dim=2))
-
-        # print("During burn-in : ", torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits)),
-        #       torch.sqrt(squared_diff / (data.n_visits * data.dimension)))
+    def update_model_parameters_normal(self, data, suff_stats):
 
         # Stochastic sufficient statistics used to update the parameters of the model
 
-    def update_model_parameters_normal(self, data, suff_stats):
         # TODO with Raphael : check the SS, especially the issue with mean(xi) and v_k
         # TODO : 1. Learn the mean of xi and v_k
         # TODO : 2. Set the mean of xi to 0 and add it to the mean of V_k
@@ -386,8 +377,6 @@ class MultivariateModel(AbstractMultivariateModel):
 
         if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
-
-        # print("After burn-in : ", torch.sqrt((S1 - 2. * S2 + S3) / (data.dimension * data.n_visits)))
 
     ###################################
     ### Random Variable Information ###

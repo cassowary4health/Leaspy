@@ -76,7 +76,8 @@ class Realization:
         model : :class:`.AbstractModel`
             The model you want realizations for.
         scale_individual : float > 0
-            Multiplicative factor to scale the std-dev as given by model parameters
+            Multiplicative factor to scale the std-dev of individual parameters.
+            It is useful to really initialize individual parameters around previous values.
 
         Raises
         ------
@@ -87,9 +88,8 @@ class Realization:
         if self.variable_type == "population":
             self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
         elif self.variable_type == 'individual':
-
             distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
-                                                             scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized
+                                                             scale=scale_individual * model.parameters[f"{self.name}_std"])
             self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{self.variable_type}'.")
@@ -103,7 +103,7 @@ class Realization:
         # TODO, check that it is a torch tensor (not variable for example)
         self._tensor_realizations = tensor_realizations
 
-    def set_tensor_realizations_element(self, element, dim: int):
+    def set_tensor_realizations_element(self, element: torch.FloatTensor, dim: tuple[int, ...]):
         """
         Manually change the value (in-place) of `tensor_realizations` at dimension `dim`.
         """
@@ -119,6 +119,8 @@ class Realization:
     def set_autograd(self):
         """
         Set autograd for tensor of realizations
+
+        TODO remove? only in legacy code
 
         Raises
         ------
@@ -137,6 +139,8 @@ class Realization:
     def unset_autograd(self):
         """
         Unset autograd for tensor of realizations
+
+        TODO remove? only in legacy code
 
         Raises
         ------

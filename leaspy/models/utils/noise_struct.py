@@ -143,6 +143,13 @@ def check_scale_is_compat_with_model_dimension(*, model: AbstractModel, **unused
         expected_dim=model.dimension
     )
 
+def check_scale_is_positive(d: KwargsType):
+    """Checks scale of noise is positive (component-wise if not scalar)."""
+    noise_scale = d['scale']  # precondition: is a tensor
+    if (noise_scale <= 0).any():
+        raise LeaspyInputError(f"The noise `scale` parameter should be > 0, which is not the case in {noise_scale}.")
+    return d
+
 # Define default noise structures
 NOISE_STRUCTS = {
 
@@ -155,13 +162,13 @@ NOISE_STRUCTS = {
     'gaussian_scalar': NoiseStruct(
         distribution_factory=torch.distributions.normal.Normal,
         model_kws_to_dist_kws={'noise_std': 'scale'},
-        dist_kws_validators=(convert_input_to_1D_float_tensors, check_scale_is_univariate)
+        dist_kws_validators=(convert_input_to_1D_float_tensors, check_scale_is_positive, check_scale_is_univariate)
     ),
 
     'gaussian_diagonal': NoiseStruct(
         distribution_factory=torch.distributions.normal.Normal,
         model_kws_to_dist_kws={'noise_std': 'scale'},
-        dist_kws_validators=(convert_input_to_1D_float_tensors,),
+        dist_kws_validators=(convert_input_to_1D_float_tensors, check_scale_is_positive),
         contextual_dist_kws_validators=(check_scale_is_compat_with_model_dimension,)
     ),
 }

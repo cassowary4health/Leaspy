@@ -25,6 +25,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.MCMC_toolbox['priors']['deltas_std'] = None
 
     def load_parameters(self, parameters):
+        # TODO? Move this method in higher level class AbstractMultivariateModel? (<!> Attributes class)
         self.parameters = {}
         for k in parameters.keys():
             if k in ['mixing_matrix']:
@@ -115,6 +116,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
         if any(c in L for c in ('xi_mean', 'all')):
+            # Etienne, 12/01/2022: why is it not mean of xi realizations here?
             values['xi_mean'] = self.parameters['xi_mean']
 
         self.MCMC_toolbox['attributes'].update(L, values)
@@ -145,7 +147,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         if self.noise_model == 'bernoulli':
             sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
-                                                                                                  attribute_type="MCMC")
+                                                                                                  attribute_type='MCMC')
 
         return sufficient_statistics
 
@@ -163,12 +165,11 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['tau_std'] = torch.std(tau)
 
         param_ind = self.get_param_from_real(realizations)
-        # TODO : Why is it 'MCMC'? Shouldn't it be computed with the true parameters?
         self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
         if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
-                                                                                            attribute_type="MCMC").sum()
+                                                                                            attribute_type='MCMC').sum()
 
     def update_model_parameters_normal(self, data, suff_stats):
 

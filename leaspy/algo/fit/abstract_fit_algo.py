@@ -63,7 +63,7 @@ class AbstractFitAlgo(AbstractAlgo):
         # TODO : Check if needed - model.initialize_random_variables(dataset)
 
         # Then initialize the Realizations (from the random variables)
-        realizations = model.get_realization_object(dataset.n_individuals)
+        realizations = model.initialize_realizations_for_model(dataset.n_individuals)
 
         # Smart init the realizations
         realizations = model.smart_initialization_realizations(dataset, realizations)
@@ -139,7 +139,7 @@ class AbstractFitAlgo(AbstractAlgo):
             # (\sum_k \epsilon_k = + \infty) but a finite sum of the squares (\sum_k \epsilon_k^2 < \infty )
             # cf page 657 of the book that contains the paper
             # "Construction of Bayesian deformable models via a stochastic approximation algorithm: a convergence study"
-            burn_in_step = 1. / (self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1)**0.8
+            burn_in_step = 1. / (self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1)**0.8  # TODO: hyperparameter here
             self.sufficient_statistics = {k: v + burn_in_step * (sufficient_statistics[k] - v)
                                           for k, v in self.sufficient_statistics.items()}
             model.update_model_parameters(dataset, self.sufficient_statistics, burn_in_phase=burn_in_phase)

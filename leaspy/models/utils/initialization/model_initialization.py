@@ -491,13 +491,16 @@ def initialize_linear(model, dataset, method):
 #    return 0
 
 
-def compute_patient_slopes_distribution(data, max_inds=None):
+def compute_patient_slopes_distribution(data, max_inds: int = None):
     """
     Linear Regression on each feature to get slopes
 
     Parameters
     ----------
     data : :class:`.Dataset`
+        The dataset to compute slopes from.
+    max_inds : int, optional (default None)
+        Restrict computation to first `max_inds` individuals.
 
     Returns
     -------

@@ -32,24 +32,28 @@ class AlgorithmSettings:
             * For `simulate` algorithms:
                 * ``'simulation'``
 
-    model_initialization_method : str, optional
-        For **fit** algorithms only, give a model initialization method,
-        according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
-    algo_initialization_method : str, optional
-        Personalize the algorithm initialization method,
-        according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
-    n_iter : int, optional
-        Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
-    n_burn_in_iter : int, optional
-        Number of iteration during burning phase, used for the MCMC SAEM algorithms.
-    seed : int, optional, default None
-        Used for stochastic algorithms.
-    use_jacobian : bool, optional, default False
-        Used in ``scipy_minimize`` algorithm to perform a `L-BFGS` instead of a `Powell` algorithm.
-    n_jobs : int, optional, default 1
-        Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
-    progress_bar : bool, optional, default False
-        Used to display a progress bar during computation.
+    **kwargs : any
+        Depending on algorithm you want to personalize, various parameters are possible (not exhaustive):
+            * model_initialization_method : str, optional
+                For **fit** algorithms only, give a model initialization method,
+                according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
+            * algo_initialization_method : str, optional
+                Personalize the algorithm initialization method,
+                according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
+            * n_iter : int, optional
+                Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
+            * n_burn_in_iter : int, optional
+                Number of iteration during burning phase, used for the MCMC SAEM algorithms.
+            * seed : int, optional, default None
+                Used for stochastic algorithms.
+            * use_jacobian : bool, optional, default True
+                Used in ``scipy_minimize`` algorithm to perform a `L-BFGS` instead of a `Powell` algorithm.
+            * n_jobs : int, optional, default 1
+                Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
+            * progress_bar : bool, optional, default True
+                Used to display a progress bar during computation.
+
+        For the complete list of the available parameters for a given algorithm, please directly refer to its documentation.
 
     Attributes
     ----------
@@ -289,15 +293,15 @@ class AlgorithmSettings:
             * overwrite_logs_folder: bool, optional, default False
                 Set it to ``True`` to overwrite the content of the folder in ``path``.
 
-        Notes
-        -----
-        By default, if the folder given in ``path`` already exists, the method will raise an error.
-        To overwrite the content of the folder, set ``overwrite_logs_folder`` it to ``True``.
-
         Raises
         ------
         :exc:`.LeaspyAlgoInputError`
             If the folder given in ``path`` already exists and if ``overwrite_logs_folder`` is set to ``False``.
+
+        Notes
+        -----
+        By default, if the folder given in ``path`` already exists, the method will raise an error.
+        To overwrite the content of the folder, set ``overwrite_logs_folder`` it to ``True``.
         """
         settings = {
             'path': path,

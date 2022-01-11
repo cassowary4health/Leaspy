@@ -10,10 +10,11 @@ import numpy as np
 import torch
 
 from leaspy.io.logs.fit_output_manager import FitOutputManager
-from leaspy.utils.typing import KwargsType, Optional, Tuple, Any
+from leaspy.utils.typing import Optional, Tuple, Any
 from leaspy.exceptions import LeaspyModelInputError, LeaspyAlgoInputError
 
 if TYPE_CHECKING:
+    from leaspy.io.settings.algorithm_settings import AlgorithmSettings
     from leaspy.models.abstract_model import AbstractModel
 
 
@@ -24,11 +25,8 @@ class AbstractAlgo(ABC):
 
     Parameters
     ----------
-    name : str
-    family : str
-        cf. attributes
-    parameters : KwargsType
-        cf. attribute `algo_parameters`
+    settings : :class:`.AlgorithmSettings`
+        The specifications of the algorithm as a :class:`.AlgorithmSettings` instance.
 
     Attributes
     ----------
@@ -43,8 +41,8 @@ class AbstractAlgo(ABC):
         True, if and only if algorithm does not involve in randomness.
         Setting a seed and such algorithms will be useless.
     algo_parameters : dict
-        Contains the algorithm's parameters. These ones are set by a
-        :class:`.AlgorithmSettings` class object.
+        Contains the algorithm's parameters. These ones are controlled by a
+        the :attr:`.AlgorithmSettings.parameters` class attribute.
     seed : int, optional
         Seed used by :mod:`numpy` and :mod:`torch`.
     output_manager : :class:`~.io.logs.fit_output_manager.FitOutputManager`
@@ -59,7 +57,7 @@ class AbstractAlgo(ABC):
     # Format used to display noise std-dev values
     _log_noise_fmt = '.2%'
 
-    def __init__(self, settings):
+    def __init__(self, settings: AlgorithmSettings):
 
         if settings.name != self.name:
             raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')

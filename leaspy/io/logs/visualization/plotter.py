@@ -293,13 +293,13 @@ class Plotter:
         pdf.close()
 
     @staticmethod
-    def plot_patient_reconstructions(path, dataset, model, param_ind, max_patient_number=10, attribute_type=None):
+    def plot_patient_reconstructions(path, dataset, model, param_ind, *, max_patient_number=10, attribute_type=None):
 
         colors = cm.Dark2(np.linspace(0, 1, max_patient_number + 2))
 
         fig, ax = plt.subplots(1, 1)
 
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type)
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
 
         if isinstance(max_patient_number, int):
             patients_list = range(max_patient_number)

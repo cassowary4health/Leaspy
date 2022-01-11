@@ -150,6 +150,11 @@ class Dataset:
         """
         Get ages for patient number ``i``
 
+        Parameters
+        ----------
+        i : int
+            The index of the patient (<!> not its identifier)
+
         Returns
         -------
         :class:`torch.Tensor`, shape (n_obs_of_patient,)
@@ -160,6 +165,11 @@ class Dataset:
     def get_values_patient(self, i: int) -> torch.FloatTensor:
         """
         Get values for patient number ``i``
+
+        Parameters
+        ----------
+        i : int
+            The index of the patient (<!> not its identifier)
 
         Returns
         -------

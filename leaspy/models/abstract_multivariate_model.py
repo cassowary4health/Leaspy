@@ -103,9 +103,8 @@ class AbstractMultivariateModel(AbstractModel):
     def initialize_MCMC_toolbox(self):
         """
         Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
-
-        TODO to move in a "MCMC-model interface"
         """
+        # TODO to move in a "MCMC-model interface"
         pass
 
     @abstractmethod
@@ -190,7 +189,7 @@ class AbstractMultivariateModel(AbstractModel):
             json.dump(model_settings, fp, **kwargs)
 
     @abstractmethod
-    def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
     def compute_mean_traj(self, timepoints):

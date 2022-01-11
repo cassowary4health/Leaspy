@@ -62,14 +62,14 @@ class MultivariateModel(AbstractMultivariateModel):
         self.attributes.update(['all'], self.parameters)
 
     @suffixed_method
-    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
@@ -81,13 +81,13 @@ class MultivariateModel(AbstractMultivariateModel):
         LL = velocities * reparametrized_time + positions
 
         if self.source_dimension != 0:
-            sources = ind_parameters['sources']
+            sources = individual_parameters['sources']
             wi = sources.matmul(mixing_matrix.t())
             LL += wi.unsqueeze(-2)
 
         return LL # (n_individuals, n_timepoints, n_features)
 
-    def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
@@ -95,7 +95,7 @@ class MultivariateModel(AbstractMultivariateModel):
         b = g_plus_1 * g_plus_1 / g
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
 
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
@@ -105,7 +105,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         LL = v0 * reparametrized_time
         if self.source_dimension != 0:
-            sources = ind_parameters['sources']
+            sources = individual_parameters['sources']
             wi = sources.matmul(a_matrix.t())
             LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
         LL = 1. + g * torch.exp(-LL * b)
@@ -149,16 +149,16 @@ class MultivariateModel(AbstractMultivariateModel):
         return ages
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
 
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
@@ -168,7 +168,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         LL = v0 * reparametrized_time + positions
         if self.source_dimension != 0:
-            sources = ind_parameters['sources']
+            sources = individual_parameters['sources']
             wi = sources.matmul(mixing_matrix.t())
             LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
 
@@ -185,7 +185,7 @@ class MultivariateModel(AbstractMultivariateModel):
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
@@ -193,7 +193,7 @@ class MultivariateModel(AbstractMultivariateModel):
         b = g_plus_1 * g_plus_1 / g
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
 
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
@@ -203,7 +203,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         LL = v0 * reparametrized_time
         if self.source_dimension != 0:
-            sources = ind_parameters['sources']
+            sources = individual_parameters['sources']
             wi = sources.matmul(a_matrix.t())
             LL += wi.unsqueeze(-2)
         LL = 1. + g * torch.exp(-LL * b)
@@ -226,7 +226,7 @@ class MultivariateModel(AbstractMultivariateModel):
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self, set_v0_prior = False):
+    def initialize_MCMC_toolbox(self, *, set_v0_prior = False):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
             'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
@@ -278,10 +278,10 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
 
-        ind_parameters = self.get_param_from_real(realizations)
+        individual_parameters = self.get_param_from_real(realizations)
 
         data_reconstruction = self.compute_individual_tensorized(data.timepoints,
-                                                                 ind_parameters,
+                                                                 individual_parameters,
                                                                  attribute_type='MCMC')
 
         data_reconstruction *= data.mask.float()  # speed-up computations
@@ -293,7 +293,7 @@ class MultivariateModel(AbstractMultivariateModel):
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2) # no sum on features...
 
         if self.noise_model == 'bernoulli':
-            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters,
+            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
                                                                                                   attribute_type="MCMC")
 
         return sufficient_statistics
@@ -453,10 +453,32 @@ class MultivariateModel(AbstractMultivariateModel):
         return variables_infos
 
 # document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
-doc_with_(MultivariateModel.compute_individual_tensorized_linear, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (linear)'})
-doc_with_(MultivariateModel.compute_individual_tensorized_logistic, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (logistic)'})
-#doc_with_(MultivariateModel.compute_individual_tensorized_mixed, MultivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})
+doc_with_(MultivariateModel.compute_individual_tensorized_linear,
+          MultivariateModel.compute_individual_tensorized,
+          mapping={'the model': 'the model (linear)'})
+doc_with_(MultivariateModel.compute_individual_tensorized_logistic,
+          MultivariateModel.compute_individual_tensorized,
+          mapping={'the model': 'the model (logistic)'})
+#doc_with_(MultivariateModel.compute_individual_tensorized_mixed,
+#          MultivariateModel.compute_individual_tensorized,
+#          mapping={'the model': 'the model (mixed logistic-linear)'})
 
-doc_with_(MultivariateModel.compute_jacobian_tensorized_linear, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (linear)'})
-doc_with_(MultivariateModel.compute_jacobian_tensorized_logistic, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (logistic)'})
-#doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed, MultivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (mixed logistic-linear)'})
+doc_with_(MultivariateModel.compute_jacobian_tensorized_linear,
+          MultivariateModel.compute_jacobian_tensorized,
+          mapping={'the model': 'the model (linear)'})
+doc_with_(MultivariateModel.compute_jacobian_tensorized_logistic,
+          MultivariateModel.compute_jacobian_tensorized,
+          mapping={'the model': 'the model (logistic)'})
+#doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed,
+#          MultivariateModel.compute_jacobian_tensorized,
+#          mapping={'the model': 'the model (mixed logistic-linear)'})
+
+#doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_linear,
+#          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+#          mapping={'the model': 'the model (linear)'})
+doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
+          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+          mapping={'the model': 'the model (logistic)'})
+#doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_mixed,
+#          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+#          mapping={'the model': 'the model (mixed logistic-linear)'})

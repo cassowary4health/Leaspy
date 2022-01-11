@@ -33,19 +33,19 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.attributes = LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
-    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         # Population parameters
         g, deltas, a_matrix = self._get_attributes(attribute_type)
         deltas_exp = torch.exp(-deltas)
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
         LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
         if self.source_dimension != 0:
-            sources = ind_parameters['sources']
+            sources = individual_parameters['sources']
             wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
             LL += wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
         LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)
@@ -53,14 +53,14 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         return model
 
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         g, deltas, a_matrix = self._get_attributes(attribute_type)
         deltas_exp = torch.exp(-deltas)
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, -> n_features)
@@ -69,7 +69,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
         k = (g * deltas_exp + 1) ** 2 / (g * deltas_exp) # (n_features, )
         if self.source_dimension != 0:
-            sources = ind_parameters['sources']
+            sources = individual_parameters['sources']
             wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
             LL += wi * k
         LL = -reparametrized_time - LL.unsqueeze(-2)
@@ -130,10 +130,10 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
-        ind_parameters = self.get_param_from_real(realizations)
+        individual_parameters = self.get_param_from_real(realizations)
 
         data_reconstruction = self.compute_individual_tensorized(data.timepoints,
-                                                                 ind_parameters,
+                                                                 individual_parameters,
                                                                  attribute_type='MCMC')
         data_reconstruction *= data.mask.float() # speed-up computations
 
@@ -144,7 +144,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2) # no sum on features...
 
         if self.noise_model == 'bernoulli':
-            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters,
+            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
                                                                                                   attribute_type="MCMC")
 
         return sufficient_statistics

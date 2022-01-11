@@ -28,14 +28,14 @@ class DataframeDataReader:
     """
     time_rounding_digits = 6
 
-    def __init__(self, df: pd.DataFrame, **read_kws):
+    def __init__(self, df: pd.DataFrame, drop_full_nan: bool = True, sort_index: bool = False):
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
         self.headers: List[FeatureType] = None
         self.n_individuals: int = 0
         self.n_visits: int = 0
 
-        self._read(df, **read_kws)
+        self._read(df, drop_full_nan=drop_full_nan, sort_index=sort_index)
 
     @property
     def dimension(self):
@@ -119,7 +119,20 @@ class DataframeDataReader:
         # dataframe that can safely be used downstream
         return df
 
-    def _read(self, df: pd.DataFrame, *, drop_full_nan: bool = True, sort_index: bool = False):
+    def _read(self, df: pd.DataFrame, *, drop_full_nan: bool, sort_index: bool):
+        """
+        The method that effectively read the input dataframe (automatically called in __init__).
+
+        Parameters
+        ----------
+        df : :class:`pandas.DataFrame`
+            The dataframe to read.
+        drop_full_nan : bool, default True
+            Should we drop rows full of nans? (except index)
+        sort_index : bool, default False
+            Should we lexsort index?
+            (Keep False as default so not to break many of the downstream tests that check order...)
+        """
 
         if not isinstance(df, pd.DataFrame):
             # TODO? accept series? (for univariate dataset, with index already set)

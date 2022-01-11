@@ -145,7 +145,8 @@ class AbstractModel(ABC):
         """
         return self.get_individual_realization_names()
 
-    def compute_sum_squared_per_ft_tensorized(self, data: Dataset, param_ind: DictParamsTorch, attribute_type=None) -> torch.FloatTensor:
+    def compute_sum_squared_per_ft_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
+                                              attribute_type=None) -> torch.FloatTensor:
         """
         Compute the square of the residuals per subject per feature
 
@@ -163,11 +164,12 @@ class AbstractModel(ABC):
         :class:`torch.Tensor` of shape (n_individuals,dimension)
             Contains L2 residual for each subject and each feature
         """
-        res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+        res: torch.FloatTensor = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type)
         r1 = data.mask.float() * (res - data.values) # ijk tensor (i=individuals, j=visits, k=features)
         return torch.sum(r1 * r1, dim=1)
 
-    def compute_sum_squared_tensorized(self, data: Dataset, param_ind: DictParamsTorch, attribute_type=None) -> torch.FloatTensor:
+    def compute_sum_squared_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
+                                       attribute_type=None) -> torch.FloatTensor:
         """
         Compute the square of the residuals per subject
 
@@ -185,7 +187,7 @@ class AbstractModel(ABC):
         :class:`torch.Tensor` of shape (n_individuals,)
             Contains L2 residual for each subject
         """
-        L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type)
+        L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type=attribute_type)
         return torch.sum(L2_res_per_ind_per_ft, dim=1) # sum on features
 
     def _audit_individual_parameters(self, ips: DictParams) -> KwargsType:
@@ -414,7 +416,8 @@ class AbstractModel(ABC):
         return self.compute_individual_ages_from_biomarker_values_tensorized(value, individual_parameters, feature)
 
     @abstractmethod
-    def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.FloatTensor, individual_parameters: DictParamsTorch,
+    def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.FloatTensor,
+                                                                 individual_parameters: DictParamsTorch,
                                                                  feature: Optional[FeatureType]) -> torch.FloatTensor:
         """
         For one individual, compute age(s) at which the given features values are reached (given the subject's
@@ -437,12 +440,12 @@ class AbstractModel(ABC):
         :class:`torch.Tensor`
             Contains the subject's ages computed at the given values(s)
             Shape of tensor is (n_values, 1)
-
         """
         pass
 
     @abstractmethod
-    def compute_individual_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, attribute_type=None) -> torch.FloatTensor:
+    def compute_individual_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
+                                      attribute_type=None) -> torch.FloatTensor:
         """
         Compute the individual values at timepoints according to the model.
 
@@ -462,7 +465,8 @@ class AbstractModel(ABC):
         pass
 
     @abstractmethod
-    def compute_jacobian_tensorized(self, timepoints: torch.FloatTensor, ind_parameters: DictParamsTorch, attribute_type=None) -> torch.FloatTensor:
+    def compute_jacobian_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
+                                    attribute_type=None) -> torch.FloatTensor:
         """
         Compute the jacobian of the model w.r.t. each individual parameter.
 
@@ -503,7 +507,8 @@ class AbstractModel(ABC):
         attachment = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC')
         return attachment
 
-    def compute_individual_attachment_tensorized(self, data: Dataset, param_ind: DictParamsTorch, attribute_type) -> torch.FloatTensor:
+    def compute_individual_attachment_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
+                                                 attribute_type) -> torch.FloatTensor:
         """
         Compute attachment term (per subject)
 
@@ -538,13 +543,13 @@ class AbstractModel(ABC):
             noise_var = self.parameters['noise_std'] * self.parameters['noise_std'] # slight perf improvement over ** 2, k tensor (or scalar tensor)
             noise_var = noise_var.expand((1, data.dimension)) # 1,k tensor (for scalar products just after) # <!> this formula works with scalar noise as well
 
-            L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type) # ik tensor
+            L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type=attribute_type) # ik tensor
 
             attachment = (0.5 / noise_var) @ L2_res_per_ind_per_ft.t()
             attachment += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
 
         elif self.noise_model == 'bernoulli':
-            pred = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type)
+            pred = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type)
             mask = data.mask.float()
 
             pred = torch.clamp(pred, 1e-38, 1. - 1e-7) # safety before taking the log
@@ -556,7 +561,9 @@ class AbstractModel(ABC):
 
         return attachment.reshape((data.n_individuals,)) # 1D tensor of shape(n_individuals,)
 
-    def update_model_parameters(self, data: Dataset, reals_or_suff_stats: Union[CollectionRealization, DictParamsTorch], burn_in_phase=True):
+    def update_model_parameters(self, data: Dataset,
+                                reals_or_suff_stats: Union[CollectionRealization, DictParamsTorch], *,
+                                burn_in_phase: bool):
         """
         Update model parameters (high-level function)
 
@@ -565,19 +572,22 @@ class AbstractModel(ABC):
         Parameters
         ----------
         data : :class:`.Dataset`
-        reals_or_suff_stats :
+            The dataset we are updating model parameters from.
+        reals_or_suff_stats : CollectionRealization or DictParamsTorch
             If during burn-in phase will be realizations:
                 :class:`.CollectionRealization`
             If after burn-in phase will be sufficient statistics:
                 dict[suff_stat: str, :class:`torch.Tensor`]
+        burn_in_phase : bool
+            Are we in the memoryless part of the algorithm or not?
         """
-
-        # Memoryless part of the algorithm
         if burn_in_phase:
+            # Memoryless part of the algorithm
             self.update_model_parameters_burn_in(data, reals_or_suff_stats)
-        # Stochastic sufficient statistics used to update the parameters of the model
         else:
+            # Stochastic sufficient statistics used to update the parameters of the model
             self.update_model_parameters_normal(data, reals_or_suff_stats)
+
         self.attributes.update(['all'], self.parameters)
 
     @abstractmethod

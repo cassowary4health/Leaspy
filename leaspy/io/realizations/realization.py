@@ -120,14 +120,14 @@ class Realization:
         """
         Set autograd for tensor of realizations
 
-        See Also
-        --------
-        torch.Tensor.requires_grad_
-
         Raises
         ------
         :class:`ValueError`
             if inconsistent internal request
+
+        See Also
+        --------
+        torch.Tensor.requires_grad_
         """
         if not self._tensor_realizations.requires_grad:
             self._tensor_realizations.requires_grad_(True) # in-place
@@ -138,14 +138,14 @@ class Realization:
         """
         Unset autograd for tensor of realizations
 
-        See Also
-        --------
-        torch.Tensor.requires_grad_
-
         Raises
         ------
         :class:`ValueError`
             if inconsistent internal request
+
+        See Also
+        --------
+        torch.Tensor.requires_grad_
         """
         if self._tensor_realizations.requires_grad_:
             #self._tensor_realizations = self._tensor_realizations.detach()
@@ -153,9 +153,13 @@ class Realization:
         else:
             raise ValueError("Realizations are already detached")
 
-    def copy(self):
+    def copy(self) -> Realization:
         """
         Copy the Realization object
+
+        Returns
+        -------
+        `Realization`
 
         Notes
         -----

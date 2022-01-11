@@ -57,7 +57,7 @@ class ModeReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
 
         # Get for each patient the realization that best fit
         attachments = torch.stack(
-            [model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), "MCMC") for
+            [model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), attribute_type="MCMC") for
              realizations in realizations_history])
 
         # Regularity

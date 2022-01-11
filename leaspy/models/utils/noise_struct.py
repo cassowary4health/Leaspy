@@ -26,7 +26,7 @@ class NoiseStruct:
     TODO? really have everything related to noise here, including stuff that is currently hardcoded in models
     (model log-likelihood...)?
 
-    Attributes
+    Parameters
     ----------
     distribution_factory : function [torch.Tensor, **kws] -> torch.distributions.Distribution (or None)
         A function taking a :class:`torch.Tensor` of values first, possible keyword arguments
@@ -47,10 +47,12 @@ class NoiseStruct:
         Note: if a given context is not sufficient to build a validator, factory should return None instead of a ValidationFunc.
         cf. :meth:`NoiseStruct.with_contextual_validators` for more details.
 
-    Properties
+    Attributes
     ----------
-    dist_kws_to_model_kws : dict[str, str]
+    dist_kws_to_model_kws : dict[str, str] (read-only property)
         Mapping from torch distribution parameters to the related noise parameter naming in Leaspy model.
+
+    All the previous parameters are also attributes (dataclass)
     """
     distribution_factory: Optional[Callable[..., torch.distributions.Distribution]] = None
     model_kws_to_dist_kws: Dict[str, str] = field(default_factory=dict)
@@ -117,13 +119,13 @@ def convert_input_to_1D_float_tensors(d: KwargsType) -> DictParamsTorch:
 def validate_dimension_of_scale_factory(error_tpl: str, expected_dim: int, *,
                                         klass = LeaspyInputError):
     """Helper to produce a validator function that check dimension of scale among parameters."""
-    def validator(d: KwargsType):
+    def _validator(d: KwargsType):
         noise_scale = d['scale']  # precondition: is a tensor
         dim_noise_scale = noise_scale.numel()
         if dim_noise_scale != expected_dim:
             raise klass(error_tpl.format(noise_scale=noise_scale, dim_noise_scale=dim_noise_scale))
         return d
-    return validator
+    return _validator
 
 check_scale_is_univariate = validate_dimension_of_scale_factory(
     "You have provided a noise `scale` ({noise_scale}) of dimension {dim_noise_scale} "
@@ -133,6 +135,7 @@ check_scale_is_univariate = validate_dimension_of_scale_factory(
 )
 
 def check_scale_is_compat_with_model_dimension(*, model: AbstractModel, **unused_extra_kws):
+    """Check that scale parameter is compatible with model dimension."""
     return validate_dimension_of_scale_factory(
         "You requested a 'gaussian_diagonal' noise. However, the attribute `scale` you gave has "
         f"{{dim_noise_scale}} elements, which mismatches with model dimension of {model.dimension}. "

@@ -203,7 +203,7 @@ class Leaspy:
 
         Parameters
         ----------
-        timepoints : dictionary {string/int: array_like[numeric]} or :class:`pandas.MultiIndex`
+        timepoints : dictionary {str/int: array_like[numeric]} or :class:`pandas.MultiIndex`
             Contains, for each individual, the time-points to estimate.
             It can be a unique time-point or a list of time-points.
         individual_parameters : :class:`.IndividualParameters`
@@ -298,7 +298,6 @@ class Leaspy:
         Given the individual parameters of two subjects, and the feature value of 0.2 for the first
         and 0.5 and 0.6 for the second, get the corresponding estimated ages at which these values will be reached.
 
-
         >>> from leaspy.datasets import Loader
         >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
         >>> individual_parameters = Loader.load_individual_parameters('parkinson-putamen-train')
@@ -306,7 +305,6 @@ class Leaspy:
         # Here the 'feature' argument is optional, as the model is univariate
         >>> estimated_ages = leaspy_logistic.estimate_ages_from_biomarker_values(individual_parameters, biomarker_values,
         >>> feature='PUTAMEN')
-
         """
         # check input
         model_features = self.model.features

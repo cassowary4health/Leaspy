@@ -73,7 +73,7 @@ class AbstractAttributes(ABC):
         pass
 
     @abstractmethod
-    def update(self, names_of_changes_values: Tuple[ParamType, ...], values: DictParamsTorch) -> None:
+    def update(self, names_of_changed_values: Tuple[ParamType, ...], values: DictParamsTorch) -> None:
         """
         Update model group average parameter(s).
 

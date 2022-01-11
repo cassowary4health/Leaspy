@@ -140,9 +140,8 @@ class UnivariateModel(AbstractModel):
     def initialize_MCMC_toolbox(self):
         """
         Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
-
-        TODO to move in a "MCMC-model interface"
         """
+        # TODO to move in a "MCMC-model interface"
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01}, # population parameter
             'attributes': AttributesFactory.attributes(self.name, dimension=1)
@@ -176,11 +175,15 @@ class UnivariateModel(AbstractModel):
 
         self.MCMC_toolbox['attributes'].update(L, values)
 
-    def _get_attributes(self, MCMC):
-        if MCMC:
-            return self.MCMC_toolbox['attributes'].positions
+
+    def _get_attributes(self, attribute_type):
+        if attribute_type is None:
+            return self.attributes.get_attributes()
+        elif attribute_type == 'MCMC':
+            return self.MCMC_toolbox['attributes'].get_attributes()
         else:
-            return self.attributes.positions
+            raise LeaspyModelInputError(f"The specified attribute type does not exist: {attribute_type}. "
+                                        "Should be None or 'MCMC'.")
 
     def compute_mean_traj(self, timepoints):
         """
@@ -206,15 +209,15 @@ class UnivariateModel(AbstractModel):
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     @suffixed_method
-    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=False):
+    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         g = self._get_attributes(attribute_type)
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         LL = -reparametrized_time.unsqueeze(-1)
@@ -222,12 +225,12 @@ class UnivariateModel(AbstractModel):
 
         return model
 
-    def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         positions = self._get_attributes(attribute_type)
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
         LL = -reparametrized_time.unsqueeze(-1)
         model = positions - LL
@@ -245,7 +248,7 @@ class UnivariateModel(AbstractModel):
         value = value.masked_fill((value == 0) | (value == 1), float('nan'))
 
         # get tensorized attributes
-        g = self._get_attributes(False)
+        g = self._get_attributes(None)
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
 
         # compute age
@@ -255,16 +258,16 @@ class UnivariateModel(AbstractModel):
         return ages
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, attribute_type=None):
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, attribute_type=None):
 
         # Population parameters
         positions = self._get_attributes(attribute_type)
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
 
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
@@ -282,13 +285,13 @@ class UnivariateModel(AbstractModel):
 
         return derivatives
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, MCMC=False):
+    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        g = self._get_attributes(MCMC)
+        g = self._get_attributes(attribute_type)
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Log likelihood computation
@@ -316,8 +319,8 @@ class UnivariateModel(AbstractModel):
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        ind_parameters = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, ind_parameters, attribute_type=True)
+        individual_parameters = self.get_param_from_real(realizations)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters, attribute_type='MCMC')
 
         data_reconstruction *= data.mask.float() # speed-up computations
         #norm_0 = data.values * data.values * data.mask.float()
@@ -328,7 +331,7 @@ class UnivariateModel(AbstractModel):
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2)
 
         if self.noise_model == 'bernoulli':
-            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters, attribute_type=True)
+            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters, attribute_type='MCMC')
 
         return sufficient_statistics
 
@@ -344,10 +347,10 @@ class UnivariateModel(AbstractModel):
         self.parameters['tau_std'] = torch.std(tau)
 
         param_ind = self.get_param_from_real(realizations)
-        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type=True)
+        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
         if self.noise_model == 'bernoulli':
-            crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type=True).sum()
+            crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC').sum()
             self.parameters['crossentropy'] = crossentropy
 
         # Stochastic sufficient statistics used to update the parameters of the model
@@ -410,8 +413,20 @@ class UnivariateModel(AbstractModel):
         return variables_infos
 
 # document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
-doc_with_(UnivariateModel.compute_individual_tensorized_linear, UnivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (linear)'})
-doc_with_(UnivariateModel.compute_individual_tensorized_logistic, UnivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (logistic)'})
+doc_with_(UnivariateModel.compute_individual_tensorized_linear,
+          UnivariateModel.compute_individual_tensorized,
+          mapping={'the model': 'the model (linear)'})
+doc_with_(UnivariateModel.compute_individual_tensorized_logistic,
+          UnivariateModel.compute_individual_tensorized,
+          mapping={'the model': 'the model (logistic)'})
 
-doc_with_(UnivariateModel.compute_jacobian_tensorized_linear, UnivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (linear)'})
-doc_with_(UnivariateModel.compute_jacobian_tensorized_logistic, UnivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (logistic)'})
+doc_with_(UnivariateModel.compute_jacobian_tensorized_linear,
+          UnivariateModel.compute_jacobian_tensorized,
+          mapping={'the model': 'the model (linear)'})
+doc_with_(UnivariateModel.compute_jacobian_tensorized_logistic,
+          UnivariateModel.compute_jacobian_tensorized,
+          mapping={'the model': 'the model (logistic)'})
+
+doc_with_(UnivariateModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
+          UnivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+          mapping={'the model': 'the model (logistic)'})

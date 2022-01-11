@@ -86,7 +86,7 @@ class CollectionRealization:
         """
         return self.realizations.keys()
 
-    def copy(self):
+    def copy(self) -> CollectionRealization:
         """
         Copy of self instance
 

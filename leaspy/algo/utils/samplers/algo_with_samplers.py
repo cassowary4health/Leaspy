@@ -12,6 +12,13 @@ class AlgoWithSamplersMixin:
     Note that this mixin is to be used with a class inheriting from `AbstractAlgo`
     (and in particular that have a `algo_parameters` attribute )
 
+    Parameters
+    ----------
+    *args
+        Positional arguments to pass to super __init__ function
+    **kwargs
+        Keyword arguments to pass to super __init__ function
+
     Attributes
     ----------
     samplers : dict[ str, :class:`~.algo.samplers.abstract_sampler.AbstractSampler` ]

@@ -7,6 +7,11 @@ class AbstractFitAlgo(AbstractAlgo):
     """
     Abstract class containing common method for all `fit` algorithm classes.
 
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        The specifications of the algorithm as a :class:`.AlgorithmSettings` instance.
+
     Attributes
     ----------
     current_iteration : int, default 0
@@ -52,7 +57,6 @@ class AbstractFitAlgo(AbstractAlgo):
             * realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
                 The optimized parameters.
             * None : placeholder for noise-std
-
         """
 
         # Initialize first the random variables
@@ -117,7 +121,7 @@ class AbstractFitAlgo(AbstractAlgo):
 
     def _maximization_step(self, dataset, model, realizations):
         """
-        Maximization step as in the EM algorith. In practice parameters are set to current realizations (burn-in phase),
+        Maximization step as in the EM algorithm. In practice parameters are set to current realizations (burn-in phase),
         or as a barycenter with previous realizations.
 
         Parameters
@@ -128,7 +132,7 @@ class AbstractFitAlgo(AbstractAlgo):
         """
         burn_in_phase = self._is_burn_in()  # The burn_in is true when the maximization step is memoryless
         if burn_in_phase:
-            model.update_model_parameters(dataset, realizations, burn_in_phase)
+            model.update_model_parameters(dataset, realizations, burn_in_phase=burn_in_phase)
         else:
             sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
             # The algorithm is proven to converge if the sequence `burn_in_step` is positive, with an infinite sum \sum
@@ -138,7 +142,7 @@ class AbstractFitAlgo(AbstractAlgo):
             burn_in_step = 1. / (self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1)**0.8
             self.sufficient_statistics = {k: v + burn_in_step * (sufficient_statistics[k] - v)
                                           for k, v in self.sufficient_statistics.items()}
-            model.update_model_parameters(dataset, self.sufficient_statistics, burn_in_phase)
+            model.update_model_parameters(dataset, self.sufficient_statistics, burn_in_phase=burn_in_phase)
 
     def _is_burn_in(self):
         """

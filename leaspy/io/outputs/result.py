@@ -95,15 +95,15 @@ class Result:
         cofactors : str or list[str], optional (default None)
             Contains the cofactor(s) to join to the logs dataframe.
 
-        Notes
-        -----
-        The cofactors must be present in the leaspy data object stored into the .data attribute of the result instance.
-        See the exemple.
-
         Returns
         -------
         :class:`pandas.DataFrame`
             Contains for each patient his ID & his individual parameters (optional and his cofactors states)
+
+        Notes
+        -----
+        The cofactors must be present in the leaspy data object stored into the .data attribute of the result instance.
+        See the exemple.
 
         Examples
         --------

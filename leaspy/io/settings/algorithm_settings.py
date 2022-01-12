@@ -245,7 +245,7 @@ class AlgorithmSettings:
         Examples
         --------
         >>> from leaspy import AlgorithmSettings
-        >>> settings = AlgorithmSettings('scipy_minimize', seed=42, n_jobs=-1, use_jacobian=True, progress_bar=True)
+        >>> settings = AlgorithmSettings('scipy_minimize', seed=42)
         >>> settings.save('outputs/scipy_minimize-settings.json')
         """
         json_settings = {

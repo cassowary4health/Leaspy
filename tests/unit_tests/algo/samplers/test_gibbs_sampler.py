@@ -17,6 +17,10 @@ class SamplerTest(LeaspyTestCase):
         cls.data = cls.get_suited_test_data_for_model('logistic_scalar_noise')
         cls.dataset = Dataset(cls.data)
 
+        # GibbsSampler scales so not to change old results
+        cls.scale_ind = .1 / GibbsSampler.STD_SCALE_FACTOR_IND
+        cls.scale_pop = 5e-3 / GibbsSampler.STD_SCALE_FACTOR_POP
+
     def test_sample(self):
         """
         Test if samples values are the one expected
@@ -30,7 +34,7 @@ class SamplerTest(LeaspyTestCase):
 
         # Test with taus (individual parameter)
         var_name = 'tau'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_ind)
         random_draws = []
         for i in range(n_draw):
             gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv, attribute_type=None)
@@ -45,7 +49,7 @@ class SamplerTest(LeaspyTestCase):
 
         # Test with g (population parameter)
         var_name = 'g'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_pop)
         # a valid model MCMC toolbox is needed for sampling a population variable (update in-place)
         self.leaspy.model.initialize_MCMC_toolbox()
         random_draws = []
@@ -69,7 +73,7 @@ class SamplerTest(LeaspyTestCase):
 
         # Test with taus
         var_name = 'tau'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_ind)
 
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))
@@ -85,7 +89,7 @@ class SamplerTest(LeaspyTestCase):
 
         # Test with taus
         var_name = 'tau'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_ind)
 
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))

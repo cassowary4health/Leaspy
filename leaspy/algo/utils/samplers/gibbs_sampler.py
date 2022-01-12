@@ -3,9 +3,9 @@ import itertools
 import torch
 
 from .abstract_sampler import AbstractSampler
-from leaspy.exceptions import LeaspyModelInputError
+from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.docs import doc_with_super
-from leaspy.utils.typing import Optional
+from leaspy.utils.typing import Optional, Union
 
 
 @doc_with_super()
@@ -23,6 +23,13 @@ class GibbsSampler(AbstractSampler):
             * type : 'population' or 'individual'
     n_patients : int > 0
         Number of patients (useful for individual variables)
+    scale : float > 0 or :class:`torch.FloatTensor` > 0
+        An approximate scale for the variable.
+        It will be used to scale the initial adaptative std-dev used in sampler.
+        An extra factor will be applied on top of this scale (hyperparameters):
+            * 1% for population parameters (:attr:`.GibbsSampler.STD_SCALE_FACTOR_POP`)
+            * 50% for individual parameters (:attr:`.GibbsSampler.STD_SCALE_FACTOR_IND`)
+        Note that if you pass a torch tensor, its shape should be compatible with shape of the variable.
 
     Attributes
     ----------
@@ -33,25 +40,33 @@ class GibbsSampler(AbstractSampler):
 
     Raises
     ------
-    :exc:`.LeaspyModelInputError`
+    :exc:`.LeaspyInputError`
     """
 
-    def __init__(self, info: dict, n_patients: int):
+    # Cf. note on `scale` parameter above (heuristic values)
+    STD_SCALE_FACTOR_POP = .01
+    STD_SCALE_FACTOR_IND = .5
 
-        # TODO? in initial `std`: use a different scale that makes sense for each parameter
-        # (e.g. 1% initial value - which can be very different for tau vs. xi)
+    def __init__(self, info: dict, n_patients: int, *, scale: Union[float, torch.FloatTensor]):
 
         super().__init__(info, n_patients)
 
+        # Scale of variable should always be positive (component-wise if multidimensional)
+        if not isinstance(scale, torch.Tensor):
+            scale = torch.tensor(scale, dtype=torch.float32)
+        scale = scale.float()
+        if (scale <= 0).any():
+            raise LeaspyInputError(f"Scale of variable '{info['name']}' should be positive, not `{scale}`.")
+
         if info["type"] == "population":
             # Proposition variance is adapted independently on each dimension of the population variable
-            self.std = 0.005 * torch.ones(self.shape) # TODO hyperparameter here
+            self.std = self.STD_SCALE_FACTOR_POP * scale * torch.ones(self.shape)
         elif info["type"] == "individual":
             # Proposition variance is adapted independently on each patient
             true_shape = (n_patients, *self.shape)
-            self.std = 0.1 * torch.ones(true_shape)
+            self.std = self.STD_SCALE_FACTOR_IND * scale * torch.ones(true_shape)
         else:
-            raise LeaspyModelInputError(f"Unknown variable type '{info['type']}'.")
+            raise LeaspyInputError(f"Unknown variable type '{info['type']}'.")
 
         # Acceptation rate
         self._counter_acceptation: int = 0

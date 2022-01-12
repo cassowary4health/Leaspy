@@ -695,9 +695,17 @@ class AbstractModel(ABC):
         -------
         dict[str, Any]
             * name: str
+                Name of the random variable
             * type: 'population' or 'individual'
+                Individual or population random variable?
             * shape: tuple[int, ...]
-            * rv_type: str (not used, only Gaussian RVs are supported)
+                Shape of the variable (only 1D for individual and 1D or 2D for pop. are supported)
+            * rv_type: str
+                An indication (not used in code) on the proba distribution used for the var (only Gaussian is supported)
+            * scale: optional float
+                The fixed scale to use for initial std-dev in the corresponding sampler.
+                When not defined, sampler will rely on scales estimated at model initialization.
+                cf. :class:`~leaspy.algo.utils.samplers.GibbsSampler`
         """
         pass
 

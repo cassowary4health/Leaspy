@@ -223,13 +223,15 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             "name": "deltas",
             "shape": torch.Size([self.dimension - 1]),
             "type": "population",
-            "rv_type": "multigaussian"
+            "rv_type": "multigaussian",
+            "scale": 1.  # cf. GibbsSampler
         }
         betas_infos = {
             "name": "betas",
             "shape": torch.Size([self.dimension - 1, self.source_dimension]),
             "type": "population",
-            "rv_type": "multigaussian"
+            "rv_type": "multigaussian",
+            "scale": .5  # cf. GibbsSampler
         }
 
         ## Individual variables

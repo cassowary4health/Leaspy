@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
@@ -22,6 +24,10 @@ class ModeReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
 
     def _initialize_annealing(self):
         if self.algo_parameters['annealing']['do_annealing']:
+
+            warnings.warn(f'Annealing is currently not implemented for `{self.name}` algorithm, '
+                          'explicitely disable it in the algorithm settings to remove this warning.')
+
             if self.algo_parameters['annealing']['n_iter'] is None:
                 self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['n_iter'] / 2)
 

@@ -38,19 +38,31 @@ class AlgoWithSamplersMixin:
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
         """
-        infos_variables = model.random_variable_informations()
-        self.samplers = dict.fromkeys(infos_variables.keys())
-        for variable, info in infos_variables.items():
+        self.samplers = {}
+        import warnings
+        for variable, info in model.random_variable_informations().items():
+
             if info["type"] == "individual":
+
+                # To enforce a fixed scale for a given var, one should put it in the random var specs
+                # But note that for individual parameters the model parameters ***_std should always be OK (> 0)
+                scale_param = info.get('scale', model.parameters[f'{variable}_std'])
+
                 if self.algo_parameters['sampler_ind'] == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                    self.samplers[variable] = GibbsSampler(info, data.n_individuals, scale=scale_param)
                 #elif self.algo_parameters['sampler_ind'] == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
                 else:
                     raise NotImplementedError('Only "Gibbs" sampler is supported for now, please open an issue on Gitlab if needed.')
             else:
+
+                # To enforce a fixed scale for a given var, one should put it in the random var specs
+                # For instance: for betas & deltas, it is a good idea to define them this way
+                # since they'll probably be = 0 just after initialization!
+                scale_param = info.get('scale', model.parameters[variable].abs())
+
                 if self.algo_parameters['sampler_pop'] == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals)
+                    self.samplers[variable] = GibbsSampler(info, data.n_individuals, scale=scale_param)
                 #elif self.algo_parameters['sampler_pop'] == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
                 else:

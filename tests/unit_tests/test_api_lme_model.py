@@ -197,7 +197,7 @@ class LMEModelAPITest(LeaspyTestCase):
         print(repr(lsp.model.parameters))
 
         # + test save/load
-        model_path = self.test_tmp_path('lme_model_1.json')
+        model_path = self.get_test_tmp_path('lme_model_1.json')
         lsp.save(model_path)
         del lsp
 

@@ -34,7 +34,7 @@ class PlottingTest(LeaspyTestCase, MatplotlibTest_Mixin):
 
     def setUp(self) -> None:
         with self.assertWarns(FutureWarning):
-            self.p = Plotting(self.leaspy.model, self.test_tmp_path())
+            self.p = Plotting(self.leaspy.model, self.get_test_tmp_path())
 
     def test_average_trajectory(self):
         self.p.average_trajectory(save_as='average_trajectory.pdf')

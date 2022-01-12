@@ -54,7 +54,7 @@ class LeaspyFitTest_Mixin(LeaspyTestCase):
     def check_model_consistency(self, leaspy: Leaspy, path_to_backup_model: str, **allclose_kwds):
         # Temporary save parameters and check consistency with previously saved model
 
-        path_to_tmp_saved_model = self.test_tmp_path(os.path.basename(path_to_backup_model))
+        path_to_tmp_saved_model = self.get_test_tmp_path(os.path.basename(path_to_backup_model))
         leaspy.save(path_to_tmp_saved_model)
 
         with open(path_to_backup_model, 'r') as f1:

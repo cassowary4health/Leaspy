@@ -38,7 +38,7 @@ class PlotterTest(LeaspyTestCase, MatplotlibTest_Mixin):
         # can not use the standard matplotlib backend on CI so use a fallback if needed
         cls.set_matplotlib_backend()
 
-        cls.plotter = Plotter(cls.test_tmp_path())
+        cls.plotter = Plotter(cls.get_test_tmp_path())
         cls.plotter._show = False  # do not show plots useless for tests!
 
         cls.leaspy = cls.get_hardcoded_model('logistic_diag_noise')
@@ -104,19 +104,19 @@ class PlotterTest(LeaspyTestCase, MatplotlibTest_Mixin):
     ## plots used during convergence (staticmethods)
     def test_plot_error(self):
         rel_path = 'error.pdf'
-        Plotter.plot_error(self.test_tmp_path(rel_path), dataset=self.dataset, model=self.leaspy.model,
+        Plotter.plot_error(self.get_test_tmp_path(rel_path), dataset=self.dataset, model=self.leaspy.model,
                            param_ind=self.ips_torch)
         self.assertHasTmpFile(rel_path)
 
     def test_plot_patient_reconstructions(self):
         rel_path = 'patient_reconstructions.pdf'
-        self.plotter.plot_patient_reconstructions(self.test_tmp_path(rel_path), dataset=self.dataset, model=self.leaspy.model,
+        self.plotter.plot_patient_reconstructions(self.get_test_tmp_path(rel_path), dataset=self.dataset, model=self.leaspy.model,
                                                   param_ind=self.ips_torch)
         self.assertHasTmpFile(rel_path)
 
     def test_plot_param_ind(self):
         rel_path = 'param_ind.pdf'
-        self.plotter.plot_param_ind(self.test_tmp_path(rel_path), param_ind=self.ips_torch.values())
+        self.plotter.plot_param_ind(self.get_test_tmp_path(rel_path), param_ind=self.ips_torch.values())
         self.assertHasTmpFile(rel_path)
 
     @unittest.skip('TODO')

@@ -10,7 +10,7 @@ class DatasetTest(LeaspyTestCase):
 
     def test_constructor_univariate(self):
         # no nans
-        path_to_data = self.test_data_path('data_mock', 'univariate_data_for_dataset.csv')
+        path_to_data = self.get_test_data_path('data_mock', 'univariate_data_for_dataset.csv')
         data = Data.from_csv_file(path_to_data)
         dataset = Dataset(data)
 
@@ -33,7 +33,7 @@ class DatasetTest(LeaspyTestCase):
 
     def test_constructor_multivariate(self):
         # no nans
-        path_to_data = self.test_data_path('data_mock', 'multivariate_data_for_dataset.csv')
+        path_to_data = self.get_test_data_path('data_mock', 'multivariate_data_for_dataset.csv')
         data = Data.from_csv_file(path_to_data)
         dataset = Dataset(data)
 
@@ -66,7 +66,7 @@ class DatasetTest(LeaspyTestCase):
 
     def test_n_observations_missing_values(self):
 
-        path_to_data = self.test_data_path('data_mock', 'multivariate_data_for_dataset_with_nans.csv')
+        path_to_data = self.get_test_data_path('data_mock', 'multivariate_data_for_dataset_with_nans.csv')
         data = Data.from_csv_file(path_to_data)
         dataset = Dataset(data)
 

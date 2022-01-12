@@ -78,7 +78,7 @@ class AlgorithmSettingsTest(LeaspyTestCase):
 
     def test_constructor_by_loading_json(self):
         # Constructor by loading a json file
-        path = self.test_data_path('settings', 'algo', 'mcmc_saem_settings.json')
+        path = self.get_test_data_path('settings', 'algo', 'mcmc_saem_settings.json')
         self.check_loaded_algorithm_settings_and_json_data_match(path)
 
     def test_save(self):
@@ -86,12 +86,12 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         algo_settings = AlgorithmSettings('mcmc_saem', seed=42)
 
         # add logs
-        path_logs = self.test_tmp_path('logs')
+        path_logs = self.get_test_tmp_path('logs')
         with self.assertWarnsRegex(UserWarning, 'does not exist'): # path to be created, with a warning
             algo_settings.set_logs(path_logs)
 
         # save the settings
-        path_saved = self.test_tmp_path('mcmc_algo_settings_saved.json')
+        path_saved = self.get_test_tmp_path('mcmc_algo_settings_saved.json')
         algo_settings.save(path_saved)
 
         json_data = self.check_loaded_algorithm_settings_and_json_data_match(path_saved)

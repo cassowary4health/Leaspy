@@ -54,7 +54,7 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
                 for i in range(n_sources):
                     self.assertEqual(len(simulation_results.get_parameter_distribution(f'sources_{i}')), n)
 
-        path_expected_sim_res = self.test_data_path("simulation", expected_results_file)
+        path_expected_sim_res = self.get_test_data_path("simulation", expected_results_file)
         inexistant_result = not os.path.exists(path_expected_sim_res)
 
         ## uncomment to re-generate simulation results

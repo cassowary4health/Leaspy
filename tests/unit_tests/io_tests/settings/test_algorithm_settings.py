@@ -88,7 +88,10 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         # add logs
         path_logs = self.get_test_tmp_path('logs')
         with self.assertWarnsRegex(UserWarning, 'does not exist'): # path to be created, with a warning
-            algo_settings.set_logs(path_logs)
+            algo_settings.set_logs(path_logs,
+                                   console_print_periodicity=50,
+                                   save_periodicity=50,
+                                   plot_periodicity=100)
 
         # save the settings
         path_saved = self.get_test_tmp_path('mcmc_algo_settings_saved.json')

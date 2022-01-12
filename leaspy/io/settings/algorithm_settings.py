@@ -273,7 +273,7 @@ class AlgorithmSettings:
         with open(os.path.join(path), "w") as json_file:
             json.dump(json_settings, json_file, **kwargs)
 
-    def set_logs(self, path, **kwargs):
+    def set_logs(self, path: Optional[str] = None, **kwargs):
         """
         Use this method to monitor the convergence of a model callibration.
 
@@ -281,15 +281,19 @@ class AlgorithmSettings:
 
         Parameters
         ----------
-        path : str
+        path : str, optional
             The path of the folder to store the graphs and csv files.
+            No data will be saved if it is None, as well as save_periodicity and plot_periodicity.
         **kwargs
-            * console_print_periodicity: int, optional, default 50
+            * console_print_periodicity: int, optional, default 100
                 Display logs in the console/terminal every N iterations.
-            * plot_periodicity: int, optional, default 100
-                Saves the values to display in pdf every N iterations.
             * save_periodicity: int, optional, default 50
                 Saves the values in csv files every N iterations.
+            * plot_periodicity: int, optional, default 1000
+                Generates plots from saved values every N iterations.
+                Note that:
+                    * it should be a multiple of save_periodicity
+                    * setting a too low value (frequent) we seriously slow down you calibration
             * overwrite_logs_folder: bool, optional, default False
                 Set it to ``True`` to overwrite the content of the folder in ``path``.
 
@@ -303,11 +307,13 @@ class AlgorithmSettings:
         By default, if the folder given in ``path`` already exists, the method will raise an error.
         To overwrite the content of the folder, set ``overwrite_logs_folder`` it to ``True``.
         """
+        # TODO: all this logic should be delegated in dedicated OutputSettings class...!
+
         settings = {
             'path': path,
-            'console_print_periodicity': 50,
-            'plot_periodicity': 100,
+            'console_print_periodicity': 100,
             'save_periodicity': 50,
+            'plot_periodicity': 1000,
             'overwrite_logs_folder': False
         }
 

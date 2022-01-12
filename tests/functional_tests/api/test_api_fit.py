@@ -5,13 +5,15 @@ import json
 from leaspy import Leaspy
 
 from tests import LeaspyTestCase
+from tests.unit_tests.plots.test_plotter import MatplotlibTest_Mixin
 
 
-class LeaspyFitTest_Mixin(LeaspyTestCase):
+class LeaspyFitTest_Mixin(LeaspyTestCase, MatplotlibTest_Mixin):
     """Mixin holding generic fit methods that may be safely reused in other tests (no actual test here)."""
 
     def generic_fit(self, model_name: str, model_codename: str, *,
                     algo_name='mcmc_saem', algo_params: dict = {},
+                    logs_kws: dict = {},
                     print_model: bool = False,
                     check_model: bool = True, check_kws: dict = {},
                     save_model: bool = False,
@@ -26,6 +28,15 @@ class LeaspyFitTest_Mixin(LeaspyTestCase):
 
         # create the fit algo settings
         algo_settings = self.get_algo_settings(name=algo_name, **algo_params)
+
+        # set logs by default
+        if logs_kws is not None:
+            auto_path_logs = self.get_test_tmp_path(f'{model_codename}-logs')
+            with self.assertWarnsRegex(UserWarning, r" does not exist\. Needed paths will be created"):
+                algo_settings.set_logs(path=auto_path_logs, **logs_kws)
+            if algo_settings.logs.plot_periodicity:
+                # can not use the standard matplotlib backend on CI so use a fallback if needed
+                self.set_matplotlib_backend()
 
         # calibrate model
         leaspy.fit(data, settings=algo_settings)

@@ -50,9 +50,6 @@ class Plotting:
 
         self.set_palette(palette, max_colors)
 
-    def update_model(self, model):
-        self.model = model
-
     def set_palette(self, palette, max_colors=None):
         """
         Set palette of plots

@@ -518,7 +518,7 @@ class AbstractModel(ABC):
             pred = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type)
             mask = data.mask.float()
 
-            pred = torch.clamp(pred, 1e-38, 1. - 1e-7) # safety before taking the log
+            pred = torch.clamp(pred, 1e-7, 1. - 1e-7) # safety before taking the log
             neg_crossentropy = data.values * torch.log(pred) + (1. - data.values) * torch.log(1. - pred)
             attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
 

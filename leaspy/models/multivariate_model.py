@@ -360,20 +360,21 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
         # self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        if 'diagonal' in self.noise_model:
-            # keep feature dependence on feature to update diagonal noise (1 free param per feature)
-            S1 = data.L2_norm_per_ft
-            S2 = suff_stats['obs_x_reconstruction'].sum(dim=(0, 1))
-            S3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0, 1))
-
-            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations_per_ft.float())
-            # tensor 1D, shape (dimension,)
-        else: # scalar noise (same for all features)
+        if 'scalar' in self.noise_model:
+            # scalar noise (same for all features)
             S1 = data.L2_norm
             S2 = suff_stats['obs_x_reconstruction'].sum()
             S3 = suff_stats['reconstruction_x_reconstruction'].sum()
 
             self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
+        else:
+            # keep feature dependence on feature to update diagonal noise (1 free param per feature)
+            S1 = data.L2_norm_per_ft
+            S2 = suff_stats['obs_x_reconstruction'].sum(dim=(0, 1))
+            S3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0, 1))
+
+            # tensor 1D, shape (dimension,)
+            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations_per_ft.float())
 
         if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()

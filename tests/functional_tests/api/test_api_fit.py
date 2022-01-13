@@ -93,7 +93,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
     """
 
     # Test MCMC-SAEM
-    def test_fit_logistic_scalar_noise(self, tol=5e-2, tol_tau=2e-1):
+    def test_fit_logistic_scalar_noise(self, tol=6e-2, tol_tau=2e-1):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
@@ -138,7 +138,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
                                      check_model=True,
                                      check_kws=dict(atol=tol))
 
-    def test_fit_linear(self, tol=1e-1, tol_tau=2e-1):
+    def test_fit_linear(self, tol=6e-2, tol_tau=2e-1):
 
         leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
@@ -146,7 +146,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
                                      check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
                                                                                'tau_std': dict(atol=tol_tau)}))
 
-    def test_fit_linear_diag_noise(self, tol=1e-1, tol_tau=2e-1):
+    def test_fit_linear_diag_noise(self, tol=6e-2, tol_tau=2e-1):
 
         leaspy, _ = self.generic_fit('linear', 'linear_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
@@ -154,7 +154,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
                                      check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
                                                                                'tau_std': dict(atol=tol_tau)}))
 
-    def test_fit_logistic_binary(self, tol=1e-1, tol_tau=2e-1):
+    def test_fit_logistic_binary(self, tol=6e-2, tol_tau=2e-1):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_binary', noise_model='bernoulli', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),

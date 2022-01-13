@@ -37,7 +37,7 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
         return simulation_results
 
 
-    def check_consistency_of_simulation_results(self, simulation_settings, simulation_results, data, *, expected_results_file):
+    def check_consistency_of_simulation_results(self, simulation_settings, simulation_results, data, *, expected_results_file, tol = 1e-5):
         # TODO: refact, so dirty!
 
         self.assertIsInstance(simulation_results, Result)
@@ -76,7 +76,7 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
         simulation_is_reproducible = np.allclose(simulation_df.loc[:, simulation_df.columns != 'ID'].values,
                                         simulation_results.data.to_dataframe().
                                         loc[:, simulation_results.data.to_dataframe().columns != 'ID'].values,
-                                        atol=10 ** (-round_decimal), rtol=10 ** (-round_decimal))
+                                        atol=tol, rtol=tol)
         # Use of numpy.allclose instead of pandas.testing.assert_frame_equal because of buggy behaviour reported
         # in https://github.com/pandas-dev/pandas/issues/22052
 
@@ -88,7 +88,6 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
             value_v1 = 0.
             value_v2 = 0.
             count = 0
-            tol = 10 ** (-round_decimal)
             actual_simu_df = simulation_results.data.to_dataframe()
             for v1, v2 in zip(simulation_df.loc[:, simulation_df.columns != 'ID'].values.tolist(),
                               actual_simu_df.loc[:, actual_simu_df.columns != 'ID'].values.tolist()):

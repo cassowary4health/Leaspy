@@ -1,5 +1,5 @@
 {
-  "leaspy_version": "1.1.0-dev",
+  "leaspy_version": "1.2.1rc1",
   "name": "univariate_logistic",
   "features": [
     "Y0"
@@ -7,12 +7,12 @@
   "noise_model": "gaussian_scalar",
   "parameters": {
     "g": [
-      0.11021632701158524
+      0.12511546909809113
     ],
-    "tau_mean": 78.22456359863281,
-    "tau_std": 5.592746257781982,
-    "xi_mean": -3.172964096069336,
-    "xi_std": 0.4895657002925873,
-    "noise_std": 0.13071167469024658
+    "tau_mean": 79.52930450439453,
+    "tau_std": 6.779449462890625,
+    "xi_mean": -2.127453088760376,
+    "xi_std": 0.6571594476699829,
+    "noise_std": 0.07475274056196213
   }
 }

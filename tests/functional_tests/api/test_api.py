@@ -10,7 +10,8 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
                         expected_noise_std, # in perso
                         perso_algo: str, fit_algo='mcmc_saem', simulate_algo='simulation',
                         fit_check_kws = dict(atol=1e-3),
-                        fit_algo_params=dict(seed=0), perso_algo_params=dict(seed=0), simulate_algo_params=dict(seed=0),
+                        fit_algo_params=dict(seed=0), perso_algo_params=dict(seed=0),
+                        simulate_algo_params=dict(seed=0), simulate_tol=1e-4,
                         **model_hyperparams):
         """
         Functional test of a basic analysis using leaspy package
@@ -44,9 +45,9 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
         simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)
 
         self.check_consistency_of_simulation_results(simulation_settings, simulation_results, data,
-                expected_results_file=f'simulation_results_{model_codename}.csv')
+                expected_results_file=f'simulation_results_{model_codename}.csv', tol=simulate_tol)
 
-    def test_usecase_logistic_scalar_noise(self):
+    def test_usecase_logistic_scalar_noise(self, *, tol=6e-2, tol_tau=2e-1):
 
         # Simulation parameters
         custom_delays_vis = lambda n: [.5]*min(n, 2) + [1.]*max(0, n-2)  # OLD weird delays between visits
@@ -56,7 +57,13 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             'logistic', model_codename='logistic_scalar_noise',
             noise_model='gaussian_scalar', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
-            perso_algo='mode_real', expected_noise_std=0.0910, # in perso
+            # not fully reproducible on Linux CI compared to MacOSX...
+            fit_check_kws = dict(
+                atol=tol,
+                allclose_custom={'tau_mean': dict(atol=tol_tau),
+                                 'tau_std': dict(atol=tol_tau)}
+            ),
+            perso_algo='mode_real', expected_noise_std=0.085, # in perso
             simulate_algo_params=simul_params,
         )
 
@@ -70,8 +77,8 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             'logistic', model_codename='logistic_diag_noise',
             noise_model='gaussian_diagonal', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
-            perso_algo='scipy_minimize', expected_noise_std=[0.067, 0.038, 0.069, 0.152], # in perso
-            simulate_algo_params=simul_params,
+            perso_algo='scipy_minimize', expected_noise_std=[0.065, 0.036, 0.055, 0.151], # in perso
+            simulate_algo_params=simul_params, simulate_tol=2e-3, # Not fully reproducible on Linux below this tol...
         )
 
     def test_usecase_logistic_binary(self):
@@ -86,7 +93,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[0.358, 0.0704, 0.102, 0.259], # in perso
+            expected_noise_std=[0.332, 0.087, 0.123, 0.221], # in perso
             simulate_algo_params=simul_params,
         )
 

@@ -324,10 +324,10 @@ class UnivariateModel(AbstractModel):
         data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters, attribute_type='MCMC')
 
         data_reconstruction *= data.mask.float() # speed-up computations
-        #norm_0 = data.values * data.values * data.mask.float()
+
         norm_1 = data.values * data_reconstruction #* data.mask.float()
         norm_2 = data_reconstruction * data_reconstruction #* data.mask.float()
-        #sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
+
         sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2)
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2)
 
@@ -337,8 +337,8 @@ class UnivariateModel(AbstractModel):
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
-
         # Memoryless part of the algorithm
+
         self.parameters['g'] = realizations['g'].tensor_realizations.detach()
         xi = realizations['xi'].tensor_realizations.detach()
         self.parameters['xi_mean'] = torch.mean(xi)
@@ -354,27 +354,29 @@ class UnivariateModel(AbstractModel):
             crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC').sum()
             self.parameters['crossentropy'] = crossentropy
 
+    def update_model_parameters_normal(self, data, suff_stats):
         # Stochastic sufficient statistics used to update the parameters of the model
 
-    def update_model_parameters_normal(self, data, suff_stats):
         self.parameters['g'] = suff_stats['g']
 
         tau_mean = self.parameters['tau_mean']
-        tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
-        self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
+        tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
+        tau_var = tau_var_updt + tau_mean ** 2
+        self.parameters['tau_std'] = self._compute_std_from_var(tau_var, varname='tau_std')
         self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
         xi_mean = self.parameters['xi_mean']
-        xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
-        self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
+        xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
+        xi_var = xi_var_updt + xi_mean ** 2
+        self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        #S1 = torch.sum(suff_stats['obs_x_obs'])
         S1 = data.L2_norm
         S2 = suff_stats['obs_x_reconstruction'].sum()
         S3 = suff_stats['reconstruction_x_reconstruction'].sum()
 
-        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
+        noise_var = (S1 - 2. * S2 + S3) / data.n_observations
+        self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
 
         if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()

@@ -322,8 +322,9 @@ class MultivariateModel(AbstractMultivariateModel):
 
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations.detach()
+
         xi = realizations['xi'].tensor_realizations.detach()
-        # self.parameters['xi_mean'] = torch.mean(xi)
+        # self.parameters['xi_mean'] = torch.mean(xi)  # fixed = 0 by design
         self.parameters['xi_std'] = torch.std(xi)
         tau = realizations['tau'].tensor_realizations.detach()
         self.parameters['tau_mean'] = torch.mean(tau)
@@ -339,6 +340,7 @@ class MultivariateModel(AbstractMultivariateModel):
                                                                                             attribute_type='MCMC').sum()
 
     def update_model_parameters_normal(self, data, suff_stats):
+        # TODO? add a true, configurable, validation for all parameters? (e.g.: bounds on tau_var/std but also on tau_mean, ...)
 
         # Stochastic sufficient statistics used to update the parameters of the model
 
@@ -350,15 +352,17 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = suff_stats['betas']
 
-        tau_mean = self.parameters['tau_mean'].clone()
-        tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
-        self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
+        tau_mean = self.parameters['tau_mean']
+        tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
+        tau_var = tau_var_updt + tau_mean ** 2
+        self.parameters['tau_std'] = self._compute_std_from_var(tau_var, varname='tau_std')
         self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
         xi_mean = self.parameters['xi_mean']
-        xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
-        self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
-        # self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
+        xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
+        xi_var = xi_var_updt + xi_mean ** 2
+        self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
+        # self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])  # fixed = 0 by design
 
         if 'scalar' in self.noise_model:
             # scalar noise (same for all features)
@@ -366,7 +370,7 @@ class MultivariateModel(AbstractMultivariateModel):
             S2 = suff_stats['obs_x_reconstruction'].sum()
             S3 = suff_stats['reconstruction_x_reconstruction'].sum()
 
-            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
+            noise_var = (S1 - 2. * S2 + S3) / data.n_observations
         else:
             # keep feature dependence on feature to update diagonal noise (1 free param per feature)
             S1 = data.L2_norm_per_ft
@@ -374,7 +378,9 @@ class MultivariateModel(AbstractMultivariateModel):
             S3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0, 1))
 
             # tensor 1D, shape (dimension,)
-            self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations_per_ft.float())
+            noise_var = (S1 - 2. * S2 + S3) / data.n_observations_per_ft.float()
+
+        self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
 
         if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()

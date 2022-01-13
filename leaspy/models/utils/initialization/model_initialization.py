@@ -14,6 +14,10 @@ tau_std = 5.
 noise_std = .1
 sources_std = 1.
 
+def _torch_round(t: torch.FloatTensor, *, tol: float = 1 << 16) -> torch.FloatTensor:
+    # Round values to ~ 10**-4.8
+    return (t * tol).round() * (1./tol)
+
 def initialize_parameters(model, dataset, method="default"):
     """
     Initialize the model's group parameters given its name & the scores of all subjects.
@@ -65,7 +69,13 @@ def initialize_parameters(model, dataset, method="default"):
     else:
         raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
 
-    return parameters
+    # add a rounding step on the initial parameters to ensure full reproducibility
+    rounded_parameters = {
+        str(p): _torch_round(v)
+        for p, v in parameters.items()
+    }
+
+    return rounded_parameters
 
 
 def get_lme_results(dataset, n_jobs=-1, *,

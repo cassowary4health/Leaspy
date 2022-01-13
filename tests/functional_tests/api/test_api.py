@@ -1,5 +1,3 @@
-import unittest
-
 # <!> NEVER import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
 from .test_api_fit import LeaspyFitTest_Mixin
 from .test_api_personalize import LeaspyPersonalizeTest_Mixin
@@ -52,34 +50,44 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
 
         # Simulation parameters
         custom_delays_vis = lambda n: [.5]*min(n, 2) + [1.]*max(0, n-2)  # OLD weird delays between visits
-        simul_params=dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100)  # noise=...
+        simul_params = dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100)  # noise=...
 
         self.generic_usecase(
             'logistic', model_codename='logistic_scalar_noise',
             noise_model='gaussian_scalar', source_dimension=2,
-            fit_algo_params=dict(n_iter=100, seed=0),
-            perso_algo='mode_real', expected_noise_std=0.09753, # in perso
+            fit_algo_params=dict(n_iter=200, seed=0),
+            perso_algo='mode_real', expected_noise_std=0.0910, # in perso
             simulate_algo_params=simul_params,
         )
 
-    @unittest.skip('TODO')
     def test_usecase_logistic_diag_noise(self):
+
+        # Simulation parameters
+        custom_delays_vis = dict(mean=1., min=.2, max=2., std=1.)
+        simul_params = dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100)  # noise=...
 
         self.generic_usecase(
             'logistic', model_codename='logistic_diag_noise',
             noise_model='gaussian_diagonal', source_dimension=2,
-            fit_algo_params=dict(n_iter=100, seed=0),
-            perso_algo='mode_real', expected_noise_std=[], # in perso
+            fit_algo_params=dict(n_iter=200, seed=0),
+            perso_algo='scipy_minimize', expected_noise_std=[0.067, 0.038, 0.069, 0.152], # in perso
+            simulate_algo_params=simul_params,
         )
 
-    @unittest.skip('TODO')
     def test_usecase_logistic_binary(self):
+
+        # Simulation parameters
+        custom_delays_vis = .5
+        simul_params = dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100,
+                            reparametrized_age_bounds=(50, 85))  # noise=...
 
         self.generic_usecase(
             'logistic', model_codename='logistic_binary',
             noise_model='bernoulli', source_dimension=2,
-            fit_algo_params=dict(n_iter=100, seed=0),
-            perso_algo='mode_real', expected_noise_std=[], # in perso
+            fit_algo_params=dict(n_iter=200, seed=0),
+            perso_algo='mean_real',
+            expected_noise_std=[0.358, 0.0704, 0.102, 0.259], # in perso
+            simulate_algo_params=simul_params,
         )
 
     # TODO? univariate_*, linear

@@ -60,7 +60,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         path_settings = self.test_data_path('settings', 'algo', 'settings_mean_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.11631, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.1024, tol_noise=tol_noise)
 
     def test_personalize_mode_real_logistic(self, tol_noise=1e-3):
         """
@@ -70,7 +70,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         path_settings = self.test_data_path('settings', 'algo', 'settings_mode_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.11711, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.115, tol_noise=tol_noise)
 
     def test_personalize_scipy_minimize(self, tol_noise=5e-3):
         """

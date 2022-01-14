@@ -121,7 +121,7 @@ class DataframeDataReader:
 
     def _read(self, df: pd.DataFrame, *, drop_full_nan: bool, sort_index: bool):
         """
-        The method that effectively read the input dataframe (automatically called in __init__).
+        The method that effectively reads the input dataframe (automatically called in __init__).
 
         Parameters
         ----------

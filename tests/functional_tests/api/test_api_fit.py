@@ -47,14 +47,18 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
         inexistant_model = not os.path.exists(expected_model_path)
 
         # check that values in already saved file are same than the ones in fitted model
-        if check_model and not inexistant_model:
-            self.check_model_consistency(leaspy, expected_model_path, **check_kws)
+        if check_model:
+            if inexistant_model:
+                warnings.warn(f"<!> Consistency of model could not be checked since '{model_codename}' did not exist...")
+            else:
+                self.check_model_consistency(leaspy, expected_model_path, **check_kws)
 
         ## set `save_model=True` to re-generate example model
         ## <!> use carefully (only when needed following breaking changes in model / calibration)
         if save_model or inexistant_model:
             leaspy.save(expected_model_path)
-            warnings.warn(f'<!> You overwrote {"" if inexistant_model else "previous "}model in "{expected_model_path}"...')
+            if save_model:
+                warnings.warn(f"<!> You overwrote previous '{model_codename}' model...")
 
         # return leaspy & data objects
         return leaspy, data

@@ -39,7 +39,6 @@ class AlgoWithSamplersMixin:
         model : :class:`~.models.abstract_model.AbstractModel`
         """
         self.samplers = {}
-        import warnings
         for variable, info in model.random_variable_informations().items():
 
             if info["type"] == "individual":

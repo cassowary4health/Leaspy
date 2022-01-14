@@ -41,7 +41,7 @@ class AbstractAlgo(ABC):
         True, if and only if algorithm does not involve in randomness.
         Setting a seed and such algorithms will be useless.
     algo_parameters : dict
-        Contains the algorithm's parameters. These ones are controlled by a
+        Contains the algorithm's parameters. Those are controlled by
         the :attr:`.AlgorithmSettings.parameters` class attribute.
     seed : int, optional
         Seed used by :mod:`numpy` and :mod:`torch`.

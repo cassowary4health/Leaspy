@@ -389,6 +389,7 @@ class Leaspy:
         -------
         simulated_data : :class:`~.io.outputs.result.Result`
             Contains the generated individual parameters & the corresponding generated scores.
+
         See Also
         --------
         :class:`~leaspy.algo.simulate.simulate.SimulationAlgorithm`

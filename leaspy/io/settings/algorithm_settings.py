@@ -13,6 +13,7 @@ from leaspy.utils.typing import KwargsType, Optional
 class AlgorithmSettings:
     """
     Used to set the algorithms' settings.
+
     All parameters, except the choice of the algorithm, is set by default.
     The user can overwrite all default settings.
 
@@ -33,7 +34,9 @@ class AlgorithmSettings:
                 * ``'simulation'``
 
     **kwargs : any
-        Depending on algorithm you want to personalize, various parameters are possible (not exhaustive):
+        Depending on the algorithm you are setting up, various parameters are possible (not exhaustive):
+            * seed : int, optional, default None
+                Used for stochastic algorithms.
             * model_initialization_method : str, optional
                 For **fit** algorithms only, give a model initialization method,
                 according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
@@ -44,8 +47,6 @@ class AlgorithmSettings:
                 Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
             * n_burn_in_iter : int, optional
                 Number of iteration during burning phase, used for the MCMC SAEM algorithms.
-            * seed : int, optional, default None
-                Used for stochastic algorithms.
             * use_jacobian : bool, optional, default True
                 Used in ``scipy_minimize`` algorithm to perform a `L-BFGS` instead of a `Powell` algorithm.
             * n_jobs : int, optional, default 1

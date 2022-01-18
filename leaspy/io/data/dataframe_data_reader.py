@@ -21,6 +21,9 @@ class DataframeDataReader:
     sort_index : bool, default False
         Should we lexsort index?
         (Keep False as default so not to break many of the downstream tests that check order...)
+    warn_empty_column : bool, default True
+        Should we warn when there are empty columns?
+        (It may be redundant when the user already knows it - for instance in ablation studies)
 
     Raises
     ------
@@ -28,14 +31,18 @@ class DataframeDataReader:
     """
     time_rounding_digits = 6
 
-    def __init__(self, df: pd.DataFrame, drop_full_nan: bool = True, sort_index: bool = False):
+    def __init__(self, df: pd.DataFrame, *,
+                 drop_full_nan: bool = True,
+                 sort_index: bool = False,
+                 warn_empty_column: bool = True):
+
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
         self.headers: List[FeatureType] = None
         self.n_individuals: int = 0
         self.n_visits: int = 0
 
-        self._read(df, drop_full_nan=drop_full_nan, sort_index=sort_index)
+        self._read(df, drop_full_nan=drop_full_nan, sort_index=sort_index, warn_empty_column=warn_empty_column)
 
     @property
     def dimension(self):
@@ -92,7 +99,7 @@ class DataframeDataReader:
                                            f'please double check these individuals:\n{individuals_with_at_least_1_bad_tpt}.')
 
     @classmethod
-    def _check_features(cls, df: pd.DataFrame) -> pd.DataFrame:
+    def _check_features(cls, df: pd.DataFrame, *, warn_empty_column: bool) -> pd.DataFrame:
         """Check requirements on features."""
         types_nok = {ft: dtype for ft, dtype in df.dtypes.items() if not cls._check_numeric_type(dtype)}
         if types_nok:
@@ -101,7 +108,7 @@ class DataframeDataReader:
         # warn if some columns are full of nans
         full_of_nans = df.isna().all(axis=0)
         full_of_nans = full_of_nans[full_of_nans].index.tolist()
-        if full_of_nans:
+        if warn_empty_column and full_of_nans:
             warnings.warn(f'These columns only contain nans: {full_of_nans}.')
 
         try:
@@ -119,7 +126,7 @@ class DataframeDataReader:
         # dataframe that can safely be used downstream
         return df
 
-    def _read(self, df: pd.DataFrame, *, drop_full_nan: bool, sort_index: bool):
+    def _read(self, df: pd.DataFrame, *, drop_full_nan: bool, sort_index: bool, warn_empty_column: bool):
         """
         The method that effectively reads the input dataframe (automatically called in __init__).
 
@@ -127,11 +134,13 @@ class DataframeDataReader:
         ----------
         df : :class:`pandas.DataFrame`
             The dataframe to read.
-        drop_full_nan : bool, default True
+        drop_full_nan : bool
             Should we drop rows full of nans? (except index)
-        sort_index : bool, default False
+        sort_index : bool
             Should we lexsort index?
             (Keep False as default so not to break many of the downstream tests that check order...)
+        warn_empty_column : bool
+            Should we warn when there are empty columns?
         """
 
         if not isinstance(df, pd.DataFrame):
@@ -139,7 +148,7 @@ class DataframeDataReader:
             raise LeaspyDataInputError('Input should be a pandas.DataFrame not anything else.')
 
         df = df.copy(deep=True)  # No modification on the input dataframe !
-        columns = df.columns.values
+        columns = df.columns.tolist()
         # Try to read the raw dataframe
         try:
             self._check_headers(columns)
@@ -147,7 +156,7 @@ class DataframeDataReader:
         # If we do not find 'ID' and 'TIME' columns, check the Index
         except LeaspyDataInputError:
             df.reset_index(inplace=True)
-            columns = df.columns.values
+            columns = df.columns.tolist()
             self._check_headers(columns)
 
         # Check index & set it
@@ -167,17 +176,17 @@ class DataframeDataReader:
             df = df.dropna(how='all')
         self.n_visits = len(df)
         if self.n_visits == 0:
-            raise LeaspyDataInputError('Dataframe should have at least 1 row...')
+            raise LeaspyDataInputError('Dataframe should have at least 1 row (not full of nans)...')
 
         # sort after duplicate checks and full of nans dropped
         if sort_index:
             df.sort_index(inplace=True)
 
-        self.headers = df.columns.values.tolist()
+        self.headers = df.columns.tolist()
         if self.dimension < 1:
             raise LeaspyDataInputError('Dataframe should have at least 1 feature...')
 
-        df = self._check_features(df)
+        df = self._check_features(df, warn_empty_column=warn_empty_column)
 
         for (idx_subj, timepoint), observations in df.iterrows():
 

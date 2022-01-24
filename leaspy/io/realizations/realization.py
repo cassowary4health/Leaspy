@@ -87,12 +87,13 @@ class Realization:
 
         if self.variable_type == "population":
             self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
+            print(f"Init realization {self.name}, with {model.parameters[self.name]}")
         elif self.variable_type == 'individual':
             if self.rv_type == 'linked':
-                if self.name == 'v0':
+                if self.name == 'g':
+                    self._tensor_realizations: torch.Tensor = model.get_intersept("g").repeat(n_individuals,1)
+                elif self.name == 'v0':
                     self._tensor_realizations: torch.Tensor = model.get_intersept("v0").repeat(n_individuals,1)
-                elif self.name == 'tau_mean':
-                    self._tensor_realizations: torch.Tensor = model.get_intersept("tau_mean").repeat(n_individuals, 1)
             else:
                 if model.name == "logistic_link" and self.name == "tau" and False:
                     distribution = torch.distributions.normal.Normal(loc=torch.tensor(0.),

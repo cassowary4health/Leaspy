@@ -86,14 +86,11 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
 
     def compute_individual_tensorized_logistic_link(self, timepoints, ind_parameters, attribute_type=None):
 
-        # Population parameters
-        g, _, = self._get_attributes(attribute_type)
+        # Individual parameters
+        xi, tau, v0, g = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['v0'], ind_parameters['g']
+
         g_plus_1 = 1. + g
         b = g_plus_1 * g_plus_1 / g
-
-        # Individual parameters
-        # xi, tau, tau_mean, v0 = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['tau_mean'], ind_parameters['v0']
-        xi, tau, v0 = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['v0']
 
         reparametrized_time = self.time_reparametrization_link(timepoints, xi, tau)
         # Log likelihood computation
@@ -109,14 +106,14 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
             sources = ind_parameters['sources'].reshape(-1, self.source_dimension)
             betas = self.get_beta(attribute_type)
 
-            ortho_basis = torch.stack(self.compute_ortho_basis_indiv(v0, attribute_type))
+            ortho_basis = torch.stack(self.compute_ortho_basis_indiv(g, v0, attribute_type))
             a_matrix = ortho_basis @ betas
 
             wi = (a_matrix @ sources[:,:,None]).squeeze()
             #wi = sources.matmul(a_matrix.t())
             #print(f"Shape of v0 {v0.shape}, sources {sources.shape}, betas {betas.shape}, ortho_basis {ortho_basis.shape}, a_matrix {a_matrix.shape}, wi {wi.shape}, LL {LL.shape}", flush=True) 
             LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
-        LL = 1. + g * torch.exp(-LL * b)
+        LL = 1. + g.unsqueeze(-2) * torch.exp(-LL * b.unsqueeze(-2))
         model = 1. / LL
 
         return model # (n_individuals, n_timepoints, n_features)
@@ -128,11 +125,11 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         elif attribute_type == 'MCMC':
             return self.MCMC_toolbox['attributes'].betas
 
-    def compute_ortho_basis_indiv(self, v0, attribute_type=None):
+    def compute_ortho_basis_indiv(self, pos, v0, attribute_type=None):
         if attribute_type is None:
-            return self.attributes._compute_orthonormal_basis_indiv(v0)
+            return self.attributes._compute_orthonormal_basis_indiv(pos, v0)
         elif attribute_type == 'MCMC':
-            return self.MCMC_toolbox['attributes']._compute_orthonormal_basis_indiv(v0)
+            return self.MCMC_toolbox['attributes']._compute_orthonormal_basis_indiv(pos, v0)
 
     @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
@@ -146,8 +143,19 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
     def get_intersept(self, variable_name):
         if variable_name == "v0":
             return self.parameters['link_v0'][:, -1]
+        if variable_name == "g":
+            return self.parameters['link_g'][:, -1]            
         elif variable_name == "tau_mean":
             return self.parameters['link_t_mean'][:, -1]
+
+    def compute_individual_positions(self, cofactors, attribute_type=None):
+        if attribute_type == 'model':
+            link_g = self.parameters['link_g']
+        else:
+            links = self._get_attributes(attribute_type)
+            link_g = links['g']
+
+        return torch.exp(link_g @ torch.cat((cofactors, torch.ones(1, cofactors.shape[1], device=self.device))))
 
     def compute_individual_speeds(self, cofactors, attribute_type=None):
         """
@@ -157,7 +165,7 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         if attribute_type == 'model':
             link_v0 = self.parameters['link_v0']
         else:
-            _, links = self._get_attributes(attribute_type)
+            links = self._get_attributes(attribute_type)
             link_v0 = links['v0']
 
         return torch.exp(link_v0 @ torch.cat((cofactors, torch.ones(1, cofactors.shape[1], device=self.device))))
@@ -176,7 +184,7 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
 
     def initialize_MCMC_toolbox(self, set_v0_prior = False, set_link_prior=True, set_std_prior=False):
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01, 'link_v0_std': 0.01, 'link_t_mean_std':0.01}, # population parameters
+            'priors': {'v0_std': 0.01, 'betas_std': 0.01, 'link_v0_std': 0.01, 'link_g_std': 0.01, 'link_t_mean_std':0.01}, # population parameters
             'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension, self.device)
         }
 
@@ -188,6 +196,8 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
             self.MCMC_toolbox['priors']['link_v0_mean'] = self.parameters['link_v0'].clone().detach()
             self.MCMC_toolbox['priors']['s_link_v0'] = 0.1
 
+            self.MCMC_toolbox['priors']['link_g_mean'] = self.parameters['link_g'].clone().detach()
+            self.MCMC_toolbox['priors']['s_link_g'] = 0.1
         #    self.MCMC_toolbox['priors']['link_t_mean_mean'] = self.parameters['link_t_mean'].clone().detach()
         #    self.MCMC_toolbox['priors']['s_link_t_mean'] = 0.1
 
@@ -203,8 +213,8 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
         L = name_of_the_variables_that_have_been_changed
         values = {}
-        if any(c in L for c in ('g', 'all')):
-            values['g'] = realizations['g'].tensor_realizations
+        if any(c in L for c in ('link_g', 'all')):
+            values['link_g'] = realizations['link_g'].tensor_realizations
         if any(c in L for c in ('link_v0', 'all')):
             values['link_v0'] = realizations['link_v0'].tensor_realizations
         # if any(c in L for c in ('link_t_mean', 'all')):
@@ -241,6 +251,7 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         sufficient_statistics = {
             'g': realizations['g'].tensor_realizations,
             'link_v0': realizations['link_v0'].tensor_realizations,
+            'link_g': realizations['link_g'].tensor_realizations,
         #    'link_t_mean': realizations['link_t_mean'].tensor_realizations,
             'v0': realizations['v0'].tensor_realizations,
             'tau': realizations['tau'].tensor_realizations,
@@ -279,18 +290,29 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm
-        self.parameters['g'] = realizations['g'].tensor_realizations.detach()
+        #self.parameters['g'] = realizations['g'].tensor_realizations.detach()
 
         link_v0_emp = realizations['link_v0'].tensor_realizations.detach()
+        link_g_emp = realizations['link_g'].tensor_realizations.detach()
+
         if self.MCMC_toolbox['priors'].get('link_v0_mean', None) is not None:
             link_v0_mean = self.MCMC_toolbox['priors']['link_v0_mean']
             s_link_v0 = self.MCMC_toolbox['priors']['s_link_v0']
             sigma_link_v0 = self.MCMC_toolbox['priors']['link_v0_std']
             self.parameters['link_v0'] = (1 / (1 / (s_link_v0 ** 2) + 1 / (sigma_link_v0 ** 2))) * (
             link_v0_emp / (sigma_link_v0 ** 2) + link_v0_mean / (s_link_v0 ** 2))
-
         else:
             self.parameters['link_v0'] = link_v0_emp
+
+
+        if self.MCMC_toolbox['priors'].get('link_g_mean', None) is not None:
+            link_g_mean = self.MCMC_toolbox['priors']['link_g_mean']
+            s_link_g = self.MCMC_toolbox['priors']['s_link_g']
+            sigma_link_g = self.MCMC_toolbox['priors']['link_g_std']
+            self.parameters['link_g'] = (1 / (1 / (s_link_g ** 2) + 1 / (sigma_link_g ** 2))) * (
+            link_g_emp / (sigma_link_g ** 2) + link_g_mean / (s_link_g ** 2))
+        else:
+            self.parameters['link_g'] = link_g_emp
 
         # link_t_mean_emp = realizations['link_t_mean'].tensor_realizations.detach()
         # if self.MCMC_toolbox['priors'].get('link_t_mean_mean', None) is not None:
@@ -349,8 +371,9 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         # TODO with Raphael : check the SS, especially the issue with mean(xi) and v_k
         # TODO : 1. Learn the mean of xi and v_k
         # TODO : 2. Set the mean of xi to 0 and add it to the mean of V_k
-        self.parameters['g'] = suff_stats['g']
+        #self.parameters['g'] = suff_stats['g']
         self.parameters['link_v0'] = suff_stats['link_v0']
+        self.parameters['link_g'] = suff_stats['link_g']
         # self.parameters['link_t_mean'] = suff_stats['link_t_mean']
 
         if self.source_dimension != 0:
@@ -393,13 +416,6 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
     def random_variable_informations(self):
 
         # --- Population variables
-        g_infos = {
-            "name": "g",
-            "shape": torch.Size([self.dimension]),
-            "type": "population",
-            "rv_type": "multigaussian"
-        }
-
 #         link_infos = {
 #             "name": "link",
 #             "shape": self.link_shape,
@@ -410,6 +426,12 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         link_v0_infos = {
             "name": "link_v0",
             "shape": self.link_v0_shape,
+            "type": "population",
+            "rv_type": "multigaussian",
+        }
+        link_g_infos = {
+            "name": "link_g",
+            "shape": self.link_g_shape,
             "type": "population",
             "rv_type": "multigaussian",
         }
@@ -432,6 +454,12 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
 
         v0_infos = {
             "name": "v0",
+            "shape": torch.Size([self.dimension]),
+            "type": "individual",
+            "rv_type": "linked"
+        }
+        g_infos = {
+            "name": "g",
             "shape": torch.Size([self.dimension]),
             "type": "individual",
             "rv_type": "linked"
@@ -469,6 +497,7 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         variables_infos = {
             "g": g_infos,
             "link_v0": link_v0_infos,
+            "link_g": link_g_infos,
             #"link_t_mean": link_t_mean_infos,
             "v0": v0_infos,
             "tau": tau_infos,

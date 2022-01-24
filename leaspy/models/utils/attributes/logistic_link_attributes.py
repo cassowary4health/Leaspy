@@ -75,25 +75,26 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
         compute_betas = False
         compute_positions = False
         compute_link_v0 = False
+        compute_link_g = False
         # compute_link_t_mean = False
 
         if 'all' in names_of_changed_values:
             names_of_changed_values = self.update_possibilities  # make all possible updates
         if 'betas' in names_of_changed_values:
             compute_betas = True
-        if 'g' in names_of_changed_values:
-            compute_positions = True
         if 'link_v0' in names_of_changed_values:
             compute_link_v0 = True
+        if 'link_g' in names_of_changed_values:
+            compute_link_g = True
         # if 'link_t_mean' in names_of_changed_values:
         #    compute_link_t_mean = True
 
         if compute_betas:
             self._compute_betas(values)
-        if compute_positions:
-            self._compute_positions(values)
         if compute_link_v0:
             self._compute_link_v0(values)
+        if compute_link_g:
+            self._compute_link_g(values)
         # if compute_link_t_mean:
         #    self._compute_link_t_mean(values)
 
@@ -125,6 +126,16 @@ class LogisticLinkAttributes(AbstractManifoldModelLinkAttributes):
         values : dict [str, `torch.Tensor`]
         """        
         self.link_v0 = values['link_v0'].clone()
+
+    def _compute_link_g(self, values):
+        """
+        Update the attribute ``link``.
+
+        Parameters
+        ----------
+        values : dict [str, `torch.Tensor`]
+        """        
+        self.link_g = values['link_g'].clone()
 
     def _compute_link_t_mean(self, values):
         """

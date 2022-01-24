@@ -160,6 +160,8 @@ class GibbsSampler(AbstractSampler):
 
             if self.name == 'link_v0':
                 realizations['v0'].tensor_realizations = model.compute_individual_speeds(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
+            if self.name == 'link_g':
+                realizations['g'].tensor_realizations = model.compute_individual_positions(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
 
             # if self.name == 'link_t_mean':
             #    realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone().reshape(-1,1)
@@ -187,7 +189,8 @@ class GibbsSampler(AbstractSampler):
                 model.update_MCMC_toolbox([self.name], realizations)
                 if self.name == 'link_v0':
                     realizations['v0'].tensor_realizations = model.compute_individual_speeds(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
-                # if self.name == 'link_t_mean':
+                if self.name == 'link_g':
+                    realizations['g'].tensor_realizations = model.compute_individual_positions(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()                # if self.name == 'link_t_mean':
                 #    realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone().reshape(-1,1)
 
                 # force re-compute on next iteration

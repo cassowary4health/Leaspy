@@ -55,6 +55,7 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
 
         self.positions: torch.FloatTensor = None
         self.link_v0: torch.FloatTensor = None
+        self.link_g: torch.FloatTensor = None
         # self.link_t_mean: torch.FloatTensor = None
 
         if self.univariate:
@@ -69,7 +70,7 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
             self.mixing_matrix: torch.FloatTensor = None
             self.orthonormal_basis: torch.FloatTensor = None
             # self.update_possibilities = ('all', 'g', 'link_v0', 'link_t_mean', 'betas')
-            self.update_possibilities = ('all', 'g', 'link_v0', 'betas')
+            self.update_possibilities = ('all', 'link_v0', 'link_g', 'betas')
 
     def get_attributes(self):
         """
@@ -89,8 +90,8 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
             raise NotImplementedError("no univariate link model")
         else:
             # link_dict = {'v0': self.link_v0, 't_mean' : self.link_t_mean}
-            link_dict = {'v0': self.link_v0}
-            return self.positions, link_dict 
+            link_dict = {'v0': self.link_v0, 'g': self.link_g}
+            return link_dict 
 
     def _compute_betas(self, values: DictParamsTorch):
         """
@@ -208,18 +209,17 @@ class AbstractManifoldModelLinkAttributes(AbstractAttributes):
             q_matrix[:, strip_col+1:]
         ), dim=1)
 
-    def _compute_orthonormal_basis_indiv(self, indiv_velocities):
+    def _compute_orthonormal_basis_indiv(self, indiv_positions, indiv_velocities):
         if not self.has_sources:
             return
 
-        # Compute the diagonal of metric matrix (cf. `_compute_Q`)
-        # (same for every subject for now...)
-        G_metric = (1 + self.positions).pow(4) / self.positions.pow(2) # = "1/(p0 * (1-p0))**2"
-
         ortho_basis_indiv = []
 
-        for v0 in indiv_velocities:
+        for position, v0 in zip(indiv_positions, indiv_velocities):
             dgamma_t0 = v0
+
+            # Compute the diagonal of metric matrix (cf. `_compute_Q`)
+            G_metric = (1 + position).pow(4) / position.pow(2) # = "1/(p0 * (1-p0))**2"
 
             ortho_basis_indiv.append(self._compute_Q_indiv(dgamma_t0, G_metric))
         return ortho_basis_indiv

@@ -369,10 +369,11 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
     # Do transformations
     t0 = time.clone().detach()
     #v0_array = slopes.log().detach()
-    g_array = torch.log(1. / values - 1.).detach() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
+    #g_array = torch.log(1. / values - 1.).detach() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
     betas = torch.zeros((model.dimension - 1, model.source_dimension))
 
     link_v0 = torch.zeros(model.link_v0_shape)
+    link_g = torch.zeros(model.link_g_shape)
     # link_t_mean = torch.zeros(model.link_t_mean_shape)
 
     # link_t_mean[:, -1] = t0
@@ -380,6 +381,8 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
     if precomputed is not None:
         if 'v0' in precomputed:
             link_v0[:, -1] = precomputed['v0']
+        if 'g' in precomputed:
+            link_g[:, -1] = precomputed['g']
         #if 't_mean' in precomputed:
         #    link_t_mean[:, -1] = precomputed['t_mean']
   
@@ -392,8 +395,8 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
 
     else:
         parameters = {
-            'g': g_array,
             'link_v0': link_v0,
+            'link_g': link_g,
             #'link_t_mean': link_t_mean,
             'tau_mean': t0,
             'betas': betas,

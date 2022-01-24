@@ -40,14 +40,14 @@ class AbstractMultivariateLinkModel(AbstractModel):
         self.cofactors_dimension: int = None
         self.cofactors: torch.Tensor = None
         self.link_v0_shape = None
+        self.link_g_shape = None
         self.link_t_mean_shape = None
 
         self.parameters = {
-            "g": None,
             "betas": None,
             "tau_std": None,
             "link_v0": None,
-            "link_t_mean": None,
+            "link_g": None,
             "xi_mean": None, "xi_std": None,
             "sources_mean": None, "sources_std": None,
             "noise_std": None
@@ -85,8 +85,7 @@ class AbstractMultivariateLinkModel(AbstractModel):
         self.cofactors = dataset.cofactors
         #self.link_shape = torch.Size([self.dimension+1, self.cofactors_dimension+1])
         self.link_v0_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
-        self.link_t_mean_shape = torch.Size([1, self.cofactors_dimension+1])
-
+        self.link_g_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
@@ -206,6 +205,7 @@ class AbstractMultivariateLinkModel(AbstractModel):
             #'tau': torch.tensor(0.0),#torch.tensor([self.get_intersept('tau_mean')], dtype=torch.float32, device=self.device),
             'sources': torch.zeros(self.source_dimension, dtype=torch.float32, device=self.device),
             'v0': torch.exp(self.get_intersept('v0')[None,:]),
+            'g': torch.exp(self.get_intersept('g')[None,:]),
             # 'tau_mean': self.parameters['tau_mean'],#self.get_intersept('tau_mean')[None,:],
             'tau': self.parameters['tau_mean'],#self.get_intersept('tau_mean')[None,:],
         }

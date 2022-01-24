@@ -13,7 +13,7 @@ Leaspy is a software package for the statistical analysis of **longitudinal data
 
 ### Installation
 
-1. Leaspy requires Python >= 3.7
+1. Leaspy requires Python >= 3.7, < 3.10
 2. Create a dedicated environment (optional):
 
    Using `conda`

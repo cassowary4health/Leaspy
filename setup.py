@@ -49,7 +49,7 @@ setup(name="leaspy",
       maintainer='Igor Koval',
       maintainer_email='igor.koval@inria.fr',
 
-      python_requires='>=3.7',
+      python_requires='>=3.7, <3.10',
 
       keywords='leaspy longitudinal mixed-model',
 

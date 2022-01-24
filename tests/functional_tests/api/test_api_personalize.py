@@ -1,4 +1,5 @@
 import torch
+from numpy import nan
 import pandas as pd
 
 from leaspy import Data, IndividualParameters
@@ -164,11 +165,11 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         df = pd.DataFrame({
             'ID': ['SUBJ1', 'SUBJ1'],
             'TIME': [75.12, 78.9],
-            'Y0': [pd.NA]*2,
-            'Y1': [pd.NA]*2,
-            'Y2': [pd.NA]*2,
-            'Y3': [pd.NA]*2,
-        }).set_index(['ID', 'TIME']).astype(pd.Float32Dtype())
+            'Y0': [nan]*2,
+            'Y1': [nan]*2,
+            'Y2': [nan]*2,
+            'Y3': [nan]*2,
+        }).set_index(['ID', 'TIME'])
 
         lsp = self.get_hardcoded_model('logistic_diag_noise')
         algo = self.get_algo_settings(name='scipy_minimize', seed=0, progress_bar=False)
@@ -207,11 +208,11 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         df = pd.DataFrame({
             'ID': ['SUBJ1']*4,
             'TIME': [75.12, 78.9, 67.1, 76.1],
-            'Y0': [pd.NA, .6, pd.NA, .2],
-            'Y1': [pd.NA, .4, pd.NA, pd.NA],
-            'Y2': [pd.NA, .5, pd.NA, .2],
-            'Y3': [pd.NA, .3, pd.NA, .2],
-        }).set_index(['ID', 'TIME']).astype(pd.Float32Dtype())
+            'Y0': [nan, .6, nan, .2],
+            'Y1': [nan, .4, nan, nan],
+            'Y2': [nan, .5, nan, .2],
+            'Y3': [nan, .3, nan, .2],
+        }).set_index(['ID', 'TIME'])
 
         lsp = self.get_hardcoded_model('logistic_diag_noise')
         algo = self.get_algo_settings(name='scipy_minimize', seed=0, progress_bar=False)

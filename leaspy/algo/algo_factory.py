@@ -7,6 +7,7 @@ from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
 from leaspy.algo.others.lme_fit import LMEFitAlgorithm
 
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
+from leaspy.algo.personalize.scipy_minimize_link import ScipyMinimizeLink
 from leaspy.algo.personalize.mean_realisations import MeanReal
 from leaspy.algo.personalize.mode_realisations import ModeReal
 
@@ -40,6 +41,7 @@ class AlgoFactory:
 
         'personalize': {
             'scipy_minimize': ScipyMinimize,
+            'scipy_minimize_link': ScipyMinimizeLink,
             'mean_real': MeanReal,
             'mode_real': ModeReal,
             #'gradient_descent_personalize': GradientDescentPersonalize, # deprecated!

@@ -197,6 +197,12 @@ class Dataset:
         values_with_na = values * mask
         return values_with_na
 
+    def get_cofactors_patient(self, i: int) -> torch.FloatTensor:
+        if hasattr(self, "cofactors"):
+            return self.cofactors[i,:].unsqueeze(-1)
+        else:
+            raise RuntimeError("The Dataset does not have any cofactor data")
+
     @staticmethod
     def _check_model_compatibility(data: Data, model: AbstractModel):
         if model.dimension is None:

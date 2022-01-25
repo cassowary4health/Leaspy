@@ -140,6 +140,44 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
     def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
         pass
 
+    def compute_jacobian_tensorized_logistic_link(self, timepoints, ind_parameters, attribute_type=None):
+        # Individual parameters
+        xi, tau, v0, g = ind_parameters['xi'], ind_parameters['tau'], ind_parameters['v0'], ind_parameters['g']
+
+        g_plus_1 = 1. + g
+        b = g_plus_1 * g_plus_1 / g
+
+        reparametrized_time = self.time_reparametrization_link(timepoints, xi, tau)
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
+
+        LL = v0[:,None,:] * reparametrized_time
+
+        a_matrix = torch.zeros((self.dimension, self.source_dimension))
+        if self.source_dimension != 0:
+            sources = ind_parameters['sources'].reshape(-1, self.source_dimension)
+            betas = self.get_beta(attribute_type)
+
+            ortho_basis = torch.stack(self.compute_ortho_basis_indiv(g, v0, attribute_type))
+            a_matrix = ortho_basis @ betas
+
+            wi = (a_matrix @ sources[:,:,None]).squeeze()
+            LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
+        LL = 1. + g.unsqueeze(-2) * torch.exp(-LL * b.unsqueeze(-2))
+        model = 1. / LL
+
+        c = model * (1. - model) * b
+        alpha = torch.exp(xi).reshape(-1, 1, 1)
+
+        derivatives = {
+            'xi': (c * v0 * reparametrized_time).unsqueeze(-1),
+            'tau': (c * -v0 * alpha).unsqueeze(-1),
+        }
+        if self.source_dimension > 0:
+            derivatives['sources'] = c.unsqueeze(-1) * a_matrix.expand((1,1,-1,-1))
+
+        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
+        return derivatives
+
     def get_intersept(self, variable_name):
         if variable_name == "v0":
             return self.parameters['link_v0'][:, -1]

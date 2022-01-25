@@ -14,6 +14,9 @@ from leaspy.models.utils.initialization.model_initialization import initialize_p
 from leaspy.utils.docs import doc_with_super
 from leaspy.exceptions import LeaspyModelInputError
 
+from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Optional
+from leaspy.exceptions import LeaspyIndividualParamsInputError, LeaspyModelInputError
+
 
 @doc_with_super()
 class AbstractMultivariateLinkModel(AbstractModel):
@@ -220,3 +223,114 @@ class AbstractMultivariateLinkModel(AbstractModel):
         else:
             raise LeaspyModelInputError(f"The specified attribute type does not exist: {attribute_type}. "
                                         "Should be None or 'MCMC'.")
+
+    def _audit_individual_parameters(self, ips: DictParams) -> KwargsType:
+        """
+        Perform various consistency and compatibility (with current model) checks
+        on an individual parameters dict and outputs qualified information about it.
+
+        TODO? move to IndividualParameters class?
+
+        Parameters
+        ----------
+        ips : dict[param: str, Any]
+            Contains some untrusted individual parameters.
+            If representing only one individual (in a multivariate model) it could be:
+                * {'tau':0.1, 'xi':-0.3, 'sources':[0.1,...]}
+
+            Or for multiple individuals:
+                * {'tau':[0.1,0.2,...], 'xi':[-0.3,0.2,...], 'sources':[[0.1,...],[0,...],...]}
+
+            In particular, a sources vector (if present) should always be a array_like, even if it is 1D
+
+        Returns
+        -------
+        ips_info : dict
+            * ``'nb_inds'`` : int >= 0
+                number of individuals present
+            * ``'tensorized_ips'`` : dict[param:str, `torch.Tensor`]
+                tensorized version of individual parameters
+            * ``'tensorized_ips_gen'`` : generator
+                generator providing tensorized individual parameters for all individuals present (ordered as is)
+
+        Raises
+        ------
+        :exc:`.LeaspyIndividualParamsInputError`
+            if any of the consistency/compatibility checks fail
+        """
+
+        def is_array_like(v):
+            # abc.Collection is useless here because set, np.array(scalar) or torch.tensor(scalar)
+            # are abc.Collection but are not array_like in numpy/torch sense or have no len()
+            try:
+                len(v) # exclude np.array(scalar) or torch.tensor(scalar)
+                return hasattr(v, '__getitem__') # exclude set
+            except Exception:
+                return False
+
+        # Model supports and needs sources?
+        has_sources = hasattr(self, 'source_dimension') and isinstance(self.source_dimension, int) and self.source_dimension > 0
+
+        # Check parameters names
+        expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'] + ['v0', 'g'])
+        given_parameters = set(ips.keys())
+        symmetric_diff = expected_parameters.symmetric_difference(given_parameters)
+        if len(symmetric_diff) > 0:
+            raise LeaspyIndividualParamsInputError(
+                    f'Individual parameters dict provided {given_parameters} '
+                    f'is not compatible for {self.name} model. '
+                    f'The expected individual parameters are {expected_parameters}.')
+
+        # Check number of individuals present (with low constraints on shapes)
+        ips_is_array_like = {k: is_array_like(v) for k,v in ips.items()}
+        ips_size = {k: len(v) if ips_is_array_like[k] else 1 for k,v in ips.items()}
+
+        if has_sources:
+            s = ips['sources']
+
+            if not ips_is_array_like['sources']:
+                raise LeaspyIndividualParamsInputError(f'Sources must be an array_like but {s} was provided.')
+
+            tau_xi_scalars = all(ips_size[k] == 1 for k in ['tau','xi'])
+            if tau_xi_scalars and (ips_size['sources'] > 1):
+                # is 'sources' not a nested array? (allowed iff tau & xi are scalars)
+                if not is_array_like(s[0]):
+                    # then update sources size (1D vector representing only 1 individual)
+                    ips_size['sources'] = 1
+
+            if tau_xi_scalars and (ips_size['v0'] > 1):
+                # is 'sources' not a nested array? (allowed iff tau & xi are scalars)
+                if not is_array_like(ips['v0'][0]):
+                    # then update sources size (1D vector representing only 1 individual)
+                    ips_size['v0'] = 1
+
+            if tau_xi_scalars and (ips_size['g'] > 1):
+                # is 'sources' not a nested array? (allowed iff tau & xi are scalars)
+                if not is_array_like(ips['g'][0]):
+                    # then update sources size (1D vector representing only 1 individual)
+                    ips_size['g'] = 1
+
+            # TODO? check source dimension compatibility?
+
+        uniq_sizes = set(ips_size.values())
+        if len(uniq_sizes) != 1:
+            raise LeaspyIndividualParamsInputError('Individual parameters sizes are not compatible together. '
+                                                  f'Sizes are {ips_size}.')
+
+        # number of individuals present
+        n_inds = uniq_sizes.pop()
+
+        # properly choose unsqueezing dimension when tensorizing array_like (useful for sources)
+        unsqueeze_dim = -1 # [1,2] => [[1],[2]] (expected for 2 individuals / 1D sources)
+        if n_inds == 1:
+            unsqueeze_dim = 0 # [1,2] => [[1,2]] (expected for 1 individual / 2D sources)
+
+        # tensorized (2D) version of ips
+        t_ips = {k: self._tensorize_2D(v, unsqueeze_dim=unsqueeze_dim) for k,v in ips.items()}
+
+        # construct logs
+        return {
+            'nb_inds': n_inds,
+            'tensorized_ips': t_ips,
+            'tensorized_ips_gen': ({k: v[i,:].unsqueeze(0) for k,v in t_ips.items()} for i in range(n_inds))
+        }

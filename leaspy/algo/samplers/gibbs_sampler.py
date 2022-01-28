@@ -162,9 +162,8 @@ class GibbsSampler(AbstractSampler):
                 realizations['v0'].tensor_realizations = model.compute_individual_speeds(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
             if self.name == 'link_g':
                 realizations['g'].tensor_realizations = model.compute_individual_positions(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
-
-            # if self.name == 'link_t_mean':
-            #    realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone().reshape(-1,1)
+            if self.name == 'link_t_mean':
+                realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone().reshape(-1,1)
 
             # Compute the attachment and regularity
             new_attachment = model.compute_individual_attachment_tensorized_mcmc(data, realizations).sum()
@@ -190,8 +189,9 @@ class GibbsSampler(AbstractSampler):
                 if self.name == 'link_v0':
                     realizations['v0'].tensor_realizations = model.compute_individual_speeds(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
                 if self.name == 'link_g':
-                    realizations['g'].tensor_realizations = model.compute_individual_positions(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()                # if self.name == 'link_t_mean':
-                #    realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone().reshape(-1,1)
+                    realizations['g'].tensor_realizations = model.compute_individual_positions(model.cofactors.transpose(0,1), attribute_type='MCMC').transpose(0,1).clone()
+                if self.name == 'link_t_mean':
+                    realizations['tau_mean'].tensor_realizations = model.compute_individual_tau_means(model.cofactors.transpose(0,1), attribute_type='MCMC').clone().reshape(-1,1)
 
                 # force re-compute on next iteration
                 self.previous_attachment = self.previous_regularity = None

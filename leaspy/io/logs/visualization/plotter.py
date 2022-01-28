@@ -434,7 +434,7 @@ class Plotter:
                     ax[y_position].set_title(key)
 
         for i, key in enumerate(reals_ind_name):
-            if key != 'v0' and key != 'tau_mean' and key != 'g':
+            if key != 'v0' and key != 'tau_mean' and key != 'g' and key != 'tau':
                 import_path_mean = os.path.join(path, f"{key}_mean.csv")
                 df_convergence_mean = pd.read_csv(import_path_mean, index_col=0, header=None)
                 df_convergence_mean.index.rename("iter", inplace=True)

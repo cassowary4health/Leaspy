@@ -69,7 +69,7 @@ class ScipyMinimizeLink(AbstractPersonalizeAlgo):
         """
         # rescale parameters to their natural scale so they are comparable (as well as their gradient)
         x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
-             model.parameters["tau_mean"] / model.parameters["tau_std"]
+             torch.tensor(0., dtype=torch.float32) / model.parameters["tau_std"]
             ]
         if model.name != "univariate":
             x += [torch.tensor(0., dtype=torch.float32)
@@ -89,6 +89,7 @@ class ScipyMinimizeLink(AbstractPersonalizeAlgo):
         individual_parameters = {
             'xi': tensorized_params[:,[0]] * model.parameters['xi_std'],
             'tau': tensorized_params[:,[1]] * model.parameters['tau_std'],
+            'tau_mean': model.compute_individual_tau_means(cofactors).t(),
             'v0': model.compute_individual_speeds(cofactors).t(),
             'g': model.compute_individual_positions(cofactors).t(),
         }
@@ -168,8 +169,14 @@ class ScipyMinimizeLink(AbstractPersonalizeAlgo):
         for param_name, param_val in individual_parameters.items():
             if model.random_variable_informations()[param_name]['rv_type'] != 'linked':
                 # priors on this parameter
+
+                if 'link' in model.name and param_name == 'tau':
+                    mean = torch.tensor(0., dtype=torch.float32)
+                else:
+                    mean = model.parameters[param_name+"_mean"]
+
                 priors = dict(
-                    mean = model.parameters[param_name+"_mean"],
+                    mean = mean,
                     std = model.parameters[param_name+"_std"]
                 )
 

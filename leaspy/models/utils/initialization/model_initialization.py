@@ -374,17 +374,17 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
 
     link_v0 = torch.zeros(model.link_v0_shape)
     link_g = torch.zeros(model.link_g_shape)
-    # link_t_mean = torch.zeros(model.link_t_mean_shape)
+    link_t_mean = torch.zeros(model.link_t_mean_shape)
 
-    # link_t_mean[:, -1] = t0
+    link_t_mean[:, -1] = t0
 
     if precomputed is not None:
         if 'v0' in precomputed:
             link_v0[:, -1] = precomputed['v0']
         if 'g' in precomputed:
             link_g[:, -1] = precomputed['g']
-        #if 't_mean' in precomputed:
-        #    link_t_mean[:, -1] = precomputed['t_mean']
+        if 't_mean' in precomputed:
+            link_t_mean[:, -1] = precomputed['t_mean']
   
     # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
@@ -397,8 +397,8 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
         parameters = {
             'link_v0': link_v0,
             'link_g': link_g,
-            #'link_t_mean': link_t_mean,
-            'tau_mean': t0,
+            'link_t_mean': link_t_mean,
+            #'tau_mean': t0,
             'betas': betas,
             'tau_std': torch.tensor(tau_std, dtype=torch.float32),
             'xi_mean': torch.tensor(0., dtype=torch.float32),

@@ -89,6 +89,7 @@ class AbstractMultivariateLinkModel(AbstractModel):
         #self.link_shape = torch.Size([self.dimension+1, self.cofactors_dimension+1])
         self.link_v0_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
         self.link_g_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
+        self.link_t_mean_shape = torch.Size([1, self.cofactors_dimension+1])
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
@@ -209,8 +210,8 @@ class AbstractMultivariateLinkModel(AbstractModel):
             'sources': torch.zeros(self.source_dimension, dtype=torch.float32, device=self.device),
             'v0': torch.exp(self.get_intersept('v0')[None,:]),
             'g': torch.exp(self.get_intersept('g')[None,:]),
-            # 'tau_mean': self.parameters['tau_mean'],#self.get_intersept('tau_mean')[None,:],
-            'tau': self.parameters['tau_mean'],#self.get_intersept('tau_mean')[None,:],
+            'tau_mean': self.get_intersept('tau_mean')[None,:],
+            'tau': torch.tensor([0.]),
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)
@@ -272,7 +273,7 @@ class AbstractMultivariateLinkModel(AbstractModel):
         has_sources = hasattr(self, 'source_dimension') and isinstance(self.source_dimension, int) and self.source_dimension > 0
 
         # Check parameters names
-        expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'] + ['v0', 'g'])
+        expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'] + ['v0', 'g', 'tau_mean'])
         given_parameters = set(ips.keys())
         symmetric_diff = expected_parameters.symmetric_difference(given_parameters)
         if len(symmetric_diff) > 0:

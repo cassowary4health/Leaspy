@@ -297,11 +297,13 @@ class Plotter:
     def plot_patient_reconstructions(path, dataset, model, param_ind, *, max_patient_number=5, attribute_type=None):
 
         if isinstance(max_patient_number, int):
+            max_patient_number = min(max_patient_number, dataset.n_individuals)
             patients_list = range(max_patient_number)
             n_pats = max_patient_number
         else:
+            # list of ints (not the ID but the indices of wanted patients [0, 1, 2, 3...])
             patients_list = max_patient_number
-            n_pats = len(max_patient_number)
+            n_pats = len(patients_list)
 
         colors = cm.Dark2(np.linspace(0, 1, n_pats + 2))
 

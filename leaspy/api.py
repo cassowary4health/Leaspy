@@ -67,6 +67,11 @@ class Leaspy:
     See Also
     --------
     :mod:`leaspy.models`
+    :class:`.ModelFactory`
+    :class:`.Data`
+    :class:`.AlgorithmSettings`
+    :mod:`leaspy.algo`
+    :class:`.IndividualParameters`
     """
 
     def __init__(self, model_name: str, **kwargs):
@@ -90,6 +95,10 @@ class Leaspy:
         settings : :class:`.AlgorithmSettings`
             Contains the algorithm's settings.
 
+        See Also
+        --------
+        :mod:`leaspy.algo.fit`
+
         Examples
         --------
         Fit a logistic model on a longitudinal dataset, display the group parameters
@@ -99,7 +108,8 @@ class Leaspy:
         >>> putamen_df = Loader.load_dataset('parkinson-putamen')
         >>> data = Data.from_dataframe(putamen_df)
         >>> leaspy_logistic = Leaspy('univariate_logistic')
-        >>> settings = AlgorithmSettings('mcmc_saem', progress_bar=True, seed=0)
+        >>> settings = AlgorithmSettings('mcmc_saem', seed=0)
+        >>> settings.set_logs('path/to/logs', console_print_periodicity=50)
         >>> leaspy_logistic.fit(data, settings)
          ==> Setting seed to 0
         |##################################################|   10000/10000 iterations
@@ -161,6 +171,10 @@ class Leaspy:
         :exc:`.LeaspyInputError`
             if model is not initialized.
 
+        See Also
+        --------
+        :mod:`leaspy.algo.personalize`
+
         Examples
         --------
         Compute the individual parameters for a given longitudinal dataset and calibrated model, then
@@ -171,7 +185,7 @@ class Leaspy:
         >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
         >>> putamen_df = Loader.load_dataset('parkinson-putamen')
         >>> data = Data.from_dataframe(putamen_df)
-        >>> personalize_settings = AlgorithmSettings('scipy_minimize', progress_bar=True, use_jacobian=True, seed=0)
+        >>> personalize_settings = AlgorithmSettings('scipy_minimize', seed=0)
         >>> individual_parameters = leaspy_logistic.personalize(data, personalize_settings)
          ==> Setting seed to 0
         |##################################################|   200/200 subjects
@@ -203,7 +217,7 @@ class Leaspy:
 
         Parameters
         ----------
-        timepoints : dictionary {string/int: array_like[numeric]} or :class:`pandas.MultiIndex`
+        timepoints : dictionary {str/int: array_like[numeric]} or :class:`pandas.MultiIndex`
             Contains, for each individual, the time-points to estimate.
             It can be a unique time-point or a list of time-points.
         individual_parameters : :class:`.IndividualParameters`
@@ -227,7 +241,9 @@ class Leaspy:
         >>> from leaspy.datasets import Loader
         >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
         >>> individual_parameters = Loader.load_individual_parameters('parkinson-putamen-train')
-        >>> timepoints = {'GS-001': (70, 74, 80), 'GS-002': (71, 72)}
+        >>> df_train = Loader.load_dataset('parkinson-putamen-train_and_test').xs('train', level='SPLIT')
+        >>> timepoints = {'GS-001': (70, 74, 80), 'GS-002': (71, 72)}  # as dict
+        >>> timepoints = df_train.sort_index().groupby('ID').tail(2).index  # as pandas (ID, TIME) MultiIndex
         >>> estimations = leaspy_logistic.estimate(timepoints, individual_parameters)
         """
         estimations = {}
@@ -298,7 +314,6 @@ class Leaspy:
         Given the individual parameters of two subjects, and the feature value of 0.2 for the first
         and 0.5 and 0.6 for the second, get the corresponding estimated ages at which these values will be reached.
 
-
         >>> from leaspy.datasets import Loader
         >>> leaspy_logistic = Loader.load_leaspy_instance('parkinson-putamen-train')
         >>> individual_parameters = Loader.load_individual_parameters('parkinson-putamen-train')
@@ -306,7 +321,6 @@ class Leaspy:
         # Here the 'feature' argument is optional, as the model is univariate
         >>> estimated_ages = leaspy_logistic.estimate_ages_from_biomarker_values(individual_parameters, biomarker_values,
         >>> feature='PUTAMEN')
-
         """
         # check input
         model_features = self.model.features
@@ -375,6 +389,10 @@ class Leaspy:
         -------
         simulated_data : :class:`~.io.outputs.result.Result`
             Contains the generated individual parameters & the corresponding generated scores.
+
+        See Also
+        --------
+        :class:`~leaspy.algo.simulate.simulate.SimulationAlgorithm`
 
         Notes
         -----
@@ -495,10 +513,6 @@ class Leaspy:
         leaspy.model.load_hyperparameters(reader.hyperparameters)
         leaspy.model.load_parameters(reader.parameters)
 
-        # dirty... logic should be changed to be compatible with models without MCMC toolbox (constant model or LME model)
-        if hasattr(leaspy.model, 'initialize_MCMC_toolbox'):
-            leaspy.model.initialize_MCMC_toolbox()
-
         leaspy.model.is_initialized = True
 
         return leaspy
@@ -524,7 +538,7 @@ class Leaspy:
         >>> putamen_df = Loader.load_dataset('parkinson-putamen')
         >>> data = Data.from_dataframe(putamen_df)
         >>> leaspy_logistic = Leaspy('univariate_logistic')
-        >>> settings = AlgorithmSettings('mcmc_saem', progress_bar=True, seed=0)
+        >>> settings = AlgorithmSettings('mcmc_saem', seed=0)
         >>> leaspy_logistic.fit(data, settings)
          ==> Setting seed to 0
         |##################################################|   10000/10000 iterations

@@ -8,7 +8,7 @@ from tests import LeaspyTestCase
 class CSVDataReaderTest(LeaspyTestCase):
 
     def test_constructor_univariate(self):
-        path = self.test_data_path('data_mock', 'univariate_data.csv')
+        path = self.get_test_data_path('data_mock', 'univariate_data.csv')
         reader = CSVDataReader(path)
 
         iter_to_idx = {
@@ -24,7 +24,7 @@ class CSVDataReaderTest(LeaspyTestCase):
 
 
     def test_constructor_multivariate(self):
-        path = self.test_data_path('data_mock', 'multivariate_data.csv')
+        path = self.get_test_data_path('data_mock', 'multivariate_data.csv')
         reader = CSVDataReader(path)
 
         iter_to_idx = {
@@ -39,7 +39,7 @@ class CSVDataReaderTest(LeaspyTestCase):
 
     def test_load_data_with_missing_values(self):
         # only test that it works (was not the case previously...)!
-        path = self.test_data_path('data_mock', 'missing_data', 'sparse_data.csv')
+        path = self.get_test_data_path('data_mock', 'missing_data', 'sparse_data.csv')
         reader = CSVDataReader(path, drop_full_nan=False)
 
         self.assertEqual(reader.dimension, 4)

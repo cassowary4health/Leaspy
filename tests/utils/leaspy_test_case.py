@@ -39,7 +39,7 @@ class LeaspyTestCase(TestCase):
     _test_data_dir = os.path.join(test_root_dir, "_data")
 
     @classmethod
-    def test_data_path(cls, *rel_path_chunks: str):
+    def get_test_data_path(cls, *rel_path_chunks: str):
         return os.path.join(cls._test_data_dir, *rel_path_chunks)
 
     # Main mock of data for tests
@@ -60,7 +60,7 @@ class LeaspyTestCase(TestCase):
         return (cls.__name__,)
 
     @classmethod
-    def test_tmp_path(cls, *rel_path_chunks: str):
+    def get_test_tmp_path(cls, *rel_path_chunks: str):
         assert not any('..' in chunk for chunk in rel_path_chunks)  # do search upper folder by error...
         return os.path.join(cls._test_tmp_dir, *cls.TMP_SUBFOLDER, *rel_path_chunks)
 
@@ -76,12 +76,12 @@ class LeaspyTestCase(TestCase):
     @classmethod
     def remove_tmp_subfolder(cls, *rel_path_chunks: str):
         """<!> use carefully, delete folder and all of its content!!!!"""
-        shutil.rmtree(cls.test_tmp_path(*rel_path_chunks))
+        shutil.rmtree(cls.get_test_tmp_path(*rel_path_chunks))
 
     @classmethod
     def reset_tmp_subfolder(cls, *rel_path_chunks: str, force_remove: bool = True):
         """<!> use carefully, delete folder and all of its content if was existing!!!!"""
-        path = cls.test_tmp_path(*rel_path_chunks)
+        path = cls.get_test_tmp_path(*rel_path_chunks)
         if os.path.isdir(path):
             if force_remove:
                 cls.remove_tmp_subfolder(*rel_path_chunks)
@@ -434,5 +434,5 @@ class LeaspyTestCase(TestCase):
         self.assertLenEqual(obj, 0, msg=msg)
 
     def assertHasTmpFile(self, rel_path: str):
-        self.assertTrue(os.path.isfile(self.test_tmp_path(rel_path)),
+        self.assertTrue(os.path.isfile(self.get_test_tmp_path(rel_path)),
                         msg=f'`{rel_path}` was not created.')

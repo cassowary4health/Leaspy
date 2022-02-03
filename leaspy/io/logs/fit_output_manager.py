@@ -12,7 +12,7 @@ class FitOutputManager:
     Parameters
     ----------
     outputs : :class:`~.io.settings.outputs_settings.OutputsSettings`
-        Initialize the `FitOuputManager` class attributes, like the logs paths, the console print periodicity and so forth.
+        Initialize the `FitOutputManager` class attributes, like the logs paths, the console print periodicity and so forth.
 
     Attributes
     ----------
@@ -46,23 +46,30 @@ class FitOutputManager:
 
     def __init__(self, outputs):
 
+        self.periodicity_print = outputs.console_print_periodicity
+        self.periodicity_save = outputs.save_periodicity
+        self.periodicity_plot = outputs.plot_periodicity
+
         self.path_output = outputs.root_path
         self.path_plot = outputs.plot_path
         self.path_plot_patients = outputs.patients_plot_path
-        self.path_plot_convergence_model_parameters_1 = os.path.join(outputs.plot_path, "convergence_1.pdf")
-        self.path_plot_convergence_model_parameters_2 = os.path.join(outputs.plot_path, "convergence_2.pdf")
         self.path_save_model_parameters_convergence = outputs.parameter_convergence_path
-        self.periodicity_plot = outputs.plot_periodicity
-        self.periodicity_print = outputs.console_print_periodicity
-        self.periodicity_save = outputs.save_periodicity
+        self.path_plot_convergence_model_parameters_1 = None
+        self.path_plot_convergence_model_parameters_2 = None
+
+        if outputs.patients_plot_path is not None:
+            self.path_plot_convergence_model_parameters_1 = os.path.join(outputs.plot_path, "convergence_1.pdf")
+            self.path_plot_convergence_model_parameters_2 = os.path.join(outputs.plot_path, "convergence_2.pdf")
 
         # Options
         # TODO : Maybe add to the outputs reader
-        self.plot_options = {}
-        self.plot_options['maximum_patient_number'] = 5
+        self.plot_options = {'max_patient_number': 5}
         self.plotter = Plotter()
+        self.plotter._show = False  # do not show any of the plots!
 
         self.time = time.time()
+
+        self.save_last_n_realizations = 100
 
     def iteration(self, algo, data, model, realizations):
         """
@@ -80,6 +87,12 @@ class FitOutputManager:
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
+
+        # <!> only `current_iteration` defined for AbstractFitAlgorithm... TODO -> generalize where possible?
+        if not hasattr(algo, 'current_iteration'):
+            # emit a warning?
+            return
+
         iteration = algo.current_iteration
 
         if self.periodicity_print is not None:
@@ -95,14 +108,14 @@ class FitOutputManager:
         if self.periodicity_save is not None:
             if iteration == 1 or iteration % self.periodicity_save == 0:
                 self.save_model_parameters_convergence(iteration, model)
-                # self.save_model(model)
+                # model.save(...)
 
         if self.periodicity_plot is not None:
             if iteration == 1 or iteration % self.periodicity_plot == 0:
                 self.plot_patient_reconstructions(iteration, data, model, realizations)
                 self.plot_convergence_model_parameters(model)
 
-        if (algo.algo_parameters['n_iter'] - iteration) < 100:
+        if (algo.algo_parameters['n_iter'] - iteration) < self.save_last_n_realizations:
             self.save_realizations(iteration, realizations)
 
     ########
@@ -114,7 +127,7 @@ class FitOutputManager:
         Display the duration since the last print
         """
         current_time = time.time()
-        print(f"Duration since last print : {current_time - self.time:.4f}s")
+        print(f"Duration since last print: {current_time - self.time:.3f}s")
         self.time = current_time
 
     def print_model_statistics(self, model):
@@ -195,6 +208,7 @@ class FitOutputManager:
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
+        # TODO: not generic at all
         for name in ['xi', 'tau']:
             value = realizations[name].tensor_realizations.squeeze(1).detach().tolist()
             path = os.path.join(self.path_save_model_parameters_convergence, name + ".csv")
@@ -249,8 +263,7 @@ class FitOutputManager:
         """
         path_iteration = os.path.join(self.path_plot_patients, f'plot_patients_{iteration}.pdf')
         param_ind = model.get_param_from_real(realizations)
-        self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind,
-                                                  self.plot_options['maximum_patient_number'])
+        self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind, **self.plot_options)
 
         """
         colors = cm.rainbow(np.linspace(0, 1, self.plot_options['maximum_patient_number']+2))

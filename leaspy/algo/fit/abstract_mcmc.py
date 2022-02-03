@@ -53,6 +53,8 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         """
 
         # MCMC toolbox (cache variables for speed-ups + tricks)
+        # TODO? why not using just initialized `realizations` here in MCMC toolbox initialization?
+        # TODO? we should NOT store the MCMC_toolbox in the model even if convenient, since it actually belongs to the algorithm itself!
         model.initialize_MCMC_toolbox()
 
         # Samplers
@@ -84,6 +86,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
+        # TODO: a great deal of computation for almost nothing (just to get name & shape of sufficient stats) -> refact?
         suff_stats = model.compute_sufficient_statistics(data, realizations)
         self.sufficient_statistics = {k: torch.zeros(v.shape, dtype=torch.float32) for k, v in suff_stats.items()}
 
@@ -110,8 +113,10 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         """
 
         # Sample step
+        ## TODO: shouldn't we shuffle order of population vars during sampling?
         for key in realizations.reals_pop_variable_names:
             self.samplers[key].sample(data, model, realizations, self.temperature_inv)
+        ## TODO: shouldn't we shuffle order of individual vars during sampling?
         for key in realizations.reals_ind_variable_names:
             self.samplers[key].sample(data, model, realizations, self.temperature_inv)
 

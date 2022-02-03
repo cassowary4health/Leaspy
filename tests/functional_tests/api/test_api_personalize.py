@@ -1,4 +1,6 @@
 import torch
+from numpy import nan
+import pandas as pd
 
 from leaspy import Data, IndividualParameters
 
@@ -23,7 +25,7 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
             data = cls.get_suited_test_data_for_model(hardcoded_model_name)
         else:
             # relative path to data (csv expected)
-            data_full_path = cls.test_data_path('data_mock', data_path)
+            data_full_path = cls.get_test_data_path('data_mock', data_path)
             data = Data.from_csv_file(data_full_path, **data_kws)
 
         # create the personalize algo settings (from path or name + params)
@@ -57,20 +59,20 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         Load logistic model from file, and personalize it to data from ...
         """
         # Load saved algorithm
-        path_settings = self.test_data_path('settings', 'algo', 'settings_mean_real.json')
+        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mean_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.11631, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.1024, tol_noise=tol_noise)
 
     def test_personalize_mode_real_logistic(self, tol_noise=1e-3):
         """
         Load logistic model from file, and personalize it to data from ...
         """
         # Load saved algorithm
-        path_settings = self.test_data_path('settings', 'algo', 'settings_mode_real.json')
+        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mode_real.json')
         ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.11711, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.117, tol_noise=tol_noise)
 
     def test_personalize_scipy_minimize(self, tol_noise=5e-3):
         """
@@ -157,6 +159,82 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 # same noise between them and as expected
                 self.assertTrue(torch.allclose(noise_sparse, noise_merged, atol=atol), msg=subtest)
                 self.assertTrue(torch.allclose(noise_merged, torch.tensor(expected_noise_std), atol=atol), msg=subtest)
+
+    def test_personalize_full_nan(self):
+        # test result of personalization with no data at all
+        df = pd.DataFrame({
+            'ID': ['SUBJ1', 'SUBJ1'],
+            'TIME': [75.12, 78.9],
+            'Y0': [nan]*2,
+            'Y1': [nan]*2,
+            'Y2': [nan]*2,
+            'Y3': [nan]*2,
+        }).set_index(['ID', 'TIME'])
+
+        lsp = self.get_hardcoded_model('logistic_diag_noise')
+        algo = self.get_algo_settings(name='scipy_minimize', seed=0, progress_bar=False)
+
+        with self.assertRaisesRegex(ValueError, 'Dataframe should have at least '):
+            # drop rows full of nans, nothing is left...
+            data_0 = Data.from_dataframe(df)
+
+        with self.assertWarnsRegex(UserWarning, r"These columns only contain nans: \['Y0', 'Y1', 'Y2', 'Y3'\]"):
+            data_1 = Data.from_dataframe(df.head(1), drop_full_nan=False)
+            data_2 = Data.from_dataframe(df, drop_full_nan=False)
+
+        self.assertEqual(data_1.n_individuals, 1)
+        self.assertEqual(data_1.n_visits, 1)
+
+        self.assertEqual(data_2.n_individuals, 1)
+        self.assertEqual(data_2.n_visits, 2)
+
+        ips_1 = lsp.personalize(data_1, algo)
+        ips_2 = lsp.personalize(data_2, algo)
+
+        indices_1, dict_1 = ips_1.to_pytorch()
+        indices_2, dict_2 = ips_2.to_pytorch()
+
+        self.assertEqual(indices_1, ['SUBJ1'])
+        self.assertEqual(indices_1, indices_2)
+        self.assertDictAlmostEqual(dict_1, dict_2)
+        self.assertDictAlmostEqual(dict_1, {
+            'tau': [lsp.model.parameters['tau_mean']],
+            'xi': [0],
+            'sources': lsp.model.source_dimension*[0]
+        })
+
+    def test_personalize_same_if_extra_totally_nan_visits(self):
+
+        df = pd.DataFrame({
+            'ID': ['SUBJ1']*4,
+            'TIME': [75.12, 78.9, 67.1, 76.1],
+            'Y0': [nan, .6, nan, .2],
+            'Y1': [nan, .4, nan, nan],
+            'Y2': [nan, .5, nan, .2],
+            'Y3': [nan, .3, nan, .2],
+        }).set_index(['ID', 'TIME'])
+
+        lsp = self.get_hardcoded_model('logistic_diag_noise')
+        algo = self.get_algo_settings(name='scipy_minimize', seed=0, progress_bar=False)
+
+        data_without_empty_visits = Data.from_dataframe(df)
+        data_with_empty_visits = Data.from_dataframe(df, drop_full_nan=False)
+
+        self.assertEqual(data_without_empty_visits.n_individuals, 1)
+        self.assertEqual(data_without_empty_visits.n_visits, 2)
+
+        self.assertEqual(data_with_empty_visits.n_individuals, 1)
+        self.assertEqual(data_with_empty_visits.n_visits, 4)
+
+        ips_without_empty_visits = lsp.personalize(data_without_empty_visits, algo)
+        ips_with_empty_visits = lsp.personalize(data_with_empty_visits, algo)
+
+        indices_1, dict_1 = ips_without_empty_visits.to_pytorch()
+        indices_2, dict_2 = ips_with_empty_visits.to_pytorch()
+
+        self.assertEqual(indices_1, ['SUBJ1'])
+        self.assertEqual(indices_1, indices_2)
+        self.assertDictAlmostEqual(dict_1, dict_2)
 
     # TODO : problem with nans
     """

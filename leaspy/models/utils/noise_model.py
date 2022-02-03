@@ -56,7 +56,7 @@ class NoiseModel:
     :exc:`.LeaspyInputError`
         If `noise_struct` is not supported.
 
-    See also
+    See Also
     --------
     :meth:`NoiseModel.from_model`
     """
@@ -130,7 +130,7 @@ class NoiseModel:
                 * 'inherit_struct' (or deprecated 'default'): use the noise structure from model provided
                 (but not the actual parameters of noise from model, if any)
                 * All other regular noise structures supported (cf. class docstring)
-        noise_kws :
+        **noise_kws : any
             Extra parameters for noise (cf. class docstring)
             Not to be used when `noise_struct` = 'model' (default)
 
@@ -267,7 +267,7 @@ class NoiseModel:
 
         Parameters
         ----------
-        model :
+        model : AbstractModel
             Where to set noise model (in-place)
         hyperparams : dict[str, Any]
             where to look for noise model

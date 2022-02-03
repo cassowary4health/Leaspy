@@ -1,4 +1,5 @@
 import os
+import math
 
 import pandas as pd
 import numpy as np
@@ -293,18 +294,23 @@ class Plotter:
         pdf.close()
 
     @staticmethod
-    def plot_patient_reconstructions(path, dataset, model, param_ind, max_patient_number=10, attribute_type=None):
+    def plot_patient_reconstructions(path, dataset, model, param_ind, *, max_patient_number=5, attribute_type=None):
 
-        colors = cm.Dark2(np.linspace(0, 1, max_patient_number + 2))
+        if isinstance(max_patient_number, int):
+            max_patient_number = min(max_patient_number, dataset.n_individuals)
+            patients_list = range(max_patient_number)
+            n_pats = max_patient_number
+        else:
+            # list of ints (not the ID but the indices of wanted patients [0, 1, 2, 3...])
+            patients_list = max_patient_number
+            n_pats = len(patients_list)
+
+        colors = cm.Dark2(np.linspace(0, 1, n_pats + 2))
 
         fig, ax = plt.subplots(1, 1)
 
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type)
+        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
 
-        if isinstance(max_patient_number, int):
-            patients_list = range(max_patient_number)
-        else:
-            patients_list = max_patient_number
 
         for i in patients_list:
             model_value = patient_values[i, 0:dataset.n_visits_per_individual[i], :]
@@ -314,9 +320,6 @@ class Plotter:
             ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].detach().numpy(),
                     score.detach().numpy(), c=colors[i], linestyle='--',
                     marker='o')
-
-            if i > max_patient_number:
-                break
 
         # Plot the mean also
         # min_time, max_time = torch.min(dataset.timepoints[dataset.timepoints>0.0]), torch.max(dataset.timepoints)
@@ -369,23 +372,37 @@ class Plotter:
     ## TODO : Refaire avec le path qui est fourni en haut!
     @staticmethod
     def plot_convergence_model_parameters(path, path_saveplot_1, path_saveplot_2, model):
+        # TODO? add legends (color <-> feature, esp. for g/v0/noise_std/deltas)
+        # TODO? add loss (log-likelihood) or some information criteria AIC/BIC
+
+        # figure dimensions
+        width = 10
+        height_per_row = 3.5
+
+        # don't keep the sources parameters (fixed mean = 0 & std = 1 by design)
+        skip_sources = True
 
         # Make the plot 1
 
-        fig, ax = plt.subplots(int(len(model.parameters.keys()) / 2) + 1, 2, figsize=(10, 20))
+        to_skip_1 = ['betas'] + ['sources_mean', 'sources_std']*int(skip_sources)
+        params_to_plot_1 = [p for p in model.parameters.keys() if p not in to_skip_1]
 
-        for i, key in enumerate(model.parameters.keys()):
+        n_plots_1 = len(params_to_plot_1)
+        n_rows_1 = math.ceil(n_plots_1 / 2)
+        _, ax = plt.subplots(n_rows_1, 2, figsize=(width, n_rows_1 * height_per_row))
 
-            if key not in ['betas']:
-                import_path = os.path.join(path, key + ".csv")
-                df_convergence = pd.read_csv(import_path, index_col=0, header=None)
-                df_convergence.index.rename("iter", inplace=True)
+        for i, key in enumerate(params_to_plot_1):
 
-                x_position = int(i / 2)
-                y_position = i % 2
-                # ax[x_position][y_position].plot(df_convergence.index.values, df_convergence.values)
-                df_convergence.plot(ax=ax[x_position][y_position], legend=False)
-                ax[x_position][y_position].set_title(key)
+            import_path = os.path.join(path, key + ".csv")
+            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+            df_convergence.index.rename("iter", inplace=True)
+
+            x_position = i // 2
+            y_position = i % 2
+            # ax[x_position][y_position].plot(df_convergence.index.values, df_convergence.values)
+            df_convergence.plot(ax=ax[x_position][y_position], legend=False)
+            ax[x_position][y_position].set_title(key)
+
         plt.tight_layout()
         plt.savefig(path_saveplot_1)
         plt.close()
@@ -395,12 +412,15 @@ class Plotter:
         reals_pop_name = model.get_population_realization_names()
         reals_ind_name = model.get_individual_realization_names()
 
-        additional_plots = 1
+        additional_plots = 1 # for noise_std
         if model.noise_model == 'bernoulli':
             additional_plots += 1 # for crossentropy
 
-        fig, ax = plt.subplots(len(reals_pop_name + reals_ind_name) + additional_plots, 1,
-                               figsize=(10, 20))
+        if skip_sources and 'sources' in reals_ind_name:
+            additional_plots -= 1
+
+        n_plots_2 = len(reals_pop_name) + len(reals_ind_name) + additional_plots
+        _, ax = plt.subplots(n_plots_2, 1, figsize=(width, n_plots_2*height_per_row))
 
         # nonposy is deprecated since Matplotlib 3.3
         mpl_version = mpl.__version__.split('.')
@@ -431,40 +451,46 @@ class Plotter:
 
         for i, key in enumerate(reals_pop_name):
             y_position += 1
+            ax[y_position].set_title(key)
             if key not in ['betas']:
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                 df_convergence.index.rename("iter", inplace=True)
                 df_convergence.plot(ax=ax[y_position], legend=False)
-                ax[y_position].set_title(key)
-            if key in ['betas']:
+            else:
                 for source_dim in range(model.source_dimension):
+                    # TODO: better legend?
                     import_path = os.path.join(path, key + "_" + str(source_dim) + ".csv")
                     df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                     df_convergence.index.rename("iter", inplace=True)
                     df_convergence.plot(ax=ax[y_position], legend=False)
-                    ax[y_position].set_title(key)
+
+        quartiles_factor = 0.6745 # = scipy.stats.norm.ppf(.75)
 
         for i, key in enumerate(reals_ind_name):
+
+            if skip_sources and key in ['sources']:
+                continue
+
             import_path_mean = os.path.join(path, f"{key}_mean.csv")
             df_convergence_mean = pd.read_csv(import_path_mean, index_col=0, header=None)
             df_convergence_mean.index.rename("iter", inplace=True)
 
-            import_path_var = os.path.join(path, f"{key}_std.csv")
-            df_convergence_var = pd.read_csv(import_path_var, index_col=0, header=None)
-            df_convergence_var.index.rename("iter", inplace=True)
+            import_path_std = os.path.join(path, f"{key}_std.csv")
+            df_convergence_std = pd.read_csv(import_path_std, index_col=0, header=None)
+            df_convergence_std.index.rename("iter", inplace=True)
 
             df_convergence_mean.columns = [f"{key}_mean"]
-            df_convergence_var.columns = [f"{key}_sigma"] # is it variance or std-dev??
+            df_convergence_std.columns = [f"{key}_std"] # is it variance or std-dev??
 
-            df_convergence = pd.concat([df_convergence_mean, df_convergence_var], axis=1)
+            df_convergence = pd.concat([df_convergence_mean, df_convergence_std], axis=1)
 
             y_position += 1
             df_convergence.plot(use_index=True, y=f"{key}_mean", ax=ax[y_position], legend=False)
 
-            mu, sd = df_convergence[f"{key}_mean"], np.sqrt(df_convergence[f"{key}_sigma"]) # is it variance or std-dev??
+            mu, sd = df_convergence[f"{key}_mean"], df_convergence[f"{key}_std"]
             ax[y_position].fill_between(df_convergence.index,
-                                        mu - sd, mu + sd,
+                                        mu - quartiles_factor*sd, mu + quartiles_factor*sd,
                                         color='b', alpha=0.2)
             ax[y_position].set_title(key)
 

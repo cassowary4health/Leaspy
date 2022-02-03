@@ -17,23 +17,27 @@ class SamplerTest(LeaspyTestCase):
         cls.data = cls.get_suited_test_data_for_model('logistic_scalar_noise')
         cls.dataset = Dataset(cls.data)
 
+        # GibbsSampler scales so not to change old results
+        cls.scale_ind = .1 / GibbsSampler.STD_SCALE_FACTOR_IND
+        cls.scale_pop = 5e-3 / GibbsSampler.STD_SCALE_FACTOR_POP
+
     def test_sample(self):
         """
         Test if samples values are the one expected
         """
-        # TODO change this instanciation
+        # TODO change this instantiation
         n_patients = 17
         n_draw = 50
         temperature_inv = 1.0
 
-        realizations = self.leaspy.model.get_realization_object(n_patients)
+        realizations = self.leaspy.model.initialize_realizations_for_model(n_patients)
 
-        # Test with taus
+        # Test with taus (individual parameter)
         var_name = 'tau'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_ind)
         random_draws = []
         for i in range(n_draw):
-            gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv)
+            gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv, attribute_type=None)
             random_draws.append(realizations[var_name].tensor_realizations.clone())
 
         stack_random_draws = torch.stack(random_draws)
@@ -43,12 +47,14 @@ class SamplerTest(LeaspyTestCase):
         self.assertAlmostEqual(stack_random_draws_mean.mean(), 0.0160, delta=0.05)
         self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0861, delta=0.05)
 
-        # Test with g
+        # Test with g (population parameter)
         var_name = 'g'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_pop)
+        # a valid model MCMC toolbox is needed for sampling a population variable (update in-place)
+        self.leaspy.model.initialize_MCMC_toolbox()
         random_draws = []
         for i in range(n_draw):
-            gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv)
+            gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv)  # attribute_type=None would not be used here
             random_draws.append(realizations[var_name].tensor_realizations.clone())
 
         stack_random_draws = torch.stack(random_draws)
@@ -63,11 +69,11 @@ class SamplerTest(LeaspyTestCase):
         n_draw = 200
         # temperature_inv = 1.0
 
-        # realizations = self.leaspy.model.get_realization_object(n_patients)
+        # realizations = self.leaspy.model.initialize_realizations_for_model(n_patients)
 
         # Test with taus
         var_name = 'tau'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_ind)
 
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))
@@ -79,11 +85,11 @@ class SamplerTest(LeaspyTestCase):
         n_draw = 200
         # temperature_inv = 1.0
 
-        # realizations = self.leaspy.model.get_realization_object(n_patients)
+        # realizations = self.leaspy.model.initialize_realizations_for_model(n_patients)
 
         # Test with taus
         var_name = 'tau'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients)
+        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_ind)
 
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))

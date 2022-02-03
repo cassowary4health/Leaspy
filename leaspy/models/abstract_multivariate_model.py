@@ -13,6 +13,7 @@ from leaspy.models.utils.attributes.abstract_manifold_model_attributes import Ab
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.models.utils.noise_model import NoiseModel
 
+from leaspy.utils.typing import KwargsType, List, Optional
 from leaspy.utils.docs import doc_with_super
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -75,7 +76,7 @@ class AbstractMultivariateModel(AbstractModel):
         return realizations
     """
 
-    def initialize(self, dataset, method="default"):
+    def initialize(self, dataset, method: str = 'default'):
 
         if dataset.dimension < 2:
             raise LeaspyModelInputError("A multivariate model should have at least 2 features but your dataset "
@@ -100,20 +101,17 @@ class AbstractMultivariateModel(AbstractModel):
         self.is_initialized = True
 
     @abstractmethod
-    def initialize_MCMC_toolbox(self):
+    def initialize_MCMC_toolbox(self) -> None:
         """
         Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
-
-        TODO to move in a "MCMC-model interface"
         """
+        # TODO to move in a "MCMC-model interface"
         pass
 
     @abstractmethod
-    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed: List[str], realizations) -> None:
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
-
-        TODO to move in a "MCMC-model interface"
 
         Parameters
         ----------
@@ -122,9 +120,10 @@ class AbstractMultivariateModel(AbstractModel):
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with
         """
+        # TODO to move in a "MCMC-model interface"
         pass
 
-    def load_hyperparameters(self, hyperparameters):
+    def load_hyperparameters(self, hyperparameters: KwargsType):
 
         expected_hyperparameters = ('features', 'dimension', 'source_dimension')
 
@@ -146,7 +145,7 @@ class AbstractMultivariateModel(AbstractModel):
 
         self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
-    def save(self, path, with_mixing_matrix=True, **kwargs):
+    def save(self, path: str, with_mixing_matrix: bool = True, **kwargs):
         """
         Save Leaspy object as json model parameter file.
 
@@ -190,7 +189,7 @@ class AbstractMultivariateModel(AbstractModel):
             json.dump(model_settings, fp, **kwargs)
 
     @abstractmethod
-    def compute_individual_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None) -> torch.FloatTensor:
         pass
 
     def compute_mean_traj(self, timepoints):
@@ -216,7 +215,7 @@ class AbstractMultivariateModel(AbstractModel):
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
-    def _get_attributes(self, attribute_type):
+    def _get_attributes(self, attribute_type: Optional[str]):
         if attribute_type is None:
             return self.attributes.get_attributes()
         elif attribute_type == 'MCMC':

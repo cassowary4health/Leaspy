@@ -9,26 +9,7 @@ from leaspy.io.data.dataset import Dataset
 from tests import LeaspyTestCase
 
 
-class MatplotlibTest_Mixin:
-
-    @classmethod
-    def set_matplotlib_backend(cls):
-        import matplotlib
-        if 'macos' in os.environ.get('CI_RUNNER_TAGS', ''):
-            # this is needed because in MacOSX CI machine, the following immediately fails severely...
-            matplotlib.use('pdf')
-        else:
-            try:
-                matplotlib.pyplot.subplot(1, 1)
-            except Exception:
-                matplotlib.use('pdf')
-
-
-class PlotterTest(LeaspyTestCase, MatplotlibTest_Mixin):
-    # only check that functions are running, not checking their results
-    # TODO? use matplotlib.testing functions to do so?
-
-    # TMP_REMOVE_AT_END = False
+class MatplotlibTestCase(LeaspyTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -38,7 +19,34 @@ class PlotterTest(LeaspyTestCase, MatplotlibTest_Mixin):
         # can not use the standard matplotlib backend on CI so use a fallback if needed
         cls.set_matplotlib_backend()
 
-        cls.plotter = Plotter(cls.test_tmp_path())
+    @classmethod
+    def set_matplotlib_backend(cls):
+        import matplotlib
+        if 'macos' in os.environ.get('CI_RUNNER_TAGS', ''):
+            # this is needed because in MacOSX CI machine, the following immediately fails severely...
+            matplotlib.use('pdf')
+            # if CI machine has other matplotlib issues (fonts issues, ...),
+            # try deleting the matplotlib cache dir (under .matplotlib/ at user home)
+        else:
+            try:
+                matplotlib.pyplot.subplot(1, 1)
+            except Exception:
+                matplotlib.use('pdf')
+
+
+class PlotterTest(MatplotlibTestCase):
+    # only check that functions are running, not checking their results
+    # TODO? use matplotlib.testing functions to do so?
+
+    # TMP_REMOVE_AT_END = False
+
+    @classmethod
+    def setUpClass(cls) -> None:
+
+        # for tmp handling & matplotlib proper backend
+        super().setUpClass()
+
+        cls.plotter = Plotter(cls.get_test_tmp_path())
         cls.plotter._show = False  # do not show plots useless for tests!
 
         cls.leaspy = cls.get_hardcoded_model('logistic_diag_noise')
@@ -104,22 +112,22 @@ class PlotterTest(LeaspyTestCase, MatplotlibTest_Mixin):
     ## plots used during convergence (staticmethods)
     def test_plot_error(self):
         rel_path = 'error.pdf'
-        Plotter.plot_error(self.test_tmp_path(rel_path), dataset=self.dataset, model=self.leaspy.model,
+        Plotter.plot_error(self.get_test_tmp_path(rel_path), dataset=self.dataset, model=self.leaspy.model,
                            param_ind=self.ips_torch)
         self.assertHasTmpFile(rel_path)
 
     def test_plot_patient_reconstructions(self):
         rel_path = 'patient_reconstructions.pdf'
-        self.plotter.plot_patient_reconstructions(self.test_tmp_path(rel_path), dataset=self.dataset, model=self.leaspy.model,
+        self.plotter.plot_patient_reconstructions(self.get_test_tmp_path(rel_path), dataset=self.dataset, model=self.leaspy.model,
                                                   param_ind=self.ips_torch)
         self.assertHasTmpFile(rel_path)
 
     def test_plot_param_ind(self):
         rel_path = 'param_ind.pdf'
-        self.plotter.plot_param_ind(self.test_tmp_path(rel_path), param_ind=self.ips_torch.values())
+        self.plotter.plot_param_ind(self.get_test_tmp_path(rel_path), param_ind=self.ips_torch.values())
         self.assertHasTmpFile(rel_path)
 
-    @unittest.skip('TODO')
+    @unittest.skip('Done automatically through FitOutputManager...')
     def test_plot_convergence_model_parameters(self):
         #self.plotter.plot_convergence_model_parameters(path_to_logs, path_cvg1, path_cvg2, model=self.leaspy.model)
         pass

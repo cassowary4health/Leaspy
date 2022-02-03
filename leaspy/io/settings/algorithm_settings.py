@@ -13,6 +13,7 @@ from leaspy.utils.typing import KwargsType, Optional
 class AlgorithmSettings:
     """
     Used to set the algorithms' settings.
+
     All parameters, except the choice of the algorithm, is set by default.
     The user can overwrite all default settings.
 
@@ -32,24 +33,28 @@ class AlgorithmSettings:
             * For `simulate` algorithms:
                 * ``'simulation'``
 
-    model_initialization_method : str, optional
-        For **fit** algorithms only, give a model initialization method,
-        according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
-    algo_initialization_method : str, optional
-        Personalize the algorithm initialization method,
-        according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
-    n_iter : int, optional
-        Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
-    n_burn_in_iter : int, optional
-        Number of iteration during burning phase, used for the MCMC SAEM algorithms.
-    seed : int, optional, default None
-        Used for stochastic algorithms.
-    use_jacobian : bool, optional, default False
-        Used in ``scipy_minimize`` algorithm to perform a `L-BFGS` instead of a `Powell` algorithm.
-    n_jobs : int, optional, default 1
-        Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
-    progress_bar : bool, optional, default False
-        Used to display a progress bar during computation.
+    **kwargs : any
+        Depending on the algorithm you are setting up, various parameters are possible (not exhaustive):
+            * seed : int, optional, default None
+                Used for stochastic algorithms.
+            * model_initialization_method : str, optional
+                For **fit** algorithms only, give a model initialization method,
+                according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
+            * algo_initialization_method : str, optional
+                Personalize the algorithm initialization method,
+                according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
+            * n_iter : int, optional
+                Number of iteration. There is no stopping criteria for the all the MCMC SAEM algorithms.
+            * n_burn_in_iter : int, optional
+                Number of iteration during burning phase, used for the MCMC SAEM algorithms.
+            * use_jacobian : bool, optional, default True
+                Used in ``scipy_minimize`` algorithm to perform a `L-BFGS` instead of a `Powell` algorithm.
+            * n_jobs : int, optional, default 1
+                Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
+            * progress_bar : bool, optional, default True
+                Used to display a progress bar during computation.
+
+        For the complete list of the available parameters for a given algorithm, please directly refer to its documentation.
 
     Attributes
     ----------
@@ -241,7 +246,7 @@ class AlgorithmSettings:
         Examples
         --------
         >>> from leaspy import AlgorithmSettings
-        >>> settings = AlgorithmSettings('scipy_minimize', seed=42, n_jobs=-1, use_jacobian=True, progress_bar=True)
+        >>> settings = AlgorithmSettings('scipy_minimize', seed=42)
         >>> settings.save('outputs/scipy_minimize-settings.json')
         """
         json_settings = {
@@ -269,7 +274,7 @@ class AlgorithmSettings:
         with open(os.path.join(path), "w") as json_file:
             json.dump(json_settings, json_file, **kwargs)
 
-    def set_logs(self, path, **kwargs):
+    def set_logs(self, path: Optional[str] = None, **kwargs):
         """
         Use this method to monitor the convergence of a model callibration.
 
@@ -277,33 +282,39 @@ class AlgorithmSettings:
 
         Parameters
         ----------
-        path : str
+        path : str, optional
             The path of the folder to store the graphs and csv files.
+            No data will be saved if it is None, as well as save_periodicity and plot_periodicity.
         **kwargs
-            * console_print_periodicity: int, optional, default 50
+            * console_print_periodicity: int, optional, default 100
                 Display logs in the console/terminal every N iterations.
-            * plot_periodicity: int, optional, default 100
-                Saves the values to display in pdf every N iterations.
             * save_periodicity: int, optional, default 50
                 Saves the values in csv files every N iterations.
+            * plot_periodicity: int, optional, default 1000
+                Generates plots from saved values every N iterations.
+                Note that:
+                    * it should be a multiple of save_periodicity
+                    * setting a too low value (frequent) we seriously slow down you calibration
             * overwrite_logs_folder: bool, optional, default False
                 Set it to ``True`` to overwrite the content of the folder in ``path``.
-
-        Notes
-        -----
-        By default, if the folder given in ``path`` already exists, the method will raise an error.
-        To overwrite the content of the folder, set ``overwrite_logs_folder`` it to ``True``.
 
         Raises
         ------
         :exc:`.LeaspyAlgoInputError`
             If the folder given in ``path`` already exists and if ``overwrite_logs_folder`` is set to ``False``.
+
+        Notes
+        -----
+        By default, if the folder given in ``path`` already exists, the method will raise an error.
+        To overwrite the content of the folder, set ``overwrite_logs_folder`` it to ``True``.
         """
+        # TODO: all this logic should be delegated in dedicated OutputSettings class...!
+
         settings = {
             'path': path,
-            'console_print_periodicity': 50,
-            'plot_periodicity': 100,
+            'console_print_periodicity': 100,
             'save_periodicity': 50,
+            'plot_periodicity': 1000,
             'overwrite_logs_folder': False
         }
 

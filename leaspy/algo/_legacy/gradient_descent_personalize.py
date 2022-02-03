@@ -27,7 +27,7 @@ class GradientDescentPersonalize(AbstractPersonalizeAlgo):
         # TODO : warnings / stop if nans in the gradient
 
         # initialize realizations
-        realizations = model.get_realization_object(data.n_individuals)
+        realizations = model.initialize_realizations_for_model(data.n_individuals)
 
         # To torch vraibles
         self._initialize_torchvariables(realizations)

@@ -13,16 +13,22 @@ class OutputsSettings:
     ----------
     settings : dict[str, Any]
         Parameters of the object. It may be in:
-            * console_print_periodicity : int
+            * path : str or None
+                Where to store logs (relative or absolute path)
+                If None, nothing will be saved (only console prints),
+                unless save_periodicity is not None (default relative path './_outputs/' will be used).
+            * console_print_periodicity : int >= 1 or None
                 Flag to log into console convergence data every N iterations
-            * plot_periodicity : int
-                Flag to plot convergence data every N iterations
-            * save_periodicity : int
+                If None, no console prints.
+            * save_periodicity : int >= 1 or None
                 Flag to save convergence data every N iterations
+                If None, no data will be saved.
+            * plot_periodicity : int >= 1 or None
+                Flag to plot convergence data every N iterations
+                If None, no plots will be saved.
+                Note that you can not plot convergence data without saving data (and not more frequently than these saves!)
             * overwrite_logs_folder : bool
                 Flag to remove all previous logs if existing (default False)
-            * path : str
-                Where to store logs (default to './_outputs/')
 
     Raises
     ------
@@ -46,8 +52,10 @@ class OutputsSettings:
         self.patients_plot_path = None
 
         self._set_console_print_periodicity(settings)
-        self._set_plot_periodicity(settings)
         self._set_save_periodicity(settings)
+        self._set_plot_periodicity(settings)
+
+        # only create folders if the user want to save data or plots and provided a valid path!
         self._create_root_folder(settings)
 
     def _set_param_as_int_or_ignore(self, settings, param: str):
@@ -60,9 +68,10 @@ class OutputsSettings:
             # try to cast as an integer.
             try:
                 val = int(val)
+                assert val >= 1
             except Exception:
-                warnings.warn(f"The '{param}' parameters you provided is not castable to an int. "
-                              "Ignoring its value.", RuntimeWarning)
+                warnings.warn(f"The '{param}' parameter you provided is not castable to an int > 0. "
+                              "Ignoring its value.", UserWarning)
                 return
 
         # Update the attribute of self in-place
@@ -71,37 +80,51 @@ class OutputsSettings:
     def _set_console_print_periodicity(self, settings):
         self._set_param_as_int_or_ignore(settings, 'console_print_periodicity')
 
-    def _set_plot_periodicity(self, settings):
-        self._set_param_as_int_or_ignore(settings, 'plot_periodicity')
-
     def _set_save_periodicity(self, settings):
         self._set_param_as_int_or_ignore(settings, 'save_periodicity')
 
-    def _create_root_folder(self, settings):
-        # Get a path to put the outputs
-        if 'path' not in settings.keys():
-            warnings.warn("You did not provide a path for your logs outputs. "
-                          f"They have been initialized to '{self.DEFAULT_LOGS_DIR}', relatively to the current working directory.")
+    def _set_plot_periodicity(self, settings):
+        self._set_param_as_int_or_ignore(settings, 'plot_periodicity')
 
-        rel_or_abs_path = settings.get('path', self.DEFAULT_LOGS_DIR)
-        abs_path = os.path.abspath(rel_or_abs_path)
+        if self.plot_periodicity is not None:
+            if self.save_periodicity is None:
+                raise LeaspyAlgoInputError('You can not define a `plot_periodicity` without defining `save_periodicity`. '
+                                           'Note that the `plot_periodicity` should be a multiple of `save_periodicity`.')
+
+            if self.plot_periodicity % self.save_periodicity != 0:
+                raise LeaspyAlgoInputError('The `plot_periodicity` should be a multiple of `save_periodicity`.')
+
+    def _create_root_folder(self, settings):
+
+        # Get the path to put the outputs
+        path = settings.get('path', None)
+
+        if path is None and self.save_periodicity:
+            warnings.warn("You did not provide a path for your logs outputs whereas you want to save convergence data. "
+                          f"The default path '{self.DEFAULT_LOGS_DIR}' will be used (relative to the current working directory).")
+            path = self.DEFAULT_LOGS_DIR
+
+        if path is None:
+            # No folder will be created and no convergence data shall be saved
+            return
 
         # store the absolute path in settings
+        abs_path = os.path.abspath(path)
         settings['path'] = abs_path
 
         # Check if the folder does not exist: if not, create (and its parent)
         if not os.path.exists(abs_path):
             warnings.warn(f"The logs path you provided ({settings['path']}) does not exist. "
                           "Needed paths will be created (and their parents if needed).")
-        elif settings['overwrite_logs_folder']:
-            warnings.warn(f'Overwrite logs folder...')
+        elif settings.get('overwrite_logs_folder', False):
+            warnings.warn(f"Overwriting '{path}' folder...")
             self._clean_folder(abs_path)
 
         all_ok = self._check_needed_folders_are_empty_or_create_them(abs_path)
 
         if not all_ok:
-            raise LeaspyAlgoInputError("The logs folder already exists and are not empty! "
-                    "Give another path or use keyword argument `overwrite_logs_folder=True`.")
+            raise LeaspyAlgoInputError(f"The logs folder '{path}' already exists and is not empty! "
+                                       "Give another path or use keyword argument `overwrite_logs_folder=True`.")
 
     @staticmethod
     def _check_folder_is_empty_or_create_it(path_folder) -> bool:

@@ -6,7 +6,7 @@ from tests import LeaspyTestCase
 class DataTest(LeaspyTestCase):
 
     def test_constructor_univariate(self):
-        path_to_data = self.test_data_path('data_mock', 'univariate_data.csv')
+        path_to_data = self.get_test_data_path('data_mock', 'univariate_data.csv')
         data = Data.from_csv_file(path_to_data)
         individual = data[2]
 
@@ -23,7 +23,7 @@ class DataTest(LeaspyTestCase):
         self.assertEqual(individual.observations, [[0.2], [0.2], [0.3], [0.5]])
 
     def test_constructor_multivariate(self):
-        path_to_data = self.test_data_path('data_mock', 'multivariate_data.csv')
+        path_to_data = self.get_test_data_path('data_mock', 'multivariate_data.csv')
         data = Data.from_csv_file(path_to_data)
         individual = data[3]
 

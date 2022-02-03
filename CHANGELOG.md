@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2022-01-13
+- [FIX] Fix critical regression on `AlgorithmSettings.save`
+- [FIX] Fix some presentation issues with convergence plots
+- [FIX/FEAT] Raise a LeaspyConvergenceError if variances of params collapse to zero
+- [FIX] Improve and robustify `AlgorithmSettings.set_logs`
+- [PERF] Slightly improve performance of Gibbs samplers
+- [PERF] Initial adaptative std-dev used in Gibbs samplers is now parameter dependent (i.e. scaled) to speed-up convergence
+- [FEAT] The computed RMSE at end of fit with Bernoulli noise model is now per feature
+- [DOC] Improve documentation & add a docstrings validator
+- [CHORE] Clean-up code & tests
+- [COMPAT] PyTorch >=1.7.1 is now required
+
 ## [1.2.0] - 2021-12-17
 - [CODE] Broad use of type annotations in Leaspy package
 - [COMPAT] As a consequence support of Python 3.6 is dropped

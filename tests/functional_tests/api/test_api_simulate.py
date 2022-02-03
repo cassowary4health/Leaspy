@@ -1,3 +1,4 @@
+import os
 import unittest
 import warnings
 
@@ -36,7 +37,7 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
         return simulation_results
 
 
-    def check_consistency_of_simulation_results(self, simulation_settings, simulation_results, data, *, expected_results_file):
+    def check_consistency_of_simulation_results(self, simulation_settings, simulation_results, data, *, expected_results_file, tol = 1e-5):
         # TODO: refact, so dirty!
 
         self.assertIsInstance(simulation_results, Result)
@@ -48,12 +49,18 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
             warnings.simplefilter('ignore', DeprecationWarning)
             self.assertEqual(len(simulation_results.get_parameter_distribution('xi')), n)
             self.assertEqual(len(simulation_results.get_parameter_distribution('tau')), n)
-            self.assertEqual(len(simulation_results.get_parameter_distribution('sources_0')), n)
+            if 'sources' in simulation_results.individual_parameters:
+                n_sources = simulation_results.individual_parameters['sources'].shape[1]
+                for i in range(n_sources):
+                    self.assertEqual(len(simulation_results.get_parameter_distribution(f'sources_{i}')), n)
 
-        path_expected_sim_res = self.test_data_path("simulation", expected_results_file)
+        path_expected_sim_res = self.get_test_data_path("simulation", expected_results_file)
+        inexistant_result = not os.path.exists(path_expected_sim_res)
 
         ## uncomment to re-generate simulation results
-        #simulation_results.data.to_dataframe().to_csv(path_expected_sim_res, index=False, float_format='{:.6g}'.format)
+        if inexistant_result:
+            warnings.warn(f"Generating missing results for '{expected_results_file}'...")
+            simulation_results.data.to_dataframe().to_csv(path_expected_sim_res, index=False, float_format='{:.6g}'.format)
 
         # Test the reproducibility of simulate
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
@@ -69,7 +76,7 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
         simulation_is_reproducible = np.allclose(simulation_df.loc[:, simulation_df.columns != 'ID'].values,
                                         simulation_results.data.to_dataframe().
                                         loc[:, simulation_results.data.to_dataframe().columns != 'ID'].values,
-                                        atol=10 ** (-round_decimal), rtol=10 ** (-round_decimal))
+                                        atol=tol, rtol=tol)
         # Use of numpy.allclose instead of pandas.testing.assert_frame_equal because of buggy behaviour reported
         # in https://github.com/pandas-dev/pandas/issues/22052
 
@@ -81,7 +88,6 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
             value_v1 = 0.
             value_v2 = 0.
             count = 0
-            tol = 10 ** (-round_decimal)
             actual_simu_df = simulation_results.data.to_dataframe()
             for v1, v2 in zip(simulation_df.loc[:, simulation_df.columns != 'ID'].values.tolist(),
                               actual_simu_df.loc[:, actual_simu_df.columns != 'ID'].values.tolist()):
@@ -107,6 +113,7 @@ class LeaspySimulateTest(LeaspySimulateTest_Mixin):
     def test_simulate_for_some_models(self):
 
         # TODO: hardcode a file with individuals parameters for each individual from data tiny!
+        # Complete functional tests are done in test_api.py
 
         for model_codename, hardcoded_ip_file, simulation_params in [
             ('logistic_scalar_noise', ..., dict(number_of_subjects=100)),

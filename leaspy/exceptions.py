@@ -5,7 +5,10 @@ Exceptions classes are nested so to handle in the most convenient way for users:
 
                     Exception
                         |
-                  LeaspyException
+                        |
+                  LeaspyException        RuntimeError
+                        |         \            |
+                        |           LeaspyConvergenceError
                        / \
          TypeError    /   \     ValueError
              |       /     \        |
@@ -24,6 +27,10 @@ For I/O operations, non-Leaspy specific errors may be raised, in particular:
 
 class LeaspyException(Exception):
     """Base of all Leaspy exceptions."""
+    pass
+
+class LeaspyConvergenceError(LeaspyException, RuntimeError):
+    """Leaspy Exception for errors relative to convergence."""
     pass
 
 class LeaspyTypeError(LeaspyException, TypeError):

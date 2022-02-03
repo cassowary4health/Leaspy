@@ -31,6 +31,24 @@ class SimulationAlgorithm(AbstractAlgo):
     For instance, for an Alzheimer's disease patient, you can load a genetic cofactor informative of the APOE4 carriers.
     Choose cofactor ['genetic'] and cofactor_state ['APOE4'] to simulate only APOE4 carriers.
 
+    Parameters
+    ----------
+    settings : :class:`.AlgorithmSettings`
+        The algorithm settings.
+        They may include the following parameters, described in __Attributes__ section:
+            * `noise`
+            * `bandwidth_method`
+            * `cofactor`
+            * `cofactor_state`
+            * `number_of_subjects`
+            * `mean_number_of_visits`, `std_number_of_visits`, `min_number_of_visits`, `max_number_of_visits`
+            * `delay_btw_visits`
+            * `reparametrized_age_bounds`
+            * `sources_method`
+            * `prefix`
+            * `features_bounds`
+            * `features_bounds_nb_subjects_factor`
+
     Attributes
     ----------
     name : ``'simulation'``
@@ -99,24 +117,6 @@ class SimulationAlgorithm(AbstractAlgo):
 
     prefix : str
         Prefix appended to simulated patients' identifiers
-
-    Parameters
-    ----------
-    settings : :class:`.AlgorithmSettings`
-        The algorithm settings.
-        They may include the following parameters, described in _Attributes_ section:
-            * `noise`
-            * `bandwidth_method`
-            * `cofactor`
-            * `cofactor_state`
-            * `number_of_subjects`
-            * `mean_number_of_visits`, `std_number_of_visits`, `min_number_of_visits`, `max_number_of_visits`
-            * `delay_btw_visits`
-            * `reparametrized_age_bounds`
-            * `sources_method`
-            * `prefix`
-            * `features_bounds`
-            * `features_bounds_nb_subjects_factor`
 
     Raises
     ------
@@ -759,17 +759,17 @@ class SimulationAlgorithm(AbstractAlgo):
         data : :class:`.Data`
             The data object.
 
+        Returns
+        -------
+        :class:`~.io.outputs.result.Result`
+            Contains the simulated individual parameters & individual scores.
+
         Notes
         -----
         In simulation_settings, one can specify in the parameters the cofactor & cofactor_state. By doing so,
         one can simulate based only on the subject for the given cofactor & cofactor's state.
 
         By default, all the subjects provided are used to estimate the joined distribution.
-
-        Returns
-        -------
-        :class:`~.io.outputs.result.Result`
-            Contains the simulated individual parameters & individual scores.
         """
         get_sources = 'univariate' not in model.name and getattr(model, 'source_dimension', 0)
 

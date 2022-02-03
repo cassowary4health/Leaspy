@@ -1,5 +1,5 @@
 {
-  "leaspy_version": "1.1.1-dev",
+  "leaspy_version": "1.2.1rc1",
   "name": "univariate_linear",
   "features": [
     "Y0"
@@ -7,12 +7,12 @@
   "noise_model": "gaussian_scalar",
   "parameters": {
     "g": [
-      0.49362459778785706
+      0.43665072321891785
     ],
-    "tau_mean": 78.34710693359375,
-    "tau_std": 5.256784915924072,
-    "xi_mean": -3.955179452896118,
-    "xi_std": 0.8314177989959717,
-    "noise_std": 0.11140754073858261
+    "tau_mean": 78.00992584228516,
+    "tau_std": 6.113110065460205,
+    "xi_mean": -3.4379146099090576,
+    "xi_std": 0.6406339406967163,
+    "noise_std": 0.06965754181146622
   }
 }

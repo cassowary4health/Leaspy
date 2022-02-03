@@ -95,15 +95,15 @@ class Result:
         cofactors : str or list[str], optional (default None)
             Contains the cofactor(s) to join to the logs dataframe.
 
-        Notes
-        -----
-        The cofactors must be present in the leaspy data object stored into the .data attribute of the result instance.
-        See the exemple.
-
         Returns
         -------
         :class:`pandas.DataFrame`
             Contains for each patient his ID & his individual parameters (optional and his cofactors states)
+
+        Notes
+        -----
+        The cofactors must be present in the leaspy data object stored into the .data attribute of the result instance.
+        See the exemple.
 
         Examples
         --------
@@ -627,9 +627,9 @@ class Result:
         >>> from leaspy import AlgorithmSettings, Data, Leaspy
         >>> data = Data.from_csv_file("/my/data/path")
         >>> leaspy_logistic = Leaspy('logistic')
-        >>> settings = AlgorithmSettings("mcmc_saem")
+        >>> settings = AlgorithmSettings("mcmc_saem", seed=0)
         >>> leaspy_logistic.calibrate(data, settings)
-        >>> settings = AlgorithmSettings("mode_real")
+        >>> settings = AlgorithmSettings("mode_real", seed=0)
         >>> results = leaspy_logistic.personalize(data, settings)
         >>> residuals_dataframe = results.get_error_distribution_dataframe(model)
         >>> residuals_dataframe[results.data.headers].abs().mean()

@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
@@ -10,6 +12,7 @@ class MeanReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
     Sampler based algorithm, individual parameters are derivated as the mean realization for `n_samples` samplings.
 
     TODO many stuff is duplicated between this class & mean_real (& other mcmc stuff) --> refactorize???
+    TODO BUGFIX? temperature is never updated here unlike in fit (so only algo_parameters['annealing']['initial_temperature'] will be used)
 
     Parameters
     ----------
@@ -21,6 +24,10 @@ class MeanReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
 
     def _initialize_annealing(self):
         if self.algo_parameters['annealing']['do_annealing']:
+
+            warnings.warn(f'Annealing is currently not implemented for `{self.name}` algorithm, '
+                          'explicitely disable it in the algorithm settings to remove this warning.')
+
             if self.algo_parameters['annealing']['n_iter'] is None:
                 self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['n_iter'] / 2)
 
@@ -33,43 +40,41 @@ class MeanReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
         # Initialize realizations storage object
         realizations_history = []
 
+        # Where are not in a calibration any more so attribute_type=None (not using MCMC toolbox, since undefined!)
+        computation_kws = dict(attribute_type=None)
+
         # Initialize samplers
         self._initialize_samplers(model, data)
 
         # Initialize Annealing
         self._initialize_annealing()
 
-        # initialize realizations
-        realizations = model.get_realization_object(data.n_individuals)
-        realizations.initialize_from_values(data.n_individuals, model)
+        # Initialize realizations, but really around their actual values for individual parameters!
+        # TODO? is it really needed to restrict to that point individual parameters std-dev?
+        realizations = model.initialize_realizations_for_model(data.n_individuals, scale_individual=0.01)
+        ind_vars_names = realizations.reals_ind_variable_names
 
-        # Gibbs sample n_iter times
+        # Gibbs sample n_iter times (only on individual parameters)
         for i in range(self.algo_parameters['n_iter']):
-            for key in realizations.reals_ind_variable_names:
-                self.samplers[key].sample(data, model, realizations, self.temperature_inv)
+            for ind_var_name in ind_vars_names:
+                self.samplers[ind_var_name].sample(data, model, realizations, self.temperature_inv, **computation_kws)
 
             # Append current realizations if burn in is finished
             if i > self.algo_parameters['n_burn_in_iter']:
                 realizations_history.append(realizations.copy())
 
-        # Compute mean of n_iter realizations for each individual variable
-        mean_output = dict.fromkeys(model.get_individual_variable_name())
-        for name_variable, info_variable in model.random_variable_informations().items():
-            if info_variable['type'] == 'individual':
-                mean_variable = torch.stack(
-                    [realizations[name_variable].tensor_realizations for realizations in realizations_history]).mean(
-                    dim=0).clone().detach()
-                mean_output[name_variable] = mean_variable
+        # Create a new realizations and assign each individual parameters variable to its mean realization
+        mean_realizations = model.initialize_realizations_for_model(data.n_individuals)
 
-        # Compute the attachment
-        realizations = model.get_realization_object(data.n_individuals)
-        for key, value in mean_output.items():
-            realizations[key].tensor_realizations = value
+        for ind_var_name in ind_vars_names:
+            stacked_reals_var = torch.stack([realizations[ind_var_name].tensor_realizations
+                                             for realizations in realizations_history])
+            mean_realizations[ind_var_name].tensor_realizations = stacked_reals_var.mean(dim=0).clone().detach()
 
         # Get individual realizations from realizations object
-        param_ind = model.get_param_from_real(realizations)
+        param_ind = model.get_param_from_real(mean_realizations)
 
-        ### TODO : The following was adding for the conversion from Results to IndividualParameters. Everything should be changed
+        ### TODO : The following was added for the conversion from Results to IndividualParameters. Everything should be changed
 
         individual_parameters = IndividualParameters()
         p_names = list(param_ind.keys())

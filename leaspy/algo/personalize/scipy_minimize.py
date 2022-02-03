@@ -269,7 +269,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 res['gradient'] = torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0,1))
 
         elif model.noise_model == 'bernoulli':
-            predicted = torch.clamp(predicted, 1e-38, 1. - 1e-7)  # safety before taking the log # @P-E: why clamping not symmetric?
+            # safety before taking the log: cf. torch.finfo(torch.float32).eps ~= 1.19e-7
+            predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
             neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
             neg_crossentropy[nans] = 0. # set nans to zero, not to count in the sum
             res['objective'] = -torch.sum(neg_crossentropy)

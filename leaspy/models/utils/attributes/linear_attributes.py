@@ -71,6 +71,7 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         compute_betas = False
         compute_positions = False
         compute_velocities = False
+        dgamma_t0_collinear_to_previous = True
 
         if 'all' in names_of_changed_values:
             names_of_changed_values = self.update_possibilities  # make all possible updates
@@ -86,12 +87,16 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         if compute_positions:
             self._compute_positions(values)
         if compute_velocities:
+            old_velocities = self.velocities
             self._compute_velocities(values)
+            # this is especially the case when we reparametrize log(v0) <- log(v0) + mean(xi)
+            dgamma_t0_collinear_to_previous = old_velocities is not None and self._check_collinearity_vectors(old_velocities, self.velocities)
 
         if self.has_sources:
-            if compute_velocities:
+            recompute_ortho_basis = not dgamma_t0_collinear_to_previous
+            if recompute_ortho_basis:
                 self._compute_orthonormal_basis()
-            if compute_velocities or compute_betas:
+            if recompute_ortho_basis or compute_betas:
                 self._compute_mixing_matrix()
 
     def _compute_positions(self, values):

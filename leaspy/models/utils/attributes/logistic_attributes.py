@@ -70,9 +70,9 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         self._check_names(names_of_changed_values)
 
         compute_betas = False
-
         compute_positions = False
         compute_velocities = False
+        dgamma_t0_collinear_to_previous = True
 
         if 'all' in names_of_changed_values:
             names_of_changed_values = self.update_possibilities  # make all possible updates
@@ -88,11 +88,15 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         if compute_positions:
             self._compute_positions(values)
         if compute_velocities:
+            old_velocities = self.velocities
             self._compute_velocities(values)
+            # this is especially the case when we reparametrize log(v0) <- log(v0) + mean(xi)
+            dgamma_t0_collinear_to_previous = old_velocities is not None and self._check_collinearity_vectors(old_velocities, self.velocities)
 
         if self.has_sources:
 
-            recompute_ortho_basis = compute_positions or compute_velocities
+            # do not recompute orthonormal basis if dgamma_t0 is collinear to previous one to avoid useless computations!
+            recompute_ortho_basis = compute_positions or not dgamma_t0_collinear_to_previous
 
             if recompute_ortho_basis:
                 self._compute_orthonormal_basis()

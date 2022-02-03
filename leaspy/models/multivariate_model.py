@@ -256,14 +256,13 @@ class MultivariateModel(AbstractMultivariateModel):
         self.MCMC_toolbox['attributes'].update(name_of_the_variables_that_have_been_changed, values)
 
     def _center_xi_realizations(self, realizations):
+        # This operation does not change the orthonormal basis (the resulting v0 is collinear to the previous one)
+        # <!> all operations are performed in "log" space (v0 is log'ed)
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
         realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
 
         self.update_MCMC_toolbox(['v0'], realizations)
-        # TODO? this update will lead to re-computing the orthonormal basis,
-        # but then in turn shouldn't we recompute the right betas & sources
-        # so that this operation is ONLY a reparametrization (no other impact)
 
         return realizations
 

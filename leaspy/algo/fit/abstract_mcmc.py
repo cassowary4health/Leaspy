@@ -1,3 +1,6 @@
+import copy
+from random import shuffle
+
 import torch
 
 from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
@@ -32,6 +35,8 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         # TODO? move all annealing related stuff in a dedicated mixin?
         self.temperature_inv = 1
         self.temperature = 1
+
+        self._random_sampling_order = False
 
     ###########################
     ## Initialization
@@ -112,22 +117,33 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
 
-        # Sample step
-        ## TODO: shouldn't we shuffle order of population vars during sampling?
-        for key in realizations.reals_pop_variable_names:
+        # Sample step (with order of population & individual variables shuffled)
+        pop_vars = copy.copy(realizations.reals_pop_variable_names)
+        ind_vars = copy.copy(realizations.reals_ind_variable_names)
+        if self._random_sampling_order:
+            # shuffle in-place!
+            shuffle(pop_vars)
+            shuffle(ind_vars)
+
+        for key in pop_vars:
             self.samplers[key].sample(data, model, realizations, self.temperature_inv)
-        ## TODO: shouldn't we shuffle order of individual vars during sampling?
-        for key in realizations.reals_ind_variable_names:
+        for key in ind_vars:
             self.samplers[key].sample(data, model, realizations, self.temperature_inv)
 
         # Maximization step
         self._maximization_step(data, model, realizations)
-        model.update_MCMC_toolbox(['all'], realizations)
 
-        # Update the likelihood with the new noise_var
-        # TODO likelihood is computed 2 times, remove this one, and update it in maximization step ?
-        # TODO or ar the update of all sufficient statistics ???
-        # self.likelihood.update_likelihood(data, model, realizations)
+        # We already updated MCMC toolbox for all population parameters during pop sampling.
+        # The only "attributes" we did not update yet are the ones derived from individual realizations if any
+        # Currently, the only one is `xi_mean` (only for univariate and logistic parallel models)
+        # TODO? shouldn't we update this `xi_mean` in MCMC toolbox as soon as we updated `xi`s (as we do in pop sampling)?
+        #       (but if so then be careful since it should not be done during mean/mode_real personalization algorithm!)
+        remaining_vars_to_update = [
+            v for v in model.MCMC_toolbox['attributes'].update_possibilities
+            if v not in ['all', 'v0_collinear'] + pop_vars
+        ]
+        if remaining_vars_to_update:
+            model.update_MCMC_toolbox(remaining_vars_to_update, realizations)
 
         # Annealing
         if self._do_annealing:

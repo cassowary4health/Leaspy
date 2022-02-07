@@ -1,6 +1,7 @@
-import itertools
+from random import shuffle
 
 import torch
+from numpy import ndindex
 
 from .abstract_sampler import AbstractSampler
 from leaspy.exceptions import LeaspyInputError
@@ -79,6 +80,10 @@ class GibbsSampler(AbstractSampler):
         self._previous_attachment: Optional[torch.FloatTensor] = None
         self._previous_regularity: Optional[torch.FloatTensor] = None
 
+        # Should we randomize the order of indices during the sampling loop?
+        # (only for population variables, since we perform group sampling for individual variables)
+        self._random_sampling_order = False
+
     def _proposal(self, val):
         """
         Proposal value around the current value with sampler standard deviation.
@@ -137,9 +142,10 @@ class GibbsSampler(AbstractSampler):
         """
         realization = realizations[self.name]
         shape_current_variable = realization.shape
-        index = [e for e in itertools.product(*[range(s) for s in shape_current_variable])]
-
-        accepted_array = []
+        accepted_array = torch.zeros(shape_current_variable)
+        iterator_indices = list(ndindex(shape_current_variable))
+        if self._random_sampling_order:
+            shuffle(iterator_indices)  # shuffle in-place!
 
         # retrieve the individual parameters from realizations once for all to speed-up computations,
         # since they are fixed during the sampling of this population variable!
@@ -152,8 +158,7 @@ class GibbsSampler(AbstractSampler):
             regularity = model.compute_regularity_realization(realization).sum()
             return attachment, regularity
 
-        # TODO: shouldn't we loop randomly here so there is no order in dimensions?
-        for idx in index:
+        for idx in iterator_indices:
             # Compute the attachment and regularity
             if self._previous_attachment is None:
                 assert self._previous_regularity is None
@@ -176,7 +181,7 @@ class GibbsSampler(AbstractSampler):
                                 (new_attachment - self._previous_attachment)))
 
             accepted = self._metropolis_step(alpha)
-            accepted_array.append(accepted)
+            accepted_array[idx] = accepted
 
             if not accepted:
                 # Revert modification of realization at idx and its consequences
@@ -191,7 +196,6 @@ class GibbsSampler(AbstractSampler):
             else:
                 self._previous_attachment, self._previous_regularity = new_attachment, new_regularity
 
-        accepted_array = torch.tensor(accepted_array, dtype=torch.float32).reshape(shape_current_variable)
         self._update_acceptation_rate(accepted_array)
         self._update_std()
 

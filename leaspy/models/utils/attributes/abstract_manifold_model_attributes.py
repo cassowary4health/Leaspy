@@ -66,7 +66,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             self.betas: torch.FloatTensor = None
             self.mixing_matrix: torch.FloatTensor = None
             self.orthonormal_basis: torch.FloatTensor = None
-            self.update_possibilities = ('all', 'g', 'v0', 'betas')
+            self.update_possibilities = ('all', 'g', 'v0', 'v0_collinear', 'betas')
 
     def get_attributes(self):
         """
@@ -112,7 +112,6 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             return
         self.betas = values['betas'].clone()
 
-
     def _compute_Q(self, dgamma_t0: torch.FloatTensor, G_metric: torch.FloatTensor, strip_col: int = 0):
         """
         Householder decomposition, adapted for a non-Euclidean inner product defined by:
@@ -140,7 +139,8 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         Parameters
         ----------
         dgamma_t0 : :class:`torch.FloatTensor` 1D
-            Time-derivative of the geodesic at initial time
+            Time-derivative of the geodesic at initial time.
+            It may also be a vector collinear to it without any change to the result.
 
         G_metric : scalar, `torch.FloatTensor` 0D, 1D or 2D-square
             The `G(p)` defining the metric as referred in equation (1) just before :
@@ -227,6 +227,19 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         :class:`torch.FloatTensor`
         """
         return torch.mm(matrix, linear_combination_values)
+
+
+    def _check_collinearity_vectors(self, *vectors: torch.FloatTensor) -> bool:
+        """
+        Returns True if all vectors are collinear [or all zeros].
+
+        This may be a useful helper function to avoid un-needed orthonormal basis re-computations.
+        (Not used for now - only "declaration" of sure collinearity to speed-up)
+
+        Precondition on vectors: 0D or 1D torch float tensors of same shapes
+        """
+        return torch.matrix_rank(torch.stack(vectors).view(len(vectors), -1)).item() <= 1
+
 
     def _compute_mixing_matrix(self):
         """

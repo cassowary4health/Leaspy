@@ -99,7 +99,9 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         compute_velocities = False
 
         if 'all' in names_of_changed_values:
-            names_of_changed_values = self.update_possibilities  # make all possible updates
+            # make all possible updates
+            names_of_changed_values = self.update_possibilities
+
         if 'betas' in names_of_changed_values:
             compute_betas = True
         if 'deltas' in names_of_changed_values:
@@ -119,7 +121,9 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
             self._compute_velocities(values)
 
         if self.has_sources:
-            recompute_ortho_basis = compute_positions or compute_velocities or compute_deltas
+            # velocities (xi_mean) is a scalar for the logistic parallel model (same velocity for all features - only time-shift the features)
+            # so we do not need to compute again the orthonormal basis when updating it (the vector dgamma_t0 stays collinear to previous one)!
+            recompute_ortho_basis = compute_positions or compute_deltas
 
             if recompute_ortho_basis:
                 self._compute_orthonormal_basis()
@@ -157,11 +161,11 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         """
         self.deltas = torch.cat((torch.tensor([0], dtype=torch.float32), values['deltas']))
 
-    def _compute_gamma_dgamma_t0(self):
+    def _compute_gamma_t0_collin_dgamma_t0(self):
         """
         Computes both gamma:
             * value at t0
-            * derivative w.r.t. time at time t0
+            * a vector collinear to derivative w.r.t. time at time t0
 
         Returns
         -------
@@ -173,9 +177,12 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         denom = 1. + self.positions * exp_d
         gamma_t0 = 1. / denom
 
-        dgamma_t0 = self.velocities * self.positions * exp_d / (denom * denom)
+        # we only need a vector which is collinear to dgamma_t0, so we are the laziest possible!
+        # we do not multiply by scalars (velocity & position) to get the exact dgamma_t0
+        collin_to_dgamma_t0 = exp_d / (denom * denom)
+        # collin_to_dgamma_t0 *= self.velocities * self.positions
 
-        return gamma_t0, dgamma_t0
+        return gamma_t0, collin_to_dgamma_t0
 
     def _compute_orthonormal_basis(self):
         """
@@ -186,11 +193,11 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
             return
 
         # Compute value and time-derivative of gamma at t0
-        gamma_t0, dgamma_t0 = self._compute_gamma_dgamma_t0()
+        gamma_t0, collin_to_dgamma_t0 = self._compute_gamma_t0_collin_dgamma_t0()
 
         # Compute the diagonal of metric matrix (cf. `_compute_Q`)
-        G_metric = ( gamma_t0 * (1 - gamma_t0) )** -2
+        G_metric = ( gamma_t0 * (1 - gamma_t0) ) ** -2
 
         # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
-        self._compute_Q(dgamma_t0, G_metric)
+        self._compute_Q(collin_to_dgamma_t0, G_metric)
 

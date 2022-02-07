@@ -45,28 +45,28 @@ class AttributesLogisticParallelTest(LeaspyTestCase):
 
         # Test the first value of the derivative of gamma at t0
         p0 = 1. / (1. + torch.exp(values['g']))
-        standard_v0 = p0 * (1 - p0)  # do not multiply by a scalar constant... torch.exp(values['xi_mean'])
-        gamma_t0, dgamma_t0 = attributes._compute_gamma_dgamma_t0()
+        collin_standard_v0 = p0 * (1 - p0)  # do not multiply by scalar constants... torch.exp(values['xi_mean'])
+        gamma_t0, collin_dgamma_t0 = attributes._compute_gamma_t0_collin_dgamma_t0()
 
         # Test the orthogonality condition
         #gamma_t0 = 1. / (1 + attributes.positions * torch.exp(-attributes.deltas))
         sqrt_metric_normalization = gamma_t0 * (1 - gamma_t0) # not squared
 
-        return attributes, dgamma_t0, sqrt_metric_normalization, standard_v0
+        return attributes, collin_dgamma_t0, sqrt_metric_normalization, collin_standard_v0
 
     def test_compute_orthonormal_basis(self):
-        attributes, dgamma_t0, sqrt_metric_norm, standard_v0 = self.compute_instance_and_variables()
+        attributes, collin_dgamma_t0, sqrt_metric_norm, collin_standard_v0 = self.compute_instance_and_variables()
 
         # v0 for delta=0 (at dimension 0 and 2 by construction, cf. deltas above)
-        self.assertEqual(dgamma_t0[0], standard_v0)
-        self.assertEqual(dgamma_t0[2], standard_v0)
+        self.assertEqual(collin_dgamma_t0[0], collin_standard_v0)
+        self.assertEqual(collin_dgamma_t0[2], collin_standard_v0)
 
         orthonormal_basis = attributes.orthonormal_basis
         for i in range(attributes.dimension-1):
             orthonormal_vector = orthonormal_basis[:, i] # column vector
             # Test orthogonality to dgamma_t0 (metric inner-product)
             self.assertAlmostEqual(torch.dot(orthonormal_vector,
-                                             dgamma_t0 / sqrt_metric_norm**2).item(), 0, delta=1e-6) # / sqrt_metric_norm
+                                             collin_dgamma_t0 / sqrt_metric_norm**2).item(), 0, delta=1e-6) # / sqrt_metric_norm
             # Test normality (canonical inner-product)
             self.assertAlmostEqual(torch.norm(orthonormal_vector).item(), 1, delta=1e-6) # /sqrt_metric_norm
             # Test orthogonality to other vectors (canonical inner-product)
@@ -115,6 +115,6 @@ class AttributesLogisticParallelTest(LeaspyTestCase):
         self.assertFalse(torch.allclose(old_velocities, new_velocities))
         # but they are collinear (scalars...)
         self.assertTrue(attributes._check_collinearity_vectors(old_velocities, new_velocities))
-        # and the orthonormal basis (and mixing matrix) are the same!
-        self.assertTrue(torch.allclose(old_BON, new_BON))
-        self.assertTrue(torch.allclose(old_A, new_A))
+        # and the orthonormal basis (and mixing matrix) was not re-computed!
+        self.assertEqual(id(old_BON), id(new_BON))
+        self.assertEqual(id(old_A), id(new_A))

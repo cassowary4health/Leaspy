@@ -56,6 +56,11 @@ class LinearAttributes(AbstractManifoldModelAttributes):
                 * ``all`` (update everything)
                 * ``g`` correspond to the attribute :attr:`positions`.
                 * ``v0`` (``xi_mean`` if univariate) correspond to the attribute :attr:`velocities`.
+                  For **multivariate** models, when we are sure that v0 is only multiplied by a scalar
+                  (in particular, when we reparametrize log(v0) <- log(v0) + mean(xi)),
+                  we may update velocities using ``v0_collinear`` so to avoid re-computation of orthonormal basis and mixing matrix,
+                  otherwise we always assume that v0 is NOT collinear to previous value
+                  (we do not actually verify it - as it would not be very efficient)
                 * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
                   to derive the :attr:`mixing_matrix`.
         values : dict [str, `torch.Tensor`]
@@ -71,29 +76,31 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         compute_betas = False
         compute_positions = False
         compute_velocities = False
-        dgamma_t0_collinear_to_previous = True
+        dgamma_t0_not_collinear_to_previous = False
 
         if 'all' in names_of_changed_values:
-            names_of_changed_values = self.update_possibilities  # make all possible updates
+            # make all possible updates
+            names_of_changed_values = self.update_possibilities
+
         if 'betas' in names_of_changed_values:
             compute_betas = True
         if 'g' in names_of_changed_values:
             compute_positions = True
-        if ('v0' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
+        if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
             compute_velocities = True
+            dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
 
         if compute_betas:
             self._compute_betas(values)
         if compute_positions:
             self._compute_positions(values)
         if compute_velocities:
-            old_velocities = self.velocities
             self._compute_velocities(values)
-            # this is especially the case when we reparametrize log(v0) <- log(v0) + mean(xi)
-            dgamma_t0_collinear_to_previous = old_velocities is not None and self._check_collinearity_vectors(old_velocities, self.velocities)
 
         if self.has_sources:
-            recompute_ortho_basis = not dgamma_t0_collinear_to_previous
+            # do not recompute orthonormal basis when we know dgamma_t0 is collinear
+            # to previous velocities to avoid useless computations!
+            recompute_ortho_basis = dgamma_t0_not_collinear_to_previous
             if recompute_ortho_basis:
                 self._compute_orthonormal_basis()
             if recompute_ortho_basis or compute_betas:

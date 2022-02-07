@@ -99,7 +99,9 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         compute_velocities = False
 
         if 'all' in names_of_changed_values:
-            names_of_changed_values = self.update_possibilities  # make all possible updates
+            # make all possible updates
+            names_of_changed_values = self.update_possibilities
+
         if 'betas' in names_of_changed_values:
             compute_betas = True
         if 'deltas' in names_of_changed_values:
@@ -159,7 +161,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         """
         self.deltas = torch.cat((torch.tensor([0], dtype=torch.float32), values['deltas']))
 
-    def _compute_gamma_dgamma_t0(self):
+    def _compute_gamma_t0_collin_dgamma_t0(self):
         """
         Computes both gamma:
             * value at t0
@@ -176,11 +178,11 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         gamma_t0 = 1. / denom
 
         # we only need a vector which is collinear to dgamma_t0, so we are the laziest possible!
-        # we do not multiply by scalars (velocities & positions) to get the exact dgamma_t0
-        dgamma_t0 = exp_d / (denom * denom)
-        # dgamma_t0 *= self.velocities * self.positions
+        # we do not multiply by scalars (velocity & position) to get the exact dgamma_t0
+        collin_to_dgamma_t0 = exp_d / (denom * denom)
+        # collin_to_dgamma_t0 *= self.velocities * self.positions
 
-        return gamma_t0, dgamma_t0
+        return gamma_t0, collin_to_dgamma_t0
 
     def _compute_orthonormal_basis(self):
         """
@@ -191,11 +193,11 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
             return
 
         # Compute value and time-derivative of gamma at t0
-        gamma_t0, dgamma_t0 = self._compute_gamma_dgamma_t0()
+        gamma_t0, collin_to_dgamma_t0 = self._compute_gamma_t0_collin_dgamma_t0()
 
         # Compute the diagonal of metric matrix (cf. `_compute_Q`)
         G_metric = ( gamma_t0 * (1 - gamma_t0) ) ** -2
 
         # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
-        self._compute_Q(dgamma_t0, G_metric)
+        self._compute_Q(collin_to_dgamma_t0, G_metric)
 

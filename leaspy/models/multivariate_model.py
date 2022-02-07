@@ -248,7 +248,7 @@ class MultivariateModel(AbstractMultivariateModel):
         values = {}
         if any(c in L for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
-        if any(c in L for c in ('v0', 'all')):
+        if any(c in L for c in ('v0', 'v0_collinear', 'all')):
             values['v0'] = realizations['v0'].tensor_realizations
         if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
@@ -256,13 +256,14 @@ class MultivariateModel(AbstractMultivariateModel):
         self.MCMC_toolbox['attributes'].update(name_of_the_variables_that_have_been_changed, values)
 
     def _center_xi_realizations(self, realizations):
-        # This operation does not change the orthonormal basis (the resulting v0 is collinear to the previous one)
+        # This operation does not change the orthonormal basis
+        # (since the resulting v0 is collinear to the previous one)
         # <!> all operations are performed in "log" space (v0 is log'ed)
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
         realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
 
-        self.update_MCMC_toolbox(['v0'], realizations)
+        self.update_MCMC_toolbox(['v0_collinear'], realizations)
 
         return realizations
 

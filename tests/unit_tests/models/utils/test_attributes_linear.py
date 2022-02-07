@@ -17,7 +17,7 @@ class AttributesLinearTest(LeaspyTestCase):
         self.assertEqual(attributes.orthonormal_basis, None)
         self.assertEqual(attributes.mixing_matrix, None)
         self.assertEqual(attributes.name, 'linear')
-        self.assertEqual(attributes.update_possibilities, ('all', 'g', 'v0', 'betas'))
+        self.assertEqual(attributes.update_possibilities, ('all', 'g', 'v0', 'v0_collinear', 'betas'))
         self.assertRaises(ValueError, LinearAttributes, 'name', '4', 3.2)  # with bad type arguments
         self.assertRaises(TypeError, LinearAttributes)  # without argument
 
@@ -119,3 +119,40 @@ class AttributesLinearTest(LeaspyTestCase):
         # and the orthonormal basis (and mixing matrix) are the same!
         self.assertTrue(torch.allclose(old_BON, new_BON))
         self.assertTrue(torch.allclose(old_A, new_A))
+
+        # but orthonormal basis & mixing matrix were re-computed!
+        self.assertNotEqual(id(old_BON), id(new_BON))
+        self.assertNotEqual(id(old_A), id(new_A))
+
+
+    def test_no_update_of_orthonormal_basis_when_using_v0_collinear_update(self):
+
+        values = {
+            'g': torch.tensor([-1.1, 2.2, 0.0, 3.3], dtype=torch.float32),
+            'betas': torch.tensor([[0.1, 0.2, 0.3], [-0.1, 0.2, 0.3], [-0.1, 0.2, -0.3]], dtype=torch.float32),
+            'v0': torch.tensor([-4.0, -2.8, -4.5, -3.5], dtype=torch.float32)
+        }
+        dimension, source_dimension = self.check_values_and_get_dimensions(values)
+
+        attributes = LinearAttributes('linear', dimension, source_dimension)
+        attributes.update(['all'], values)
+
+        old_velocities = attributes.velocities
+        old_BON = attributes.orthonormal_basis
+        old_A = attributes.mixing_matrix
+
+        # shift v0 (log of velocities), so the resulting v0 should be collinear to previous one
+        # and so the orthonormal basis should be the same!
+        new_v0 = values['v0'] - 0.3
+        attributes.update(['v0_collinear'], {'v0': new_v0})
+        new_velocities = attributes.velocities
+        new_BON = attributes.orthonormal_basis
+        new_A = attributes.mixing_matrix
+
+        # velocities are different
+        self.assertFalse(torch.allclose(old_velocities, new_velocities))
+        # but they are collinear
+        self.assertTrue(attributes._check_collinearity_vectors(old_velocities, new_velocities))
+        # and the orthonormal basis (and mixing matrix) was not re-computed!
+        self.assertEqual(id(old_BON), id(new_BON))
+        self.assertEqual(id(old_A), id(new_A))

@@ -66,7 +66,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             self.betas: torch.FloatTensor = None
             self.mixing_matrix: torch.FloatTensor = None
             self.orthonormal_basis: torch.FloatTensor = None
-            self.update_possibilities = ('all', 'g', 'v0', 'betas')
+            self.update_possibilities = ('all', 'g', 'v0', 'v0_collinear', 'betas')
 
     def get_attributes(self):
         """
@@ -233,7 +233,8 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         """
         Returns True if all vectors are collinear [or all zeros].
 
-        This is a useful helper function to avoid un-needed orthonormal basis re-computations.
+        This may be a useful helper function to avoid un-needed orthonormal basis re-computations.
+        (Not used for now - only "declaration" of sure collinearity to speed-up)
 
         Precondition on vectors: 0D or 1D torch float tensors of same shapes
         """

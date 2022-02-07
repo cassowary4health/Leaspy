@@ -159,7 +159,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         ----------
         values : dict [str, `torch.Tensor`]
         """
-        self.deltas = torch.cat((torch.tensor([0], dtype=torch.float32), values['deltas']))
+        self.deltas = torch.cat((torch.tensor([0]), values['deltas']))
 
     def _compute_gamma_t0_collin_dgamma_t0(self):
         """

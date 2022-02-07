@@ -54,4 +54,3 @@ class AttributesFactory:
             raise LeaspyModelInputError(f"{name}: `dimension` should be 1 when 'univariate' is part of model `name`, not {dimension}!")
 
         return cls._attributes[name](name, dimension, source_dimension)
-

@@ -1,6 +1,8 @@
 import os
 import warnings
 import json
+import unittest
+import torch
 
 from leaspy import Leaspy
 
@@ -162,6 +164,65 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_binary', noise_model='bernoulli', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
+                                     check_model=True,
+                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
+                                                                               'tau_std': dict(atol=tol_tau)}))
+
+@unittest.skipIf(not torch.cuda.is_available(),
+                "GPU calibration tests need an available CUDA environment")
+class LeaspyFitGPUTest(LeaspyFitTest_Mixin):
+
+    # Test MCMC-SAEM
+    def test_fit_logistic_scalar_noise(self, tol=5e-2, tol_tau=2e-1):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True,
+                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
+                                                                               'tau_std': dict(atol=tol_tau)}))
+
+
+    # Test MCMC-SAEM (1 noise per feature)
+    def test_fit_logistic_diag_noise(self, tol=6e-2, tol_tau=2e-1):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_gpu', noise_model='gaussian_diagonal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True,
+                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
+                                                                               'tau_std': dict(atol=tol_tau)}))
+
+    def test_fit_logisticparallel(self, tol=1e-2):
+
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True,
+                                     check_kws=dict(atol=tol))
+
+    def test_fit_logisticparallel_diag_noise(self, tol=1e-2):
+
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise_gpu', noise_model='gaussian_diagonal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True,
+                                     check_kws=dict(atol=tol))
+
+    def test_fit_univariate_logistic(self, tol=1e-2):
+
+        leaspy, _ = self.generic_fit('univariate_logistic', 'univariate_logistic_gpu',
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True,
+                                     check_kws=dict(atol=tol))
+
+    def test_fit_univariate_linear(self, tol=1e-2):
+
+        leaspy, _ = self.generic_fit('univariate_linear', 'univariate_linear_gpu',
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True,
+                                     check_kws=dict(atol=tol))
+
+    def test_fit_linear(self, tol=2e-1, tol_tau=1e-1):
+
+        leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
                                      check_model=True,
                                      check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
                                                                                'tau_std': dict(atol=tol_tau)}))

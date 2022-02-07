@@ -60,7 +60,7 @@ class AbstractSampler(ABC):
                 raise LeaspyModelInputError("Dimension of population variable should be 1 or 2")
             else:
                 full_shape = (self.temp_length, *self.shape)
-                self.acceptation_temp = torch.zeros(full_shape, dtype=torch.float32)
+                self.acceptation_temp = torch.zeros(full_shape)
 
         elif info["type"] == "individual":
             self.type = 'ind'
@@ -69,7 +69,7 @@ class AbstractSampler(ABC):
                 raise LeaspyModelInputError("Dimension of individual variable should be 1")
             # <!> We do not take into account the dimensionality of individual parameter for acceptation rate
             full_shape = (self.temp_length, n_patients)
-            self.acceptation_temp = torch.zeros(full_shape, dtype=torch.float32)
+            self.acceptation_temp = torch.zeros(full_shape)
 
             # The dimension(s) to sum when computing regularity of individual parameters
             # For now there's only one extra dimension whether it's tau, xi or sources

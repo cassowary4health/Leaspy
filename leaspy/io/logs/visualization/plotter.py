@@ -65,12 +65,12 @@ class Plotter:
             mean_time = model.parameters['tau_mean']
             std_time = max(model.parameters['tau_std'], 4)
             timepoints = np.linspace(mean_time - 3 * std_time, mean_time + 6 * std_time, 100)
-            timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
+            timepoints = torch.tensor(timepoints).unsqueeze(0)
 
-            mean_trajectory = model.compute_mean_traj(timepoints).detach().numpy()
+            mean_trajectory = model.compute_mean_traj(timepoints).cpu().detach().numpy()
 
             for i in range(mean_trajectory.shape[-1]):
-                ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
+                ax.plot(timepoints[0, :].cpu().detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
                         linewidth=4, alpha=0.9, c=colors[i])  # , c=colors[i])
             plt.legend()
 
@@ -87,13 +87,13 @@ class Plotter:
             timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
                                      model[0].parameters['tau_mean'] + 6 * np.sqrt(model[0].parameters['tau_std']),
                                      100)
-            timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
+            timepoints = torch.tensor(timepoints).unsqueeze(0)
 
             for j, el in enumerate(model):
-                mean_trajectory = el.compute_mean_traj(timepoints).detach().numpy()
+                mean_trajectory = el.compute_mean_traj(timepoints).cpu().detach().numpy()
 
                 for i in range(mean_trajectory.shape[-1]):
-                    ax.plot(timepoints[0, :].detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
+                    ax.plot(timepoints[0, :].cpu().detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
                             linewidth=4, alpha=0.5, c=colors[i])  # , )
 
                 if j == 0:
@@ -149,13 +149,13 @@ class Plotter:
             indiv = results.data.get_by_idx(idx)
             timepoints = indiv.timepoints
             observations = np.array(indiv.observations)
-            t = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
+            t = torch.tensor(timepoints).unsqueeze(0)
             indiv_parameters = results.get_patient_individual_parameters(idx)
 
             trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
             for dim in range(model.dimension):
                 not_nans_idx = np.array(1-np.isnan(observations[:, dim]),dtype=bool)
-                ax.plot(np.array(timepoints), trajectory.detach().numpy()[:, dim], c=colors[dim])
+                ax.plot(np.array(timepoints), trajectory.cpu().detach().numpy()[:, dim], c=colors[dim])
                 ax.plot(np.array(timepoints)[not_nans_idx], observations[:, dim][not_nans_idx], c=colors[dim], linestyle='--')
 
         if 'save_as' in kwargs.keys():
@@ -235,7 +235,8 @@ class Plotter:
         timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
                                  model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
                                  100)
-        timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
+        timepoints = torch.tensor(timepoints).unsqueeze(0)
+
         xi = results.individual_parameters['xi']
         tau = results.individual_parameters['tau']
 
@@ -246,10 +247,10 @@ class Plotter:
             fig, ax = plt.subplots(1, 1)
             # ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
             for idx in range(min(50, len(tau))):
-                ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].detach().numpy(),
-                        dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].detach().numpy(), 'x', )
-                ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].detach().numpy(),
-                        patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].detach().numpy(),
+                ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].cpu().detach().numpy(),
+                        dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy(), 'x', )
+                ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].cpu().detach().numpy(),
+                        patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy(),
                         alpha=0.8)
             if 'logistic' in model.name:
                 plt.ylim(0, 1)
@@ -274,8 +275,9 @@ class Plotter:
         for i in range(dataset.values.shape[-1]):
             err[i] = []
             for idx in range(patient_values.shape[0]):
-                err[i].extend(dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].detach().numpy() -
-                              patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].detach().numpy())
+                err[i].extend(dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy() -
+                              patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy())
+
             err['all'].extend(err[i])
             err[i] = np.array(err[i])
         err['all'] = np.array(err['all'])
@@ -315,24 +317,25 @@ class Plotter:
         for i in patients_list:
             model_value = patient_values[i, 0:dataset.n_visits_per_individual[i], :]
             score = dataset.values[i, 0:dataset.n_visits_per_individual[i], :]
-            ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].detach().numpy(),
-                    model_value.detach().numpy(), c=colors[i])
-            ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].detach().numpy(),
-                    score.detach().numpy(), c=colors[i], linestyle='--',
+            ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].cpu().detach().numpy(),
+                    model_value.cpu().detach().numpy(), c=colors[i])
+            ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].cpu().detach().numpy(),
+                    score.cpu().detach().numpy(), c=colors[i], linestyle='--',
                     marker='o')
 
         # Plot the mean also
         # min_time, max_time = torch.min(dataset.timepoints[dataset.timepoints>0.0]), torch.max(dataset.timepoints)
 
-        min_time, max_time = np.percentile(dataset.timepoints[dataset.timepoints > 0.0].detach().numpy(), [10, 90])
+        min_time, max_time = np.percentile(dataset.timepoints[dataset.timepoints > 0.0].cpu().detach().numpy(), [10, 90])
 
         timepoints = np.linspace(min_time,
                                  max_time,
                                  100)
-        timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
+        timepoints = torch.tensor(timepoints).unsqueeze(0)
+
         patient_values = model.compute_mean_traj(timepoints)
         for i in range(patient_values.shape[-1]):
-            ax.plot(timepoints[0, :].detach().numpy(), patient_values[0, :, i].detach().numpy(),
+            ax.plot(timepoints[0, :].cpu().detach().numpy(), patient_values[0, :, i].cpu().detach().numpy(),
                     c="black", linewidth=3, alpha=0.3)
 
         plt.savefig(path)
@@ -353,7 +356,7 @@ class Plotter:
         else:
             # with sources
             xi, tau, sources = param_ind
-        ax.plot(xi.squeeze(1).detach().numpy(), tau.squeeze(1).detach().numpy(), 'x')
+        ax.plot(xi.squeeze(1).cpu().detach().numpy(), tau.squeeze(1).cpu().detach().numpy(), 'x')
         plt.xlabel('xi')
         plt.ylabel('tau')
         pdf.savefig(fig)
@@ -363,7 +366,7 @@ class Plotter:
 
         for i in range(nb_sources):
             fig, ax = plt.subplots(1, 1)
-            ax.plot(sources[:, i].detach().numpy(), 'x')
+            ax.plot(sources[:, i].cpu().detach().numpy(), 'x')
             plt.title("sources " + str(i))
             pdf.savefig(fig)
             plt.close()

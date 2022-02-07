@@ -814,3 +814,28 @@ class AbstractModel(ABC):
                                         )
 
         return variance.sqrt()
+
+    def move_to_device(self, device: torch.device) -> None:
+        """
+        Move a model and its relevant attributes to the specified device.
+
+        Parameters
+        ----------
+        device : torch.devuce
+        """
+
+        # Note that in a model, the only tensors that need offloading to a
+        # particular device are in the model.parameters dict as well as in the
+        # attributes and MCMC_toolbox['attributes'] objects
+
+        for parameter in self.parameters:
+            self.parameters[parameter] = self.parameters[parameter].to(device)
+
+        if hasattr(self, "sufficient_statistics"):
+            for k in self.sufficient_statistics:
+                self.sufficient_statistics[k] = self.sufficient_statistics[k].to(device)
+        if hasattr(self, "attributes"):
+            self.attributes.move_to_device(device)
+        if hasattr(self, "MCMC_toolbox"):
+            if self.MCMC_toolbox.get("attributes", None) is not None:
+                self.MCMC_toolbox["attributes"].move_to_device(device)

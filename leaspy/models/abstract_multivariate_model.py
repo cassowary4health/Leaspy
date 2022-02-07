@@ -208,9 +208,9 @@ class AbstractMultivariateModel(AbstractModel):
             The group-average values at given timepoints
         """
         individual_parameters = {
-            'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
-            'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
-            'sources': torch.zeros(self.source_dimension, dtype=torch.float32)
+            'xi': torch.tensor([self.parameters['xi_mean']]),
+            'tau': torch.tensor([self.parameters['tau_mean']]),
+            'sources': torch.zeros(self.source_dimension)
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)

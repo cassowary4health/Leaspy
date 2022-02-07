@@ -1,5 +1,6 @@
 import os
 import json
+import torch
 
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 from leaspy.io.settings import algo_default_data_dir
@@ -105,7 +106,35 @@ class AlgorithmSettingsTest(LeaspyTestCase):
             'algorithm_initialization_method',
             'model_initialization_method',
             'parameters',
+            'device',
             # 'logs'
         })
         self.assertEqual(json_data['name'], 'mcmc_saem')
         self.assertEqual(json_data['seed'], 42)
+
+    def test_device(self):
+
+        algo_settings_cpu = AlgorithmSettings('mcmc_saem')
+        self.assertEqual(algo_settings_cpu.device, 'cpu')
+
+        algo_settings_cpu = AlgorithmSettings('mcmc_saem', device='cpu')
+        self.assertEqual(algo_settings_cpu.device, 'cpu')
+
+        algo_settings_cpu = AlgorithmSettings('mcmc_saem', device=torch.device('cpu'))
+        self.assertEqual(algo_settings_cpu.device, 'cpu')
+
+        algo_settings_cuda = AlgorithmSettings('mcmc_saem', device='cuda')
+        self.assertEqual(algo_settings_cuda.device, 'cuda')
+
+        algo_settings_cuda = AlgorithmSettings('mcmc_saem', device=torch.device('cuda'))
+        self.assertEqual(algo_settings_cuda.device, 'cuda')
+
+        algo_settings_cuda = AlgorithmSettings('mcmc_saem', device='cuda:2')
+        self.assertEqual(algo_settings_cuda.device, 'cuda')
+
+        algo_settings_cuda = AlgorithmSettings('mcmc_saem', device=torch.device('cuda:2'))
+        self.assertEqual(algo_settings_cuda.device, 'cuda')
+
+        # device is supported only for fit algorithms
+        with self.assertWarnsRegex(UserWarning, 'does not support user-specified devices'):
+            algo_settings_incorrect = AlgorithmSettings('scipy_minimize', device=torch.device('cuda'))

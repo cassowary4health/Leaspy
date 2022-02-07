@@ -133,7 +133,7 @@ class UnivariateModel(AbstractModel):
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
-            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
+            self.parameters[k] = torch.tensor(parameters[k])
         self.attributes = AttributesFactory.attributes(self.name, dimension=1)
         self.attributes.update(['all'], self.parameters)
 
@@ -203,8 +203,8 @@ class UnivariateModel(AbstractModel):
             The group-average values at given timepoints
         """
         individual_parameters = {
-            'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
-            'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
+            'xi': torch.tensor([self.parameters['xi_mean']]),
+            'tau': torch.tensor([self.parameters['tau_mean']]),
         }
 
         return self.compute_individual_tensorized(timepoints, individual_parameters)

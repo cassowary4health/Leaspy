@@ -192,7 +192,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         """
 
         assert 0 <= strip_col < self.dimension
-        ej = torch.zeros(self.dimension, dtype=torch.float32)
+        ej = torch.zeros(self.dimension)
         ej[strip_col] = 1.
 
         alpha = -torch.sign(dgamma_t0[strip_col]) * torch.norm(dgamma_t0)

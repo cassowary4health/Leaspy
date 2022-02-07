@@ -1,3 +1,4 @@
+import unittest
 import torch
 
 from leaspy import AlgorithmSettings, Leaspy
@@ -199,6 +200,57 @@ class AbstractModelTest(LeaspyTestCase):
                             self.assertIsInstance(v, torch.Tensor)
                             self.assertEqual(v.dim(), 2)
                             self.assertEqual(v.shape, (1, src_dim if (k == 'sources') else 1))
+
+    def test_model_device_management_cpu_only(self):
+        model_name = 'logistic'
+
+        leaspy = Leaspy(model_name, source_dimension=1)
+        settings = AlgorithmSettings('mcmc_saem', n_iter=100, seed=0)
+        data = self.get_suited_test_data_for_model(model_name)
+        leaspy.fit(data, settings)
+
+        # model should be moved to the cpu at the end of the calibration
+        self._check_model_device(leaspy.model, torch.device('cpu'))
+
+        leaspy.model.move_to_device(torch.device('cpu'))
+        self._check_model_device(leaspy.model, torch.device('cpu'))
+
+
+    @unittest.skipIf(not torch.cuda.is_available(), 'Device management involving GPU '
+                     'is not available without an available CUDA environment.')
+    def test_model_device_management_with_gpu(self):
+        model_name = 'logistic'
+
+        leaspy = Leaspy(model_name, source_dimension=1)
+        settings = AlgorithmSettings('mcmc_saem', n_iter=100, seed=0, device='cuda')
+        data = self.get_suited_test_data_for_model(model_name)
+        leaspy.fit(data, settings)
+
+        # model should be moved to the cpu at the end of the calibration
+        self._check_model_device(leaspy.model, torch.device('cpu'))
+
+        leaspy.model.move_to_device(torch.device('cuda'))
+        self._check_model_device(leaspy.model, torch.device('cuda'))
+
+        leaspy.model.move_to_device(torch.device('cpu'))
+        self._check_model_device(leaspy.model, torch.device('cpu'))
+
+    def _check_model_device(self, model, expected_device):
+        if hasattr(model, 'parameters'):
+            for param, tensor in model.parameters.items():
+                self.assertEqual(tensor.device.type, expected_device.type)
+
+        if hasattr(model, 'attributes'):
+            for attribute_name in dir(model.attributes):
+                tensor = getattr(model.attributes, attribute_name)
+                if isinstance(tensor, torch.Tensor):
+                    self.assertEqual(tensor.device.type, expected_device.type)
+
+        if hasattr(model, 'MCMC_toolbox') and 'attributes' in model.MCMC_toolbox:
+            for attribute_name in dir(model.MCMC_toolbox['attributes']):
+                tensor = getattr(model.MCMC_toolbox['attributes'], attribute_name)
+                if isinstance(tensor, torch.Tensor):
+                    self.assertEqual(tensor.device.type, expected_device.type)
 
     # @LeaspyTestCase.allow_abstract_class_init(AbstractModel)
     # def test_compute_individual_trajectory(self):

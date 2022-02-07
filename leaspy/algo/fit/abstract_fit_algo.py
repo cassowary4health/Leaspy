@@ -1,3 +1,6 @@
+import contextlib
+import torch
+
 from abc import abstractmethod
 
 from leaspy.algo.abstract_algo import AbstractAlgo
@@ -29,6 +32,8 @@ class AbstractFitAlgo(AbstractAlgo):
     def __init__(self, settings):
 
         super().__init__(settings)
+
+        self.algorithm_device = settings.device
         self.current_iteration = 0
 
     ###########################
@@ -59,34 +64,35 @@ class AbstractFitAlgo(AbstractAlgo):
             * None : placeholder for noise-std
         """
 
-        # Initialize first the random variables
-        # TODO : Check if needed - model.initialize_random_variables(dataset)
+        with self._device_manager(dataset, model):
+            # Initialize first the random variables
+            # TODO : Check if needed - model.initialize_random_variables(dataset)
 
-        # Then initialize the Realizations (from the random variables)
-        realizations = model.initialize_realizations_for_model(dataset.n_individuals)
+            # Then initialize the Realizations (from the random variables)
+            realizations = model.initialize_realizations_for_model(dataset.n_individuals)
 
-        # Smart init the realizations
-        realizations = model.smart_initialization_realizations(dataset, realizations)
+            # Smart init the realizations
+            realizations = model.smart_initialization_realizations(dataset, realizations)
 
-        # Initialize Algo
-        self._initialize_algo(dataset, model, realizations)
-
-        if self.algo_parameters['progress_bar']:
-            self._display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
-
-        # Iterate
-        for it in range(self.algo_parameters['n_iter']):
-
-            self.iteration(dataset, model, realizations)
-            self.current_iteration += 1
-
-            if self.output_manager is not None:  # TODO better this, should work with nones
-                # do not print iteration 0 because of noise_std init pb
-                # but print first & last iteration!
-                self.output_manager.iteration(self, dataset, model, realizations)
+            # Initialize Algo
+            self._initialize_algo(dataset, model, realizations)
 
             if self.algo_parameters['progress_bar']:
-                self._display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
+                self._display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
+
+            # Iterate
+            for it in range(self.algo_parameters['n_iter']):
+
+                self.iteration(dataset, model, realizations)
+                self.current_iteration += 1
+
+                if self.output_manager is not None:  # TODO better this, should work with nones
+                    # do not print iteration 0 because of noise_std init pb
+                    # but print first & last iteration!
+                    self.output_manager.iteration(self, dataset, model, realizations)
+
+                if self.algo_parameters['progress_bar']:
+                    self._display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
 
         return realizations, model.parameters['noise_std']
 
@@ -153,6 +159,45 @@ class AbstractFitAlgo(AbstractAlgo):
         bool
         """
         return self.current_iteration < self.algo_parameters['n_burn_in_iter']
+
+    @contextlib.contextmanager
+    def _device_manager(self, model, dataset):
+        """
+        Context-manager to handle the "ambient device" (i.e. the device used
+        to instantiate tensors and perform computations). The provided model
+        and dataset will be moved to the device specified for the execution
+        at the beginning of the algorithm and moved back to the original
+        ('cpu') device at the end of the algorithm. The default tensor type
+        will also be set accordingly.
+
+        Parameters
+        ----------
+        model : :class:`~.models.abstract_model.AbstractModel`
+            The used model.
+        dataset : :class:`.Dataset`
+            Contains the subjects' observations in torch format to speed up computation.
+        """
+
+        default_algorithm_tensor_type = 'torch.FloatTensor'
+        default_algorithm_device = torch.device('cpu')
+
+        algorithm_tensor_type = default_algorithm_tensor_type
+        if self.algorithm_device != 'cpu':
+            algorithm_device = torch.device(self.algorithm_device)
+
+            dataset.move_to_device(algorithm_device)
+            model.move_to_device(algorithm_device)
+
+            algorithm_tensor_type = 'torch.cuda.FloatTensor'
+
+        try:
+            yield torch.set_default_tensor_type(algorithm_tensor_type)
+        finally:
+            if self.algorithm_device != 'cpu':
+                dataset.move_to_device(default_algorithm_device)
+                model.move_to_device(default_algorithm_device)
+
+            torch.set_default_tensor_type(default_algorithm_tensor_type)
 
     ###########################
     # Output

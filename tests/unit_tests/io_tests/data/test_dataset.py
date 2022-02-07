@@ -1,3 +1,5 @@
+import unittest
+
 import torch
 
 from leaspy.io.data.data import Data
@@ -75,3 +77,35 @@ class DatasetTest(LeaspyTestCase):
         self.assertEqual(dataset.dimension, 2)
         self.assertEqual(dataset.n_visits, 8)  # 1 row full of nans should have been dropped
         self.assertEqual(dataset.n_observations, 2*8-3)  # 3 nans
+
+
+    def test_dataset_device_management_cpu_only(self):
+        path_to_data = self.get_test_data_path('data_mock', 'multivariate_data_for_dataset_with_nans.csv')
+        data = Data.from_csv_file(path_to_data)
+        dataset = Dataset(data)
+
+        self._check_dataset_device(dataset, torch.device('cpu'))
+
+        dataset.move_to_device('cpu')
+        self._check_dataset_device(dataset, torch.device('cpu'))
+
+    @unittest.skipIf(not torch.cuda.is_available(),
+                    'Device management involving GPU needs an available CUDA environment')
+    def test_dataset_device_management_with_gpu(self):
+        path_to_data = self.get_test_data_path('data_mock', 'multivariate_data_for_dataset_with_nans.csv')
+        data = Data.from_csv_file(path_to_data)
+        dataset = Dataset(data)
+
+        self._check_dataset_device(dataset, torch.device('cpu'))
+
+        dataset.move_to_device('cuda')
+        self._check_dataset_device(dataset, torch.device('cuda'))
+
+        dataset.move_to_device('cpu')
+        self._check_dataset_device(dataset, torch.device('cpu'))
+
+    def _check_dataset_device(self, dataset, expected_device):
+        for attribute_name in dir(dataset):
+            attribute = getattr(dataset, attribute_name)
+            if isinstance(attribute, torch.Tensor):
+                self.assertEqual(attribute.device.type, expected_device.type)

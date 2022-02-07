@@ -91,6 +91,20 @@ class AbstractAttributes(ABC):
         """
         pass
 
+    def move_to_device(self, device: torch.device):
+        """
+        Move the tensor attributes of this class to the specified device.
+
+        Parameters
+        ----------
+        device : torch.device
+
+        """
+        for attribute_name in dir(self):
+            attribute = getattr(self, attribute_name)
+            if isinstance(attribute, torch.Tensor):
+                setattr(self, attribute_name, attribute.to(device))
+
     def _check_names(self, names_of_changed_values: Tuple[ParamType, ...]):
         """
         Check if the name of the parameter(s) to update are in the possibilities allowed by the model.

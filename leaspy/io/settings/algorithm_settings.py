@@ -1,6 +1,7 @@
 import json
 import os
 import warnings
+import torch  # to handle devices
 
 from leaspy.io.settings import algo_default_data_dir
 from leaspy.io.settings.outputs_settings import OutputsSettings
@@ -53,6 +54,9 @@ class AlgorithmSettings:
                 Used in ``scipy_minimize`` algorithm to accelerate calculation with parallel derivation using joblib.
             * progress_bar : bool, optional, default True
                 Used to display a progress bar during computation.
+            * device: str or torch.device, optional
+                For **fit** algorithms only, specifies on which device the algorithm will run.
+                Only 'cpu' and 'cuda' are supported for this argument.
 
         For the complete list of the available parameters for a given algorithm, please directly refer to its documentation.
 
@@ -72,6 +76,12 @@ class AlgorithmSettings:
       Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
     logs : :class:`.OutputsSettings`, optional
       Used to create a ``logs`` file during a model calibration containing convergence information.
+    device: str (or torch.device), optional, default 'cpu'
+      Used to specify on which device the algorithm will run. This should either
+      be 'cpu' or 'cuda' and is only supported for fit algorithms (such as
+      'mcmc_saem'). Note that specifying an indexed CUDA device (such as
+      'cuda:1') is not supported. In order to specify the precise cuda device
+      index, one should use the CUDA_VISIBLE_DEVICES environmental variable.
 
     Raises
     ------
@@ -128,7 +138,7 @@ class AlgorithmSettings:
     }
 
     # known keys for all algorithms (<!> not all of them are mandatory!)
-    _known_keys = ['name', 'seed', 'algorithm_initialization_method', 'model_initialization_method', 'parameters'] # 'logs' are not handled in exported files
+    _known_keys = ['name', 'seed', 'algorithm_initialization_method', 'model_initialization_method', 'parameters', 'device'] # 'logs' are not handled in exported files
 
     def __init__(self, name: str, **kwargs):
 
@@ -165,6 +175,10 @@ class AlgorithmSettings:
 
         if self.seed is not None and self.algo_class.deterministic:
             warnings.warn(f'You can skip defining `seed` since the algorithm {self.name} is deterministic.')
+
+        if algo_family != 'fit' and hasattr(self, 'device'):
+            warnings.warn(f'The algorithm "{self.name}" does not support user-specified devices (this '
+                           'is supported only for fit algorithms) and will use the default device (CPU).')
 
     @classmethod
     def load(cls, path_to_algorithm_settings: str):
@@ -215,6 +229,10 @@ class AlgorithmSettings:
             print("You overwrote the model default initialization method")
             algorithm_settings.model_initialization_method = cls._get_model_initialization_method(settings)
 
+        if 'device' in settings.keys():
+            print("You overwrote the algorithm default device")
+            algorithm_settings.device = cls._get_device(settings)
+
         if 'loss' in settings.keys():
             raise LeaspyAlgoInputError('`loss` keyword for AlgorithmSettings is not supported any more. '
                                        'Please define `noise_model` directly in your Leaspy model.')
@@ -258,6 +276,7 @@ class AlgorithmSettings:
         algo_family = self.algo_class.family
         if algo_family == 'fit':
             json_settings['model_initialization_method'] = self.model_initialization_method
+            json_settings['device'] = self.device
 
         """
         TODO: save config of logging as well (OutputSettings needs to be JSON serializable...)
@@ -340,6 +359,7 @@ class AlgorithmSettings:
             'seed': self._get_seed,
             'algorithm_initialization_method': self._get_algorithm_initialization_method,
             'model_initialization_method': self._get_model_initialization_method,
+            'device': self._get_device,
         }
 
         for k, v in kwargs.items():
@@ -431,6 +451,9 @@ class AlgorithmSettings:
         if algo_class.family == 'fit':
             self.model_initialization_method = self._get_model_initialization_method(settings)
 
+        if 'device' in settings:
+            self.device = self._get_device(settings)
+
     @classmethod
     def _check_default_settings(cls, settings):
 
@@ -490,3 +513,14 @@ class AlgorithmSettings:
         # TODO : There should be a list of possible initialization method. It can also be discussed depending on the algorithms name
         return settings['model_initialization_method']
 
+    @staticmethod
+    def _get_device(settings):
+        # in case where a torch.device object was used, we convert it to the
+        # corresponding string (torch.device('cuda') is converted into 'cuda')
+        # in order for the AlgorithmSettings to be saved into json files if needed
+        if isinstance(settings['device'], torch.device):
+            return settings['device'].type
+
+        # getting the type of torch.device(...) allows to convert 'cuda:2' to 'cuda'
+        # which prevents potential issues when using torch.set_default_tensor_type
+        return torch.device(settings['device']).type

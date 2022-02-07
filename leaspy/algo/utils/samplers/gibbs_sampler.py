@@ -82,7 +82,8 @@ class GibbsSampler(AbstractSampler):
 
         # Should we randomize the order of indices during the sampling loop?
         # (only for population variables, since we perform group sampling for individual variables)
-        self._random_sampling_order = False
+        # Ref: https://proceedings.neurips.cc/paper/2016/hash/e4da3b7fbbce2345d7772b0674a318d5-Abstract.html
+        self._random_sampling_order = True
 
     def _proposal(self, val):
         """

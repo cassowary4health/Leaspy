@@ -36,7 +36,8 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         self.temperature_inv = 1
         self.temperature = 1
 
-        self._random_sampling_order = False
+        # Ref: https://proceedings.neurips.cc/paper/2016/hash/e4da3b7fbbce2345d7772b0674a318d5-Abstract.html
+        self._random_sampling_order = True
 
     ###########################
     ## Initialization
@@ -137,7 +138,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         # The only "attributes" we did not update yet are the ones derived from individual realizations if any
         # Currently, the only one is `xi_mean` (only for univariate and logistic parallel models)
         # TODO? shouldn't we update this `xi_mean` in MCMC toolbox as soon as we updated `xi`s (as we do in pop sampling)?
-        #       (but if so then be careful since it should not be done during mean/mode_real personalization algorithm!)
+        # (but if so then be careful since it should not be done during mean/mode_real personalization algorithm!)
         remaining_vars_to_update = [
             v for v in model.MCMC_toolbox['attributes'].update_possibilities
             if v not in ['all', 'v0_collinear'] + pop_vars

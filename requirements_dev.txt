@@ -1,3 +1,4 @@
+numpydoc
 pytest
 pytest-cov
 pytest-subtests

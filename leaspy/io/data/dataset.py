@@ -226,6 +226,10 @@ class Dataset:
     def move_to_device(self, device: torch.device) -> None:
         """
         Moves the dataset to the specified device.
+
+        Parameters
+        ----------
+        device : torch.device
         """
 
         # I don't know if we should make the moved attributes explicit...

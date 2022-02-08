@@ -98,7 +98,6 @@ class AbstractAttributes(ABC):
         Parameters
         ----------
         device : torch.device
-
         """
         for attribute_name in dir(self):
             attribute = getattr(self, attribute_name)

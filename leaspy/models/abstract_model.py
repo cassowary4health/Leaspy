@@ -821,7 +821,7 @@ class AbstractModel(ABC):
 
         Parameters
         ----------
-        device : torch.devuce
+        device : torch.device
         """
 
         # Note that in a model, the only tensors that need offloading to a

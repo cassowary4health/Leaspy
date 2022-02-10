@@ -145,7 +145,7 @@ class Plotting:
 
     def average_trajectory(self, **kwargs):
         """
-        Plot the population average trajectories. They are parametrized by the population parameters derivated
+        Plot the population average trajectories. They are parametrized by the population parameters derived
         during the calibration.
 
         Parameters
@@ -175,7 +175,7 @@ class Plotting:
                 Path to save the figure.
             * title: str
             * n_tpts: int
-                Nb of timpepoints in plot (default: 100)
+                Nb of timepoints in plot (default: 100)
             * n_std_left, n_std_right: float (default: 3 and 6 resp.)
                 Time window around `tau_mean`, expressed as times of max(`tau_std`, 4)
 

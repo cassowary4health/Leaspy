@@ -598,7 +598,7 @@ class AbstractModel(ABC):
 
     def get_population_realization_names(self) -> List[str]:
         """
-        Get names of population variales of the model.
+        Get names of population variables of the model.
 
         Returns
         -------
@@ -609,7 +609,7 @@ class AbstractModel(ABC):
 
     def get_individual_realization_names(self) -> List[str]:
         """
-        Get names of individual variales of the model.
+        Get names of individual variables of the model.
 
         Returns
         -------
@@ -689,7 +689,7 @@ class AbstractModel(ABC):
     @abstractmethod
     def random_variable_informations(self) -> DictParams:
         """
-        Informations on model's random variables.
+        Information on model's random variables.
 
         Returns
         -------

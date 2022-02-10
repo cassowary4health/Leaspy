@@ -104,7 +104,7 @@ class AbstractFitAlgo(AbstractAlgo):
         Parameters
         ----------
         dataset : :class:`.Dataset`
-            Contains the subjects' obersvations in torch format to speed up computation.
+            Contains the subjects' observations in torch format to speed-up computation.
         model : :class:`~.models.abstract_model.AbstractModel`
             The used model.
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`

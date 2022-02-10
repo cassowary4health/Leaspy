@@ -43,7 +43,7 @@ class Result:
         Desired noise standard deviation level.
     """
 
-    # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters io.
+    # TODO : Check consistency and ordering of subjects ID between Data and individual parameters io.
     def __init__(self, data: Data, individual_parameters: DictParamsTorch, noise_std=None):
 
         self.data = data
@@ -103,7 +103,7 @@ class Result:
         Notes
         -----
         The cofactors must be present in the leaspy data object stored into the .data attribute of the result instance.
-        See the exemple.
+        See the example.
 
         Examples
         --------
@@ -143,7 +143,7 @@ class Result:
 
         # For each individual variable
         for variable_ind in list(self.individual_parameters.keys()):
-            # Case tau / ksi --> unidimensional
+            # Case tau / xi --> unidimensional
             if self.individual_parameters[variable_ind].shape[1] == 1:
                 patient_dict[variable_ind] = self.individual_parameters[variable_ind].numpy().reshape(-1)
             # Case sources --> multidimensional
@@ -509,7 +509,7 @@ class Result:
             The file's path or a DataFrame containing the individual parameters.
         verbose : bool (default True)
         **args
-            Parameters to pass to the corresponding load fonction.
+            Parameters to pass to the corresponding load function.
 
         Returns
         -------

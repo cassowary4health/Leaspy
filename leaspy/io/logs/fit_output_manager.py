@@ -190,7 +190,7 @@ class FitOutputManager:
             else:  # ndim == 0
                 model_parameters_save[key] = [value.tolist()]
 
-        # Save the dictionnary
+        # Save the dictionary
         for key, value in model_parameters_save.items():
             path = os.path.join(self.path_save_model_parameters_convergence, key + ".csv")
             with open(path, 'a', newline='') as filename:

@@ -93,11 +93,11 @@ class AbstractSampler(ABC):
         model : :class:`.AbstractModel`
             Model for loss computations and updates
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-            Contain the current state & informations of all the variables of interest
+            Contain the current state & information of all the variables of interest
         temperature_inv : float > 0
             Inverse of the temperature used in tempered MCMC-SAEM
         **attachment_computation_kws
-            Optional keyword arguments for attachement computations.
+            Optional keyword arguments for attachment computations.
             As of now, we only use it for individual variables, and only `attribute_type`.
             It is used to know whether to compute attachments from the MCMC toolbox (esp. during fit)
             or to compute it from regular model parameters (esp. during personalization in mean/mode realization)

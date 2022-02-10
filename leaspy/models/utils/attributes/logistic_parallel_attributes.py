@@ -80,7 +80,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
                 * ``all`` (update everything)
                 * ``g`` correspond to the attribute :attr:`positions`.
                 * ``deltas`` correspond to the attribute :attr:`deltas`.
-                * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
+                * ``betas`` correspond to the linear combination of columns from the orthonormal basis so
                   to derive the :attr:`mixing_matrix`.
         values : dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters

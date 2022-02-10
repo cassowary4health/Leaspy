@@ -66,7 +66,7 @@ class LinearAttributes(AbstractManifoldModelAttributes):
                   we may update velocities using ``v0_collinear``, otherwise
                   we always assume v0 is NOT collinear to previous value
                   (no need to perform the verification it is - would not be really efficient)
-                * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
+                * ``betas`` correspond to the linear combination of columns from the orthonormal basis so
                   to derive the :attr:`mixing_matrix`.
         values : dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters

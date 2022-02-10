@@ -111,10 +111,10 @@ class Realization:
         self._tensor_realizations[dim] = element
 
     def __str__(self):
-        str = f"Realization of {self.name}\n"
-        str += f"Shape : {self.shape}\n"
-        str += f"Variable type : {self.variable_type}\n"
-        return str
+        s = f"Realization of {self.name}\n"
+        s += f"Shape : {self.shape}\n"
+        s += f"Variable type : {self.variable_type}\n"
+        return s
 
     def set_autograd(self):
         """

@@ -135,7 +135,7 @@ class Data:
         Returns
         -------
         :class:`pandas.DataFrame`
-            Contains the subjects's ID, age and scores (optional - and cofactors) for each timepoint.
+            Contains the subjects' ID, age and scores (optional - and cofactors) for each timepoint.
 
         Raises
         ------

@@ -31,7 +31,7 @@ class AlgoWithSamplersMixin:
 
     def _initialize_samplers(self, model, data):
         """
-        Instantiate samplers as a dictionnary samplers {variable_name: sampler}
+        Instantiate samplers as a dictionary samplers {variable_name: sampler}
 
         Parameters
         ----------

@@ -97,7 +97,10 @@ class AbstractMultivariateModel(AbstractModel):
         self.parameters = initialize_parameters(self, dataset, method)
 
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
-        self.attributes.update(['all'], self.parameters)
+
+        # Postpone the computation of attributes when really needed!
+        #self.attributes.update(['all'], self.parameters)
+
         self.is_initialized = True
 
     @abstractmethod
@@ -192,7 +195,7 @@ class AbstractMultivariateModel(AbstractModel):
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None) -> torch.FloatTensor:
         pass
 
-    def compute_mean_traj(self, timepoints):
+    def compute_mean_traj(self, timepoints, *, attribute_type: Optional[str] = None):
         """
         Compute trajectory of the model with individual parameters being the group-average ones.
 
@@ -201,6 +204,7 @@ class AbstractMultivariateModel(AbstractModel):
         Parameters
         ----------
         timepoints : :class:`torch.Tensor` [1, n_timepoints]
+        attribute_type : 'MCMC' or None
 
         Returns
         -------
@@ -213,7 +217,7 @@ class AbstractMultivariateModel(AbstractModel):
             'sources': torch.zeros(self.source_dimension)
         }
 
-        return self.compute_individual_tensorized(timepoints, individual_parameters)
+        return self.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
 
     def _get_attributes(self, attribute_type: Optional[str]):
         if attribute_type is None:

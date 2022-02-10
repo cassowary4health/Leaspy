@@ -100,6 +100,8 @@ class AbstractAttributes(ABC):
         device : torch.device
         """
         for attribute_name in dir(self):
+            if attribute_name.startswith('__'):
+                continue
             attribute = getattr(self, attribute_name)
             if isinstance(attribute, torch.Tensor):
                 setattr(self, attribute_name, attribute.to(device))

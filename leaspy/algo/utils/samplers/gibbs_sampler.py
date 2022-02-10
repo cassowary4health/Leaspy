@@ -60,7 +60,7 @@ class GibbsSampler(AbstractSampler):
 
         # Scale of variable should always be positive (component-wise if multidimensional)
         if not isinstance(scale, torch.Tensor):
-            scale = torch.tensor(scale, dtype=torch.float32)
+            scale = torch.tensor(scale)
         scale = scale.float()
         if (scale <= 0).any():
             raise LeaspyInputError(f"Scale of variable '{info['name']}' should be positive, not `{scale}`.")

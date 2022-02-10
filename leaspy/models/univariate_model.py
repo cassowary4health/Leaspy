@@ -9,6 +9,7 @@ from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.models.utils.noise_model import NoiseModel
 
+from leaspy.utils.typing import Optional
 from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
@@ -126,7 +127,9 @@ class UnivariateModel(AbstractModel):
         self.parameters = initialize_parameters(self, dataset, method)
 
         self.attributes = AttributesFactory.attributes(self.name, dimension=1)
-        self.attributes.update(['all'], self.parameters)
+
+        # Postpone the computation of attributes when really needed!
+        #self.attributes.update(['all'], self.parameters)
 
         self.is_initialized = True
 
@@ -134,6 +137,8 @@ class UnivariateModel(AbstractModel):
         self.parameters = {}
         for k in parameters.keys():
             self.parameters[k] = torch.tensor(parameters[k])
+
+        # derive the model attributes from model parameters upon reloading of model
         self.attributes = AttributesFactory.attributes(self.name, dimension=1)
         self.attributes.update(['all'], self.parameters)
 
@@ -174,7 +179,7 @@ class UnivariateModel(AbstractModel):
         self.MCMC_toolbox['attributes'].update(L, values)
 
 
-    def _get_attributes(self, attribute_type):
+    def _get_attributes(self, attribute_type: Optional[str]):
         if attribute_type is None:
             return self.attributes.get_attributes()
         elif attribute_type == 'MCMC':
@@ -183,7 +188,7 @@ class UnivariateModel(AbstractModel):
             raise LeaspyModelInputError(f"The specified attribute type does not exist: {attribute_type}. "
                                         "Should be None or 'MCMC'.")
 
-    def compute_mean_traj(self, timepoints):
+    def compute_mean_traj(self, timepoints, *, attribute_type: Optional[str] = None):
         """
         Compute trajectory of the model with individual parameters being the group-average ones.
 
@@ -193,6 +198,7 @@ class UnivariateModel(AbstractModel):
         Parameters
         ----------
         timepoints : :class:`torch.Tensor` [1, n_timepoints]
+        attribute_type : 'MCMC' or None
 
         Returns
         -------
@@ -204,7 +210,7 @@ class UnivariateModel(AbstractModel):
             'tau': torch.tensor([self.parameters['tau_mean']]),
         }
 
-        return self.compute_individual_tensorized(timepoints, individual_parameters)
+        return self.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
 
     @suffixed_method
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):

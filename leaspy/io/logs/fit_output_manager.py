@@ -63,7 +63,9 @@ class FitOutputManager:
 
         # Options
         # TODO : Maybe add to the outputs reader
-        self.plot_options = {'max_patient_number': 5}
+        # <!> We would need the attributes of the model if we would want to reconstruct values without MCMC toolbox
+        # This is the only location where we could need it during the calibration....
+        self.plot_options = {'max_patient_number': 5, 'attribute_type': 'MCMC'}
         self.plotter = Plotter()
         self.plotter._show = False  # do not show any of the plots!
 

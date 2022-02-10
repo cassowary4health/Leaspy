@@ -58,7 +58,9 @@ class MultivariateModel(AbstractMultivariateModel):
         for k in parameters.keys():
             if k in ['mixing_matrix']:
                 continue
-            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
+            self.parameters[k] = torch.tensor(parameters[k])
+
+        # derive the model attributes from model parameters upon reloading of model
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
@@ -305,7 +307,15 @@ class MultivariateModel(AbstractMultivariateModel):
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
+        # During the burn-in phase, we only need to store the following parameters (cf. !66 and #60)
+        # - noise_std
+        # - *_mean/std for regularization of individual variables
+        # - others population parameters for regularization of population variables
+        # We don't need to update the model "attributes" (never used during burn-in!)
 
+        # TODO: refactorize?
+
+        # We reparametrize realizations in-place!
         realizations = self._center_xi_realizations(realizations)
 
         # Memoryless part of the algorithm

@@ -112,7 +112,7 @@ class NoiseStruct:
 def convert_input_to_1D_float_tensors(d: KwargsType) -> DictParamsTorch:
     """Helper function to convert all input values into 1D torch float tensors."""
     return {
-        k: (v if isinstance(v, torch.Tensor) else torch.tensor(v)).to(dtype=torch.float32).view(-1)
+        k: (v if isinstance(v, torch.Tensor) else torch.tensor(v)).float().view(-1)
         for k, v in d.items()
     }
 

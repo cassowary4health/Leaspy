@@ -31,6 +31,8 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k])
+
+        # derive the model attributes from model parameters upon reloading of model
         self.attributes = LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 

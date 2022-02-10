@@ -4,6 +4,9 @@ import torch
 
 from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
 from leaspy.algo.utils.samplers import AlgoWithSamplersMixin
+from leaspy.io.data.dataset import Dataset
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.io.realizations.collection_realization import CollectionRealization
 
 
 class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
@@ -53,7 +56,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
     def _do_annealing(self) -> bool:
         return self.algo_parameters.get('annealing', {}).get('do_annealing', False)
 
-    def _initialize_algo(self, data, model, realizations):
+    def _initialize_algo(self, data: Dataset, model: AbstractModel, realizations: CollectionRealization):
         """
         Initialize the samplers, annealing, MCMC toolbox and sufficient statistics.
 
@@ -71,7 +74,6 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
 
         # Samplers
         self._initialize_samplers(model, data)
-        self._initialize_sufficient_statistics(data, model, realizations)
         if self._do_annealing:
             self._initialize_annealing()
 
@@ -88,20 +90,6 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         self.temperature = self.algo_parameters['annealing']['initial_temperature']
         self.temperature_inv = 1 / self.temperature
 
-    def _initialize_sufficient_statistics(self, data, model, realizations):
-        """
-        Initialize the sufficient statistics.
-
-        Parameters
-        ----------
-        data : :class:`.Dataset`
-        model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-        """
-        # TODO: a great deal of computation for almost nothing (just to get name & shape of sufficient stats) -> refact?
-        suff_stats = model.compute_sufficient_statistics(data, realizations)
-        self.sufficient_statistics = {k: torch.zeros(v.shape, dtype=torch.float32) for k, v in suff_stats.items()}
-
     ###########################
     ## Getters / Setters
     ###########################
@@ -110,7 +98,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
     ## Core
     ###########################
 
-    def iteration(self, data, model, realizations):
+    def iteration(self, data: Dataset, model: AbstractModel, realizations: CollectionRealization):
         """
         MCMC-SAEM iteration.
 

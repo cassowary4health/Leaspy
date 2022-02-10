@@ -5,6 +5,10 @@ import torch
 from leaspy.exceptions import LeaspyModelInputError
 from leaspy.utils.typing import KwargsType, Tuple, Optional
 
+from leaspy.io.data.dataset import Dataset
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.io.realizations.collection_realization import CollectionRealization
+
 
 class AbstractSampler(ABC):
     """
@@ -79,7 +83,7 @@ class AbstractSampler(ABC):
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{info['type']}': nor 'population' nor 'individual'.")
 
-    def sample(self, data, model, realizations, temperature_inv, **attachment_computation_kws):
+    def sample(self, data: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws):
         """
         Sample new realization (either population or individual) for a given realization state, dataset, model and temperature
 

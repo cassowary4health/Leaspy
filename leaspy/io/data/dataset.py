@@ -108,7 +108,7 @@ class Dataset:
         self.n_visits_per_individual = [len(_.timepoints) for _ in data]
         self.n_visits_max = max(self.n_visits_per_individual) if self.n_visits_per_individual else 0  # handle case when empty dataset
 
-        values = torch.zeros((self.n_individuals, self.n_visits_max, self.dimension), dtype=torch.float32)
+        values = torch.zeros((self.n_individuals, self.n_visits_max, self.dimension))
         padding_mask = torch.zeros_like(values)
 
         # TODO missing values in mask ?
@@ -137,10 +137,10 @@ class Dataset:
         self.n_observations = self.n_observations_per_ft.sum().item()
 
     def _construct_timepoints(self, data: Data):
-        self.timepoints = torch.zeros([self.n_individuals, self.n_visits_max], dtype=torch.float32)
+        self.timepoints = torch.zeros((self.n_individuals, self.n_visits_max))
         nbs_vis = [len(_.timepoints) for _ in data]
         for i, nb_vis in enumerate(nbs_vis):
-            self.timepoints[i, 0:nb_vis] = torch.tensor(data[i].timepoints, dtype=torch.float32)
+            self.timepoints[i, 0:nb_vis] = torch.tensor(data[i].timepoints)
 
     def _compute_L2_norm(self):
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0,1)) # 1D tensor of shape (dimension,)
@@ -231,9 +231,9 @@ class Dataset:
         ----------
         device : torch.device
         """
-
-        # I don't know if we should make the moved attributes explicit...
         for attribute_name in dir(self):
+            if attribute_name.startswith('__'):
+                continue
             attribute = getattr(self, attribute_name)
             if isinstance(attribute, torch.Tensor):
                 setattr(self, attribute_name, attribute.to(device))

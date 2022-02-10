@@ -506,6 +506,7 @@ class AbstractModel(ABC):
 
         elif 'gaussian' in self.noise_model:
             # diagonal noise (squared) [same for all features if it's forced to be a scalar]
+            # TODO? shouldn't 'noise_std' be part of the "MCMC_toolbox" to use the one we want??
             noise_var = self.parameters['noise_std'] * self.parameters['noise_std'] # slight perf improvement over ** 2, k tensor (or scalar tensor)
             noise_var = noise_var.expand((1, data.dimension)) # 1,k tensor (for scalar products just after) # <!> this formula works with scalar noise as well
 
@@ -526,35 +527,6 @@ class AbstractModel(ABC):
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 
         return attachment.reshape((data.n_individuals,)) # 1D tensor of shape(n_individuals,)
-
-    def update_model_parameters(self, data: Dataset,
-                                reals_or_suff_stats: Union[CollectionRealization, DictParamsTorch], *,
-                                burn_in_phase: bool) -> None:
-        """
-        Update model parameters (high-level function)
-
-        Under-the-hood call :meth:`.update_model_parameters_burn_in` or :meth:`.update_model_parameters_normal` depending on the phase of the fit algorithm
-
-        Parameters
-        ----------
-        data : :class:`.Dataset`
-            The dataset we are updating model parameters from.
-        reals_or_suff_stats : CollectionRealization or DictParamsTorch
-            If during burn-in phase will be realizations:
-                :class:`.CollectionRealization`
-            If after burn-in phase will be sufficient statistics:
-                dict[suff_stat: str, :class:`torch.Tensor`]
-        burn_in_phase : bool
-            Are we in the memoryless part of the algorithm or not?
-        """
-        if burn_in_phase:
-            # Memoryless part of the algorithm
-            self.update_model_parameters_burn_in(data, reals_or_suff_stats)
-        else:
-            # Stochastic sufficient statistics used to update the parameters of the model
-            self.update_model_parameters_normal(data, reals_or_suff_stats)
-
-        self.attributes.update(['all'], self.parameters)
 
     @abstractmethod
     def update_model_parameters_burn_in(self, data: Dataset, realizations: CollectionRealization) -> None:
@@ -831,11 +803,10 @@ class AbstractModel(ABC):
         for parameter in self.parameters:
             self.parameters[parameter] = self.parameters[parameter].to(device)
 
-        if hasattr(self, "sufficient_statistics"):
-            for k in self.sufficient_statistics:
-                self.sufficient_statistics[k] = self.sufficient_statistics[k].to(device)
         if hasattr(self, "attributes"):
             self.attributes.move_to_device(device)
+
         if hasattr(self, "MCMC_toolbox"):
-            if self.MCMC_toolbox.get("attributes", None) is not None:
-                self.MCMC_toolbox["attributes"].move_to_device(device)
+            MCMC_toolbox_attributes = self.MCMC_toolbox.get("attributes", None)
+            if MCMC_toolbox_attributes is not None:
+                MCMC_toolbox_attributes.move_to_device(device)

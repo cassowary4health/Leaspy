@@ -39,6 +39,12 @@ class GibbsSampler(AbstractSampler):
     std : torch.FloatTensor
         Adaptative std-dev of variable
 
+    _random_sampling_order : bool (default True)
+        This attribute controls whether we randomize the order of indices during the sampling loop.
+        (only for population variables, since we perform group sampling for individual variables)
+        Article https://proceedings.neurips.cc/paper/2016/hash/e4da3b7fbbce2345d7772b0674a318d5-Abstract.html
+        gives a rationale on why we should activate this flag.
+
     Raises
     ------
     :exc:`.LeaspyInputError`
@@ -80,9 +86,6 @@ class GibbsSampler(AbstractSampler):
         self._previous_attachment: Optional[torch.FloatTensor] = None
         self._previous_regularity: Optional[torch.FloatTensor] = None
 
-        # Should we randomize the order of indices during the sampling loop?
-        # (only for population variables, since we perform group sampling for individual variables)
-        # Ref: https://proceedings.neurips.cc/paper/2016/hash/e4da3b7fbbce2345d7772b0674a318d5-Abstract.html
         self._random_sampling_order = True
 
     def _proposal(self, val):
@@ -116,6 +119,7 @@ class GibbsSampler(AbstractSampler):
         if self._counter_acceptation == self.temp_length:
             mean_acceptation = self.acceptation_temp.mean(dim=0)
 
+            # TODO? hyperparameters here
             idx_toolow = mean_acceptation < 0.2
             idx_toohigh = mean_acceptation > 0.4
 
@@ -217,7 +221,7 @@ class GibbsSampler(AbstractSampler):
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         temperature_inv : float > 0
         **attachment_computation_kws
-            Optional keyword arguments for attachement computations.
+            Optional keyword arguments for attachment computations.
             As of now, we only use it for individual variables, and only `attribute_type`.
             It is used to know whether to compute attachments from the MCMC toolbox (esp. during fit)
             or to compute it from regular model parameters (esp. during personalization in mean/mode realization)
@@ -226,7 +230,7 @@ class GibbsSampler(AbstractSampler):
         # Compute the attachment and regularity for all subjects
         realization = realizations[self.name]
 
-        # the population variables during this sampling step (since we update an individual parameter), but:
+        # the population variables are fixed during this sampling step (since we update an individual parameter), but:
         # - if we are in a calibration: we may have updated them just before and have NOT yet propagated these changes
         #   into the master model parameters, so we SHOULD use the MCMC toolbox for model computations (default)
         # - if we are in a personalization (mode/mean real): we are not updating the population parameters any more

@@ -93,7 +93,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[0.340, 0.076, 0.111, 0.213],  # in perso
+            expected_noise_std=[0.341, 0.097, 0.133, 0.212],  # in perso
             simulate_algo_params=simul_params,
         )
 

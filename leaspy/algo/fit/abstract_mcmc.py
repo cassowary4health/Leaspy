@@ -1,4 +1,3 @@
-import copy
 from random import shuffle
 
 import torch
@@ -20,7 +19,15 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
     ----------
     samplers : dict[ str, :class:`~.algo.utils.samplers.abstract_sampler.AbstractSampler` ]
         Dictionary of samplers per each variable
-    TODO add missing
+
+    _random_sampling_order : bool (default True)
+        This attribute controls whether we randomize the order of variables at each iteration.
+        Article https://proceedings.neurips.cc/paper/2016/hash/e4da3b7fbbce2345d7772b0674a318d5-Abstract.html
+        gives a rationale on why we should activate this flag.
+
+    temperature : float
+    temperature_inv : float
+        Temperature and its inverse when using annealing
 
     See Also
     --------
@@ -36,7 +43,6 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         self.temperature_inv = 1
         self.temperature = 1
 
-        # Ref: https://proceedings.neurips.cc/paper/2016/hash/e4da3b7fbbce2345d7772b0674a318d5-Abstract.html
         self._random_sampling_order = True
 
     ###########################
@@ -60,7 +66,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
 
         # MCMC toolbox (cache variables for speed-ups + tricks)
         # TODO? why not using just initialized `realizations` here in MCMC toolbox initialization?
-        # TODO? we should NOT store the MCMC_toolbox in the model even if convenient, since it actually belongs to the algorithm itself!
+        # TODO? we should NOT store the MCMC_toolbox in the model even if convenient, since actually it ONLY belongs to the algorithm!
         model.initialize_MCMC_toolbox()
 
         # Samplers
@@ -108,7 +114,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         """
         MCMC-SAEM iteration.
 
-        1. Sample : MC sample successively of the population and individual variales
+        1. Sample : MC sample successively of the population and individual variables
         2. Maximization step : update model parameters from current population/individual variables values.
 
         Parameters
@@ -119,32 +125,19 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
         """
 
         # Sample step (with order of population & individual variables shuffled)
-        pop_vars = copy.copy(realizations.reals_pop_variable_names)
-        ind_vars = copy.copy(realizations.reals_ind_variable_names)
+        vars_order = realizations.reals_pop_variable_names + realizations.reals_ind_variable_names  # new list (no need to copy it)
         if self._random_sampling_order:
             # shuffle in-place!
-            shuffle(pop_vars)
-            shuffle(ind_vars)
+            shuffle(vars_order)
 
-        for key in pop_vars:
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv)
-        for key in ind_vars:
+        for key in vars_order:
             self.samplers[key].sample(data, model, realizations, self.temperature_inv)
 
         # Maximization step
         self._maximization_step(data, model, realizations)
 
         # We already updated MCMC toolbox for all population parameters during pop sampling.
-        # The only "attributes" we did not update yet are the ones derived from individual realizations if any
-        # Currently, the only one is `xi_mean` (only for univariate and logistic parallel models)
-        # TODO? shouldn't we update this `xi_mean` in MCMC toolbox as soon as we updated `xi`s (as we do in pop sampling)?
-        # (but if so then be careful since it should not be done during mean/mode_real personalization algorithm!)
-        remaining_vars_to_update = [
-            v for v in model.MCMC_toolbox['attributes'].update_possibilities
-            if v not in ['all', 'v0_collinear'] + pop_vars
-        ]
-        if remaining_vars_to_update:
-            model.update_MCMC_toolbox(remaining_vars_to_update, realizations)
+        # So there is no need to update it as it once used to be.
 
         # Annealing
         if self._do_annealing:

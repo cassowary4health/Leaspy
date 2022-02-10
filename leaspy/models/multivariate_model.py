@@ -258,6 +258,8 @@ class MultivariateModel(AbstractMultivariateModel):
     def _center_xi_realizations(self, realizations):
         # This operation does not change the orthonormal basis
         # (since the resulting v0 is collinear to the previous one)
+        # Nor all model computations (only v0 * exp(xi_i) matters),
+        # it is only intended for model identifiability / `xi_i` regularization
         # <!> all operations are performed in "log" space (v0 is log'ed)
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi

@@ -115,9 +115,6 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             values['deltas'] = realizations['deltas'].tensor_realizations
         if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
-        if any(c in L for c in ('xi_mean', 'all')):
-            # Etienne, 12/01/2022: why is it not mean of xi realizations here?
-            values['xi_mean'] = self.parameters['xi_mean']
 
         self.MCMC_toolbox['attributes'].update(L, values)
 

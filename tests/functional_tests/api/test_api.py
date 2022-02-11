@@ -86,7 +86,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
                 allclose_custom={'tau_mean': dict(atol=tol_tau),
                                  'tau_std': dict(atol=tol_tau)}
             ),
-            perso_algo='scipy_minimize', expected_noise_std=[0.064, 0.036, 0.067, 0.143],  # in perso
+            perso_algo='scipy_minimize', expected_noise_std=[0.064, 0.037, 0.066, 0.142],  # in perso
             simulate_algo_params=simul_params, simulate_tol=2e-3, # Not fully reproducible on Linux below this tol...
         )
 
@@ -107,7 +107,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
                                  'tau_std': dict(atol=tol_tau)}
             ),
             perso_algo='mean_real',
-            expected_noise_std=[0.318, 0.101, 0.105, 0.213],  # in perso
+            expected_noise_std=[0.333, 0.089, 0.103, 0.234],  # in perso
             simulate_algo_params=simul_params,
         )
 

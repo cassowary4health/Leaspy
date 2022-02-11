@@ -9,6 +9,7 @@ from leaspy.models.abstract_model import AbstractModel
 from leaspy.io.realizations.collection_realization import CollectionRealization
 
 from leaspy.utils.typing import DictParamsTorch
+from leaspy.exceptions import LeaspyAlgoInputError
 
 
 class AbstractFitAlgo(AbstractAlgo):
@@ -42,6 +43,14 @@ class AbstractFitAlgo(AbstractAlgo):
     def __init__(self, settings):
 
         super().__init__(settings)
+
+        # The algorithm is proven to converge if the sequence `burn_in_step` is positive, with an infinite sum \sum
+        # (\sum_k \epsilon_k = + \infty) but a finite sum of the squares (\sum_k \epsilon_k^2 < \infty )
+        # cf page 657 of the book that contains the paper
+        # "Construction of Bayesian deformable models via a stochastic approximation algorithm: a convergence study"
+        if not (0.5 < self.algo_parameters['burn_in_step_power'] <= 1):
+            raise LeaspyAlgoInputError("The parameter `burn_in_step_power` should be in ]0.5, 1] in order to "
+                                       "have theoretical guarantees on convergence of algorithm.")
 
         self.algorithm_device = settings.device
         self.current_iteration: int = 0
@@ -156,11 +165,9 @@ class AbstractFitAlgo(AbstractAlgo):
             model.update_model_parameters_burn_in(dataset, realizations)
         else:
             sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
-            # The algorithm is proven to converge if the sequence `burn_in_step` is positive, with an infinite sum \sum
-            # (\sum_k \epsilon_k = + \infty) but a finite sum of the squares (\sum_k \epsilon_k^2 < \infty )
-            # cf page 657 of the book that contains the paper
-            # "Construction of Bayesian deformable models via a stochastic approximation algorithm: a convergence study"
-            burn_in_step = 1. / (self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1)**0.8  # TODO: hyperparameter here
+
+            burn_in_step = self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1
+            burn_in_step **= -self.algo_parameters['burn_in_step_power']
 
             if self.sufficient_statistics is None:
                 # 1st iteration post burn-in

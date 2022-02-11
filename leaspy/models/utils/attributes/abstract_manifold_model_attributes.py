@@ -29,14 +29,14 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         Whether model is univariate or not (i.e. dimension == 1)
     has_sources : bool
         Whether model has sources or not (not univariate and source_dimension >= 1)
-    update_possibilities : tuple [str]
+    update_possibilities : tuple[str]
         Contains the available parameters to update. Different models have different parameters.
 
     positions : :class:`torch.Tensor` [dimension] (default None)
-        <!> Depending on the submodel it does not correspond to the same thing.
+        <!> Depending on the model it does not correspond to the same thing.
     velocities : :class:`torch.Tensor` [dimension] (default None)
         Vector of velocities for each feature (positive components).
-        For multivariate models (but NOT parallel - useless).
+        For multivariate models only (except for parallel model as it is useless).
     orthonormal_basis : :class:`torch.Tensor` [dimension, dimension - 1] (default None)
         For multivariate and multivariate parallel models, with source_dimension >= 1.
     betas : :class:`torch.Tensor` [dimension - 1, source_dimension] (default None)
@@ -71,14 +71,19 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
     def get_attributes(self):
         """
-        Returns the following attributes: ``positions``, ``velocities`` & ``mixing_matrix``.
+        Returns the attributes of the model.
+
+        It is either a tuple of torch tensors or a single torch tensor if there is
+        only one attribute for the model (e.g.: univariate models). For the precise
+        definitions of those attributes please refer to the exact attributes class
+        associated to your model.
 
         Returns
         -------
         For univariate models:
             positions: `torch.Tensor`
 
-        For multivariate (not parallel) models:
+        For multivariate (but not parallel) models:
             * positions: `torch.Tensor`
             * velocities: `torch.Tensor`
             * mixing_matrix: `torch.Tensor`

@@ -26,7 +26,7 @@ class GibbsSampler(AbstractSampler):
         Number of patients (useful for individual variables)
     scale : float > 0 or :class:`torch.FloatTensor` > 0
         An approximate scale for the variable.
-        It will be used to scale the initial adaptative std-dev used in sampler.
+        It will be used to scale the initial adaptive std-dev used in sampler.
         An extra factor will be applied on top of this scale (hyperparameters):
             * 1% for population parameters (:attr:`.GibbsSampler.STD_SCALE_FACTOR_POP`)
             * 50% for individual parameters (:attr:`.GibbsSampler.STD_SCALE_FACTOR_IND`)
@@ -44,6 +44,15 @@ class GibbsSampler(AbstractSampler):
         (only for population variables, since we perform group sampling for individual variables)
         Article https://proceedings.neurips.cc/paper/2016/hash/e4da3b7fbbce2345d7772b0674a318d5-Abstract.html
         gives a rationale on why we should activate this flag.
+
+    _mean_acceptation_lower/upper_bound_before_adaptation : float in ]0, 1[ (default 0.2 and 0.4)
+        Bounds on mean acceptation rate that triggers adaptation of the std-dev of sampler
+        so to maintain a target acceptation rate in between these too bounds (e.g: ~30%).
+
+    _adaptive_std_factor : float > O
+        Factor by which we increase or decrease the std-dev of sampler when we are out of
+        the custom bounds for the mean acceptation rate. We decrease it by `1 - factor` if too low,
+        and increase it with `1 + factor` if too high.
 
     Raises
     ------
@@ -86,7 +95,12 @@ class GibbsSampler(AbstractSampler):
         self._previous_attachment: Optional[torch.FloatTensor] = None
         self._previous_regularity: Optional[torch.FloatTensor] = None
 
+        # Parameters
         self._random_sampling_order = True
+
+        self._mean_acceptation_lower_bound_before_adaptation = 0.2
+        self._mean_acceptation_upper_bound_before_adaptation = 0.4
+        self._adaptive_std_factor = 0.1
 
     def _proposal(self, val):
         """
@@ -110,21 +124,20 @@ class GibbsSampler(AbstractSampler):
         """
         Update standard deviation of sampler according to current frequency of acceptation.
 
-        Adaptative std is known to improve sampling performances.
-        Std is increased if frequency of acceptation > 40%, and decreased if <20%,
-        so as to stay close to 30%.
+        Adaptive std is known to improve sampling performances.
+        For default parameters: std-dev is increased if frequency of acceptation is > 40%,
+        and decreased if < 20%, so as to stay close to 30%.
         """
         self._counter_acceptation += 1
 
         if self._counter_acceptation == self.temp_length:
             mean_acceptation = self.acceptation_temp.mean(dim=0)
 
-            # TODO? hyperparameters here
-            idx_toolow = mean_acceptation < 0.2
-            idx_toohigh = mean_acceptation > 0.4
+            idx_toolow = mean_acceptation < self._mean_acceptation_lower_bound_before_adaptation
+            idx_toohigh = mean_acceptation > self._mean_acceptation_upper_bound_before_adaptation
 
-            self.std[idx_toolow] *= 0.9
-            self.std[idx_toohigh] *= 1.1
+            self.std[idx_toolow] *= (1 - self._adaptive_std_factor)
+            self.std[idx_toohigh] *= (1 + self._adaptive_std_factor)
 
             # reset acceptation temp list
             self._counter_acceptation = 0

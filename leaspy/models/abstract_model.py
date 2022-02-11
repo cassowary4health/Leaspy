@@ -608,13 +608,12 @@ class AbstractModel(ABC):
         -------
         :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
         """
-
-        # Instantiate torch distribution
         if realization.variable_type == 'population':
+            # Regularization of population variables around current model values
             mean = self.parameters[realization.name]
-            # TODO : Sure it is only MCMC_toolbox?
             std = self.MCMC_toolbox['priors'][f"{realization.name}_std"]
         elif realization.variable_type == 'individual':
+            # Regularization of individual parameters around mean / std from model parameters
             mean = self.parameters[f"{realization.name}_mean"]
             std = self.parameters[f"{realization.name}_std"]
         else:

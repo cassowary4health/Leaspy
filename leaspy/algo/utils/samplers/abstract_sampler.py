@@ -125,7 +125,7 @@ class AbstractSampler(ABC):
 
         Parameters
         ----------
-        alpha : :class:`torch.FloatTensor`
+        alpha : :class:`torch.FloatTensor` > 0
 
         Returns
         -------
@@ -136,15 +136,16 @@ class AbstractSampler(ABC):
         accepted = torch.rand(alpha.size()) < alpha
         return accepted.float()
 
-    def _metropolis_step(self, alpha) -> bool:
+    def _metropolis_step(self, alpha: float) -> bool:
         """
-        Compute the Metropolis acceptance decision
+        Compute the Metropolis acceptance decision.
+
         If better (alpha>=1): accept
         If worse (alpha<1): accept with probability alpha
 
         Parameters
         ----------
-        alpha : :class:`torch.Tensor`
+        alpha : float > 0
 
         Returns
         -------

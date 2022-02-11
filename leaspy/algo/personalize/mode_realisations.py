@@ -61,7 +61,7 @@ class ModeReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
 
             # Append current realizations if burn in is finished
             if i > self.algo_parameters['n_burn_in_iter']:
-                realizations_history.append(realizations.copy())
+                realizations_history.append(realizations.clone_realizations())
 
         # Get for each patient the realization that best fits (attachment + regularity)
 

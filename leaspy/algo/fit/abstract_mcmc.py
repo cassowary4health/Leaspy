@@ -157,7 +157,7 @@ class AbstractFitMCMC(AlgoWithSamplersMixin, AbstractFitAlgo):
 
         out += "=Samplers\n"
         for sampler_name, sampler in self.samplers.items():
-            acceptation_rate = torch.mean(sampler.acceptation_temp.detach()).item()
+            acceptation_rate = torch.mean(sampler.acceptation_temp).item()
             out += f"    {sampler_name} rate : {acceptation_rate:.2%}, std: {sampler.std.mean():.5f}\n"
 
         if self._do_annealing:

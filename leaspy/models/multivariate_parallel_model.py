@@ -121,11 +121,15 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.MCMC_toolbox['attributes'].update(L, values)
 
     def compute_sufficient_statistics(self, data, realizations):
+
+        # unlink all sufficient statistics from updates in realizations!
+        realizations = realizations.clone_realizations()
+
         sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach()
-        sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations.detach()
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations
+        sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations
         if self.source_dimension != 0:
-            sufficient_statistics['betas'] = realizations['betas'].tensor_realizations.detach()
+            sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
         sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
@@ -152,14 +156,17 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
     def update_model_parameters_burn_in(self, data, realizations):
 
-        self.parameters['g'] = realizations['g'].tensor_realizations.detach()
-        self.parameters['deltas'] = realizations['deltas'].tensor_realizations.detach()
+        # unlink model parameters from updates in realizations!
+        realizations = realizations.clone_realizations()
+
+        self.parameters['g'] = realizations['g'].tensor_realizations
+        self.parameters['deltas'] = realizations['deltas'].tensor_realizations
         if self.source_dimension != 0:
-            self.parameters['betas'] = realizations['betas'].tensor_realizations.detach()
-        xi = realizations['xi'].tensor_realizations.detach()
+            self.parameters['betas'] = realizations['betas'].tensor_realizations
+        xi = realizations['xi'].tensor_realizations
         self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
-        tau = realizations['tau'].tensor_realizations.detach()
+        tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 

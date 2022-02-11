@@ -734,7 +734,7 @@ class AbstractModel(ABC):
         Get individual parameters realizations from all model realizations
 
         <!> The tensors are not cloned and so a link continue to exist between the individual parameters
-            and the underlying tensors of realizations. TODO? change this by cloning?
+            and the underlying tensors of realizations.
 
         Parameters
         ----------

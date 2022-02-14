@@ -132,7 +132,6 @@ class AbstractSampler(ABC):
         accepted : :class:`torch.FloatTensor`, same shape as `alpha`
             Acceptance decision (0. or 1.).
         """
-        # TODO: avoid sampling at indices where it is not needed (i.e. those where alpha >= 1)
         accepted = torch.rand(alpha.size()) < alpha
         return accepted.float()
 
@@ -143,6 +142,12 @@ class AbstractSampler(ABC):
         If better (alpha>=1): accept
         If worse (alpha<1): accept with probability alpha
 
+        <!> This function is critical for the reproducibility between machines.
+        Different architectures might lead to different rounding errors on alpha
+        (e.g: 1. - 1e-6 vs 1. + 1e-6). If we were to draw only for alpha < 1 (and not when alpha >= 1),
+        then it would cause the internal seed of pytorch to change or not depending on the case
+        which would lead to very different results afterwards (all the random numbers would be affected).
+
         Parameters
         ----------
         alpha : float > 0
@@ -152,14 +157,10 @@ class AbstractSampler(ABC):
         bool
             acceptance decision (False or True)
         """
-        if alpha >= 1:
-            # Case 1: we improved the LogL
-            return True
-        else:
-            # Case 2: we decreased the LogL
-            # Sample a realization from uniform law
-            # Choose to keep iff realization is < alpha (proba alpha)
-            return torch.rand(1).item() < alpha
+        # Sample a realization from uniform law
+        # Choose to keep iff realization is < alpha (proba alpha)
+        # <!> Always draw a number even if it seems "useless" (cf. docstring warning)
+        return torch.rand(1).item() < alpha
 
     def _update_acceptation_rate(self, accepted: torch.FloatTensor):
         """

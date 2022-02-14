@@ -150,3 +150,8 @@ class AttributesLogisticTest(LeaspyTestCase):
         # and the orthonormal basis (and mixing matrix) was not re-computed!
         self.assertEqual(id(old_BON), id(new_BON))
         self.assertEqual(id(old_A), id(new_A))
+
+        # consistency when changing betas
+        attributes.update(['betas'], {'betas': values['betas']+0.1})
+        self.assertEqual(id(old_BON), id(attributes.orthonormal_basis))  # not recomputed BON
+        self.assertFalse(torch.allclose(old_A, attributes.mixing_matrix))

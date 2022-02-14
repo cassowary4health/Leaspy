@@ -68,9 +68,11 @@ class CollectionRealization:
         """Return all pairs of variable name / realization object."""
         return self.realizations.items()
 
-    def copy(self) -> CollectionRealization:
+    def clone_realizations(self) -> CollectionRealization:
         """
-        Copy of self instance
+        Deep-copy of self instance.
+
+        In particular the underlying realizations are cloned and detached.
 
         Returns
         -------

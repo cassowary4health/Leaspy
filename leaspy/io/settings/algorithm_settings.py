@@ -295,9 +295,9 @@ class AlgorithmSettings:
 
     def set_logs(self, path: Optional[str] = None, **kwargs):
         """
-        Use this method to monitor the convergence of a model callibration.
+        Use this method to monitor the convergence of a model calibration.
 
-        It create graphs and csv files of the values of the population parameters (fixed effects) during the callibration
+        It create graphs and csv files of the values of the population parameters (fixed effects) during the calibration
 
         Parameters
         ----------

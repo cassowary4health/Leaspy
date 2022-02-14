@@ -6,7 +6,6 @@ import torch
 
 from leaspy import Leaspy
 
-from tests import LeaspyTestCase
 from tests.unit_tests.plots.test_plotter import MatplotlibTestCase
 
 
@@ -85,144 +84,117 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
 
         self.assertDictAlmostEqual(model_parameters_new, expected_model_parameters, **allclose_kwds)
 
+        ## test consistency of model attributes (only mixing matrix here)
+        expected_model = Leaspy.load(path_to_backup_model).model
+        if expected_model.dimension != 1:
+            self.assertTrue(torch.allclose(expected_model.attributes.mixing_matrix, torch.tensor(expected_model_parameters['parameters']['mixing_matrix']),
+                                           rtol=1e-4, atol=1e-6),
+                            (expected_model.attributes.mixing_matrix, expected_model_parameters['parameters']['mixing_matrix']))
 
-# Weirdly, some results are perfectly reproducible on local mac + CI linux but not on CI mac...
-# Increasing tolerances so to pass despite these reproducibility issues...
+
 class LeaspyFitTest(LeaspyFitTest_Mixin):
-
-    """
-    # Etienne, 2021/12/01:
-    # I disable many `check_model` (newly introduced) in following tests as values hardcoded in tests & in files diverged
-    # an option should be to (i) remove those hardcoded values (error-prone) and (ii) re-generate saved model parameters
-    # and (iii) check that all tests are passing on different architectures and packages dependencies (with sufficient tolerance)
-    # <!> there are hints indicating that there was a reproducibility gap after PyTorch >= 1.7
-    """
+    # <!> reproducibility gap for PyTorch >= 1.7, only those are supported now
 
     # Test MCMC-SAEM
-    def test_fit_logistic_scalar_noise(self, tol=6e-2, tol_tau=2e-1):
+    def test_fit_logistic_scalar_noise(self):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
     # Test MCMC-SAEM (1 noise per feature)
-    def test_fit_logistic_diag_noise(self, tol=6e-2, tol_tau=2e-1):
-        # <!> reproducibility gap for PyTorch >= 1.7, only those are supported now
+    def test_fit_logistic_diag_noise(self):
         leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
-    def test_fit_logistic_parallel(self, tol=1e-2):
+    def test_fit_logistic_parallel(self):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-    def test_fit_logistic_parallel_diag_noise(self, tol=1e-2):
+    def test_fit_logistic_parallel_diag_noise(self):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-    def test_fit_univariate_logistic(self, tol=1e-2):
+    def test_fit_univariate_logistic(self):
 
         leaspy, _ = self.generic_fit('univariate_logistic', 'univariate_logistic',
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-    def test_fit_univariate_linear(self, tol=1e-2):
+    def test_fit_univariate_linear(self):
 
         leaspy, _ = self.generic_fit('univariate_linear', 'univariate_linear',
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-    def test_fit_linear(self, tol=6e-2, tol_tau=2e-1):
+    def test_fit_linear(self):
 
         leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
-    def test_fit_linear_diag_noise(self, tol=6e-2, tol_tau=2e-1):
+    def test_fit_linear_diag_noise(self):
 
         leaspy, _ = self.generic_fit('linear', 'linear_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
-    def test_fit_logistic_binary(self, tol=6e-2, tol_tau=2e-1):
+    def test_fit_logistic_binary(self):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_binary', noise_model='bernoulli', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
 @unittest.skipIf(not torch.cuda.is_available(),
                 "GPU calibration tests need an available CUDA environment")
 class LeaspyFitGPUTest(LeaspyFitTest_Mixin):
 
     # Test MCMC-SAEM
-    def test_fit_logistic_scalar_noise(self, tol=5e-2, tol_tau=2e-1):
+    def test_fit_logistic_scalar_noise(self):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0, device='cuda'),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
 
     # Test MCMC-SAEM (1 noise per feature)
-    def test_fit_logistic_diag_noise(self, tol=6e-2, tol_tau=2e-1):
+    def test_fit_logistic_diag_noise(self):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_gpu', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0, device='cuda'),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
-    def test_fit_logisticparallel(self, tol=1e-2):
+    def test_fit_logisticparallel(self):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0, device='cuda'),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-    def test_fit_logisticparallel_diag_noise(self, tol=1e-2):
+    def test_fit_logisticparallel_diag_noise(self):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise_gpu', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0, device='cuda'),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-    def test_fit_univariate_logistic(self, tol=1e-2):
+    def test_fit_univariate_logistic(self):
 
         leaspy, _ = self.generic_fit('univariate_logistic', 'univariate_logistic_gpu',
                                      algo_params=dict(n_iter=100, seed=0, device='cuda'),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-    def test_fit_univariate_linear(self, tol=1e-2):
+    def test_fit_univariate_linear(self):
 
         leaspy, _ = self.generic_fit('univariate_linear', 'univariate_linear_gpu',
                                      algo_params=dict(n_iter=100, seed=0, device='cuda'),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-    def test_fit_linear(self, tol=2e-1, tol_tau=1e-1):
+    def test_fit_linear(self):
 
         leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0, device='cuda'),
-                                     check_model=True,
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)

@@ -67,7 +67,7 @@ class Loader:
 
         * Index: a :class:`pandas.MultiIndex` - ``['ID', 'TIME']`` which contain IDs and timepoints. The `DataFrame` is sorted by index.
           So, one line corresponds to one visit for one subject. The `DataFrame` having `'train_and_test'` in their name
-          also have ``'SPLIT'`` as the third index level. It differenciate `train` and `test` data.
+          also have ``'SPLIT'`` as the third index level. It differentiate `train` and `test` data.
 
         * Columns: One column correspond to one feature (or score).
         """

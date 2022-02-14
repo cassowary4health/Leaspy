@@ -47,7 +47,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
         self.check_consistency_of_simulation_results(simulation_settings, simulation_results, data,
                 expected_results_file=f'simulation_results_{model_codename}.csv', tol=simulate_tol)
 
-    def test_usecase_logistic_scalar_noise(self, *, tol=6e-2, tol_tau=2e-1):
+    def test_usecase_logistic_scalar_noise(self):
 
         # Simulation parameters
         custom_delays_vis = lambda n: [.5]*min(n, 2) + [1.]*max(0, n-2)  # OLD weird delays between visits
@@ -57,12 +57,6 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             'logistic', model_codename='logistic_scalar_noise',
             noise_model='gaussian_scalar', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
-            # not fully reproducible on Linux CI compared to MacOSX...
-            fit_check_kws = dict(
-                atol=tol,
-                allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                 'tau_std': dict(atol=tol_tau)}
-            ),
             perso_algo='mode_real', expected_noise_std=0.085, # in perso
             simulate_algo_params=simul_params,
         )
@@ -77,7 +71,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             'logistic', model_codename='logistic_diag_noise',
             noise_model='gaussian_diagonal', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
-            perso_algo='scipy_minimize', expected_noise_std=[0.065, 0.036, 0.055, 0.151], # in perso
+            perso_algo='scipy_minimize', expected_noise_std=[0.064, 0.037, 0.066, 0.142],  # in perso
             simulate_algo_params=simul_params, simulate_tol=2e-3, # Not fully reproducible on Linux below this tol...
         )
 
@@ -93,7 +87,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[0.332, 0.087, 0.123, 0.221], # in perso
+            expected_noise_std=[0.333, 0.089, 0.103, 0.234],  # in perso
             simulate_algo_params=simul_params,
         )
 

@@ -254,7 +254,7 @@ class IndividualParameters:
 
     def get_std(self, parameter: ParamType):
         r"""
-        Returns the stardard deviation of a parameter across all patients
+        Returns the standard deviation of a parameter across all patients
 
         Parameters
         ----------
@@ -482,7 +482,7 @@ class IndividualParameters:
     @classmethod
     def load(cls, path: str):
         r"""
-        Static method that loads the individual parameters (json or csv) existing at the path locatio
+        Static method that loads the individual parameters (json or csv) existing at the path location
 
         Parameters
         ----------

@@ -9,7 +9,7 @@ from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 class ModeReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
     """
-    Sampler based algorithm, individual parameters are derivated as the most frequent realization for `n_samples` samplings.
+    Sampler based algorithm, individual parameters are derived as the most frequent realization for `n_samples` samplings.
 
     TODO many stuff is duplicated between this class & mean_real (& other mcmc stuff) --> refactorize???
     TODO BUGFIX? temperature is never updated here unlike in fit (so only algo_parameters['annealing']['initial_temperature'] will be used)
@@ -61,9 +61,9 @@ class ModeReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
 
             # Append current realizations if burn in is finished
             if i > self.algo_parameters['n_burn_in_iter']:
-                realizations_history.append(realizations.copy())
+                realizations_history.append(realizations.clone_realizations())
 
-        # Get for each patient the realization that best fits (attachement + regularity)
+        # Get for each patient the realization that best fits (attachment + regularity)
 
         # We do not sample the population parameters ("fixed effects") so we don't need attribute_type='MCMC' here
         attachments = torch.stack(

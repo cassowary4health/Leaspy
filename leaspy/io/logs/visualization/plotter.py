@@ -1,5 +1,6 @@
 import os
 import math
+from typing import Optional
 
 import pandas as pd
 import numpy as np
@@ -40,7 +41,7 @@ class Plotter:
         if self._show:
             plt.show(block=self._block)
 
-    def plot_mean_trajectory(self, model, **kwargs):
+    def plot_mean_trajectory(self, model, *, attribute_type: Optional[str] = None, **kwargs):
         # colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
 
         labels = model.features
@@ -67,7 +68,7 @@ class Plotter:
             timepoints = np.linspace(mean_time - 3 * std_time, mean_time + 6 * std_time, 100)
             timepoints = torch.tensor(timepoints).unsqueeze(0)
 
-            mean_trajectory = model.compute_mean_traj(timepoints).cpu().detach().numpy()
+            mean_trajectory = model.compute_mean_traj(timepoints, attribute_type=attribute_type).cpu().detach().numpy()
 
             for i in range(mean_trajectory.shape[-1]):
                 ax.plot(timepoints[0, :].cpu().detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
@@ -90,7 +91,7 @@ class Plotter:
             timepoints = torch.tensor(timepoints).unsqueeze(0)
 
             for j, el in enumerate(model):
-                mean_trajectory = el.compute_mean_traj(timepoints).cpu().detach().numpy()
+                mean_trajectory = el.compute_mean_traj(timepoints, attribute_type=attribute_type).cpu().detach().numpy()
 
                 for i in range(mean_trajectory.shape[-1]):
                     ax.plot(timepoints[0, :].cpu().detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
@@ -333,7 +334,7 @@ class Plotter:
                                  100)
         timepoints = torch.tensor(timepoints).unsqueeze(0)
 
-        patient_values = model.compute_mean_traj(timepoints)
+        patient_values = model.compute_mean_traj(timepoints, attribute_type=attribute_type)
         for i in range(patient_values.shape[-1]):
             ax.plot(timepoints[0, :].cpu().detach().numpy(), patient_values[0, :, i].cpu().detach().numpy(),
                     c="black", linewidth=3, alpha=0.3)

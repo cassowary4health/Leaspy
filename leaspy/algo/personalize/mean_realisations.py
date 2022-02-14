@@ -9,7 +9,7 @@ from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 class MeanReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
     """
-    Sampler based algorithm, individual parameters are derivated as the mean realization for `n_samples` samplings.
+    Sampler based algorithm, individual parameters are derived as the mean realization for `n_samples` samplings.
 
     TODO many stuff is duplicated between this class & mean_real (& other mcmc stuff) --> refactorize???
     TODO BUGFIX? temperature is never updated here unlike in fit (so only algo_parameters['annealing']['initial_temperature'] will be used)
@@ -61,7 +61,7 @@ class MeanReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
 
             # Append current realizations if burn in is finished
             if i > self.algo_parameters['n_burn_in_iter']:
-                realizations_history.append(realizations.copy())
+                realizations_history.append(realizations.clone_realizations())
 
         # Create a new realizations and assign each individual parameters variable to its mean realization
         mean_realizations = model.initialize_realizations_for_model(data.n_individuals)

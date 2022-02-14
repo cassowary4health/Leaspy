@@ -24,14 +24,12 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     source_dimension : int
     has_sources : bool
         Whether model has sources or not (source_dimension >= 1)
-    update_possibilities : tuple [str] (default ('all', 'g', 'xi_mean', 'deltas', 'betas') )
+    update_possibilities : tuple [str] (default ('all', 'g', 'deltas', 'betas') )
         Contains the available parameters to update. Different models have different parameters.
     positions : :class:`torch.Tensor` (scalar) (default None)
         positions = exp(realizations['g']) such that "p0" = 1 / (1 + positions * exp(-deltas))
     deltas : :class:`torch.Tensor` [dimension] (default None)
         deltas = [0, delta_2_realization, ..., delta_n_realization]
-    velocities : :class:`torch.Tensor` (scalar) (default None)
-        Always positive: exp(realizations['xi_mean'])
     orthonormal_basis : :class:`torch.Tensor` [dimension, dimension - 1] (default None)
     betas : :class:`torch.Tensor` [dimension - 1, source_dimension] (default None)
     mixing_matrix : :class:`torch.Tensor` [dimension, source_dimension] (default None)
@@ -47,6 +45,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     :class:`~leaspy.models.multivariate_parallel_model.MultivariateParallelModel`
     """
 
+
     def __init__(self, name, dimension, source_dimension):
 
         super().__init__(name, dimension, source_dimension)
@@ -55,7 +54,8 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
             raise LeaspyModelInputError(f"`LogisticParallelAttributes` with dimension = {self.dimension} (< 2)")
 
         self.deltas: torch.FloatTensor = None  # deltas = [0, delta_2_realization, ..., delta_n_realization]
-        self.update_possibilities = ('all', 'g', 'xi_mean', 'betas', 'deltas')
+        self.update_possibilities = ('all', 'g', 'betas', 'deltas')
+
 
     def get_attributes(self):
         """
@@ -79,9 +79,8 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
             Elements of list must be either:
                 * ``all`` (update everything)
                 * ``g`` correspond to the attribute :attr:`positions`.
-                * ``xi_mean`` correspond to the attribute :attr:`velocities`.
                 * ``deltas`` correspond to the attribute :attr:`deltas`.
-                * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
+                * ``betas`` correspond to the linear combination of columns from the orthonormal basis so
                   to derive the :attr:`mixing_matrix`.
         values : dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
@@ -96,7 +95,6 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         compute_betas = False
         compute_deltas = False
         compute_positions = False
-        compute_velocities = False
 
         if 'all' in names_of_changed_values:
             # make all possible updates
@@ -108,8 +106,6 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
             compute_deltas = True
         if 'g' in names_of_changed_values:
             compute_positions = True
-        if 'xi_mean' in names_of_changed_values:
-            compute_velocities = True
 
         if compute_betas:
             self._compute_betas(values)
@@ -117,8 +113,6 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
             self._compute_deltas(values)
         if compute_positions:
             self._compute_positions(values)
-        if compute_velocities:
-            self._compute_velocities(values)
 
         if self.has_sources:
             # velocities (xi_mean) is a scalar for the logistic parallel model (same velocity for all features - only time-shift the features)
@@ -141,16 +135,6 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         self.positions = torch.exp(values['g'])
 
 
-    def _compute_velocities(self, values):
-        """
-        Update the attribute ``velocities``.
-
-        Parameters
-        ----------
-        values : dict [str, `torch.Tensor`]
-        """
-        self.velocities = torch.exp(values['xi_mean'])
-
     def _compute_deltas(self, values):
         """
         Update` the attribute ``deltas``.
@@ -159,7 +143,7 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         ----------
         values : dict [str, `torch.Tensor`]
         """
-        self.deltas = torch.cat((torch.tensor([0]), values['deltas']))
+        self.deltas = torch.cat((torch.tensor([0.]), values['deltas']))
 
     def _compute_gamma_t0_collin_dgamma_t0(self):
         """

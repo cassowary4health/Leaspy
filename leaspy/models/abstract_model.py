@@ -506,6 +506,7 @@ class AbstractModel(ABC):
 
         elif 'gaussian' in self.noise_model:
             # diagonal noise (squared) [same for all features if it's forced to be a scalar]
+            # TODO? shouldn't 'noise_std' be part of the "MCMC_toolbox" to use the one we want??
             noise_var = self.parameters['noise_std'] * self.parameters['noise_std'] # slight perf improvement over ** 2, k tensor (or scalar tensor)
             noise_var = noise_var.expand((1, data.dimension)) # 1,k tensor (for scalar products just after) # <!> this formula works with scalar noise as well
 
@@ -526,35 +527,6 @@ class AbstractModel(ABC):
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 
         return attachment.reshape((data.n_individuals,)) # 1D tensor of shape(n_individuals,)
-
-    def update_model_parameters(self, data: Dataset,
-                                reals_or_suff_stats: Union[CollectionRealization, DictParamsTorch], *,
-                                burn_in_phase: bool) -> None:
-        """
-        Update model parameters (high-level function)
-
-        Under-the-hood call :meth:`.update_model_parameters_burn_in` or :meth:`.update_model_parameters_normal` depending on the phase of the fit algorithm
-
-        Parameters
-        ----------
-        data : :class:`.Dataset`
-            The dataset we are updating model parameters from.
-        reals_or_suff_stats : CollectionRealization or DictParamsTorch
-            If during burn-in phase will be realizations:
-                :class:`.CollectionRealization`
-            If after burn-in phase will be sufficient statistics:
-                dict[suff_stat: str, :class:`torch.Tensor`]
-        burn_in_phase : bool
-            Are we in the memoryless part of the algorithm or not?
-        """
-        if burn_in_phase:
-            # Memoryless part of the algorithm
-            self.update_model_parameters_burn_in(data, reals_or_suff_stats)
-        else:
-            # Stochastic sufficient statistics used to update the parameters of the model
-            self.update_model_parameters_normal(data, reals_or_suff_stats)
-
-        self.attributes.update(['all'], self.parameters)
 
     @abstractmethod
     def update_model_parameters_burn_in(self, data: Dataset, realizations: CollectionRealization) -> None:
@@ -598,7 +570,7 @@ class AbstractModel(ABC):
 
     def get_population_realization_names(self) -> List[str]:
         """
-        Get names of population variales of the model.
+        Get names of population variables of the model.
 
         Returns
         -------
@@ -609,7 +581,7 @@ class AbstractModel(ABC):
 
     def get_individual_realization_names(self) -> List[str]:
         """
-        Get names of individual variales of the model.
+        Get names of individual variables of the model.
 
         Returns
         -------
@@ -636,13 +608,12 @@ class AbstractModel(ABC):
         -------
         :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
         """
-
-        # Instantiate torch distribution
         if realization.variable_type == 'population':
+            # Regularization of population variables around current model values
             mean = self.parameters[realization.name]
-            # TODO : Sure it is only MCMC_toolbox?
             std = self.MCMC_toolbox['priors'][f"{realization.name}_std"]
         elif realization.variable_type == 'individual':
+            # Regularization of individual parameters around mean / std from model parameters
             mean = self.parameters[f"{realization.name}_mean"]
             std = self.parameters[f"{realization.name}_std"]
         else:
@@ -689,7 +660,7 @@ class AbstractModel(ABC):
     @abstractmethod
     def random_variable_informations(self) -> DictParams:
         """
-        Informations on model's random variables.
+        Information on model's random variables.
 
         Returns
         -------
@@ -763,7 +734,7 @@ class AbstractModel(ABC):
         Get individual parameters realizations from all model realizations
 
         <!> The tensors are not cloned and so a link continue to exist between the individual parameters
-            and the underlying tensors of realizations. TODO? change this by cloning?
+            and the underlying tensors of realizations.
 
         Parameters
         ----------
@@ -831,11 +802,10 @@ class AbstractModel(ABC):
         for parameter in self.parameters:
             self.parameters[parameter] = self.parameters[parameter].to(device)
 
-        if hasattr(self, "sufficient_statistics"):
-            for k in self.sufficient_statistics:
-                self.sufficient_statistics[k] = self.sufficient_statistics[k].to(device)
         if hasattr(self, "attributes"):
             self.attributes.move_to_device(device)
+
         if hasattr(self, "MCMC_toolbox"):
-            if self.MCMC_toolbox.get("attributes", None) is not None:
-                self.MCMC_toolbox["attributes"].move_to_device(device)
+            MCMC_toolbox_attributes = self.MCMC_toolbox.get("attributes", None)
+            if MCMC_toolbox_attributes is not None:
+                MCMC_toolbox_attributes.move_to_device(device)

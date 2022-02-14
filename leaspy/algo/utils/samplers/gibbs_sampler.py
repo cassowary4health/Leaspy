@@ -1,6 +1,7 @@
-import itertools
+from random import shuffle
 
 import torch
+from numpy import ndindex
 
 from .abstract_sampler import AbstractSampler
 from leaspy.exceptions import LeaspyInputError
@@ -25,7 +26,7 @@ class GibbsSampler(AbstractSampler):
         Number of patients (useful for individual variables)
     scale : float > 0 or :class:`torch.FloatTensor` > 0
         An approximate scale for the variable.
-        It will be used to scale the initial adaptative std-dev used in sampler.
+        It will be used to scale the initial adaptive std-dev used in sampler.
         An extra factor will be applied on top of this scale (hyperparameters):
             * 1% for population parameters (:attr:`.GibbsSampler.STD_SCALE_FACTOR_POP`)
             * 50% for individual parameters (:attr:`.GibbsSampler.STD_SCALE_FACTOR_IND`)
@@ -37,6 +38,21 @@ class GibbsSampler(AbstractSampler):
 
     std : torch.FloatTensor
         Adaptative std-dev of variable
+
+    _random_sampling_order : bool (default True)
+        This attribute controls whether we randomize the order of indices during the sampling loop.
+        (only for population variables, since we perform group sampling for individual variables)
+        Article https://proceedings.neurips.cc/paper/2016/hash/e4da3b7fbbce2345d7772b0674a318d5-Abstract.html
+        gives a rationale on why we should activate this flag.
+
+    _mean_acceptation_lower/upper_bound_before_adaptation : float in ]0, 1[ (default 0.2 and 0.4)
+        Bounds on mean acceptation rate that triggers adaptation of the std-dev of sampler
+        so to maintain a target acceptation rate in between these too bounds (e.g: ~30%).
+
+    _adaptive_std_factor : float > O
+        Factor by which we increase or decrease the std-dev of sampler when we are out of
+        the custom bounds for the mean acceptation rate. We decrease it by `1 - factor` if too low,
+        and increase it with `1 + factor` if too high.
 
     Raises
     ------
@@ -53,7 +69,7 @@ class GibbsSampler(AbstractSampler):
 
         # Scale of variable should always be positive (component-wise if multidimensional)
         if not isinstance(scale, torch.Tensor):
-            scale = torch.tensor(scale, dtype=torch.float32)
+            scale = torch.tensor(scale)
         scale = scale.float()
         if (scale <= 0).any():
             raise LeaspyInputError(f"Scale of variable '{info['name']}' should be positive, not `{scale}`.")
@@ -79,6 +95,13 @@ class GibbsSampler(AbstractSampler):
         self._previous_attachment: Optional[torch.FloatTensor] = None
         self._previous_regularity: Optional[torch.FloatTensor] = None
 
+        # Parameters
+        self._random_sampling_order = True
+
+        self._mean_acceptation_lower_bound_before_adaptation = 0.2
+        self._mean_acceptation_upper_bound_before_adaptation = 0.4
+        self._adaptive_std_factor = 0.1
+
     def _proposal(self, val):
         """
         Proposal value around the current value with sampler standard deviation.
@@ -101,20 +124,20 @@ class GibbsSampler(AbstractSampler):
         """
         Update standard deviation of sampler according to current frequency of acceptation.
 
-        Adaptative std is known to improve sampling performances.
-        Std is increased if frequency of acceptation > 40%, and decreased if <20%,
-        so as to stay close to 30%.
+        Adaptive std is known to improve sampling performances.
+        For default parameters: std-dev is increased if frequency of acceptation is > 40%,
+        and decreased if < 20%, so as to stay close to 30%.
         """
         self._counter_acceptation += 1
 
         if self._counter_acceptation == self.temp_length:
             mean_acceptation = self.acceptation_temp.mean(dim=0)
 
-            idx_toolow = mean_acceptation < 0.2
-            idx_toohigh = mean_acceptation > 0.4
+            idx_toolow = mean_acceptation < self._mean_acceptation_lower_bound_before_adaptation
+            idx_toohigh = mean_acceptation > self._mean_acceptation_upper_bound_before_adaptation
 
-            self.std[idx_toolow] *= 0.9
-            self.std[idx_toohigh] *= 1.1
+            self.std[idx_toolow] *= (1 - self._adaptive_std_factor)
+            self.std[idx_toohigh] *= (1 + self._adaptive_std_factor)
 
             # reset acceptation temp list
             self._counter_acceptation = 0
@@ -137,9 +160,10 @@ class GibbsSampler(AbstractSampler):
         """
         realization = realizations[self.name]
         shape_current_variable = realization.shape
-        index = [e for e in itertools.product(*[range(s) for s in shape_current_variable])]
-
-        accepted_array = []
+        accepted_array = torch.zeros(shape_current_variable)
+        iterator_indices = list(ndindex(shape_current_variable))
+        if self._random_sampling_order:
+            shuffle(iterator_indices)  # shuffle in-place!
 
         # retrieve the individual parameters from realizations once for all to speed-up computations,
         # since they are fixed during the sampling of this population variable!
@@ -152,8 +176,7 @@ class GibbsSampler(AbstractSampler):
             regularity = model.compute_regularity_realization(realization).sum()
             return attachment, regularity
 
-        # TODO: shouldn't we loop randomly here so there is no order in dimensions?
-        for idx in index:
+        for idx in iterator_indices:
             # Compute the attachment and regularity
             if self._previous_attachment is None:
                 assert self._previous_regularity is None
@@ -176,7 +199,7 @@ class GibbsSampler(AbstractSampler):
                                 (new_attachment - self._previous_attachment)))
 
             accepted = self._metropolis_step(alpha)
-            accepted_array.append(accepted)
+            accepted_array[idx] = accepted
 
             if not accepted:
                 # Revert modification of realization at idx and its consequences
@@ -191,7 +214,6 @@ class GibbsSampler(AbstractSampler):
             else:
                 self._previous_attachment, self._previous_regularity = new_attachment, new_regularity
 
-        accepted_array = torch.tensor(accepted_array, dtype=torch.float32).reshape(shape_current_variable)
         self._update_acceptation_rate(accepted_array)
         self._update_std()
 
@@ -212,7 +234,7 @@ class GibbsSampler(AbstractSampler):
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         temperature_inv : float > 0
         **attachment_computation_kws
-            Optional keyword arguments for attachement computations.
+            Optional keyword arguments for attachment computations.
             As of now, we only use it for individual variables, and only `attribute_type`.
             It is used to know whether to compute attachments from the MCMC toolbox (esp. during fit)
             or to compute it from regular model parameters (esp. during personalization in mean/mode realization)
@@ -221,7 +243,7 @@ class GibbsSampler(AbstractSampler):
         # Compute the attachment and regularity for all subjects
         realization = realizations[self.name]
 
-        # the population variables during this sampling step (since we update an individual parameter), but:
+        # the population variables are fixed during this sampling step (since we update an individual parameter), but:
         # - if we are in a calibration: we may have updated them just before and have NOT yet propagated these changes
         #   into the master model parameters, so we SHOULD use the MCMC toolbox for model computations (default)
         # - if we are in a personalization (mode/mean real): we are not updating the population parameters any more

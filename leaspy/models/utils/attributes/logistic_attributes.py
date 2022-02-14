@@ -46,6 +46,9 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
 
         super().__init__(name, dimension, source_dimension)
 
+        if not self.univariate:
+            self.velocities: torch.FloatTensor = None
+
     def update(self, names_of_changed_values, values):
         """
         Update model group average parameter(s).
@@ -56,14 +59,13 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
             Elements of list must be either:
                 * ``all`` (update everything)
                 * ``g`` correspond to the attribute :attr:`positions`.
-                * ``v0`` (``xi_mean`` if univariate) correspond to the attribute :attr:`velocities`.
+                * ``v0`` (only for multivariate models) correspond to the attribute :attr:`velocities`.
                   When we are sure that the v0 change is only a scalar multiplication
                   (in particular, when we reparametrize log(v0) <- log(v0) + mean(xi)),
-                  we may update velocities using ``v0_collinear``, otherwise (in multivariate case)
+                  we may update velocities using ``v0_collinear``, otherwise
                   we always assume v0 is NOT collinear to previous value
                   (no need to perform the verification it is - would not be really efficient)
-
-                * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
+                * ``betas`` correspond to the linear combination of columns from the orthonormal basis so
                   to derive the :attr:`mixing_matrix`.
         values : dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
@@ -88,7 +90,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
             compute_betas = True
         if 'g' in names_of_changed_values:
             compute_positions = True
-        if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
+        if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values):
             compute_velocities = True
             dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
 

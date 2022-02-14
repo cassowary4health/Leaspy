@@ -62,7 +62,7 @@ class Realization:
         """
         # TODO : a check of shapes
         realization = cls(name, shape, variable_type)
-        realization._tensor_realizations = tensor_realization.clone().detach()
+        realization.tensor_realizations = tensor_realization.clone().detach()
         return realization
 
     def initialize(self, n_individuals: int, model: AbstractModel, scale_individual: float = 1.0):
@@ -111,10 +111,10 @@ class Realization:
         self._tensor_realizations[dim] = element
 
     def __str__(self):
-        str = f"Realization of {self.name}\n"
-        str += f"Shape : {self.shape}\n"
-        str += f"Variable type : {self.variable_type}\n"
-        return str
+        s = f"Realization of {self.name}\n"
+        s += f"Shape : {self.shape}\n"
+        s += f"Variable type : {self.variable_type}\n"
+        return s
 
     def set_autograd(self):
         """
@@ -157,20 +157,14 @@ class Realization:
         else:
             raise ValueError("Realizations are already detached")
 
-    def copy(self) -> Realization:
+    def __deepcopy__(self, memo) -> Realization:
         """
-        Copy the Realization object
+        Deep-copy the Realization object (magic method invoked with using copy.deepcopy)
+
+        It clones the underlying tensor and detach it from the computational graph
 
         Returns
         -------
         `Realization`
-
-        Notes
-        -----
-        From PyTorch :meth:`torch.Tensor.clone` doc:
-            Unlike copy_(), this function is recorded in the computation graph.
-            Gradients propagating to the cloned tensor will propagate to the original tensor.
         """
-        new_realization = Realization(self.name, self.shape, self.variable_type)
-        new_realization.tensor_realizations = self.tensor_realizations.clone()
-        return new_realization
+        return Realization.from_tensor(self.name, self.shape, self.variable_type, self.tensor_realizations)

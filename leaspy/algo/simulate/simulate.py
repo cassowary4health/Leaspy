@@ -135,7 +135,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
     with :math:`t` the real age, :math:`\psi_i (t)` the reparametrized age, :math:`\xi_i` the individual
     log-acceleration parameter, :math:`\tau_i` the individual time-shift parameter and :math:`\bar{\tau}` the mean
-    conversion age derivated by the `model` object.
+    conversion age derived by the `model` object.
 
     One can restrict the interval of the baseline reparametrized age to be _learnt_ in kernel,
     by setting bounds in `reparametrized_age_bounds`. Note that the simulated reparametrized baseline ages
@@ -551,7 +551,7 @@ class SimulationAlgorithm(AbstractAlgo):
         xi : :class:`numpy.ndarray`, shape = (n_subjects,)
             Individual log-acceleration.
         tau_mean : float
-            The mean conversion age derivated by the model.
+            The mean conversion age derived by the model.
 
         Returns
         -------
@@ -573,7 +573,7 @@ class SimulationAlgorithm(AbstractAlgo):
         xi : :class:`numpy.ndarray`, shape = (n_subjects,)
             Individual log-acceleration.
         tau_mean : float
-            The mean conversion age derivated by the model.
+            The mean conversion age derived by the model.
 
         Returns
         -------

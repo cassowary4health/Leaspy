@@ -656,7 +656,7 @@ class AbstractModel(ABC):
             return self.compute_regularity_variable(realization.tensor_realizations, mean, std)
         elif realization.variable_type == 'individual':
             if realization.rv_type != 'linked':
-                if realization.name == 'tau':
+                if realization.name == 'tau' and 'link' in self.name:
                     try:
                         #mean = realization['tau_mean'].reshape(-1,1)
                         mean = torch.tensor([0.]).reshape(-1,1) #self.compute_individual_tau_means(self.cofactors.t(), attribute_type="MCMC").reshape(-1,1)

@@ -214,7 +214,7 @@ spelling-private-dict-file=.spell-check.txt
 [MISCELLANEOUS]
 
 # List of note tags to take in consideration, separated by a comma.
-notes=BUG,
+notes=BUG, BUGFIX, DEBUG,
       HACK,
       FIXME,
       XXX,

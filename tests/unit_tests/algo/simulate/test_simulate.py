@@ -165,13 +165,13 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         # noise: value (scalar)
         settings = AlgorithmSettings('simulation', seed=0, noise=.12)
         r = lsp_diag.simulate(individual_parameters, data, settings)
-        self.assertTrue(torch.allclose(r.noise_std, torch.tensor(.12)))
+        self.assertAllClose(r.noise_std, .12, what='noise')
 
         # noise: value (diagonal)
         diag_noise = .08 + .02*np.arange(lsp_bin.model.dimension)
         settings = AlgorithmSettings('simulation', seed=0, noise=diag_noise)
         r = lsp_bin.simulate(individual_parameters, data, settings)
-        self.assertTrue(torch.allclose(r.noise_std, torch.from_numpy(diag_noise).to(dtype=torch.float32)))
+        self.assertAllClose(r.noise_std, diag_noise, what='noise')
 
         # noise: Bernoulli
         settings = AlgorithmSettings('simulation', seed=0, noise='bernoulli')
@@ -201,7 +201,7 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         for lsp_obj in [lsp_scal, lsp_diag, lsp_bin]:
             r = lsp_obj.simulate(individual_parameters, data, settings)
             if lsp_obj != lsp_bin:
-                self.assertTrue(torch.allclose(r.noise_std, lsp_obj.model.parameters['noise_std']))
+                self.assertAllClose(r.noise_std, lsp_obj.model.parameters['noise_std'], what='noise')
             else:
                 self.assertIsNone(r.noise_std)
                 self._check_bin_values(r)

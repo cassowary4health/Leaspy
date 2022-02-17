@@ -87,10 +87,8 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
         ## test consistency of model attributes (only mixing matrix here)
         expected_model = Leaspy.load(path_to_backup_model).model
         if expected_model.dimension != 1:
-            self.assertTrue(torch.allclose(expected_model.attributes.mixing_matrix, torch.tensor(expected_model_parameters['parameters']['mixing_matrix']),
-                                           rtol=1e-4, atol=1e-6),
-                            (expected_model.attributes.mixing_matrix, expected_model_parameters['parameters']['mixing_matrix']))
-
+            self.assertAllClose(expected_model.attributes.mixing_matrix, expected_model_parameters['parameters']['mixing_matrix'],
+                                rtol=1e-4, atol=1e-6, what='mixing_matrix')
 
 class LeaspyFitTest(LeaspyFitTest_Mixin):
     # <!> reproducibility gap for PyTorch >= 1.7, only those are supported now

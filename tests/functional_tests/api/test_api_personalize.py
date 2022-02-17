@@ -36,20 +36,19 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
 
         return ips, noise, leaspy # data?
 
-    def check_consistency_of_personalization_outputs(self, ips, noise_std, expected_noise_std, *, tol_noise = 5e-3):
+    def check_consistency_of_personalization_outputs(self, ips, noise_std, expected_noise_std, *,
+                                                     tol_noise = 5e-3, msg = None):
 
         self.assertIsInstance(ips, IndividualParameters)
         self.assertIsInstance(noise_std, torch.Tensor)
 
         if isinstance(expected_noise_std, float):
-            self.assertEqual(noise_std.numel(), 1) # scalar noise
-            self.assertAlmostEqual(noise_std.item(), expected_noise_std, delta=tol_noise)
+            self.assertEqual(noise_std.numel(), 1, msg=msg) # scalar noise
+            self.assertAlmostEqual(noise_std.item(), expected_noise_std, delta=tol_noise, msg=msg)
         else:
             # vector of noises (for diag_noise)
-            self.assertEqual(noise_std.numel(), len(expected_noise_std)) # diagonal noise
-            diff_noise = noise_std - torch.tensor(expected_noise_std)
-            self.assertAlmostEqual((diff_noise ** 2).sum(), 0., delta=tol_noise**2,
-                                   msg=f'Noise != Expected: {noise_std.tolist()} != {expected_noise_std}')
+            self.assertEqual(noise_std.numel(), len(expected_noise_std), msg=msg) # diagonal noise
+            self.assertAllClose(noise_std, expected_noise_std, atol=tol_noise, what='noise', msg=msg)
 
 class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 

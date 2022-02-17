@@ -68,7 +68,7 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
 
     def assertEqual(self, a, b):
         if isinstance(a, torch.Tensor):
-            self.assertTrue(torch.allclose(a, b))
+            self.assertAllClose(a, b)
         else:
             super().assertEqual(a, b)
 

@@ -46,12 +46,12 @@ class DatasetTest(LeaspyTestCase):
         self.assertEqual(dataset.n_observations, 18)  # since bivariate without nans
 
         values = torch.tensor([[[1., 1.], [5., 2.], [2., 3.], [0., 0.]],
-                           [[1., 1.], [5., 8.], [0., 0.], [0., 0.]],
-                           [[1., 4.], [8., 1.], [1., 1.], [3., 2.]]])
+                               [[1., 1.], [5., 8.], [0., 0.], [0., 0.]],
+                               [[1., 4.], [8., 1.], [1., 1.], [3., 2.]]])
 
-        mask = torch.tensor([[[1.], [1.], [1.], [0.]],
-                        [[1.], [1.], [0.], [0.]],
-                        [[1.], [1.], [1.], [1.]]])
+        mask = torch.tensor([[[1., 1.], [1., 1.], [1., 1.], [0., 0.]],
+                             [[1., 1.], [1., 1.], [0., 0.], [0., 0.]],
+                             [[1., 1.], [1., 1.], [1., 1.], [1., 1.]]])
 
         timepoints = torch.tensor([
             [1., 2., 3., 0.],
@@ -59,12 +59,9 @@ class DatasetTest(LeaspyTestCase):
             [1., 2., 4., 5.]
         ])
 
-        self.assertTrue(torch.equal(dataset.values, values))
-        # print(dataset.mask)
-        # print(mask)
-        # self.assertTrue(torch.equal(dataset.mask, mask)) #TODO check this
-        # print(dataset.timepoints)
-        self.assertAlmostEqual((dataset.timepoints - timepoints).sum(), 0, delta=10e-5)
+        self.assertAllClose(dataset.values, values)
+        self.assertTrue(torch.equal(dataset.mask, mask))
+        self.assertAllClose(dataset.timepoints, timepoints)
 
     def test_n_observations_missing_values(self):
 
@@ -78,6 +75,23 @@ class DatasetTest(LeaspyTestCase):
         self.assertEqual(dataset.n_visits, 8)  # 1 row full of nans should have been dropped
         self.assertEqual(dataset.n_observations, 2*8-3)  # 3 nans
 
+        values = torch.tensor([[[1., 1.], [2., 3.], [0., 0.], [0., 0.]],
+                               [[1., 1.], [0., 8.], [0., 0.], [0., 0.]],
+                               [[0., 4.], [8., 0.], [1., 1.], [3., 2.]]])
+
+        mask = torch.tensor([[[1., 1.], [1., 1.], [0., 0.], [0., 0.]],
+                             [[1., 1.], [0., 1.], [0., 0.], [0., 0.]],
+                             [[0., 1.], [1., 0.], [1., 1.], [1., 1.]]])
+
+        timepoints = torch.tensor([
+            [1., 3., 0., 0.],
+            [1., 2., 0., 0.],
+            [1., 2., 4., 5.]
+        ])
+
+        self.assertAllClose(dataset.values, values)
+        self.assertTrue(torch.equal(dataset.mask, mask))
+        self.assertAllClose(dataset.timepoints, timepoints)
 
     def test_dataset_device_management_cpu_only(self):
         path_to_data = self.get_test_data_path('data_mock', 'multivariate_data_for_dataset_with_nans.csv')

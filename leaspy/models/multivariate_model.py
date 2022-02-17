@@ -76,19 +76,17 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
-        velocities = velocities.reshape(1, 1, -1) # not needed in fact (automatic broadcasting on last dimension)
-        positions = positions.reshape(1, 1, -1) # same
-        reparametrized_time = reparametrized_time.unsqueeze(-1)
+        reparametrized_time = reparametrized_time.unsqueeze(-1)  # for automatic broadcast on n_features (last dim)
 
-        # Computation
-        LL = velocities * reparametrized_time + positions
+        # Model expected value
+        model = positions + velocities * reparametrized_time
 
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
             wi = sources.matmul(mixing_matrix.t())
-            LL += wi.unsqueeze(-2)
+            model += wi.unsqueeze(-2)
 
-        return LL # (n_individuals, n_timepoints, n_features)
+        return model # (n_individuals, n_timepoints, n_features)
 
     def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
@@ -99,20 +97,20 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
-
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # Log likelihood computation
+        # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
-        #v0 = v0.reshape(1, 1, -1) # not needed, automatic broadcast on last dim (n_features)
 
-        LL = v0 * reparametrized_time
+        # Model expected value
+        t = v0 * reparametrized_time
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
             wi = sources.matmul(a_matrix.t())
-            LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
-        LL = 1. + g * torch.exp(-LL * b)
-        model = 1. / LL
+            t += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
+
+        # TODO? more efficient & accurate to compute `torch.exp(-t*b + log_g)` since we directly sample & stored log_g
+        model = 1. / (1. + g * torch.exp(-t * b))
 
         return model # (n_individuals, n_timepoints, n_features)
 
@@ -158,37 +156,31 @@ class MultivariateModel(AbstractMultivariateModel):
     def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
+        _, v0, mixing_matrix = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
-
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # Log likelihood computation
+        # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
-        v0 = velocities.reshape(1, 1, -1) * torch.ones_like(reparametrized_time) # broadcast
-
-        LL = v0 * reparametrized_time + positions
-        if self.source_dimension != 0:
-            sources = individual_parameters['sources']
-            wi = sources.matmul(mixing_matrix.t())
-            LL += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
-
         alpha = torch.exp(xi).reshape(-1, 1, 1)
+        dummy_to_broadcast_n_ind_n_tpts = torch.ones_like(reparametrized_time)
 
+        # Jacobian of model expected value w.r.t. individual parameters
         derivatives = {
             'xi': (v0 * reparametrized_time).unsqueeze(-1), # add a last dimension for len param
-            'tau': (-v0 * alpha).unsqueeze(-1), # same
+            'tau': (v0 * -alpha * dummy_to_broadcast_n_ind_n_tpts).unsqueeze(-1), # same
         }
 
         if self.source_dimension > 0:
-            derivatives['sources'] = mixing_matrix.expand((1,1,-1,-1)) * torch.ones_like(reparametrized_time).unsqueeze(-1) # broadcast on n_timepoints
+            derivatives['sources'] = mixing_matrix.expand((1,1,-1,-1)) * dummy_to_broadcast_n_ind_n_tpts.unsqueeze(-1)
 
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
 
     def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+        # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized_logistic`)
 
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
@@ -197,27 +189,26 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
-
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # Log likelihood computation
+        # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
-        #v0 = v0.reshape(1, 1, -1) # not needed, automatic broadcast on last dim (n_features)
+        alpha = torch.exp(xi).reshape(-1, 1, 1)
 
-        LL = v0 * reparametrized_time
+        # Model expected value
+        t = v0 * reparametrized_time
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
             wi = sources.matmul(a_matrix.t())
-            LL += wi.unsqueeze(-2)
-        LL = 1. + g * torch.exp(-LL * b)
-        model = 1. / LL
+            t += wi.unsqueeze(-2)
+        model = 1. / (1. + g * torch.exp(-t * b))
 
+        # Jacobian of model expected value w.r.t. individual parameters
         c = model * (1. - model) * b
-        alpha = torch.exp(xi).reshape(-1, 1, 1)
 
         derivatives = {
             'xi': (c * v0 * reparametrized_time).unsqueeze(-1),
-            'tau': (c * -v0 * alpha).unsqueeze(-1),
+            'tau': (c * v0 * -alpha).unsqueeze(-1),
         }
         if self.source_dimension > 0:
             derivatives['sources'] = c.unsqueeze(-1) * a_matrix.expand((1,1,-1,-1))

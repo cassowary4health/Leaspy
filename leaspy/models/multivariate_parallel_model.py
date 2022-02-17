@@ -37,58 +37,63 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.attributes.update(['all'], self.parameters)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+
         # Population parameters
-        g, deltas, a_matrix = self._get_attributes(attribute_type)
-        deltas_exp = torch.exp(-deltas)
+        g, deltas, mixing_matrix = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # Log likelihood computation
-        LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
+        # Reshaping
+        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, -> n_features)
+
+        # Model expected value
+        t = reparametrized_time + deltas
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
-            wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
-            LL += wi * (g * deltas_exp + 1) ** 2 / (g * deltas_exp)
-        LL = -reparametrized_time.unsqueeze(-1) - LL.unsqueeze(-2)
-        model = 1. / (1. + g * torch.exp(LL))
+            wi = sources.matmul(mixing_matrix.t())  # (n_individuals, n_features)
+            g_deltas_exp = g * torch.exp(-deltas)
+            b = (1. + g_deltas_exp) ** 2 / g_deltas_exp
+            t += (b * wi).unsqueeze(-2)  # to get n_timepoints dimension
+        model = 1. / (1. + g * torch.exp(-t))
 
         return model
 
     def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+        # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized`)
 
         # Population parameters
-        g, deltas, a_matrix = self._get_attributes(attribute_type)
-        deltas_exp = torch.exp(-deltas)
+        g, deltas, mixing_matrix = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
+        # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, -> n_features)
+        alpha = torch.exp(xi).reshape(-1, 1, 1)
 
-        # Log likelihood computation
-        LL = deltas.unsqueeze(0).repeat(timepoints.shape[0], 1)
-        k = (g * deltas_exp + 1) ** 2 / (g * deltas_exp) # (n_features, )
+        # Model expected value
+        t = reparametrized_time + deltas
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
-            wi = torch.nn.functional.linear(sources, a_matrix, bias=None)
-            LL += wi * k
-        LL = -reparametrized_time - LL.unsqueeze(-2)
-        model = 1. / (1. + g * torch.exp(LL))
+            wi = sources.matmul(mixing_matrix.t())  # (n_individuals, n_features)
+            g_deltas_exp = g * torch.exp(-deltas)
+            b = (1. + g_deltas_exp) ** 2 / g_deltas_exp  # (n_features, )
+            t += (b * wi).unsqueeze(-2)  # to get n_timepoints dimension
+        model = 1. / (1. + g * torch.exp(-t))
 
+        # Jacobian of model expected value w.r.t. individual parameters
         c = model * (1. - model)
-
-        alpha = torch.exp(xi).reshape(-1, 1, 1)
 
         derivatives = {
             'xi': (c * reparametrized_time).unsqueeze(-1),
             'tau': (c * -alpha).unsqueeze(-1),
         }
         if self.source_dimension > 0:
-            k = k.reshape((1, 1, -1, 1)) # n_features is third
-            derivatives['sources'] = c.unsqueeze(-1) * k * a_matrix.expand((1, 1, -1, -1))
+            b = b.reshape((1, 1, -1, 1)) # n_features is third
+            derivatives['sources'] = c.unsqueeze(-1) * b * mixing_matrix.expand((1, 1, -1, -1))
 
         return derivatives
 

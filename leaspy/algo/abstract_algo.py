@@ -163,11 +163,13 @@ class AbstractAlgo(ABC):
 
         # Print run infos
         duration_in_seconds = time.time() - time_beginning
+        if self.algo_parameters.get('progress_bar'):
+            print()  # new line for clarity
         print(f"\n{self.family.title()} with `{self.name}` took: {self._duration_to_str(duration_in_seconds)}")
 
         noise_repr = self._noise_std_repr(noise_std, model=model)
         if noise_repr is not None:
-            print(f"The standard deviation of the noise at the end of the {self.family} is:\n{noise_repr}")
+            print(f"The standard deviation of the noise at the end of the {self.family} is: {noise_repr}")
 
         # Return only output part
         if return_noise:
@@ -260,8 +262,9 @@ class AbstractAlgo(ABC):
 
         Parameters
         ----------
-        iteration : int
+        iteration : int >= 0 or -1
             Current iteration of the algorithm.
+            The final iteration should be `n_iter - 1`
         n_iter : int
             Total iterations' number of the algorithm.
         suffix : str
@@ -278,12 +281,13 @@ class AbstractAlgo(ABC):
             sys.stdout.flush()
         else:
             print_every_iter = n_iter // n_step
-            display = (iteration + 1) % print_every_iter
+            iteration_plus_1 = iteration + 1
+            display = iteration_plus_1 % print_every_iter
             if display == 0:
-                nbar = (iteration + 1) // print_every_iter
+                nbar = iteration_plus_1 // print_every_iter
                 sys.stdout.write('\r')
                 sys.stdout.write(
-                    '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration + 1, n_iter) + suffix)
+                    '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration_plus_1, n_iter) + suffix)
                 sys.stdout.flush()
 
     def _noise_std_repr(self, noise_std: Optional[torch.FloatTensor], model: AbstractModel) -> Optional[str]:
@@ -325,7 +329,7 @@ class AbstractAlgo(ABC):
             noise_map = {ft_name: f'{ft_noise:{self._log_noise_fmt}}'
                          for ft_name, ft_noise in zip(model.features, noise_elts)}
             print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
-            print_noise = '\n'.join(print_noise.split(', '))
+            print_noise = '\n- ' + '\n- '.join(print_noise.split(', '))
         else:
             if hasattr(noise_std, 'item'):
                 noise_std = noise_std.item()
@@ -364,3 +368,9 @@ class AbstractAlgo(ABC):
 
         return res
 
+    def __str__(self):
+        out = "=== ALGO ===\n"
+        out += f"Instance of {self.name} algo"
+        if hasattr(self, 'algorithm_device'):
+            out += f" [{self.algorithm_device.upper()}]"
+        return out

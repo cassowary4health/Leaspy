@@ -1,10 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
+import re
 import math
 from abc import ABC, abstractmethod
 import copy
 
 import torch
+from torch._tensor_str import PRINT_OPTS as torch_print_opts
 
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
@@ -458,6 +461,10 @@ class AbstractModel(ABC):
 
         This function aims to be used in :class:`.ScipyMinimize` to speed up optimization.
 
+        TODO: as most of numerical operations are repeated when computing model & jacobian,
+              we should create a single method that is able to compute model & jacobian "together" (= efficiently)
+              when requested with a flag for instance.
+
         Parameters
         ----------
         timepoints : :class:`torch.Tensor` of shape (n_individuals, n_timepoints)
@@ -591,9 +598,25 @@ class AbstractModel(ABC):
                 if value['type'] == 'individual']
 
     def __str__(self):
-        output = "=== MODEL ===\n"
-        for key in self.parameters.keys():
-            output += f"{key} : {self.parameters[key]}\n"
+        output = "=== MODEL ==="
+        for p, v in self.parameters.items():
+            if isinstance(v, float) or (hasattr(v, 'ndim') and v.ndim == 0):
+                # for 0D tensors / arrays the default behavior is to print all digits...
+                # change this!
+                v_repr = f'{v:.{1+torch_print_opts.precision}g}'
+            else:
+                # torch.tensor, np.array, ...
+                # in particular you may use `torch.set_printoptions` and `np.set_printoptions` globally
+                # to tune the number of decimals when printing tensors / arrays
+                v_repr = str(v)
+                # remove tensor prefix & possible dtype suffix
+                v_repr = re.sub(r'^[^\(]+\(', '', v_repr)
+                v_repr = re.sub(r'(?:, dtype=.+)?\)$', '', v_repr)
+                # adjust justification
+                spaces = " "*len(f"{p} : [")
+                v_repr = re.sub(r'\n[ ]+\[', f'\n{spaces}[', v_repr)
+
+            output += f"\n{p} : {v_repr}"
         return output
 
     def compute_regularity_realization(self, realization: Realization):

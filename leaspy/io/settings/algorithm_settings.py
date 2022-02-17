@@ -6,6 +6,7 @@ import torch  # to handle devices
 from leaspy.io.settings import algo_default_data_dir
 from leaspy.io.settings.outputs_settings import OutputsSettings
 from leaspy.algo.algo_factory import AlgoFactory
+from leaspy.algo.utils.algo_with_device import AlgoWithDeviceMixin
 
 from leaspy.exceptions import LeaspyAlgoInputError
 from leaspy.utils.typing import KwargsType, Optional
@@ -55,8 +56,9 @@ class AlgorithmSettings:
             * progress_bar : bool, optional, default True
                 Used to display a progress bar during computation.
             * device: str or torch.device, optional
-                For **fit** algorithms only, specifies on which device the algorithm will run.
+                Specifies on which device the algorithm will run.
                 Only 'cpu' and 'cuda' are supported for this argument.
+                Only ``'mcmc_saem'``, ``'mean_real'`` and ``'mode_real'`` algorithms support this setting.
 
         For the complete list of the available parameters for a given algorithm, please directly refer to its documentation.
 
@@ -65,23 +67,22 @@ class AlgorithmSettings:
     name : str
         The algorithm's name.
     model_initialization_method : str, optional
-      For fit algorithms, give a model initialization method,
-      according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
+        For fit algorithms, give a model initialization method,
+        according to those possible in :func:`~.models.utils.initialization.model_initialization.initialize_parameters`.
     algo_initialization_method : str, optional
-      Personalize the algorithm initialization method,
-      according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
+        Personalize the algorithm initialization method,
+        according to those possible for the given algorithm (refer to its documentation in :mod:`leaspy.algo`).
     seed : int, optional, default None
-      Used for stochastic algorithms.
+        Used for stochastic algorithms.
     parameters : dict
-      Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
+        Contains the other parameters: `n_iter`, `n_burn_in_iter`, `use_jacobian`, `n_jobs` & `progress_bar`.
     logs : :class:`.OutputsSettings`, optional
-      Used to create a ``logs`` file during a model calibration containing convergence information.
-    device: str (or torch.device), optional, default 'cpu'
-      Used to specify on which device the algorithm will run. This should either
-      be 'cpu' or 'cuda' and is only supported for fit algorithms (such as
-      'mcmc_saem'). Note that specifying an indexed CUDA device (such as
-      'cuda:1') is not supported. In order to specify the precise cuda device
-      index, one should use the CUDA_VISIBLE_DEVICES environmental variable.
+        Used to create a ``logs`` file during a model calibration containing convergence information.
+    device : str (or torch.device), optional, default 'cpu'
+        Used to specify on which device the algorithm will run. This should either be:
+        'cpu' or 'cuda' and is only supported in specific algorithms (inheriting `AlgoWithDeviceMixin`).
+        Note that specifying an indexed CUDA device (such as 'cuda:1') is not supported.
+        In order to specify the precise cuda device index, one should use the `CUDA_VISIBLE_DEVICES` environment variable.
 
     Raises
     ------
@@ -114,19 +115,6 @@ class AlgorithmSettings:
 
     # TODO should be in the each algo class directly?
     _dynamic_default_parameters = {
-        'mcmc_saem': [
-            (
-                # a number of iteration is given
-                lambda kw: 'n_iter' in kw,
-                {
-                    # burn-in: 90% of iterations given
-                    ('n_burn_in_iter',): lambda kw: int(0.9 * kw['n_iter']),
-                    # annealing: 50% of iterations given
-                    ('annealing', 'n_iter'): lambda kw: int(0.5 * kw['n_iter'])
-                }
-            )
-        ],
-
         'lme_fit': [
             (
                 lambda kw: 'force_independent_random_effects' in kw and kw['force_independent_random_effects'],
@@ -176,9 +164,23 @@ class AlgorithmSettings:
         if self.seed is not None and self.algo_class.deterministic:
             warnings.warn(f'You can skip defining `seed` since the algorithm {self.name} is deterministic.')
 
-        if algo_family != 'fit' and hasattr(self, 'device'):
+        if hasattr(self, 'device') and not issubclass(self.algo_class, AlgoWithDeviceMixin):
             warnings.warn(f'The algorithm "{self.name}" does not support user-specified devices (this '
-                           'is supported only for fit algorithms) and will use the default device (CPU).')
+                           'is supported only for specific algorithms) and will use the default device (CPU).')
+
+    @classmethod
+    def _recursive_merge_dict_warn_extra_keys(cls, ref: dict, new: dict, *, prefix_keys: str = ''):
+        """Merge in-place dictionary `ref` with the values from `new`, for dict keys, merge is recursive."""
+        extra_keys = [prefix_keys + k for k in new if k not in ref]
+        if extra_keys:
+            warnings.warn(f'The parameters {extra_keys} were not present by default and are likely to be unsupported.')
+        for k, v in new.items():
+            if k not in ref or not isinstance(ref[k], dict):
+                ref[k] = v
+            else:
+                if not isinstance(v, dict):
+                    raise LeaspyAlgoInputError(f"Algorithm parameter `{prefix_keys + k}` should be a dictionary, not '{v}'")
+                cls._recursive_merge_dict_warn_extra_keys(ref[k], v, prefix_keys=f'{prefix_keys}{k}.')
 
     @classmethod
     def load(cls, path_to_algorithm_settings: str):
@@ -215,7 +217,7 @@ class AlgorithmSettings:
 
         if 'parameters' in settings.keys():
             print("You overwrote the algorithm default parameters")
-            algorithm_settings.parameters = cls._get_parameters(settings)
+            cls._recursive_merge_dict_warn_extra_keys(algorithm_settings.parameters, cls._get_parameters(settings))
 
         if 'seed' in settings.keys():
             print("You overwrote the algorithm default seed")
@@ -363,17 +365,12 @@ class AlgorithmSettings:
         }
 
         for k, v in kwargs.items():
-
             if k in _special_kwargs:
                 k_getter = _special_kwargs[k]
                 setattr(self, k, k_getter(kwargs))
 
-            elif k in self.parameters:
-                self.parameters[k] = v
-
-            else:
-                # TODO: warn with all unknown parameters? (and use `self._known_keys`)
-                warnings.warn(f"The parameter '{k}' you provided is unknown and thus was skipped.")
+        kwargs_interpreted_as_parameters = {k: v for k, v in kwargs.items() if k not in _special_kwargs}
+        self._recursive_merge_dict_warn_extra_keys(self.parameters, kwargs_interpreted_as_parameters)
 
         # dynamic default parameters
         if self.name in self._dynamic_default_parameters:

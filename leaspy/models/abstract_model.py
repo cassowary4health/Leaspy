@@ -660,7 +660,7 @@ class AbstractModel(ABC):
         """
         return -self.regularization_distribution_factory(mean, std).log_prob(value)
 
-    def initialize_realizations_for_model(self, n_individuals: int, **kwargs) -> CollectionRealization:
+    def initialize_realizations_for_model(self, n_individuals: int, **init_kws) -> CollectionRealization:
         """
         Initialize a :class:`.CollectionRealization` used during model fitting or mode/mean realization personalization.
 
@@ -668,16 +668,16 @@ class AbstractModel(ABC):
         ----------
         n_individuals : int
             Number of individuals to track
-        **kwargs
+        **init_kws
             Keyword arguments passed to :meth:`.CollectionRealization.initialize`.
-            (In particular `scale_individual` to "initialize from values")
+            (In particular `individual_variable_init_at_mean` to "initialize at mean" or `skip_variable` to filter some variables)
 
         Returns
         -------
         :class:`.CollectionRealization`
         """
         realizations = CollectionRealization()
-        realizations.initialize(n_individuals, self, **kwargs)
+        realizations.initialize(n_individuals, self, **init_kws)
         return realizations
 
     @abstractmethod

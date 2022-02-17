@@ -49,9 +49,6 @@ CLASS_METHODS_TO_IGNORE = {
     # TODO: remove these 2 lines when the proper inheritance will be fixed (cf. TODO there)
     'leaspy.algo.abstract_algo.AbstractAlgo.run',
     'leaspy.algo.abstract_algo.AbstractAlgo.run_impl',
-    # __init__ method of these classes are messing because of AlgoWithSamplersMixin.__init__ signature
-    'leaspy.algo.personalize.mean_realisations.MeanReal',
-    'leaspy.algo.personalize.mode_realisations.ModeReal'
 }
 FUNCTIONS_TO_IGNORE = set()
 # the only magic methods with a variable number of arguments

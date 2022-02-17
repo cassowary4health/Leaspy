@@ -22,6 +22,9 @@ class AlgoWithSamplersMixin:
     samplers : dict[ str, :class:`~.algo.samplers.abstract_sampler.AbstractSampler` ]
         Dictionary of samplers per each variable
 
+    current_iteration : int, default 0
+        Current iteration of the algorithm.
+        The first iteration will be 1 and the last one `n_iter`.
 
     random_order_variables : bool (default True)
         This attribute controls whether we randomize the order of variables at each iteration.
@@ -35,6 +38,23 @@ class AlgoWithSamplersMixin:
         self.samplers: Dict[str, AbstractSampler] = None
 
         self.random_order_variables = self.algo_parameters.get('random_order_variables', True)
+
+        self.current_iteration: int = 0
+
+        # Dynamic number of iterations for burn-in phase
+        if self.algo_parameters.get('n_burn_in_iter', None) is None:
+            self.algo_parameters['n_burn_in_iter'] = int(self.algo_parameters['n_burn_in_iter_frac'] * self.algo_parameters['n_iter'])
+
+
+    def _is_burn_in(self) -> bool:
+        """
+        Check if current iteration is in burn-in (= memory-less) phase.
+
+        Returns
+        -------
+        bool
+        """
+        return self.current_iteration <= self.algo_parameters['n_burn_in_iter']
 
     ###########################
     # Output

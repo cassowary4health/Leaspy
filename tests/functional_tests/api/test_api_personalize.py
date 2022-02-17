@@ -52,24 +52,28 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
 
 class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 
-    # Test MCMC-SAEM
-    def test_personalize_mean_real_logistic(self, tol_noise=1e-3):
+    def test_personalize_mean_real_logistic_old(self, tol_noise=1e-3):
         """
         Load logistic model from file, and personalize it to data from ...
         """
-        # Load saved algorithm
-        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mean_real.json')
-        ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
+        # There was a bug previously in mode & mean real: initial temperature = 10 was used even if
+        # no real annealing is implemented for those perso algos. As a consequence regularity term
+        # was not equally weighted during all the sampling of individual variables.
+        # We test this old "buggy" behavior to check past consistency (but we raise a warning now)
+        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mean_real_old_with_annealing.json')
+        with self.assertWarnsRegex(UserWarning, r'[Aa]nnealing'):
+            ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.1024, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.102, tol_noise=tol_noise)
 
-    def test_personalize_mode_real_logistic(self, tol_noise=1e-3):
+    def test_personalize_mode_real_logistic_old(self, tol_noise=1e-3):
         """
         Load logistic model from file, and personalize it to data from ...
         """
-        # Load saved algorithm
-        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mode_real.json')
-        ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
+        # cf. mean_real notice
+        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mode_real_old_with_annealing.json')
+        with self.assertWarnsRegex(UserWarning, r'[Aa]nnealing'):
+            ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
         self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.117, tol_noise=tol_noise)
 

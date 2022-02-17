@@ -15,12 +15,5 @@ class AbstractPersonalizeAlgoTest(LeaspyTestCase):
         algo = AbstractPersonalizeAlgo(settings)
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, None)
-
-        # check default values
-        self.assertEqual(algo.algo_parameters, {
-            'n_iter': 100,
-            'n_jobs': 1,
-            'use_jacobian': True,
-            'progress_bar': True
-        })
+        self.assertEqual(algo.family, 'personalize')
 

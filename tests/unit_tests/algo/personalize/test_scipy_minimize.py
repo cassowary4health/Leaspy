@@ -28,13 +28,70 @@ class ScipyMinimizeTest(LeaspyTestCase):
             for s, s_expected in zip(res_sources, sources):
                 self.assertAlmostEqual(s, s_expected, delta=tol_sources)
 
-    def test_constructor(self):
+    def test_default_constructor(self):
         settings = AlgorithmSettings('scipy_minimize')
-        algo = ScipyMinimize(settings)
 
-        self.assertEqual(algo.algo_parameters, {'n_iter': 100, 'use_jacobian': True, 'n_jobs': 1, "progress_bar": True})
+        self.assertEqual(settings.parameters, {
+            'use_jacobian': True,
+            'n_jobs': 1,
+            'progress_bar': True,
+            'custom_scipy_minimize_params': None,
+            'custom_format_convergence_issues': None,
+        })
+
+        algo = ScipyMinimize(settings)
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, None)
+
+        self.assertEqual(algo.scipy_minimize_params, ScipyMinimize.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITH_JACOBIAN)
+        self.assertEqual(algo.format_convergence_issues, ScipyMinimize.DEFAULT_FORMAT_CONVERGENCE_ISSUES)
+        self.assertEqual(algo.logger, algo._default_logger)
+
+    def test_default_constructor_no_jacobian(self):
+        settings = AlgorithmSettings('scipy_minimize', use_jacobian=False)
+
+        self.assertEqual(settings.parameters, {
+            'use_jacobian': False,
+            'n_jobs': 1,
+            'progress_bar': True,
+            'custom_scipy_minimize_params': None,
+            'custom_format_convergence_issues': None,
+        })
+
+        algo = ScipyMinimize(settings)
+        self.assertEqual(algo.name, 'scipy_minimize')
+        self.assertEqual(algo.seed, None)
+
+        self.assertEqual(algo.scipy_minimize_params, ScipyMinimize.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITHOUT_JACOBIAN)
+        self.assertEqual(algo.format_convergence_issues, ScipyMinimize.DEFAULT_FORMAT_CONVERGENCE_ISSUES)
+        self.assertEqual(algo.logger, algo._default_logger)
+
+
+    def test_custom_constructor(self):
+
+        def custom_logger(msg: str):
+            pass
+
+        custom_format_convergence_issues="{patient_id}: {optimization_result_pformat}..."
+        custom_scipy_minimize_params={
+                                      'method': 'BFGS',
+                                      'options': {'gtol': 5e-2, 'maxiter': 100}
+                                     }
+
+        settings = AlgorithmSettings('scipy_minimize',
+                                     seed=24,
+                                     custom_format_convergence_issues=custom_format_convergence_issues,
+                                     custom_scipy_minimize_params=custom_scipy_minimize_params)
+        settings.logger = custom_logger
+
+        algo = ScipyMinimize(settings)
+        self.assertEqual(algo.name, 'scipy_minimize')
+        self.assertEqual(algo.seed, 24)
+
+        self.assertEqual(algo.format_convergence_issues, custom_format_convergence_issues)
+        self.assertEqual(algo.scipy_minimize_params, custom_scipy_minimize_params)
+        self.assertIs(algo.logger, custom_logger)
+
 
     #def test_get_model_name(self):
     #    settings = AlgorithmSettings('scipy_minimize')

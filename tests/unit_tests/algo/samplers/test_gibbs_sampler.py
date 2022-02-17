@@ -78,7 +78,7 @@ class SamplerTest(LeaspyTestCase):
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))
 
-        self.assertAlmostEqual(gsampler.acceptation_temp.mean(), 10/17, delta=0.05)
+        self.assertAlmostEqual(gsampler.acceptation_history.mean(), 10/17, delta=0.05)
 
     def test_adaptative_proposition_variance(self):
         n_patients = 17

@@ -27,6 +27,19 @@ class AttributesLogisticTest(LeaspyTestCase):
         self.assertTrue(0 <= source_dimension <= dimension-1)
         return dimension, source_dimension
 
+    def test_bad_source_dim(self):
+        with self.assertRaisesRegex(ValueError, '`source_dimension`'):
+            LogisticAttributes(name='logistic', dimension=2, source_dimension=None)
+
+        with self.assertRaisesRegex(ValueError, '`source_dimension`'):
+            LogisticAttributes(name='logistic', dimension=2, source_dimension=2)
+
+        with self.assertRaisesRegex(ValueError, '`source_dimension`'):
+            LogisticAttributes(name='logistic', dimension=2, source_dimension=0.5)
+
+        with self.assertRaisesRegex(ValueError, '`source_dimension`'):
+            LogisticAttributes(name='logistic', dimension=2, source_dimension=-1)
+
     def test_compute_orthonormal_basis(self, tol=5e-5):
         names = ['all']
         values = {

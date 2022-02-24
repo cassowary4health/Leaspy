@@ -103,6 +103,12 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('logistic_diag_noise', 'mode_real', mode_real_kws,                           [0.1596, 0.0598, 0.0824, 0.1507]),
             ('logistic_diag_noise', 'mean_real', mean_real_kws,                           [0.1565, 0.0587, 0.0833, 0.1511]),
 
+            # without source
+            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=False), [0.1053, 0.0404, 0.0699, 0.1992]),
+            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=True),  [0.1053, 0.0404, 0.0699, 0.1991]),
+            ('logistic_diag_noise_no_source', 'mode_real', mode_real_kws,                 [0.1053, 0.0404, 0.0700, 0.1990]),
+            ('logistic_diag_noise_no_source', 'mean_real', mean_real_kws,                 [0.1067, 0.0406, 0.0691, 0.1987]),
+
             # multivariate logistic parallel models
             ('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=False), 0.0960),
             ('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),  0.0956),
@@ -171,6 +177,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 
         for model_name, perso_name, perso_kws, expected_noise_std in [
 
+            # multivariate logistic models
             ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),          0.1161),
             ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),           0.1162),
 
@@ -181,6 +188,12 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=True),            [0.0824, 0.0089, 0.0552, 0.1819]),
             ('logistic_diag_noise', 'mode_real', mode_real_kws,                           [0.0937, 0.0126, 0.0587, 0.1831]),
             ('logistic_diag_noise', 'mean_real', mean_real_kws,                           [0.0908, 0.0072, 0.0595, 0.1817]),
+
+            # without source
+            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=False), [0.1349, 0.0336, 0.0760, 0.1777]),
+            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=True),  [0.1349, 0.0336, 0.0761, 0.1777]),
+            ('logistic_diag_noise_no_source', 'mode_real', mode_real_kws,                 [0.1339, 0.0356, 0.0754, 0.1761]),
+            ('logistic_diag_noise_no_source', 'mean_real', mean_real_kws,                 [0.1387, 0.0277, 0.0708, 0.1807]),
 
             # multivariate logistic parallel models
             ('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=False), 0.1525),

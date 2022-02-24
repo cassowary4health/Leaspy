@@ -327,7 +327,6 @@ class GenericModel(ABC):
             Contains the subject's scores computed at the given age(s)
             Shape of tensor is (1, n_tpts, n_features)
         """
-        pass
 
     def __str__(self):
 

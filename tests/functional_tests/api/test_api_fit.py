@@ -14,7 +14,8 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
 
     def generic_fit(self, model_name: str, model_codename: str, *,
                     algo_name='mcmc_saem', algo_params: dict = {},
-                    logs_kws: dict = {},
+                    # change default parameters for logs so everything is tested despite the very few iterations in tests
+                    logs_kws: dict = dict(console_print_periodicity=50, save_periodicity=20, plot_periodicity=100),
                     print_model: bool = False,
                     check_model: bool = True, check_kws: dict = {},
                     save_model: bool = False,
@@ -102,13 +103,15 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
     # Test MCMC-SAEM (1 noise per feature)
     def test_fit_logistic_diag_noise(self):
+
         leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=True)
 
-    def test_fit_logistic_diag_noise_with_custom_tuning(self):
+    def test_fit_logistic_diag_noise_with_custom_tuning_no_sources(self):
+
         leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_custom',
-                                     noise_model='gaussian_diagonal', source_dimension=2,
+                                     noise_model='gaussian_diagonal', source_dimension=0,
                                      algo_params=dict(
                                          n_iter=100,
                                          burn_in_step_power=0.65,
@@ -140,6 +143,12 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
     def test_fit_logistic_parallel_diag_noise(self):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0),
+                                     check_model=True)
+
+    def test_fit_logistic_parallel_diag_noise_no_source(self):
+
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise_no_source', noise_model='gaussian_diagonal', source_dimension=0,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=True)
 

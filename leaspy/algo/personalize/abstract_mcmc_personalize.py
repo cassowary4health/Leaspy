@@ -53,7 +53,6 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
         -------
         dict[ind_var_name: str, `torch.FloatTensor` of shape (n_individuals, *ind_var.shape)]
         """
-        pass
 
     def _get_individual_parameters(self, model: AbstractModel, dataset: Dataset):
 

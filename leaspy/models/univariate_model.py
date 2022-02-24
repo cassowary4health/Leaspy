@@ -263,10 +263,10 @@ class UnivariateModel(AbstractModel):
         return ages
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, attribute_type=None):
+    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']

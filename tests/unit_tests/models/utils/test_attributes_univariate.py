@@ -35,3 +35,21 @@ class AttributesUnivariateTest(LeaspyTestCase):
             self.assertRaises(ValueError, attr._check_names, ['v0']) # only for multivariate
             self.assertRaises(ValueError, attr._check_names, ['v0_collinear']) # only for multivariate
 
+    def test_bad_name(self):
+        with self.assertRaises(ValueError):
+            LogisticAttributes(name=['should-be-a-str'], dimension=1, source_dimension=None)
+
+    def test_bad_dim(self):
+        with self.assertRaisesRegex(ValueError, '`dimension`'):
+            LogisticAttributes(name='univariate_logistic', dimension=0, source_dimension=None)
+        with self.assertRaisesRegex(ValueError, '`dimension`'):
+            LogisticAttributes(name='univariate_logistic', dimension=0.5, source_dimension=None)
+        with self.assertRaisesRegex(ValueError, '`dimension`'):
+            LogisticAttributes(name='univariate_logistic', dimension=-1, source_dimension=None)
+
+    def test_bad_sources_for_univariate(self):
+        with self.assertRaisesRegex(ValueError, 'source'):
+            LogisticAttributes(name='univariate_logistic', dimension=1, source_dimension=1)
+
+        # this is tolerated
+        LogisticAttributes(name='univariate_logistic', dimension=1, source_dimension=0)

@@ -27,11 +27,48 @@ class AlgorithmSettingsTest(LeaspyTestCase):
         with self.path_default_algo(name).open('r') as fp:
             json_data = json.load(fp)
 
-        settings = AlgorithmSettings(name)
+        settings = AlgorithmSettings(name, algorithm_initialization_method='blabla')
         self.assertEqual(settings.name, name)
         self.assertEqual(settings.parameters, json_data['parameters'])
         self.assertEqual(settings.parameters['use_jacobian'], True)
         self.assertEqual(settings.seed, None)
+        self.assertEqual(settings.algorithm_initialization_method, 'blabla')
+
+    def test_unknown_algo(self):
+
+        with self.assertRaisesRegex(ValueError, 'does not exist'):
+            AlgorithmSettings('unknown-algo')
+
+    def test_check_consistency_params(self):
+
+        with self.assertWarnsRegex(UserWarning, 'seed'):
+            # deterministic, no need for seed
+            a = AlgorithmSettings('constant_prediction', seed=42)
+        # self.assertIsNone(a.seed)  # set anyway
+
+        with self.assertWarnsRegex(UserWarning, 'seed'):
+            # bad seed
+            a = AlgorithmSettings('mode_real', seed='not-castable-to-int')
+        self.assertIsNone(a.seed)
+
+        with self.assertWarnsRegex(UserWarning, 'model_initialization_method'):
+            # `model_initialization_method` is only for fit algo!
+            a = AlgorithmSettings('constant_prediction', model_initialization_method='default')
+        # self.assertIsNone(a.model_initialization_method)  # set anyway
+
+    def test_set_logs(self):
+
+        a = AlgorithmSettings('constant_prediction')
+        with self.assertRaisesRegex(ValueError, 'save_periodicity'):
+            a.set_logs(save_periodicity=0.5)
+
+        with self.assertRaisesRegex(ValueError, 'overwrite_logs_folder'):
+            a.set_logs(overwrite_logs_folder='not-a-bool')
+
+        with self.assertWarnsRegex(UserWarning, 'ignored_log_param'):
+            a.set_logs(ignored_log_param=True,
+                       # to avoid creating directories
+                       save_periodicity=None, plot_periodicity=None)
 
     def test_jacobian_personalization(self):
         settings = AlgorithmSettings('scipy_minimize', use_jacobian=False)

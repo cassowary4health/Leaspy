@@ -128,7 +128,6 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             The parameters.
         """
-        pass
 
     @abstractmethod
     def _initialize_algo(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
@@ -141,7 +140,6 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
-        pass
 
     def _maximization_step(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
         """

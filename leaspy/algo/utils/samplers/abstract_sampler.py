@@ -122,11 +122,11 @@ class AbstractSampler(ABC):
 
     @abstractmethod
     def _sample_population_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
-        pass
+        """Sample population variables"""
 
     @abstractmethod
     def _sample_individual_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
-        pass
+        """Sample individual variables"""
 
     def _group_metropolis_step(self, alpha: torch.FloatTensor) -> torch.FloatTensor:
         """

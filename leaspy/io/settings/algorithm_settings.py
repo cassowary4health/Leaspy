@@ -179,7 +179,7 @@ class AlgorithmSettings:
                 ref[k] = v
             else:
                 if not isinstance(v, dict):
-                    raise LeaspyAlgoInputError(f"Algorithm parameter `{prefix_keys + k}` should be a dictionary, not '{v}'")
+                    raise LeaspyAlgoInputError(f"Algorithm parameter `{prefix_keys + k}` should be a dictionary, not '{v}' of type {type(v)}.")
                 cls._recursive_merge_dict_warn_extra_keys(ref[k], v, prefix_keys=f'{prefix_keys}{k}.')
 
     @classmethod

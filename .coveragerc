@@ -31,8 +31,14 @@ precision = 2
 # You can exclude lines introducing blocks, and the entire block is excluded. If you exclude a def line or decorator line, the entire function is excluded.
 # https://coverage.readthedocs.io/en/latest/excluding.html#excluding
 exclude_lines =
+    # skip any line with a `pass` (such as may be used for @abstractmethod or @suffixed_method)
+    pass
+
+    # standard pragma
     pragma: no cover
-    def __repr__
+
+    # skip blocks reserved for type checking
+    if TYPE_CHECKING:
 
 # when running a summary report in terminal, show missing lines
 # show_missing = True

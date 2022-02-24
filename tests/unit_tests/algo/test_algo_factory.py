@@ -20,9 +20,16 @@ class TestAlgoFactory(LeaspyTestCase):
             settings.name = wrong_arg
             self.assertRaises(ValueError, AlgoFactory.algo, 'fit', settings)
 
+        # Unknown algo family
+        with self.assertRaisesRegex(ValueError, 'family'):
+            AlgoFactory.algo('unknown-family', settings)
+
     def test_get_class(self):
         algo_class = AlgoFactory.get_class('mcmc_saem')
         self.assertIs(algo_class, TensorMCMCSAEM)
+
+        with self.assertRaisesRegex(ValueError, 'known algorithm'):
+            AlgoFactory.get_class('unknown-algo')
 
     def test_loading_default_for_all_algos(self):
         # bit of a functional test

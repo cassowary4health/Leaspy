@@ -120,7 +120,6 @@ class AbstractAlgo(ABC):
         :class:`.AbstractPersonalizeAlgo`
         :class:`.SimulationAlgorithm`
         """
-        pass
 
     def run(self, model: AbstractModel, *args, return_noise: bool = False, **extra_kwargs) -> Any:
         """

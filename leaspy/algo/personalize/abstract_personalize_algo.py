@@ -82,4 +82,3 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         -------
         :class:`.IndividualParameters`
         """
-        pass

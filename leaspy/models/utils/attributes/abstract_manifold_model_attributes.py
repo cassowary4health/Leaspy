@@ -60,9 +60,9 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         if self.univariate:
             self.update_possibilities = ('all', 'g')
         else:
-            if not isinstance(source_dimension, int):
+            if not (isinstance(source_dimension, int) and (0 <= source_dimension < dimension)):
                 raise LeaspyModelInputError("In `AbstractManifoldModelAttributes` you must provide "
-                            "an integer for the parameters `source_dimension` for non univariate models.")
+                            "an integer in [0, dimension - 1] for the parameters `source_dimension` for non univariate models.")
 
             self.betas: torch.FloatTensor = None
             self.mixing_matrix: torch.FloatTensor = None
@@ -111,8 +111,6 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         ----------
         values : dict [str, `torch.Tensor`]
         """
-        if not self.has_sources:
-            return
         self.betas = values['betas'].clone()
 
     def _compute_Q(self, dgamma_t0: torch.FloatTensor, G_metric: torch.FloatTensor, strip_col: int = 0):
@@ -250,6 +248,4 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         """
         Update the attribute ``mixing_matrix``.
         """
-        if not self.has_sources:
-            return
         self.mixing_matrix = self._mixing_matrix_utils(self.betas, self.orthonormal_basis)

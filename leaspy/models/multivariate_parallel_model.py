@@ -98,7 +98,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         return derivatives
 
     def compute_individual_ages_from_biomarker_values_tensorized(self, value, individual_parameters, feature):
-        raise NotImplementedError("Open an issue on Gitlab if needed.")
+        raise NotImplementedError("Open an issue on Gitlab if needed.")  # pragma: no cover
 
     ##############################
     ### MCMC-related functions ###

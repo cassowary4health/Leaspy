@@ -73,7 +73,7 @@ class LMEModelAPITest(LeaspyTestCase):
         settings = AlgorithmSettings('lme_fit')
         self.assertDictEqual(settings.parameters, self.default_lme_fit_params)
 
-        lsp.fit(self.data, settings)
+        lsp.calibrate(self.data, settings)  # test alias of fit once here (random)...
 
         self.assertListEqual(lsp.model.features, ['Y0'])
         self.assertEqual(lsp.model.with_random_slope_age, False)

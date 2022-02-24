@@ -45,6 +45,10 @@ class MultivariateModel(AbstractMultivariateModel):
 
         self._subtype_suffix = self._check_subtype()
 
+        # enforce a prior for v0_mean --> legacy / never used in practice
+        self._set_v0_prior = False
+
+
     def _check_subtype(self):
         if self.name not in self.SUBTYPES_SUFFIXES.keys():
             raise LeaspyModelInputError(f'Multivariate model name should be among these valid sub-types: '
@@ -220,17 +224,17 @@ class MultivariateModel(AbstractMultivariateModel):
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self, *, set_v0_prior = False):
+    def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
             'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         }
 
-        # Initialize hyperpriors
-        if set_v0_prior:
+        # Initialize a prior for v0_mean (legacy code / never used in practice)
+        if self._set_v0_prior:
             self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
             self.MCMC_toolbox['priors']['s_v0'] = 0.1
-            # same on g?
+            # TODO? same on g?
 
         # TODO? why not passing the ready-to-use collection realizations that is initialized at beginning of fit algo and use it here instead?
         population_dictionary = self._create_dictionary_of_population_realizations()

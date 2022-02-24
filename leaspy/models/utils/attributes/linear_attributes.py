@@ -95,21 +95,25 @@ class LinearAttributes(AbstractManifoldModelAttributes):
             compute_velocities = True
             dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
 
-        if compute_betas:
-            self._compute_betas(values)
         if compute_positions:
             self._compute_positions(values)
         if compute_velocities:
             self._compute_velocities(values)
 
-        if self.has_sources:
-            # do not recompute orthonormal basis when we know dgamma_t0 is collinear
-            # to previous velocities to avoid useless computations!
-            recompute_ortho_basis = dgamma_t0_not_collinear_to_previous
-            if recompute_ortho_basis:
-                self._compute_orthonormal_basis()
-            if recompute_ortho_basis or compute_betas:
-                self._compute_mixing_matrix()
+        # only for models with sources beyond this point
+        if not self.has_sources:
+            return
+
+        if compute_betas:
+            self._compute_betas(values)
+
+        # do not recompute orthonormal basis when we know dgamma_t0 is collinear
+        # to previous velocities to avoid useless computations!
+        recompute_ortho_basis = dgamma_t0_not_collinear_to_previous
+        if recompute_ortho_basis:
+            self._compute_orthonormal_basis()
+        if recompute_ortho_basis or compute_betas:
+            self._compute_mixing_matrix()
 
     def _compute_positions(self, values):
         """
@@ -128,9 +132,6 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         In linear case, this inner product corresponds to canonical Euclidean one.
         """
-        if not self.has_sources:
-            return
-
         dgamma_t0 = self.velocities
 
         # Householder decomposition in Euclidean case, updates `orthonormal_basis` in-place

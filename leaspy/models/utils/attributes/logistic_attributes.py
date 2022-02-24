@@ -94,23 +94,26 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
             compute_velocities = True
             dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
 
-        if compute_betas:
-            self._compute_betas(values)
         if compute_positions:
             self._compute_positions(values)
         if compute_velocities:
             self._compute_velocities(values)
 
-        if self.has_sources:
+        # only for models with sources beyond this point
+        if not self.has_sources:
+            return
 
-            # do not recompute orthonormal basis when we know dgamma_t0 is collinear
-            # to previous velocities to avoid useless computations!
-            recompute_ortho_basis = compute_positions or dgamma_t0_not_collinear_to_previous
+        if compute_betas:
+            self._compute_betas(values)
 
-            if recompute_ortho_basis:
-                self._compute_orthonormal_basis()
-            if recompute_ortho_basis or compute_betas:
-                self._compute_mixing_matrix()
+        # do not recompute orthonormal basis when we know dgamma_t0 is collinear
+        # to previous velocities to avoid useless computations!
+        recompute_ortho_basis = compute_positions or dgamma_t0_not_collinear_to_previous
+
+        if recompute_ortho_basis:
+            self._compute_orthonormal_basis()
+        if recompute_ortho_basis or compute_betas:
+            self._compute_mixing_matrix()
 
     def _compute_positions(self, values):
         """
@@ -128,9 +131,6 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
         of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         """
-        if not self.has_sources:
-            return
-
         # Compute the diagonal of metric matrix (cf. `_compute_Q`)
         G_metric = (1 + self.positions).pow(4) / self.positions.pow(2) # = "1/(p0 * (1-p0))**2"
 

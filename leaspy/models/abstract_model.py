@@ -80,7 +80,6 @@ class AbstractModel(ABC):
         method : str
             A custom method to initialize the model
         """
-        pass
 
     def load_parameters(self, parameters: KwargsType) -> None:
         """
@@ -108,7 +107,6 @@ class AbstractModel(ABC):
         :exc:`.LeaspyModelInputError`
             If any of the consistency checks fail.
         """
-        pass
 
     @classmethod
     def _raise_if_unknown_hyperparameters(cls, known_hps: Iterable[str], given_hps: KwargsType) -> None:
@@ -132,7 +130,6 @@ class AbstractModel(ABC):
         **kwargs
             Keyword arguments for json.dump method.
         """
-        pass
 
     def compute_sum_squared_per_ft_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
                                               attribute_type=None) -> torch.FloatTensor:
@@ -430,7 +427,6 @@ class AbstractModel(ABC):
             Contains the subject's ages computed at the given values(s)
             Shape of tensor is (n_values, 1)
         """
-        pass
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
@@ -451,7 +447,6 @@ class AbstractModel(ABC):
         -------
         :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features)
         """
-        pass
 
     @abstractmethod
     def compute_jacobian_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
@@ -478,7 +473,6 @@ class AbstractModel(ABC):
         -------
         dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
         """
-        pass
 
     def compute_individual_attachment_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
                                                  attribute_type) -> torch.FloatTensor:
@@ -545,7 +539,6 @@ class AbstractModel(ABC):
         data : :class:`.Dataset`
         realizations : :class:`.CollectionRealization`
         """
-        pass
 
     @abstractmethod
     def update_model_parameters_normal(self, data: Dataset, suff_stats: DictParamsTorch) -> None:
@@ -557,7 +550,6 @@ class AbstractModel(ABC):
         data : :class:`.Dataset`
         suff_stats : dict[suff_stat: str, :class:`torch.Tensor`]
         """
-        pass
 
     @abstractmethod
     def compute_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> DictParamsTorch:
@@ -573,7 +565,6 @@ class AbstractModel(ABC):
         -------
         dict[suff_stat: str, :class:`torch.Tensor`]
         """
-        pass
 
     def get_population_realization_names(self) -> List[str]:
         """
@@ -701,7 +692,6 @@ class AbstractModel(ABC):
                 When not defined, sampler will rely on scales estimated at model initialization.
                 cf. :class:`~leaspy.algo.utils.samplers.GibbsSampler`
         """
-        pass
 
     def smart_initialization_realizations(self, data: Dataset, realizations: CollectionRealization) -> CollectionRealization:
         """

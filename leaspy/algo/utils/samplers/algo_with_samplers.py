@@ -1,4 +1,5 @@
 from typing import Dict
+import warnings
 
 from .abstract_sampler import AbstractSampler
 from .gibbs_sampler import GibbsSampler
@@ -16,6 +17,10 @@ class AlgoWithSamplersMixin:
     ----------
     settings : :class:`.AlgorithmSettings`
         The specifications of the algorithm as a :class:`.AlgorithmSettings` instance.
+
+        Please note that you can customize the number of memory-less (burn-in) iterations by setting either:
+        * `n_burn_in_iter` directly (deprecated but has priority over following setting, not defined by default)
+        * `n_burn_in_iter_frac`, such that duration of burn-in phase is a ratio of algorithm `n_iter` (default of 90%)
 
     Attributes
     ----------
@@ -42,8 +47,22 @@ class AlgoWithSamplersMixin:
         self.current_iteration: int = 0
 
         # Dynamic number of iterations for burn-in phase
+        n_burn_in_iter_frac = self.algo_parameters['n_burn_in_iter_frac']
+
         if self.algo_parameters.get('n_burn_in_iter', None) is None:
-            self.algo_parameters['n_burn_in_iter'] = int(self.algo_parameters['n_burn_in_iter_frac'] * self.algo_parameters['n_iter'])
+            if n_burn_in_iter_frac is None:
+                raise ValueError("You should NOT have both `n_burn_in_iter_frac` and `n_burn_in_iter` None."
+                                 "\nPlease set a value for at least one of those settings.")
+
+            self.algo_parameters['n_burn_in_iter'] = int(n_burn_in_iter_frac * self.algo_parameters['n_iter'])
+
+        elif n_burn_in_iter_frac is not None:
+            warnings.warn("`n_burn_in_iter` setting is deprecated in favour of `n_burn_in_iter_frac` - "
+                          "which defines the duration of the burn-in phase as a ratio of the total number of iterations."
+                          "\nPlease use the new setting to suppress this warning "
+                          "or explicitly set `n_burn_in_iter_frac=None`."
+                          "\nNote that while `n_burn_in_iter` is supported "
+                          "it will always have priority over `n_burn_in_iter_frac`.", FutureWarning)
 
 
     def _is_burn_in(self) -> bool:

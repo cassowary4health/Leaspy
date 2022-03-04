@@ -117,8 +117,8 @@ class AttributesLinearTest(LeaspyTestCase):
         # but they are collinear
         self.assertTrue(attributes._check_collinearity_vectors(old_velocities, new_velocities))
         # and the orthonormal basis (and mixing matrix) are the same!
-        self.assertTrue(torch.allclose(old_BON, new_BON))
-        self.assertTrue(torch.allclose(old_A, new_A))
+        self.assertAllClose(old_BON, new_BON, what='ortho_basis')
+        self.assertAllClose(old_A, new_A, what='mixing_matrix')
 
         # but orthonormal basis & mixing matrix were re-computed!
         self.assertNotEqual(id(old_BON), id(new_BON))

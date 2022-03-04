@@ -15,6 +15,10 @@ class AlgoWithAnnealingMixin:
     settings : :class:`.AlgorithmSettings`
         The specifications of the algorithm as a :class:`.AlgorithmSettings` instance.
 
+        Please note that you can customize the number of iterations with annealing by setting either:
+        * `annealing.n_iter` directly (deprecated but has priority over following setting, not defined by default)
+        * `annealing.n_iter_frac`, such that iterations with annealing is a ratio of algorithm `n_iter` (default of 50%)
+
     Attributes
     ----------
     annealing_on : bool
@@ -37,8 +41,22 @@ class AlgoWithAnnealingMixin:
         self._annealing_temperature_decrement: float = None
 
         # Dynamic number of iterations for annealing
+        annealing_n_iter_frac = self.algo_parameters['annealing']['n_iter_frac']
+
         if self.annealing_on and self.algo_parameters['annealing'].get('n_iter', None) is None:
-            self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['annealing']['n_iter_frac'] * self.algo_parameters['n_iter'])
+            if annealing_n_iter_frac is None:
+                raise ValueError("You should NOT have both `annealing.n_iter_frac` and `annealing.n_iter` None."
+                                 "\nPlease set a value for at least one of those settings.")
+
+            self.algo_parameters['annealing']['n_iter'] = int(annealing_n_iter_frac * self.algo_parameters['n_iter'])
+
+        elif annealing_n_iter_frac is not None:
+            warnings.warn("`annealing.n_iter` setting is deprecated in favour of `annealing.n_iter_frac` - "
+                          "which defines the duration with annealing as a ratio of the total number of iterations."
+                          "\nPlease use the new setting to suppress this warning "
+                          "or explicitly set `annealing.n_iter_frac=None`."
+                          "\nHowever, note that while `annealing.n_iter` is supported "
+                          "it will always have priority over `annealing.n_iter_frac`.", FutureWarning)
 
     def __str__(self):
         out = super().__str__()

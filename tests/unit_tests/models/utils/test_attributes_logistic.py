@@ -126,8 +126,8 @@ class AttributesLogisticTest(LeaspyTestCase):
         # and this is not just a random result
         self.assertFalse(attributes._check_collinearity_vectors(old_velocities, old_velocities + 0.1))
         # and the orthonormal basis (and mixing matrix) are the same!
-        self.assertTrue(torch.allclose(old_BON, new_BON))
-        self.assertTrue(torch.allclose(old_A, new_A))
+        self.assertAllClose(old_BON, new_BON, what='ortho_basis')
+        self.assertAllClose(old_A, new_A, what='mixing_matrix')
 
         # but orthonormal basis & mixing matrix were re-computed!
         self.assertNotEqual(id(old_BON), id(new_BON))

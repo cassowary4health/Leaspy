@@ -4,7 +4,7 @@ import unittest
 import torch
 
 from leaspy import Data, Leaspy
-from leaspy.io.data.dataset import Dataset
+from leaspy.leaspy_io.data.dataset import Dataset
 from leaspy.algo.samplers.gibbs_sampler import GibbsSampler
 # from . import dummy_ind_variable_infos
 
@@ -23,7 +23,7 @@ class SamplerTest(unittest.TestCase):
         temperature_inv = 1.0
 
         path_model_sampler = hardcoded_model_path('logistic')
-        path_data = os.path.join(test_data_dir, "io", "data", "data_tiny.csv")
+        path_data = os.path.join(test_data_dir, "leaspy_io", "data", "data_tiny.csv")
 
         data = Dataset(Data.from_csv_file(path_data))
         leaspy = Leaspy.load(path_model_sampler)
@@ -65,7 +65,7 @@ class SamplerTest(unittest.TestCase):
         # temperature_inv = 1.0
 
         path_model_sampler = hardcoded_model_path('logistic')
-        #path_data = os.path.join(test_data_dir, "io", "data_tiny.csv")
+        #path_data = os.path.join(test_data_dir, "leaspy_io", "data_tiny.csv")
 
         # data = Dataset(Data.from_csv_file(path_data))
         leaspy = Leaspy.load(path_model_sampler)
@@ -86,7 +86,7 @@ class SamplerTest(unittest.TestCase):
         # temperature_inv = 1.0
 
         path_model_sampler = hardcoded_model_path('logistic')
-        #path_data = os.path.join(test_data_dir, "io", "data_tiny.csv")
+        #path_data = os.path.join(test_data_dir, "leaspy_io", "data_tiny.csv")
 
         # data = Dataset(Data.from_csv_file(path_data))
         leaspy = Leaspy.load(path_model_sampler)

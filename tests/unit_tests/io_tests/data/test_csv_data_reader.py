@@ -2,13 +2,13 @@ import os
 import unittest
 
 from tests import test_data_dir
-from leaspy.io.data.csv_data_reader import CSVDataReader
+from leaspy.leaspy_io.data.csv_data_reader import CSVDataReader
 
 
 class CSVDataReaderTest(unittest.TestCase):
 
     def test_constructor_univariate(self):
-        path = os.path.join(test_data_dir, 'io', 'data', 'univariate_data.csv')
+        path = os.path.join(test_data_dir, 'leaspy_io', 'data', 'univariate_data.csv')
         reader = CSVDataReader(path)
 
         iter_to_idx = {
@@ -24,7 +24,7 @@ class CSVDataReaderTest(unittest.TestCase):
 
 
     def test_constructor_multivariate(self):
-        path = os.path.join(test_data_dir, 'io', 'data', 'multivariate_data.csv')
+        path = os.path.join(test_data_dir, 'leaspy_io', 'data', 'multivariate_data.csv')
         reader = CSVDataReader(path)
 
         iter_to_idx = {

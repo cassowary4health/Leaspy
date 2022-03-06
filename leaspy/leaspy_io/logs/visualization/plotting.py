@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.leaspy_io.outputs.individual_parameters import IndividualParameters
 # import matplotlib.backends.backend_pdf
 
 

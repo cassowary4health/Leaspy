@@ -1,4 +1,4 @@
-from ...io.outputs.individual_parameters import IndividualParameters
+from ...leaspy_io.outputs.individual_parameters import IndividualParameters
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 import torch
 

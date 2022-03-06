@@ -26,7 +26,7 @@ class ResultTest(unittest.TestCase):
         data = Data.from_csv_file(example_data_path)
 
         cofactors_path = os.path.join(test_data_dir,
-                                      "io",
+                                      "leaspy_io",
                                       "data",
                                       "data_tiny_covariate.csv")
         self.cofactors = pd.read_csv(cofactors_path, index_col=0)
@@ -128,7 +128,7 @@ class ResultTest(unittest.TestCase):
                                             f"data_tiny-individual_parameters{self.torch_save_suffix}")
 
         cofactors_path = os.path.join(test_data_dir,
-                                      "io",
+                                      "leaspy_io",
                                       "data",
                                       "data_tiny_covariate.csv")
 

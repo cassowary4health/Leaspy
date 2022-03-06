@@ -2,7 +2,7 @@ import csv
 import os
 import time
 
-from leaspy.io.logs.visualization.plotter import Plotter
+from leaspy.leaspy_io.logs.visualization.plotter import Plotter
 
 
 class FitOutputManager:
@@ -11,7 +11,7 @@ class FitOutputManager:
 
     Parameters
     ----------
-    outputs : :class:`~.io.settings.outputs_settings.OutputsSettings`
+    outputs : :class:`~.leaspy_io.settings.outputs_settings.OutputsSettings`
         Initialize the `FitOuputManager` class attributes, like the logs paths, the console print periodicity and so forth.
 
     Attributes
@@ -80,7 +80,7 @@ class FitOutputManager:
             The data used by the computation
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
         iteration = algo.current_iteration
@@ -195,7 +195,7 @@ class FitOutputManager:
         ----------
         iteration: int
             The current iteration
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
         for name in ['xi', 'tau']:
@@ -247,7 +247,7 @@ class FitOutputManager:
             The data used by the computation
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
         path_iteration = os.path.join(self.path_plot_patients, 'plot_patients_{0}.pdf'.format(iteration))

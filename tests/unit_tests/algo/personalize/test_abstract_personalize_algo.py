@@ -2,7 +2,7 @@ from tests import allow_abstract_class_init
 import unittest
 
 from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
-from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+from leaspy.leaspy_io.settings.algorithm_settings import AlgorithmSettings
 
 from tests import allow_abstract_class_init
 

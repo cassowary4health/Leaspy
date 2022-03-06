@@ -6,7 +6,7 @@ import torch
 
 from leaspy.api import Leaspy
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
-from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+from leaspy.leaspy_io.settings.algorithm_settings import AlgorithmSettings
 from tests import hardcoded_model_path
 
 # test tolerance, lack of precision btw different machines... (no exact reproductibility in scipy.optimize.minimize?)

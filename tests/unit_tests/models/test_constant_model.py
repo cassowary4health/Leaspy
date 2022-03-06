@@ -3,8 +3,8 @@ import unittest
 from tests import example_data_path
 
 from leaspy.models.constant_model import ConstantModel
-from leaspy.io.data.data import Data
-from leaspy.io.data.dataset import Dataset
+from leaspy.leaspy_io.data.data import Data
+from leaspy.leaspy_io.data.dataset import Dataset
 
 class ConstantModelTest(unittest.TestCase):
 

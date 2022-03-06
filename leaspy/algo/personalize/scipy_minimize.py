@@ -4,7 +4,7 @@ import torch
 from joblib import Parallel, delayed
 from scipy.optimize import minimize
 
-from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.leaspy_io.outputs.individual_parameters import IndividualParameters
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 
 

@@ -142,7 +142,7 @@ class UnivariateModel(AbstractModel):
         """
         Compute trajectory of the model with individual parameters being the group-average ones.
 
-        TODO check dimensions of io?
+        TODO check dimensions of leaspy_io?
         TODO generalize in abstract manifold model
 
         Parameters

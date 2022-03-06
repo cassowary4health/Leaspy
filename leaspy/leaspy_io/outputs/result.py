@@ -7,8 +7,8 @@ from collections.abc import Iterable
 import pandas as pd
 import torch
 
-from leaspy.io.data.data import Data
-from leaspy.io.data.dataset import Dataset
+from leaspy.leaspy_io.data.data import Data
+from leaspy.leaspy_io.data.dataset import Dataset
 
 
 class Result:
@@ -31,10 +31,10 @@ class Result:
         Desired noise standard deviation level.
     """
 
-    # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters io.
+    # TODO : Check consistency and ordering of sujbects ID between Data and individual parameters leaspy_io.
     def __init__(self, data, individual_parameters, noise_std=None):
         """
-        Process the initializer function - called by Leaspy.io.outputs.result.Result
+        Process the initializer function - called by Leaspy.leaspy_io.outputs.result.Result
 
         Parameters
         ----------

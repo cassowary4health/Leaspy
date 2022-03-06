@@ -52,7 +52,7 @@ class GibbsSampler(AbstractSampler):
         ----------
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
         temperature_inv : float > 0
         """
         # TODO is data / model / realizations supposed to be in sampler ????
@@ -115,7 +115,7 @@ class GibbsSampler(AbstractSampler):
         ----------
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
         temperature_inv : float > 0
         """
 
@@ -182,7 +182,7 @@ class GibbsSampler(AbstractSampler):
         ----------
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
         temperature_inv : float > 0
         """
 

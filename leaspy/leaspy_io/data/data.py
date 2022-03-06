@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 import torch
 
-from leaspy.io.data.csv_data_reader import CSVDataReader
-from leaspy.io.data.dataframe_data_reader import DataframeDataReader
-from leaspy.io.data.individual_data import IndividualData
+from leaspy.leaspy_io.data.csv_data_reader import CSVDataReader
+from leaspy.leaspy_io.data.dataframe_data_reader import DataframeDataReader
+from leaspy.leaspy_io.data.individual_data import IndividualData
 
 
-# from leaspy.io.data.dataset import Dataset
+# from leaspy.leaspy_io.data.dataset import Dataset
 
 
 # TODO : object data as logs ??? or a result object ? Because there could be ambiguetes here
@@ -31,7 +31,7 @@ class Data:
 
     def get_by_idx(self, idx):
         """
-        Get the :class:`~leaspy.io.data.individual_data.IndividualData` of a an individual identified by its ID.
+        Get the :class:`~leaspy.leaspy_io.data.individual_data.IndividualData` of a an individual identified by its ID.
 
         Returns
         -------

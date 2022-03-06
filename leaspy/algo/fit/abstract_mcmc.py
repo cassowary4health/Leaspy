@@ -56,7 +56,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         ----------
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
         """
 
         # handling loss, a bit dirty...
@@ -121,7 +121,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         ----------
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
         """
         suff_stats = model.compute_sufficient_statistics(data, realizations)
         self.sufficient_statistics = {k: torch.zeros(v.shape, dtype=torch.float32) for k, v in suff_stats.items()}
@@ -145,7 +145,7 @@ class AbstractFitMCMC(AbstractFitAlgo):
         ----------
         data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
         """
 
         # Sample step

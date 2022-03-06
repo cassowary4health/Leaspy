@@ -1,10 +1,10 @@
 import unittest
 import numpy as np
-from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+from leaspy.leaspy_io.settings.algorithm_settings import AlgorithmSettings
 from leaspy.models.lme_model import LMEModel
 from leaspy.algo.others.lme_personalize import LMEPersonalizeAlgorithm
-from leaspy.io.data.data import Data
-from leaspy.io.data.dataset import Dataset
+from leaspy.leaspy_io.data.data import Data
+from leaspy.leaspy_io.data.dataset import Dataset
 import torch
 import pandas as pd
 

@@ -112,7 +112,7 @@ def compute_trajectory_of_population(timepoints, individual_parameters, leaspy):
     Examples
     --------
     >>> leaspy = Leaspy.load(os.path.join(test_data_dir, 'model_parameters', 'test_api.json'))
-    >>> ip = IndividualParameters.load(os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json'))
+    >>> ip = IndividualParameters.load(os.path.join(test_data_dir, lleaspy_iospy_io, 'outputs', 'ip_save.json'))
     >>> timepoints = [70, 71, 72, 73, 74, 75, 76]
     >>> trajectory = compute_trajectory_of_population(timepoints, ip, leaspy)
     """

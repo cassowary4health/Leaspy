@@ -2,9 +2,9 @@ import unittest
 import pandas as pd
 import numpy as np
 
-from leaspy.io.data.data import Data
-from leaspy.io.data.dataset import Dataset
-from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+from leaspy.leaspy_io.data.data import Data
+from leaspy.leaspy_io.data.dataset import Dataset
+from leaspy.leaspy_io.settings.algorithm_settings import AlgorithmSettings
 from leaspy import Leaspy
 from leaspy.algo.others.constant_prediction_algo import ConstantPredictionAlgorithm
 

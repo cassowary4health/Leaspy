@@ -2,8 +2,8 @@ import json
 import os
 import warnings
 
-from leaspy.io.settings import default_data_dir
-from leaspy.io.settings.outputs_settings import OutputsSettings
+from leaspy.leaspy_io.settings import default_data_dir
+from leaspy.leaspy_io.settings.outputs_settings import OutputsSettings
 from leaspy.algo.algo_factory import AlgoFactory
 
 class AlgorithmSettings:

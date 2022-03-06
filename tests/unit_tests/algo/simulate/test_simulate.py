@@ -7,7 +7,7 @@ import torch
 
 from leaspy import AlgorithmSettings, Data, Leaspy
 from leaspy.algo.simulate.simulate import SimulationAlgorithm
-from leaspy.io.outputs.result import Result
+from leaspy.leaspy_io.outputs.result import Result
 from tests import example_data_path, test_data_dir, hardcoded_model_path
 
 
@@ -63,10 +63,10 @@ class SimulationAlgorithmTest(unittest.TestCase):
         Returns
         -------
         model : :class:`.Leaspy`
-        results : :class:`~.io.outputs.result.Result`
+        results : :class:`~.leaspy_io.outputs.result.Result`
         """
         data = Data.from_csv_file(example_data_path)
-        cofactors = pd.read_csv(os.path.join(test_data_dir, "io/data/data_tiny_covariate.csv"))
+        cofactors = pd.read_csv(os.path.join(test_data_dir, "leaspy_io/data/data_tiny_covariate.csv"))
         cofactors.columns = ("ID", "Treatments")
         cofactors['ID'] = cofactors['ID'].apply(lambda x: str(x))
         cofactors = cofactors.set_index("ID")
@@ -128,7 +128,7 @@ class SimulationAlgorithmTest(unittest.TestCase):
         Parameters
         ----------
         leaspy_session : :class:`.Leaspy`
-        results : :class:`~.io.outputs.result.Result`
+        results : :class:`~.leaspy_io.outputs.result.Result`
         settings : :class:`.AlgorithmSettings`
             Contains the ``features_bounds`` parameter.
         """

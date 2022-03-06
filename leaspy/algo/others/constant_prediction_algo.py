@@ -1,6 +1,6 @@
 import numpy as np
 
-from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.leaspy_io.outputs.individual_parameters import IndividualParameters
 
 
 class ConstantPredictionAlgorithm(): # AbstractAlgo

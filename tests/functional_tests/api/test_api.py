@@ -6,7 +6,7 @@ import pandas as pd
 from numpy import allclose
 
 from leaspy import Leaspy, Data, AlgorithmSettings
-from leaspy.io.outputs.result import Result
+from leaspy.leaspy_io.outputs.result import Result
 from tests import example_data_path, test_data_dir, from_fit_model_path
 
 

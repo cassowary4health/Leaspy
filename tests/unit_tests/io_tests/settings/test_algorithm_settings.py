@@ -3,7 +3,7 @@ import json
 import unittest
 
 from tests import test_data_dir, default_algo_dir
-from leaspy.io.settings.algorithm_settings import AlgorithmSettings
+from leaspy.leaspy_io.settings.algorithm_settings import AlgorithmSettings
 
 
 class AlgorithmSettingsTest(unittest.TestCase):
@@ -63,7 +63,7 @@ class AlgorithmSettingsTest(unittest.TestCase):
 
     def test_constructor_by_loading_json(self):
         # Constructor by loading a json file
-        path = os.path.join(test_data_dir, 'io', 'settings', 'mcmc_saem_settings.json')
+        path = os.path.join(test_data_dir, 'leaspy_io', 'settings', 'mcmc_saem_settings.json')
 
         with open(path) as fp:
             json_data = json.load(fp)

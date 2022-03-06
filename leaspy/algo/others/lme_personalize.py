@@ -2,7 +2,7 @@ from leaspy.models.lme_model import LMEModel
 import numpy as np
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.leaspy_io.outputs.individual_parameters import IndividualParameters
 import statsmodels.api as sm
 
 

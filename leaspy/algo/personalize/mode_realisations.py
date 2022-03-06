@@ -1,10 +1,10 @@
 import torch
 
-from leaspy.io.realizations.realization import Realization
+from leaspy.leaspy_io.realizations.realization import Realization
 from .abstract_personalize_algo import AbstractPersonalizeAlgo
 from ..samplers.gibbs_sampler import GibbsSampler
 from ..samplers.hmc_sampler import HMCSampler
-from ...io.outputs.individual_parameters import IndividualParameters
+from ...leaspy_io.outputs.individual_parameters import IndividualParameters
 
 
 # import time

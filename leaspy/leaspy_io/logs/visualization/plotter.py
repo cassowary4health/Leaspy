@@ -11,7 +11,7 @@ from matplotlib.cm import get_cmap
 
 #from leaspy.utils.logs.visualization import color_palette # not used
 
-from leaspy.io.data.dataset import Dataset
+from leaspy.leaspy_io.data.dataset import Dataset
 
 
 class Plotter:

@@ -4,9 +4,9 @@ from scipy import stats
 from sklearn.preprocessing import StandardScaler
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-from leaspy.io.data.data import Data
-from leaspy.io.data.dataset import Dataset
-from leaspy.io.outputs.result import Result
+from leaspy.leaspy_io.data.data import Data
+from leaspy.leaspy_io.data.dataset import Dataset
+from leaspy.leaspy_io.outputs.result import Result
 
 
 class SimulationAlgorithm(AbstractAlgo):
@@ -255,7 +255,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Parameters
         ----------
-        results_object : :class:`~.io.outputs.result.Result`
+        results_object : :class:`~.leaspy_io.outputs.result.Result`
 
         Returns
         -------
@@ -310,7 +310,7 @@ class SimulationAlgorithm(AbstractAlgo):
         ----------
         model : :class:`~.models.abstract_model.AbstractModel`
             Subclass object of `AbstractModel`.
-        results : :class:`~.io.outputs.result.Result`
+        results : :class:`~.leaspy_io.outputs.result.Result`
             Object containing the computed individual parameters.
 
         Returns
@@ -531,7 +531,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
         Returns
         -------
-        :class:`~.io.outputs.result.Result`
+        :class:`~.leaspy_io.outputs.result.Result`
             Contains the simulated individual parameters & individual scores.
         """
         self.get_sources = ('univariate' not in model.name)

@@ -31,7 +31,7 @@ class LeaspyEstimateTest(unittest.TestCase):
 
     def test_estimate(self):
 
-        ip_path = os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json')
+        ip_path = os.path.join(test_data_dir, 'leaspy_io', 'outputs', 'ip_save.json')
         ip = IndividualParameters.load(ip_path)
 
         timepoints = {

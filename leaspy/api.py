@@ -1,9 +1,9 @@
 import pandas as pd
 
 from leaspy.algo.algo_factory import AlgoFactory
-from leaspy.io.data.dataset import Dataset
-from leaspy.io.logs.visualization.plotting import Plotting
-from leaspy.io.settings.model_settings import ModelSettings
+from leaspy.leaspy_io.data.dataset import Dataset
+from leaspy.leaspy_io.logs.visualization.plotting import Plotting
+from leaspy.leaspy_io.settings.model_settings import ModelSettings
 from leaspy.models.model_factory import ModelFactory
 
 
@@ -41,7 +41,7 @@ class Leaspy:
         Model used for computations, is an instance of `AbstractModel`.
     type : str (read-only)
         Name of the model - will be one of the names listed above.
-    plotting : :class:`~.io.logs.visualization.plotting.Plotting`
+    plotting : :class:`~.leaspy_io.logs.visualization.plotting.Plotting`
         Main class for visualization.
 
     See also
@@ -260,7 +260,7 @@ class Leaspy:
 
         Returns
         -------
-        simulated_data : :class:`~.io.outputs.result.Result`
+        simulated_data : :class:`~.leaspy_io.outputs.result.Result`
             Contains the generated individual parameters & the corresponding generated scores.
 
         Notes

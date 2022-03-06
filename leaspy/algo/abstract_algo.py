@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import torch
 
-from leaspy.io.logs.fit_output_manager import FitOutputManager
+from leaspy.leaspy_io.logs.fit_output_manager import FitOutputManager
 
 
 class AbstractAlgo(ABC):
@@ -21,7 +21,7 @@ class AbstractAlgo(ABC):
         Name of the algorithm.
     seed: int, optional
         Seed used by :mod:`numpy` and :mod:`torch`.
-    output_manager : :class:`~.io.logs.fit_output_manager.FitOutputManager`
+    output_manager : :class:`~.leaspy_io.logs.fit_output_manager.FitOutputManager`
         Optional output manager of the algorithm
     """
 
@@ -88,7 +88,7 @@ class AbstractAlgo(ABC):
 
     def load_parameters(self, parameters):
         """
-        Update the algorithm's parameters by the ones in the given dictionary. The keys in the io which does not
+        Update the algorithm's parameters by the ones in the given dictionary. The keys in the leaspy_io which does not
         belong to the algorithm's parameters keys are ignored.
 
         Parameters
@@ -98,7 +98,7 @@ class AbstractAlgo(ABC):
 
         Examples
         --------
-        >>> settings = leaspy.io.settings.algorithm_settings.AlgorithmSettings("mcmc_saem")
+        >>> settings = leaspy.leaspy_io.settings.algorithm_settings.AlgorithmSettings("mcmc_saem")
         >>> my_algo = leaspy.algo.fit.tensor_mcmcsaem.TensorMCMCSAEM(settings)
         >>> my_algo.algo_parameters
         {'n_iter': 10000,
@@ -133,17 +133,17 @@ class AbstractAlgo(ABC):
 
     def set_output_manager(self, output_settings):
         """
-        Set a :class:`~.io.logs.fit_output_manager.FitOutputManager` object for the run of the algorithm
+        Set a :class:`~.leaspy_io.logs.fit_output_manager.FitOutputManager` object for the run of the algorithm
 
         Parameters
         ----------
-        output_settings : :class:`~.io.settings.outputs_settings.OutputsSettings`
+        output_settings : :class:`~.leaspy_io.settings.outputs_settings.OutputsSettings`
             Contains the logs settings for the computation run (console print periodicity, plot periodicity ...)
 
         Examples
         --------
         >>> from leaspy import AlgorithmSettings
-        >>> from leaspy.io.settings.outputs_settings import OutputsSettings
+        >>> from leaspy.leaspy_io.settings.outputs_settings import OutputsSettings
         >>> from leaspy.algo.fit.tensor_mcmcsaem import TensorMCMCSAEM
         >>> algo_settings = AlgorithmSettings("mcmc_saem")
         >>> my_algo = TensorMCMCSAEM(algo_settings)

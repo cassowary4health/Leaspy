@@ -36,7 +36,7 @@ class AbstractFitAlgo(AbstractAlgo):
         """
         Main method, run the algorithm.
 
-        Basically, it initializes the :class:`~.io.realizations.collection_realization.CollectionRealization` object,
+        Basically, it initializes the :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization` object,
         updates it using the `iteration` method then returns it.
 
         TODO fix proper abstract class
@@ -50,7 +50,7 @@ class AbstractFitAlgo(AbstractAlgo):
 
         Returns
         -------
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
             The optimized parameters.
 
         """
@@ -113,7 +113,7 @@ class AbstractFitAlgo(AbstractAlgo):
             Contains the subjects' obersvations in torch format to speed up computation.
         model : :class:`~.models.abstract_model.AbstractModel`
             The used model.
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
             The parameters.
         """
         raise NotImplementedError
@@ -127,7 +127,7 @@ class AbstractFitAlgo(AbstractAlgo):
         ----------
         dataset : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
         """
         raise NotImplementedError
 

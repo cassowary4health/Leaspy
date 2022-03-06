@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from leaspy.io.realizations.collection_realization import CollectionRealization
-from leaspy.io.realizations.realization import Realization
+from leaspy.leaspy_io.realizations.collection_realization import CollectionRealization
+from leaspy.leaspy_io.realizations.realization import Realization
 
 TWO_PI = 2 * math.pi
 

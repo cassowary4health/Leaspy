@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 import torch
-from leaspy.io.data.dataset import Dataset
-from leaspy.io.realizations.realization import Realization
+from leaspy.leaspy_io.data.dataset import Dataset
+from leaspy.leaspy_io.realizations.realization import Realization
 
 
 class VisualizationToolbox():

@@ -63,7 +63,7 @@ class HMCSampler(AbstractSampler):
             Dataset class object build with leaspy class object Data, model & algo
         model : :class:`.AbstractModel`
             Model used by the algorithm
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
             Contain the current state & informations of all the variables of interest
         temperature_inv: float > 0
             Inverse of the temperature used in tempered MCMC-SAEM
@@ -85,7 +85,7 @@ class HMCSampler(AbstractSampler):
         ---------
         p : :class:`torch.Tensor`
             Current momenta
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
             Contain the current state & informations of all the variables of interest
         model : :class:`.AbstractModel`
             Model used by the algorithm
@@ -112,7 +112,7 @@ class HMCSampler(AbstractSampler):
             Dataset class object build with leaspy class object Data, model & algo
         model : :class:`.AbstractModel`
             Model used by the algorithm
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        realizations : :class:`~.leaspy_io.realizations.collection_realization.CollectionRealization`
             Contain the current state & informations of all the variables of interest
         temperature_inv: float > 0
             Inverse of the temperature used in tempered MCMC-SAEM

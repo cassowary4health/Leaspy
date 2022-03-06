@@ -22,7 +22,7 @@ class TestUtilsGeneral(unittest.TestCase):
 
     def test_get_reparametrized_ages(self):
         leaspy = Leaspy.load(hardcoded_model_path('logistic'))
-        ip = IndividualParameters.load(os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json'))
+        ip = IndividualParameters.load(os.path.join(test_data_dir, 'leaspy_io', 'outputs', 'ip_save.json'))
 
         ages = {'idx1': [70, 80], 'idx3': [100]}
         reparametrized_ages = get_reparametrized_ages(ages, ip, leaspy)
@@ -33,7 +33,7 @@ class TestUtilsGeneral(unittest.TestCase):
 
     def test_compute_trajectory_of_population(self):
         leaspy = Leaspy.load(hardcoded_model_path('logistic'))
-        ip = IndividualParameters.load(os.path.join(test_data_dir, 'io', 'outputs', 'ip_save.json'))
+        ip = IndividualParameters.load(os.path.join(test_data_dir, 'leaspy_io', 'outputs', 'ip_save.json'))
 
         timepoints = [70, 71, 72, 73, 74, 75, 76]
 

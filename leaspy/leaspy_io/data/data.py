@@ -35,7 +35,7 @@ class Data:
 
         Returns
         -------
-        :class:`~leaspy.io.data.individual_data.IndividualData`
+        :class:`~leaspy.leaspype_io.data.individual_data.IndividualData`
         """
         return self.individuals[idx]
 

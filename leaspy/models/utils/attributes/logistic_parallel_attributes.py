@@ -107,22 +107,26 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         if 'g' in names_of_changed_values:
             compute_positions = True
 
-        if compute_betas:
-            self._compute_betas(values)
         if compute_deltas:
             self._compute_deltas(values)
         if compute_positions:
             self._compute_positions(values)
 
-        if self.has_sources:
-            # velocities (xi_mean) is a scalar for the logistic parallel model (same velocity for all features - only time-shift the features)
-            # so we do not need to compute again the orthonormal basis when updating it (the vector dgamma_t0 stays collinear to previous one)!
-            recompute_ortho_basis = compute_positions or compute_deltas
+        # only for models with sources beyond this point
+        if not self.has_sources:
+            return
 
-            if recompute_ortho_basis:
-                self._compute_orthonormal_basis()
-            if recompute_ortho_basis or compute_betas:
-                self._compute_mixing_matrix()
+        if compute_betas:
+            self._compute_betas(values)
+
+        # velocities (xi_mean) is a scalar for the logistic parallel model (same velocity for all features - only time-shift the features)
+        # so we do not need to compute again the orthonormal basis when updating it (the vector dgamma_t0 stays collinear to previous one)!
+        recompute_ortho_basis = compute_positions or compute_deltas
+
+        if recompute_ortho_basis:
+            self._compute_orthonormal_basis()
+        if recompute_ortho_basis or compute_betas:
+            self._compute_mixing_matrix()
 
     def _compute_positions(self, values):
         """
@@ -173,9 +177,6 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
         of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         """
-        if not self.has_sources:
-            return
-
         # Compute value and time-derivative of gamma at t0
         gamma_t0, collin_to_dgamma_t0 = self._compute_gamma_t0_collin_dgamma_t0()
 

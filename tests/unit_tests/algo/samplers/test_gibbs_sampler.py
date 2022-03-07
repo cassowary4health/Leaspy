@@ -21,6 +21,11 @@ class SamplerTest(LeaspyTestCase):
         cls.scale_ind = .1 / GibbsSampler.STD_SCALE_FACTOR_IND
         cls.scale_pop = 5e-3 / GibbsSampler.STD_SCALE_FACTOR_POP
 
+    def test_realization(self):
+        realizations = self.leaspy.model.initialize_realizations_for_model(2)
+        tau_real = realizations['tau']
+        self.assertIsInstance(str(tau_real), str)
+
     def test_sample(self):
         """
         Test if samples values are the one expected
@@ -31,6 +36,8 @@ class SamplerTest(LeaspyTestCase):
         temperature_inv = 1.0
 
         realizations = self.leaspy.model.initialize_realizations_for_model(n_patients)
+
+        # test
 
         # Test with taus (individual parameter)
         var_name = 'tau'
@@ -78,7 +85,7 @@ class SamplerTest(LeaspyTestCase):
         for i in range(n_draw):
             gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))
 
-        self.assertAlmostEqual(gsampler.acceptation_temp.mean(), 10/17, delta=0.05)
+        self.assertAlmostEqual(gsampler.acceptation_history.mean(), 10/17, delta=0.05)
 
     def test_adaptative_proposition_variance(self):
         n_patients = 17

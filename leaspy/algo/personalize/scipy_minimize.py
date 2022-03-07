@@ -10,6 +10,16 @@ from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonaliz
 
 from leaspy.exceptions import LeaspyAlgoInputError
 
+if hasattr(torch, 'nanmean'):
+    # torch.nanmean was only introduced in torch 1.10
+    torch_nanmean = torch.nanmean
+else:
+    def torch_nanmean(t, *args, **kwargs):
+        """Replacement for future torch.nanmean (source: https://github.com/pytorch/pytorch/issues/21987)"""
+        is_nan = torch.isnan(t)
+        t = t.clone()
+        t[is_nan] = 0
+        return t.sum(*args, **kwargs) / (~is_nan).float().sum(*args, **kwargs)
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
     """
@@ -20,56 +30,78 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
     ----------
     settings : :class:`.AlgorithmSettings`
         Settings of the algorithm.
+        In particular the parameter `custom_scipy_minimize_params` may contain
+        keyword arguments passed to :func:`scipy.optimize.minimize`.
 
     Attributes
     ----------
-    print_convergence_issues : bool
-        Should we display all convergence issues returned by `scipy.optimize`?
-        By default display convergences issues iff not BFGS method
-        Note that it is not used if custom `logger` is defined in settings.
-    minimize_kwargs : kwargs
-        Keyword arguments passed to :func:`scipy.optimize.minimize`
+    scipy_minimize_params : dict
+        Keyword arguments to be passed to :func:`scipy.optimize.minize`.
+        A default setting depending on whether using jacobian or not is applied
+        (cf. `ScipyMinimize.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITH_JACOBIAN`
+         and `ScipyMinimize.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITHOUT_JACOBIAN`).
+        You may customize it by setting the `custom_scipy_minimize_params` algorithm parameter.
+
+    format_convergence_issues : str
+        Formatting of convergence issues.
+        It should be a formattable string using any of those variables:
+           * patient_id: str
+           * optimization_result_pformat: str
+           * (optimization_result_obj: dict-like)
+        cf. `ScipyMinimize.DEFAULT_FORMAT_CONVERGENCE_ISSUES` for the default format.
+        You may customize it by setting the `custom_format_convergence_issues` algorithm parameter.
+
+    logger : None or callable str -> None
+        The function used to display convergence issues returned by :func:`scipy.optimize.minize`.
+        By default we print the convergences issues if and only if we do not use BFGS optimization method.
+        You can customize it at initialization by defining a `logger` attribute to your `AlgorithmSettings` instance.
     """
 
     name = 'scipy_minimize'
+
+    DEFAULT_SCIPY_MINIMIZE_PARAMS_WITH_JACOBIAN = {
+        'method': "BFGS",
+        'options': {
+            'gtol': 1e-2,
+            'maxiter': 200,
+        },
+    }
+    DEFAULT_SCIPY_MINIMIZE_PARAMS_WITHOUT_JACOBIAN = {
+        'method': "Powell",
+        'options': {
+            'xtol': 1e-4,
+            'ftol': 1e-4,
+            'maxiter': 200,
+        },
+    }
+    DEFAULT_FORMAT_CONVERGENCE_ISSUES = "<!> {patient_id}:\n{optimization_result_pformat}"
 
     def __init__(self, settings):
 
         super().__init__(settings)
 
-        self.minimize_kwargs = {
-            'method': "Powell",
-            'options': {
-                'xtol': 1e-4,
-                'ftol': 1e-4
-            },
-            # 'tol': 1e-6
-        }
-
-        if self.algo_parameters['use_jacobian']:
-            # <!> this custom params will remain even if falling back to without jacobian when not implemented
-            self.minimize_kwargs = {
-                'method': "BFGS",
-                'options': {
-                    'gtol': 0.01,
-                    'maxiter': 200,
-                },
-                'tol': 5e-5
-            }
-
-        # by default display convergences issues iff not BFGS method (not used if custom logger defined)
-        self.print_convergence_issues = self.minimize_kwargs['method'].upper() != 'BFGS'
-
-        # logging function for convergence warnings
-        # (patient_id: str, scipy_minize_result_dict) -> None
-        if hasattr(settings, 'logger'):
-            self.logger = settings.logger
-        else:
-            if self.print_convergence_issues:
-                self.logger = lambda pat_id, res_dict: \
-                    print(f"\n<!> {pat_id}:\n{pformat(res_dict, indent=1)}\n")
+        self.scipy_minimize_params = self.algo_parameters.get("custom_scipy_minimize_params", None)
+        if self.scipy_minimize_params is None:
+            if self.algo_parameters['use_jacobian']:
+                self.scipy_minimize_params = self.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITH_JACOBIAN
             else:
-                self.logger = lambda *args, **kwargs: None
+                self.scipy_minimize_params = self.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITHOUT_JACOBIAN
+
+        self.format_convergence_issues = self.algo_parameters.get("custom_format_convergence_issues", None)
+        if self.format_convergence_issues is None:
+            self.format_convergence_issues = self.DEFAULT_FORMAT_CONVERGENCE_ISSUES
+
+        # use a sentinel object to be able to set a custom logger=None
+        _sentinel = object()
+        self.logger = getattr(settings, 'logger', _sentinel)
+        if self.logger is _sentinel:
+            self.logger = self._default_logger
+
+    def _default_logger(self, msg: str) -> None:
+        # we dynamically retrieve the method of `scipy_minimize_params` so that if we requested jacobian
+        # but had to fall back to without jacobian we do print messages!
+        if not self.scipy_minimize_params.get('method', 'BFGS').upper() == 'BFGS':
+            print('\n' + msg + '\n')
 
     def _initialize_parameters(self, model):
         """
@@ -148,12 +180,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         Returns
         -------
         :class:`torch.Tensor` [n_tpts,n_fts]
-            Model values minus real values.
+            Model values minus real values (with nans).
         """
-
         # computation for 1 individual (level dropped after computation)
         predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters).squeeze(0)
-
         return predicted - values
 
     def _get_regularity(self, model, individual_parameters):
@@ -176,7 +206,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         regularity_grads : dict[param_name: str, :class:`torch.Tensor` [n_individuals, n_dims_param]]
             Gradient of regularity term with respect to individual parameters.
-
         """
 
         regularity = 0
@@ -214,7 +243,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             * timepoints : :class:`torch.Tensor` [1,n_tpts]
                 Contains the individual ages corresponding to the given ``values``
             * values : :class:`torch.Tensor` [n_tpts, n_fts]
-                Contains the individual true scores corresponding to the given ``times``.
+                Contains the individual true scores corresponding to the given ``times``, with nans.
             * with_gradient : bool
                 * If True: return (objective, gradient_objective)
                 * Else: simply return objective
@@ -245,7 +274,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # compute 1 individual at a time (1st dimension is squeezed)
         predicted = model.compute_individual_tensorized(times, individual_parameters).squeeze(0)
         diff = predicted - values # tensor j,k (j=visits, k=features)
-        nans = torch.isnan(diff)
+        nans = torch.isnan(values)
         diff[nans] = 0.  # set nans to zero, not to count in the sum
 
         # compute gradient of model with respect to individual parameters
@@ -310,7 +339,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         times : :class:`torch.Tensor` [n_tpts]
             Contains the individual ages corresponding to the given ``values``.
         values : :class:`torch.Tensor` [n_tpts, n_fts]
-            Contains the individual true scores corresponding to the given ``times``.
+            Contains the individual true scores corresponding to the given ``times``, with nans.
         with_jac : bool
             Should we speed-up the minimization by sending exact gradient of optimized function?
         patient_id : str (or None)
@@ -321,7 +350,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         individual parameters : dict[str, :class:`torch.Tensor` [1,n_dims_param]]
             Individual parameters as a dict of tensors.
         reconstruction error : :class:`torch.Tensor` [n_tpts, n_features]
-            Model values minus real values.
+            Model values minus real values (with nans).
         """
 
         initial_value = self._initialize_parameters(model)
@@ -329,17 +358,25 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                        jac=with_jac,
                        x0=initial_value,
                        args=(model, times.unsqueeze(0), values, with_jac),
-                       **self.minimize_kwargs
+                       **self.scipy_minimize_params
                        )
 
         individual_params_f = self._pull_individual_parameters(res.x, model)
         err_f = self._get_reconstruction_error(model, times, values, individual_params_f)
 
-        if not res.success:
+        if not res.success and self.logger:
             # log full results if optimization failed
-            res['reconstruction_mae'] = err_f.abs().mean().item() # all tpts & fts instead of mean?
+            # including mean of reconstruction error for this suject on all his personalization visits, but per feature
+            res['reconstruction_mae'] = torch_nanmean(err_f.abs(), dim=0)
+            res['reconstruction_rmse'] = torch_nanmean(err_f ** 2, dim=0) ** .5
             res['individual_parameters'] = individual_params_f
-            self.logger(patient_id, res)
+
+            cvg_issue = self.format_convergence_issues.format(
+                patient_id=patient_id,
+                optimization_result_obj=res,
+                optimization_result_pformat=pformat(res, indent=1),
+            )
+            self.logger(cvg_issue)
 
         return individual_params_f, err_f
 
@@ -366,10 +403,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual parameters of all patients.
         """
         times = data.get_times_patient(it)  # torch.Tensor[n_tpts]
-        values = data.get_values_patient(it)  # torch.Tensor[n_tpts, n_fts]
+        values = data.get_values_patient(it)  # torch.Tensor[n_tpts, n_fts] with nans
 
-        individual_params_tensorized, err = self._get_individual_parameters_patient(model, times, values,
-                                                                                    with_jac=with_jac, patient_id=patient_id)
+        individual_params_tensorized, _ = self._get_individual_parameters_patient(model, times, values,
+                                                                                  with_jac=with_jac, patient_id=patient_id)
 
         if self.algo_parameters.get('progress_bar', True):
             self._display_progress_bar(it, data.n_individuals, suffix='subjects')
@@ -416,10 +453,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             warnings.warn('In `scipy_minimize` you requested `use_jacobian=True` but it is not implemented in your model'
                           f'"{model.name}". Falling back to `use_jacobian=False`...')
             with_jac = False
+            if self.algo_parameters.get("custom_scipy_minimize_params", None) is None:
+                # reset default `scipy_minimize_params`
+                self.scipy_minimize_params = self.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITHOUT_JACOBIAN
+            # TODO? change default logger as well?
 
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
             delayed(self._get_individual_parameters_patient_master)(it_pat, data, model, with_jac=with_jac, patient_id=id_pat)
-            for it_pat, id_pat in enumerate(data.indices))
+            for it_pat, id_pat in enumerate(data.indices)
+        )
 
         for it_pat, ind_params_pat in enumerate(ind_p_all):
             id_pat = data.indices[it_pat]

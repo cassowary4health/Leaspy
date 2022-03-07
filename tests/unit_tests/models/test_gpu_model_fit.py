@@ -30,10 +30,10 @@ class GPUModelFit(LeaspyTestCase):
                 methods = ['mode_real', 'mean_real', 'scipy_minimize']
 
                 for method in methods:
-                    burn_in_kw = dict() # not for all algos
+                    extra_kws = dict() # not for all algos
                     if '_real' in method:
-                        burn_in_kw = dict(n_burn_in_iter=90, )
-                    settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
+                        extra_kws = dict(n_iter=100, n_burn_in_iter=90)
+                    settings = AlgorithmSettings(method, seed=0, **extra_kws)
                     result = leaspy.personalize(data, settings)
 
     def test_all_model_gpu_run_crossentropy(self):
@@ -55,9 +55,9 @@ class GPUModelFit(LeaspyTestCase):
                 leaspy.fit(data, settings)
 
                 for method in ['scipy_minimize']:
-                    burn_in_kw = dict() # not for all algos
+                    extra_kws = dict() # not for all algos
                     if '_real' in method:
-                        burn_in_kw = dict(n_burn_in_iter=90, )
-                    settings = AlgorithmSettings(method, n_iter=100, seed=0, **burn_in_kw)
+                        extra_kws = dict(n_iter=100, n_burn_in_iter=90)
+                    settings = AlgorithmSettings(method, seed=0, **extra_kws)
                     result = leaspy.personalize(data, settings)
 

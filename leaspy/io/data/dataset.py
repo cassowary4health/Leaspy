@@ -164,7 +164,7 @@ class Dataset:
 
     def get_values_patient(self, i: int) -> torch.FloatTensor:
         """
-        Get values for patient number ``i``
+        Get values for patient number ``i``, with nans.
 
         Parameters
         ----------
@@ -176,13 +176,10 @@ class Dataset:
         :class:`torch.Tensor`, shape (n_obs_of_patient, dimension)
             Contains float or nans
         """
-        values = self.values[i, :self.n_visits_per_individual[i], :]
-        # mask = self.mask[i].clone().cpu().detach().numpy()[:values.shape[0],:]
-        mask = self.mask[i].clone().cpu().detach()[:values.shape[0], :]
-        # mask[mask==0] = np.nan
-        mask[mask == 0] = float('NaN')
-        values_with_na = values * mask
-        return values_with_na
+        values_with_nans = self.values[i, :self.n_visits_per_individual[i], :].clone().detach()
+        nans = self.mask[i, :self.n_visits_per_individual[i], :] == 0
+        values_with_nans[nans] = float('nan')
+        return values_with_nans
 
     @staticmethod
     def _check_model_compatibility(data: Data, model: AbstractModel):

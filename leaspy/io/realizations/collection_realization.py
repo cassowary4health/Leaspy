@@ -4,7 +4,7 @@ import copy
 
 from leaspy.io.realizations.realization import Realization
 
-from leaspy.utils.typing import ParamType, Dict, List
+from leaspy.utils.typing import ParamType, Dict, List, Callable
 
 if TYPE_CHECKING:
     from leaspy.models.abstract_model import AbstractModel
@@ -24,7 +24,8 @@ class CollectionRealization:
         self.reals_ind_variable_names: List[ParamType] = []
 
     def initialize(self, n_individuals: int, model: AbstractModel, *,
-                   scale_individual: float = 1.):
+                   skip_variable: Callable[[dict], bool] = None,
+                   **realization_init_kws):
         """
         Initialize the Collection Realization with a model.
 
@@ -34,22 +35,26 @@ class CollectionRealization:
             Number of individuals modelled
         model : :class:`.AbstractModel`
             Model we initialize from
-        scale_individual : float > 0
-            Multiplicative factor to scale the std-dev of individual parameters.
-            cf. :meth:`.Realization.initialize`
+        skip_variable : None or function info_variable: dict -> to_skip: bool
+            An optional function used to skip some of the model variables.
+            e.g. `lambda info_var: info_var['type'] == 'population'` will enable to skip all population variables.
+        **realization_init_kws
+            Additional keyword arguments passed to :meth:`Realization.initialize`.
         """
         # Indices
         infos = model.random_variable_informations()
         for variable, info_variable in infos.items():
+            if skip_variable is not None and skip_variable(info_variable):
+                continue
             realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
-            realization.initialize(n_individuals, model, scale_individual=scale_individual)
+            realization.initialize(n_individuals, model, **realization_init_kws)
             self.realizations[variable] = realization
 
-        # Name of variables per type
-        self.reals_pop_variable_names = [name for name, info_variable in infos.items() if
-                                         info_variable['type'] == 'population']
-        self.reals_ind_variable_names = [name for name, info_variable in infos.items() if
-                                         info_variable['type'] == 'individual']
+        # Name of variables per type (in the subset of variables NOT skipped)
+        self.reals_pop_variable_names = [name for name, real in self.realizations.items()
+                                         if real.variable_type == 'population']
+        self.reals_ind_variable_names = [name for name, real in self.realizations.items()
+                                         if real.variable_type == 'individual']
 
     def __getitem__(self, variable_name: ParamType):
         return self.realizations[variable_name]

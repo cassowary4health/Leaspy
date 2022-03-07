@@ -1,8 +1,10 @@
+import math
+
 import torch
 from numpy import nan
 import pandas as pd
 
-from leaspy import Data, IndividualParameters
+from leaspy import Data, Dataset, IndividualParameters
 
 from tests import LeaspyTestCase
 
@@ -36,111 +38,192 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
 
         return ips, noise, leaspy # data?
 
-    def check_consistency_of_personalization_outputs(self, ips, noise_std, expected_noise_std, *, tol_noise = 5e-3):
+    def check_consistency_of_personalization_outputs(self, ips, noise_std, expected_noise_std, *,
+                                                     tol_noise = 5e-3, msg = None):
 
         self.assertIsInstance(ips, IndividualParameters)
         self.assertIsInstance(noise_std, torch.Tensor)
 
         if isinstance(expected_noise_std, float):
-            self.assertEqual(noise_std.numel(), 1) # scalar noise
-            self.assertAlmostEqual(noise_std.item(), expected_noise_std, delta=tol_noise)
+            self.assertEqual(noise_std.numel(), 1, msg=msg) # scalar noise
+            self.assertAlmostEqual(noise_std.item(), expected_noise_std, delta=tol_noise, msg=msg)
         else:
             # vector of noises (for diag_noise)
-            self.assertEqual(noise_std.numel(), len(expected_noise_std)) # diagonal noise
-            diff_noise = noise_std - torch.tensor(expected_noise_std)
-            self.assertAlmostEqual((diff_noise ** 2).sum(), 0., delta=tol_noise**2,
-                                   msg=f'Noise != Expected: {noise_std.tolist()} != {expected_noise_std}')
+            self.assertEqual(noise_std.numel(), len(expected_noise_std), msg=msg) # diagonal noise
+            self.assertAllClose(noise_std, expected_noise_std, atol=tol_noise, what='noise', msg=msg)
 
 class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 
-    # Test MCMC-SAEM
-    def test_personalize_mean_real_logistic(self, tol_noise=1e-3):
+    def test_personalize_mean_real_logistic_old(self, tol_noise=1e-3):
         """
         Load logistic model from file, and personalize it to data from ...
         """
-        # Load saved algorithm
-        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mean_real.json')
-        ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
+        # There was a bug previously in mode & mean real: initial temperature = 10 was used even if
+        # no real annealing is implemented for those perso algos. As a consequence regularity term
+        # was not equally weighted during all the sampling of individual variables.
+        # We test this old "buggy" behavior to check past consistency (but we raise a warning now)
+        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mean_real_old_with_annealing.json')
+        with self.assertWarnsRegex(UserWarning, r'[Aa]nnealing'):
+            ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.1024, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.102, tol_noise=tol_noise)
 
-    def test_personalize_mode_real_logistic(self, tol_noise=1e-3):
+    def test_personalize_mode_real_logistic_old(self, tol_noise=1e-3):
         """
         Load logistic model from file, and personalize it to data from ...
         """
-        # Load saved algorithm
-        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mode_real.json')
-        ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
+        # cf. mean_real notice
+        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mode_real_old_with_annealing.json')
+        with self.assertWarnsRegex(UserWarning, r'[Aa]nnealing'):
+            ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
         self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.117, tol_noise=tol_noise)
 
-    def test_personalize_scipy_minimize(self, tol_noise=5e-3):
-        """
-        Load data and compute its personalization on various models
-        with scipy minimize personalization (with and without jacobian)
+    def test_personalize_comprehensive(self, tol_noise=5e-4):
+        """Tests different personalization algos for many hardcoded models."""
 
-        Use hardcoded models rather than the ones from fit functional tests
-        in order to isolate functional problems...
-        """
+        mode_real_kws = dict()
+        mean_real_kws = dict()
 
-        for (model_name, use_jacobian), expected_noise_std in {
+        for model_name, perso_name, perso_kws, expected_noise_std in [
 
-            ('logistic_scalar_noise', False):               0.118869,
-            ('logistic_scalar_noise', True):                0.118774,
-            ('logistic_diag_noise_id', False): [0.1414, 0.0806, 0.0812, 0.1531],
-            ('logistic_diag_noise_id', True):  [0.1414, 0.0804, 0.0811, 0.1529],
-            ('logistic_diag_noise', False):    [0.156, 0.0595, 0.0827, 0.1515],
-            ('logistic_diag_noise', True):     [0.1543, 0.0597, 0.0827, 0.1509],
-            ('logistic_parallel_scalar_noise', False):      0.0960,
-            ('logistic_parallel_scalar_noise', True):       0.0956,
-            ('univariate_logistic', False):    0.134107,
-            ('univariate_logistic', True):     0.134116,
-            ('univariate_linear', False):      0.081208,
-            ('univariate_linear', True):       0.081208,
-            ('linear_scalar_noise', False):                 0.124072,
-            ('linear_scalar_noise', True):                  0.124071,
+            # multivariate logistic models
+            ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),          0.1189),
+            ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),           0.1188),
+            ('logistic_scalar_noise', 'mode_real', mode_real_kws,                          0.1191),
+            ('logistic_scalar_noise', 'mean_real', mean_real_kws,                          0.1200),
 
-            # TODO: binary (crossentropy) models here
+            ('logistic_diag_noise_id', 'scipy_minimize', dict(use_jacobian=False),        [0.1414, 0.0806, 0.0812, 0.1531]),
+            ('logistic_diag_noise_id', 'scipy_minimize', dict(use_jacobian=True),         [0.1414, 0.0804, 0.0811, 0.1529]),
+            ('logistic_diag_noise_id', 'mode_real', mode_real_kws,                        [0.1415, 0.0814, 0.0810, 0.1532]),
+            ('logistic_diag_noise_id', 'mean_real', mean_real_kws,                        [0.1430, 0.0789, 0.0775, 0.1578]),
 
-        }.items():
+            ('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=False),           [0.1543, 0.0597, 0.0827, 0.1509]),
+            ('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=True),            [0.1543, 0.0597, 0.0827, 0.1509]),
+            ('logistic_diag_noise', 'mode_real', mode_real_kws,                           [0.1596, 0.0598, 0.0824, 0.1507]),
+            ('logistic_diag_noise', 'mean_real', mean_real_kws,                           [0.1565, 0.0587, 0.0833, 0.1511]),
 
-            with self.subTest(model_name=model_name, use_jacobian=use_jacobian):
+            # without source
+            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=False), [0.1053, 0.0404, 0.0699, 0.1992]),
+            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=True),  [0.1053, 0.0404, 0.0699, 0.1991]),
+            ('logistic_diag_noise_no_source', 'mode_real', mode_real_kws,                 [0.1053, 0.0404, 0.0700, 0.1990]),
+            ('logistic_diag_noise_no_source', 'mean_real', mean_real_kws,                 [0.1067, 0.0406, 0.0691, 0.1987]),
+
+            # multivariate logistic parallel models
+            ('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=False), 0.0960),
+            ('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),  0.0956),
+            ('logistic_parallel_scalar_noise', 'mode_real', mode_real_kws,                 0.0959),
+            ('logistic_parallel_scalar_noise', 'mean_real', mean_real_kws,                 0.0964),
+
+            ('logistic_parallel_diag_noise', 'scipy_minimize', dict(use_jacobian=False),  [0.0670, 0.0538, 0.1043, 0.1494]),
+            ('logistic_parallel_diag_noise', 'scipy_minimize', dict(use_jacobian=True),   [0.0669, 0.0538, 0.1043, 0.1494]),
+            ('logistic_parallel_diag_noise', 'mode_real', mode_real_kws,                  [0.0675, 0.0531, 0.1046, 0.1505]),
+            ('logistic_parallel_diag_noise', 'mean_real', mean_real_kws,                  [0.0671, 0.0553, 0.1040, 0.1509]),
+
+            # univariate models
+            ('univariate_logistic', 'scipy_minimize', dict(use_jacobian=False),            0.1341),
+            ('univariate_logistic', 'scipy_minimize', dict(use_jacobian=True),             0.1341),
+            ('univariate_logistic', 'mode_real', mode_real_kws,                            0.1346),
+            ('univariate_logistic', 'mean_real', mean_real_kws,                            0.1351),
+
+            ('univariate_linear', 'scipy_minimize', dict(use_jacobian=False),              0.0812),
+            ('univariate_linear', 'scipy_minimize', dict(use_jacobian=True),               0.0812),
+            ('univariate_linear', 'mode_real', mode_real_kws,                              0.0817),
+            ('univariate_linear', 'mean_real', mean_real_kws,                              0.0898),
+
+            # multivariate linear models
+            ('linear_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),            0.1241),
+            ('linear_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),             0.1241),
+            ('linear_scalar_noise', 'mode_real', mode_real_kws,                            0.1241),
+            ('linear_scalar_noise', 'mean_real', mean_real_kws,                            0.1237),
+
+            ('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=False),             [0.1003, 0.1274, 0.1249, 0.1486]),
+            ('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=True),              [0.1002, 0.1276, 0.1249, 0.1486]),
+            ('linear_diag_noise', 'mode_real', mode_real_kws,                             [0.1007, 0.1292, 0.1250, 0.1489]),
+            ('linear_diag_noise', 'mean_real', mean_real_kws,                             [0.1000, 0.1265, 0.1242, 0.1485]),
+
+            # multivariate binary model
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),               [0.3150, 0.1140, 0.1385, 0.2155]),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                [0.3150, 0.1140, 0.1385, 0.2154]),
+            ('logistic_binary', 'mode_real', mode_real_kws,                               [0.3171, 0.1159, 0.1378, 0.2132]),
+            ('logistic_binary', 'mean_real', mean_real_kws,                               [0.3162, 0.1118, 0.1379, 0.2188]),
+
+            # multivariate parallel binary model
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),      [0.3341, 0.1337, 0.1336, 0.2405]),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),       [0.3340, 0.1342, 0.1334, 0.2404]),
+            ('logistic_parallel_binary', 'mode_real', mode_real_kws,                      [0.3328, 0.1345, 0.1354, 0.2415]),
+            ('logistic_parallel_binary', 'mean_real', mean_real_kws,                      [0.3437, 0.1279, 0.1444, 0.2624]),
+
+        ]:
+
+            subtest = dict(model_name=model_name, perso_name=perso_name, perso_kws=perso_kws)
+            with self.subTest(**subtest):
 
                 # only look at residual MSE to detect any regression in personalization
-                ips, noise_std, _ = self.generic_personalization(model_name, algo_name='scipy_minimize', seed=0, use_jacobian=use_jacobian)
+                ips, noise_std, _ = self.generic_personalization(model_name, algo_name=perso_name, seed=0, **perso_kws)
 
-                self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise)
+                self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise, msg=subtest)
 
-    def test_scipy_minimize_robustness_to_data_sparsity(self, rtol=2e-2, atol=5e-3):
+    def test_robustness_to_data_sparsity(self, rtol=2e-2, atol=5e-3):
         """
-        In this test, we check that estimated individual parameters are the same no matter if data is sparse
+        In this test, we check that estimated individual parameters are almost same no matter if data is sparse
         (i.e. multiple really close visits with many missing values) or data is 'merged' in a rounded visit.
 
         TODO? we could build a mock dataset to also check same property for calibration :)
         """
 
-        for (model_name, use_jacobian), expected_noise_std in {
+        mode_real_kws = dict()
+        mean_real_kws = dict()
 
-            ('logistic_scalar_noise', False):               0.1161,
-            ('logistic_scalar_noise', True):                0.1162,
-            ('logistic_diag_noise_id', False): [0.0865, 0.0358, 0.0564, 0.2049],
-            ('logistic_diag_noise_id', True):  [0.0865, 0.0359, 0.0564, 0.2050],
-            ('logistic_diag_noise', False):    [0.0824, 0.0089, 0.0551, 0.1819],
-            ('logistic_diag_noise', True):     [0.0824, 0.0089, 0.0552, 0.1819],
-            ('logistic_parallel_scalar_noise', False):      0.1525,
-            ('logistic_parallel_scalar_noise', True):       0.1872,
-            ('linear_scalar_noise', False):                 0.1699,
-            ('linear_scalar_noise', True):                  0.1699,
+        for model_name, perso_name, perso_kws, expected_noise_std in [
 
-            # univariate would be quite useless
-            # TODO: binary (crossentropy) models here
+            # multivariate logistic models
+            ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),          0.1161),
+            ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),           0.1162),
 
-        }.items():
+            ('logistic_diag_noise_id', 'scipy_minimize', dict(use_jacobian=False),        [0.0865, 0.0358, 0.0564, 0.2049]),
+            ('logistic_diag_noise_id', 'scipy_minimize', dict(use_jacobian=True),         [0.0865, 0.0359, 0.0564, 0.2050]),
 
-            subtest = dict(model_name=model_name, use_jacobian=use_jacobian)
+            ('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=False),           [0.0824, 0.0089, 0.0551, 0.1819]),
+            ('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=True),            [0.0824, 0.0089, 0.0552, 0.1819]),
+            ('logistic_diag_noise', 'mode_real', mode_real_kws,                           [0.0937, 0.0126, 0.0587, 0.1831]),
+            ('logistic_diag_noise', 'mean_real', mean_real_kws,                           [0.0908, 0.0072, 0.0595, 0.1817]),
+
+            # without source
+            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=False), [0.1349, 0.0336, 0.0760, 0.1777]),
+            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=True),  [0.1349, 0.0336, 0.0761, 0.1777]),
+            ('logistic_diag_noise_no_source', 'mode_real', mode_real_kws,                 [0.1339, 0.0356, 0.0754, 0.1761]),
+            ('logistic_diag_noise_no_source', 'mean_real', mean_real_kws,                 [0.1387, 0.0277, 0.0708, 0.1807]),
+
+            # multivariate logistic parallel models
+            ('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=False), 0.1525),
+            ('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),  0.1872),
+            ('logistic_parallel_scalar_noise', 'mode_real', mode_real_kws,                 0.1517),
+            ('logistic_parallel_scalar_noise', 'mean_real', mean_real_kws,                 0.2079),
+
+            ('logistic_parallel_diag_noise', 'scipy_minimize', dict(use_jacobian=False),  [0.0178, 0.0120, 0.0509, 0.0939]),
+            ('logistic_parallel_diag_noise', 'scipy_minimize', dict(use_jacobian=True),   [0.0178, 0.0120, 0.0508, 0.0940]),
+            ('logistic_parallel_diag_noise', 'mode_real', mode_real_kws,                  [0.0193, 0.0179, 0.0443, 0.0971]),
+            ('logistic_parallel_diag_noise', 'mean_real', mean_real_kws,                  [0.0385, 0.0153, 0.0433, 0.3016]),
+
+            ('linear_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),            0.1699),
+            ('linear_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),             0.1699),
+
+            ('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=False),             [0.1021, 0.1650, 0.2083, 0.1481]),
+            ('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=True),              [0.1023, 0.1630, 0.2081, 0.1480]),
+
+            # binary models (noise_std is reported as diagonal)
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),               [0.1011, 0.0352, 0.0602, 0.2217]),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                [0.1016, 0.0335, 0.0602, 0.2217]),
+
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),      [0.1806, 0.1226, 0.1695, 0.1890]),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),       [0.1805, 0.1224, 0.1693, 0.1887]),
+        ]:
+
+            subtest = dict(model_name=model_name, perso_name=perso_name, perso_kws=perso_kws)
             with self.subTest(**subtest):
 
-                common_params = dict(algo_name='scipy_minimize', seed=0, use_jacobian=use_jacobian)
+                common_params = dict(algo_name=perso_name, seed=0, **perso_kws)
 
                 ips_sparse, noise_sparse, _ = self.generic_personalization(model_name, **common_params,
                                                                            data_path='missing_data/sparse_data.csv',
@@ -154,13 +237,17 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 
                 # same individuals
                 self.assertEqual(indices_sparse, indices_merged, msg=subtest)
-                # same individual parameters (up to rounding errors)
-                self.assertDictAlmostEqual(ips_sparse_torch, ips_merged_torch, rtol=rtol, atol=atol, msg=subtest)
-                # same noise between them and as expected
-                self.assertTrue(torch.allclose(noise_sparse, noise_merged, atol=atol), msg=subtest)
-                self.assertTrue(torch.allclose(noise_merged, torch.tensor(expected_noise_std), atol=atol), msg=subtest)
 
-    def test_personalize_full_nan(self):
+                # same noise as expected
+                self.assertAllClose(noise_merged, expected_noise_std, atol=atol, what='noise', msg=subtest)
+                # same noise between both cases
+                self.assertAllClose(noise_sparse, noise_merged, left_desc='sparse', right_desc='merged', what='noise',
+                                    atol=atol, msg=subtest)
+                # same individual parameters (up to rounding errors)
+                self.assertDictAlmostEqual(ips_sparse_torch, ips_merged_torch, left_desc='sparse', right_desc='merged',
+                                           rtol=rtol, atol=atol, msg=subtest)
+
+    def test_personalize_full_nan(self, *, general_tol=1e-3):
         # test result of personalization with no data at all
         df = pd.DataFrame({
             'ID': ['SUBJ1', 'SUBJ1'],
@@ -172,36 +259,67 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         }).set_index(['ID', 'TIME'])
 
         lsp = self.get_hardcoded_model('logistic_diag_noise')
-        algo = self.get_algo_settings(name='scipy_minimize', seed=0, progress_bar=False)
 
-        with self.assertRaisesRegex(ValueError, 'Dataframe should have at least '):
-            # drop rows full of nans, nothing is left...
-            data_0 = Data.from_dataframe(df)
+        for perso_algo, perso_kws, coeff_tol_per_param_std in [
 
-        with self.assertWarnsRegex(UserWarning, r"These columns only contain nans: \['Y0', 'Y1', 'Y2', 'Y3'\]"):
-            data_1 = Data.from_dataframe(df.head(1), drop_full_nan=False)
-            data_2 = Data.from_dataframe(df, drop_full_nan=False)
+            ('scipy_minimize', dict(use_jacobian=False), general_tol),
+            ('scipy_minimize', dict(use_jacobian=True), general_tol),
 
-        self.assertEqual(data_1.n_individuals, 1)
-        self.assertEqual(data_1.n_visits, 1)
+            # the LL landscape is quite flat so tolerance is high here...
+            # we may deviate from tau_mean / xi_mean / sources_mean when no data at all
+            # (intrinsically represent the incertitude on those individual parameters)
+            ('mode_real', {}, .4),
+            ('mean_real', {}, .4),
+        ]:
 
-        self.assertEqual(data_2.n_individuals, 1)
-        self.assertEqual(data_2.n_visits, 2)
+            subtest = dict(perso_algo=perso_algo, perso_kws=perso_kws)
+            with self.subTest(**subtest):
+                algo = self.get_algo_settings(name=perso_algo, seed=0, progress_bar=False, **perso_kws)
 
-        ips_1 = lsp.personalize(data_1, algo)
-        ips_2 = lsp.personalize(data_2, algo)
+                with self.assertRaisesRegex(ValueError, 'Dataframe should have at least '):
+                    # drop rows full of nans, nothing is left...
+                    data_0 = Data.from_dataframe(df)
 
-        indices_1, dict_1 = ips_1.to_pytorch()
-        indices_2, dict_2 = ips_2.to_pytorch()
+                with self.assertWarnsRegex(UserWarning, r"These columns only contain nans: \['Y0', 'Y1', 'Y2', 'Y3'\]"):
+                    data_1 = Data.from_dataframe(df.head(1), drop_full_nan=False)
+                    data_2 = Data.from_dataframe(df, drop_full_nan=False)
 
-        self.assertEqual(indices_1, ['SUBJ1'])
-        self.assertEqual(indices_1, indices_2)
-        self.assertDictAlmostEqual(dict_1, dict_2)
-        self.assertDictAlmostEqual(dict_1, {
-            'tau': [lsp.model.parameters['tau_mean']],
-            'xi': [0],
-            'sources': lsp.model.source_dimension*[0]
-        })
+                dataset_1 = Dataset(data_1)
+                dataset_2 = Dataset(data_2)
+
+                self.assertEqual(data_1.n_individuals, 1)
+                self.assertEqual(data_1.n_visits, 1)
+                self.assertEqual(dataset_1.n_observations_per_ft.tolist(), [0, 0, 0, 0])
+                self.assertEqual(dataset_1.n_observations, 0)
+
+                self.assertEqual(data_2.n_individuals, 1)
+                self.assertEqual(data_2.n_visits, 2)
+                self.assertEqual(dataset_2.n_observations_per_ft.tolist(), [0, 0, 0, 0])
+                self.assertEqual(dataset_2.n_observations, 0)
+
+                ips_1 = lsp.personalize(data_1, algo)
+                ips_2 = lsp.personalize(data_2, algo)
+
+                indices_1, dict_1 = ips_1.to_pytorch()
+                indices_2, dict_2 = ips_2.to_pytorch()
+
+                self.assertEqual(indices_1, ['SUBJ1'])
+                self.assertEqual(indices_1, indices_2)
+
+                # replication is OK
+                self.assertDictAlmostEqual(dict_1, dict_2, atol=general_tol, msg=subtest)
+
+                # we have no information so high incertitude when stochastic perso algo
+                allclose_custom = {
+                    p: dict(atol=math.ceil(coeff_tol_per_param_std * lsp.model.parameters[f'{p}_std'].item() / general_tol) * general_tol)
+                    for p, pi in lsp.model.random_variable_informations().items()
+                    if pi['type'] == 'individual'
+                }
+                self.assertDictAlmostEqual(dict_1, {
+                    'tau': [lsp.model.parameters['tau_mean']],
+                    'xi': [0.],
+                    'sources': lsp.model.source_dimension*[0.]
+                }, allclose_custom=allclose_custom, msg=subtest)
 
     def test_personalize_same_if_extra_totally_nan_visits(self):
 
@@ -215,26 +333,45 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         }).set_index(['ID', 'TIME'])
 
         lsp = self.get_hardcoded_model('logistic_diag_noise')
-        algo = self.get_algo_settings(name='scipy_minimize', seed=0, progress_bar=False)
 
-        data_without_empty_visits = Data.from_dataframe(df)
-        data_with_empty_visits = Data.from_dataframe(df, drop_full_nan=False)
+        for perso_algo, perso_kws, tol in [
 
-        self.assertEqual(data_without_empty_visits.n_individuals, 1)
-        self.assertEqual(data_without_empty_visits.n_visits, 2)
+            ('scipy_minimize', dict(use_jacobian=False), 1e-3),
+            ('scipy_minimize', dict(use_jacobian=True), 1e-3),
+            ('mode_real', {}, 1e-3),
+            ('mean_real', {}, 1e-3),
+        ]:
 
-        self.assertEqual(data_with_empty_visits.n_individuals, 1)
-        self.assertEqual(data_with_empty_visits.n_visits, 4)
+            subtest = dict(perso_algo=perso_algo, perso_kws=perso_kws)
+            with self.subTest(**subtest):
+                algo = self.get_algo_settings(name=perso_algo, seed=0, progress_bar=False, **perso_kws)
 
-        ips_without_empty_visits = lsp.personalize(data_without_empty_visits, algo)
-        ips_with_empty_visits = lsp.personalize(data_with_empty_visits, algo)
+                data_without_empty_visits = Data.from_dataframe(df)
+                data_with_empty_visits = Data.from_dataframe(df, drop_full_nan=False)
 
-        indices_1, dict_1 = ips_without_empty_visits.to_pytorch()
-        indices_2, dict_2 = ips_with_empty_visits.to_pytorch()
+                dataset_without_empty_visits = Dataset(data_without_empty_visits)
+                dataset_with_empty_visits = Dataset(data_with_empty_visits)
 
-        self.assertEqual(indices_1, ['SUBJ1'])
-        self.assertEqual(indices_1, indices_2)
-        self.assertDictAlmostEqual(dict_1, dict_2)
+                self.assertEqual(data_without_empty_visits.n_individuals, 1)
+                self.assertEqual(data_without_empty_visits.n_visits, 2)
+                self.assertEqual(dataset_without_empty_visits.n_observations_per_ft.tolist(), [2, 1, 2, 2])
+                self.assertEqual(dataset_without_empty_visits.n_observations, 7)
+
+                self.assertEqual(data_with_empty_visits.n_individuals, 1)
+                self.assertEqual(data_with_empty_visits.n_visits, 4)
+                self.assertEqual(dataset_with_empty_visits.n_observations_per_ft.tolist(), [2, 1, 2, 2])
+                self.assertEqual(dataset_with_empty_visits.n_observations, 7)
+
+                ips_without_empty_visits = lsp.personalize(data_without_empty_visits, algo)
+                ips_with_empty_visits = lsp.personalize(data_with_empty_visits, algo)
+
+                indices_1, dict_1 = ips_without_empty_visits.to_pytorch()
+                indices_2, dict_2 = ips_with_empty_visits.to_pytorch()
+
+                self.assertEqual(indices_1, ['SUBJ1'])
+                self.assertEqual(indices_1, indices_2)
+
+                self.assertDictAlmostEqual(dict_1, dict_2, atol=tol, msg=subtest)
 
     # TODO : problem with nans
     """

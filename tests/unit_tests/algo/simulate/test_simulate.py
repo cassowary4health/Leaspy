@@ -110,12 +110,10 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         """
         values = np.random.rand(100, 5)
         t_mean = torch.tensor(values).mean(dim=0)
-        self.assertTrue(np.allclose(values.mean(axis=0),
-                                    t_mean.numpy()))
+        self.assertAllClose(values.mean(axis=0), t_mean, what='matrix.mean')
         t_cov = torch.tensor(values) - t_mean[None, :]
         t_cov = 1. / (t_cov.size(0) - 1) * t_cov.t() @ t_cov
-        self.assertTrue(np.allclose(np.cov(values.T),
-                                    t_cov.numpy()))
+        self.assertAllClose(np.cov(values.T), t_cov, what='matrix.cov')
 
     def test_check_cofactors(self):
         """
@@ -165,13 +163,13 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         # noise: value (scalar)
         settings = AlgorithmSettings('simulation', seed=0, noise=.12)
         r = lsp_diag.simulate(individual_parameters, data, settings)
-        self.assertTrue(torch.allclose(r.noise_std, torch.tensor(.12)))
+        self.assertAllClose(r.noise_std, .12, what='noise')
 
         # noise: value (diagonal)
         diag_noise = .08 + .02*np.arange(lsp_bin.model.dimension)
         settings = AlgorithmSettings('simulation', seed=0, noise=diag_noise)
         r = lsp_bin.simulate(individual_parameters, data, settings)
-        self.assertTrue(torch.allclose(r.noise_std, torch.from_numpy(diag_noise).to(dtype=torch.float32)))
+        self.assertAllClose(r.noise_std, diag_noise, what='noise')
 
         # noise: Bernoulli
         settings = AlgorithmSettings('simulation', seed=0, noise='bernoulli')
@@ -201,7 +199,7 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         for lsp_obj in [lsp_scal, lsp_diag, lsp_bin]:
             r = lsp_obj.simulate(individual_parameters, data, settings)
             if lsp_obj != lsp_bin:
-                self.assertTrue(torch.allclose(r.noise_std, lsp_obj.model.parameters['noise_std']))
+                self.assertAllClose(r.noise_std, lsp_obj.model.parameters['noise_std'], what='noise')
             else:
                 self.assertIsNone(r.noise_std)
                 self._check_bin_values(r)
@@ -266,7 +264,8 @@ class SimulationAlgorithmTest(LeaspyTestCase):
                                      std_number_of_visits=3, delay_btw_visits=custom_vis_delays)
         new_results = lsp.simulate(individual_parameters, data, settings)  # just test if run without error
         delays_visits = [np.diff(idata.timepoints) for idata in new_results.data.individuals.values()]
-        self.assertTrue(all([np.allclose(delays_vis, custom_vis_delays(len(delays_vis))) for delays_vis in delays_visits]))
+        for delays_vis in delays_visits:
+            self.assertAllClose(delays_vis, custom_vis_delays(len(delays_vis)), what='delay_vis')
 
         # features bounds (auto)
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=200, mean_number_of_visits=3,

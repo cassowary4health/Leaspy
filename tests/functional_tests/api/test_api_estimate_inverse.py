@@ -58,6 +58,11 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
         with self.assertRaises(TypeError):
             leaspy.estimate_ages_from_biomarker_values(individual_parameters=[], biomarker_values=estimations)
 
+        bad_estimations = {'idx1': {'bad_type'}}
+        with self.assertRaisesRegex(TypeError, 'biomarker_values'):
+            leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip, biomarker_values=bad_estimations,
+                                                        feature=None)
+
         # check other errors
         problematic_timepoints = {
             'idx1': [90],  # fast progressor, 90 is already too much (estimation will be nan)

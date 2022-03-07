@@ -146,7 +146,7 @@ class UnivariateModel(AbstractModel):
         """
         Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
         """
-        # TODO to move in a "MCMC-model interface"
+        # TODO to move in the MCMC-fit algorithm
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01}, # population parameter
             'attributes': AttributesFactory.attributes(self.name, dimension=1)
@@ -162,7 +162,7 @@ class UnivariateModel(AbstractModel):
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
 
-        TODO to move in a "MCMC-model interface"
+        TODO to move in the MCMC-fit algorithm
 
         Parameters
         ----------
@@ -220,12 +220,14 @@ class UnivariateModel(AbstractModel):
 
         # Population parameters
         g = self._get_attributes(attribute_type)
+
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        LL = -reparametrized_time.unsqueeze(-1)
-        model = 1. / (1. + g * torch.exp(LL))
+        # TODO? more efficient & accurate to compute `torch.exp(-t + log_g)` since we directly sample & stored log_g
+        t = reparametrized_time.unsqueeze(-1)
+        model = 1. / (1. + g * torch.exp(-t))
 
         return model
 
@@ -233,13 +235,12 @@ class UnivariateModel(AbstractModel):
 
         # Population parameters
         positions = self._get_attributes(attribute_type)
+
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-        LL = -reparametrized_time.unsqueeze(-1)
-        model = positions - LL
 
-        return model
+        return positions + reparametrized_time.unsqueeze(-1)
 
     @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
@@ -262,28 +263,22 @@ class UnivariateModel(AbstractModel):
         return ages
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, attribute_type=None):
-
-        # Population parameters
-        positions = self._get_attributes(attribute_type)
+    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
-
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # Log likelihood computation
+        # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1)
-
-        LL = reparametrized_time + positions
-
         alpha = torch.exp(xi).unsqueeze(-1)
 
+        # Jacobian of model expected value w.r.t. individual parameters
         derivatives = {
-            'xi': (reparametrized_time).unsqueeze(-1),
+            'xi': reparametrized_time.unsqueeze(-1),
             'tau': (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
         }
 
@@ -298,13 +293,13 @@ class UnivariateModel(AbstractModel):
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # Log likelihood computation
+        # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features==1)
-
-        model = 1. / (1. + g * torch.exp(-reparametrized_time))
-
-        c = model * (1. - model)
         alpha = torch.exp(xi).reshape(-1, 1, 1)
+
+        # Jacobian of model expected value w.r.t. individual parameters
+        model = 1. / (1. + g * torch.exp(-reparametrized_time))
+        c = model * (1. - model)
 
         derivatives = {
             'xi': (c * reparametrized_time).unsqueeze(-1),

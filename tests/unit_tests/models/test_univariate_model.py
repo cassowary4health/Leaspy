@@ -39,3 +39,19 @@ class UnivariateModelTest(ManifoldModelTest_Mixin):
 
             self.check_common_attrs(model)
 
+    def test_wrong_name(self):
+
+        with self.assertRaises(ValueError):
+            UnivariateModel('univariate_unknown-suffix')
+
+    def test_get_attributes(self):
+
+        m = UnivariateModel('univariate_logistic')
+
+        # not supported attributes (only None & 'MCMC' are)
+        with self.assertRaises(ValueError):
+            m._get_attributes(False)
+        with self.assertRaises(ValueError):
+            m._get_attributes(True)
+        with self.assertRaises(ValueError):
+            m._get_attributes('toolbox')

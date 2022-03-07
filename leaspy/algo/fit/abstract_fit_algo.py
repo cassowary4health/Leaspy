@@ -1,18 +1,16 @@
-import contextlib
-import torch
-
 from abc import abstractmethod
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.data.dataset import Dataset
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.algo.utils.algo_with_device import AlgoWithDeviceMixin
 
 from leaspy.utils.typing import DictParamsTorch
 from leaspy.exceptions import LeaspyAlgoInputError
 
 
-class AbstractFitAlgo(AbstractAlgo):
+class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
     """
     Abstract class containing common method for all `fit` algorithm classes.
 
@@ -26,7 +24,8 @@ class AbstractFitAlgo(AbstractAlgo):
     algorithm_device : str
         Valid torch device
     current_iteration : int, default 0
-        The number of the current iteration
+        The number of the current iteration.
+        The first iteration will be 1 and the last one `n_iter`.
     sufficient_statistics : dict[str, `torch.FloatTensor`] or None
         The previous step sufficient statistics.
         It is None during all the burn-in phase.
@@ -50,9 +49,8 @@ class AbstractFitAlgo(AbstractAlgo):
         # "Construction of Bayesian deformable models via a stochastic approximation algorithm: a convergence study"
         if not (0.5 < self.algo_parameters['burn_in_step_power'] <= 1):
             raise LeaspyAlgoInputError("The parameter `burn_in_step_power` should be in ]0.5, 1] in order to "
-                                       "have theoretical guarantees on convergence of algorithm.")
+                                       "have theoretical guarantees on convergence of MCMC-SAEM algorithm.")
 
-        self.algorithm_device = settings.device
         self.current_iteration: int = 0
 
         self.sufficient_statistics: DictParamsTorch = None
@@ -86,10 +84,7 @@ class AbstractFitAlgo(AbstractAlgo):
         """
 
         with self._device_manager(model, dataset):
-            # Initialize first the random variables
-            # TODO : Check if needed - model.initialize_random_variables(dataset)
-
-            # Then initialize the Realizations (from the random variables)
+            # Initialize the `CollectionRealization` (from the random variables of the model)
             realizations = model.initialize_realizations_for_model(dataset.n_individuals)
 
             # Smart init the realizations
@@ -102,18 +97,17 @@ class AbstractFitAlgo(AbstractAlgo):
                 self._display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
 
             # Iterate
-            for it in range(self.algo_parameters['n_iter']):
+            for self.current_iteration in range(1, self.algo_parameters['n_iter']+1):
 
                 self.iteration(dataset, model, realizations)
-                self.current_iteration += 1
 
-                if self.output_manager is not None:  # TODO better this, should work with nones
-                    # do not print iteration 0 because of noise_std init pb
-                    # but print first & last iteration!
+                if self.output_manager is not None:
+                    # print/plot first & last iteration!
+                    # <!> everything that will be printed/saved is AFTER iteration N (including temperature when annealing...)
                     self.output_manager.iteration(self, dataset, model, realizations)
 
                 if self.algo_parameters['progress_bar']:
-                    self._display_progress_bar(it, self.algo_parameters['n_iter'], suffix='iterations')
+                    self._display_progress_bar(self.current_iteration - 1, self.algo_parameters['n_iter'], suffix='iterations')
 
             # Finally we compute model attributes once converged
             model.attributes.update(['all'], model.parameters)
@@ -134,7 +128,6 @@ class AbstractFitAlgo(AbstractAlgo):
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             The parameters.
         """
-        pass
 
     @abstractmethod
     def _initialize_algo(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
@@ -147,7 +140,6 @@ class AbstractFitAlgo(AbstractAlgo):
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
-        pass
 
     def _maximization_step(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
         """
@@ -166,7 +158,7 @@ class AbstractFitAlgo(AbstractAlgo):
         else:
             sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
 
-            burn_in_step = self.current_iteration - self.algo_parameters['n_burn_in_iter'] + 1
+            burn_in_step = self.current_iteration - self.algo_parameters['n_burn_in_iter'] # min = 1, max = n_iter - n_burn_in_iter
             burn_in_step **= -self.algo_parameters['burn_in_step_power']
 
             if self.sufficient_statistics is None:
@@ -180,61 +172,3 @@ class AbstractFitAlgo(AbstractAlgo):
 
         # No need to update model attributes (derived from model parameters)
         # since all model computations are done with the MCMC toolbox during calibration
-
-    def _is_burn_in(self) -> bool:
-        """
-        Check if current iteration is in burn-in phase.
-
-        Returns
-        -------
-        bool
-        """
-        return self.current_iteration < self.algo_parameters['n_burn_in_iter']
-
-    @contextlib.contextmanager
-    def _device_manager(self, model: AbstractModel, dataset: Dataset):
-        """
-        Context-manager to handle the "ambient device" (i.e. the device used
-        to instantiate tensors and perform computations). The provided model
-        and dataset will be moved to the device specified for the execution
-        at the beginning of the algorithm and moved back to the original
-        ('cpu') device at the end of the algorithm. The default tensor type
-        will also be set accordingly.
-
-        Parameters
-        ----------
-        model : :class:`~.models.abstract_model.AbstractModel`
-            The used model.
-        dataset : :class:`.Dataset`
-            Contains the subjects' observations in torch format to speed up computation.
-        """
-
-        default_algorithm_tensor_type = 'torch.FloatTensor'
-        default_algorithm_device = torch.device('cpu')
-
-        algorithm_tensor_type = default_algorithm_tensor_type
-        if self.algorithm_device != 'cpu':
-            algorithm_device = torch.device(self.algorithm_device)
-
-            dataset.move_to_device(algorithm_device)
-            model.move_to_device(algorithm_device)
-
-            algorithm_tensor_type = 'torch.cuda.FloatTensor'
-
-        try:
-            yield torch.set_default_tensor_type(algorithm_tensor_type)
-        finally:
-            if self.algorithm_device != 'cpu':
-                dataset.move_to_device(default_algorithm_device)
-                model.move_to_device(default_algorithm_device)
-
-            torch.set_default_tensor_type(default_algorithm_tensor_type)
-
-    ###########################
-    # Output
-    ###########################
-
-    def __str__(self):
-        out = "=== ALGO ===\n"
-        out += f"Iteration {self.current_iteration}"
-        return out

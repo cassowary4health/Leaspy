@@ -82,7 +82,7 @@ class Leaspy:
     def type(self) -> str:
         return self.model.name
 
-    def fit(self, data: Data, settings: AlgorithmSettings):
+    def fit(self, data: Data, settings: AlgorithmSettings) -> None:
         r"""
         Estimate the model's parameters :math:`\theta` for a given dataset and a given algorithm.
 
@@ -136,7 +136,7 @@ class Leaspy:
         algorithm.run(self.model, dataset)
 
 
-    def calibrate(self, data: Data, settings: AlgorithmSettings):
+    def calibrate(self, data: Data, settings: AlgorithmSettings) -> None:
         r"""
         Duplicates of the :meth:`~.Leaspy.fit` method.
         """
@@ -273,7 +273,8 @@ class Leaspy:
 
             # reindex back to given index being careful to index order (join so to handle multi-levels cases)
             if ix is not None:
-                estimations = pd.DataFrame([], index=ix).join(estimations)
+                # we need to explicitely pass `on` to preserve order of index levels
+                estimations = pd.DataFrame([], index=ix).join(estimations, on=['ID','TIME'])
 
         return estimations
 
@@ -292,6 +293,7 @@ class Leaspy:
         biomarker_values : Dict[Union[str, int], Union[List, float]]
             Dictionary that associates to each patient (being a key of the dictionary) a value (float between 0 and 1,
             or a list of such floats) from which leaspy will estimate the age at which the value is reached.
+            TODO? shouldn't we allow pandas.Series / pandas.DataFrame
 
         feature : str
             For multivariate models only: feature name (indicates to which model feature the biomarker values belongs)
@@ -346,6 +348,10 @@ class Leaspy:
 
         for index, value in biomarker_values.items():
 
+            # precondition on input
+            if not isinstance(value, (float, list)):
+                raise LeaspyTypeError(f"`biomarker_values` of individual '{index}' should be a float or a list, not {type(value)}.")
+
             # get the individual parameters dict
             ip = individual_parameters[index]
 
@@ -356,10 +362,8 @@ class Leaspy:
             # convert array to initial type (int or list)
             if isinstance(value, float):
                 est = float(est)
-            elif isinstance(value, list):
-                est = est.tolist()
             else:
-                raise LeaspyTypeError(f"Values of biomarker_values should be float or list, not {type(value)} !")
+                est = est.tolist()
 
             biomarker_ages[index] = est
 
@@ -476,7 +480,7 @@ class Leaspy:
         return simulated_data
 
     @classmethod
-    def load(cls, path_to_model_settings: str):
+    def load(cls, path_to_model_settings: str) -> Leaspy:
         r"""
         Instantiate a Leaspy object from json model parameter file or the corresponding dictionary.
 
@@ -517,7 +521,7 @@ class Leaspy:
 
         return leaspy
 
-    def save(self, path: str, **kwargs):
+    def save(self, path: str, **kwargs) -> None:
         """
         Save Leaspy object as json model parameter file.
 
@@ -550,7 +554,7 @@ class Leaspy:
         self.check_if_initialized()
         self.model.save(path, **kwargs)
 
-    def check_if_initialized(self):
+    def check_if_initialized(self) -> None:
         """
         Check if model is initialized.
 

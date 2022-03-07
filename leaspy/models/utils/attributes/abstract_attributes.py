@@ -44,12 +44,12 @@ class AbstractAttributes(ABC):
 
     def __init__(self, name: str, dimension: int = None, source_dimension: int = None):
 
-        if not isinstance(name, str):
-            raise LeaspyModelInputError("In model attributes, you must provide a string for the parameter `name`.")
+        if not (isinstance(name, str) and len(name)):
+            raise LeaspyModelInputError("In model attributes, you must provide a non-empty string for the parameter `name`.")
         self.name = name
 
-        if not isinstance(dimension, int):
-            raise LeaspyModelInputError("In model attributes, you must provide an integer for the parameter `dimension`.")
+        if not (isinstance(dimension, int) and dimension >= 1):
+            raise LeaspyModelInputError("In model attributes, you must provide an integer >= 1 for the parameter `dimension`.")
         self.dimension = dimension
         self.univariate = dimension == 1
 
@@ -70,7 +70,6 @@ class AbstractAttributes(ABC):
         -------
         Depends on the subclass, please refer to each specific class.
         """
-        pass
 
     @abstractmethod
     def update(self, names_of_changed_values: Tuple[ParamType, ...], values: DictParamsTorch) -> None:
@@ -89,7 +88,6 @@ class AbstractAttributes(ABC):
         :exc:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown values to update.
         """
-        pass
 
     def move_to_device(self, device: torch.device):
         """

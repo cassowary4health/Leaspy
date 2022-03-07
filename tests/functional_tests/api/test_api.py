@@ -57,7 +57,9 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             'logistic', model_codename='logistic_scalar_noise',
             noise_model='gaussian_scalar', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
-            perso_algo='mode_real', expected_noise_std=0.085, # in perso
+            perso_algo='mode_real',
+            perso_algo_params=dict(n_iter=200, seed=0),
+            expected_noise_std=0.0857, # in perso
             simulate_algo_params=simul_params,
         )
 
@@ -71,7 +73,8 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             'logistic', model_codename='logistic_diag_noise',
             noise_model='gaussian_diagonal', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
-            perso_algo='scipy_minimize', expected_noise_std=[0.064, 0.037, 0.066, 0.142],  # in perso
+            perso_algo='scipy_minimize',
+            expected_noise_std=[0.064, 0.037, 0.066, 0.142],  # in perso
             simulate_algo_params=simul_params, simulate_tol=2e-3, # Not fully reproducible on Linux below this tol...
         )
 
@@ -87,8 +90,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[0.333, 0.089, 0.103, 0.234],  # in perso
+            perso_algo_params=dict(n_iter=200, seed=0),
+            expected_noise_std=[0.343, 0.091, 0.125, 0.243],  # in perso
             simulate_algo_params=simul_params,
         )
-
-    # TODO? univariate_*, linear

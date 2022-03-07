@@ -109,7 +109,6 @@ class AbstractMultivariateModel(AbstractModel):
         Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
         """
         # TODO to move in a "MCMC-model interface"
-        pass
 
     @abstractmethod
     def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed: List[str], realizations) -> None:
@@ -124,7 +123,6 @@ class AbstractMultivariateModel(AbstractModel):
             All the realizations to update MCMC toolbox with
         """
         # TODO to move in a "MCMC-model interface"
-        pass
 
     def load_hyperparameters(self, hyperparameters: KwargsType):
 
@@ -139,8 +137,12 @@ class AbstractMultivariateModel(AbstractModel):
             self.dimension = hyperparameters['dimension']
 
         if 'source_dimension' in hyperparameters.keys():
-            if not ((hyperparameters['source_dimension'] >= 0) and (not self.dimension or hyperparameters['source_dimension'] <= self.dimension - 1)):
-                raise LeaspyModelInputError(f"Source dimension should in [0, dimension - 1], not {hyperparameters['source_dimension']}")
+            if not (
+                isinstance(hyperparameters['source_dimension'], int)
+                and (hyperparameters['source_dimension'] >= 0)
+                and (not self.dimension or hyperparameters['source_dimension'] <= self.dimension - 1)
+            ):
+                raise LeaspyModelInputError(f"Source dimension should be an integer in [0, dimension - 1], not {hyperparameters['source_dimension']}")
             self.source_dimension = hyperparameters['source_dimension']
 
         # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple

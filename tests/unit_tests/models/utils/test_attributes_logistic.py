@@ -27,6 +27,19 @@ class AttributesLogisticTest(LeaspyTestCase):
         self.assertTrue(0 <= source_dimension <= dimension-1)
         return dimension, source_dimension
 
+    def test_bad_source_dim(self):
+        with self.assertRaisesRegex(ValueError, '`source_dimension`'):
+            LogisticAttributes(name='logistic', dimension=2, source_dimension=None)
+
+        with self.assertRaisesRegex(ValueError, '`source_dimension`'):
+            LogisticAttributes(name='logistic', dimension=2, source_dimension=2)
+
+        with self.assertRaisesRegex(ValueError, '`source_dimension`'):
+            LogisticAttributes(name='logistic', dimension=2, source_dimension=0.5)
+
+        with self.assertRaisesRegex(ValueError, '`source_dimension`'):
+            LogisticAttributes(name='logistic', dimension=2, source_dimension=-1)
+
     def test_compute_orthonormal_basis(self, tol=5e-5):
         names = ['all']
         values = {
@@ -113,8 +126,8 @@ class AttributesLogisticTest(LeaspyTestCase):
         # and this is not just a random result
         self.assertFalse(attributes._check_collinearity_vectors(old_velocities, old_velocities + 0.1))
         # and the orthonormal basis (and mixing matrix) are the same!
-        self.assertTrue(torch.allclose(old_BON, new_BON))
-        self.assertTrue(torch.allclose(old_A, new_A))
+        self.assertAllClose(old_BON, new_BON, what='ortho_basis')
+        self.assertAllClose(old_A, new_A, what='mixing_matrix')
 
         # but orthonormal basis & mixing matrix were re-computed!
         self.assertNotEqual(id(old_BON), id(new_BON))

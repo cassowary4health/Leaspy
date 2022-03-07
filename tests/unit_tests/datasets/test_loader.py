@@ -65,5 +65,5 @@ class LoaderTest(LeaspyTestCase):
 
         self.assertAlmostEqual(ip.get_mean('tau'), 76.9612791442871)
         self.assertAlmostEqual(ip.get_mean('xi'), 0.0629326763143763)
-        self.assertTrue(allclose(tensor(ip.get_mean('sources')),
-                                 tensor([0.003150840562302619, -0.02109330625506118])))
+        self.assertAllClose(ip.get_mean('sources'),
+                            [0.003150840562302619, -0.02109330625506118], what='sources.mean')

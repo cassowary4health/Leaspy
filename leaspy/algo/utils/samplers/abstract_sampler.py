@@ -24,35 +24,38 @@ class AbstractSampler(ABC):
             * type : 'population' or 'individual'
     n_patients : int > 0
         Number of patients (useful for individual variables)
+    acceptation_history_length : int > 0 (default 25)
+        Deepness (= number of iterations) of the history kept for computing the mean acceptation rate.
+        (It is the same for population or individual variables.)
 
     Attributes
     ----------
-    acceptation_temp : :class:`torch.Tensor`
-        Acceptation rate for the sampler in MCMC-SAEM algorithm
-        Keep the history of the last `temp_length` last steps
     name : str
         Name of variable
     shape : tuple
         Shape of variable
-    temp_length : int
-        Deepness of the history kept in the acceptation rate `acceptation_temp`
-        Length of the `acceptation_temp` torch tensor
+    acceptation_history_length : int
+        Deepness (= number of iterations) of the history kept for computing the mean acceptation rate.
+        (It is the same for population or individual variables.)
     ind_param_dims_but_individual : tuple[int, ...], optional (only for individual variable)
         The dimension(s) to aggregate when computing regularity of individual parameters
         For now there's only one extra dimension whether it's tau, xi or sources
         but in the future it could be extended. We do not sum first dimension (=0) which
         will always be the dimension reserved for individuals.
+    acceptation_history : :class:`torch.Tensor`
+        History of binary acceptations to compute mean acceptation rate for the sampler in MCMC-SAEM algorithm.
+        It keeps the history of the last `acceptation_history_length` steps.
 
     Raises
     ------
     :exc:`.LeaspyModelInputError`
     """
 
-    def __init__(self, info: KwargsType, n_patients: int):
+    def __init__(self, info: KwargsType, n_patients: int, *, acceptation_history_length: int = 25):
 
         self.name: str = info["name"]
         self.shape: Tuple[int, ...] = info["shape"]
-        self.temp_length: int = 25  # For now the same between pop and ind #TODO this is an hyperparameter
+        self.acceptation_history_length = acceptation_history_length
 
         self.ind_param_dims_but_individual: Optional[Tuple[int, ...]] = None
 
@@ -63,8 +66,8 @@ class AbstractSampler(ABC):
                 # convention: shape of pop variable is 1D or 2D
                 raise LeaspyModelInputError("Dimension of population variable should be 1 or 2")
             else:
-                full_shape = (self.temp_length, *self.shape)
-                self.acceptation_temp = torch.zeros(full_shape)
+                full_shape = (self.acceptation_history_length, *self.shape)
+                self.acceptation_history = torch.zeros(full_shape)
 
         elif info["type"] == "individual":
             self.type = 'ind'
@@ -72,8 +75,8 @@ class AbstractSampler(ABC):
             if len(self.shape) != 1:
                 raise LeaspyModelInputError("Dimension of individual variable should be 1")
             # <!> We do not take into account the dimensionality of individual parameter for acceptation rate
-            full_shape = (self.temp_length, n_patients)
-            self.acceptation_temp = torch.zeros(full_shape)
+            full_shape = (self.acceptation_history_length, n_patients)
+            self.acceptation_history = torch.zeros(full_shape)
 
             # The dimension(s) to sum when computing regularity of individual parameters
             # For now there's only one extra dimension whether it's tau, xi or sources
@@ -83,7 +86,7 @@ class AbstractSampler(ABC):
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{info['type']}': nor 'population' nor 'individual'.")
 
-    def sample(self, data: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws):
+    def sample(self, data: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
         """
         Sample new realization (either population or individual) for a given realization state, dataset, model and temperature
 
@@ -105,19 +108,25 @@ class AbstractSampler(ABC):
             As of now, we only use it for individual variables, and only `attribute_type`.
             It is used to know whether to compute attachments from the MCMC toolbox (esp. during fit)
             or to compute it from regular model parameters (esp. during personalization in mean/mode realization)
+
+        Returns
+        -------
+        attachment, regularity_var : `torch.FloatTensor` 0D (population variable) or 1D (individual variable, with length `n_individuals`)
+            The attachment and regularity (only for the current variable) at the end of this sampling step
+            (globally or per individual, depending on variable type).
         """
         if self.type == 'pop':
-            self._sample_population_realizations(data, model, realizations, temperature_inv, **attachment_computation_kws)
+            return self._sample_population_realizations(data, model, realizations, temperature_inv, **attachment_computation_kws)
         else:
-            self._sample_individual_realizations(data, model, realizations, temperature_inv, **attachment_computation_kws)
+            return self._sample_individual_realizations(data, model, realizations, temperature_inv, **attachment_computation_kws)
 
     @abstractmethod
-    def _sample_population_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws):
-        pass
+    def _sample_population_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+        """Sample population variables"""
 
     @abstractmethod
-    def _sample_individual_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws):
-        pass
+    def _sample_individual_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+        """Sample individual variables"""
 
     def _group_metropolis_step(self, alpha: torch.FloatTensor) -> torch.FloatTensor:
         """
@@ -177,11 +186,11 @@ class AbstractSampler(ABC):
         """
 
         # Concatenate the new acceptation result at end of new one (forgetting the oldest acceptation rate)
-        old_acceptation_temp = self.acceptation_temp[1:]
+        old_acceptation_history = self.acceptation_history[1:]
 
         if self.type == "pop":
-            self.acceptation_temp = torch.cat([old_acceptation_temp, accepted.unsqueeze(0)])
+            self.acceptation_history = torch.cat([old_acceptation_history, accepted.unsqueeze(0)])
         elif self.type == "ind":
-            self.acceptation_temp = torch.cat([old_acceptation_temp, accepted.unsqueeze(0)])
+            self.acceptation_history = torch.cat([old_acceptation_history, accepted.unsqueeze(0)])
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{self.type}': nor 'pop' nor 'ind'.")

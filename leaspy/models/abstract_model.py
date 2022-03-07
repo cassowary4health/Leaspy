@@ -1,10 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
+import re
 import math
 from abc import ABC, abstractmethod
 import copy
 
 import torch
+from torch._tensor_str import PRINT_OPTS as torch_print_opts
 
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
@@ -77,7 +80,6 @@ class AbstractModel(ABC):
         method : str
             A custom method to initialize the model
         """
-        pass
 
     def load_parameters(self, parameters: KwargsType) -> None:
         """
@@ -105,7 +107,6 @@ class AbstractModel(ABC):
         :exc:`.LeaspyModelInputError`
             If any of the consistency checks fail.
         """
-        pass
 
     @classmethod
     def _raise_if_unknown_hyperparameters(cls, known_hps: Iterable[str], given_hps: KwargsType) -> None:
@@ -129,7 +130,6 @@ class AbstractModel(ABC):
         **kwargs
             Keyword arguments for json.dump method.
         """
-        pass
 
     def compute_sum_squared_per_ft_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
                                               attribute_type=None) -> torch.FloatTensor:
@@ -427,7 +427,6 @@ class AbstractModel(ABC):
             Contains the subject's ages computed at the given values(s)
             Shape of tensor is (n_values, 1)
         """
-        pass
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
@@ -448,7 +447,6 @@ class AbstractModel(ABC):
         -------
         :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features)
         """
-        pass
 
     @abstractmethod
     def compute_jacobian_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
@@ -457,6 +455,10 @@ class AbstractModel(ABC):
         Compute the jacobian of the model w.r.t. each individual parameter.
 
         This function aims to be used in :class:`.ScipyMinimize` to speed up optimization.
+
+        TODO: as most of numerical operations are repeated when computing model & jacobian,
+              we should create a single method that is able to compute model & jacobian "together" (= efficiently)
+              when requested with a flag for instance.
 
         Parameters
         ----------
@@ -471,7 +473,6 @@ class AbstractModel(ABC):
         -------
         dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
         """
-        pass
 
     def compute_individual_attachment_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
                                                  attribute_type) -> torch.FloatTensor:
@@ -538,7 +539,6 @@ class AbstractModel(ABC):
         data : :class:`.Dataset`
         realizations : :class:`.CollectionRealization`
         """
-        pass
 
     @abstractmethod
     def update_model_parameters_normal(self, data: Dataset, suff_stats: DictParamsTorch) -> None:
@@ -550,7 +550,6 @@ class AbstractModel(ABC):
         data : :class:`.Dataset`
         suff_stats : dict[suff_stat: str, :class:`torch.Tensor`]
         """
-        pass
 
     @abstractmethod
     def compute_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> DictParamsTorch:
@@ -566,7 +565,6 @@ class AbstractModel(ABC):
         -------
         dict[suff_stat: str, :class:`torch.Tensor`]
         """
-        pass
 
     def get_population_realization_names(self) -> List[str]:
         """
@@ -591,9 +589,25 @@ class AbstractModel(ABC):
                 if value['type'] == 'individual']
 
     def __str__(self):
-        output = "=== MODEL ===\n"
-        for key in self.parameters.keys():
-            output += f"{key} : {self.parameters[key]}\n"
+        output = "=== MODEL ==="
+        for p, v in self.parameters.items():
+            if isinstance(v, float) or (hasattr(v, 'ndim') and v.ndim == 0):
+                # for 0D tensors / arrays the default behavior is to print all digits...
+                # change this!
+                v_repr = f'{v:.{1+torch_print_opts.precision}g}'
+            else:
+                # torch.tensor, np.array, ...
+                # in particular you may use `torch.set_printoptions` and `np.set_printoptions` globally
+                # to tune the number of decimals when printing tensors / arrays
+                v_repr = str(v)
+                # remove tensor prefix & possible dtype suffix
+                v_repr = re.sub(r'^[^\(]+\(', '', v_repr)
+                v_repr = re.sub(r'(?:, dtype=.+)?\)$', '', v_repr)
+                # adjust justification
+                spaces = " "*len(f"{p} : [")
+                v_repr = re.sub(r'\n[ ]+\[', f'\n{spaces}[', v_repr)
+
+            output += f"\n{p} : {v_repr}"
         return output
 
     def compute_regularity_realization(self, realization: Realization):
@@ -637,7 +651,7 @@ class AbstractModel(ABC):
         """
         return -self.regularization_distribution_factory(mean, std).log_prob(value)
 
-    def initialize_realizations_for_model(self, n_individuals: int, **kwargs) -> CollectionRealization:
+    def initialize_realizations_for_model(self, n_individuals: int, **init_kws) -> CollectionRealization:
         """
         Initialize a :class:`.CollectionRealization` used during model fitting or mode/mean realization personalization.
 
@@ -645,16 +659,16 @@ class AbstractModel(ABC):
         ----------
         n_individuals : int
             Number of individuals to track
-        **kwargs
+        **init_kws
             Keyword arguments passed to :meth:`.CollectionRealization.initialize`.
-            (In particular `scale_individual` to "initialize from values")
+            (In particular `individual_variable_init_at_mean` to "initialize at mean" or `skip_variable` to filter some variables)
 
         Returns
         -------
         :class:`.CollectionRealization`
         """
         realizations = CollectionRealization()
-        realizations.initialize(n_individuals, self, **kwargs)
+        realizations.initialize(n_individuals, self, **init_kws)
         return realizations
 
     @abstractmethod
@@ -678,7 +692,6 @@ class AbstractModel(ABC):
                 When not defined, sampler will rely on scales estimated at model initialization.
                 cf. :class:`~leaspy.algo.utils.samplers.GibbsSampler`
         """
-        pass
 
     def smart_initialization_realizations(self, data: Dataset, realizations: CollectionRealization) -> CollectionRealization:
         """

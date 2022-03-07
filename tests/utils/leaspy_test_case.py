@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 from unittest import TestCase
 from unittest.mock import patch
@@ -233,10 +234,9 @@ class LeaspyTestCase(TestCase):
             return f"{obj:.{1+PRINT_OPTIONS['precision']}g}"
         else:
             # try to cast object as numpy array so representation is nicer
-            obj_casted = cls.try_cast_as_numpy_array(obj)
+            obj_casted_repr = repr(cls.try_cast_as_numpy_array(obj))
 
-            # we use `str`, and not `repr`, to be shorter (no information on type)
-            return str(obj_casted)
+            return re.sub(r'^[^\(]+\((\[.+\])(?:, dtype=[^\)]+)?\)$', r'\1', obj_casted_repr)
 
     @classmethod
     def is_equal_or_almost_equal(cls, left: Any, right: Any, *,
@@ -383,6 +383,10 @@ class LeaspyTestCase(TestCase):
         return errs
 
     #### CUSTOM ASSERT METHODS for TestCase ####
+
+    def assertAllClose(self, left: Any, right: Any, *, what = 'val', **kws):
+        """Encapsulate in a dict to benefit from `assertDictAlmostEqual`"""
+        return self.assertDictAlmostEqual({what: left}, {what: right}, **kws)
 
     def assertDictAlmostEqual(self, left: dict, right: dict, *,
                               left_desc: str = 'new', right_desc: str = 'expected',

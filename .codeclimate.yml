@@ -100,4 +100,7 @@ plugins:
       - BUG
       - HACK
       - XXX
-      #- TODO
+      - BUGFIX
+      - DEBUG
+      - TMP
+      - TODO

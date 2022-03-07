@@ -65,7 +65,7 @@ class Realization:
         realization.tensor_realizations = tensor_realization.clone().detach()
         return realization
 
-    def initialize(self, n_individuals: int, model: AbstractModel, scale_individual: float = 1.0):
+    def initialize(self, n_individuals: int, model: AbstractModel, *, individual_variable_init_at_mean: bool = False):
         """
         Initialize realization from a given model.
 
@@ -75,9 +75,10 @@ class Realization:
             Number of individuals
         model : :class:`.AbstractModel`
             The model you want realizations for.
-        scale_individual : float > 0
-            Multiplicative factor to scale the std-dev of individual parameters.
-            It is useful to really initialize individual parameters around previous values.
+        individual_variable_init_at_mean : bool (default False)
+            If True: individual variable will be initialized at its mean (from model parameters)
+            Otherwise: individual variable will be a random draw from a Gaussian distribution
+            with loc and scale parameter from model parameters.
 
         Raises
         ------
@@ -88,9 +89,12 @@ class Realization:
         if self.variable_type == "population":
             self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
         elif self.variable_type == 'individual':
-            distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
-                                                             scale=scale_individual * model.parameters[f"{self.name}_std"])
-            self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
+            if individual_variable_init_at_mean:
+                self._tensor_realizations = model.parameters[f"{self.name}_mean"] * torch.ones((n_individuals, *self.shape))
+            else:
+                distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
+                                                                scale=model.parameters[f"{self.name}_std"])
+                self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{self.variable_type}'.")
 
@@ -113,7 +117,7 @@ class Realization:
     def __str__(self):
         s = f"Realization of {self.name}\n"
         s += f"Shape : {self.shape}\n"
-        s += f"Variable type : {self.variable_type}\n"
+        s += f"Variable type : {self.variable_type}"
         return s
 
     def set_autograd(self):

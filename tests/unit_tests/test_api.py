@@ -32,6 +32,9 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
             self.check_model_factory_constructor(leaspy.model)
 
+            with self.assertRaisesRegex(ValueError, 'not been initialized'):
+                leaspy.check_if_initialized()
+
         for noise_model in NoiseModel.VALID_NOISE_STRUCTS:
             leaspy = Leaspy('logistic', noise_model=noise_model)
             self.assertEqual(leaspy.type, 'logistic')

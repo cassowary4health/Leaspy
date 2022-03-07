@@ -73,7 +73,7 @@ class LMEModelAPITest(LeaspyTestCase):
         settings = AlgorithmSettings('lme_fit')
         self.assertDictEqual(settings.parameters, self.default_lme_fit_params)
 
-        lsp.fit(self.data, settings)
+        lsp.calibrate(self.data, settings)  # test alias of fit once here (random)...
 
         self.assertListEqual(lsp.model.features, ['Y0'])
         self.assertEqual(lsp.model.with_random_slope_age, False)
@@ -162,9 +162,9 @@ class LMEModelAPITest(LeaspyTestCase):
         ).fit(method='lbfgs', **fit_kws)
 
         # pop effects
-        self.assertTrue( np.allclose(lmm_test.fe_params, model_params['fe_params']) )
-        self.assertTrue( np.allclose(lmm_test.cov_re, model_params['cov_re']) )
-        self.assertTrue( np.allclose(lmm_test.scale**.5, model_params['noise_std']) )
+        self.assertAllClose(lmm_test.fe_params, model_params['fe_params'], what='fe_params')
+        self.assertAllClose(lmm_test.cov_re, model_params['cov_re'], what='cov_re')
+        self.assertAllClose(lmm_test.scale**.5, model_params['noise_std'], what='scale')
 
         # ind effects
         sm_ranef = lmm_test.random_effects

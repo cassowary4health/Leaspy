@@ -1,4 +1,4 @@
-__version__ = '1.2.1rc1'
+__version__ = '1.3.0'
 
 dtype = 'float32'
 

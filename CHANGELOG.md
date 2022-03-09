@@ -5,10 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [1.2.1] - 2022-01-13
+## [1.3.0] - 2022-03-09
 - [FIX] Fix critical regression on `AlgorithmSettings.save`
 - [FIX] Fix some presentation issues with convergence plots
-- [FIX/FEAT] Raise a LeaspyConvergenceError if variances of params collapse to zero
+- [FIX/FEAT] Raise a `LeaspyConvergenceError` if variances of params collapse to zero
 - [FIX] Improve and robustify `AlgorithmSettings.set_logs`
 - [FIX] `AlgorithmSettings` dict parameters are now recursively merged with defaults parameters
 - [FIX] Fix 'mode_real' and 'mean_real' personalization algorithms (bug with initial temperature / annealing)
@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - [FEAT] Hyper-parameters of the samplers can now be tuned in the 'mcmc_saem', 'mode_real' and 'mean_real' algorithms
 - [FEAT] The `n_burn_in_iter_frac` and `annealing.n_iter_frac` parameters were introduced to dynamically adjust the fraction of iterations independently of `n_iter` parameter (for 'mcmc_saem', 'mode_real' and 'mean_real')
 - [FEAT] The computed RMSE at end of fit with Bernoulli noise model is now per feature
+- [FEAT] More models / individual parameters in `leaspy.Loader`
 - [DOC] Improve documentation & add a docstrings validator
 - [CHORE] Clean-up code & tests
 - [TESTS] Much more functional tests for all the models & personalization algorithms supported

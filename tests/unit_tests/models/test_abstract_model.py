@@ -86,7 +86,7 @@ class AbstractModelTest(LeaspyTestCase):
                 for method in methods:
                     extra_kws = dict() # not for all algos
                     if '_real' in method:
-                        extra_kws = dict(n_iter=100, n_burn_in_iter=90)
+                        extra_kws = dict(n_iter=100)
                     settings = AlgorithmSettings(method, seed=0, **extra_kws)
                     result = leaspy.personalize(data, settings)
 
@@ -110,7 +110,7 @@ class AbstractModelTest(LeaspyTestCase):
                 for method in ['scipy_minimize']:
                     extra_kws = dict() # not for all algos
                     if '_real' in method:
-                        extra_kws = dict(n_iter=100, n_burn_in_iter=90)
+                        extra_kws = dict(n_iter=100)
                     settings = AlgorithmSettings(method, seed=0, **extra_kws)
                     result = leaspy.personalize(data, settings)
 

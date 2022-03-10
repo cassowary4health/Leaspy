@@ -77,6 +77,23 @@ class TestAlgoFactory(LeaspyTestCase):
                 algo = AlgoFactory.algo(algo_family, settings)
                 self.assertEqual(algo.algo_parameters['n_burn_in_iter'], 800)
 
+                # priority case, with warning
+                settings = AlgorithmSettings(algo_name, n_burn_in_iter=42)
+                with self.assertWarns(FutureWarning):  # warn because n_burn_in_iter_frac is not None
+                    algo = AlgoFactory.algo(algo_family, settings)
+                self.assertEqual(algo.algo_parameters['n_burn_in_iter'], 42)
+
+                # explicit `n_burn_in_iter_frac=None` (no warning)
+                settings = AlgorithmSettings(algo_name, n_burn_in_iter=314, n_burn_in_iter_frac=None)
+                algo = AlgoFactory.algo(algo_family, settings)
+                self.assertEqual(algo.algo_parameters['n_burn_in_iter'], 314)
+
+                # error case (both n_burn_in_iter_frac & n_burn_in_iter are None)
+                settings = AlgorithmSettings(algo_name, n_burn_in_iter_frac=None)
+                with self.assertRaises(ValueError):
+                    AlgoFactory.algo(algo_family, settings)
+
+
     def test_auto_annealing(self):
 
         default_settings = AlgorithmSettings('mcmc_saem')
@@ -92,21 +109,33 @@ class TestAlgoFactory(LeaspyTestCase):
 
         settings = AlgorithmSettings('mcmc_saem', n_iter=1000)
         algo = AlgoFactory.algo('fit', settings)
-
         self.assertEqual(algo.algo_parameters['annealing']['n_iter'], None)
 
         # also test new partial dictionary behavior for annealing
         settings = AlgorithmSettings('mcmc_saem', n_iter=1001, annealing=dict(do_annealing=True))
         algo = AlgoFactory.algo('fit', settings)
-
         self.assertEqual(algo.algo_parameters['annealing']['n_iter'], int(default_annealing_iter_frac*1001))
 
         settings = AlgorithmSettings('mcmc_saem', annealing=dict(do_annealing=True, n_iter_frac=.40001))
         algo = AlgoFactory.algo('fit', settings)
-
         self.assertEqual(algo.algo_parameters['annealing']['n_iter'], int(default_n_iter*.4))
 
         settings = AlgorithmSettings('mcmc_saem', n_iter=1000, annealing=dict(do_annealing=True, n_iter_frac=.3))
         algo = AlgoFactory.algo('fit', settings)
-
         self.assertEqual(algo.algo_parameters['annealing']['n_iter'], 300)
+
+        # priority case, with warning
+        settings = AlgorithmSettings('mcmc_saem', annealing=dict(do_annealing=True, n_iter=42))
+        with self.assertWarns(FutureWarning):  # warn because annealing.n_iter_frac is not None
+            algo = AlgoFactory.algo('fit', settings)
+        self.assertEqual(algo.algo_parameters['annealing']['n_iter'], 42)
+
+        # explicit `n_burn_in_iter_frac=None` (no warning)
+        settings = AlgorithmSettings('mcmc_saem', annealing=dict(do_annealing=True, n_iter=314, n_iter_frac=None))
+        algo = AlgoFactory.algo('fit', settings)
+        self.assertEqual(algo.algo_parameters['annealing']['n_iter'], 314)
+
+        # error case (both n_burn_in_iter_frac & n_burn_in_iter are None)
+        settings = AlgorithmSettings('mcmc_saem', annealing=dict(do_annealing=True, n_iter_frac=None))
+        with self.assertRaises(ValueError):
+            AlgoFactory.algo('fit', settings)

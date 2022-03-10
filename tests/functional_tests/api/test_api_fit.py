@@ -1,19 +1,21 @@
 import os
 import warnings
 import json
-
+import unittest
 import torch
 
 from leaspy import Leaspy
 
-from tests import LeaspyTestCase
+from tests.unit_tests.plots.test_plotter import MatplotlibTestCase
 
 
-class LeaspyFitTest_Mixin(LeaspyTestCase):
+class LeaspyFitTest_Mixin(MatplotlibTestCase):
     """Mixin holding generic fit methods that may be safely reused in other tests (no actual test here)."""
 
     def generic_fit(self, model_name: str, model_codename: str, *,
                     algo_name='mcmc_saem', algo_params: dict = {},
+                    # change default parameters for logs so everything is tested despite the very few iterations in tests
+                    logs_kws: dict = dict(console_print_periodicity=50, save_periodicity=20, plot_periodicity=100),
                     print_model: bool = False,
                     check_model: bool = True, check_kws: dict = {},
                     save_model: bool = False,
@@ -29,6 +31,12 @@ class LeaspyFitTest_Mixin(LeaspyTestCase):
         # create the fit algo settings
         algo_settings = self.get_algo_settings(name=algo_name, **algo_params)
 
+        # set logs by default
+        if logs_kws is not None:
+            auto_path_logs = self.get_test_tmp_path(f'{model_codename}-logs')
+            with self.assertWarnsRegex(UserWarning, r" does not exist\. Needed paths will be created"):
+                algo_settings.set_logs(path=auto_path_logs, **logs_kws)
+
         # calibrate model
         leaspy.fit(data, settings=algo_settings)
 
@@ -38,16 +46,21 @@ class LeaspyFitTest_Mixin(LeaspyTestCase):
 
         # path to expected
         expected_model_path = self.from_fit_model_path(model_codename)
+        inexistant_model = not os.path.exists(expected_model_path)
 
         # check that values in already saved file are same than the ones in fitted model
         if check_model:
-            self.check_model_consistency(leaspy, expected_model_path, **check_kws)
+            if inexistant_model:
+                warnings.warn(f"<!> Consistency of model could not be checked since '{model_codename}' did not exist...")
+            else:
+                self.check_model_consistency(leaspy, expected_model_path, **check_kws)
 
         ## set `save_model=True` to re-generate example model
-        ## <!> use carefully (only when needed following breaking changes in model)
-        if save_model:
-            leaspy.save(expected_model_path, indent=2)
-            warnings.warn(f'<!> You overwrote previous model in "{expected_model_path}"...')
+        ## <!> use carefully (only when needed following breaking changes in model / calibration)
+        if save_model or inexistant_model:
+            leaspy.save(expected_model_path)
+            if save_model:
+                warnings.warn(f"<!> You overwrote previous '{model_codename}' model...")
 
         # return leaspy & data objects
         return leaspy, data
@@ -55,7 +68,7 @@ class LeaspyFitTest_Mixin(LeaspyTestCase):
     def check_model_consistency(self, leaspy: Leaspy, path_to_backup_model: str, **allclose_kwds):
         # Temporary save parameters and check consistency with previously saved model
 
-        path_to_tmp_saved_model = self.test_tmp_path(os.path.basename(path_to_backup_model))
+        path_to_tmp_saved_model = self.get_test_tmp_path(os.path.basename(path_to_backup_model))
         leaspy.save(path_to_tmp_saved_model)
 
         with open(path_to_backup_model, 'r') as f1:
@@ -72,162 +85,154 @@ class LeaspyFitTest_Mixin(LeaspyTestCase):
 
         self.assertDictAlmostEqual(model_parameters_new, expected_model_parameters, **allclose_kwds)
 
+        ## test consistency of model attributes (only mixing matrix here)
+        expected_model = Leaspy.load(path_to_backup_model).model
+        if expected_model.dimension != 1:
+            self.assertAllClose(expected_model.attributes.mixing_matrix, expected_model_parameters['parameters']['mixing_matrix'],
+                                rtol=1e-4, atol=1e-6, what='mixing_matrix')
 
-# Weirdly, some results are perfectly reproducible on local mac + CI linux but not on CI mac...
-# Increasing tolerances so to pass despite these reproducibility issues...
 class LeaspyFitTest(LeaspyFitTest_Mixin):
-
-    """
-    # Etienne, 2021/12/01:
-    # I disable many `check_model` (newly introduced) in following tests as values hardcoded in tests & in files diverged
-    # an option should be to (i) remove those hardcoded values (error-prone) and (ii) re-generate saved model parameters
-    # and (iii) check that all tests are passing on different architectures and packages dependencies (with sufficient tolerance)
-    # <!> there are hints indicating that there was a reproducibility gap after PyTorch >= 1.7
-    """
+    # <!> reproducibility gap for PyTorch >= 1.7, only those are supported now
 
     # Test MCMC-SAEM
-    def test_fit_logistic_scalar_noise(self, tol=5e-2, tol_tau=2e-1):
+    def test_fit_logistic_scalar_noise(self):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=False,  # TODO: True when ready
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
-
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.8212, delta=tol_tau)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 4.5039, delta=tol_tau)
-        self.assertEqual(leaspy.model.parameters['xi_mean'], 0.0)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.9220, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1314, delta=tol)
-
-        diff_g = leaspy.model.parameters['g'] - torch.tensor([0.1262, 2.8975, 2.5396, 1.0504])
-        diff_v = leaspy.model.parameters['v0'] - torch.tensor([-4.2079, -4.9066, -4.9962, -4.1774])
-        diff_betas = leaspy.model.parameters['betas'] - torch.tensor(
-            [[ 0.0103, -0.0088],
-             [ 0.0072, -0.0046],
-             [-0.0488, -0.1117]])
-
-        self.assertAlmostEqual(torch.sum(diff_g**2).item(), 0.0, delta=tol**2)
-        self.assertAlmostEqual(torch.sum(diff_v**2).item(), 0.0, delta=tol**2)
-        self.assertAlmostEqual(torch.sum(diff_betas ** 2).item(), 0.0, delta=tol**2)
+                                     check_model=True)
 
     # Test MCMC-SAEM (1 noise per feature)
-    def test_fit_logistic_diag_noise(self, tol=6e-2, tol_tau=2e-1):
+    def test_fit_logistic_diag_noise(self):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=False,  # TODO: True when ready -> # <!> reproducibility gap for PyTorch >= 1.7?
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.5633, delta=tol_tau)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.0105, delta=tol_tau)
-        self.assertEqual(leaspy.model.parameters['xi_mean'], 0.0)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.7890, delta=tol)
+    def test_fit_logistic_diag_noise_with_custom_tuning_no_sources(self):
 
-        ## FIX PyTorch >= 1.7 values changed
-        torch_major, torch_minor, *_ = torch.__version__.split('.')
-        if (int(torch_major), int(torch_minor)) < (1, 7):
-            diff_g = leaspy.model.parameters['g'] - torch.tensor([0.0510, 2.8941, 2.5810, 1.1241])
-            diff_v = leaspy.model.parameters['v0'] - torch.tensor([-4.1882, -4.9868, -4.9800, -4.0447])
-            diff_betas = leaspy.model.parameters['betas'] - torch.tensor(
-                [[-0.0670, -0.0272],
-                [ 0.0340,  0.0115],
-                [ 0.0339, -0.0005]])
-            diff_noise = leaspy.model.parameters['noise_std'] - torch.tensor([0.1165, 0.0750, 0.0988, 0.2478])
-        else:
-            diff_g = leaspy.model.parameters['g'] - torch.tensor([0.0379, 2.8926, 2.5623, 1.1620])
-            diff_v = leaspy.model.parameters['v0'] - torch.tensor([-4.0076, -4.8284, -4.8279, -3.8997])
-            diff_betas = leaspy.model.parameters['betas'] - torch.tensor(
-                [[-0.0445, -0.0331],
-                [ 0.0110,  0.0106],
-                [ 0.0413, -0.0049]])
-            diff_noise = leaspy.model.parameters['noise_std'] - torch.tensor([0.1153, 0.0764, 0.1011, 0.2355])
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_custom',
+                                     noise_model='gaussian_diagonal', source_dimension=0,
+                                     algo_params=dict(
+                                         n_iter=100,
+                                         burn_in_step_power=0.65,
+                                         sampler_pop_params=dict(
+                                             acceptation_history_length=10,
+                                             mean_acceptation_rate_target_bounds=(.1, .5),
+                                             adaptive_std_factor=0.1,
+                                         ),
+                                         sampler_ind_params=dict(
+                                             acceptation_history_length=10,
+                                             mean_acceptation_rate_target_bounds=(.1, .5),
+                                             adaptive_std_factor=0.1,
+                                         ),
+                                         annealing=dict(
+                                             initial_temperature=5.,
+                                             do_annealing=True,
+                                             n_plateau=2,
+                                         ),
+                                         seed=0,
+                                     ),
+                                     check_model=True)
 
-        self.assertAlmostEqual(torch.sum(diff_g**2).item(), 0.0, delta=tol) # tol**2
-        self.assertAlmostEqual(torch.sum(diff_v**2).item(), 0.0, delta=tol) # tol**2
-        self.assertAlmostEqual(torch.sum(diff_noise**2).item(), 0.0, delta=tol) # tol**2
-        self.assertAlmostEqual(torch.sum(diff_betas ** 2).item(), 0.0, delta=tol ** 2)
-
-    def test_fit_logistic_parallel(self, tol=1e-2):
+    def test_fit_logistic_parallel(self):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=False,  # TODO: True when ready
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-        self.assertAlmostEqual(leaspy.model.parameters['g'], 1.6102, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 77.9064, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.3658, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.6563, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.5822, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1576, delta=tol)
-
-        diff_deltas = leaspy.model.parameters['deltas'] - torch.tensor([-0.0848, -0.0065, -0.0105])
-        self.assertAlmostEqual(torch.sum(diff_deltas ** 2).item(), 0.0, delta=tol**2)
-
-    def test_fit_logistic_parallel_diag_noise(self, tol=1e-2):
+    def test_fit_logistic_parallel_diag_noise(self):
 
         leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=False,  # TODO: True when ready
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-        self.assertAlmostEqual(leaspy.model.parameters['g'], 1.6642, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.9500, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.0987, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.3786, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.7675, delta=tol)
+    def test_fit_logistic_parallel_diag_noise_no_source(self):
 
-        diff_deltas = leaspy.model.parameters['deltas'] - torch.tensor([-0.0597, -0.1301,  0.0157])
-        diff_noise = leaspy.model.parameters['noise_std'] - torch.tensor([0.1183, 0.0876, 0.1062, 0.2631])
-        self.assertAlmostEqual(torch.sum(diff_deltas ** 2).item(), 0.0, delta=tol**2)
-        self.assertAlmostEqual(torch.sum(diff_noise**2).item(), 0.0, delta=tol**2)
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise_no_source', noise_model='gaussian_diagonal', source_dimension=0,
+                                     algo_params=dict(n_iter=100, seed=0),
+                                     check_model=True)
 
-    def test_fit_univariate_logistic(self, tol=1e-2):
+    def test_fit_univariate_logistic(self):
 
         leaspy, _ = self.generic_fit('univariate_logistic', 'univariate_logistic',
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-        self.assertAlmostEqual(leaspy.model.parameters['g'], 0.1102, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.2246, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.5927, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.1730, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.4896, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1307, delta=tol)
-
-    def test_fit_univariate_linear(self, tol=1e-2):
+    def test_fit_univariate_linear(self):
 
         leaspy, _ = self.generic_fit('univariate_linear', 'univariate_linear',
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_kws=dict(atol=tol))
+                                     check_model=True)
 
-        self.assertAlmostEqual(leaspy.model.parameters['g'], 0.4936, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.3471, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 5.2568, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], -3.9552, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 0.8314, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1114, delta=tol)
-
-    def test_fit_linear(self, tol=1e-1, tol_tau=2e-1):
+    def test_fit_linear(self):
 
         leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
-                                     check_model=False,  # TODO: True when ready
-                                     check_kws=dict(atol=tol, allclose_custom={'tau_mean': dict(atol=tol_tau),
-                                                                               'tau_std': dict(atol=tol_tau)}))
+                                     check_model=True)
 
-        self.assertAlmostEqual(leaspy.model.parameters['tau_mean'], 78.7079, delta=tol_tau)
-        self.assertAlmostEqual(leaspy.model.parameters['tau_std'], 4.8328, delta=tol_tau)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_mean'], 0.0, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['xi_std'], 1.0, delta=tol)
-        self.assertAlmostEqual(leaspy.model.parameters['noise_std'], 0.1401, delta=tol)
+    def test_fit_linear_diag_noise(self):
 
-        diff_g = leaspy.model.parameters['g'] - torch.tensor([0.4539, 0.0515, 0.0754, 0.2751])
-        diff_v = leaspy.model.parameters['v0'] - torch.tensor([-4.2557, -4.7875, -4.9763, -4.1410])
-        self.assertAlmostEqual(torch.sum(diff_g**2).item(), 0.0, delta=tol) # tol**2
-        self.assertAlmostEqual(torch.sum(diff_v**2).item(), 0.0, delta=tol) # tol**2
+        leaspy, _ = self.generic_fit('linear', 'linear_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0),
+                                     check_model=True)
+
+    def test_fit_logistic_binary(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_binary', noise_model='bernoulli', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0),
+                                     check_model=True)
+
+    def test_fit_logistic_parallel_binary(self):
+
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_binary', noise_model='bernoulli', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0),
+                                     check_model=True)
+
+@unittest.skipIf(not torch.cuda.is_available(),
+                "GPU calibration tests need an available CUDA environment")
+class LeaspyFitGPUTest(LeaspyFitTest_Mixin):
+
+    # Test MCMC-SAEM
+    def test_fit_logistic_scalar_noise(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True)
 
 
-    # TODO linear_diag_noise, logistic_binary
+    # Test MCMC-SAEM (1 noise per feature)
+    def test_fit_logistic_diag_noise(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_gpu', noise_model='gaussian_diagonal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True)
+
+    def test_fit_logisticparallel(self):
+
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True)
+
+    def test_fit_logisticparallel_diag_noise(self):
+
+        leaspy, _ = self.generic_fit('logistic_parallel', 'logistic_parallel_diag_noise_gpu', noise_model='gaussian_diagonal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True)
+
+    def test_fit_univariate_logistic(self):
+
+        leaspy, _ = self.generic_fit('univariate_logistic', 'univariate_logistic_gpu',
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True)
+
+    def test_fit_univariate_linear(self):
+
+        leaspy, _ = self.generic_fit('univariate_linear', 'univariate_linear_gpu',
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True)
+
+    def test_fit_linear(self):
+
+        leaspy, _ = self.generic_fit('linear', 'linear_scalar_noise_gpu', noise_model='gaussian_scalar', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, device='cuda'),
+                                     check_model=True)

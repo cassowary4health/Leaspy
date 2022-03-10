@@ -26,3 +26,11 @@ class AttributesFactoryTest(LeaspyTestCase):
         name_exemples = ['logistic', 'LogIStiC', 'LOGISTIC']
         for name in name_exemples:
             self.assertIsInstance(AttributesFactory.attributes(name, 4, 2), LogisticAttributes)
+
+    def test_bad_consistency_univariate_dim(self):
+
+        with self.assertRaisesRegex(ValueError, 'univariate'):
+           AttributesFactory.attributes(name='univariate_logistic', dimension=2, source_dimension=0)
+
+        with self.assertRaisesRegex(ValueError, 'univariate'):
+            AttributesFactory.attributes(name='logistic', dimension=1, source_dimension=0)

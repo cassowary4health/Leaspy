@@ -4,6 +4,9 @@ import doctest
 import leaspy.utils.docs as lsp_docs
 from leaspy.utils.docs import doc_with, doc_with_super
 
+from tests.utils import LeaspyTestCase
+
+
 class A:
 
     @classmethod
@@ -75,26 +78,59 @@ class C(A, B):
 def bar():
     return
 
-def test_doc_with():
+class TestDocstringUtils(LeaspyTestCase):
 
-    # doc_with
-    assert bar.__doc__.strip() == "Can't hear the *** `!?` since you're wordless. ***-"
+    def test_doc_with(self):
 
-    # doc_with_super
-    assert C.__doc__.strip() == "Class C"
+        # doc_with
+        self.assertEqual(bar.__doc__.strip(), "Can't hear the *** `!?` since you're wordless. ***-")
 
-    assert C.foo.__doc__.strip() == "Can't say the word `less` since I'm wordless. Word-"
-    assert C.bar.__doc__.strip() == """Bar from C"""
+        # doc_with_super
+        self.assertEqual(C.__doc__, "Class C")
 
-    # not replaced methods (because not re-implemented at all)
-    assert C.cm.__doc__.strip() == "Class method of C"
-    assert C.sm.__doc__.strip() == "Static method of C"
-    assert C.m.__doc__.strip() == """Method for a C instance"""
+        self.assertEqual(C.foo.__doc__.strip(), "Can't say the word `less` since I'm wordless. Word-")
+        self.assertEqual(C.bar.__doc__, """Bar from C""")
 
-    # not replaced methods (because not re-implemented at all)
-    assert C.cm_bis.__doc__.strip() == "Class method of A (bis)"
-    assert C.sm_bis.__doc__.strip() == "Static method of A (bis)"
-    assert C.m_bis.__doc__.strip() == """Method for a A instance (bis)"""
+        # not replaced methods (because not re-implemented at all)
+        self.assertEqual(C.cm.__doc__, "Class method of C")
+        self.assertEqual(C.sm.__doc__, "Static method of C")
+        self.assertEqual(C.m.__doc__, """Method for a C instance""")
 
-    # test all examples contained in docstrings of any object of module
-    doctest.testmod(lsp_docs)
+        # not replaced methods (because not re-implemented at all)
+        self.assertEqual(C.cm_bis.__doc__, "Class method of A (bis)")
+        self.assertEqual(C.sm_bis.__doc__, "Static method of A (bis)")
+        self.assertEqual(C.m_bis.__doc__, """Method for a A instance (bis)""")
+
+        # test all examples contained in docstrings of any object of module
+        doctest.testmod(lsp_docs)
+
+    def test_behavior_when_signatures_mismatch(self):
+
+        class Super:
+            def mismatch_of_signature(x, *, y):
+                """Hello"""
+
+        with self.assertRaisesRegex(ValueError, 'has a different signature than its parent'):
+            @doc_with_super(if_other_signature='raise')
+            class Child(Super):
+                def mismatch_of_signature(x, y):
+                    ...
+
+        with self.assertWarnsRegex(UserWarning, 'has a different signature than its parent'):
+            @doc_with_super(if_other_signature='warn')
+            class Child(Super):
+                def mismatch_of_signature(x, *, y=None):
+                    ...
+        self.assertEqual(Child.mismatch_of_signature.__doc__, "Hello")
+
+        @doc_with_super(if_other_signature='skip')
+        class Child(Super):
+            def mismatch_of_signature(x, *, other_name):
+                ...
+        self.assertIsNone(Child.mismatch_of_signature.__doc__)
+
+        @doc_with_super(if_other_signature='force')
+        class Child(Super):
+            def mismatch_of_signature(x, *, other_name):
+                ...
+        self.assertEqual(Child.mismatch_of_signature.__doc__, "Hello")

@@ -108,7 +108,7 @@ class Dataset:
         self.n_visits_per_individual = [len(_.timepoints) for _ in data]
         self.n_visits_max = max(self.n_visits_per_individual) if self.n_visits_per_individual else 0  # handle case when empty dataset
 
-        values = torch.zeros((self.n_individuals, self.n_visits_max, self.dimension), dtype=torch.float32)
+        values = torch.zeros((self.n_individuals, self.n_visits_max, self.dimension))
         padding_mask = torch.zeros_like(values)
 
         # TODO missing values in mask ?
@@ -137,10 +137,10 @@ class Dataset:
         self.n_observations = self.n_observations_per_ft.sum().item()
 
     def _construct_timepoints(self, data: Data):
-        self.timepoints = torch.zeros([self.n_individuals, self.n_visits_max], dtype=torch.float32)
+        self.timepoints = torch.zeros((self.n_individuals, self.n_visits_max))
         nbs_vis = [len(_.timepoints) for _ in data]
         for i, nb_vis in enumerate(nbs_vis):
-            self.timepoints[i, 0:nb_vis] = torch.tensor(data[i].timepoints, dtype=torch.float32)
+            self.timepoints[i, 0:nb_vis] = torch.tensor(data[i].timepoints)
 
     def _compute_L2_norm(self):
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0,1)) # 1D tensor of shape (dimension,)
@@ -149,6 +149,11 @@ class Dataset:
     def get_times_patient(self, i: int) -> torch.FloatTensor:
         """
         Get ages for patient number ``i``
+
+        Parameters
+        ----------
+        i : int
+            The index of the patient (<!> not its identifier)
 
         Returns
         -------
@@ -159,20 +164,22 @@ class Dataset:
 
     def get_values_patient(self, i: int) -> torch.FloatTensor:
         """
-        Get values for patient number ``i``
+        Get values for patient number ``i``, with nans.
+
+        Parameters
+        ----------
+        i : int
+            The index of the patient (<!> not its identifier)
 
         Returns
         -------
         :class:`torch.Tensor`, shape (n_obs_of_patient, dimension)
             Contains float or nans
         """
-        values = self.values[i, :self.n_visits_per_individual[i], :]
-        # mask = self.mask[i].clone().cpu().detach().numpy()[:values.shape[0],:]
-        mask = self.mask[i].clone().cpu().detach()[:values.shape[0], :]
-        # mask[mask==0] = np.nan
-        mask[mask == 0] = float('NaN')
-        values_with_na = values * mask
-        return values_with_na
+        values_with_nans = self.values[i, :self.n_visits_per_individual[i], :].clone().detach()
+        nans = self.mask[i, :self.n_visits_per_individual[i], :] == 0
+        values_with_nans[nans] = float('nan')
+        return values_with_nans
 
     @staticmethod
     def _check_model_compatibility(data: Data, model: AbstractModel):
@@ -212,3 +219,18 @@ class Dataset:
         df.reset_index(inplace=True)
 
         return df
+
+    def move_to_device(self, device: torch.device) -> None:
+        """
+        Moves the dataset to the specified device.
+
+        Parameters
+        ----------
+        device : torch.device
+        """
+        for attribute_name in dir(self):
+            if attribute_name.startswith('__'):
+                continue
+            attribute = getattr(self, attribute_name)
+            if isinstance(attribute, torch.Tensor):
+                setattr(self, attribute_name, attribute.to(device))

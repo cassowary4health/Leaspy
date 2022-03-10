@@ -6,8 +6,8 @@ from leaspy import Leaspy, IndividualParameters
 
 dataset_all = ['alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen',
                'parkinson-putamen-train_and_test']
-model_all = ['parkinson-putamen-train']
-ip_all = ['parkinson-putamen-train']
+model_all = ['alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen-train']
+ip_all = ['alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen-train']
 
 module_path = os.path.dirname(__file__)
 data_paths = {dataset_name: os.path.join(module_path, 'data', dataset_name + '.csv') for dataset_name in dataset_all}
@@ -67,7 +67,7 @@ class Loader:
 
         * Index: a :class:`pandas.MultiIndex` - ``['ID', 'TIME']`` which contain IDs and timepoints. The `DataFrame` is sorted by index.
           So, one line corresponds to one visit for one subject. The `DataFrame` having `'train_and_test'` in their name
-          also have ``'SPLIT'`` as the third index level. It differenciate `train` and `test` data.
+          also have ``'SPLIT'`` as the third index level. It differentiate `train` and `test` data.
 
         * Columns: One column correspond to one feature (or score).
         """
@@ -86,7 +86,7 @@ class Loader:
 
         Parameters
         ----------
-        instance_name : {'parkinson-putamen-train'}
+        instance_name : {'alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen-train'}
             Name of the instance.
 
         Returns
@@ -104,7 +104,7 @@ class Loader:
 
         Parameters
         ----------
-        ip_name : {'parkinson-putamen-train'}
+        ip_name : {'alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen-train'}
             Name of the individual parameters.
 
         Returns

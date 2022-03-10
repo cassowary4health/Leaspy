@@ -91,8 +91,17 @@ def _get_attr_if_cond(attr_name: str, cond: Optional[Callable[[R], bool]] = None
         return attr if attr is None or cond is None or cond(attr) else None # lazy bool eval
     return getter
 
+def _get_function_parameters_without_type_annotations(f: Callable):
+    # we remove type hints of the parameters to check a loose equality between function input signature
+    # because often we will add type hints in super method but not in subclass methods (boring...)
+    s = inspect.signature(f)
+    params = [p.replace(annotation=inspect.Signature.empty) for p in s.parameters.values()]
+    # we also ignore positional only flag (essential from magic methods such __str__)
+    params = [p.replace(kind=inspect.Parameter.POSITIONAL_OR_KEYWORD) if p.kind is inspect.Parameter.POSITIONAL_ONLY else p for p in params]
+    return params
+
 #def doc_with_super(*, if_other_signature: Literal['force', 'warn', 'skip', 'raise'] = 'force', **doc_with_kwargs) -> Callable[[T], T]:
-def doc_with_super(*, if_other_signature: str = 'force', **doc_with_kwargs) -> Callable[[T], T]:
+def doc_with_super(*, if_other_signature: str = 'raise', **doc_with_kwargs) -> Callable[[T], T]:
     """
     Factory of class decorator that comment (in-place) all of its inherited methods without docstrings + its top docstring
     with the ones from its parent class (the first parent class with this method documented if multiple inheritance)
@@ -124,14 +133,15 @@ def doc_with_super(*, if_other_signature: str = 'force', **doc_with_kwargs) -> C
 
         # info on subclass method
         m_name = m.__qualname__
-        m_sign = inspect.signature(m)
+        m_sign = _get_function_parameters_without_type_annotations(m)
 
         def condition_on_super_method(super_m: Callable) -> bool:
             # ignore not documented methods
             if super_m.__doc__ is None:
                 return False
 
-            sign_is_same = inspect.signature(super_m) == m_sign
+            super_sign = _get_function_parameters_without_type_annotations(super_m)
+            sign_is_same = super_sign == m_sign
             if not sign_is_same:
                 if if_other_signature == 'warn':
                     warnings.warn(f'{m_name} has a different signature than its parent {super_m.__qualname__}, patching doc anyway.')
@@ -147,7 +157,7 @@ def doc_with_super(*, if_other_signature: str = 'force', **doc_with_kwargs) -> C
     # class decorator
     def wrapper(cls):
 
-        assert len(cls.__bases__) > 0, "Must be applied on a class inherinting from others..."
+        assert len(cls.__bases__) > 0, "Must be applied on a class inheriting from others..."
 
         # patch the class doc itself
         if cls.__doc__ is None:

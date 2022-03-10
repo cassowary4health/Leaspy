@@ -1,0 +1,13 @@
+{
+  "name": "mcmc_saem",
+  "seed": 42,
+  "parameters": {
+    "n_iter": 2000,
+    "n_burn_in_iter": 1700,
+    "sampler_pop": "Fake",
+    "sampler_pop_params": {
+      "acceptation_history_length": 50
+    },
+    "annealing": true
+  }
+}

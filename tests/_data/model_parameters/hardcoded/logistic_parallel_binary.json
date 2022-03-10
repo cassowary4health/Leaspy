@@ -1,0 +1,20 @@
+{
+  "leaspy_version": "1.2",
+  "name": "logistic_parallel",
+  "features": ["Y0", "Y1", "Y2", "Y3"],
+  "dimension": 4,
+  "source_dimension": 2,
+  "noise_model": "bernoulli",
+  "parameters": {
+    "g": 1.8,
+    "tau_mean": 78.1,
+    "tau_std": 7.0,
+    "deltas": [-0.6, -0.2, -0.4],
+    "xi_mean": -2.0,
+    "xi_std": 0.7,
+    "sources_mean": 0.0,
+    "sources_std": 1.0,
+    "noise_std": [0.07, 0.06, 0.08, 0.18],
+    "betas": [[0.1, -0.1], [0.5, -0.3], [0.3, 0.4]]
+  }
+}

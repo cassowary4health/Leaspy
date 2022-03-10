@@ -1,105 +1,50 @@
 import torch
 
-from leaspy.io.realizations.realization import Realization
-from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
-from leaspy.algo.utils.samplers import AlgoWithSamplersMixin
-from leaspy.io.outputs.individual_parameters import IndividualParameters
+from leaspy.algo.personalize.abstract_mcmc_personalize import AbstractMCMCPersonalizeAlgo
+from leaspy.utils.typing import DictParamsTorch
 
 
-class ModeReal(AlgoWithSamplersMixin, AbstractPersonalizeAlgo):
+class ModeReal(AbstractMCMCPersonalizeAlgo):
     """
-    Sampler based algorithm, individual parameters are derivated as the most frequent realization for `n_samples` samplings.
+    Sampler based algorithm, individual parameters are derived as the most frequent realization for `n_iter` samplings.
 
-    TODO many stuff is duplicated between this class & mean_real (& other mcmc stuff) --> refactorize???
+    TODO? we could derive some confidence intervals on individual parameters thanks to this personalization algorithm...
+
+    TODO: harmonize naming in paths realiSation vs. realiZation...
 
     Parameters
     ----------
     settings : :class:`.AlgorithmSettings`
         Settings of the algorithm.
     """
-
     name = 'mode_real'
 
-    def _initialize_annealing(self):
-        if self.algo_parameters['annealing']['do_annealing']:
-            if self.algo_parameters['annealing']['n_iter'] is None:
-                self.algo_parameters['annealing']['n_iter'] = int(self.algo_parameters['n_iter'] / 2)
+    def _compute_individual_parameters_from_samples_torch(self,
+            realizations: DictParamsTorch,
+            attachments: torch.FloatTensor,
+            regularities: torch.FloatTensor) -> DictParamsTorch:
+        """
+        Compute dictionary of individual parameters from stacked realizations, attachments and regularities.
 
-        # Etienne: This is misleading because it will be executed even if no annealing
-        self.temperature = self.algo_parameters['annealing']['initial_temperature']
-        self.temperature_inv = 1 / self.temperature
+        Parameters
+        ----------
+        realizations : dict[ind_var_name: str, `torch.FloatTensor` of shape (n_iter, n_individuals, *ind_var.shape)]
+            The stacked history of realizations for individual variables.
+        attachments : `torch.FloatTensor` of shape (n_iter, n_individuals)
+            The stacked history of attachments.
+        regularities : `torch.FloatTensor` of shape (n_iter, n_individuals)
+            The stacked history of regularities (sum on all individual variables / dimensions).
 
-    def _get_individual_parameters(self, model, data):
+        Returns
+        -------
+        dict[ind_var_name: str, `torch.FloatTensor` of shape (n_individuals, *ind_var.shape)]
+        """
+        # Indices of iterations where loss (= negative log-likelihood) was minimal
+        # (per individual, but tradeoff on ALL individual parameters)
+        indices_iter_best = torch.argmin(attachments + regularities, dim=0)  # shape (n_individuals,)
 
-        # Initialize realizations storage object
-        realizations_history = []
-
-        # Initialize samplers
-        self._initialize_samplers(model, data)
-
-        # Initialize annealing
-        self._initialize_annealing()
-
-        # initialize realizations
-        realizations = model.get_realization_object(data.n_individuals)
-        realizations.initialize_from_values(data.n_individuals, model)
-        # TODO: remove method ``realizations.initialize_from_values`` and add scale_individual parameter to
-        #  ``model.get_realization_object`` to be passed to ``realization.initialize``
-
-        # Gibbs sample n_iter times
-        for i in range(self.algo_parameters['n_iter']):
-            for key in realizations.reals_ind_variable_names:
-                self.samplers[key].sample(data, model, realizations, self.temperature_inv)
-
-            # Append current realizations if burn in is finished
-            if i > self.algo_parameters['n_burn_in_iter']:
-                realizations_history.append(realizations.copy())
-
-        # Get for each patient the realization that best fit
-        attachments = torch.stack(
-            [model.compute_individual_attachment_tensorized(data, model.get_param_from_real(realizations), "MCMC") for
-             realizations in realizations_history])
-
-        # Regularity
-        regularity = []
-        for realizations in realizations_history:
-            regularity_ind = 0
-            for var_ind in model.get_individual_variable_name():
-                regularity_ind += model.compute_regularity_realization(realizations[var_ind]).sum(dim=1)
-            regularity.append(regularity_ind)
-        regularity = torch.stack(regularity)
-
-
-        # Indices min
-        indices_min = torch.min(attachments+regularity, dim=0)
-
-        # Compute mode of n_iter realizations for each individual variable
-        mode_output = {}
-
-        ind_var_names = model.get_individual_variable_name()
-        infos = model.random_variable_informations()
-
-        for ind_var_name in ind_var_names:
-            mode_output[ind_var_name] = Realization.from_tensor(
-                ind_var_name,
-                infos[ind_var_name]["shape"],
-                "individual",
-                torch.stack(
-                    [realizations_history[indices_min[1][i]][ind_var_name].tensor_realizations[i].clone() for i, idx in
-                     enumerate(data.indices)]))
-
-        ind_parameters = model.get_param_from_real(
-            mode_output)  # TODO ordering between the ind variables, should not be the case
-
-        ### TODO : The following was adding for the conversion from Results to IndividualParameters. Everything should be changed
-
-        individual_parameters = IndividualParameters()
-        p_names = list(ind_parameters.keys())
-        n_sub = len(ind_parameters[p_names[0]])
-
-        for i in range(n_sub):
-            p_dict = {k: ind_parameters[k][i].numpy() for k in p_names}
-            p_dict = {k: v[0] if v.shape[0] == 1 else v.tolist() for k, v in p_dict.items()}
-            individual_parameters.add_individual_parameters(str(i), p_dict)
-
-        return individual_parameters
+        return {
+            ind_var_name: torch.stack([reals_var[ind_best_iter, ind]
+                                       for ind, ind_best_iter in enumerate(indices_iter_best)])
+            for ind_var_name, reals_var in realizations.items()
+        }

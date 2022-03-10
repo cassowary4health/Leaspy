@@ -44,12 +44,12 @@ class AbstractAttributes(ABC):
 
     def __init__(self, name: str, dimension: int = None, source_dimension: int = None):
 
-        if not isinstance(name, str):
-            raise LeaspyModelInputError("In model attributes, you must provide a string for the parameter `name`.")
+        if not (isinstance(name, str) and len(name)):
+            raise LeaspyModelInputError("In model attributes, you must provide a non-empty string for the parameter `name`.")
         self.name = name
 
-        if not isinstance(dimension, int):
-            raise LeaspyModelInputError("In model attributes, you must provide an integer for the parameter `dimension`.")
+        if not (isinstance(dimension, int) and dimension >= 1):
+            raise LeaspyModelInputError("In model attributes, you must provide an integer >= 1 for the parameter `dimension`.")
         self.dimension = dimension
         self.univariate = dimension == 1
 
@@ -70,10 +70,9 @@ class AbstractAttributes(ABC):
         -------
         Depends on the subclass, please refer to each specific class.
         """
-        pass
 
     @abstractmethod
-    def update(self, names_of_changes_values: Tuple[ParamType, ...], values: DictParamsTorch) -> None:
+    def update(self, names_of_changed_values: Tuple[ParamType, ...], values: DictParamsTorch) -> None:
         """
         Update model group average parameter(s).
 
@@ -89,7 +88,21 @@ class AbstractAttributes(ABC):
         :exc:`.LeaspyModelInputError`
             If `names_of_changed_values` contains unknown values to update.
         """
-        pass
+
+    def move_to_device(self, device: torch.device):
+        """
+        Move the tensor attributes of this class to the specified device.
+
+        Parameters
+        ----------
+        device : torch.device
+        """
+        for attribute_name in dir(self):
+            if attribute_name.startswith('__'):
+                continue
+            attribute = getattr(self, attribute_name)
+            if isinstance(attribute, torch.Tensor):
+                setattr(self, attribute_name, attribute.to(device))
 
     def _check_names(self, names_of_changed_values: Tuple[ParamType, ...]):
         """

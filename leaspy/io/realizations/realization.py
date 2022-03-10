@@ -62,10 +62,10 @@ class Realization:
         """
         # TODO : a check of shapes
         realization = cls(name, shape, variable_type)
-        realization._tensor_realizations = tensor_realization.clone().detach()
+        realization.tensor_realizations = tensor_realization.clone().detach()
         return realization
 
-    def initialize(self, n_individuals: int, model: AbstractModel, scale_individual: float = 1.0):
+    def initialize(self, n_individuals: int, model: AbstractModel, *, individual_variable_init_at_mean: bool = False):
         """
         Initialize realization from a given model.
 
@@ -75,8 +75,10 @@ class Realization:
             Number of individuals
         model : :class:`.AbstractModel`
             The model you want realizations for.
-        scale_individual : float > 0
-            Multiplicative factor to scale the std-dev as given by model parameters
+        individual_variable_init_at_mean : bool (default False)
+            If True: individual variable will be initialized at its mean (from model parameters)
+            Otherwise: individual variable will be a random draw from a Gaussian distribution
+            with loc and scale parameter from model parameters.
 
         Raises
         ------
@@ -87,10 +89,12 @@ class Realization:
         if self.variable_type == "population":
             self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
         elif self.variable_type == 'individual':
-
-            distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
-                                                             scale=scale_individual * model.parameters[f"{self.name}_std"])  # TODO change later, to have low variance when initialized
-            self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
+            if individual_variable_init_at_mean:
+                self._tensor_realizations = model.parameters[f"{self.name}_mean"] * torch.ones((n_individuals, *self.shape))
+            else:
+                distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
+                                                                scale=model.parameters[f"{self.name}_std"])
+                self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{self.variable_type}'.")
 
@@ -103,7 +107,7 @@ class Realization:
         # TODO, check that it is a torch tensor (not variable for example)
         self._tensor_realizations = tensor_realizations
 
-    def set_tensor_realizations_element(self, element, dim: int):
+    def set_tensor_realizations_element(self, element: torch.FloatTensor, dim: tuple[int, ...]):
         """
         Manually change the value (in-place) of `tensor_realizations` at dimension `dim`.
         """
@@ -111,23 +115,25 @@ class Realization:
         self._tensor_realizations[dim] = element
 
     def __str__(self):
-        str = f"Realization of {self.name}\n"
-        str += f"Shape : {self.shape}\n"
-        str += f"Variable type : {self.variable_type}\n"
-        return str
+        s = f"Realization of {self.name}\n"
+        s += f"Shape : {self.shape}\n"
+        s += f"Variable type : {self.variable_type}"
+        return s
 
     def set_autograd(self):
         """
         Set autograd for tensor of realizations
 
-        See Also
-        --------
-        torch.Tensor.requires_grad_
+        TODO remove? only in legacy code
 
         Raises
         ------
         :class:`ValueError`
             if inconsistent internal request
+
+        See Also
+        --------
+        torch.Tensor.requires_grad_
         """
         if not self._tensor_realizations.requires_grad:
             self._tensor_realizations.requires_grad_(True) # in-place
@@ -138,14 +144,16 @@ class Realization:
         """
         Unset autograd for tensor of realizations
 
-        See Also
-        --------
-        torch.Tensor.requires_grad_
+        TODO remove? only in legacy code
 
         Raises
         ------
         :class:`ValueError`
             if inconsistent internal request
+
+        See Also
+        --------
+        torch.Tensor.requires_grad_
         """
         if self._tensor_realizations.requires_grad_:
             #self._tensor_realizations = self._tensor_realizations.detach()
@@ -153,16 +161,14 @@ class Realization:
         else:
             raise ValueError("Realizations are already detached")
 
-    def copy(self):
+    def __deepcopy__(self, memo) -> Realization:
         """
-        Copy the Realization object
+        Deep-copy the Realization object (magic method invoked with using copy.deepcopy)
 
-        Notes
-        -----
-        From PyTorch :meth:`torch.Tensor.clone` doc:
-            Unlike copy_(), this function is recorded in the computation graph.
-            Gradients propagating to the cloned tensor will propagate to the original tensor.
+        It clones the underlying tensor and detach it from the computational graph
+
+        Returns
+        -------
+        `Realization`
         """
-        new_realization = Realization(self.name, self.shape, self.variable_type)
-        new_realization.tensor_realizations = self.tensor_realizations.clone()
-        return new_realization
+        return Realization.from_tensor(self.name, self.shape, self.variable_type, self.tensor_realizations)

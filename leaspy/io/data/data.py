@@ -10,8 +10,8 @@ from leaspy.io.data.individual_data import IndividualData
 from leaspy.exceptions import LeaspyDataInputError
 from leaspy.utils.typing import FeatureType, IDType, Dict, List
 
-# TODO : object data as logs ??? or a result object ? Because there could be ambiguetes here
-# TODO or find a good way to say thet there are individual parameters here ???
+# TODO : object data as logs ??? or a result object ? Because there could be ambiguities here
+# TODO or find a good way to say that there are individual parameters here ???
 
 
 class Data:
@@ -33,6 +33,11 @@ class Data:
     def get_by_idx(self, idx: IDType):
         """
         Get the :class:`~leaspy.io.data.individual_data.IndividualData` of a an individual identified by its ID.
+
+        Parameters
+        ----------
+        idx : IDType
+            The identifier of the patient you want to get the individual data.
 
         Returns
         -------
@@ -130,7 +135,7 @@ class Data:
         Returns
         -------
         :class:`pandas.DataFrame`
-            Contains the subjects's ID, age and scores (optional - and cofactors) for each timepoint.
+            Contains the subjects' ID, age and scores (optional - and cofactors) for each timepoint.
 
         Raises
         ------

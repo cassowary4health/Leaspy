@@ -254,7 +254,7 @@ class IndividualParameters:
 
     def get_std(self, parameter: ParamType):
         r"""
-        Returns the stardard deviation of a parameter across all patients
+        Returns the standard deviation of a parameter across all patients
 
         Parameters
         ----------
@@ -289,7 +289,6 @@ class IndividualParameters:
             Each row corresponds to one individual.
             The index corresponds to the individual index ('ID').
             The columns are the names of the parameters.
-
 
         Examples
         --------
@@ -331,9 +330,8 @@ class IndividualParameters:
         Parameters
         ----------
         df : :class:`pandas.DataFrame`
-            Dataframe of the invidual parameters. Each row must correspond to one individual. The index corresponds
+            Dataframe of the individual parameters. Each row must correspond to one individual. The index corresponds
             to the individual index. The columns are the names of the parameters.
-
 
         Returns
         -------
@@ -421,7 +419,6 @@ class IndividualParameters:
         pytorch_dict: dict[parameter:str, `torch.Tensor`]
             Dictionary of the individual parameters {parameter name: pytorch tensor of values across individuals}
 
-
         Examples
         --------
         Convert the individual parameters object into a dataframe
@@ -485,7 +482,7 @@ class IndividualParameters:
     @classmethod
     def load(cls, path: str):
         r"""
-        Static method that loads the individual parameters (json or csv) existing at the path locatio
+        Static method that loads the individual parameters (json or csv) existing at the path location
 
         Parameters
         ----------

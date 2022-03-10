@@ -250,7 +250,7 @@ class IndividualParametersTest(LeaspyTestCase):
 
         ip = self.ip
 
-        test_path = self.test_tmp_path("ip_save_csv_test.csv")
+        test_path = self.get_test_tmp_path("ip_save_csv_test.csv")
         ip._save_csv(test_path)
 
         with open(self.path_csv, 'r') as f1, open(test_path, 'r') as f2:
@@ -266,7 +266,7 @@ class IndividualParametersTest(LeaspyTestCase):
 
         ip = self.ip
 
-        test_path = self.test_tmp_path("ip_save_json_test.json")
+        test_path = self.get_test_tmp_path("ip_save_json_test.json")
         ip._save_json(test_path)
 
         with open(self.path_json, 'r') as f1, open(test_path, 'r') as f2:
@@ -312,9 +312,9 @@ class IndividualParametersTest(LeaspyTestCase):
 
         # Parameters
         ip = self.ip
-        path_json_test = self.test_tmp_path("ip_save_json_test.json")
-        path_csv_test = self.test_tmp_path("ip_save_csv_test.csv")
-        path_default = self.test_tmp_path("ip_save_default")
+        path_json_test = self.get_test_tmp_path("ip_save_json_test.json")
+        path_csv_test = self.get_test_tmp_path("ip_save_csv_test.csv")
+        path_default = self.get_test_tmp_path("ip_save_default")
 
         # Test json
         ip.save(path_json_test)

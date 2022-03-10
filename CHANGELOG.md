@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2022-03-09
+- [FIX] Fix critical regression on `AlgorithmSettings.save`
+- [FIX] Fix some presentation issues with convergence plots
+- [FIX/FEAT] Raise a `LeaspyConvergenceError` if variances of params collapse to zero
+- [FIX] Improve and robustify `AlgorithmSettings.set_logs`
+- [FIX] `AlgorithmSettings` dict parameters are now recursively merged with defaults parameters
+- [FIX] Fix 'mode_real' and 'mean_real' personalization algorithms (bug with initial temperature / annealing)
+- [PERF] Slightly improve performance of Gibbs samplers and fit algorithm
+- [PERF] Initial adaptative std-dev used in Gibbs samplers is now parameter dependent (i.e. scaled) to speed-up convergence
+- [FEAT] In `ScipyMinimize` algorithm, user can now tune parameters sent to `scipy.optimize.minimize` and customize how convergence issues are logged
+- [FEAT] Hyper-parameters of the samplers can now be tuned in the 'mcmc_saem', 'mode_real' and 'mean_real' algorithms
+- [FEAT] The `n_burn_in_iter_frac` and `annealing.n_iter_frac` parameters were introduced to dynamically adjust the fraction of iterations independently of `n_iter` parameter (for 'mcmc_saem', 'mode_real' and 'mean_real')
+- [FEAT] The computed RMSE at end of fit with Bernoulli noise model is now per feature
+- [FEAT] More models / individual parameters in `leaspy.Loader`
+- [DOC] Improve documentation & add a docstrings validator
+- [CHORE] Clean-up code & tests
+- [TESTS] Much more functional tests for all the models & personalization algorithms supported
+- [COMPAT] PyTorch >=1.7.1 is now required
+
 ## [1.2.0] - 2021-12-17
 - [CODE] Broad use of type annotations in Leaspy package
 - [COMPAT] As a consequence support of Python 3.6 is dropped

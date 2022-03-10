@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import torch
 
@@ -8,6 +8,14 @@ from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 
 from tests import LeaspyTestCase
+
+
+def torch_broadcast_shapes(*shapes: Tuple[int, ...]) -> Tuple[int, ...]:
+    """Placeholder for torch.broadcast_shapes which is only available in Pytorch >= 1.8"""
+    if hasattr(torch, 'broadcast_shapes'):
+        return torch.broadcast_shapes(*shapes)
+    else:
+        return torch.broadcast_tensors(*map(torch.empty, shapes))[0].shape
 
 
 class FakeModel:
@@ -60,7 +68,7 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
 
     def assertEqual(self, a, b):
         if isinstance(a, torch.Tensor):
-            self.assertTrue(torch.allclose(a, b))
+            self.assertAllClose(a, b)
         else:
             super().assertEqual(a, b)
 
@@ -194,7 +202,7 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
                 self.assertEqual(rv.loc, locs)
 
                 # shape is broadcasted between noise shape and locs shape <!>
-                expected_shape = torch.broadcast_shapes(locs.shape, scale.shape)
+                expected_shape = torch_broadcast_shapes(locs.shape, scale.shape)
 
                 self.assertEqual(nm.sample_around(locs).shape, expected_shape)
                 self.assertEqual(nm.sampler_around(locs)().shape, expected_shape)

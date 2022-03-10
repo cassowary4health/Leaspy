@@ -198,7 +198,9 @@ class GenericModel(ABC):
         Parameters
         ----------
         parameters : dict
-            Contains the model's parameters
+            Contains the model's parameters.
+        list_converter : callable
+            The function to convert list objects.
         """
 
         """
@@ -307,7 +309,7 @@ class GenericModel(ABC):
             json.dump(model_settings, fp, **kwargs)
 
     @abstractmethod
-    def compute_individual_trajectory(self, timepoints, individual_parameters, **kws) -> torch.Tensor:
+    def compute_individual_trajectory(self, timepoints, individual_parameters: dict) -> torch.Tensor:
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
 
@@ -315,11 +317,9 @@ class GenericModel(ABC):
         ----------
         timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
-        individual_parameters : dict
+        individual_parameters : dict[str, Any]
             Contains the individual parameters.
             Each individual parameter should be a scalar or array_like
-        **kws
-            extra model specific keyword-arguments
 
         Returns
         -------
@@ -327,7 +327,6 @@ class GenericModel(ABC):
             Contains the subject's scores computed at the given age(s)
             Shape of tensor is (1, n_tpts, n_features)
         """
-        ...
 
     def __str__(self):
 

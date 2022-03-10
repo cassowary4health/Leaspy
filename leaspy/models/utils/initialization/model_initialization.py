@@ -14,6 +14,10 @@ tau_std = 5.
 noise_std = .1
 sources_std = 1.
 
+def _torch_round(t: torch.FloatTensor, *, tol: float = 1 << 16) -> torch.FloatTensor:
+    # Round values to ~ 10**-4.8
+    return (t * tol).round() * (1./tol)
+
 def initialize_parameters(model, dataset, method="default"):
     """
     Initialize the model's group parameters given its name & the scores of all subjects.
@@ -65,7 +69,13 @@ def initialize_parameters(model, dataset, method="default"):
     else:
         raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
 
-    return parameters
+    # add a rounding step on the initial parameters to ensure full reproducibility
+    rounded_parameters = {
+        str(p): _torch_round(v)
+        for p, v in parameters.items()
+    }
+
+    return rounded_parameters
 
 
 def get_lme_results(dataset, n_jobs=-1, *,
@@ -378,6 +388,8 @@ def initialize_logistic_parallel(model, dataset, method):
 
     return {
         'g': g,
+        'deltas': torch.zeros((model.dimension - 1,), dtype=torch.float32),
+        'betas': betas,
         'tau_mean': t0,
         'tau_std': torch.tensor(tau_std, dtype=torch.float32),
         'xi_mean': v0,
@@ -385,8 +397,6 @@ def initialize_logistic_parallel(model, dataset, method):
         'sources_mean': torch.tensor(0., dtype=torch.float32),
         'sources_std': torch.tensor(sources_std, dtype=torch.float32),
         'noise_std': torch.tensor([noise_std], dtype=torch.float32),
-        'deltas': torch.zeros((model.dimension - 1,), dtype=torch.float32),
-        'betas': betas
     }
 
 
@@ -491,13 +501,16 @@ def initialize_linear(model, dataset, method):
 #    return 0
 
 
-def compute_patient_slopes_distribution(data, max_inds=None):
+def compute_patient_slopes_distribution(data, max_inds: int = None):
     """
     Linear Regression on each feature to get slopes
 
     Parameters
     ----------
     data : :class:`.Dataset`
+        The dataset to compute slopes from.
+    max_inds : int, optional (default None)
+        Restrict computation to first `max_inds` individuals.
 
     Returns
     -------

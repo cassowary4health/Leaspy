@@ -1,4 +1,4 @@
-from torch import tensor
+from torch import tensor, allclose
 
 from leaspy.datasets.loader import Loader
 
@@ -28,12 +28,18 @@ class LoaderTest(LeaspyTestCase):
 
     def test_load_leaspy_instance(self):
         """
-        Check ID and dtype of ID, TIME and values.
+        Check that all models are loadable, and check parameter values for one model.
         """
-        self.assertEqual(list(Loader().model_paths.keys()), ['parkinson-putamen-train'])
+        self.assertEqual(list(Loader().model_paths.keys()), ['alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen-train'])
+
+        for name in Loader().model_paths.keys():
+            leaspy_instance = Loader.load_leaspy_instance(name)
+            if 'multivariate' in name:
+                self.assertEqual(leaspy_instance.type, 'logistic')
+            else:
+                self.assertEqual(leaspy_instance.type, 'univariate_logistic')
 
         leaspy_instance = Loader.load_leaspy_instance('parkinson-putamen-train')
-        self.assertEqual(leaspy_instance.type, 'univariate_logistic')
         self.assertEqual(leaspy_instance.model.features, ['PUTAMEN'])
         self.assertEqual(leaspy_instance.model.noise_model, 'gaussian_scalar')
 
@@ -45,4 +51,19 @@ class LoaderTest(LeaspyTestCase):
                       "noise_std": tensor(0.021229960024356842)}
         self.assertEqual(leaspy_instance.model.parameters, parameters)
 
-    # TODO: add test for other methods
+    def test_load_individual_parameters(self):
+        """
+        Check that all ips are loadable, and check values for one individual_parameters
+        instance.
+        """
+        self.assertEqual(list(Loader().ip_paths.keys()), ['alzheimer-multivariate', 'parkinson-multivariate', 'parkinson-putamen-train'])
+
+        for name in Loader().ip_paths.keys():
+            ip = Loader.load_individual_parameters(name)
+
+        ip = Loader.load_individual_parameters('alzheimer-multivariate')
+
+        self.assertAlmostEqual(ip.get_mean('tau'), 76.9612791442871)
+        self.assertAlmostEqual(ip.get_mean('xi'), 0.0629326763143763)
+        self.assertAllClose(ip.get_mean('sources'),
+                            [0.003150840562302619, -0.02109330625506118], what='sources.mean')

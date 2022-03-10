@@ -270,3 +270,4 @@ Internal classes used for random variables in MCMC algorithms.
     LeaspyModelInputError
     LeaspyAlgoInputError
     LeaspyIndividualParamsInputError
+    LeaspyConvergenceError

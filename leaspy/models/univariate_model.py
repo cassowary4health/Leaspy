@@ -9,6 +9,7 @@ from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.models.utils.noise_model import NoiseModel
 
+from leaspy.utils.typing import Optional
 from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
@@ -126,23 +127,26 @@ class UnivariateModel(AbstractModel):
         self.parameters = initialize_parameters(self, dataset, method)
 
         self.attributes = AttributesFactory.attributes(self.name, dimension=1)
-        self.attributes.update(['all'], self.parameters)
+
+        # Postpone the computation of attributes when really needed!
+        #self.attributes.update(['all'], self.parameters)
 
         self.is_initialized = True
 
     def load_parameters(self, parameters):
         self.parameters = {}
         for k in parameters.keys():
-            self.parameters[k] = torch.tensor(parameters[k], dtype=torch.float32)
+            self.parameters[k] = torch.tensor(parameters[k])
+
+        # derive the model attributes from model parameters upon reloading of model
         self.attributes = AttributesFactory.attributes(self.name, dimension=1)
         self.attributes.update(['all'], self.parameters)
 
     def initialize_MCMC_toolbox(self):
         """
         Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
-
-        TODO to move in a "MCMC-model interface"
         """
+        # TODO to move in the MCMC-fit algorithm
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01}, # population parameter
             'attributes': AttributesFactory.attributes(self.name, dimension=1)
@@ -158,7 +162,7 @@ class UnivariateModel(AbstractModel):
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
 
-        TODO to move in a "MCMC-model interface"
+        TODO to move in the MCMC-fit algorithm
 
         Parameters
         ----------
@@ -171,18 +175,20 @@ class UnivariateModel(AbstractModel):
         values = {}
         if any(c in L for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
-        if any(c in L for c in ('xi_mean', 'all')):
-            values['xi_mean'] = self.parameters['xi_mean']
 
         self.MCMC_toolbox['attributes'].update(L, values)
 
-    def _get_attributes(self, MCMC):
-        if MCMC:
-            return self.MCMC_toolbox['attributes'].positions
-        else:
-            return self.attributes.positions
 
-    def compute_mean_traj(self, timepoints):
+    def _get_attributes(self, attribute_type: Optional[str]):
+        if attribute_type is None:
+            return self.attributes.get_attributes()
+        elif attribute_type == 'MCMC':
+            return self.MCMC_toolbox['attributes'].get_attributes()
+        else:
+            raise LeaspyModelInputError(f"The specified attribute type does not exist: {attribute_type}. "
+                                        "Should be None or 'MCMC'.")
+
+    def compute_mean_traj(self, timepoints, *, attribute_type: Optional[str] = None):
         """
         Compute trajectory of the model with individual parameters being the group-average ones.
 
@@ -192,6 +198,7 @@ class UnivariateModel(AbstractModel):
         Parameters
         ----------
         timepoints : :class:`torch.Tensor` [1, n_timepoints]
+        attribute_type : 'MCMC' or None
 
         Returns
         -------
@@ -199,40 +206,41 @@ class UnivariateModel(AbstractModel):
             The group-average values at given timepoints
         """
         individual_parameters = {
-            'xi': torch.tensor([self.parameters['xi_mean']], dtype=torch.float32),
-            'tau': torch.tensor([self.parameters['tau_mean']], dtype=torch.float32),
+            'xi': torch.tensor([self.parameters['xi_mean']]),
+            'tau': torch.tensor([self.parameters['tau_mean']]),
         }
 
-        return self.compute_individual_tensorized(timepoints, individual_parameters)
+        return self.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
 
     @suffixed_method
-    def compute_individual_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_individual_tensorized_logistic(self, timepoints, ind_parameters, attribute_type=False):
+    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         g = self._get_attributes(attribute_type)
+
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        LL = -reparametrized_time.unsqueeze(-1)
-        model = 1. / (1. + g * torch.exp(LL))
+        # TODO? more efficient & accurate to compute `torch.exp(-t + log_g)` since we directly sample & stored log_g
+        t = reparametrized_time.unsqueeze(-1)
+        model = 1. / (1. + g * torch.exp(-t))
 
         return model
 
-    def compute_individual_tensorized_linear(self, timepoints, ind_parameters, attribute_type=False):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         positions = self._get_attributes(attribute_type)
-        # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-        LL = -reparametrized_time.unsqueeze(-1)
-        model = positions - LL
 
-        return model
+        # Individual parameters
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
+        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+
+        return positions + reparametrized_time.unsqueeze(-1)
 
     @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
@@ -245,7 +253,7 @@ class UnivariateModel(AbstractModel):
         value = value.masked_fill((value == 0) | (value == 1), float('nan'))
 
         # get tensorized attributes
-        g = self._get_attributes(False)
+        g = self._get_attributes(None)
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
 
         # compute age
@@ -255,49 +263,43 @@ class UnivariateModel(AbstractModel):
         return ages
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, ind_parameters, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, ind_parameters, attribute_type=None):
-
-        # Population parameters
-        positions = self._get_attributes(attribute_type)
+    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
-
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # Log likelihood computation
+        # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1)
-
-        LL = reparametrized_time + positions
-
         alpha = torch.exp(xi).unsqueeze(-1)
 
+        # Jacobian of model expected value w.r.t. individual parameters
         derivatives = {
-            'xi' : (reparametrized_time).unsqueeze(-1),
-            'tau' : (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
+            'xi': reparametrized_time.unsqueeze(-1),
+            'tau': (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
         }
 
         return derivatives
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, ind_parameters, MCMC=False):
+    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        g = self._get_attributes(MCMC)
+        g = self._get_attributes(attribute_type)
 
         # Individual parameters
-        xi, tau = ind_parameters['xi'], ind_parameters['tau']
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # Log likelihood computation
+        # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features==1)
-
-        model = 1. / (1. + g * torch.exp(-reparametrized_time))
-
-        c = model * (1. - model)
         alpha = torch.exp(xi).reshape(-1, 1, 1)
+
+        # Jacobian of model expected value w.r.t. individual parameters
+        model = 1. / (1. + g * torch.exp(-reparametrized_time))
+        c = model * (1. - model)
 
         derivatives = {
             'xi': (c * reparametrized_time).unsqueeze(-1),
@@ -308,69 +310,78 @@ class UnivariateModel(AbstractModel):
         return derivatives
 
     def compute_sufficient_statistics(self, data, realizations):
+
+        # unlink all sufficient statistics from updates in realizations!
+        realizations = realizations.clone_realizations()
+
         sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations.detach() # avoid 0D / 1D tensors mix
+        sufficient_statistics['g'] = realizations['g'].tensor_realizations
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
         sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
-        ind_parameters = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, ind_parameters, attribute_type=True)
+        individual_parameters = self.get_param_from_real(realizations)
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters, attribute_type='MCMC')
 
         data_reconstruction *= data.mask.float() # speed-up computations
-        #norm_0 = data.values * data.values * data.mask.float()
+
         norm_1 = data.values * data_reconstruction #* data.mask.float()
         norm_2 = data_reconstruction * data_reconstruction #* data.mask.float()
-        #sufficient_statistics['obs_x_obs'] = torch.sum(norm_0, dim=2)
+
         sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2)
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2)
 
         if self.noise_model == 'bernoulli':
-            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, ind_parameters, attribute_type=True)
+            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters, attribute_type='MCMC')
 
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
-
         # Memoryless part of the algorithm
-        self.parameters['g'] = realizations['g'].tensor_realizations.detach()
-        xi = realizations['xi'].tensor_realizations.detach()
+
+        # unlink model parameters from updates in realizations!
+        realizations = realizations.clone_realizations()
+
+        self.parameters['g'] = realizations['g'].tensor_realizations
+        xi = realizations['xi'].tensor_realizations
         self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
-        tau = realizations['tau'].tensor_realizations.detach()
+        tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
         param_ind = self.get_param_from_real(realizations)
-        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type=True)
+        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
         if self.noise_model == 'bernoulli':
-            crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type=True).sum()
+            crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC').sum()
             self.parameters['crossentropy'] = crossentropy
 
+    def update_model_parameters_normal(self, data, suff_stats):
         # Stochastic sufficient statistics used to update the parameters of the model
 
-    def update_model_parameters_normal(self, data, suff_stats):
         self.parameters['g'] = suff_stats['g']
 
         tau_mean = self.parameters['tau_mean']
-        tau_std_updt = torch.mean(suff_stats['tau_sqrd']) - 2 * tau_mean * torch.mean(suff_stats['tau'])
-        self.parameters['tau_std'] = torch.sqrt(tau_std_updt + self.parameters['tau_mean'] ** 2)
+        tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
+        tau_var = tau_var_updt + tau_mean ** 2
+        self.parameters['tau_std'] = self._compute_std_from_var(tau_var, varname='tau_std')
         self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
         xi_mean = self.parameters['xi_mean']
-        xi_std_updt = torch.mean(suff_stats['xi_sqrd']) - 2 * xi_mean * torch.mean(suff_stats['xi'])
-        self.parameters['xi_std'] = torch.sqrt(xi_std_updt + self.parameters['xi_mean'] ** 2)
+        xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
+        xi_var = xi_var_updt + xi_mean ** 2
+        self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        #S1 = torch.sum(suff_stats['obs_x_obs'])
         S1 = data.L2_norm
         S2 = suff_stats['obs_x_reconstruction'].sum()
         S3 = suff_stats['reconstruction_x_reconstruction'].sum()
 
-        self.parameters['noise_std'] = torch.sqrt((S1 - 2. * S2 + S3) / data.n_observations)
+        noise_var = (S1 - 2. * S2 + S3) / data.n_observations
+        self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
 
         if self.noise_model == 'bernoulli':
             self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
@@ -410,8 +421,20 @@ class UnivariateModel(AbstractModel):
         return variables_infos
 
 # document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
-doc_with_(UnivariateModel.compute_individual_tensorized_linear, UnivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (linear)'})
-doc_with_(UnivariateModel.compute_individual_tensorized_logistic, UnivariateModel.compute_individual_tensorized, mapping={'the model': 'the model (logistic)'})
+doc_with_(UnivariateModel.compute_individual_tensorized_linear,
+          UnivariateModel.compute_individual_tensorized,
+          mapping={'the model': 'the model (linear)'})
+doc_with_(UnivariateModel.compute_individual_tensorized_logistic,
+          UnivariateModel.compute_individual_tensorized,
+          mapping={'the model': 'the model (logistic)'})
 
-doc_with_(UnivariateModel.compute_jacobian_tensorized_linear, UnivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (linear)'})
-doc_with_(UnivariateModel.compute_jacobian_tensorized_logistic, UnivariateModel.compute_jacobian_tensorized, mapping={'the model': 'the model (logistic)'})
+doc_with_(UnivariateModel.compute_jacobian_tensorized_linear,
+          UnivariateModel.compute_jacobian_tensorized,
+          mapping={'the model': 'the model (linear)'})
+doc_with_(UnivariateModel.compute_jacobian_tensorized_logistic,
+          UnivariateModel.compute_jacobian_tensorized,
+          mapping={'the model': 'the model (logistic)'})
+
+doc_with_(UnivariateModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
+          UnivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+          mapping={'the model': 'the model (logistic)'})

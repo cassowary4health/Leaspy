@@ -98,7 +98,7 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
         if len(dataset.headers) != 1:
             raise LeaspyDataInputError(f"LME model is univariate only, you provided features: {dataset.headers}")
 
-    def compute_individual_trajectory(self, timepoints, ip: dict):
+    def compute_individual_trajectory(self, timepoints, individual_parameters: dict):
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
 
@@ -107,7 +107,7 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
         timepoints : array-like of ages (not normalized)
             Timepoints to compute individual trajectory at
 
-        ip : dict
+        individual_parameters : dict
             Individual parameters:
                 * random_intercept
                 * random_slope_age (if ``with_random_slope_age == True``)
@@ -123,13 +123,13 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
         # design matrix (same for fixed and random effects)
         X = sm.add_constant(ages_norm, prepend=True, has_constant='add')
 
-        #assert 'random_intercept' in ip
+        #assert 'random_intercept' in individual_parameters
         if not self.with_random_slope_age:
             # no random slope on ages (fixed effect only)
-            re_params = np.array([ ip['random_intercept'].item(), 0 ])
+            re_params = np.array([ individual_parameters['random_intercept'].item(), 0 ])
         else:
-            #assert 'random_slope_age' in ip
-            re_params = np.array([ ip['random_intercept'].item(), ip['random_slope_age'].item() ])
+            #assert 'random_slope_age' in individual_parameters
+            re_params = np.array([ individual_parameters['random_intercept'].item(), individual_parameters['random_slope_age'].item() ])
 
         y = X @ (self.parameters['fe_params'] + re_params)
 

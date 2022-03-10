@@ -46,6 +46,9 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
 
         super().__init__(name, dimension, source_dimension)
 
+        if not self.univariate:
+            self.velocities: torch.FloatTensor = None
+
     def update(self, names_of_changed_values, values):
         """
         Update model group average parameter(s).
@@ -56,8 +59,13 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
             Elements of list must be either:
                 * ``all`` (update everything)
                 * ``g`` correspond to the attribute :attr:`positions`.
-                * ``v0`` (``xi_mean`` if univariate) correspond to the attribute :attr:`velocities`.
-                * ``betas`` correspond to the linear combinaison of columns from the orthonormal basis so
+                * ``v0`` (only for multivariate models) correspond to the attribute :attr:`velocities`.
+                  When we are sure that the v0 change is only a scalar multiplication
+                  (in particular, when we reparametrize log(v0) <- log(v0) + mean(xi)),
+                  we may update velocities using ``v0_collinear``, otherwise
+                  we always assume v0 is NOT collinear to previous value
+                  (no need to perform the verification it is - would not be really efficient)
+                * ``betas`` correspond to the linear combination of columns from the orthonormal basis so
                   to derive the :attr:`mixing_matrix`.
         values : dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
@@ -70,34 +78,42 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         self._check_names(names_of_changed_values)
 
         compute_betas = False
-
         compute_positions = False
         compute_velocities = False
+        dgamma_t0_not_collinear_to_previous = False
 
         if 'all' in names_of_changed_values:
-            names_of_changed_values = self.update_possibilities  # make all possible updates
+            # make all possible updates
+            names_of_changed_values = self.update_possibilities
+
         if 'betas' in names_of_changed_values:
             compute_betas = True
         if 'g' in names_of_changed_values:
             compute_positions = True
-        if ('v0' in names_of_changed_values) or ('xi_mean' in names_of_changed_values):
+        if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values):
             compute_velocities = True
+            dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
 
-        if compute_betas:
-            self._compute_betas(values)
         if compute_positions:
             self._compute_positions(values)
         if compute_velocities:
             self._compute_velocities(values)
 
-        if self.has_sources:
+        # only for models with sources beyond this point
+        if not self.has_sources:
+            return
 
-            recompute_ortho_basis = compute_positions or compute_velocities
+        if compute_betas:
+            self._compute_betas(values)
 
-            if recompute_ortho_basis:
-                self._compute_orthonormal_basis()
-            if recompute_ortho_basis or compute_betas:
-                self._compute_mixing_matrix()
+        # do not recompute orthonormal basis when we know dgamma_t0 is collinear
+        # to previous velocities to avoid useless computations!
+        recompute_ortho_basis = compute_positions or dgamma_t0_not_collinear_to_previous
+
+        if recompute_ortho_basis:
+            self._compute_orthonormal_basis()
+        if recompute_ortho_basis or compute_betas:
+            self._compute_mixing_matrix()
 
     def _compute_positions(self, values):
         """
@@ -115,9 +131,6 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
         of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         """
-        if not self.has_sources:
-            return
-
         # Compute the diagonal of metric matrix (cf. `_compute_Q`)
         G_metric = (1 + self.positions).pow(4) / self.positions.pow(2) # = "1/(p0 * (1-p0))**2"
 

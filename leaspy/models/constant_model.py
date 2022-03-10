@@ -59,11 +59,11 @@ class ConstantModel(GenericModel):
         # however, we need to mock that model is personalization-ready by setting self.is_initialized (API requirement)
         self.is_initialized = True
 
-    def compute_individual_trajectory(self, timepoints, ip):
+    def compute_individual_trajectory(self, timepoints, individual_parameters):
 
         if self.features is None:
             raise LeaspyModelInputError('The model was not properly initialized.')
 
-        values = [ip[f] for f in self.features]
+        values = [individual_parameters[f] for f in self.features]
         return torch.tensor([[values] * len(timepoints)], dtype=torch.float32)
 

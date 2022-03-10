@@ -50,8 +50,7 @@ class AttributesFactory:
             raise LeaspyModelInputError(f"The name '{name}' you provided for the attributes is not supported."
                                         f"Valid choices are: {list(cls._attributes.keys())}")
 
-        if 'univariate' in name and dimension != 1:
-            raise LeaspyModelInputError(f"{name}: `dimension` should be 1 when 'univariate' is part of model `name`, not {dimension}!")
+        if not (('univariate' in name) ^ (dimension != 1)):
+            raise LeaspyModelInputError(f"Name `{name}` should contain 'univariate', if and only if `dimension` equals 1.")
 
         return cls._attributes[name](name, dimension, source_dimension)
-

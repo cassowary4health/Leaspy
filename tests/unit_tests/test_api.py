@@ -32,6 +32,9 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
             self.check_model_factory_constructor(leaspy.model)
 
+            with self.assertRaisesRegex(ValueError, 'not been initialized'):
+                leaspy.check_if_initialized()
+
         for noise_model in NoiseModel.VALID_NOISE_STRUCTS:
             leaspy = Leaspy('logistic', noise_model=noise_model)
             self.assertEqual(leaspy.type, 'logistic')
@@ -92,6 +95,13 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
+        # Test that the model attributes were initialized
+        attrs = leaspy.model._get_attributes(None)
+        self.assertIsNotNone(attrs)
+        self.assertIsInstance(attrs, tuple)
+        self.assertEqual(len(attrs), 3)
+        self.assertTrue(all(attr is not None for attr in attrs))
+
     def test_load_logistic_parallel_scalar_noise(self):
         """
         Test the initialization of a logistic parallel model from a json file
@@ -127,6 +137,13 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
+
+        # Test that the model attributes were initialized
+        attrs = leaspy.model._get_attributes(None)
+        self.assertIsNotNone(attrs)
+        self.assertIsInstance(attrs, tuple)
+        self.assertEqual(len(attrs), 3)
+        self.assertTrue(all(attr is not None for attr in attrs))
 
     def test_load_linear_scalar_noise(self):
         """
@@ -164,6 +181,13 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
+        # Test that the model attributes were initialized
+        attrs = leaspy.model._get_attributes(None)
+        self.assertIsNotNone(attrs)
+        self.assertIsInstance(attrs, tuple)
+        self.assertEqual(len(attrs), 3)
+        self.assertTrue(all(attr is not None for attr in attrs))
+
     def test_load_univariate_logistic(self):
         """
         Test the initialization of a linear model from a json file
@@ -195,6 +219,9 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
+        # Test that the model attributes were initialized
+        self.assertIsInstance(leaspy.model._get_attributes(None), torch.Tensor)
+
     def test_load_univariate_linear(self):
         """
         Test the initialization of a linear model from a json file
@@ -225,6 +252,9 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
+
+        # Test that the model attributes were initialized
+        self.assertIsInstance(leaspy.model._get_attributes(None), torch.Tensor)
 
     def test_load_save_load(self, *, atol=1e-4):
         """

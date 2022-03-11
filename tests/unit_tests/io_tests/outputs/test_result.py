@@ -31,8 +31,8 @@ class ResultTest(LeaspyTestCase):
 
         # Inputs
         cls.data = Data.from_csv_file(cls.example_data_path)
-        cls.cofactors = pd.read_csv(cls.example_data_covars_path, dtype={'ID': str}, index_col='ID')
-        cls.data.load_cofactors(cls.cofactors, ['Treatments'])
+        cls.cofactors = pd.read_csv(cls.example_data_covars_path, dtype={'ID': str}).set_index('ID')
+        cls.data.load_cofactors(cls.cofactors)
 
         cls.df = cls.data.to_dataframe()
 

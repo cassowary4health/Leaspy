@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import torch
@@ -61,46 +63,60 @@ class Data:
             self.iter += 1
             return self.__getitem__(self.iter - 1)
 
-    def load_cofactors(self, df: pd.DataFrame, cofactors: List[FeatureType]):
+    def load_cofactors(self, df: pd.DataFrame, *, cofactors: List[FeatureType] = None):
         """
         Load cofactors from a `pandas.DataFrame` to the `Data` object
 
         Parameters
         ----------
         df : :class:`pandas.DataFrame`
-            the index is the list of subject ids
-        cofactors : list[str]
-            names of the column(s) of df which shall be loaded as cofactors
+            The dataframe where the cofactors are stored.
+            Its index should be ID, the identifier of subjects
+            and it should uniquely index the dataframe (i.e. one row per individual).
+        cofactors : list[str] or None (default)
+            Names of the column(s) of df which shall be loaded as cofactors.
+            If None, all the columns from the input dataframe will be loaded as cofactors.
 
         Raises
         ------
         :exc:`.LeaspyDataInputError`
         """
 
-        df = df[cofactors].copy(deep=True)
+        if not (
+            isinstance(df, pd.DataFrame)
+            and isinstance(df.index, pd.Index)
+            and df.index.names == ["ID"]
+            and df.index.notnull().all()
+            and df.index.is_unique
+        ):
+            raise LeaspyDataInputError("You should pass a dataframe whose index ('ID') should "
+                                       "not contain any NaN nor any duplicate.")
 
-        for iter, idx in self.iter_to_idx.items():
-            # Get the cofactors and check that it is unique
-            try:
-                df_ind = df.loc[[idx]]
-            except KeyError:
-                # If the ID are for example '116' - pandas save & reload it as integer & might induce errors
-                df_ind = df.loc[[int(idx)]]
+        internal_dtype_indices = pd.api.types.infer_dtype(self.iter_to_idx.values())
+        cofactors_dtype_indices = pd.api.types.infer_dtype(df.index)
+        if cofactors_dtype_indices != internal_dtype_indices:
+            raise LeaspyDataInputError(f"The ID type in your cofactors ({cofactors_dtype_indices}) "
+                                       f"is inconsistent with the ID type in Data ({internal_dtype_indices}):\n{df.index}")
 
-            cof = df_ind.to_dict(orient='list')
+        internal_indices = pd.Index(self.iter_to_idx.values())
+        individuals_without_cofactors = internal_indices.difference(df.index)
+        unknown_individuals = df.index.difference(internal_indices)
 
-            for c in cofactors:
-                v = np.unique(cof[c])
-                v = [_ for _ in v if not np.isnan(_)]  # no nans
-                if len(v) > 1:
-                    raise LeaspyDataInputError(f"Multiples values of the cofactor {c} for patient {idx} : {v}")
-                elif len(v) == 0:
-                    cof[c] = None
-                else:
-                    cof[c] = v[0]
+        if len(individuals_without_cofactors):
+            raise ValueError(f"These individuals do not have cofactors: {individuals_without_cofactors}")
+        if len(unknown_individuals):
+            warnings.warn(f"These individuals with cofactors are not part of your Data: {unknown_individuals}")
 
-            # Add these cofactor to the individual
-            self.individuals[idx].add_cofactors(cof)
+        if cofactors is None:
+            cofactors = df.columns.tolist()
+
+        # sub-select the individuals & cofactors to look for
+        d_cofactors = df.loc[internal_indices, cofactors].to_dict(orient='index')
+
+        # Loop per individual
+        for idx_subj, d_cofactors_subj in d_cofactors.items():
+            self.individuals[idx_subj].add_cofactors(d_cofactors_subj)
+
         self.cofactors += cofactors
 
     @staticmethod
@@ -122,15 +138,16 @@ class Data:
         reader = CSVDataReader(path, **kws)
         return Data._from_reader(reader)
 
-    def to_dataframe(self, cofactors=None):
+    def to_dataframe(self, *, cofactors=None):
         """
         Return the subjects' observations in a :class:`pandas.DataFrame` along their ID and ages at all visits.
 
         Parameters
         ----------
-        cofactors : str, list [str], optional (default None)
-            Contains the cofactors' names to be included in the DataFrame. By default, no cofactors are returned.
-            If cofactors == "all", all the available cofactors are returned.
+        cofactors : list[str], 'all', or None (default None)
+            Contains the cofactors' names to be included in the DataFrame.
+            If None (default), no cofactors are returned.
+            If "all", all the available cofactors are returned.
 
         Returns
         -------

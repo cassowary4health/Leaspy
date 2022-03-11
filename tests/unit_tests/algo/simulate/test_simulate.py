@@ -29,8 +29,8 @@ class SimulationAlgorithmTest(LeaspyTestCase):
 
         # reused data, model, individual parameters
         cls.data = cls.get_suited_test_data_for_model('logistic_scalar_noise')
-        cofactors = pd.read_csv(cls.example_data_covars_path, dtype={'ID': str}, index_col='ID')
-        cls.data.load_cofactors(cofactors, ["Treatments"])
+        cofactors = pd.read_csv(cls.example_data_covars_path, dtype={'ID': str}).set_index('ID')
+        cls.data.load_cofactors(cofactors, cofactors=["Treatments"])
 
         cls.lsp = cls.get_hardcoded_model('logistic_scalar_noise')
 

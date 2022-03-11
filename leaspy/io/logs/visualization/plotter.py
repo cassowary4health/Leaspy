@@ -155,7 +155,7 @@ class Plotter:
 
             trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
             for dim in range(model.dimension):
-                not_nans_idx = np.array(1-np.isnan(observations[:, dim]),dtype=bool)
+                not_nans_idx = np.array(~np.isnan(observations[:, dim]), dtype=bool)
                 ax.plot(np.array(timepoints), trajectory.cpu().detach().numpy()[:, dim], c=colors[dim])
                 ax.plot(np.array(timepoints)[not_nans_idx], observations[:, dim][not_nans_idx], c=colors[dim], linestyle='--')
 

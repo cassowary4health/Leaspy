@@ -177,7 +177,7 @@ class Result:
         Parameters
         ----------
         path : str
-            The logs's path.
+            The logs' path.
         idx : list [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         cofactors : str or list [str], optional (default None)
@@ -224,7 +224,7 @@ class Result:
         Parameters
         ----------
         path : str
-            The logs's path.
+            The logs' path.
         idx : list [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         human_readable : Any, optional (default None) -->  TODO change to bool
@@ -277,7 +277,7 @@ class Result:
         Parameters
         ----------
         path : str
-            The logs's path.
+            The logs' path.
         idx : list [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         **args
@@ -311,10 +311,9 @@ class Result:
     def _check_folder_existence(path: str):
         # Test path's folder existence (if path contain a folder)
         dir_path = os.path.dirname(path)
-        if dir_path != '':
-            if not os.path.isdir(dir_path):
-                raise NotADirectoryError(
-                    f'Cannot save individual parameter at path {path}. The folder does not exist!')
+        if not (dir_path == '' or os.path.isdir(dir_path)):
+            raise NotADirectoryError(
+                f'Cannot save individual parameter at path {path}. The folder does not exist!')
 
     def _get_dump(self, idx: List[IDType] = None):
         """

@@ -119,7 +119,7 @@ class AlgorithmSettings:
             (
                 lambda kw: 'force_independent_random_effects' in kw and kw['force_independent_random_effects'],
                 {
-                    ('method',): lambda kw: ['lbfgs','bfgs'] # powell & nm methods cannot ensure respect of "free"
+                    ('method',): lambda kw: ['lbfgs','bfgs'] # Powell & Nelder-Mead methods cannot ensure respect of "free"
                 }
             )
         ]

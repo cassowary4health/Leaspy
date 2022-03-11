@@ -91,7 +91,7 @@ class Data:
 
             for c in cofactors:
                 v = np.unique(cof[c])
-                v = [_ for _ in v if _ == _]  # no nans
+                v = [_ for _ in v if not np.isnan(_)]  # no nans
                 if len(v) > 1:
                     raise LeaspyDataInputError(f"Multiples values of the cofactor {c} for patient {idx} : {v}")
                 elif len(v) == 0:

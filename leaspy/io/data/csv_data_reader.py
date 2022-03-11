@@ -22,11 +22,10 @@ class CSVDataReader(DataframeDataReader):
     ------
     :exc:`.LeaspyDataInputError`
     """
-    def __init__(self, path: str, pd_read_csv_kws: dict = {}, **df_reader_kws):
+    def __init__(self, path: str, *, pd_read_csv_kws: dict = {}, **df_reader_kws):
 
         # enforce ID to be interpreted as string as default (can be overwritten)
         pd_read_csv_kws = {'dtype': {'ID': str}, **pd_read_csv_kws}
 
         df = pd.read_csv(path, **pd_read_csv_kws)
         super().__init__(df, **df_reader_kws)
-

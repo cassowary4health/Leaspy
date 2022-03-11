@@ -273,7 +273,7 @@ class Leaspy:
 
             # reindex back to given index being careful to index order (join so to handle multi-levels cases)
             if ix is not None:
-                # we need to explicitely pass `on` to preserve order of index levels
+                # we need to explicitly pass `on` to preserve order of index levels
                 estimations = pd.DataFrame([], index=ix).join(estimations, on=['ID','TIME'])
 
         return estimations

@@ -164,10 +164,10 @@ class LMEFitAlgorithm(AbstractAlgo): # AbstractFitAlgo not so generic (EM)
         subjects_with_repeat = subjects_with_repeat[torch.flatten(dataset.mask > 0)]
         return subjects_with_repeat
 
-    def set_output_manager(self, settings):
+    def set_output_manager(self, output_settings):
         """
         Not implemented.
         """
-        if settings is not None:
+        if output_settings is not None:
             warnings.warn('Settings logs in lme fit algorithm is not supported.')
         return

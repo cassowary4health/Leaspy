@@ -289,8 +289,7 @@ class AbstractAlgo(ABC):
             if display == 0:
                 nbar = iteration_plus_1 // print_every_iter
                 sys.stdout.write('\r')
-                sys.stdout.write(
-                    '|' + '#' * nbar + '-' * (n_step - nbar) + '|   %d/%d ' % (iteration_plus_1, n_iter) + suffix)
+                sys.stdout.write(f"|{'#'*nbar}{'-'*(n_step - nbar)}|   {iteration_plus_1}/{n_iter} {suffix}")
                 sys.stdout.flush()
 
     def _noise_std_repr(self, noise_std: Optional[torch.FloatTensor], model: AbstractModel) -> Optional[str]:
@@ -298,7 +297,6 @@ class AbstractAlgo(ABC):
         Get a nice string representation of noise std-dev for a given model.
 
         TODO? move this code into a NoiseModel helper class
-
 
         Parameters
         ----------
@@ -317,7 +315,7 @@ class AbstractAlgo(ABC):
             If model and noise are inconsistent.
         """
         if noise_std is None:
-            return
+            return None
 
         noise_elts = np.array(noise_std).reshape(-1).tolist()  # can be torch tensor or numpy array (LME, constant model ...)
         noise_elts_nb = len(noise_elts)
@@ -356,7 +354,7 @@ class AbstractAlgo(ABC):
         Returns
         -------
         str
-            Time formating in hour, minutes and seconds.
+            Time formatting in hour, minutes and seconds.
         """
         h = int(seconds // 3600)
         m = int((seconds % 3600) // 60)

@@ -132,10 +132,10 @@ class LMEPersonalizeAlgorithm(AbstractAlgo):
         G = np.linalg.inv(tZZ + cov_re_unscaled_inv)
         return np.dot(G, np.dot(Z.T, resid)) # less costly to multiply in this order
 
-    def set_output_manager(self, settings):
+    def set_output_manager(self, output_settings):
         """
         Not implemented.
         """
-        if settings is not None:
+        if output_settings is not None:
             warnings.warn('Settings logs in lme personalize algorithm is not supported.')
         return

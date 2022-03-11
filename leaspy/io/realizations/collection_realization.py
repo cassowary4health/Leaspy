@@ -87,6 +87,6 @@ class CollectionRealization:
 
         new_realizations.reals_pop_variable_names = copy.copy(self.reals_pop_variable_names)
         new_realizations.reals_ind_variable_names = copy.copy(self.reals_ind_variable_names)
-        new_realizations = copy.deepcopy(self.realizations)
+        new_realizations.realizations = copy.deepcopy(self.realizations)
 
         return new_realizations

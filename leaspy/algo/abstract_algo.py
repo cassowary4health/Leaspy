@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from copy import deepcopy
 
 import sys
 from abc import ABC, abstractmethod
@@ -63,7 +64,10 @@ class AbstractAlgo(ABC):
             raise LeaspyAlgoInputError(f'Inconsistent naming: {settings.name} != {self.name}')
 
         self.seed = settings.seed
-        self.algo_parameters = settings.parameters
+        # we deepcopy the settings.parameters, because those algo_parameters may be
+        # modified within algorithm (e.g. `n_burn_in_iter`) and we would not want the original
+        # settings parameters to be also modified (e.g. to be able to re-use them without any trouble)
+        self.algo_parameters = deepcopy(settings.parameters)
 
         self.output_manager: Optional[FitOutputManager] = None
 

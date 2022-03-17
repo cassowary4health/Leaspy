@@ -339,8 +339,10 @@ class MultivariateModel(AbstractMultivariateModel):
     ##############################
 
     def initialize_MCMC_toolbox(self):
+
+        # population parameters (self._spatial_variable_id is either 'betas' or 'independant_directions'
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
+            'priors': {'g_std': 0.01, 'v0_std': 0.01, f'{self._spatial_variable_id}_std': 0.01}
         }
 
         # Initialize a prior for v0_mean (legacy code / never used in practice)
@@ -353,6 +355,7 @@ class MultivariateModel(AbstractMultivariateModel):
         self._initialize_MCMC_toolbox_ordinal_priors()
 
         self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
+                                                                       use_householder=self._use_householder,
                                                                        **self._attributes_factory_ordinal_kws)
         # TODO? why not passing the ready-to-use collection realizations that is initialized at beginning of fit algo and use it here instead?
         population_dictionary = self._create_dictionary_of_population_realizations()
@@ -364,8 +367,8 @@ class MultivariateModel(AbstractMultivariateModel):
             values['g'] = realizations['g'].tensor_realizations
         if any(c in vars_to_update for c in ('v0', 'v0_collinear', 'all')):
             values['v0'] = realizations['v0'].tensor_realizations
-        if self.source_dimension != 0 and any(c in vars_to_update for c in ('betas', 'all')):
-            values['betas'] = realizations['betas'].tensor_realizations
+        if self.source_dimension != 0 and any(c in vars_to_update for c in (self._spatial_variable_id, 'all')):
+            values[self._spatial_variable_id] = realizations[self._spatial_variable_id].tensor_realizations
 
         self._update_MCMC_toolbox_ordinal(vars_to_update, realizations, values)
 
@@ -401,8 +404,9 @@ class MultivariateModel(AbstractMultivariateModel):
             'xi': realizations['xi'].tensor_realizations,
             'xi_sqrd': torch.pow(realizations['xi'].tensor_realizations, 2)
         }
+
         if self.source_dimension != 0:
-            sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
+            sufficient_statistics[self._spatial_variable_id] = realizations[self._spatial_variable_id].tensor_realizations
 
         self._add_ordinal_tensor_realizations(realizations, sufficient_statistics)
 
@@ -455,10 +459,7 @@ class MultivariateModel(AbstractMultivariateModel):
             # new default
             self.parameters['v0'] = v0_emp
 
-        if self.source_dimension != 0:
-            self.parameters['betas'] = realizations['betas'].tensor_realizations
-
-        self._add_ordinal_tensor_realizations(realizations, self.parameters)
+        self.parameters[self._spatial_variable_id] = realizations[self._spatial_variable_id].tensor_realizations
 
         xi = realizations['xi'].tensor_realizations
         # self.parameters['xi_mean'] = torch.mean(xi)  # fixed = 0 by design
@@ -489,7 +490,7 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['g'] = suff_stats['g']
         self.parameters['v0'] = suff_stats['v0']
         if self.source_dimension != 0:
-            self.parameters['betas'] = suff_stats['betas']
+            self.parameters[self._spatial_variable_id] = suff_stats[self._spatial_variable_id]
 
         self._add_ordinal_sufficient_statistics(suff_stats, self.parameters)
 
@@ -547,9 +548,19 @@ class MultivariateModel(AbstractMultivariateModel):
             "rv_type": "multigaussian"
         }
 
+        # either betas_infos or independant_directions_infos will be used depending
+        # on the flag self._use_householder
         betas_infos = {
             "name": "betas",
             "shape": torch.Size([self.dimension - 1, self.source_dimension]),
+            "type": "population",
+            "rv_type": "multigaussian",
+            "scale": .5  # cf. GibbsSampler
+        }
+
+        independant_directions_infos = {
+            "name": "independant_directions",
+            "shape": torch.Size([self.dimension, self.source_dimension]),
             "type": "population",
             "rv_type": "multigaussian",
             "scale": .5  # cf. GibbsSampler
@@ -586,7 +597,11 @@ class MultivariateModel(AbstractMultivariateModel):
 
         if self.source_dimension != 0:
             variables_infos['sources'] = sources_infos
-            variables_infos['betas'] = betas_infos
+
+            if self._use_householder:
+                variables_infos['betas'] = betas_infos
+            else:
+                variables_infos['independant_directions'] = independant_directions_infos
 
         self._add_ordinal_random_variables(variables_infos)
 
@@ -604,6 +619,7 @@ doc_with_(MultivariateModel.compute_individual_tensorized_logistic,
 #          mapping={'the model': 'the model (mixed logistic-linear)'})
 
 doc_with_(MultivariateModel.compute_jacobian_tensorized_linear,
+
           MultivariateModel.compute_jacobian_tensorized,
           mapping={'the model': 'the model (linear)'})
 doc_with_(MultivariateModel.compute_jacobian_tensorized_logistic,

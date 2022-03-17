@@ -423,9 +423,10 @@ class Plotter:
 
         # Make the plot 1
 
-        to_skip_1 = ['betas'] + ['sources_mean', 'sources_std']*int(skip_sources)
+        to_skip_1 = ['betas', 'independant_directions'] + ['sources_mean', 'sources_std']*int(skip_sources)
         if getattr(model, 'is_ordinal', False):
             to_skip_1.append('deltas')
+
         params_to_plot_1 = [p for p in model.parameters.keys() if p not in to_skip_1]
 
         n_plots_1 = len(params_to_plot_1)
@@ -499,7 +500,7 @@ class Plotter:
                     df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                     df_convergence.index.rename("iter", inplace=True)
                     df_convergence.plot(ax=ax[y_position], legend=False)
-            elif key not in ['betas']:
+            elif key not in ['betas','independant_directions']:
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                 df_convergence.index.rename("iter", inplace=True)

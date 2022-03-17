@@ -378,6 +378,9 @@ def initialize_logistic(model, df: pd.DataFrame, method):
     v0_array = get_log_velocities(slopes, model.features)
     g_array = torch.log(1. / values - 1.) # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
 
+    # TODO: init with zero or ones?
+    independant_directions = torch.zeros((model.dimension, model.source_dimension))
+
     # Create smart initialization dictionary
     if 'univariate' in model.name:
         xi_mean = v0_array.squeeze() # already log'ed
@@ -393,6 +396,7 @@ def initialize_logistic(model, df: pd.DataFrame, method):
             'g': g_array,
             'v0': v0_array,
             'betas': betas,
+            'independant_directions': independant_directions,
             'tau_mean': t0,
             'tau_std': torch.tensor(tau_std),
             'xi_mean': torch.tensor(0.),

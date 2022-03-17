@@ -22,7 +22,7 @@ class AttributesFactory:
     }
 
     @classmethod
-    def attributes(cls, name: str, dimension: int, source_dimension: int = None, ordinal_infos = None, ) -> AbstractAttributes:
+    def attributes(cls, name: str, dimension: int, source_dimension: int = None, ordinal_infos = None, **kwargs) -> AbstractAttributes:
         """
         Class method to build correct model attributes depending on model `name`.
 
@@ -58,4 +58,4 @@ class AttributesFactory:
         if ordinal_infos is not None:
             return LogisticOrdinalAttributes(name, dimension, source_dimension, ordinal_infos)
 
-        return cls._attributes[name](name, dimension, source_dimension)
+        return cls._attributes[name](name, dimension, source_dimension, **kwargs)

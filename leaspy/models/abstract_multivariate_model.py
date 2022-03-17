@@ -42,10 +42,12 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
         self.source_dimension: int = None
         self.noise_model = 'gaussian_diagonal'
+        self._use_householder = True
 
         self.parameters = {
             "g": None,
             "betas": None,
+            "independant_directions": None,
             "tau_mean": None, "tau_std": None,
             "xi_mean": None, "xi_std": None,
             "sources_mean": None, "sources_std": None,
@@ -67,6 +69,8 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
         # Load hyperparameters at end to overwrite default for new hyperparameters
         self.load_hyperparameters(kwargs)
+
+        self._spatial_variable_id = "betas" if self._use_householder else "independant_directions"
 
     """
     def smart_initialization_realizations(self, data, realizations):
@@ -98,6 +102,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         self.parameters = initialize_parameters(self, dataset, method)
 
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
+                                                       use_householder=self._use_householder,
                                                        **self._attributes_factory_ordinal_kws)
 
         # Postpone the computation of attributes when really needed!
@@ -128,7 +133,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
     def load_hyperparameters(self, hyperparameters: KwargsType):
 
-        expected_hyperparameters = ('features', 'dimension', 'source_dimension')
+        expected_hyperparameters = ('features', 'dimension', 'source_dimension', 'use_householder')
 
         if 'features' in hyperparameters.keys():
             self.features = hyperparameters['features']
@@ -146,6 +151,9 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             ):
                 raise LeaspyModelInputError(f"Source dimension should be an integer in [0, dimension - 1], not {hyperparameters['source_dimension']}")
             self.source_dimension = hyperparameters['source_dimension']
+
+        if 'use_householder' in hyperparameters.keys():
+            self._use_householder = hyperparameters['use_householder']
 
         # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
         expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)

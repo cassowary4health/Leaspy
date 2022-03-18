@@ -185,4 +185,3 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
 
         # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
         self._compute_Q(collin_to_dgamma_t0, G_metric)
-

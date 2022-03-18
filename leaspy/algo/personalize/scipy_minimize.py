@@ -425,7 +425,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         except NotImplementedError:
             return False
 
-    def _get_individual_parameters(self, model, data):
+    def _get_individual_parameters(self, model, dataset):
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
@@ -433,7 +433,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ----------
         model : :class:`.AbstractModel`
             Model used to compute the group average parameters.
-        data : :class:`.Dataset` class object
+        dataset : :class:`.Dataset` class object
             Contains the individual scores.
 
         Returns
@@ -445,7 +445,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         individual_parameters = IndividualParameters()
 
         if self.algo_parameters.get('progress_bar', True):
-            self._display_progress_bar(-1, data.n_individuals, suffix='subjects')
+            self._display_progress_bar(-1, dataset.n_individuals, suffix='subjects')
 
         # optimize by sending exact gradient of optimized function?
         with_jac = self.algo_parameters['use_jacobian']
@@ -459,13 +459,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             # TODO? change default logger as well?
 
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
-            delayed(self._get_individual_parameters_patient_master)(it_pat, data, model, with_jac=with_jac, patient_id=id_pat)
-            for it_pat, id_pat in enumerate(data.indices)
+            delayed(self._get_individual_parameters_patient_master)(it_pat, dataset, model, with_jac=with_jac, patient_id=id_pat)
+            for it_pat, id_pat in enumerate(dataset.indices)
         )
 
         for it_pat, ind_params_pat in enumerate(ind_p_all):
-            id_pat = data.indices[it_pat]
+            id_pat = dataset.indices[it_pat]
             individual_parameters.add_individual_parameters(str(id_pat), ind_params_pat)
 
         return individual_parameters
-

@@ -130,7 +130,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         """
 
     @abstractmethod
-    def _initialize_algo(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
+    def _initialize_algo(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization) -> None:
         """
         Initialize the fit algorithm (abstract method).
 

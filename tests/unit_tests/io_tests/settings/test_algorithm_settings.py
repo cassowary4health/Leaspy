@@ -251,4 +251,4 @@ class AlgorithmSettingsTest(LeaspyTestCase):
 
         # device is supported only for fit algorithms
         with self.assertWarnsRegex(UserWarning, 'does not support user-specified devices'):
-            algo_settings_incorrect = AlgorithmSettings('scipy_minimize', device=torch.device('cuda'))
+            _ = AlgorithmSettings('scipy_minimize', device=torch.device('cuda'))

@@ -464,8 +464,8 @@ class IndividualParameters:
         if self._parameters_shape is None:
             raise LeaspyIndividualParamsInputError('Individual parameters are empty: unable to save them.')
 
-        extension = IndividualParameters._check_and_get_extension(path)
-        if not extension:
+        extension = self._check_and_get_extension(path)
+        if extension is None:
             warnings.warn(f'You did not provide a valid extension (csv or json) for the file. '
                           f'Default to {self._default_saving_type}.')
             extension = self._default_saving_type
@@ -504,15 +504,15 @@ class IndividualParameters:
         >>> ip = IndividualParameters.load('/path/to/individual_parameters_1.json')
         >>> ip2 = IndividualParameters.load('/path/to/individual_parameters_2.csv')
         """
-        extension = IndividualParameters._check_and_get_extension(path)
-        if not extension or extension not in cls.VALID_IO_EXTENSIONS:
+        extension = cls._check_and_get_extension(path)
+        if extension not in cls.VALID_IO_EXTENSIONS:
             raise LeaspyIndividualParamsInputError(f"Loading individual parameters from extension '{extension}' is currently not handled. "
                                                    f"Valid extensions are: {cls.VALID_IO_EXTENSIONS}.")
 
         if extension == 'csv':
-            ip = IndividualParameters._load_csv(path)
+            ip = cls._load_csv(path)
         else:
-            ip = IndividualParameters._load_json(path)
+            ip = cls._load_json(path)
 
         return ip
 
@@ -520,7 +520,7 @@ class IndividualParameters:
     def _check_and_get_extension(path: str):
         _, ext = os.path.splitext(path)
         if len(ext) == 0:
-            return False
+            return None
         else:
             return ext[1:]
 
@@ -541,20 +541,20 @@ class IndividualParameters:
         with open(path, 'w') as f:
             json.dump(json_data, f, **kwargs)
 
-    @staticmethod
-    def _load_csv(path: str):
+    @classmethod
+    def _load_csv(cls, path: str):
 
         df = pd.read_csv(path, dtype={'ID': IDType}).set_index('ID')
-        ip = IndividualParameters.from_dataframe(df)
+        ip = cls.from_dataframe(df)
 
         return ip
 
-    @staticmethod
-    def _load_json(path: str):
+    @classmethod
+    def _load_json(cls, path: str):
         with open(path, 'r') as f:
             json_data = json.load(f)
 
-        ip = IndividualParameters()
+        ip = cls()
         ip._indices = json_data['indices']
         ip._individual_parameters = json_data['individual_parameters']
         ip._parameters_shape = json_data['parameters_shape']

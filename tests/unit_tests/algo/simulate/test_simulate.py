@@ -29,8 +29,8 @@ class SimulationAlgorithmTest(LeaspyTestCase):
 
         # reused data, model, individual parameters
         cls.data = cls.get_suited_test_data_for_model('logistic_scalar_noise')
-        cofactors = pd.read_csv(cls.example_data_covars_path, dtype={'ID': str}, index_col='ID')
-        cls.data.load_cofactors(cofactors, ["Treatments"])
+        cofactors = pd.read_csv(cls.example_data_covars_path, dtype={'ID': str}).set_index('ID')
+        cls.data.load_cofactors(cofactors, cofactors=["Treatments"])
 
         cls.lsp = cls.get_hardcoded_model('logistic_scalar_noise')
 
@@ -263,7 +263,8 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=100, mean_number_of_visits=6,
                                      std_number_of_visits=3, delay_btw_visits=custom_vis_delays)
         new_results = lsp.simulate(individual_parameters, data, settings)  # just test if run without error
-        delays_visits = [np.diff(idata.timepoints) for idata in new_results.data.individuals.values()]
+        delays_visits = [np.diff(idata.timepoints) for idata in new_results.data.individuals.values()
+                         if len(idata.timepoints) > 1]  # empty delays when only 1 timepoint (was raising a numpy warning)
         for delays_vis in delays_visits:
             self.assertAllClose(delays_vis, custom_vis_delays(len(delays_vis)), what='delay_vis')
 

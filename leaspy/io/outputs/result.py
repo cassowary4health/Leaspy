@@ -123,7 +123,7 @@ class Result:
         3  sub-HS0114          1
         4  sub-HS0115          0
 
-        >>> data.load_cofactors(genes_cofactors, 'GENES')
+        >>> data.load_cofactors(genes_cofactors, ['GENES'])
         >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
         >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
         >>> leaspy_logistic.fit(data, model_settings)
@@ -177,7 +177,7 @@ class Result:
         Parameters
         ----------
         path : str
-            The logs's path.
+            The logs' path.
         idx : list [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         cofactors : str or list [str], optional (default None)
@@ -198,7 +198,7 @@ class Result:
         >>> leaspy_logistic = Leaspy('logistic')
         >>> data = Data.from_csv_file('data/my_leaspy_data.csv') # replace with your own path!
         >>> genes_cofactors = pd.read_csv('data/genes_cofactors.csv')  # replace with your own path!
-        >>> data.load_cofactors(genes_cofactors, 'GENES')
+        >>> data.load_cofactors(genes_cofactors, ['GENES'])
         >>> model_settings = AlgorithmSettings('mcmc_saem', seed=0)
         >>> personalize_settings = AlgorithmSettings('mode_real', seed=0)
         >>> leaspy_logistic.fit(data, model_settings)
@@ -224,7 +224,7 @@ class Result:
         Parameters
         ----------
         path : str
-            The logs's path.
+            The logs' path.
         idx : list [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         human_readable : Any, optional (default None) -->  TODO change to bool
@@ -277,7 +277,7 @@ class Result:
         Parameters
         ----------
         path : str
-            The logs's path.
+            The logs' path.
         idx : list [str], optional (default None)
             Contain the IDs of the selected subjects. If ``None``, all the subjects are selected.
         **args
@@ -311,10 +311,9 @@ class Result:
     def _check_folder_existence(path: str):
         # Test path's folder existence (if path contain a folder)
         dir_path = os.path.dirname(path)
-        if dir_path != '':
-            if not os.path.isdir(dir_path):
-                raise NotADirectoryError(
-                    f'Cannot save individual parameter at path {path}. The folder does not exist!')
+        if not (dir_path == '' or os.path.isdir(dir_path)):
+            raise NotADirectoryError(
+                f'Cannot save individual parameter at path {path}. The folder does not exist!')
 
     def _get_dump(self, idx: List[IDType] = None):
         """
@@ -355,7 +354,7 @@ class Result:
         return dump
 
     @classmethod
-    def load_individual_parameters_from_csv(cls, path: str, verbose=True, **args):
+    def load_individual_parameters_from_csv(cls, path: str, *, verbose=True, **kwargs):
         """
         Load individual parameters from a csv.
 
@@ -365,7 +364,8 @@ class Result:
             The file's path. The csv file musts contain two columns named 'tau' and 'xi'. If the individual parameters
             come from a multivariate model, it must also contain the columns 'sources_i' for i in [0, ..., n_sources].
         verbose : bool (default True)
-        **args
+            Whether to have verbose output or not
+        **kwargs
             Parameters to pass to :func:`pandas.read_csv`.
 
         Returns
@@ -381,7 +381,7 @@ class Result:
         >>> path = 'outputs/logistic_seed0-mode_real_seed0-individual_parameter.csv'
         >>> individual_parameters = Result.load_individual_parameters_from_csv(path)
         """
-        df = pd.read_csv(path, **args)
+        df = pd.read_csv(path, **kwargs)
         if verbose:
             print("Load from csv file ... conversion to torch")
         return cls.load_individual_parameters_from_dataframe(df)
@@ -411,7 +411,7 @@ class Result:
         return ind_param
 
     @staticmethod
-    def load_individual_parameters_from_json(path: str, verbose=True, **args):
+    def load_individual_parameters_from_json(path: str, *, verbose=True, **kwargs):
         """
         Load individual parameters from a json file.
 
@@ -422,8 +422,9 @@ class Result:
         path : str
             The file's path.
         verbose : bool (default True)
-        **args
-            Parameters to pass to json.load.
+            Whether to have verbose output or not
+        **kwargs
+            Parameters to pass to :func:`json.load`.
 
         Returns
         -------
@@ -441,7 +442,7 @@ class Result:
         # Test if file is a json file
         try:
             with open(path, 'r') as f:
-                individual_parameters = json.load(f, **args)
+                individual_parameters = json.load(f, **kwargs)
             if verbose:
                 print("Load from json file ... conversion to torch")
 
@@ -463,7 +464,7 @@ class Result:
         return individual_parameters
 
     @staticmethod
-    def load_individual_parameters_from_torch(path: str, verbose=True, **args):
+    def load_individual_parameters_from_torch(path: str, *, verbose=True, **kwargs):
         """
         Load individual parameters from a torch file.
 
@@ -472,8 +473,9 @@ class Result:
         path : str
             The file's path.
         verbose : bool (default True)
-        **args
-            Parameters to pass to torch.load.
+            Whether to have verbose output or not
+        **kwargs
+            Parameters to pass to :func:`torch.load`.
 
         Returns
         -------
@@ -490,7 +492,7 @@ class Result:
         """
         if verbose:
             print("Load from torch file")
-        individual_parameters = torch.load(path, **args)
+        individual_parameters = torch.load(path, **kwargs)
         for key, val in individual_parameters.items():
             if not isinstance(val, torch.Tensor):
                 individual_parameters[key] = torch.tensor(val, dtype=torch.float32)
@@ -499,7 +501,7 @@ class Result:
         return individual_parameters
 
     @classmethod
-    def load_individual_parameters(cls, path_or_df, verbose=True, **args):
+    def load_individual_parameters(cls, path_or_df, **kwargs):
         """
         Load individual parameters from a :class:`pandas.DataFrame`, a csv, a json file or a torch file.
 
@@ -507,9 +509,8 @@ class Result:
         ----------
         path_or_df : str or :class:`pandas.DataFrame`
             The file's path or a DataFrame containing the individual parameters.
-        verbose : bool (default True)
-        **args
-            Parameters to pass to the corresponding load function.
+        **kwargs
+            Keyword-arguments to be passed to the corresponding load function.
 
         Returns
         -------
@@ -526,21 +527,21 @@ class Result:
         elif isinstance(path_or_df, str):
             file_extension = os.path.splitext(path_or_df)[-1]
             if file_extension == '.csv':
-                return cls.load_individual_parameters_from_csv(path_or_df, verbose=verbose, **args)
+                return cls.load_individual_parameters_from_csv(path_or_df, **kwargs)
             elif file_extension == '.json':
-                return cls.load_individual_parameters_from_json(path_or_df, verbose=verbose, **args)
+                return cls.load_individual_parameters_from_json(path_or_df, **kwargs)
             else:
                 if file_extension not in ('.pt', '.p'):
                     warnings.warn(f"File extension not recognized (got '{file_extension}')."
                                    "Trying to load with torch by default.",
                                   RuntimeWarning, stacklevel=2)
-                return cls.load_individual_parameters_from_torch(path_or_df, verbose=verbose, **args)
+                return cls.load_individual_parameters_from_torch(path_or_df, **kwargs)
         else:
             raise LeaspyIndividualParamsInputError("The given input must be a pandas.DataFrame or a string "
                                                    "giving the path of the file containing the individual parameters!")
 
     @classmethod
-    def load_result(cls, data, individual_parameters, cofactors=None, verbose=True, **args):
+    def load_result(cls, data, individual_parameters, *, cofactors=None, **kwargs):
         """
         Load a `Result` class object from two file - one for the individual data & one for the individual parameters.
 
@@ -553,9 +554,8 @@ class Result:
         cofactors : str or :class:`pandas.DataFrame`, optional (default None)
             The file's path or a DataFrame containing the individual cofactors.
             The ID must be in index! Thus, the shape is (n_subjects, n_cofactors).
-        verbose : bool (default True)
-        **args
-            Parameters to pass to result.load_individual_parameters static method.
+        **kwargs
+            Parameters to pass to `Result.load_individual_parameters` method.
 
         Returns
         -------
@@ -592,16 +592,16 @@ class Result:
 
         if cofactors is not None:
             if isinstance(cofactors, str):
-                cofactors_df = pd.read_csv(cofactors, index_col=0)
+                cofactors_df = pd.read_csv(cofactors, dtype={'ID': str}).set_index('ID')
             elif isinstance(cofactors, pd.DataFrame):
                 cofactors_df = cofactors.copy()
             else:
                 raise LeaspyTypeError("The given `cofactors` input must be a pandas.DataFrame "
                             "or a string giving the path of the file containing the cofactors! "
                             f"You gave an object of type {type(cofactors)}")
-            data.load_cofactors(cofactors_df, cofactors_df.columns.tolist())
+            data.load_cofactors(cofactors_df)
 
-        individual_parameters = cls.load_individual_parameters(individual_parameters, verbose=verbose, **args)
+        individual_parameters = cls.load_individual_parameters(individual_parameters, **kwargs)
         return cls(data, individual_parameters)
 
     def get_error_distribution_dataframe(self, model, cofactors=None):

@@ -113,4 +113,3 @@ class Loader:
             Leaspy instance with a model already calibrated.
         """
         return IndividualParameters.load(ip_paths[ip_name])
-

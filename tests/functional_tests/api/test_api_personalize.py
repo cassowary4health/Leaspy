@@ -278,7 +278,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 
                 with self.assertRaisesRegex(ValueError, 'Dataframe should have at least '):
                     # drop rows full of nans, nothing is left...
-                    data_0 = Data.from_dataframe(df)
+                    Data.from_dataframe(df)
 
                 with self.assertWarnsRegex(UserWarning, r"These columns only contain nans: \['Y0', 'Y1', 'Y2', 'Y3'\]"):
                     data_1 = Data.from_dataframe(df.head(1), drop_full_nan=False)

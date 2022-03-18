@@ -40,10 +40,13 @@ class AlgoWithAnnealingMixin:
         self._annealing_period: int = None
         self._annealing_temperature_decrement: float = None
 
+        if not self.annealing_on:
+            return
+
         # Dynamic number of iterations for annealing
         annealing_n_iter_frac = self.algo_parameters['annealing']['n_iter_frac']
 
-        if self.annealing_on and self.algo_parameters['annealing'].get('n_iter', None) is None:
+        if self.algo_parameters['annealing'].get('n_iter', None) is None:
             if annealing_n_iter_frac is None:
                 raise ValueError("You should NOT have both `annealing.n_iter_frac` and `annealing.n_iter` None."
                                  "\nPlease set a value for at least one of those settings.")

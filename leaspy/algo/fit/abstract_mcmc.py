@@ -40,13 +40,13 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
     ## Initialization
     ###########################
 
-    def _initialize_algo(self, data: Dataset, model: AbstractModel, realizations: CollectionRealization):
+    def _initialize_algo(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization) -> None:
         """
         Initialize the samplers, annealing, MCMC toolbox and sufficient statistics.
 
         Parameters
         ----------
-        data : :class:`.Dataset`
+        dataset : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
@@ -57,18 +57,17 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
         model.initialize_MCMC_toolbox()
 
         # Samplers mixin
-        self._initialize_samplers(model, data)
+        self._initialize_samplers(model, dataset)
 
         # Annealing mixin
         self._initialize_annealing()
 
-        return realizations
 
     ###########################
     ## Core
     ###########################
 
-    def iteration(self, data: Dataset, model: AbstractModel, realizations: CollectionRealization):
+    def iteration(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
         """
         MCMC-SAEM iteration.
 
@@ -77,7 +76,7 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
 
         Parameters
         ----------
-        data : :class:`.Dataset`
+        dataset : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
         """
@@ -88,14 +87,13 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
             shuffle(vars_order)  # shuffle order in-place!
 
         for key in vars_order:
-            self.samplers[key].sample(data, model, realizations, self.temperature_inv)
+            self.samplers[key].sample(dataset, model, realizations, self.temperature_inv)
 
         # Maximization step
-        self._maximization_step(data, model, realizations)
+        self._maximization_step(dataset, model, realizations)
 
         # We already updated MCMC toolbox for all population parameters during pop sampling.
         # So there is no need to update it as it once used to be.
 
         # Annealing mixin
         self._update_temperature()
-

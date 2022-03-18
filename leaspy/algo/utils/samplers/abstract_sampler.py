@@ -86,7 +86,7 @@ class AbstractSampler(ABC):
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{info['type']}': nor 'population' nor 'individual'.")
 
-    def sample(self, data: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    def sample(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
         """
         Sample new realization (either population or individual) for a given realization state, dataset, model and temperature
 
@@ -95,7 +95,7 @@ class AbstractSampler(ABC):
 
         Parameters
         ----------
-        data : :class:`.Dataset`
+        dataset : :class:`.Dataset`
             Dataset class object build with leaspy class object Data, model & algo
         model : :class:`.AbstractModel`
             Model for loss computations and updates
@@ -116,9 +116,9 @@ class AbstractSampler(ABC):
             (globally or per individual, depending on variable type).
         """
         if self.type == 'pop':
-            return self._sample_population_realizations(data, model, realizations, temperature_inv, **attachment_computation_kws)
+            return self._sample_population_realizations(dataset, model, realizations, temperature_inv, **attachment_computation_kws)
         else:
-            return self._sample_individual_realizations(data, model, realizations, temperature_inv, **attachment_computation_kws)
+            return self._sample_individual_realizations(dataset, model, realizations, temperature_inv, **attachment_computation_kws)
 
     @abstractmethod
     def _sample_population_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
@@ -167,7 +167,7 @@ class AbstractSampler(ABC):
             acceptance decision (False or True)
         """
         # Sample a realization from uniform law
-        # Choose to keep iff realization is < alpha (proba alpha)
+        # Choose to keep iff realization is < alpha (probability alpha)
         # <!> Always draw a number even if it seems "useless" (cf. docstring warning)
         return torch.rand(1).item() < alpha
 

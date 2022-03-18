@@ -822,7 +822,7 @@ class SimulationAlgorithm(AbstractAlgo):
             # full kde with sources
             df_mean, df_cov = None, None
 
-        # --------- Get joined density estimation of repam bl, tau, xi (and sources if the model is not univariate)
+        # --------- Get joined density estimation of reparametrized bl age, tau, xi (and sources if the model has some)
         # Normalize by variable then transpose to learn the joined distribution
         ss = StandardScaler()
 

@@ -154,4 +154,3 @@ class OutputsSettings:
         all_ok &= self._check_folder_is_empty_or_create_it(self.patients_plot_path)
 
         return all_ok
-

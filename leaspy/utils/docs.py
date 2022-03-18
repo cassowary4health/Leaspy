@@ -11,19 +11,24 @@ R = TypeVar('R')
 
 def _replace_terms(source: str, mapping: Dict[str, str], flags: int = 0) -> str:
     """
-    Replace all occurences of keys in a string by their mapped correspondence.
+    Replace all occurrences of keys in a string by their mapped correspondence.
 
     <!> The correspondences are searched with word boundaries and is case-sensitive
 
     Parameters
     ----------
-    source
+    source : str
         Source string to replace from
-    mapping
+    mapping : dict
         Mapping of terms to replace {original: replacement}
         <!> No replacement term should by an original key to replace
-    flags
+    flags : int
         Valid flag for :func:`re.sub`
+
+    Returns
+    -------
+    str
+        The input str with all replacements done.
 
     Examples
     --------
@@ -43,6 +48,23 @@ def doc_with_(target: object, original: object, mapping: Dict[str, str] = None, 
 
     Low-level version of :func:`.doc_with` (refer to its documentation)
     Will set `target.__doc__` in-place (not a decorator function).
+
+    Parameters
+    ----------
+    target : object
+        Object to document (e.g. a function, a class, a given class method, ...).
+    original : object
+        Object to copy documentation from.
+    mapping : dict
+        Optional mapping to replace some terms (case-sensitive and word boundary aware) by others
+        from the original docstring.
+    **mapping_kwargs
+        Optional keyword arguments passed to :func:`._replace_terms` (flags=...).
+
+    Returns
+    -------
+    target
+        The (in-place) modified target object.
     """
     original_doc = original.__doc__
     assert original_doc is not None
@@ -55,6 +77,7 @@ def doc_with_(target: object, original: object, mapping: Dict[str, str] = None, 
     else:
         target.__doc__ = original_doc # in-place modification
 
+    # we have to return the function for `doc_with` wrapper to be a valid decorator
     return target
 
 def doc_with(original: object, mapping: Dict[str, str] = None, **mapping_kwargs) -> Callable[[object], object]:

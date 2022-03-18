@@ -67,7 +67,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         return individual_parameters, noise_std
 
     @abstractmethod
-    def _get_individual_parameters(self, model, data) -> IndividualParameters:
+    def _get_individual_parameters(self, model, dataset) -> IndividualParameters:
         """
         Estimate individual parameters from a `Dataset`.
 
@@ -75,7 +75,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         ----------
         model : :class:`~.models.abstract_model.AbstractModel`
             A subclass object of leaspy AbstractModel.
-        data : :class:`.Dataset`
+        dataset : :class:`.Dataset`
             Dataset object build with leaspy class objects Data, algo & model
 
         Returns

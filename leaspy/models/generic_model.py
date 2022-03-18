@@ -345,4 +345,3 @@ class GenericModel(ABC):
             lines.append(f"{param_name} : {param_val}")
 
         return "\n".join(lines)
-

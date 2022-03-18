@@ -66,4 +66,3 @@ class ConstantModel(GenericModel):
 
         values = [individual_parameters[f] for f in self.features]
         return torch.tensor([[values] * len(timepoints)], dtype=torch.float32)
-

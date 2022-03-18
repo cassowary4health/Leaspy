@@ -107,4 +107,3 @@ class AlgoFactory:
         algorithm.set_output_manager(settings.logs)
 
         return algorithm
-

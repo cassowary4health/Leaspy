@@ -131,14 +131,14 @@ class AbstractModel(ABC):
             Keyword arguments for json.dump method.
         """
 
-    def compute_sum_squared_per_ft_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
+    def compute_sum_squared_per_ft_tensorized(self, dataset: Dataset, param_ind: DictParamsTorch, *,
                                               attribute_type=None) -> torch.FloatTensor:
         """
         Compute the square of the residuals per subject per feature
 
         Parameters
         ----------
-        data : :class:`.Dataset`
+        dataset : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         param_ind : dict
             Contain the individual parameters
@@ -150,18 +150,18 @@ class AbstractModel(ABC):
         :class:`torch.Tensor` of shape (n_individuals,dimension)
             Contains L2 residual for each subject and each feature
         """
-        res = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type)
-        r1 = data.mask.float() * (res - data.values) # ijk tensor (i=individuals, j=visits, k=features)
+        res = self.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
+        r1 = dataset.mask.float() * (res - dataset.values) # ijk tensor (i=individuals, j=visits, k=features)
         return (r1 * r1).sum(dim=1)  # sum on visits
 
-    def compute_sum_squared_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
+    def compute_sum_squared_tensorized(self, dataset: Dataset, param_ind: DictParamsTorch, *,
                                        attribute_type=None) -> torch.FloatTensor:
         """
         Compute the square of the residuals per subject
 
         Parameters
         ----------
-        data : :class:`.Dataset`
+        dataset : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         param_ind : dict
             Contain the individual parameters
@@ -173,7 +173,7 @@ class AbstractModel(ABC):
         :class:`torch.Tensor` of shape (n_individuals,)
             Contains L2 residual for each subject
         """
-        L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type=attribute_type)
+        L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(dataset, param_ind, attribute_type=attribute_type)
         return L2_res_per_ind_per_ft.sum(dim=1)  # sum on features
 
     def _audit_individual_parameters(self, ips: DictParams) -> KwargsType:
@@ -186,7 +186,7 @@ class AbstractModel(ABC):
         Parameters
         ----------
         ips : dict[param: str, Any]
-            Contains some untrusted individual parameters.
+            Contains some un-trusted individual parameters.
             If representing only one individual (in a multivariate model) it could be:
                 * {'tau':0.1, 'xi':-0.3, 'sources':[0.1,...]}
 
@@ -503,7 +503,7 @@ class AbstractModel(ABC):
 
         # TODO: this snippet could be implemented directly in NoiseModel (or subclasses depending on noise structure)
         if self.noise_model is None:
-            raise LeaspyModelInputError(f'`noise_model` was not set correctly set.')
+            raise LeaspyModelInputError('`noise_model` was not set correctly set.')
 
         elif 'gaussian' in self.noise_model:
             # diagonal noise (squared) [same for all features if it's forced to be a scalar]
@@ -686,14 +686,15 @@ class AbstractModel(ABC):
             * shape: tuple[int, ...]
                 Shape of the variable (only 1D for individual and 1D or 2D for pop. are supported)
             * rv_type: str
-                An indication (not used in code) on the proba distribution used for the var (only Gaussian is supported)
+                An indication (not used in code) on the probability distribution used for the var
+                (only Gaussian is supported)
             * scale: optional float
                 The fixed scale to use for initial std-dev in the corresponding sampler.
                 When not defined, sampler will rely on scales estimated at model initialization.
                 cf. :class:`~leaspy.algo.utils.samplers.GibbsSampler`
         """
 
-    def smart_initialization_realizations(self, data: Dataset, realizations: CollectionRealization) -> CollectionRealization:
+    def smart_initialization_realizations(self, dataset: Dataset, realizations: CollectionRealization) -> CollectionRealization:
         """
         Smart initialization of realizations if needed (input may be modified in-place).
 
@@ -701,7 +702,7 @@ class AbstractModel(ABC):
 
         Parameters
         ----------
-        data : :class:`.Dataset`
+        dataset : :class:`.Dataset`
         realizations : :class:`.CollectionRealization`
 
         Returns
@@ -763,7 +764,8 @@ class AbstractModel(ABC):
             for variable_ind in self.get_individual_realization_names()
         }
 
-    def _compute_std_from_var(self, variance: torch.FloatTensor, *, varname: str, tol: float = 1e-5) -> torch.FloatTensor:
+    @staticmethod
+    def _compute_std_from_var(variance: torch.FloatTensor, *, varname: str, tol: float = 1e-5) -> torch.FloatTensor:
         """
         Check that variance is strictly positive and return its square root, otherwise fail with a convergence error.
 

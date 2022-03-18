@@ -135,6 +135,8 @@ KDE
 
 df
 dfs
+loc
+iloc
 dataframe
 multiindex
 reindex
@@ -142,6 +144,8 @@ concat
 dtype
 dropna
 lexsort
+formattable
+fittable
 ndim
 eps
 resid
@@ -149,6 +153,8 @@ endog
 exog
 rmse
 nones
+nanmean
+nanquantile
 
 ix
 idx
@@ -158,6 +164,31 @@ ax
 axs
 ip
 ips
+xi
+wi
+ijk
+ij
+ik
+jk
+i-th
+j-th
+k-th
+abc
+unlink
+unsqueeze
+unsqueezed
+unsqueezing
+tensorize
+tensorization
+tensorizing
+parallelize
+pragma
+eval
+infty
+postcondition
+varname
+hardcoded
+outputing
 
 yml
 yaml
@@ -196,6 +227,8 @@ SPD
 inflexion
 reproducibility
 combinatorially
+identifiability
+deformable
 tpt
 tpts
 timepoint
@@ -230,6 +263,7 @@ LMM
 lmm
 utils
 subfolder
+Nelder
 
 reparametrize
 reparametrization

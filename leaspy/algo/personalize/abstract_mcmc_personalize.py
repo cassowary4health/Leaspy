@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import warnings
 from random import shuffle
 from copy import copy
 from abc import abstractmethod

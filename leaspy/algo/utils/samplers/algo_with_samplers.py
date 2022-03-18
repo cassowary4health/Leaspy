@@ -90,14 +90,14 @@ class AlgoWithSamplersMixin:
             out += f"\n    {str(sampler)}"
         return out
 
-    def _initialize_samplers(self, model, data):
+    def _initialize_samplers(self, model, dataset):
         """
         Instantiate samplers as a dictionary samplers {variable_name: sampler}
 
         Parameters
         ----------
-        data : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
+        dataset : :class:`.Dataset`
         """
         # fetch additional hyperparameters for samplers
         # TODO: per variable and not just per type of variable?
@@ -126,7 +126,7 @@ class AlgoWithSamplersMixin:
                 scale_param = info.get('scale', model.parameters[f'{variable}_std'])
 
                 if sampler_ind == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals, scale=scale_param, **sampler_ind_kws)
+                    self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param, **sampler_ind_kws)
                 #elif sampler_ind == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
             else:
@@ -137,6 +137,6 @@ class AlgoWithSamplersMixin:
                 scale_param = info.get('scale', model.parameters[variable].abs())
 
                 if sampler_pop == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, data.n_individuals, scale=scale_param, **sampler_pop_kws)
+                    self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param, **sampler_pop_kws)
                 #elif sampler_pop == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])

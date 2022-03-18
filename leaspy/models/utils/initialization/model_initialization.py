@@ -594,4 +594,3 @@ def compute_patient_time_distribution(data):
     df.set_index(["ID", "TIME"], inplace=True)
     return torch.mean(torch.tensor(df.index.get_level_values('TIME').tolist())), \
            torch.std(torch.tensor(df.index.get_level_values('TIME').tolist()))
-

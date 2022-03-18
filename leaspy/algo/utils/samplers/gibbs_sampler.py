@@ -7,7 +7,7 @@ from numpy import ndindex
 from .abstract_sampler import AbstractSampler
 from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.docs import doc_with_super
-from leaspy.utils.typing import Optional, Union, Tuple
+from leaspy.utils.typing import Union, Tuple
 
 
 @doc_with_super()
@@ -202,7 +202,7 @@ class GibbsSampler(AbstractSampler):
 
             # Keep previous realizations and sample new ones
             old_val_idx = realization.tensor_realizations[idx].clone()
-            # the previous version with `_proposal` was not incorrect but computationnally inefficient:
+            # the previous version with `_proposal` was not incorrect but computationally inefficient:
             # because we were sampling on the full shape of `std` whereas we only needed `std[idx]` (scalar)
             new_val_idx = old_val_idx + self.std[idx] * torch.randn(())
             realization.set_tensor_realizations_element(new_val_idx, idx)

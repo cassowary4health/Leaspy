@@ -478,7 +478,7 @@ class Plotting:
         Parameters
         ----------
         data : :class:`.Data`
-        individual_parameters : :class:`.IndividualParameters` or :class:`pandas.DataFrame` (as may be outputed by ip.to_dataframe()) or dict (Pytorch ip format)
+        individual_parameters : :class:`.IndividualParameters` or :class:`pandas.DataFrame` (as may be output by ip.to_dataframe()) or dict (Pytorch ip format)
         patients_idx : 'all' (default), str or list[str]
             Patients to display (by their ID).
         reparametrized_ages : bool (default False)
@@ -489,5 +489,3 @@ class Plotting:
         """
 
         return self._plot_patients_generic('recons', data, patients_idx = patients_idx, individual_parameters = individual_parameters, reparametrized_ages = reparametrized_ages, **kwargs)
-
-

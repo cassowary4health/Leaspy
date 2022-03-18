@@ -248,7 +248,7 @@ class NoiseModel:
         """Only for backward-compatibility with old loss."""
 
         if loss is None:
-            return
+            return None
 
         noise_struct = cls.OLD_MAPPING_FROM_LOSS.get(loss, None)
         if noise_struct is None:

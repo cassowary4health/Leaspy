@@ -118,6 +118,7 @@ confidence=
 disable=missing-module-docstring,
         wrong-import-position,
         ungrouped-imports,
+        consider-iterating-dictionary,  # instead of using .keys()
         #unused-argument,
         no-member,
         fixme,  # let this to codeclimate only!
@@ -434,13 +435,13 @@ function-naming-style=snake_case
 #function-rgx=
 
 # Good variable names which should always be accepted, separated by a comma.
-good-names=a, b, c, d,
-           df,
-           e, ex, f, g,
-           i, j, k,
-           m, n, p, q,
-           r, s, t, v,
-           w, x, y, z
+good-names=a, ax, b, bl, c, d,
+           df, e, ei, ej, ex,
+           f, fp, ft, g, g0, h,
+           i, ip, it, ix, j, k,
+           m, mu, n, p, q,
+           r, s, sd, t, t0, v, v0,
+           w, wi, x, xi, y, z
            _
 
 # Good variable names regexes, separated by a comma. If names match any regex,

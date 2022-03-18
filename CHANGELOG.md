@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2022-03-11
+- [FIX] Inconsistent warning about annealing.n_iter / n_iter_frac
+- [FIX/CHORE] Fix minor typos without functional impact
+- [COMPAT] PyTorch 1.11 was tested and is compatible
+
 ## [1.3.0] - 2022-03-09
 - [FIX] Fix critical regression on `AlgorithmSettings.save`
 - [FIX] Fix some presentation issues with convergence plots

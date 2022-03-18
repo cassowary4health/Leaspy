@@ -238,13 +238,13 @@ class IndividualParametersTest(LeaspyTestCase):
             ('path/to/file.csv', 'csv'),
             ('file.json', 'json'),
             ('path/to/file.json', 'json'),
-            ('nopath', False),
+            ('nopath', None),
             ('bad_path.bad', 'bad')
         ]
 
-        for test in tests:
-            ext = IndividualParameters._check_and_get_extension(test[0])
-            self.assertEqual(ext, test[1])
+        for input_path, expected_ext in tests:
+            ext = IndividualParameters._check_and_get_extension(input_path)
+            self.assertEqual(ext, expected_ext)
 
     def test_save_csv(self):
 

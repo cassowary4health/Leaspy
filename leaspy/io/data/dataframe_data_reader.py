@@ -48,7 +48,7 @@ class DataframeDataReader:
     def dimension(self):
         """Number of features in dataset."""
         if self.headers is None:
-            return
+            return None
         return len(self.headers)
 
     @staticmethod
@@ -82,7 +82,7 @@ class DataframeDataReader:
                 raise LeaspyDataInputError('All `ID` should be >= 0 when subjects are identified as integers, '
                                            'use string identifiers if you need more flexibility.')
         elif inferred_dtype == 'string':
-            if (s == '').any():
+            if (s.str.len() == 0).any():
                 raise LeaspyDataInputError('No `ID` should be empty when subjects are identified as strings.')
 
     @classmethod

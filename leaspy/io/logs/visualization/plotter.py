@@ -9,8 +9,8 @@ import torch
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib.lines import Line2D
 import matplotlib.backends.backend_pdf
-from matplotlib.cm import get_cmap
 
 from leaspy.io.data.dataset import Dataset
 from leaspy.exceptions import LeaspyInputError
@@ -49,7 +49,7 @@ class Plotter:
 
         #colors = color_palette(range(8))
 
-        colors = get_cmap("tab20").colors
+        colors = cm.get_cmap("tab20").colors
 
         try:
             iter(model)
@@ -155,7 +155,7 @@ class Plotter:
 
             trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
             for dim in range(model.dimension):
-                not_nans_idx = np.array(1-np.isnan(observations[:, dim]),dtype=bool)
+                not_nans_idx = np.array(~np.isnan(observations[:, dim]), dtype=bool)
                 ax.plot(np.array(timepoints), trajectory.cpu().detach().numpy()[:, dim], c=colors[dim])
                 ax.plot(np.array(timepoints)[not_nans_idx], observations[:, dim][not_nans_idx], c=colors[dim], linestyle='--')
 
@@ -165,7 +165,6 @@ class Plotter:
         if 'title' in kwargs.keys():
             plt.title(kwargs['title'])
 
-        from matplotlib.lines import Line2D
         custom_lines = [Line2D([0], [0], color=colors[i%8], lw=4) for i in range((model.dimension))]
 
         ax.legend(custom_lines, labels, loc='upper right')

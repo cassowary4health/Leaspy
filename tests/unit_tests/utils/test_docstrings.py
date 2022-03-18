@@ -36,10 +36,9 @@ MODULES_EXCLUDED = [
     'tests',
     'example',
     'browser',
-    # exclude sub-pkgs
+    # exclude some sub-pkgs
     'leaspy.io.logs.visualization',  # TODO
     'leaspy.io.data.individual_data',  # TODO
-    'leaspy.utils',
 ]
 MODULES_EXCLUDE_PATTERN = fr"(^(setup|conftest|{'|'.join(MODULES_EXCLUDED)})|(\.|^)_)"
 
@@ -118,7 +117,7 @@ WARNING_CODES = [
 ]
 
 # Log results (for complete pytest run only)
-LOG_FILE = 'test_docstrings.log'  # None if you don't want to log in addition to display errors/warnings
+LOG_FILE = True  # False if you don't want to log in addition to display errors/warnings
 LOG_WARNINGS_IN_FILE = False
 
 # Additional errors
@@ -212,8 +211,6 @@ def get_all_methods(klasses: Iterable[Tuple[str, object]]):
     for _, klass in klasses:
         methods: List[Optional[str]] = [None]  # for main class docstring
         for name in dir(klass):
-            if name.startswith("_") and name not in PRIVATE_METHODS_NOT_IGNORED:
-                continue
             method_obj = getattr(klass, name)
             if getattr(method_obj, "__module__", None) != klass.__module__:
                 # docstring defined somewhere else
@@ -221,6 +218,9 @@ def get_all_methods(klasses: Iterable[Tuple[str, object]]):
             if NO_INIT_DOCSTRING and name == "__init__" and method_obj.__doc__ is None:
                 # do not parse __init__ method if it has, as required, no docstring
                 # (a dummy docstring is added by Python and then mistakenly parsed by numpydoc)
+                continue
+            if name.startswith("_") and not name in PRIVATE_METHODS_NOT_IGNORED: # and method_obj.__doc__ is None:
+                # skip private methods unless whitelisted (or its docstring is not None)
                 continue
             if hasattr(method_obj, "__call__") or isinstance(method_obj, property):
                 if method_obj.__doc__ and re.search(IGNORE_DOCSTRING_REGEX, method_obj.__doc__):
@@ -236,10 +236,11 @@ def get_all_methods(klasses: Iterable[Tuple[str, object]]):
 
 def _is_checked_function(item: object):
 
-    if getattr(item, "__name__", "_").startswith("_"):
+    if not inspect.isfunction(item):
         return False
 
-    if not inspect.isfunction(item):
+    if getattr(item, "__name__", "_").startswith("_") and item.__doc__ is None:
+        # we do not skip private functions with explicit docstring
         return False
 
     if item.__doc__ and re.search(IGNORE_DOCSTRING_REGEX, item.__doc__):
@@ -430,7 +431,7 @@ RUN_FROM_PYTEST = getattr(sys, "_called_from_test", False)  # cf. conftest.py
 if RUN_FROM_PYTEST:
     # Run the pytest on all sub-modules (test/lib mode).
 
-    log_to_file = Path(LOG_FILE) if LOG_FILE else None
+    log_to_file = Path(__file__).with_suffix(".log") if LOG_FILE else None
     #if log_to_file.exists():
     #    log_to_file.unlink()
 

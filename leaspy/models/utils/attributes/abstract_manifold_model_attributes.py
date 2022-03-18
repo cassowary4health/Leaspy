@@ -230,11 +230,12 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         return torch.mm(matrix, linear_combination_values)
 
 
-    def _check_collinearity_vectors(self, *vectors: torch.FloatTensor) -> bool:
+    @staticmethod
+    def _check_collinearity_vectors(*vectors: torch.FloatTensor) -> bool:
         """
         Returns True if all vectors are collinear [or all zeros].
 
-        This may be a useful helper function to avoid un-needed orthonormal basis re-computations.
+        This may be a useful helper function to avoid unneeded orthonormal basis re-computations.
         (Not used for now - only "declaration" of sure collinearity to speed-up)
 
         Precondition on vectors: 0D or 1D torch float tensors of same shapes

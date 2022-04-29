@@ -106,6 +106,8 @@ class SimulationAlgorithm(AbstractAlgo):
             * Set to ``'bernoulli'``, to simulate Bernoulli realizations.
             * Set a float will add for each feature's scores a noise of standard deviation the given float ('gaussian_scalar' noise).
             * Set an array-like[float] (1D of length `n_features`) will add for the feature `j` a noise of standard deviation ``noise[j]`` ('gaussian_diagonal' noise).
+        <!> When you simulate data from an ordinal model, you HAVE to keep the default noise='inherit_struct'
+            (or use 'model', which is the same in this case since there are no scaling parameter for ordinal noise)
     number_of_subjects : int > 0
         Number of subject to simulate.
     reparametrized_age_bounds : tuple[float, float], optional (default None)
@@ -514,6 +516,11 @@ class SimulationAlgorithm(AbstractAlgo):
 
     def _get_noise_model(self, model: AbstractModel, dataset: Dataset, individual_params: DictParamsTorch) -> NoiseModel:
 
+        # special compatibility check for ordinal model
+        if getattr(model, 'noise_model', None) == 'ordinal' and self.noise not in ('inherit_struct', 'default', 'model'):
+            raise LeaspyAlgoInputError("For an ordinal model, you HAVE to simulate observations with `noise=inherit_struct`"
+                                       "(or `noise=model` which is the same in this case).")
+
         if self.noise is None:
             # no noise at all (will send back raw values upon call)
             return NoiseModel(None)
@@ -669,8 +676,8 @@ class SimulationAlgorithm(AbstractAlgo):
             mean_observations = model.compute_individual_trajectory(subjects.timepoints[i], indiv_param)
             # Sample observations as realizations of the noise model
             observations = noise_model.sample_around(mean_observations)
-            # Clip in 0-1 for logistic models (could be out because of noise!)
-            if 'logistic' in model.name:
+            # Clip in 0-1 for logistic models (could be out because of noise!), except for ordinal case
+            if 'logistic' in model.name and getattr(model, 'noise_model', None) != 'ordinal':
                 observations = observations.clamp(0, 1)
 
             observations = observations.squeeze(0).detach()

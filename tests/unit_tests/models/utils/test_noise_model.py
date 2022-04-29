@@ -327,7 +327,7 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
         nm.check_compat_with_model(self.models['ordinal'])
 
         for shape in [(1,2), (2, 3), (5, 4)]:
-            probs = torch.randn(shape)
+            probs = torch.rand(shape)  # must be in [0, 1]
             probs = probs / probs.sum(axis=-1, keepdim=True)
             # input is output (no noise & no copy)
             rv = nm.rv_around(probs)

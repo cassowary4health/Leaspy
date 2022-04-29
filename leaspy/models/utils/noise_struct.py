@@ -5,6 +5,7 @@ from functools import reduce
 import copy
 
 import torch
+from torch.distributions.constraints import unit_interval
 
 from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.typing import KwargsType, Tuple, Callable, Optional, Dict, DictParamsTorch
@@ -163,8 +164,8 @@ class MultinomialDistribution(torch.distributions.Distribution):
 
     Attributes
     ----------
-    probas : torch.FloatTensor
-        Values of the probabilities from which the distribution samples
+    probas : torch.FloatTensor in [0, 1]
+        Values of the probabilities from which the distribution samples (sum must be 1)
 
     Attributes :
 
@@ -172,7 +173,7 @@ class MultinomialDistribution(torch.distributions.Distribution):
         Probabilities of shape (..., dim_probas) where dim_probas is the max number of classes
 
     cdf : torch.FloatTensor
-        Corresponding cdf of the probabilities
+        Corresponding cdf of the probabilities, of same shape as `loc`
     '''
 
     arg_constraints = {}
@@ -183,6 +184,10 @@ class MultinomialDistribution(torch.distributions.Distribution):
         self.probas = loc
         # computing cdf
         self.cdf = loc.cumsum(dim=-1)
+        assert unit_interval.check(loc).all() and torch.allclose(self.cdf[..., -1], torch.tensor(1.)), \
+            "Bad probabilities in MultinomialDistribution"
+        # shape of the sample
+        self._sample_shape = self.cdf.shape[:-1]
 
     def sample(self):
         """
@@ -191,15 +196,13 @@ class MultinomialDistribution(torch.distributions.Distribution):
         Returns
         -------
         out : torch.IntTensor
-        Vector of integer values corresponding to the multinomial sampling.
+            Vector of integer values corresponding to the multinomial sampling.
+            Result is in [[0, dim_probas - 1]]
         """
-        s = list(self.probas.shape)
-        max_classes = s[-1]
-        s[-1] = 1
-        repeats = [1 for _ in s]
-        repeats[-1] = max_classes
         # random sampling of cdf
-        r = torch.rand(s).repeat(repeats)
+        # we sample uniformly on [0, 1( but for the latest dimension corresponding to `dim_probas`
+        # this latest dimension will be broadcast when comparing with `cdf`
+        r = torch.rand(self._sample_shape).unsqueeze(-1)
         out = (r < self.cdf).int().argmax(dim=-1) # works because it returns first index where we find a 1
         return out
 

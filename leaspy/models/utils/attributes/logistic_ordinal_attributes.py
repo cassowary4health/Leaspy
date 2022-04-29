@@ -75,18 +75,21 @@ class LogisticOrdinalAttributes(LogisticAttributes):
         '''
         if self.batched_deltas:
             return self.deltas
+        # There are `max_level - 1 = nb_levels - 2` deltas since:
+        # * we only model nb_levels - 1 curves (not P >= 0 since it's constant = 1)
+        # * the first curve is the anchor ("delta = 0") for it
         deltas = torch.zeros((len(self.deltas), self.max_level - 1))
         for i, name in enumerate(self.deltas):
             deltas[i, :self.deltas[name].shape[0]] = self.deltas[name]
         return deltas
 
-    def update(self, names_of_changed_values, values):
+    def update(self, names_of_changed_values: list, values: dict):
         """
         Update model group average parameter(s).
 
         Parameters
         ----------
-        names_of_changed_values : list [str]
+        names_of_changed_values : list[str]
             Elements of list must be either:
                 * ``all`` (update everything)
                 * ``g`` correspond to the attribute :attr:`positions`.
@@ -126,40 +129,42 @@ class LogisticOrdinalAttributes(LogisticAttributes):
         if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values):
             compute_velocities = True
             dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
-        if any('deltas' in c for c in names_of_changed_values):
+
+        deltas_to_compute = [c for c in names_of_changed_values if c.startswith('deltas')]
+        if len(deltas_to_compute) > 0:
             compute_deltas = True
 
-        if compute_betas:
-            self._compute_betas(values)
         if compute_positions:
             self._compute_positions(values)
         if compute_velocities:
             self._compute_velocities(values)
         if compute_deltas:
-            self._compute_deltas(values, [c for c in names_of_changed_values if 'deltas' in c])
+            self._compute_deltas(values, deltas_to_compute)
 
-        if self.has_sources:
+        # only for models with sources beyond this point
+        if not self.has_sources:
+            return
 
-            # do not recompute orthonormal basis when we know dgamma_t0 is collinear
-            # to previous velocities to avoid useless computations!
-            recompute_ortho_basis = compute_positions or dgamma_t0_not_collinear_to_previous
+        if compute_betas:
+            self._compute_betas(values)
 
-            if recompute_ortho_basis:
-                self._compute_orthonormal_basis()
-            if recompute_ortho_basis or compute_betas:
-                self._compute_mixing_matrix()
+        # do not recompute orthonormal basis when we know dgamma_t0 is collinear
+        # to previous velocities to avoid useless computations!
+        recompute_ortho_basis = compute_positions or dgamma_t0_not_collinear_to_previous
 
-    def _compute_deltas(self, values, names):
+        if recompute_ortho_basis:
+            self._compute_orthonormal_basis()
+        if recompute_ortho_basis or compute_betas:
+            self._compute_mixing_matrix()
+
+    def _compute_deltas(self, values: dict, names: list):
         """
         Updates the deltas which have been changed (those included in names)
+
         Parameters
         ----------
-        values
-        names
-
-        Returns
-        -------
-
+        values: Dict[str, torch.Tensor]
+        names: List[str]
         """
         if self.batched_deltas:
             self.deltas = torch.exp(values['deltas'])

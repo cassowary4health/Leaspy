@@ -524,7 +524,7 @@ class AbstractModel(ABC):
             neg_crossentropy = data.values * torch.log(pred) + (1. - data.values) * torch.log(1. - pred)
             attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
 
-        elif self.noise_model == 'ordinal':
+        elif self.is_ordinal:
 
             pred = self.compute_individual_tensorized(data.timepoints, param_ind,
                                                       attribute_type=attribute_type)

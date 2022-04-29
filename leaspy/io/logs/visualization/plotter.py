@@ -313,7 +313,7 @@ class Plotter:
 
         patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
 
-        if model.noise_model == 'ordinal':
+        if model.is_ordinal:
             patient_values = patient_values.argmax(axis=-1)
 
         for i in patients_list:
@@ -337,7 +337,7 @@ class Plotter:
 
         patient_values = model.compute_mean_traj(timepoints, attribute_type=attribute_type)
 
-        if model.noise_model == 'ordinal':
+        if model.is_ordinal:
             patient_values = patient_values.argmax(axis=-1)
 
         for i in range(patient_values.shape[-1]):
@@ -394,7 +394,7 @@ class Plotter:
         # Make the plot 1
 
         to_skip_1 = ['betas'] + ['sources_mean', 'sources_std']*int(skip_sources)
-        if hasattr(model, "noise_model") and model.noise_model == 'ordinal':
+        if hasattr(model, "noise_model") and model.is_ordinal:
             to_skip_1.append('deltas')
         params_to_plot_1 = [p for p in model.parameters.keys() if p not in to_skip_1]
 
@@ -462,7 +462,7 @@ class Plotter:
         for i, key in enumerate(reals_pop_name):
             y_position += 1
             ax[y_position].set_title(key)
-            if key == 'deltas' and model.noise_model == 'ordinal':
+            if key == 'deltas' and model.is_ordinal:
                 for dim in range(model.dimension):
                     import_path = os.path.join(path, key + "_" + str(dim) + ".csv")
                     df_convergence = pd.read_csv(import_path, index_col=0, header=None)

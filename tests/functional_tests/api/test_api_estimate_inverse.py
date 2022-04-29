@@ -157,7 +157,8 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
         leaspy = self.get_hardcoded_model('logistic_ordinal')
         ip = self.get_hardcoded_individual_params('ip_save.json')
 
-        levels = {feat["name"] : {id_:[list(range(1, feat["nb_levels"]))] for id_ in ('idx1','idx2')} for feat in leaspy.model.ordinal_infos["features"]}
+        levels = {feat["name"] : {id_:[list(range(1, feat["max_level"]))] for id_ in ('idx1','idx2')}
+                                  for feat in leaspy.model.ordinal_infos["features"]}
 
         timepoints = {
             "Y0": {'idx1': [69.087, 70.881], 'idx2': [72.841, 74.465]},

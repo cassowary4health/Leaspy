@@ -259,14 +259,17 @@ def initialize_deltas_ordinal(model, dataset, parameters):
     Returns
     -------
     parameters : dict[str, `torch.Tensor`]
-        The updated parameters intialization, with new parameter deltas
+        The updated parameters initialization, with new parameter deltas
     """
 
     deltas = {}
     df = dataset.to_pandas().set_index(['ID', 'TIME'])
-    for col in df:
+    for col in model.features:  # preserve feature order
         max_lvl = int(df[col].max())
-        model.ordinal_infos["features"].append({"name":col, "nb_levels":max_lvl})
+        model.ordinal_infos["features"].append({"name":col, "max_level":max_lvl})
+        # we do not model P >= 0 (since constant = 1)
+        # and we do not need a delta for our anchor curve P >= 1
+        # so we start at k == 2
         delays = []
         for k in range(2, max_lvl + 1):
             inf = (df[[col]] >= (k - 1)).groupby('ID')
@@ -280,21 +283,21 @@ def initialize_deltas_ordinal(model, dataset, parameters):
 
     # Changes the meaning of v0 # How do we initialize this ?
     #parameters['v0'] = torch.zeros_like(parameters['v0'])
-    max_level = max([feat["nb_levels"] for feat in model.ordinal_infos['features']])
+    max_level = max([feat["max_level"] for feat in model.ordinal_infos['features']])
     if model.ordinal_infos["batch_deltas"]:
         deltas_ = torch.zeros((len(deltas), max_level - 1))
         for i, name in enumerate(deltas):
             deltas_[i, :deltas[name].shape[0]] = deltas[name]
         parameters["deltas"] = deltas_
     else:
-        for col in dataset.headers:
+        for col in model.features:
             parameters["deltas_" + col] = deltas[col]
     model.ordinal_infos["max_level"] = max_level
     # Mask for setting values > max_level per item to zero
     model.ordinal_infos["mask"] = torch.cat([
         torch.cat([
-            torch.ones((1, 1, 1, feat['nb_levels'])),
-            torch.zeros((1, 1, 1, max_level - feat['nb_levels'])),
+            torch.ones((1, 1, 1, feat['max_level'])),
+            torch.zeros((1, 1, 1, max_level - feat['max_level'])),
         ], dim=-1) for feat in model.ordinal_infos['features']
     ], dim=2)
 

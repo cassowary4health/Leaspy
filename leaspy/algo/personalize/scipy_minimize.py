@@ -186,7 +186,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters).squeeze(0)
 
         # for ordinal we take the maximum likelihood estimate
-        if model.noise_model == 'ordinal':
+        if model.is_ordinal:
             predicted = predicted.argmax(dim=-1)
 
         return predicted - values
@@ -272,18 +272,17 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         # Extra arguments passed by scipy minimize
         model, times, values, with_gradient = args
+        nans = torch.isnan(values)
 
         ## Attachment term
         individual_parameters = self._pull_individual_parameters(x, model)
 
         # compute 1 individual at a time (1st dimension is squeezed)
         predicted = model.compute_individual_tensorized(times, individual_parameters).squeeze(0)
-        if model.noise_model == 'ordinal':
-            diff = predicted[..., 0] - values
-        else:
+        diff = None
+        if not model.is_ordinal:
             diff = predicted - values # tensor j,k (j=visits, k=features)
-        nans = torch.isnan(values)
-        diff[nans] = 0.  # set nans to zero, not to count in the sum
+            diff[nans] = 0.  # set nans to zero, not to count in the sum
 
         # compute gradient of model with respect to individual parameters
         grads = None
@@ -316,7 +315,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 crossentropy_fact = diff / (predicted * (1. - predicted))
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
 
-        elif model.noise_model == 'ordinal':
+        elif model.is_ordinal:
             max_level = model.ordinal_infos["max_level"]
             vals = values.long().clamp(0, max_level)
             vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)

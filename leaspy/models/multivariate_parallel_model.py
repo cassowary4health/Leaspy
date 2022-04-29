@@ -113,17 +113,16 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         population_dictionary = self._create_dictionary_of_population_realizations()
         self.update_MCMC_toolbox(["all"], population_dictionary)
 
-    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
-        L = name_of_the_variables_that_have_been_changed
+    def update_MCMC_toolbox(self, vars_to_update, realizations):
         values = {}
-        if any(c in L for c in ('g', 'all')):
+        if any(c in vars_to_update for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
-        if any(c in L for c in ('deltas', 'all')):
+        if any(c in vars_to_update for c in ('deltas', 'all')):
             values['deltas'] = realizations['deltas'].tensor_realizations
-        if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
+        if any(c in vars_to_update for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
 
-        self.MCMC_toolbox['attributes'].update(L, values)
+        self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
     def compute_sufficient_statistics(self, data, realizations):
 

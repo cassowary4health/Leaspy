@@ -9,6 +9,8 @@ import warnings
 T = TypeVar('T')
 R = TypeVar('R')
 
+DEFAULT_INIT_DOC = "Initialize self.  See help(type(self)) for accurate signature."
+
 def _replace_terms(source: str, mapping: Dict[str, str], flags: int = 0) -> str:
     """
     Replace all occurrences of keys in a string by their mapped correspondence.
@@ -159,8 +161,8 @@ def doc_with_super(*, if_other_signature: str = 'raise', **doc_with_kwargs) -> C
         m_sign = _get_function_parameters_without_type_annotations(m)
 
         def condition_on_super_method(super_m: Callable) -> bool:
-            # ignore not documented methods
-            if super_m.__doc__ is None:
+            # ignore not documented methods or default documented __init__ method
+            if super_m.__doc__ is None or (m_name.endswith(".__init__") and super_m.__doc__ == DEFAULT_INIT_DOC):
                 return False
 
             super_sign = _get_function_parameters_without_type_annotations(super_m)

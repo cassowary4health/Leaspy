@@ -517,7 +517,7 @@ class SimulationAlgorithm(AbstractAlgo):
     def _get_noise_model(self, model: AbstractModel, dataset: Dataset, individual_params: DictParamsTorch) -> NoiseModel:
 
         # special compatibility check for ordinal model
-        if getattr(model, 'noise_model', None) == 'ordinal' and self.noise not in ('inherit_struct', 'default', 'model'):
+        if getattr(model, 'is_ordinal', False) and self.noise not in ('inherit_struct', 'default', 'model'):
             raise LeaspyAlgoInputError("For an ordinal model, you HAVE to simulate observations with `noise=inherit_struct`"
                                        "(or `noise=model` which is the same in this case).")
 
@@ -677,7 +677,7 @@ class SimulationAlgorithm(AbstractAlgo):
             # Sample observations as realizations of the noise model
             observations = noise_model.sample_around(mean_observations)
             # Clip in 0-1 for logistic models (could be out because of noise!), except for ordinal case
-            if 'logistic' in model.name and getattr(model, 'noise_model', None) != 'ordinal':
+            if 'logistic' in model.name and not getattr(model, 'is_ordinal', False):
                 observations = observations.clamp(0, 1)
 
             observations = observations.squeeze(0).detach()

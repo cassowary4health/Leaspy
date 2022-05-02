@@ -47,7 +47,8 @@ class AbstractSampler(ABC):
         It keeps the history of the last `acceptation_history_length` steps.
     mask : Union[None, torch.FloatTensor]
         If not None, mask should be 0/1 tensor indicating the sampling variable to adapt variance from
-        1 indices are kept for sampling while 0 are excluded
+        1 indices are kept for sampling while 0 are excluded.
+        <!> Only supported for population variables.
 
     Raises
     ------
@@ -61,6 +62,7 @@ class AbstractSampler(ABC):
         self.acceptation_history_length = acceptation_history_length
 
         self.ind_param_dims_but_individual: Optional[Tuple[int, ...]] = None
+        self.mask = None
 
         if info["type"] == "population":
             self.type = 'pop'
@@ -69,8 +71,7 @@ class AbstractSampler(ABC):
                 # convention: shape of pop variable is 1D or 2D
                 raise LeaspyModelInputError("Dimension of population variable should be 1 or 2")
             else:
-                full_shape = (self.acceptation_history_length, *self.shape)
-                self.acceptation_history = torch.zeros(full_shape)
+                self.acceptation_history = torch.zeros(self.acceptation_history_length, *self.shape)
 
         elif info["type"] == "individual":
             self.type = 'ind'
@@ -78,24 +79,25 @@ class AbstractSampler(ABC):
             if len(self.shape) != 1:
                 raise LeaspyModelInputError("Dimension of individual variable should be 1")
             # <!> We do not take into account the dimensionality of individual parameter for acceptation rate
-            full_shape = (self.acceptation_history_length, n_patients)
-            self.acceptation_history = torch.zeros(full_shape)
+            self.acceptation_history = torch.zeros(self.acceptation_history_length, n_patients)
 
             # The dimension(s) to sum when computing regularity of individual parameters
             # For now there's only one extra dimension whether it's tau, xi or sources
             # but in the future it could be extended. We never sum dimension 0 which
             # will always be the individual dimension.
             self.ind_param_dims_but_individual = tuple(range(1, 1 + len(self.shape)))  # for now it boils down to (1,)
+
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{info['type']}': nor 'population' nor 'individual'.")
 
-        if "mask" in info:
+        if info.get("mask", None) is not None:
             self.mask = info["mask"]
+            if info["type"] != "population":
+                raise LeaspyModelInputError("Mask in sampler is only supported for population variable.")
             if self.mask.shape != self.shape:
                 raise LeaspyModelInputError(
                     f"Mask for sampler should be of size {self.shape} but is of shape {self.mask.shape}")
-        else:
-            self.mask = None
+
 
     def sample(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
         """
@@ -184,8 +186,7 @@ class AbstractSampler(ABC):
 
     def _update_acceptation_rate(self, accepted: torch.FloatTensor):
         """
-        Update acceptation rate from history of boolean accepted values for each dimension of each variable
-        (except for multivariate individual parameters)
+        Update history of acceptation rates with latest accepted rates
 
         Parameters
         ----------
@@ -198,10 +199,4 @@ class AbstractSampler(ABC):
 
         # Concatenate the new acceptation result at end of new one (forgetting the oldest acceptation rate)
         old_acceptation_history = self.acceptation_history[1:]
-
-        if self.type == "pop":
-            self.acceptation_history = torch.cat([old_acceptation_history, accepted.unsqueeze(0)])
-        elif self.type == "ind":
-            self.acceptation_history = torch.cat([old_acceptation_history, accepted.unsqueeze(0)])
-        else:
-            raise LeaspyModelInputError(f"Unknown variable type '{self.type}': nor 'pop' nor 'ind'.")
+        self.acceptation_history = torch.cat([old_acceptation_history, accepted.unsqueeze(0)])

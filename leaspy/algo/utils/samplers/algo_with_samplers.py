@@ -108,8 +108,8 @@ class AlgoWithSamplersMixin:
 
         # allow sampler ind or pop to be None when the corresponding variables are not needed
         # e.g. for personalization algorithms (mode & mean real), we do not need to sample pop variables any more!
-        if sampler_ind not in [None, 'Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
-            raise NotImplementedError("Only 'Gibbs', 'FastGibbs' and 'Metropolis-Hastings' sampler is supported for individual variables for now, "
+        if sampler_ind not in [None, 'Gibbs']:
+            raise NotImplementedError("Only 'Gibbs' sampler is supported for individual variables for now, "
                                       "please open an issue on Gitlab if needed.")
 
         if sampler_pop not in [None, 'Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
@@ -125,9 +125,9 @@ class AlgoWithSamplersMixin:
                 # But note that for individual parameters the model parameters ***_std should always be OK (> 0)
                 scale_param = info.get('scale', model.parameters[f'{variable}_std'])
 
-                if sampler_ind in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
+                if sampler_ind in ['Gibbs']:
                     self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
-                                                           sampler_type=self.algo_parameters['sampler_ind'])
+                                                           sampler_type=self.algo_parameters['sampler_ind'], **sampler_ind_kws)
                 #elif self.algo_parameters['sampler_ind'] == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
             else:
@@ -140,6 +140,6 @@ class AlgoWithSamplersMixin:
 
                 if sampler_pop in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
                     self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
-                                                           sampler_type=self.algo_parameters['sampler_pop'])
+                                                           sampler_type=self.algo_parameters['sampler_pop'], **sampler_pop_kws)
                 #elif self.algo_parameters['sampler_pop'] == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])

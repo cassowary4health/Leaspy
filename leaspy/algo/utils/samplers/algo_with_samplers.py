@@ -127,7 +127,7 @@ class AlgoWithSamplersMixin:
 
                 if sampler_ind in ['Gibbs']:
                     self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
-                                                           sampler_type=self.algo_parameters['sampler_ind'], **sampler_ind_kws)
+                                                           sampler_type=sampler_ind, **sampler_ind_kws)
                 #elif self.algo_parameters['sampler_ind'] == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
             else:
@@ -140,6 +140,6 @@ class AlgoWithSamplersMixin:
 
                 if sampler_pop in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
                     self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
-                                                           sampler_type=self.algo_parameters['sampler_pop'], **sampler_pop_kws)
+                                                           sampler_type=sampler_pop, **sampler_pop_kws)
                 #elif self.algo_parameters['sampler_pop'] == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])

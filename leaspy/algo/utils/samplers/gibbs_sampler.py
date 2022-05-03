@@ -101,7 +101,13 @@ class GibbsSampler(AbstractSampler):
                 shape_adapted_std = (self.shape[0],)
             elif self.sampler_type == 'Metropolis-Hastings':
                 # Proposition variance is the same for all coordinates
-                shape_adapted_std = (1,)  # or empty tuple
+                shape_adapted_std = ()  # empty tuple -> we should not use (1,) because `ndindex` would not be correct
+
+            # <!> `scale` has to be of `shape_adapted_std`, otherwise there would be automatic broadcasting and `self.std` could not be of the intended shape! (for samplers other than Gibbs)
+            if scale.ndim > len(shape_adapted_std):
+                # we take the mean of groupped dimension in this case
+                scale_squeezed_dims = tuple(range(len(shape_adapted_std), scale.ndim))
+                scale = scale.mean(dim=scale_squeezed_dims)
 
             self.std = self.STD_SCALE_FACTOR_POP * scale * torch.ones(shape_adapted_std)
             self.acceptation_history = torch.zeros(self.acceptation_history_length, *shape_adapted_std)

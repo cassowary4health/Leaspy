@@ -108,6 +108,18 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=True)
 
+    def test_fit_logistic_diag_noise_fast_gibbs(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_fast_gibbs', noise_model='gaussian_diagonal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, sampler_pop='FastGibbs'),
+                                     check_model=True)
+
+    def test_fit_logistic_diag_noise_mh(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_mh', noise_model='gaussian_diagonal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, sampler_pop='Metropolis-Hastings'),
+                                     check_model=True)
+
     def test_fit_logistic_diag_noise_with_custom_tuning_no_sources(self):
 
         leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_custom',

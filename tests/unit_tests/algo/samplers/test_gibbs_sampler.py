@@ -132,7 +132,7 @@ class SamplerTest(LeaspyTestCase):
         acceptation_for_draws = {
             'Gibbs': (cycle([torch.tensor([0., 0., 1., 1.])]*3 + [torch.tensor([0., 1., 0., 1.])]*2), torch.tensor([0., 2/5, 3/5, 1.])),
             'FastGibbs': (cycle([torch.tensor([0., 0., 1., 1.])]*3 + [torch.tensor([0., 1., 0., 1.])]*2), torch.tensor([0., 2/5, 3/5, 1.])),
-            'Metropolis-Hastings': (cycle([torch.tensor([1.])]*3 + [torch.tensor([0.])]*2), torch.tensor([3/5])),
+            'Metropolis-Hastings': (cycle([torch.tensor(1.)]*3 + [torch.tensor(0.)]*2), torch.tensor(3/5)),
         }
         for sampler, (acceptation_it, expected_mean_acceptation) in acceptation_for_draws.items():
             gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
@@ -150,7 +150,7 @@ class SamplerTest(LeaspyTestCase):
         acceptation_for_draws = {
             'Gibbs': (cycle([torch.tensor([[0., 0.], [0., 1.], [1., 1.]])]*3 + [torch.tensor([[0., 1.], [1., 0.], [0., 1.]])]*2), torch.tensor([[0., 2/5], [2/5, 3/5], [3/5, 1.]])),
             'FastGibbs': (cycle([torch.tensor([0., 0., 1.])]*3 + [torch.tensor([0., 1., 0.])]*2), torch.tensor([0., 2/5, 3/5])),
-            'Metropolis-Hastings': (cycle([torch.tensor([1.])]*3 + [torch.tensor([0.])]*2), torch.tensor([3/5])),
+            'Metropolis-Hastings': (cycle([torch.tensor(1.)]*3 + [torch.tensor(0.)]*2), torch.tensor(3/5)),
         }
         for sampler, (acceptation_it, expected_mean_acceptation) in acceptation_for_draws.items():
             gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,

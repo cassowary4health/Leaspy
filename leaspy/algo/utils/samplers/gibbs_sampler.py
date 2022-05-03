@@ -200,7 +200,21 @@ class GibbsSampler(AbstractSampler):
         """
         realization = realizations[self.name]
         accepted_array = torch.zeros_like(self.std)
-        iterator_indices = list(ndindex(accepted_array.shape))  # depending on sampler type we will loop on all coordinates or (partially) group them
+
+        # when a mask is set on the random variable and when we sample without any grouping
+        # (i.e. regular Gibbs sampler - i.e. shape of `std` is same as shape of `mask`)
+        # then we'll only loop on coordinates not masked (we skip the un-needed indices)
+        if self.mask is not None and self.sampler_type == 'Gibbs':
+            # example for variable of shape (2,3) with mask = [[1,1,0],[1,1,1]]
+            # --> iterator_indices = [(0,0), (0, 1), (1, 0), (1, 1), (1, 2)]
+            iterator_indices = list(map(tuple, self.mask.nonzero().tolist()))
+        else:
+            # depending on sampler type we will loop on all coordinates or (partially) group them:
+            # example for variable of shape (2, 3)
+            # * for 'Gibbs' sampler: [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
+            # * for 'FastGibbs' sampler: [(0,), (1,)]
+            # * for 'Metropolis-Hastings' sampler: [()]
+            iterator_indices = list(ndindex(accepted_array.shape))
 
         if self._random_order_dimension:
             shuffle(iterator_indices)  # shuffle in-place!

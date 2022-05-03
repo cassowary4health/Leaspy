@@ -1,4 +1,7 @@
+from __future__ import annotations
 import warnings
+from typing import Union
+from collections.abc import Iterable, Iterator
 
 import numpy as np
 import pandas as pd
@@ -7,7 +10,6 @@ import torch
 from leaspy.io.data.csv_data_reader import CSVDataReader
 from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 from leaspy.io.data.individual_data import IndividualData
-# from leaspy.io.data.dataset import Dataset
 
 from leaspy.exceptions import LeaspyDataInputError
 from leaspy.utils.typing import FeatureType, IDType, Dict, List
@@ -16,7 +18,7 @@ from leaspy.utils.typing import FeatureType, IDType, Dict, List
 # TODO or find a good way to say that there are individual parameters here ???
 
 
-class Data:
+class Data(Iterable):
     """
     Main data container, initialized from a `csv file` or a :class:`pandas.DataFrame`.
     """
@@ -29,8 +31,6 @@ class Data:
         self.n_individuals: int = 0
         self.n_visits: int = 0
         self.cofactors: List[FeatureType] = []
-
-        self.iter: int = 0
 
     def get_by_idx(self, idx: IDType):
         """
@@ -47,21 +47,22 @@ class Data:
         """
         return self.individuals[idx]
 
-    def __getitem__(self, iter: int):
-        return self.individuals[self.iter_to_idx[iter]]
-
-    def __iter__(self):
-        # TODO: make a true DataIterator class because quite dirty to have `iter` inside
-        return self
-
-    def __next__(self):
-        # TODO: make a true DataIterator class because quite dirty to have `iter` inside
-        if self.iter >= self.n_individuals:
-            self.iter = 0
-            raise StopIteration
+    def __getitem__(self, key: Union[int, slice]) -> Union[Data, IndividualData]:
+        if isinstance(key, slice):
+            slice_indices = range(self.n_individuals)[key]
+            individual_indices = [self.iter_to_idx[i] for i in slice_indices]
+            timepoints = [self.individuals[j].timepoints for j in individual_indices]
+            values = [self.individuals[j].observations for j in individual_indices]
+            return Data.from_individuals(
+                indices=individual_indices,
+                timepoints=timepoints,
+                values=values,
+                headers=self.headers)
         else:
-            self.iter += 1
-            return self.__getitem__(self.iter - 1)
+            return self.individuals[self.iter_to_idx[key]]
+
+    def __iter__(self) -> DataIterator:
+        return DataIterator(self)
 
     def load_cofactors(self, df: pd.DataFrame, *, cofactors: List[FeatureType] = None):
         """
@@ -269,3 +270,18 @@ class Data:
             data.n_visits += len(timepoints[i])
 
         return data
+
+
+class DataIterator(Iterator):
+    def __init__(self, data: Data) -> None:
+        self._data = data
+        self.iter = 0
+
+    def __next__(self):
+        try:
+            value = self._data.__getitem__(self.iter)
+            self.iter += 1
+        except KeyError:
+            raise StopIteration
+
+        return value

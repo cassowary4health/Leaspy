@@ -21,9 +21,28 @@ from leaspy.utils.typing import FeatureType, IDType, Dict, List
 class Data(Iterable):
     """
     Main data container, initialized from a `csv file` or a :class:`pandas.DataFrame`.
+
+    It can be iterated over and sliced, both of these operations being
+    applied to the underlying `individuals` attribute.
+
+    Attributes
+    ----------
+    individuals : Dict[IDType, IndividualData]
+        Included individuals and their associated data
+    iter_to_idx : Dict[int, IDType]
+        Maps an integer index to the associated individual ID
+    headers : list[FeatureType]
+        Feature names
+    dimension : int
+        Number of features
+    n_individuals : int
+        Number of individuals
+    n_visits : int
+        Total number of visits
+    cofactors : List[FeatureType]
+        Feature names corresponding to cofactors
     """
     def __init__(self):
-
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
         self.headers: List[FeatureType] = None
@@ -273,6 +292,14 @@ class Data(Iterable):
 
 
 class DataIterator(Iterator):
+    """
+    Iterates over individuals of a Data container
+
+    Parameters
+    ----------
+    data : Data
+        The data container used as an iterable collection
+    """        
     def __init__(self, data: Data) -> None:
         self._data = data
         self.iter = 0

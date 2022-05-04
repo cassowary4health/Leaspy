@@ -66,10 +66,25 @@ class Data(Iterable):
         """
         return self.individuals[idx]
 
-    def __getitem__(self, key: Union[int, slice]) -> Union[Data, IndividualData]:
-        if isinstance(key, slice):
-            slice_indices = range(self.n_individuals)[key]
-            individual_indices = [self.iter_to_idx[i] for i in slice_indices]
+    def __getitem__(self, key: Union[int, IDType, slice, list[int], list[IDType]]) -> Union[IndividualData, Data]:
+        if isinstance(key, int):
+            return self.individuals[self.iter_to_idx[key]]
+
+        elif isinstance(key, IDType):
+            return self.individuals[key]
+
+        elif isinstance(key, (slice, list)):
+            if isinstance(key, slice):
+                slice_indices = range(self.n_individuals)[key]
+                individual_indices = [self.iter_to_idx[i] for i in slice_indices]
+            else:
+                if all(isinstance(value, int) for value in key):
+                    individual_indices = [self.iter_to_idx[i] for i in key]
+                elif all(isinstance(value, IDType) for value in key):
+                    individual_indices = key
+                else:
+                    raise KeyError("Cannot access a Data item using a list of this type")
+
             timepoints = [self.individuals[j].timepoints for j in individual_indices]
             values = [self.individuals[j].observations for j in individual_indices]
             return Data.from_individuals(
@@ -77,8 +92,8 @@ class Data(Iterable):
                 timepoints=timepoints,
                 values=values,
                 headers=self.headers)
-        else:
-            return self.individuals[self.iter_to_idx[key]]
+
+        raise KeyError("Cannot access a data item this way")
 
     def __iter__(self) -> DataIterator:
         return DataIterator(self)

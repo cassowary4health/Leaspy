@@ -224,9 +224,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             )
 
             # summation term
-            regularity += model.compute_regularity_variable(param_val, **priors).sum(dim=1)
+            regularity += model.compute_regularity_variable(param_val, **priors, include_constant=False).sum(dim=1)
 
-            # derivatives: formula below is for Normal parameters priors only
+            # derivatives: <!> formula below is for Normal parameters priors only
             # TODO? create a more generic method in model `compute_regularity_variable_gradient`? but to do so we should probably wait to have some more generic `compute_regularity_variable` as well (at least pass the parameter name to this method to compute regularity term)
             regularity_grads[param_name] = (param_val - priors['mean']) / (priors['std']**2)
 

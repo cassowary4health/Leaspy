@@ -153,29 +153,38 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
     def test_get_regularity(self):
         leaspy = self.get_hardcoded_model('logistic_scalar_noise')
+        z0 = [0.0, 75.2/7.1, 0., 0.]  # for all individual parameters we set `mean/std`
 
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
-        #algo._set_model_name('logistic')
 
-        z = [0.0, 75.2/7.1, 0., 0.]
-        individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
+        individual_parameters = algo._pull_individual_parameters(z0, leaspy.model)
 
+        # regularity constant is not added anymore (useless)
+        expected_reg = torch.tensor([0.])
         reg, reg_grads = algo._get_regularity(leaspy.model, individual_parameters)
-        self.assertEqual(torch.is_tensor(reg), True)
-        output = torch.tensor([4.0264])
-        self.assertAlmostEqual(torch.sum((reg - output)**2).item(), 0, delta=1e-8)
+        self.assertTrue(torch.is_tensor(reg))
+        self.assertEqual(reg.shape, expected_reg.shape)
+        self.assertAllClose(reg, expected_reg)
 
         # gradients
+        expected_reg_grads = {'tau': torch.tensor([[0.]]), 'xi': torch.tensor([[0.]]), 'sources': torch.tensor([[0., 0.]])}
         self.assertIsInstance(reg_grads, dict)
-        self.assertSetEqual(set(reg_grads.keys()),{'xi','tau','sources'})
+        self.assertEqual(reg_grads.keys(), expected_reg_grads.keys())
         # types & dimensions
-        self.assertEqual(torch.is_tensor(reg_grads['xi']), True)
-        self.assertEqual(torch.is_tensor(reg_grads['tau']), True)
-        self.assertEqual(torch.is_tensor(reg_grads['sources']), True)
-        self.assertTupleEqual(reg_grads['xi'].shape, (1,1))
-        self.assertTupleEqual(reg_grads['tau'].shape, (1,1))
-        self.assertTupleEqual(reg_grads['sources'].shape, (1,2))
+        for ip, expected_reg_grad in expected_reg_grads.items():
+            self.assertTrue(torch.is_tensor(reg_grads[ip]))
+            self.assertEqual(reg_grads[ip].shape, expected_reg_grad.shape)
+        # nice check for all values
+        self.assertDictAlmostEqual(reg_grads, expected_reg_grads)
+
+        # second test with a non-zero regularity term
+        s = [0.33, -0.59, 0.72, -0.14]  # random shifts to test (in normalized space)
+        z = [si + z0i for si, z0i in zip(s, z0)]  # we have to add the z0 by design of `_pull_individual_parameters`
+        individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
+        expected_reg = 0.5 * (torch.tensor(s) ** 2).sum()  # gaussian regularity (without constant)
+        reg, _ = algo._get_regularity(leaspy.model, individual_parameters)
+        self.assertAllClose(reg, expected_reg)
 
     def get_individual_parameters_patient(self, model_name, times, values, *, noise_model, **algo_kwargs):
         # already a functional test in fact...

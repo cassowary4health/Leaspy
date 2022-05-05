@@ -19,7 +19,7 @@ from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsT
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
 
-TWO_PI = 2 * math.pi
+TWO_PI = torch.tensor(2 * math.pi)
 
 
 # TODO? refact so to only contain methods needed for the Leaspy api + add another abstract class (interface) on top of it for MCMC fittable models + one for "manifold models"
@@ -49,6 +49,7 @@ class AbstractModel(ABC):
         cf.  :class:`.NoiseModel` to see possible values.
     regularization_distribution_factory : function dist params -> :class:`torch.distributions.Distribution`
         Factory of torch distribution to compute log-likelihoods for regularization (gaussian by default)
+        (Not used anymore)
     """
 
     def __init__(self, name: str, **kwargs):
@@ -59,8 +60,10 @@ class AbstractModel(ABC):
         self.parameters: KwargsType = None
         self.noise_model: str = None
 
-        # TODO? shouldn't it belong to each random variable specs?
-        self.regularization_distribution_factory = torch.distributions.normal.Normal
+        ## TODO? shouldn't it belong to each random variable specs?
+        # We do not use this anymore as many initializations of the distribution will considerably slow down software
+        # (it is especially true when personalizing with `scipy_minimize` since there are many regularity computations - per individual)
+        #self.regularization_distribution_factory = torch.distributions.normal.Normal
 
         # load hyperparameters
         # <!> in children classes with new hyperparameter you should do it manually at end of __init__ to overwrite default values
@@ -646,9 +649,11 @@ class AbstractModel(ABC):
         else:
             raise LeaspyModelInputError(f"Variable type '{realization.variable_type}' not known, should be 'population' or 'individual'.")
 
-        return self.compute_regularity_variable(realization.tensor_realizations, mean, std)
+        # we do not need to include regularity constant (priors are always fixed at a given iteration)
+        return self.compute_regularity_variable(realization.tensor_realizations, mean, std, include_constant=False)
 
-    def compute_regularity_variable(self, value: torch.FloatTensor, mean: torch.FloatTensor, std: torch.FloatTensor) -> torch.FloatTensor:
+    def compute_regularity_variable(self, value: torch.FloatTensor, mean: torch.FloatTensor, std: torch.FloatTensor,
+                                    *, include_constant: bool = True) -> torch.FloatTensor:
         """
         Compute regularity term (Gaussian distribution), low-level.
 
@@ -657,12 +662,22 @@ class AbstractModel(ABC):
         Parameters
         ----------
         value, mean, std : :class:`torch.Tensor` of same shapes
+        include_constant : bool (default True)
+            Whether we include or not additional terms constant with respect to `value`.
 
         Returns
         -------
         :class:`torch.Tensor` of same shape than input
         """
-        return -self.regularization_distribution_factory(mean, std).log_prob(value)
+        # This is really slow when repeated on tiny tensors (~3x slower than direct formula!)
+        #return -self.regularization_distribution_factory(mean, std).log_prob(value)
+
+        y = (value - mean) / std
+        neg_loglike = 0.5*y*y
+        if include_constant:
+            neg_loglike += 0.5*torch.log(TWO_PI * std**2)
+
+        return neg_loglike
 
     def initialize_realizations_for_model(self, n_individuals: int, **init_kws) -> CollectionRealization:
         """

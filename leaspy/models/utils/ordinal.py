@@ -69,12 +69,19 @@ class OrdinalModelMixin:
         ----------
         model_values : `torch.Tensor`
             Cumulative distribution values : model_values[..., l] is the proba to be superior or equal to l+1
+            Dimensions are:
+            * 0=individual
+            * 1=visit
+            * 2=feature
+            * 3=ordinal_level
+            * [4=individual_parameter_dim_when_gradient]
 
         Returns
         -------
-        likelihood : `torch.Tensor`
+        likelihood : `torch.Tensor` (same shape as input)
             likelihood[..., l] is the proba to be equal to l
         """
+        # nota: torch.diff was introduced in v1.8 but would not highly improve performance of this routine anyway
         s = list(model_values.shape)
         s[3] = 1
         mask = self.ordinal_infos["mask"]

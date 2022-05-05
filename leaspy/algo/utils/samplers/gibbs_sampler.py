@@ -110,6 +110,7 @@ class GibbsSampler(AbstractSampler):
                 scale = scale.mean(dim=scale_squeezed_dims)
 
             self.std = self.STD_SCALE_FACTOR_POP * scale * torch.ones(shape_adapted_std)
+            # nota: we leave as is the masked elements of `std` since they will never be used anyway...
             self.acceptation_history = torch.zeros(self.acceptation_history_length, *shape_adapted_std)
 
         elif info["type"] == "individual":
@@ -143,8 +144,18 @@ class GibbsSampler(AbstractSampler):
         self._adaptive_std_factor = adaptive_std_factor
 
     def __str__(self):
-        mean_acceptation_rate = self.acceptation_history.mean().item()  # mean on all dimensions!
-        return f"{self.name} rate : {mean_acceptation_rate:.1%}, std: {self.std.mean():.1e}"
+
+        meaningful_indices = ()  # all indices are meaningful by default
+        # nota: we use tuple to account for the fact that in MH we deal with 0D tensors
+        if self.mask is not None and self.sampler_type == 'Gibbs':
+            # account for possible mask when computing the mean
+            meaningful_indices = (self.mask.to(bool),)
+
+        # mean on all dimensions!
+        mean_std = self.std[meaningful_indices].mean()
+        mean_acceptation_rate = self.acceptation_history[(slice(None),) + meaningful_indices].mean()
+
+        return f"{self.name} rate : {mean_acceptation_rate.item():.1%}, std: {mean_std.item():.1e}"
 
     def _proposal(self, val):
         """
@@ -177,6 +188,7 @@ class GibbsSampler(AbstractSampler):
         if self._counter % self.acceptation_history_length == 0:
             mean_acceptation = self.acceptation_history.mean(dim=0)
 
+            # nota: we could prevent masked std[idx_toolow] to be updated everytime but we let it as is since it does not harm at all...
             idx_toolow = mean_acceptation < self._mean_acceptation_lower_bound_before_adaptation
             idx_toohigh = mean_acceptation > self._mean_acceptation_upper_bound_before_adaptation
 

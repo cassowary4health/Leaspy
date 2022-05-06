@@ -446,6 +446,9 @@ class AbstractModel(ABC):
         attribute_type : Any (default None)
             Flag to ask for MCMC attributes instead of model's attributes.
 
+        **kwargs
+            Hyperparameters such as ordinal_pdf flag to compute cdf or pdf in ordinal models
+
         Returns
         -------
         :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features)
@@ -471,6 +474,9 @@ class AbstractModel(ABC):
 
         attribute_type : Any (default None)
             Flag to ask for MCMC attributes instead of model's attributes.
+
+        **kwargs
+            Hyperparameters such as ordinal_pdf flag to compute cdf or pdf in ordinal models
 
         Returns
         -------

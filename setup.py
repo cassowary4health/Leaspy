@@ -81,7 +81,7 @@ setup(name="leaspy",
 
       install_requires=requirements,
       include_package_data=True,
-      data_files=[('requirements', ['requirements.txt', 'docs/requirements.txt'])],
+      data_files=[('requirements.txt', ['requirements.txt', 'docs/requirements.txt'])],
 
       # tests_require=["unittest"],
       test_suite='test',

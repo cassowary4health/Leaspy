@@ -84,7 +84,7 @@ class AbstractAlgo(ABC):
 
     @log_noise_fmt.setter
     def log_noise_fmt(self, model):
-        if hasattr(model, 'noise_model') and model.noise_model in ['bernoulli', 'ordinal']:
+        if hasattr(model, 'noise_model') and model.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             self._log_noise_fmt = '.4f'
         else:
             self._log_noise_fmt = '.2%'
@@ -193,7 +193,7 @@ class AbstractAlgo(ABC):
 
         noise_repr = self._noise_std_repr(noise_std, model=model)
         if noise_repr is not None:
-            noise_type = "log-likelihood" if (getattr(model, 'noise_model', None) in ['bernoulli', 'ordinal']) else "standard deviation of the noise"
+            noise_type = "log-likelihood" if (getattr(model, 'noise_model', None) in ['bernoulli', 'ordinal', 'ordinal_ranking']) else "standard deviation of the noise"
             print(f"The {noise_type} at the end of the {self.family} is:\n{noise_repr}")
 
         # Return only output part

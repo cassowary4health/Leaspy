@@ -241,7 +241,7 @@ class Dataset:
             if isinstance(attribute, torch.Tensor):
                 setattr(self, attribute_name, attribute.to(device))
 
-    def get_one_hot_encoding(self, max_level=None):
+    def get_one_hot_encoding(self, max_level=None, cdf=False):
         """
         Builds the one-hot encoding of ordinal data once and for all and returns it.
 
@@ -249,6 +249,9 @@ class Dataset:
         ----------
         max_level : int
             Maximum integer value expected in self.values
+
+        cdf : bool
+            Whether the vector should be 1(X>=k) or 1(X=k)
 
         Returns
         -------
@@ -275,5 +278,7 @@ class Dataset:
 
             vals = self.values.long().clamp(0, max_level)
             vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
-            self._one_hot_encoding = vals
-        return self._one_hot_encoding
+            # Builds the CDF by simple cumsum and remove the (X >= 0) line
+            vals2 = torch.flip(torch.flip(vals, (-1,)).cumsum(dim=-1), (-1,))[..., 1:]
+            self._one_hot_encoding = {False: vals, True: vals2}
+        return self._one_hot_encoding[cdf]

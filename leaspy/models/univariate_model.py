@@ -232,10 +232,10 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         return self.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
 
     @suffixed_method
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         pass
 
-    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         g = self._get_attributes(attribute_type)
@@ -258,12 +258,13 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         # TODO? more efficient & accurate to compute `torch.exp(-LL + log_g)` since we directly sample & stored log_g
         model = 1. / (1. + g * torch.exp(-LL))
 
-        if self.is_ordinal:
+        ordinal_pdf = kwargs.get("ordinal_pdf", True)
+        if self.is_ordinal and ordinal_pdf:
             model = self.compute_likelihood_from_ordinal_cdf(model)
 
         return model
 
-    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         positions = self._get_attributes(attribute_type)
@@ -357,10 +358,10 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         return timepoints[0,index_cross]
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -378,7 +379,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
 
         return derivatives
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         g = self._get_attributes(attribute_type)
@@ -418,7 +419,8 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
             derivatives[param] = c.unsqueeze(-1) * derivatives[param]
 
         # Compute derivative of the likelihood and not of the cdf
-        if self.is_ordinal:
+        ordinal_pdf = kwargs.get("ordinal_pdf", True)
+        if self.is_ordinal and ordinal_pdf:
             for param in derivatives:
                 derivatives[param] = self.compute_likelihood_from_ordinal_cdf(derivatives[param])
 
@@ -452,7 +454,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
             sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2)
             sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2)
 
-        if self.noise_model in ['bernoulli', 'ordinal']:
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
                                                                                                     attribute_type='MCMC')
         return sufficient_statistics
@@ -474,7 +476,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         self._add_ordinal_tensor_realizations(realizations, self.parameters)
 
         param_ind = self.get_param_from_real(realizations)
-        if self.noise_model in ['bernoulli', 'ordinal']:
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
                                                                                               attribute_type='MCMC').sum()
         else:
@@ -499,7 +501,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
 
         self._add_ordinal_sufficient_statistics(suff_stats, self.parameters)
 
-        if self.noise_model in ['bernoulli', 'ordinal']:
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
 
         elif 'scalar' in self.noise_model:

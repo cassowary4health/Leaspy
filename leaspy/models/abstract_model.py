@@ -433,7 +433,7 @@ class AbstractModel(ABC):
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
-                                      attribute_type=None) -> torch.FloatTensor:
+                                      attribute_type=None, **kwargs) -> torch.FloatTensor:
         """
         Compute the individual values at timepoints according to the model.
 
@@ -453,7 +453,7 @@ class AbstractModel(ABC):
 
     @abstractmethod
     def compute_jacobian_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
-                                    attribute_type=None) -> torch.FloatTensor:
+                                    attribute_type=None, **kwargs) -> torch.FloatTensor:
         """
         Compute the jacobian of the model w.r.t. each individual parameter.
 
@@ -527,18 +527,31 @@ class AbstractModel(ABC):
             neg_crossentropy = data.values * torch.log(pred) + (1. - data.values) * torch.log(1. - pred)
             attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
 
-        elif self.is_ordinal:
+        elif self.noise_model == 'ordinal':
 
             pred = self.compute_individual_tensorized(data.timepoints, param_ind,
                                                       attribute_type=attribute_type)
             # vector of shape (nb_ind, nb_visits, nb_dim, nb_ordinal_levels)
             pred = torch.clamp(pred, 1e-7, 1. - 1e-7) # safety before taking the log
 
-            vals = data.get_one_hot_encoding(max_level=self.ordinal_infos["max_level"])
+            vals = data.get_one_hot_encoding(max_level=self.ordinal_infos["max_level"], cdf=False)
 
             # Compute the simple multinomial loss
             LL = -(torch.log((pred * vals).sum(dim=-1)))
             attachment = torch.sum(data.mask.float() * LL, dim=(1, 2))
+
+        elif self.noise_model == 'ordinal_ranking':
+
+            pred = self.compute_individual_tensorized(data.timepoints, param_ind,
+                                                      attribute_type=attribute_type, ordinal_pdf=False)
+            # vector of shape (nb_ind, nb_visits, nb_dim, nb_ordinal_levels - 1)
+            pred = torch.clamp(pred, 1e-7, 1. - 1e-7)  # safety before taking the log
+
+            vals = data.get_one_hot_encoding(max_level=self.ordinal_infos["max_level"], cdf=True)
+
+            # Compute the loss by crossentropy of P(X>=k)
+            LL = (vals * torch.log(pred) + (1. - vals) * torch.log(1. - pred)).sum(dim=-1)
+            attachment = -torch.sum(data.mask.float() * LL, dim=(1, 2))
 
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')

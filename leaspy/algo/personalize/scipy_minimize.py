@@ -278,7 +278,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         individual_parameters = self._pull_individual_parameters(x, model)
 
         # compute 1 individual at a time (1st dimension is squeezed)
-        predicted = model.compute_individual_tensorized(times, individual_parameters).squeeze(0)
+        pdf = True
+        if model.noise_model == 'ordinal_ranking':
+            pdf = False
+        predicted = model.compute_individual_tensorized(times, individual_parameters, ordinal_pdf=pdf).squeeze(0)
         diff = None
         if not model.is_ordinal:
             diff = predicted - values # tensor j,k (j=visits, k=features)
@@ -287,7 +290,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # compute gradient of model with respect to individual parameters
         grads = None
         if with_gradient:
-            grads = model.compute_jacobian_tensorized(times, individual_parameters)
+            grads = model.compute_jacobian_tensorized(times, individual_parameters, ordinal_pdf=pdf)
             # put derivatives consecutively in the right order: shape [n_tpts,n_fts,n_dims_params]
             grads = self._get_normalized_grad_tensor_from_grad_dict(grads, model)
 
@@ -315,7 +318,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 crossentropy_fact = diff / (predicted * (1. - predicted))
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
 
-        elif model.is_ordinal:
+        elif model.noise_model == 'ordinal':
             max_level = model.ordinal_infos["max_level"]
             vals = values.long().clamp(0, max_level)
             vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
@@ -329,6 +332,24 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 ordinal_fact = vals / predicted
                 ordinal_fact[nans] = 0.
                 grad = -torch.sum(ordinal_fact.unsqueeze(-1) * grads, dim=2)
+                res['gradient'] = grad.sum(dim=(0,1))
+
+        elif model.noise_model == 'ordinal_ranking':
+            max_level = model.ordinal_infos["max_level"]
+            vals = values.long().clamp(0, max_level)
+            vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
+            vals = torch.flip(torch.flip(vals, (-1,)).cumsum(dim=-1), (-1,))[..., 1:]
+            # Compute the cross-entropy for each P(X>=k)
+            pred = torch.clamp(predicted, 1e-7, 1. - 1e-7)
+            LL = (vals * torch.log(pred) + (1. - vals) * torch.log(1. - pred)).sum(dim=-1)
+            LL[nans] = 0.
+            res['objective'] = -torch.sum(LL)
+
+            if with_gradient:
+                diff = pred - vals
+                ordinal_fact = diff / (pred*(1.-pred))
+                ordinal_fact[nans] = 0.
+                grad = torch.sum(ordinal_fact.unsqueeze(-1) * grads, dim=2)
                 res['gradient'] = grad.sum(dim=(0,1))
 
         else:

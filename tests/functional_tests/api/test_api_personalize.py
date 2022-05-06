@@ -154,6 +154,18 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('logistic_parallel_binary', 'mode_real', mode_real_kws,                      [111.96]),
             ('logistic_parallel_binary', 'mean_real', mean_real_kws,                      [120.06]),
 
+            # multivariate ordinal model
+            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=False), [700.55]),
+            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=True), [638.66]),
+            ('logistic_ordinal', 'mode_real', mode_real_kws, [619.64]),
+            ('logistic_ordinal', 'mean_real', mean_real_kws, [616.94]),
+
+            # multivariate ordinal ranking model
+            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=False), [1177]),
+            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=True), [1176.3]),
+            ('logistic_ordinal_ranking', 'mode_real', mode_real_kws, [1178.8]),
+            ('logistic_ordinal_ranking', 'mean_real', mean_real_kws, [1175.3]),
+
         ]:
 
             subtest = dict(model_name=model_name, perso_name=perso_name, perso_kws=perso_kws)
@@ -162,7 +174,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 # only look at residual MSE to detect any regression in personalization
                 ips, noise_std, _ = self.generic_personalization(model_name, algo_name=perso_name, seed=0, **perso_kws)
 
-                if 'binary' in model_name:
+                if 'binary' in model_name or 'ordinal' in model_name:
                     tol_noise= 0.1
 
                 self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise, msg=subtest)

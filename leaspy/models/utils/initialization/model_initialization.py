@@ -402,7 +402,7 @@ def initialize_logistic(model, df: pd.DataFrame, method):
             'noise_std': torch.tensor([noise_std])
         }
 
-    if model.noise_model == 'ordinal':
+    if model.is_ordinal:
         parameters = initialize_deltas_ordinal(model, df, parameters)
 
     return parameters

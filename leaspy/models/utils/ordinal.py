@@ -7,14 +7,14 @@ from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
 
 
 class OrdinalModelMixin:
-    """Mix-in to add some useful properties & methods for models supporting the ordinal noise (univariate or multivariate)."""
+    """Mix-in to add some useful properties & methods for models supporting the ordinal and ranking noise (univariate or multivariate)."""
 
     ## PUBLIC
 
     @property
     def is_ordinal(self) -> bool:
         """Property to check if the model is of ordinal sub-type."""
-        return self.noise_model == 'ordinal'
+        return self.noise_model in ['ordinal', 'ordinal_ranking']
 
     def postprocess_model_estimation(self, estimation: np.ndarray, *, ordinal_method: str, **kws) -> Union[np.ndarray, Dict[Hashable, np.ndarray]]:
         """

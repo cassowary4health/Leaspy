@@ -230,5 +230,8 @@ NOISE_STRUCTS = {
 
     'ordinal': NoiseStruct(
         distribution_factory=MultinomialDistribution,
+    ),
+    'ordinal_ranking': NoiseStruct(
+        distribution_factory=MultinomialDistribution,
     )
 }

@@ -36,7 +36,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.attributes = LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         g, deltas, mixing_matrix = self._get_attributes(attribute_type)
@@ -60,7 +60,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         return model
 
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized`)
 
         # Population parameters

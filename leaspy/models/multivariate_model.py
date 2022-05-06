@@ -74,10 +74,10 @@ class MultivariateModel(AbstractMultivariateModel):
         self.attributes.update(['all'], self.parameters)
 
     @suffixed_method
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         pass
 
-    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
@@ -97,7 +97,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return model # (n_individuals, n_timepoints, n_features)
 
-    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
@@ -135,8 +135,10 @@ class MultivariateModel(AbstractMultivariateModel):
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
 
-        # For ordinal, compute likelihoods instead of cumulative distribution function
-        if self.is_ordinal:
+        # For ordinal loss, compute likelihoods instead of cumulative distribution function
+        # if ordinal_pdf is False, we simply return the cumulative functions P(X>=k)
+        ordinal_pdf = kwargs.get("ordinal_pdf", True)
+        if self.is_ordinal and ordinal_pdf:
             model = self.compute_likelihood_from_ordinal_cdf(model)
 
         return model # (n_individuals, n_timepoints, n_features)
@@ -243,10 +245,10 @@ class MultivariateModel(AbstractMultivariateModel):
         return timepoints[0,index_cross]
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         _, v0, mixing_matrix = self._get_attributes(attribute_type)
@@ -273,7 +275,7 @@ class MultivariateModel(AbstractMultivariateModel):
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized_logistic`)
 
         # Population parameters
@@ -331,7 +333,8 @@ class MultivariateModel(AbstractMultivariateModel):
             derivatives[param] = c.unsqueeze(-1) * derivatives[param]
 
         # Compute derivative of the likelihood and not of the cdf
-        if self.is_ordinal:
+        ordinal_pdf = kwargs.get("ordinal_pdf", True)
+        if self.is_ordinal and ordinal_pdf:
             for param in derivatives:
                 derivatives[param] = self.compute_likelihood_from_ordinal_cdf(derivatives[param])
 
@@ -424,7 +427,7 @@ class MultivariateModel(AbstractMultivariateModel):
             sufficient_statistics['obs_x_reconstruction'] = norm_1  # .sum(dim=2) # no sum on features...
             sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2) # no sum on features...
 
-        if self.noise_model in ['bernoulli', 'ordinal']:
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
                                                                                                     attribute_type='MCMC')
 
@@ -476,7 +479,7 @@ class MultivariateModel(AbstractMultivariateModel):
         param_ind = self.get_param_from_real(realizations)
 
         # Should we really keep this ? cf #54 issue
-        if self.noise_model in ['bernoulli', 'ordinal']:
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
                                                                                               attribute_type='MCMC').sum()
         else:
@@ -509,7 +512,7 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
         # self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])  # fixed = 0 by design
 
-        if self.noise_model in ['bernoulli', 'ordinal']:
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
 
         elif 'scalar' in self.noise_model:

@@ -121,7 +121,9 @@ tests:
       - htmlcov${SUFFIX_ARTIFACTS}/
     reports:
       # these reports will be directly integrated to Gitlab (MR)
-      cobertura: coverage${SUFFIX_ARTIFACTS}.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage${SUFFIX_ARTIFACTS}.xml
       junit: tests${SUFFIX_ARTIFACTS}.xml
 
 # Deploy coverage pages

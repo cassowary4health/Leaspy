@@ -41,35 +41,59 @@ class SamplerTest(LeaspyTestCase):
 
         # Test with taus (individual parameter)
         var_name = 'tau'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_ind)
-        random_draws = []
-        for i in range(n_draw):
-            gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv, attribute_type=None)
-            random_draws.append(realizations[var_name].tensor_realizations.clone())
+        for sampler in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']: # should not change much for pop
+            gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
+                                    scale=self.scale_ind, sampler_type=sampler)
+            random_draws = []
+            for i in range(n_draw):
+                gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv, attribute_type=None)
+                random_draws.append(realizations[var_name].tensor_realizations.clone())
 
-        stack_random_draws = torch.stack(random_draws)
-        stack_random_draws_mean = (stack_random_draws[1:, :, :] - stack_random_draws[:-1, :, :]).mean(dim=0)
-        stack_random_draws_std = (stack_random_draws[1:, :, :] - stack_random_draws[:-1, :, :]).std(dim=0)
+            stack_random_draws = torch.stack(random_draws)
+            stack_random_draws_mean = (stack_random_draws[1:, :, :] - stack_random_draws[:-1, :, :]).mean(dim=0)
+            stack_random_draws_std = (stack_random_draws[1:, :, :] - stack_random_draws[:-1, :, :]).std(dim=0)
 
-        self.assertAlmostEqual(stack_random_draws_mean.mean(), 0.0160, delta=0.05)
-        self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0861, delta=0.05)
+            self.assertAlmostEqual(stack_random_draws_mean.mean(), 0.0160, delta=0.05)
+            self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0861, delta=0.05)
 
         # Test with g (population parameter)
         var_name = 'g'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_pop)
-        # a valid model MCMC toolbox is needed for sampling a population variable (update in-place)
-        self.leaspy.model.initialize_MCMC_toolbox()
-        random_draws = []
-        for i in range(n_draw):
-            gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv)  # attribute_type=None would not be used here
-            random_draws.append(realizations[var_name].tensor_realizations.clone())
+        for sampler in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
+            gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
+                                    scale=self.scale_pop, sampler_type=sampler)
+            # a valid model MCMC toolbox is needed for sampling a population variable (update in-place)
+            self.leaspy.model.initialize_MCMC_toolbox()
+            random_draws = []
+            for i in range(n_draw):
+                gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv)  # attribute_type=None would not be used here
+                random_draws.append(realizations[var_name].tensor_realizations.clone())
 
-        stack_random_draws = torch.stack(random_draws)
-        stack_random_draws_mean = (stack_random_draws[1:, :] - stack_random_draws[:-1, :]).mean(dim=0)
-        stack_random_draws_std = (stack_random_draws[1:, :] - stack_random_draws[:-1, :]).std(dim=0)
+            stack_random_draws = torch.stack(random_draws)
+            stack_random_draws_mean = (stack_random_draws[1:, :] - stack_random_draws[:-1, :]).mean(dim=0)
+            stack_random_draws_std = (stack_random_draws[1:, :] - stack_random_draws[:-1, :]).std(dim=0)
 
-        self.assertAlmostEqual(stack_random_draws_mean.mean(), 4.2792e-05, delta=0.05)
-        self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0045, delta=0.05)
+            self.assertAlmostEqual(stack_random_draws_mean.mean(), 4.2792e-05, delta=0.05)
+            self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0045, delta=0.05)
+
+        # Test with betas (2 dimensional population parameter)
+        var_name = 'betas'
+        for sampler in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
+            gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
+                                    scale=self.scale_pop, sampler_type=sampler)
+            # a valid model MCMC toolbox is needed for sampling a population variable (update in-place)
+            self.leaspy.model.initialize_MCMC_toolbox()
+            random_draws = []
+            for i in range(n_draw):
+                gsampler.sample(self.dataset, self.leaspy.model, realizations,
+                                temperature_inv)  # attribute_type=None would not be used here
+                random_draws.append(realizations[var_name].tensor_realizations.clone())
+
+            stack_random_draws = torch.stack(random_draws)
+            stack_random_draws_mean = (stack_random_draws[1:, :] - stack_random_draws[:-1, :]).mean(dim=0)
+            stack_random_draws_std = (stack_random_draws[1:, :] - stack_random_draws[:-1, :]).std(dim=0)
+
+            self.assertAlmostEqual(stack_random_draws_mean.mean(), 4.2792e-05, delta=0.05)
+            self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0045, delta=0.05)
 
     def test_acceptation(self):
         n_patients = 17
@@ -80,12 +104,14 @@ class SamplerTest(LeaspyTestCase):
 
         # Test with taus
         var_name = 'tau'
-        gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients, scale=self.scale_ind)
+        for sampler in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
+            gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
+                                    scale=self.scale_ind, sampler_type=sampler)
 
-        for i in range(n_draw):
-            gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))
+            for i in range(n_draw):
+                gsampler._update_acceptation_rate(torch.tensor([1.0]*10+[0.0]*7, dtype=torch.float32))
 
-        self.assertAlmostEqual(gsampler.acceptation_history.mean(), 10/17, delta=0.05)
+            self.assertAlmostEqual(gsampler.acceptation_history.mean(), 10/17, delta=0.05)
 
     def test_adaptative_proposition_variance(self):
         n_patients = 17

@@ -45,6 +45,9 @@ class AbstractSampler(ABC):
     acceptation_history : :class:`torch.Tensor`
         History of binary acceptations to compute mean acceptation rate for the sampler in MCMC-SAEM algorithm.
         It keeps the history of the last `acceptation_history_length` steps.
+    mask : Union[None, torch.FloatTensor]
+        If not None, mask should be 0/1 tensor indicating the sampling variable to adapt variance from
+        1 indices are kept for sampling while 0 are excluded
 
     Raises
     ------
@@ -85,6 +88,14 @@ class AbstractSampler(ABC):
             self.ind_param_dims_but_individual = tuple(range(1, 1 + len(self.shape)))  # for now it boils down to (1,)
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{info['type']}': nor 'population' nor 'individual'.")
+
+        if "mask" in info:
+            self.mask = info["mask"]
+            if self.mask.shape != self.shape:
+                raise LeaspyModelInputError(
+                    f"Mask for sampler should be of size {self.shape} but is of shape {self.mask.shape}")
+        else:
+            self.mask = None
 
     def sample(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
         """

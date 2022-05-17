@@ -854,10 +854,10 @@ class SimulationAlgorithm(AbstractAlgo):
         len_subj_id = len(str(n_target))
         indices = [self.prefix + str(i).rjust(len_subj_id, '0') for i in range(1, n_target + 1)]
 
-        simulated_data = Data.from_individuals(indices=indices,
-                                               timepoints=simulated_subjects.timepoints,
-                                               values=[ind_obs.tolist() for ind_obs in simulated_subjects.values],
-                                               headers=data.headers)
+        simulated_data = Data.from_individual_values(indices=indices,
+                                                     timepoints=simulated_subjects.timepoints,
+                                                     values=[ind_obs.tolist() for ind_obs in simulated_subjects.values],
+                                                     headers=data.headers)
 
         # Output of simulation algorithm
         noise_std_used = noise_model.scale  # will be not None iff Gaussian noise model

@@ -85,13 +85,8 @@ class Data(Iterable):
                 else:
                     raise KeyError("Cannot access a Data item using a list of this type")
 
-            timepoints = [self.individuals[j].timepoints for j in individual_indices]
-            values = [self.individuals[j].observations for j in individual_indices]
-            return Data.from_individuals(
-                indices=individual_indices,
-                timepoints=timepoints,
-                values=values,
-                headers=self.headers)
+            individuals = [self.individuals[i] for i in individual_indices]
+            return Data.from_individuals(individuals, self.headers)
 
         raise KeyError("Cannot access a data item this way")
 
@@ -264,7 +259,7 @@ class Data(Iterable):
         return data
 
     @staticmethod
-    def from_individuals(indices: List[IDType], timepoints: List[List], values: List[List], headers: List[FeatureType]):
+    def from_individual_values(indices: List[IDType], timepoints: List[List], values: List[List], headers: List[FeatureType]):
         """
         Create a `Data` class object from lists of `ID`, `timepoints` and the corresponding `values`.
 
@@ -286,23 +281,39 @@ class Data(Iterable):
         `Data`
             Data class object with all ID, timepoints, values and features' names.
         """
-        data = Data()
+        individuals = []
+        for i, idx in enumerate(indices):
+            indiv = IndividualData(idx)
+            indiv.add_observations(timepoints[i], values[i])
+            individuals.append(indiv)
 
+        return Data.from_individuals(individuals, headers)
+
+    @staticmethod
+    def from_individuals(individuals: List[IndividualData], headers: List[FeatureType]) -> Data:
+        """
+        Create a `Data` object from a list of `individuals`
+
+        Parameters
+        ----------
+        individuals : List[IndividualData]
+            List of individuals
+        headers : List[FeatureType]
+            List of feature names
+
+        Returns
+        -------
+        Data
+            Data class object storing the input individuals' data
+        """        
+        data = Data()
         data.headers = headers
         data.dimension = len(headers)
-
-        for i, idx in enumerate(indices):
-            # Create individual
-            data.individuals[idx] = IndividualData(idx)
-            data.iter_to_idx[data.n_individuals] = idx
+        for indiv in individuals:
+            data.individuals[indiv.idx] = indiv
+            data.iter_to_idx[data.n_individuals] = indiv.idx
             data.n_individuals += 1
-
-            # Add observations / timepoints
-            data.individuals[idx].add_observations(timepoints[i], values[i])
-
-            # Update Data metrics
-            data.n_visits += len(timepoints[i])
-
+            data.n_visits += len(indiv.timepoints)
         return data
 
 
@@ -314,7 +325,7 @@ class DataIterator(Iterator):
     ----------
     data : Data
         The data container used as an iterable collection
-    """        
+    """
     def __init__(self, data: Data) -> None:
         self._data = data
         self.iter = 0

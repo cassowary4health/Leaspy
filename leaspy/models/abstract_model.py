@@ -524,6 +524,19 @@ class AbstractModel(ABC):
             neg_crossentropy = data.values * torch.log(pred) + (1. - data.values) * torch.log(1. - pred)
             attachment = -torch.sum(mask * neg_crossentropy, dim=(1, 2))
 
+        elif self.noise_model == 'ordinal':
+
+            pred = self.compute_individual_tensorized(data.timepoints, param_ind,
+                                                      attribute_type=attribute_type)
+            # vector of shape (nb_ind, nb_visits, nb_dim, nb_ordinal_levels)
+            pred = torch.clamp(pred, 1e-7, 1. - 1e-7) # safety before taking the log
+
+            vals = data.get_one_hot_encoding(max_level=self.ordinal_infos["max_level"])
+
+            # Compute the simple multinomial loss
+            LL = -(torch.log((pred * vals).sum(dim=-1)))
+            attachment = torch.sum(data.mask.float() * LL, dim=(1, 2))
+
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 

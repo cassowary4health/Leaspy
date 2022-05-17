@@ -56,6 +56,24 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return self.SUBTYPES_SUFFIXES[self.name]
 
+    def _get_deltas(self, attribute_type):
+        """
+
+        Parameters
+        ----------
+        attribute_type: None or 'MCMC'
+
+        Returns
+        -------
+        The deltas in the ordinal model
+        """
+        if attribute_type is None:
+            return self.attributes.get_deltas()
+        elif attribute_type == 'MCMC':
+            return self.MCMC_toolbox['attributes'].get_deltas()
+        else:
+            raise ValueError("The specified attribute type does not exist : {}".format(attribute_type))
+
     def load_parameters(self, parameters):
         # TODO? Move this method in higher level class AbstractMultivariateModel? (<!> Attributes class)
         self.parameters = {}
@@ -63,9 +81,32 @@ class MultivariateModel(AbstractMultivariateModel):
             if k in ['mixing_matrix']:
                 continue
             self.parameters[k] = torch.tensor(parameters[k])
-
+            if 'deltas' in k:
+                if not self.ordinal_infos['batch_deltas']:
+                    self.ordinal_infos["features"].append({"name":k[7:], "nb_levels":self.parameters[k].shape[0] + 1}) #k[7:] removes the deltas_ to extract the feature's name
+                else:
+                    # Find ordinal infos from the delta values themselves
+                    for i, feat in enumerate(self.features):
+                        bool_array = (self.parameters['deltas'][i,:] != 0).int()
+                        if 0 in bool_array:
+                            lvl = bool_array.argmin().item() + 2
+                        else:
+                            lvl = bool_array.shape[0] + 1
+                        self.ordinal_infos["features"].append({"name":feat, "nb_levels": lvl})
+        if any('deltas' in c for c in parameters.keys()):
+            self.ordinal_infos["max_level"] = max([feat["nb_levels"] for feat in self.ordinal_infos["features"]])
+            # Mask for setting values > max_level per item to zero
+            self.ordinal_infos["mask"] = torch.cat([
+                torch.cat([
+                    torch.ones((1,1,1,feat['nb_levels'])),
+                    torch.zeros((1,1,1,self.ordinal_infos["max_level"] - feat['nb_levels'])),
+                ], dim=-1) for feat in self.ordinal_infos["features"]
+            ], dim=2)
+            ord = self.ordinal_infos
+        else:
+            ord = None
         # derive the model attributes from model parameters upon reloading of model
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension, ordinal_infos=ord)
         self.attributes.update(['all'], self.parameters)
 
     @suffixed_method
@@ -92,6 +133,37 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return model # (n_individuals, n_timepoints, n_features)
 
+    def compute_likelihood_from_cdf(self, model_values):
+        """
+        Computes the likelihood of an ordinal model assuming that the model_values are the CDF.
+
+        Parameters
+        ----------
+        model_values : `torch.Tensor`
+            Cumulative distribution values : model_values[..., l] is the proba to be superior or equal to l+1
+
+        Returns
+        -------
+        likelihood : `torch.Tensor`
+            likelihood[..., l] is the proba to be equal to l
+        """
+
+        s = list(model_values.shape)
+        s[3] = 1
+        mask = self.ordinal_infos["mask"]
+        if len(s) == 5: # in the case of gradient we added a dimension
+            mask = mask.unsqueeze(-1)
+            first_row = torch.zeros(size=tuple(s)).float() #gradient(P>=0) = 0
+        else:
+            first_row = torch.ones(size=tuple(s)).float() #(P>=0) = 1
+        model = model_values * mask
+        cdf_sup = torch.cat([first_row, model], dim=3)
+        last_row = torch.zeros(size=tuple(s)).float()
+        cdf_inf = torch.cat([model, last_row], dim=3)
+        likelihood = cdf_sup - cdf_inf
+
+        return likelihood
+
     def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
@@ -106,15 +178,34 @@ class MultivariateModel(AbstractMultivariateModel):
         # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
 
-        # Model expected value
-        t = v0 * reparametrized_time
+        if self.noise_model == 'ordinal':
+            # add an extra dimension for the levels of the ordinal item
+            reparametrized_time = reparametrized_time.unsqueeze(-1)
+            g = g.unsqueeze(-1)
+            b = b.unsqueeze(-1)
+            v0 = v0.unsqueeze(-1)
+            deltas = self._get_deltas(attribute_type)
+            ordinal_scale = deltas.shape[-1] + 1
+            deltas_ = torch.cat([torch.zeros((deltas.shape[0], 1)), deltas], dim=1)  # (features, max_level)
+            deltas_ = deltas_.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
+            reparametrized_time = reparametrized_time - deltas_.cumsum(dim=-1)
+
+        LL = v0 * reparametrized_time
+
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
-            wi = sources.matmul(a_matrix.t())
-            t += wi.unsqueeze(-2) # unsqueeze for (n_timepoints)
+            wi = sources.matmul(a_matrix.t()).unsqueeze(-2) # unsqueeze for (n_timepoints)
+            if self.noise_model == 'ordinal':
+                wi = wi.unsqueeze(-1)
+            LL += wi
 
         # TODO? more efficient & accurate to compute `torch.exp(-t*b + log_g)` since we directly sample & stored log_g
-        model = 1. / (1. + g * torch.exp(-t * b))
+        LL = 1. + g * torch.exp(-LL * b)
+        model = 1. / LL
+
+        # For ordinal, compute likelihoods instead of cumulative distribution function
+        if self.noise_model == 'ordinal':
+            model = self.compute_likelihood_from_cdf(model)
 
         return model # (n_individuals, n_timepoints, n_features)
 
@@ -153,6 +244,71 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return ages
 
+    def compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(self, value: torch.Tensor,
+                                                                          individual_parameters: dict, feature: str):
+        """
+        For one individual, compute age(s) breakpoints at which the given features levels are the most likely (given the subject's
+        individual parameters).
+
+        Consistency checks are done in the main API layer.
+
+        Parameters
+        ----------
+        value : :class:`torch.Tensor`
+            Contains the biomarker level value(s) of the subject.
+
+        individual_parameters : dict
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like
+
+        feature : str (or None)
+            Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's ages computed at the given values(s)
+            Shape of tensor is (1, n_values)
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            if computation is tried on more than 1 individual
+        """
+        if value.dim() != 2:
+            raise LeaspyModelInputError(f"The biomarker value should be dim 2, not {value.dim()}!")
+
+        # 1/ get attributes
+        g, v0, a_matrix = self._get_attributes(None)
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
+        if self.source_dimension != 0:
+            sources = individual_parameters['sources']
+            wi = sources.matmul(a_matrix.t())
+        else:
+            wi = 0
+
+        # get feature value for g, v0 and wi
+        feat_ind = self.features.index(feature)  # all consistency checks were done in API layer
+        g = torch.tensor([g[feat_ind]])  # g and v0 were shape: (n_features in the multivariate model)
+        v0 = torch.tensor([v0[feat_ind]])
+        if self.source_dimension != 0:
+            wi = wi[0, feat_ind].item()  # wi was shape (1, n_features)
+
+        # 2/ compute age
+        ages_0 = tau + (torch.exp(-xi) / v0) * ((g / (g + 1) ** 2) * torch.log(g) - wi)
+        deltas = self._get_deltas(None)
+        delta_max = deltas[feat_ind].sum()
+        ages_max = tau + (torch.exp(-xi) / v0) * ((g / (g + 1) ** 2) * torch.log(g) - wi + delta_max)
+
+        timepoints = torch.linspace(ages_0.item(), ages_max.item(), 1000).unsqueeze(0)
+
+        grid = self.compute_individual_tensorized_logistic(timepoints, individual_parameters, attribute_type=None)[:,:,feat_ind,:]
+
+        MLE = grid.argmax(dim=-1)
+        index_cross = (MLE.unsqueeze(1) >= value.unsqueeze(-1)).int().argmax(dim=-1)
+
+        return timepoints[0,index_cross]
+
     @suffixed_method
     def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
@@ -168,6 +324,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # Reshaping
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
+
         alpha = torch.exp(xi).reshape(-1, 1, 1)
         dummy_to_broadcast_n_ind_n_tpts = torch.ones_like(reparametrized_time)
 
@@ -199,23 +356,51 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
         alpha = torch.exp(xi).reshape(-1, 1, 1)
 
-        # Model expected value
-        t = v0 * reparametrized_time
+        if self.noise_model == 'ordinal':
+            # add an extra dimension for the levels of the ordinal item
+            LL = reparametrized_time.unsqueeze(-1)
+            g = g.unsqueeze(-1)
+            b = b.unsqueeze(-1)
+            deltas = self._get_deltas(attribute_type)
+            ordinal_scale = deltas.shape[-1] + 1
+            deltas_ = torch.cat([torch.zeros((deltas.shape[0], 1)), deltas], dim=1)  # (features, max_level)
+            deltas_ = deltas_.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
+            LL = LL - deltas_.cumsum(dim=-1)
+            LL = v0.unsqueeze(-1) * LL
+
+        else:
+            LL = v0 * reparametrized_time
+
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
-            wi = sources.matmul(a_matrix.t())
-            t += wi.unsqueeze(-2)
-        model = 1. / (1. + g * torch.exp(-t * b))
+            wi = sources.matmul(a_matrix.t()).unsqueeze(-2) # unsqueeze for (n_timepoints)
+            if self.noise_model == 'ordinal':
+                wi = wi.unsqueeze(-1)
+            LL += wi
+        LL = 1. + g * torch.exp(-LL * b)
+        model = 1. / LL
 
         # Jacobian of model expected value w.r.t. individual parameters
         c = model * (1. - model) * b
 
         derivatives = {
-            'xi': (c * v0 * reparametrized_time).unsqueeze(-1),
-            'tau': (c * v0 * -alpha).unsqueeze(-1),
+            'xi': (v0 * reparametrized_time).unsqueeze(-1),
+            'tau': (-v0 * alpha).unsqueeze(-1),
         }
         if self.source_dimension > 0:
-            derivatives['sources'] = c.unsqueeze(-1) * a_matrix.expand((1,1,-1,-1))
+            derivatives['sources'] = a_matrix.expand((1,1,-1,-1))
+
+        if self.noise_model == 'ordinal':
+            for param in derivatives:
+                derivatives[param] = derivatives[param].unsqueeze(-2).repeat(1, 1, 1, self.ordinal_infos["max_level"], 1)
+
+        for param in derivatives:
+            derivatives[param] = c.unsqueeze(-1) * derivatives[param]
+
+        # Compute derivative of the likelihood and not of the cdf
+        if self.noise_model == 'ordinal':
+            for param in derivatives:
+                derivatives[param] = self.compute_likelihood_from_cdf(derivatives[param])
 
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
@@ -227,7 +412,6 @@ class MultivariateModel(AbstractMultivariateModel):
     def initialize_MCMC_toolbox(self):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
-            'attributes': AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         }
 
         # Initialize a prior for v0_mean (legacy code / never used in practice)
@@ -236,6 +420,16 @@ class MultivariateModel(AbstractMultivariateModel):
             self.MCMC_toolbox['priors']['s_v0'] = 0.1
             # TODO? same on g?
 
+        if self.noise_model == 'ordinal':
+            if self.ordinal_infos['batch_deltas']:
+                self.MCMC_toolbox['priors']['deltas_std'] = 0.1
+            else:
+                for feat in self.ordinal_infos["features"]:
+                    self.MCMC_toolbox['priors'][f'deltas_{feat["name"]}_std'] = 0.1
+            ord = self.ordinal_infos
+        else:
+            ord = None
+        self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension, ordinal_infos=ord)
         # TODO? why not passing the ready-to-use collection realizations that is initialized at beginning of fit algo and use it here instead?
         population_dictionary = self._create_dictionary_of_population_realizations()
         self.update_MCMC_toolbox(["all"], population_dictionary)
@@ -249,6 +443,14 @@ class MultivariateModel(AbstractMultivariateModel):
             values['v0'] = realizations['v0'].tensor_realizations
         if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
+        if self.noise_model == 'ordinal':
+            if self.ordinal_infos['batch_deltas']:
+                if any(c in L for c in ('deltas', 'all')):
+                    values['deltas'] = realizations['deltas'].tensor_realizations
+            else:
+                for feat in self.ordinal_infos["features"]:
+                    if any(c in L for c in ('deltas_'+feat["name"], 'all')) and self.source_dimension != 0:
+                        values['deltas_'+feat["name"]] = realizations['deltas_'+feat["name"]].tensor_realizations
 
         self.MCMC_toolbox['attributes'].update(name_of_the_variables_that_have_been_changed, values)
 
@@ -285,23 +487,31 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
 
+        if self.noise_model == 'ordinal':
+            if self.ordinal_infos['batch_deltas']:
+                sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations
+            else:
+                for feat in self.ordinal_infos["features"]:
+                    sufficient_statistics['deltas_'+feat["name"]] = realizations['deltas_'+feat["name"]].tensor_realizations
+
         individual_parameters = self.get_param_from_real(realizations)
 
         data_reconstruction = self.compute_individual_tensorized(data.timepoints,
                                                                  individual_parameters,
                                                                  attribute_type='MCMC')
 
-        data_reconstruction *= data.mask.float()  # speed-up computations
+        if self.noise_model in ['gaussian_scalar', 'gaussian_diagonal']:
+            data_reconstruction *= data.mask.float()  # speed-up computations
 
-        norm_1 = data.values * data_reconstruction
-        norm_2 = data_reconstruction * data_reconstruction
+            norm_1 = data.values * data_reconstruction
+            norm_2 = data_reconstruction * data_reconstruction
 
-        sufficient_statistics['obs_x_reconstruction'] = norm_1  # .sum(dim=2) # no sum on features...
-        sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2) # no sum on features...
+            sufficient_statistics['obs_x_reconstruction'] = norm_1  # .sum(dim=2) # no sum on features...
+            sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2) # no sum on features...
 
-        if self.noise_model == 'bernoulli':
-            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
-                                                                                                  attribute_type='MCMC')
+        if self.noise_model in ['bernoulli', 'ordinal']:
+            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
+                                                                                                    attribute_type='MCMC')
 
         return sufficient_statistics
 
@@ -337,6 +547,13 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations
 
+        if self.noise_model == 'ordinal':
+            if self.ordinal_infos['batch_deltas']:
+                self.parameters['deltas'] = realizations['deltas'].tensor_realizations
+            else:
+                for feat in self.ordinal_infos["features"]:
+                    self.parameters['deltas_'+feat["name"]] = realizations['deltas_'+feat["name"]].tensor_realizations
+
         xi = realizations['xi'].tensor_realizations
         # self.parameters['xi_mean'] = torch.mean(xi)  # fixed = 0 by design
         self.parameters['xi_std'] = torch.std(xi)
@@ -347,11 +564,13 @@ class MultivariateModel(AbstractMultivariateModel):
         # by design: sources_mean = 0., sources_std = 1.
 
         param_ind = self.get_param_from_real(realizations)
-        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
-        if self.noise_model == 'bernoulli':
-            self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
-                                                                                            attribute_type='MCMC').sum()
+        # Should we really keep this ? cf #54 issue
+        if self.noise_model in ['bernoulli', 'ordinal']:
+            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
+                                                                                              attribute_type='MCMC').sum()
+        else:
+            self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
     def update_model_parameters_normal(self, data, suff_stats):
         # TODO? add a true, configurable, validation for all parameters? (e.g.: bounds on tau_var/std but also on tau_mean, ...)
@@ -366,6 +585,13 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = suff_stats['betas']
 
+        if self.noise_model == 'ordinal':
+            if self.ordinal_infos['batch_deltas']:
+                self.parameters['deltas'] = suff_stats['deltas']
+            else:
+                for feat in self.ordinal_infos["features"]:
+                    self.parameters['deltas_'+feat["name"]] = suff_stats['deltas_'+feat["name"]]
+
         tau_mean = self.parameters['tau_mean']
         tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
         tau_var = tau_var_updt + tau_mean ** 2
@@ -378,13 +604,17 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
         # self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])  # fixed = 0 by design
 
-        if 'scalar' in self.noise_model:
+        if self.noise_model in ['bernoulli', 'ordinal']:
+            self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
+
+        elif 'scalar' in self.noise_model:
             # scalar noise (same for all features)
             S1 = data.L2_norm
             S2 = suff_stats['obs_x_reconstruction'].sum()
             S3 = suff_stats['reconstruction_x_reconstruction'].sum()
 
             noise_var = (S1 - 2. * S2 + S3) / data.n_observations
+            self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
         else:
             # keep feature dependence on feature to update diagonal noise (1 free param per feature)
             S1 = data.L2_norm_per_ft
@@ -393,11 +623,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
             # tensor 1D, shape (dimension,)
             noise_var = (S1 - 2. * S2 + S3) / data.n_observations_per_ft.float()
-
-        self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
-
-        if self.noise_model == 'bernoulli':
-            self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
+            self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
 
     ###################################
     ### Random Variable Information ###
@@ -460,6 +686,32 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             variables_infos['sources'] = sources_infos
             variables_infos['betas'] = betas_infos
+
+        if self.noise_model == 'ordinal':
+            variables_infos['v0']['scale'] = 0.1
+            if self.ordinal_infos['batch_deltas']:
+                # For each feature : create a sampler for deltas of size (nb_levels_of_the_feature)
+                max_level = self.ordinal_infos["max_level"]
+                deltas_infos = {
+                    "name": "deltas",
+                    "shape": torch.Size([self.dimension, max_level - 1]),
+                    "type": "population",
+                    "rv_type": "multigaussian",
+                    "scale": .5,
+                    "mask": self.ordinal_infos["mask"][0,0,:,1:], # cut the zero level
+                }
+                variables_infos['deltas'] = deltas_infos
+            else:
+                # Instead of a sampler for each feature, sample deltas for all features in one sampler class
+                for feat in self.ordinal_infos["features"]:
+                    deltas_infos = {
+                        "name": "deltas_"+feat["name"],
+                        "shape": torch.Size([feat["nb_levels"] - 1]),
+                        "type": "population",
+                        "rv_type": "gaussian",
+                        "scale": .5,
+                    }
+                    variables_infos['deltas_'+feat["name"]] = deltas_infos
 
         return variables_infos
 

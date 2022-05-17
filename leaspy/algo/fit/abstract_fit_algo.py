@@ -112,7 +112,9 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
             # Finally we compute model attributes once converged
             model.attributes.update(['all'], model.parameters)
 
-        return realizations, model.parameters['noise_std']
+        loss = model.parameters['log-likelihood'] if model.noise_model in ['bernoulli', 'ordinal'] else model.parameters['noise_std']
+
+        return realizations, loss
 
     @abstractmethod
     def iteration(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):

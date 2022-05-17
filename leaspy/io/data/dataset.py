@@ -4,9 +4,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+import warnings
 
 from leaspy.exceptions import LeaspyInputError
-from leaspy.utils.typing import List
+from leaspy.utils.typing import List, Dict
 
 if TYPE_CHECKING:
     from leaspy.io.data.data import Data
@@ -66,6 +67,9 @@ class Dataset:
     L2_norm : scalar :class:`torch.FloatTensor`
         Sum of all non-nan squared values
 
+    one_hot_encoding : :class:`torch.FloatTensor`, shape (n_individuals, n_visits_max, dimension, max_ordinal_level)
+        Values of patients for each visit for each feature, but tensorized into a one-hot encoding
+
     Raises
     ------
     :exc:`.LeaspyInputError`
@@ -93,6 +97,7 @@ class Dataset:
 
         self.L2_norm_per_ft: torch.FloatTensor = None
         self.L2_norm: torch.FloatTensor = None
+        self.one_hot_encoding: torch.FloatTensor = None
 
         if model is not None:
             self._check_model_compatibility(data, model)
@@ -102,6 +107,7 @@ class Dataset:
         self._construct_values(data)
         self._construct_timepoints(data)
         self._compute_L2_norm()
+        self._one_hot_encoding: torch.FloatTensor = None
 
     def _construct_values(self, data: Data):
 
@@ -234,3 +240,40 @@ class Dataset:
             attribute = getattr(self, attribute_name)
             if isinstance(attribute, torch.Tensor):
                 setattr(self, attribute_name, attribute.to(device))
+
+    def get_one_hot_encoding(self, max_level=None):
+        """
+        Builds the one-hot encoding of ordinal data once and for all and returns it.
+
+        Parameters
+        ----------
+        max_level : int
+            Maximum integer value expected in self.values
+
+        Returns
+        -------
+        One-hot encoding of data values.
+        """
+
+        if self._one_hot_encoding is None:
+            if max_level is None:
+                max_level = self.values.max().long().item()
+
+            # Consistency checks
+            expected_codes = set(range(0, max_level + 1))
+            # Checks for values different than integers
+            if (self.values != self.values.round()).any():
+                raise LeaspyInputError("Please make sure your data contains only integers when using ordinal noise modelling.")
+            # Now check that integers are within the range [0, max_level]
+            actual_codes = set(self.values.long().unique().tolist())
+            unexpected_codes = sorted(actual_codes.difference(expected_codes))
+            missing_codes = sorted(expected_codes.difference(actual_codes))
+            if len(unexpected_codes) > 0:
+                warnings.warn(f"Values were expected to be integers between 0 and {max_level}, but we found {unexpected_codes} in the data. Values will be clipped between 0 and {max_level}")
+            if len(missing_codes) > 0:
+                warnings.warn(f"Values were expected to be integers between 0 and {max_level}, but we found that {missing_codes} are missing from the data.")
+
+            vals = self.values.long().clamp(0, max_level)
+            vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
+            self._one_hot_encoding = vals
+        return self._one_hot_encoding

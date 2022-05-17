@@ -94,9 +94,14 @@ class AbstractMultivariateModel(AbstractModel):
             raise LeaspyModelInputError(f"Sources dimension should be an integer in [0, dimension - 1[ "
                                         f"but you provided `source_dimension` = {self.source_dimension} whereas `dimension` = {self.dimension}")
 
+        if self.noise_model == 'ordinal':
+            ord = self.ordinal_infos
+        else:
+            ord = None
+
         self.parameters = initialize_parameters(self, dataset, method)
 
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension, ordinal_infos=ord)
 
         # Postpone the computation of attributes when really needed!
         #self.attributes.update(['all'], self.parameters)
@@ -148,6 +153,19 @@ class AbstractMultivariateModel(AbstractModel):
         # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
         expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
 
+        if self.noise_model == 'ordinal':
+            if "linear" in self.name:
+                raise LeaspyModelInputError("Noise model 'ordinal' is only compatible with 'logistic' and 'univariate_logistic' models")
+            if hasattr(self, 'ordinal_infos'):
+                self.ordinal_infos["batch_deltas"] = hyperparameters.get('batch_deltas_ordinal', self.ordinal_infos["batch_deltas"])
+            else:
+                self.ordinal_infos = {"batch_deltas": hyperparameters.get('batch_deltas_ordinal', False),
+                                      "max_level": 1,
+                                      "features": [],
+                                      "mask":1.,
+                                      }
+            expected_hyperparameters += ('batch_deltas_ordinal',)
+
         self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
     def save(self, path: str, with_mixing_matrix: bool = True, **kwargs):
@@ -186,6 +204,9 @@ class AbstractMultivariateModel(AbstractModel):
             'noise_model': self.noise_model,
             'parameters': model_parameters_save
         }
+
+        if self.noise_model == 'ordinal':
+            model_settings['batch_deltas_ordinal'] = self.ordinal_infos["batch_deltas"]
 
         # Default json.dump kwargs:
         kwargs = {'indent': 2, **kwargs}

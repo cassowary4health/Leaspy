@@ -243,6 +243,64 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
 
     return params
 
+def initialize_deltas_ordinal(model, dataset, parameters):
+    """
+    Find an initial value the deltas for an ordinal model and initializes ordinal_infos attribute.
+
+    Parameters
+    ----------
+    model : :class:`.AbstractModel`
+        The model to initialize.
+    dataset : :class:`.Dataset`
+        Contains the individual scores.
+    parameters : dict[str, `torch.Tensor`]
+        The parameters coming from the standard initialization of the logistic model
+
+    Returns
+    -------
+    parameters : dict[str, `torch.Tensor`]
+        The updated parameters intialization, with new parameter deltas
+    """
+
+    deltas = {}
+    df = dataset.to_pandas().set_index(['ID', 'TIME'])
+    for col in df:
+        max_lvl = int(df[col].max())
+        model.ordinal_infos["features"].append({"name":col, "nb_levels":max_lvl})
+        delays = []
+        for k in range(2, max_lvl + 1):
+            inf = (df[[col]] >= (k - 1)).groupby('ID')
+            sup = (df[[col]] >= k).groupby('ID')
+            loc = sup.idxmax()
+            a_loc = inf.idxmax()
+            mask = sup.any()
+            delays.append(sum([(x[0][1] - z[0][1]) * y[0] for x, y, z in
+                              zip(loc.values, mask.values, a_loc.values)]) / mask.values.sum())
+        deltas[col] = torch.log(torch.clamp(torch.tensor(delays), min=0.1))
+
+    # Changes the meaning of v0 # How do we initialize this ?
+    #parameters['v0'] = torch.zeros_like(parameters['v0'])
+    max_level = max([feat["nb_levels"] for feat in model.ordinal_infos['features']])
+    if model.ordinal_infos["batch_deltas"]:
+        deltas_ = torch.zeros((len(deltas), max_level - 1))
+        for i, name in enumerate(deltas):
+            deltas_[i, :deltas[name].shape[0]] = deltas[name]
+        parameters["deltas"] = deltas_
+    else:
+        for col in dataset.headers:
+            parameters["deltas_" + col] = deltas[col]
+    model.ordinal_infos["max_level"] = max_level
+    # Mask for setting values > max_level per item to zero
+    model.ordinal_infos["mask"] = torch.cat([
+        torch.cat([
+            torch.ones((1, 1, 1, feat['nb_levels'])),
+            torch.zeros((1, 1, 1, max_level - feat['nb_levels'])),
+        ], dim=-1) for feat in model.ordinal_infos['features']
+    ], dim=2)
+
+    return parameters
+
+
 
 def initialize_logistic(model, dataset, method):
     """
@@ -325,6 +383,9 @@ def initialize_logistic(model, dataset, method):
             'sources_std': torch.tensor(sources_std, dtype=torch.float32),
             'noise_std': torch.tensor([noise_std], dtype=torch.float32)
         }
+
+    if model.noise_model == 'ordinal':
+        parameters = initialize_deltas_ordinal(model, dataset, parameters)
 
     return parameters
 

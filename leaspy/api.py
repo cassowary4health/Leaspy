@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import numpy as np
 
 from leaspy.io.data.dataset import Dataset
 from leaspy.models.model_factory import ModelFactory
@@ -49,6 +50,7 @@ class Leaspy:
                 * ``'gaussian_scalar'``: gaussian error, with same standard deviation for all features
                 * ``'gaussian_diagonal'``: gaussian error, with one standard deviation parameter per feature (default)
                 * ``'bernoulli'``: for binary data (Bernoulli realization)
+                * ``'ordinal'``: for ordinal data. WARNING : make sure your dataset only contains positive integers.
 
         source_dimension : int, optional
             `For multivariate models only`.
@@ -56,6 +58,13 @@ class Leaspy:
             This number MUST BE strictly lower than the number of features.
             By default, this number is equal to square root of the number of features.
             One can interpret this hyperparameter as a way to reduce the dimension of inter-individual _spatial_ variability between progressions.
+
+        batch_deltas_ordinal : bool, optional
+            `For logistic models with ordinal noise model only`.
+            If True, concatenates the deltas for each feature into a 2-dimensional Tensor "deltas" model parameter, which essentially allows faster sampling with new samplers.
+            If False, each feature will induce a new model parameter "deltas_<feature_name>".
+            The default is False but it is preferable to switch to True when ordinal items have many levels or when there are many items (when fit takes too long basically).
+            Batching deltas will speed up the sampling part of the MCMC SAEM by trading for less accuracy in the estimation of deltas.
 
     Attributes
     ----------
@@ -211,7 +220,7 @@ class Leaspy:
             return res
 
     def estimate(self, timepoints: Union[pd.MultiIndex, Dict[IDType, List[float]]], individual_parameters: IndividualParameters, *,
-                 to_dataframe: bool = None) -> Union[pd.DataFrame, Dict[IDType, np.ndarray]]:
+                 to_dataframe: bool = None, ordinal_method='MLE') -> Union[pd.DataFrame, Dict[IDType, np.ndarray]]:
         r"""
         Return the model values for individuals characterized by their individual parameters :math:`z_i` at time-points :math:`(t_{i,j})_j`.
 
@@ -225,6 +234,9 @@ class Leaspy:
         to_dataframe : bool or None (default)
             Whether to output a dataframe of estimations?
             If None: default is to be True if and only if timepoints is a `pandas.MultiIndex`
+        ordinal_method : str 'MLE' or 'maximum_likelihood' returns maximum likelihood estimator for each point
+                             'E' or 'expectation' returns expectation (float)
+                             'P' or 'probabilities' returns full probabilities. Not compatible with to_dataframe=True
 
         Returns
         -------
@@ -262,14 +274,33 @@ class Leaspy:
         for index, time in timepoints.items():
             ip = individual_parameters[index]
             est = self.model.compute_individual_trajectory(time, ip)
-            estimations[index] = est[0].numpy() # 1 individual at a time (first dimension of tensor)
+            if getattr(self.model, 'noise_model', None) == 'ordinal':
+                if ordinal_method in ['MLE', 'maximum_likelihood']:
+                    estimations[index] = est[0].numpy().argmax(axis=-1)
+                elif ordinal_method in ['E', 'expectation']:
+                    estimations[index] = np.flip(est[0].numpy(), axis=-1).cumsum(axis=-1).sum(axis=-1) - 1.
+                else:
+                    estimations[index] = est[0].numpy()
+            else:
+                estimations[index] = est[0].numpy() # 1 individual at a time (first dimension of tensor)
 
         # convert to proper dataframe
         if to_dataframe:
-            estimations = pd.concat({
-                pat_id: pd.DataFrame(ests, index=timepoints[pat_id], columns=self.model.features)
-                for pat_id, ests in estimations.items()
-            }, names=['ID','TIME'])
+            if getattr(self.model, 'noise_model', None) == 'ordinal' and ordinal_method in ['P', 'probabilities']:
+                estimations = pd.concat({
+                    pat_id: pd.DataFrame(ests.reshape((ests.shape[0], -1)), index=timepoints[pat_id], columns=[name+f'_{k}' for name in self.model.features for k in range(ests.shape[-1])])
+                    for pat_id, ests in estimations.items()
+                }, names=['ID', 'TIME'])
+                columns_to_drop = []
+                for feat in self.model.ordinal_infos["features"]:
+                    for i in range(feat["nb_levels"] + 1, self.model.ordinal_infos["max_level"] + 1):
+                        columns_to_drop.append(feat["name"]+f'_{i}')
+                estimations.drop(columns=columns_to_drop, inplace=True)
+            else:
+                estimations = pd.concat({
+                    pat_id: pd.DataFrame(ests, index=timepoints[pat_id], columns=self.model.features)
+                    for pat_id, ests in estimations.items()
+                }, names=['ID','TIME'])
 
             # reindex back to given index being careful to index order (join so to handle multi-levels cases)
             if ix is not None:
@@ -356,7 +387,11 @@ class Leaspy:
             ip = individual_parameters[index]
 
             # compute individual ages from the value array and individual parameter dict
-            est = self.model.compute_individual_ages_from_biomarker_values(value, ip, feature).numpy()
+            if self.model.noise_model == 'ordinal':
+                value, ip = self.model._get_tensorized_inputs(value, ip, skip_ips_checks=False)
+                est = self.model.compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(value, ip, feature).numpy()
+            else:
+                est = self.model.compute_individual_ages_from_biomarker_values(value, ip, feature).numpy()
             est = est.reshape(-1)
 
             # convert array to initial type (int or list)

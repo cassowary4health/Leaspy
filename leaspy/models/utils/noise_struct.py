@@ -150,6 +150,59 @@ def check_scale_is_positive(d: KwargsType):
         raise LeaspyInputError(f"The noise `scale` parameter should be > 0, which is not the case in {noise_scale}.")
     return d
 
+# Need to define our own Multinomial distribution for ordinal models...
+
+class MultinomialDistribution(torch.distributions.Distribution):
+    '''
+    Class for a multinomial distribution with only sample method.
+
+    Parameters
+    ----------
+    loc : torch.FloatTensor
+        Values of the probabilities from which the distribution samples
+
+    Attributes
+    ----------
+    probas : torch.FloatTensor
+        Values of the probabilities from which the distribution samples
+
+    Attributes :
+
+    loc : torch.FloatTensor
+        Probabilities of shape (..., dim_probas) where dim_probas is the max number of classes
+
+    cdf : torch.FloatTensor
+        Corresponding cdf of the probabilities
+    '''
+
+    arg_constraints = {}
+    validate_args = False
+
+    def __init__(self, loc):
+        super().__init__()
+        self.probas = loc
+        # computing cdf
+        self.cdf = loc.cumsum(dim=-1)
+
+    def sample(self):
+        """
+        Multinomial sampling.
+
+        Returns
+        -------
+        out : torch.IntTensor
+        Vector of integer values corresponding to the multinomial sampling.
+        """
+        s = list(self.probas.shape)
+        max_classes = s[-1]
+        s[-1] = 1
+        repeats = [1 for _ in s]
+        repeats[-1] = max_classes
+        # random sampling of cdf
+        r = torch.rand(s).repeat(repeats)
+        out = (r < self.cdf).int().argmax(dim=-1) # works because it returns first index where we find a 1
+        return out
+
 # Define default noise structures
 NOISE_STRUCTS = {
 
@@ -171,4 +224,8 @@ NOISE_STRUCTS = {
         dist_kws_validators=(convert_input_to_1D_float_tensors, check_scale_is_positive),
         contextual_dist_kws_validators=(check_scale_is_compat_with_model_dimension,)
     ),
+
+    'ordinal': NoiseStruct(
+        distribution_factory=MultinomialDistribution,
+    )
 }

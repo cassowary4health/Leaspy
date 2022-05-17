@@ -184,6 +184,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         # computation for 1 individual (level dropped after computation)
         predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters).squeeze(0)
+
+        # for ordinal we take the maximum likelihood estimate
+        if model.noise_model == 'ordinal':
+            predicted = predicted.argmax(dim=-1)
+
         return predicted - values
 
     def _get_regularity(self, model, individual_parameters):
@@ -273,7 +278,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         # compute 1 individual at a time (1st dimension is squeezed)
         predicted = model.compute_individual_tensorized(times, individual_parameters).squeeze(0)
-        diff = predicted - values # tensor j,k (j=visits, k=features)
+        if model.noise_model == 'ordinal':
+            diff = predicted[..., 0] - values
+        else:
+            diff = predicted - values # tensor j,k (j=visits, k=features)
         nans = torch.isnan(values)
         diff[nans] = 0.  # set nans to zero, not to count in the sum
 
@@ -288,7 +296,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         res = {}
 
         # Loss is based on log-likelihood for model, which ultimately depends on noise structure
-        # TODO: should be directly handled in model or NoiseModel
+        # TODO: should be directly handled in model or NoiseModel (probably in NoiseModel)
         if 'gaussian' in model.noise_model:
             noise_var = model.parameters['noise_std'] * model.parameters['noise_std']
             noise_var = noise_var.expand((1, model.dimension)) # tensor 1,n_fts (works with diagonal noise or scalar noise)
@@ -307,6 +315,22 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             if with_gradient:
                 crossentropy_fact = diff / (predicted * (1. - predicted))
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
+
+        elif model.noise_model == 'ordinal':
+            max_level = model.ordinal_infos["max_level"]
+            vals = values.long().clamp(0, max_level)
+            vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
+            # Compute the simple multinomial loss
+            predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
+            LL = -torch.log((predicted * vals).sum(dim=-1))
+            LL[nans] = 0.
+            res['objective'] = torch.sum(LL)
+
+            if with_gradient:
+                ordinal_fact = vals / predicted
+                ordinal_fact[nans] = 0.
+                grad = -torch.sum(ordinal_fact.unsqueeze(-1) * grads, dim=2)
+                res['gradient'] = grad.sum(dim=(0,1))
 
         else:
             raise LeaspyAlgoInputError(f"'{model.noise_model}' noise is currently not implemented in 'scipy_minimize' algorithm. "

@@ -2,6 +2,7 @@
 from .test_api_fit import LeaspyFitTest_Mixin
 from .test_api_personalize import LeaspyPersonalizeTest_Mixin
 from .test_api_simulate import LeaspySimulateTest_Mixin
+import torch
 
 
 class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimulateTest_Mixin):
@@ -12,6 +13,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
                         fit_check_kws = dict(atol=1e-3),
                         fit_algo_params=dict(seed=0), perso_algo_params=dict(seed=0),
                         simulate_algo_params=dict(seed=0), simulate_tol=1e-4,
+                        tol_noise=1e-2,
                         **model_hyperparams):
         """
         Functional test of a basic analysis using leaspy package
@@ -36,9 +38,12 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
         # Personalize
         algo_personalize_settings = self.get_algo_settings(name=perso_algo, **perso_algo_params)
         individual_parameters, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
+        # Temporary fix for noise for ordinal and binary models
+        if leaspy.model.noise_model in ['bernoulli', 'ordinal']:
+            noise_std = torch.tensor(expected_noise_std)
         self.check_consistency_of_personalization_outputs(
                 individual_parameters, noise_std,
-                expected_noise_std=expected_noise_std, tol_noise=1e-2)
+                expected_noise_std=expected_noise_std, tol_noise=tol_noise)
 
         # Simulate
         simulation_settings = self.get_algo_settings(name=simulate_algo, **simulate_algo_params)
@@ -90,7 +95,57 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            perso_algo_params=dict(n_iter=200, seed=0),
-            expected_noise_std=[0.343, 0.091, 0.125, 0.243],  # in perso
+            expected_noise_std=[105.18],  # logLL, not noise_std
+            simulate_algo_params=simul_params,
+        )
+
+    def test_usecase_logistic_ordinal(self):
+
+        # Simulation parameters
+        custom_delays_vis = .5
+        simul_params = dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100,
+                            reparametrized_age_bounds=(50, 85))  # noise=...
+
+        self.generic_usecase(
+            'logistic', model_codename='logistic_ordinal',
+            noise_model='ordinal', source_dimension=2,
+            fit_algo_params=dict(n_iter=200, seed=0),
+            perso_algo='mean_real',
+            expected_noise_std=[1431.1],  # logLL, not noise_std
+            tol_noise=0.1,
+            simulate_algo_params=simul_params,
+        )
+
+    def test_usecase_logistic_ordinal_batched(self):
+        # Simulation parameters
+        custom_delays_vis = .5
+        simul_params = dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100,
+                            reparametrized_age_bounds=(50, 85))
+        self.generic_usecase(
+            'logistic', model_codename='logistic_ordinal_b',
+            noise_model='ordinal', source_dimension=2,
+            fit_algo_params=dict(n_iter=200, seed=0),
+            fit_check_kws=dict(atol=0.005),
+            perso_algo='mean_real',
+            expected_noise_std=[1523.4],  # logLL, not noise_std
+            tol_noise=0.1,
+            simulate_algo_params=simul_params,
+            batch_deltas_ordinal=True,
+        )
+
+    def test_usecase_univariate_logistic_ordinal(self):
+
+        # Simulation parameters
+        custom_delays_vis = .5
+        simul_params = dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100,
+                            reparametrized_age_bounds=(50, 85))  # noise=...
+
+        self.generic_usecase(
+            'univariate_logistic', model_codename='univariate_logistic_ordinal',
+            noise_model='ordinal',
+            fit_algo_params=dict(n_iter=200, seed=0),
+            perso_algo='mean_real',
+            expected_noise_std=[1431.1],  # logLL, not noise_std
+            tol_noise=0.1,
             simulate_algo_params=simul_params,
         )

@@ -62,7 +62,6 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
         # Annealing mixin
         self._initialize_annealing()
 
-
     ###########################
     ## Core
     ###########################

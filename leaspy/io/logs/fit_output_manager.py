@@ -189,6 +189,10 @@ class FitOutputManager:
                     model_parameters_save.pop(key)
                     for column in range(value.shape[1]):
                         model_parameters_save[f"{key}_{column}"] = value[:, column].tolist()
+                if key == "deltas":
+                    model_parameters_save.pop(key)
+                    for line in range(value.shape[0]):
+                        model_parameters_save[f"{key}_{line}"] = value[line].tolist()
                 # P0, V0
                 elif value.shape[0] == 1 and len(value.shape) > 1:
                     model_parameters_save[key] = value[0].tolist()

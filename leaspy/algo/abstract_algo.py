@@ -55,9 +55,6 @@ class AbstractAlgo(ABC):
     family: str = None
     deterministic: bool = False
 
-    # Format used to display noise std-dev values
-    _log_noise_fmt = '.2%'
-
     def __init__(self, settings: AlgorithmSettings):
 
         if settings.name != self.name:
@@ -70,6 +67,27 @@ class AbstractAlgo(ABC):
         self.algo_parameters = deepcopy(settings.parameters)
 
         self.output_manager: Optional[FitOutputManager] = None
+        self._log_noise_fmt = '.2%'
+
+    # Format used to display noise std-dev values
+    @property
+    def log_noise_fmt(self):
+        """
+        Getter
+
+        Returns
+        -------
+        format : str
+            The format for the print of the loss
+        """
+        return self._log_noise_fmt
+
+    @log_noise_fmt.setter
+    def log_noise_fmt(self, model):
+        if hasattr(model, 'noise_model') and model.noise_model in ['bernoulli', 'ordinal']:
+            self._log_noise_fmt = '.4f'
+        else:
+            self._log_noise_fmt = '.2%'
 
     ###########################
     # Initialization
@@ -158,6 +176,9 @@ class AbstractAlgo(ABC):
         # Set seed if needed
         self._initialize_seed(self.seed)
 
+        # Get the right printing format
+        self.log_noise_fmt = model
+
         # Init the run
         time_beginning = time.time()
 
@@ -172,7 +193,8 @@ class AbstractAlgo(ABC):
 
         noise_repr = self._noise_std_repr(noise_std, model=model)
         if noise_repr is not None:
-            print(f"The standard deviation of the noise at the end of the {self.family} is: {noise_repr}")
+            noise_type = "log-likelihood" if (getattr(model, 'noise_model', None) in ['bernoulli', 'ordinal']) else "standard deviation of the noise"
+            print(f"The {noise_type} at the end of the {self.family} is:\n{noise_repr}")
 
         # Return only output part
         if return_noise:
@@ -327,14 +349,14 @@ class AbstractAlgo(ABC):
                 raise LeaspyModelInputError(f'Number of features ({model.dimension}) does not match with '
                                             f'number of diagonal terms of noise ({noise_elts_nb}).')
 
-            noise_map = {ft_name: f'{ft_noise:{self._log_noise_fmt}}'
+            noise_map = {ft_name: f'{ft_noise:{self.log_noise_fmt}}'
                          for ft_name, ft_noise in zip(model.features, noise_elts)}
             print_noise = repr(noise_map).replace("'", "").replace("{", "").replace("}", "")
             print_noise = '\n- ' + '\n- '.join(print_noise.split(', '))
         else:
             if hasattr(noise_std, 'item'):
                 noise_std = noise_std.item()
-            print_noise = f"{noise_std:{self._log_noise_fmt}}"
+            print_noise = f"{noise_std:{self.log_noise_fmt}}"
 
         return print_noise
 

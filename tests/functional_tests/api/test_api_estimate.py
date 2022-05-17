@@ -7,12 +7,14 @@ class LeaspyEstimateTest_Mixin(LeaspyTestCase):
     def check_almost_equal_for_all_ind_tpts(self, a, b, tol=1e-5):
         return self.assertDictAlmostEqual(a, b, atol=tol)
 
-    def batch_checks(self, ip, tpts, models, expected_ests):
+    def batch_checks(self, ip, tpts, models, expected_ests, ordinal_method="MLE"):
         for model_name in models:
             with self.subTest(model_name=model_name):
                 leaspy = self.get_hardcoded_model(model_name)
-                estimations = leaspy.estimate(tpts, ip)
-                self.check_almost_equal_for_all_ind_tpts(estimations, expected_ests)
+
+                estimations = leaspy.estimate(tpts, ip, ordinal_method=ordinal_method)
+
+                self.check_almost_equal_for_all_ind_tpts(estimations, expected_ests, tol=1e-4)
 
 
 class LeaspyEstimateTest(LeaspyEstimateTest_Mixin):
@@ -39,6 +41,31 @@ class LeaspyEstimateTest(LeaspyEstimateTest_Mixin):
         # TODO logistic parallel?
 
         # TODO linear model?
+
+    def test_estimate_ordinal(self):
+
+        ip = self.get_hardcoded_individual_params('ip_save.json')
+
+        timepoints = {
+            'idx1': [78, 81],
+            'idx2': [71]
+        }
+
+        model = ('logistic_ordinal',)
+
+        expected_ests = {
+            'idx1': [[3,4,6,10],
+                     [3,4,6,10]],
+            'idx2': [[0,0,0,0]]
+        }
+        self.batch_checks(ip, timepoints, model, expected_ests, ordinal_method='MLE')
+
+        expected_ests = {
+            'idx1': [[ 3.    ,  3.8718,  5.8573, 10.    ],
+                     [ 3.    ,  3.9864,  5.9822, 10.    ]],
+            'idx2': [[1.8477e-05, 1.3745e-01, 4.5545e-01, 1.7405e-05]]
+        }
+        self.batch_checks(ip, timepoints, model, expected_ests, ordinal_method='expectation')
 
     def test_estimate_univariate(self):
 

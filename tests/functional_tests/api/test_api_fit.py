@@ -188,6 +188,19 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=True)
 
+    def test_fit_logistic_ordinal(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_ordinal', noise_model='ordinal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0),
+                                     check_model=True)
+
+    def test_fit_logistic_ordinal_batched(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_ordinal_b', noise_model='ordinal', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0),
+                                     check_model=True,
+                                     batch_deltas_ordinal = True)   # test if batch sampling of deltas works
+
 @unittest.skipIf(not torch.cuda.is_available(),
                 "GPU calibration tests need an available CUDA environment")
 class LeaspyFitGPUTest(LeaspyFitTest_Mixin):

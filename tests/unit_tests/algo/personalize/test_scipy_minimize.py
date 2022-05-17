@@ -385,3 +385,89 @@ class ScipyMinimizeTest(LeaspyTestCase):
             err[torch.isnan(err)] = 0.
 
             self.assertAlmostEqual(torch.sum((err - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
+
+    def test_get_individual_parameters_patient_multivariate_models_ordinal(self, tol=tol, tol_tau=tol_tau):
+
+        times = [70, 80]
+        values = [[0, 1, 0, 2], [1, 2, 2, 4]] # no nans (separate test)
+
+        for (model_name, use_jacobian), expected_dict in {
+
+            ('logistic_ordinal', False): {
+                'tau': 74.0180,
+                'xi': -1.7808,
+                'sources': [-0.3543,  0.5963],
+                'err': [[ 0., -1.,  1., 0.],
+                        [ 0., -2., -1., 0.]]
+            },
+            ('logistic_ordinal', True): {
+                'tau': 73.9865,
+                'xi': -1.7801,
+                'sources': [-0.3506,  0.5917],
+                'err': [[ 0., -1.,  1., 0.],
+                        [ 0., -2., -1., 0.]]
+            },
+
+        }.items():
+
+            individual_parameters, err = self.get_individual_parameters_patient(model_name,
+                                                    times, values, use_jacobian=use_jacobian,
+                                                    noise_model='ordinal')
+            self.check_individual_parameters(individual_parameters,
+                tau=expected_dict['tau'], tol_tau=tol_tau,
+                xi=expected_dict['xi'], tol_xi=tol,
+                sources=expected_dict['sources'], tol_sources=tol,
+            )
+
+            self.assertAlmostEqual(torch.sum((err - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
+
+    def test_get_individual_parameters_patient_multivariate_models_with_nans_ordinal(self, tol=tol, tol_tau=tol_tau):
+
+        times = [70, 80]
+        values = [[0, 1, 2, np.nan], [1, np.nan, 2, 4]]
+
+        nan_positions = torch.tensor([
+            [False, False, False, True],
+            [False, True, False, False]
+        ])
+
+        for (model_name, use_jacobian), expected_dict in {
+
+            ('logistic_ordinal', False): {
+                'tau': 74.2849,
+                'xi': -1.7475,
+                'sources': [0.0763, 0.8606],
+                'err': [[ 0., -1., -1., 0.],
+                        [ 0., 0., -1.,  0.]]
+            },
+            ('logistic_ordinal', True): {
+                'tau': 74.2808,
+                'xi': -1.7487,
+                'sources': [0.0754, 0.8551],
+                'err': [[0., -1., -1., 0.],
+                        [0., 0., -1., 0.]]
+            },
+
+            # On linux :
+            #{'xi': tensor([[1.4598]]), 'tau': tensor([[68.3140]]), 'sources': tensor([[0.7386, -2.3988]]),
+            # 'err' : tensor(
+            #    [[0., 0., -1., nan],
+            #     [0., nan, nan, 0.]])}
+
+            # TODO? linear, logistic_parallel
+
+        }.items():
+
+            individual_parameters, err = self.get_individual_parameters_patient(model_name,
+                                                    times, values, use_jacobian=use_jacobian,
+                                                    noise_model='ordinal')
+            self.check_individual_parameters(individual_parameters,
+                tau=expected_dict['tau'], tol_tau=tol_tau,
+                xi=expected_dict['xi'], tol_xi=tol,
+                sources=expected_dict['sources'], tol_sources=tol,
+            )
+
+            self.assertTrue(torch.eq(torch.isnan(err), nan_positions).all())
+            err[torch.isnan(err)] = 0.
+
+            self.assertAlmostEqual(torch.sum((err - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)

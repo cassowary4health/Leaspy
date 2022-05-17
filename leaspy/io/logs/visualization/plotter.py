@@ -313,6 +313,8 @@ class Plotter:
 
         patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
 
+        if model.noise_model == 'ordinal':
+            patient_values = patient_values.argmax(axis=-1)
 
         for i in patients_list:
             model_value = patient_values[i, 0:dataset.n_visits_per_individual[i], :]
@@ -334,6 +336,10 @@ class Plotter:
         timepoints = torch.tensor(timepoints).unsqueeze(0)
 
         patient_values = model.compute_mean_traj(timepoints, attribute_type=attribute_type)
+
+        if model.noise_model == 'ordinal':
+            patient_values = patient_values.argmax(axis=-1)
+
         for i in range(patient_values.shape[-1]):
             ax.plot(timepoints[0, :].cpu().detach().numpy(), patient_values[0, :, i].cpu().detach().numpy(),
                     c="black", linewidth=3, alpha=0.3)
@@ -388,6 +394,8 @@ class Plotter:
         # Make the plot 1
 
         to_skip_1 = ['betas'] + ['sources_mean', 'sources_std']*int(skip_sources)
+        if hasattr(model, "noise_model") and model.noise_model == 'ordinal':
+            to_skip_1.append('deltas')
         params_to_plot_1 = [p for p in model.parameters.keys() if p not in to_skip_1]
 
         n_plots_1 = len(params_to_plot_1)
@@ -415,9 +423,7 @@ class Plotter:
         reals_pop_name = model.get_population_realization_names()
         reals_ind_name = model.get_individual_realization_names()
 
-        additional_plots = 1 # for noise_std
-        if model.noise_model == 'bernoulli':
-            additional_plots += 1 # for crossentropy
+        additional_plots = 1 # for noise_std / log-likelihood depending on noise_model
 
         if skip_sources and 'sources' in reals_ind_name:
             additional_plots -= 1
@@ -433,29 +439,36 @@ class Plotter:
             yscale_kw = dict(nonpositive='clip')
 
         # Noise std-dev
-        import_path = os.path.join(path, 'noise_std.csv')
-        df_convergence = pd.read_csv(import_path, index_col=0, header=None)
-        df_convergence.index.rename("iter", inplace=True)
-        y_position = 0
-        df_convergence.plot(ax=ax[y_position], legend=False)
-        ax[y_position].set_title('noise_std')
-        ax[y_position].set_yscale("log", **yscale_kw)
-        plt.grid(True)
-
-        if model.noise_model == 'bernoulli':
-            import_path = os.path.join(path, 'crossentropy.csv')
+        if not model.noise_model in ['bernoulli', 'ordinal']:
+            import_path = os.path.join(path, 'noise_std.csv')
             df_convergence = pd.read_csv(import_path, index_col=0, header=None)
             df_convergence.index.rename("iter", inplace=True)
-            y_position = 1
+            y_position = 0
             df_convergence.plot(ax=ax[y_position], legend=False)
-            ax[y_position].set_title('crossentropy')
+            ax[y_position].set_title('noise_std')
+            ax[y_position].set_yscale("log", **yscale_kw)
+            plt.grid(True)
+        # LL for other models
+        else:
+            import_path = os.path.join(path, 'log-likelihood.csv')
+            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+            df_convergence.index.rename("iter", inplace=True)
+            y_position = 0
+            df_convergence.plot(ax=ax[y_position], legend=False)
+            ax[y_position].set_title('log-likelihood')
             ax[y_position].set_yscale("log", **yscale_kw)
             plt.grid(True)
 
         for i, key in enumerate(reals_pop_name):
             y_position += 1
             ax[y_position].set_title(key)
-            if key not in ['betas']:
+            if key == 'deltas' and model.noise_model == 'ordinal':
+                for dim in range(model.dimension):
+                    import_path = os.path.join(path, key + "_" + str(dim) + ".csv")
+                    df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+                    df_convergence.index.rename("iter", inplace=True)
+                    df_convergence.plot(ax=ax[y_position], legend=False)
+            elif key not in ['betas']:
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                 df_convergence.index.rename("iter", inplace=True)

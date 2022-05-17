@@ -71,7 +71,7 @@ class FitOutputManager:
 
         self.time = time.time()
 
-        self.save_last_n_realizations = 100
+        self.save_last_n_realizations = outputs.save_last_n_realizations
 
     def iteration(self, algo, data, model, realizations):
         """

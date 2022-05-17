@@ -1,6 +1,7 @@
 import os
 import math
 from typing import Optional
+from itertools import cycle
 
 import pandas as pd
 import numpy as np
@@ -42,14 +43,11 @@ class Plotter:
             plt.show(block=self._block)
 
     def plot_mean_trajectory(self, model, *, attribute_type: Optional[str] = None, **kwargs):
-        # colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
 
         labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
-        #colors = color_palette(range(8))
-
-        colors = cm.get_cmap("tab20").colors
+        colors = kwargs.get('color', cycle(cm.get_cmap("tab20").colors))
 
         try:
             iter(model)
@@ -60,8 +58,10 @@ class Plotter:
                 raise LeaspyInputError("Please initialize the model before plotting")
 
             # not iterable
-            if 'logistic' in model.name:
-                plt.ylim(0, 1)
+            if getattr(model, 'is_ordinal', False):
+                ax.set_ylim(0, model.ordinal_infos['max_level'])
+            elif 'logistic' in model.name:
+                ax.set_ylim(0, 1)
 
             mean_time = model.parameters['tau_mean']
             std_time = max(model.parameters['tau_std'], 4)
@@ -70,9 +70,12 @@ class Plotter:
 
             mean_trajectory = model.compute_mean_traj(timepoints, attribute_type=attribute_type).cpu().detach().numpy()
 
-            for i in range(mean_trajectory.shape[-1]):
+            if getattr(model, 'is_ordinal', False):
+                mean_trajectory = mean_trajectory.argmax(axis=-1)  # MLE
+
+            for i, color_ft in zip(range(mean_trajectory.shape[-1]), colors):
                 ax.plot(timepoints[0, :].cpu().detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
-                        linewidth=4, alpha=0.9, c=colors[i])  # , c=colors[i])
+                        linewidth=4, alpha=0.9, c=color_ft)
             plt.legend()
 
         else:
@@ -82,8 +85,10 @@ class Plotter:
                 raise LeaspyInputError("Please initialize the model before plotting")
 
             # iterable
-            if 'logistic' in model[0].name:
-                plt.ylim(0, 1)
+            if getattr(model[0], 'is_ordinal', False):
+                ax.set_ylim(0, model[0].ordinal_infos['max_level'])
+            elif 'logistic' in model[0].name:
+                ax.set_ylim(0, 1)
 
             timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
                                      model[0].parameters['tau_mean'] + 6 * np.sqrt(model[0].parameters['tau_std']),
@@ -93,12 +98,15 @@ class Plotter:
             for j, el in enumerate(model):
                 mean_trajectory = el.compute_mean_traj(timepoints, attribute_type=attribute_type).cpu().detach().numpy()
 
-                for i in range(mean_trajectory.shape[-1]):
+                if getattr(el, 'is_ordinal', False):
+                    mean_trajectory = mean_trajectory.argmax(axis=-1)  # MLE
+
+                for i, color_ft in zip(range(mean_trajectory.shape[-1]), colors):
                     ax.plot(timepoints[0, :].cpu().detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
-                            linewidth=4, alpha=0.5, c=colors[i])  # , )
+                            linewidth=4, alpha=0.5, c=color_ft)
 
                 if j == 0:
-                    plt.legend()
+                    ax.legend()
 
         title = kwargs['title'] if 'title' in kwargs.keys() else None
         if title is not None:
@@ -138,10 +146,12 @@ class Plotter:
         if 'ax' in kwargs.keys():
             ax = kwargs['ax']
         else:
-            (fig, ax) = plt.subplots(1, 1, figsize=(8, 8))
+            fig, ax = plt.subplots(1, 1, figsize=(8, 8))
 
-        if 'logistic' in model.name:
-            plt.ylim(0, 1)
+        if getattr(model, 'is_ordinal', False):
+            ax.set_ylim(0, model.ordinal_infos['max_level'])
+        elif 'logistic' in model.name:
+            ax.set_ylim(0, 1)
 
         if not isinstance(indices, list):
             indices = [indices]
@@ -159,15 +169,15 @@ class Plotter:
                 ax.plot(np.array(timepoints), trajectory.cpu().detach().numpy()[:, dim], c=colors[dim])
                 ax.plot(np.array(timepoints)[not_nans_idx], observations[:, dim][not_nans_idx], c=colors[dim], linestyle='--')
 
-        if 'save_as' in kwargs.keys():
-            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
-
         if 'title' in kwargs.keys():
-            plt.title(kwargs['title'])
+            ax.set_title(kwargs['title'])
 
-        custom_lines = [Line2D([0], [0], color=colors[i%8], lw=4) for i in range((model.dimension))]
+        custom_lines = [Line2D([0], [0], color=colors[i], lw=4) for i in range((model.dimension))]
 
         ax.legend(custom_lines, labels, loc='upper right')
+
+        if 'save_as' in kwargs.keys():
+            plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
         if 'ax' not in kwargs.keys():
             self.plt_show()
@@ -182,10 +192,10 @@ class Plotter:
         for dim in range(model.dimension):
             ax.plot(timepoints, trajectory[:, dim], c=colors[dim], label=labels[dim])
 
+        ax.legend()
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
-        plt.legend()
         self.plt_show()
         plt.close()
 
@@ -245,15 +255,17 @@ class Plotter:
 
         for i in range(dataset.values.shape[-1]):
             fig, ax = plt.subplots(1, 1)
-            # ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
             for idx in range(min(50, len(tau))):
                 ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].cpu().detach().numpy(),
                         dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy(), 'x', )
                 ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].cpu().detach().numpy(),
                         patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy(),
                         alpha=0.8)
-            if 'logistic' in model.name:
-                plt.ylim(0, 1)
+
+            if getattr(model, 'is_ordinal', False):
+                ax.set_ylim(0, model.ordinal_infos['max_level'])
+            elif 'logistic' in model.name:
+                ax.set_ylim(0, 1)
 
         self.plt_show()
         plt.close()
@@ -313,7 +325,7 @@ class Plotter:
 
         patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
 
-        if model.is_ordinal:
+        if getattr(model, 'is_ordinal', False):
             patient_values = patient_values.argmax(axis=-1)
 
         for i in patients_list:
@@ -337,7 +349,7 @@ class Plotter:
 
         patient_values = model.compute_mean_traj(timepoints, attribute_type=attribute_type)
 
-        if model.is_ordinal:
+        if getattr(model, 'is_ordinal', False):
             patient_values = patient_values.argmax(axis=-1)
 
         for i in range(patient_values.shape[-1]):
@@ -394,7 +406,7 @@ class Plotter:
         # Make the plot 1
 
         to_skip_1 = ['betas'] + ['sources_mean', 'sources_std']*int(skip_sources)
-        if hasattr(model, "noise_model") and model.is_ordinal:
+        if getattr(model, 'is_ordinal', False):
             to_skip_1.append('deltas')
         params_to_plot_1 = [p for p in model.parameters.keys() if p not in to_skip_1]
 
@@ -439,7 +451,7 @@ class Plotter:
             yscale_kw = dict(nonpositive='clip')
 
         # Noise std-dev
-        if not model.noise_model in ['bernoulli', 'ordinal']:
+        if model.noise_model not in ['bernoulli', 'ordinal']:
             import_path = os.path.join(path, 'noise_std.csv')
             df_convergence = pd.read_csv(import_path, index_col=0, header=None)
             df_convergence.index.rename("iter", inplace=True)
@@ -462,7 +474,7 @@ class Plotter:
         for i, key in enumerate(reals_pop_name):
             y_position += 1
             ax[y_position].set_title(key)
-            if key == 'deltas' and model.is_ordinal:
+            if key == 'deltas' and getattr(model, 'is_ordinal', False):
                 for dim in range(model.dimension):
                     import_path = os.path.join(path, key + "_" + str(dim) + ".csv")
                     df_convergence = pd.read_csv(import_path, index_col=0, header=None)

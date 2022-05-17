@@ -67,6 +67,7 @@ class DataTest(LeaspyTestCase):
         self.assertEqual(individual.idx, sub_individual.idx)
         self.assertEqual(individual.timepoints, sub_individual.timepoints)
         self.assertEqual(individual.observations, sub_individual.observations)
+        self.assertEqual(individual.cofactors, sub_individual.cofactors)
 
     def test_data_slicing(self):
         data = self.load_multivariate_data()

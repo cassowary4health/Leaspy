@@ -282,7 +282,12 @@ class Leaspy:
             est = self.model.compute_individual_trajectory(tpts, ip).numpy()
             if estimation_postprocessor is not None:
                 est = estimation_postprocessor(est, **estimation_postprocessor_kws)
-            estimations[subj_id] = est[0] # 1 individual at a time (first dimension of the tensor)
+            # 1 individual at a time --> squeeze the first dimension of the array
+            if isinstance(est, dict):
+                # can occur due to `estimation_postprocessor` (cf. `ordinal_method='probabilities'``)
+                estimations[subj_id] = {k: v[0] for k, v in est.items()}
+            else:
+                estimations[subj_id] = est[0]
 
         # convert to proper dataframe
         if to_dataframe:

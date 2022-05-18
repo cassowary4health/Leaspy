@@ -9,7 +9,7 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
-  "noise_model": "ordinal",
+  "noise_model": "ordinal_ranking",
   "parameters": {
     "g": [
       -3.486751079559326,

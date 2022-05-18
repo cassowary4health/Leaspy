@@ -9,6 +9,7 @@ from torch.distributions.constraints import unit_interval
 
 from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.typing import KwargsType, Tuple, Callable, Optional, Dict, DictParamsTorch
+from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 if TYPE_CHECKING:
     from leaspy.models.abstract_model import AbstractModel
@@ -159,35 +160,35 @@ class MultinomialDistribution(torch.distributions.Distribution):
 
     Parameters
     ----------
-    loc : torch.FloatTensor
-        Values of the probabilities from which the distribution samples
+    sf : torch.FloatTensor
+        Values of the survival function [P(X > l) for l=0..L-1 where L is max_level] from which the distribution samples.
+        Ordinal levels are assumed to be in the last dimension.
+        Those values must be in [0, 1], and decreasing when ordinal level increases (not checked).
 
     Attributes
     ----------
-    probas : torch.FloatTensor in [0, 1]
-        Values of the probabilities from which the distribution samples (sum must be 1)
-
-    Attributes :
-
-    loc : torch.FloatTensor
-        Probabilities of shape (..., dim_probas) where dim_probas is the max number of classes
-
     cdf : torch.FloatTensor
-        Corresponding cdf of the probabilities, of same shape as `loc`
+        The cumulative distribution function [P(X <= l) for l=0..L] from which the distribution samples.
+        The shape of latest dimension is L+1 where L is max_level.
+        We always have P(X <= L) = 1
     '''
 
     arg_constraints = {}
     validate_args = False
 
-    def __init__(self, loc):
+    def __init__(self, sf: torch.Tensor):
         super().__init__()
-        self.probas = loc
-        # computing cdf
-        self.cdf = loc.cumsum(dim=-1)
-        assert unit_interval.check(loc).all() and torch.allclose(self.cdf[..., -1], torch.tensor(1.)), \
-            "Bad probabilities in MultinomialDistribution"
-        # shape of the sample
-        self._sample_shape = self.cdf.shape[:-1]
+        assert unit_interval.check(sf).all(), "Bad probabilities in MultinomialDistribution"
+        # shape of the sample (we discard the last dimension, used to store the different ordinal levels)
+        self._sample_shape = sf.shape[:-1]
+        # store the cumulative distribution function with trailing P(X <= L) = 1
+        self.cdf = torch.cat((1. - sf, torch.ones((*self._sample_shape, 1))), dim=-1)
+
+    @classmethod
+    def from_pdf(cls, pdf: torch.Tensor):
+        """Generate a new MultinomialDistribution from its probability density function instead of its survival function."""
+        sf = OrdinalModelMixin.compute_ordinal_sf_from_ordinal_pdf(pdf)
+        return cls(sf)
 
     def sample(self):
         """
@@ -197,10 +198,10 @@ class MultinomialDistribution(torch.distributions.Distribution):
         -------
         out : torch.IntTensor
             Vector of integer values corresponding to the multinomial sampling.
-            Result is in [[0, dim_probas - 1]]
+            Result is in [[0, L]]
         """
         # random sampling of cdf
-        # we sample uniformly on [0, 1( but for the latest dimension corresponding to `dim_probas`
+        # we sample uniformly on [0, 1( but for the latest dimension corresponding to ordinal levels
         # this latest dimension will be broadcast when comparing with `cdf`
         r = torch.rand(self._sample_shape).unsqueeze(-1)
         out = (r < self.cdf).int().argmax(dim=-1) # works because it returns first index where we find a 1
@@ -229,9 +230,9 @@ NOISE_STRUCTS = {
     ),
 
     'ordinal': NoiseStruct(
-        distribution_factory=MultinomialDistribution,
+        distribution_factory=MultinomialDistribution.from_pdf,
     ),
     'ordinal_ranking': NoiseStruct(
-        distribution_factory=MultinomialDistribution,
+        distribution_factory=MultinomialDistribution, # from survival function directly
     )
 }

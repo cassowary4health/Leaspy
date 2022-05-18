@@ -172,7 +172,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Model used to compute the group average parameters.
         times : :class:`torch.Tensor` [n_tpts]
             Contains the individual ages corresponding to the given ``values``.
-        values : :class:`torch.Tensor` [n_tpts,n_fts]
+        values : :class:`torch.Tensor` [n_tpts, n_fts [, extra_dim_for_ordinal_model]]
             Contains the individual true scores corresponding to the given ``times``.
         individual_parameters : dict[str, :class:`torch.Tensor` [1,n_dims_param]]
             Individual parameters as a dict
@@ -182,13 +182,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         :class:`torch.Tensor` [n_tpts,n_fts]
             Model values minus real values (with nans).
         """
+        # for ordinal model the "reconstruction error" has not much sense (as for binary...)
+        if model.is_ordinal:
+            return float('nan') * torch.ones((len(times), model.dimension))
+
         # computation for 1 individual (level dropped after computation)
         predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters).squeeze(0)
-
-        # for ordinal we take the maximum likelihood estimate
-        if model.is_ordinal:
-            predicted = predicted.argmax(dim=-1)
-
         return predicted - values
 
     def _get_regularity(self, model, individual_parameters):
@@ -247,7 +246,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 Model used to compute the group average parameters.
             * timepoints : :class:`torch.Tensor` [1,n_tpts]
                 Contains the individual ages corresponding to the given ``values``
-            * values : :class:`torch.Tensor` [n_tpts, n_fts]
+            * values : :class:`torch.Tensor` [n_tpts, n_fts [, extra_dim_for_ordinal_model]]
                 Contains the individual true scores corresponding to the given ``times``, with nans.
             * with_gradient : bool
                 * If True: return (objective, gradient_objective)
@@ -278,20 +277,25 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         individual_parameters = self._pull_individual_parameters(x, model)
 
         # compute 1 individual at a time (1st dimension is squeezed)
-        pdf = True
-        if model.noise_model == 'ordinal_ranking':
-            pdf = False
-        predicted = model.compute_individual_tensorized(times, individual_parameters, ordinal_pdf=pdf).squeeze(0)
+        predicted = model.compute_individual_tensorized(times, individual_parameters).squeeze(0)
+
+        # we clamp the predictions for log-based losses (safety before taking the log)
+        # cf. torch.finfo(torch.float32).eps ~= 1.19e-7
+        # (and we do it before computing `diff` unlike before for bernoulli model)
+        if model.is_ordinal or model.noise_model == 'bernoulli':
+            predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
+
         diff = None
-        if not model.is_ordinal:
-            diff = predicted - values # tensor j,k (j=visits, k=features)
+        if model.noise_model != 'ordinal':
+            diff = predicted - values # tensor j,k[,l] (j=visits, k=features [, l=ordinal_ranking_level])
             diff[nans] = 0.  # set nans to zero, not to count in the sum
 
         # compute gradient of model with respect to individual parameters
         grads = None
         if with_gradient:
-            grads = model.compute_jacobian_tensorized(times, individual_parameters, ordinal_pdf=pdf)
-            # put derivatives consecutively in the right order: shape [n_tpts,n_fts,n_dims_params]
+            grads = model.compute_jacobian_tensorized(times, individual_parameters)
+            # put derivatives consecutively in the right order and drop ind level
+            # --> output shape [n_tpts, n_fts [, n_ordinal_lvls], n_dims_params]
             grads = self._get_normalized_grad_tensor_from_grad_dict(grads, model)
 
         # Placeholder for result (objective and, if needed, gradient)
@@ -308,8 +312,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 res['gradient'] = torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0,1))
 
         elif model.noise_model == 'bernoulli':
-            # safety before taking the log: cf. torch.finfo(torch.float32).eps ~= 1.19e-7
-            predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
             neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
             neg_crossentropy[nans] = 0. # set nans to zero, not to count in the sum
             res['objective'] = -torch.sum(neg_crossentropy)
@@ -318,39 +320,36 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 crossentropy_fact = diff / (predicted * (1. - predicted))
                 res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
 
-        elif model.noise_model == 'ordinal':
-            max_level = model.ordinal_infos["max_level"]
-            vals = values.long().clamp(0, max_level)
-            vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
-            # Compute the simple multinomial loss
-            predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
-            LL = -torch.log((predicted * vals).sum(dim=-1))
-            LL[nans] = 0.
-            res['objective'] = torch.sum(LL)
+        elif model.is_ordinal:
 
-            if with_gradient:
-                ordinal_fact = vals / predicted
-                ordinal_fact[nans] = 0.
-                grad = -torch.sum(ordinal_fact.unsqueeze(-1) * grads, dim=2)
-                res['gradient'] = grad.sum(dim=(0,1))
+            LL_grad_fact = None # init to avoid linter warning...
 
-        elif model.noise_model == 'ordinal_ranking':
-            max_level = model.ordinal_infos["max_level"]
-            vals = values.long().clamp(0, max_level)
-            vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
-            vals = torch.flip(torch.flip(vals, (-1,)).cumsum(dim=-1), (-1,))[..., 1:]
-            # Compute the cross-entropy for each P(X>=k)
-            pred = torch.clamp(predicted, 1e-7, 1. - 1e-7)
-            LL = (vals * torch.log(pred) + (1. - vals) * torch.log(1. - pred)).sum(dim=-1)
-            LL[nans] = 0.
+            if model.noise_model == 'ordinal':
+                # Compute the simple multinomial loss
+                LL = torch.log((predicted * values).sum(dim=-1))
+
+                if with_gradient:
+                    LL_grad_fact = values / predicted
+                    LL_grad_fact[nans] = 0.
+            else:
+                # Compute the cross-entropy for each P(X>=k)
+                # values (`sf`) are already masked for impossible ordinal levels but not `cdf`
+                mask_ordinal_lvls = model.ordinal_infos['mask'].squeeze(0) # squeeze individual dimension to preserve shape
+                cdf = (1. - values) * mask_ordinal_lvls
+                LL = (values * torch.log(predicted) + cdf * torch.log(1. - predicted)).sum(dim=-1)
+
+                if with_gradient:
+                    # diff (= predicted - values) is already 0 where nans
+                    # we explicitely set LL_grad_fact to 0 outside possible ordinal levels
+                    LL_grad_fact = -diff * mask_ordinal_lvls / (predicted * (1. - predicted))
+
+            # we squeeze the last dimension of nans (raw int value is nan <=> all the ordinal levels are nan)
+            LL[nans[..., 0]] = 0.
             res['objective'] = -torch.sum(LL)
 
             if with_gradient:
-                diff = pred - vals
-                ordinal_fact = diff / (pred*(1.-pred))
-                ordinal_fact[nans] = 0.
-                grad = torch.sum(ordinal_fact.unsqueeze(-1) * grads, dim=2)
-                res['gradient'] = grad.sum(dim=(0,1))
+                grad = torch.sum(LL_grad_fact.unsqueeze(-1) * grads, dim=2)
+                res['gradient'] = -grad.sum(dim=(0,1))
 
         else:
             raise LeaspyAlgoInputError(f"'{model.noise_model}' noise is currently not implemented in 'scipy_minimize' algorithm. "
@@ -382,7 +381,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Model used to compute the group average parameters.
         times : :class:`torch.Tensor` [n_tpts]
             Contains the individual ages corresponding to the given ``values``.
-        values : :class:`torch.Tensor` [n_tpts, n_fts]
+        values : :class:`torch.Tensor` [n_tpts, n_fts [, extra_dim_for_ordinal_model]]
             Contains the individual true scores corresponding to the given ``times``, with nans.
         with_jac : bool
             Should we speed-up the minimization by sending exact gradient of optimized function?
@@ -447,7 +446,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual parameters of all patients.
         """
         times = data.get_times_patient(it)  # torch.Tensor[n_tpts]
-        values = data.get_values_patient(it)  # torch.Tensor[n_tpts, n_fts] with nans
+        # torch.Tensor[n_tpts, n_fts [, extra_dim_for_ordinal_model]] with nans (to avoid re-doing one-hot-encoding)
+        values = data.get_values_patient(it, adapt_for_model=model)
 
         individual_params_tensorized, _ = self._get_individual_parameters_patient(model, times, values,
                                                                                   with_jac=with_jac, patient_id=patient_id)

@@ -96,7 +96,8 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
             'gaussian_scalar': FakeModel(cls.dataset.headers, 'gaussian_scalar', noise_std=0.0314),
             'gaussian_diagonal': FakeModel(cls.dataset.headers, 'gaussian_diagonal',
                                            noise_std=torch.tensor([.04, .05, .06, .0314])),
-            'ordinal': FakeModel(cls.dataset.headers, 'ordinal')
+            'ordinal': FakeModel(cls.dataset.headers, 'ordinal'),
+            'ordinal_ranking': FakeModel(cls.dataset.headers, 'ordinal_ranking'),
         }
 
     def setUp(self) -> None:
@@ -319,7 +320,7 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
 
         nm = NoiseModel('ordinal')
         self.assertIsInstance(nm.struct, NoiseStruct)
-        self.assertEqual(nm.struct.distribution_factory, MultinomialDistribution)
+        self.assertEqual(nm.struct.distribution_factory, MultinomialDistribution.from_pdf)
         self.assertEqual(nm.distributions_kws, {})
         self.assertIsNone(nm.scale)
 
@@ -328,11 +329,11 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
 
         for shape in [(1,2), (2, 3), (5, 4)]:
             probs = torch.rand(shape)  # must be in [0, 1]
-            probs = probs / probs.sum(axis=-1, keepdim=True)
+            probs = probs / probs.sum(dim=-1, keepdim=True)
             # input is output (no noise & no copy)
             rv = nm.rv_around(probs)
             self.assertIsInstance(rv, MultinomialDistribution)
-            self.assertEqual(rv.probas, probs)
+            #self.assertEqual(rv.probas, probs) # pdf are not stored, only the cdf
             sampler = nm.sampler_around(probs)
             self.assertEqual(nm.sample_around(probs).shape, probs.shape[:-1])
             self.assertEqual(sampler().shape, probs.shape[:-1])
@@ -353,6 +354,49 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
         with self.assertRaises(Exception):
             nm.sample_around(torch.tensor(-1.))  # bad range for probs
         #with self.assertRaises(Exception):
-        #   nm.sample_around(torch.tensor([[.5, .5, .5]]))  # does not sum to one --> Is OK
+        #   nm.sample_around(torch.tensor([[.5, .5, .5]]))  # does not sum to one --> no check for now
+        with self.assertRaises(Exception):
+            nm.sample_around('0.5')  # bad type
+
+    def test_ordinal_ranking_loss(self):
+
+        nm = NoiseModel('ordinal_ranking')
+        self.assertIsInstance(nm.struct, NoiseStruct)
+        self.assertEqual(nm.struct.distribution_factory, MultinomialDistribution)
+        self.assertEqual(nm.distributions_kws, {})
+        self.assertIsNone(nm.scale)
+
+        # check compat with canonically associated model
+        nm.check_compat_with_model(self.models['ordinal_ranking'])
+
+        for shape in [(1,2), (2, 3), (5, 4)]:
+            probs = torch.rand(shape)  # must be in [0, 1]
+            probs = probs / probs.sum(dim=-1, keepdim=True)
+            sf = (1. - probs.cumsum(dim=-1))
+            # input is output (no noise & no copy)
+            rv = nm.rv_around(sf)
+            self.assertIsInstance(rv, MultinomialDistribution)
+            #self.assertEqual(rv.probas, probs) # pdf are not stored, only the cdf
+            sampler = nm.sampler_around(sf)
+            self.assertEqual(nm.sample_around(sf).shape, probs.shape[:-1])
+            self.assertEqual(sampler().shape, probs.shape[:-1])
+            self.assertEqual(rv.sample().shape, probs.shape[:-1])
+
+        self.assertEqual(nm.sample_around(torch.tensor([1., 0.])), torch.tensor([1]))
+        self.assertEqual(nm.sample_around(torch.tensor([[0., 0., 0.]])), torch.tensor([0]))
+        self.assertEqual(nm.sample_around(torch.tensor([[1., 1., 0.]])), torch.tensor([[2]]))
+        self.assertEqual(nm.sample_around(torch.tensor([[1., 1., 1.], [1., 0., 0.]])), torch.tensor([[3, 1]]))
+
+        # errors in input
+        with self.assertRaises(Exception):
+            NoiseModel('ordinal_ranking', scale=37.5)
+        with self.assertRaises(Exception):
+            NoiseModel('OrdinalRanking')
+
+        # errors in probs
+        with self.assertRaises(Exception):
+            nm.sample_around(torch.tensor(-1.))  # bad range for probs
+        #with self.assertRaises(Exception):
+        #   nm.sample_around(torch.tensor([[.3, .6, .5]]))  # not decreasing --> no check for now
         with self.assertRaises(Exception):
             nm.sample_around('0.5')  # bad type

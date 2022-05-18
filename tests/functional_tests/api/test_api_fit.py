@@ -68,6 +68,8 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
     def check_model_consistency(self, leaspy: Leaspy, path_to_backup_model: str, **allclose_kwds):
         # Temporary save parameters and check consistency with previously saved model
 
+        allclose_kwds = {'atol': 1e-5, 'rtol': 1e-4, **allclose_kwds}
+
         path_to_tmp_saved_model = self.get_test_tmp_path(os.path.basename(path_to_backup_model))
         leaspy.save(path_to_tmp_saved_model)
 
@@ -89,7 +91,7 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
         expected_model = Leaspy.load(path_to_backup_model).model
         if expected_model.dimension != 1:
             self.assertAllClose(expected_model.attributes.mixing_matrix, expected_model_parameters['parameters']['mixing_matrix'],
-                                rtol=1e-4, atol=1e-6, what='mixing_matrix')
+                                **allclose_kwds, what='mixing_matrix')
 
 class LeaspyFitTest(LeaspyFitTest_Mixin):
     # <!> reproducibility gap for PyTorch >= 1.7, only those are supported now
@@ -218,6 +220,21 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         leaspy, _ = self.generic_fit('logistic', 'logistic_ordinal_ranking', noise_model='ordinal_ranking', source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=True)
+
+    def test_fit_logistic_ordinal_ranking_batched_mh(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_ordinal_ranking_mh', noise_model='ordinal_ranking', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, sampler_pop='Metropolis-Hastings'),
+                                     batch_deltas_ordinal=True,  # test if batch sampling of deltas works
+                                     check_model=True)
+
+    def test_fit_logistic_ordinal_ranking_batched_fg(self):
+
+        leaspy, _ = self.generic_fit('logistic', 'logistic_ordinal_ranking_fg', noise_model='ordinal_ranking', source_dimension=2,
+                                     algo_params=dict(n_iter=100, seed=0, sampler_pop='FastGibbs'),
+                                     batch_deltas_ordinal=True,  # test if batch sampling of deltas works
+                                     check_model=True)
+
 
 @unittest.skipIf(not torch.cuda.is_available(),
                 "GPU calibration tests need an available CUDA environment")

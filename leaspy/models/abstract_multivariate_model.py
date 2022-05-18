@@ -201,7 +201,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             json.dump(model_settings, fp, **kwargs)
 
     @abstractmethod
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs) -> torch.FloatTensor:
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None) -> torch.FloatTensor:
         pass
 
     def compute_mean_traj(self, timepoints, *, attribute_type: Optional[str] = None):

@@ -37,7 +37,8 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
         return simulation_results
 
 
-    def check_consistency_of_simulation_results(self, simulation_settings, simulation_results, data, *, expected_results_file, tol = 1e-5):
+    def check_consistency_of_simulation_results(self, simulation_settings, simulation_results, data, *,
+                                                model, expected_results_file, tol = 1e-5):
         # TODO: refact, so dirty!
 
         self.assertIsInstance(simulation_results, Result)
@@ -57,40 +58,54 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
         path_expected_sim_res = self.get_test_data_path("simulation", expected_results_file)
         inexistant_result = not os.path.exists(path_expected_sim_res)
 
+        df_simulation = simulation_results.data.to_dataframe().set_index('ID')
+
+        ## First consistency check on range of values
+
+        if getattr(model, 'is_ordinal', False):
+            # ordinal models
+            max_level_fts = pd.Series({d_ft['name']: d_ft['max_level'] for d_ft in model.ordinal_infos["features"]})
+        else:
+            # default for all other models
+            max_level_fts = 1  # set np.inf for linear models?
+
+        df_vals = df_simulation.set_index('TIME', append=True)
+        range_simulated_nok = ~((0 <= df_vals) & (df_vals <= max_level_fts))
+        bad_rows = df_vals.loc[range_simulated_nok.any(axis=1), range_simulated_nok.any(axis=0)]
+        if len(bad_rows):
+            self.fail(f"Some simulated values are out of expected range:\n{bad_rows}")
+
         ## uncomment to re-generate simulation results
         if inexistant_result:
             warnings.warn(f"Generating missing results for '{expected_results_file}'...")
-            simulation_results.data.to_dataframe().to_csv(path_expected_sim_res, index=False, float_format='{:.6g}'.format)
+            df_simulation.to_csv(path_expected_sim_res, float_format='{:.6g}'.format)
 
         # Test the reproducibility of simulate
         # round is necessary, writing and reading induces numerical errors of magnitude ~ 1e-13
         # BUT ON DIFFERENT MACHINE I CAN SEE ERROR OF MAGNITUDE 1e-5 !!!
         # TODO: Can we improve this??
-        simulation_df = pd.read_csv(path_expected_sim_res)
+        expected_df_simulation = pd.read_csv(path_expected_sim_res, index_col=['ID'])
 
-        id_simulation_is_reproducible = simulation_df['ID'].equals(simulation_results.data.to_dataframe()['ID'])
-        # Check ID before - str doesn't seem to work with numpy.allclose
+        # Check ID before (str doesn't work with numpy.allclose)
+        id_simulation_is_reproducible = expected_df_simulation.index.equals(df_simulation.index)
         self.assertTrue(id_simulation_is_reproducible)
 
         round_decimal = 5
-        simulation_is_reproducible = np.allclose(simulation_df.loc[:, simulation_df.columns != 'ID'].values,
-                                        simulation_results.data.to_dataframe().
-                                        loc[:, simulation_results.data.to_dataframe().columns != 'ID'].values,
-                                        atol=tol, rtol=tol)
+        simulation_is_reproducible = np.allclose(expected_df_simulation.values, df_simulation.values,
+                                                 atol=tol, rtol=tol)
         # Use of numpy.allclose instead of pandas.testing.assert_frame_equal because of buggy behaviour reported
         # in https://github.com/pandas-dev/pandas/issues/22052
 
         # If reproducibility error > 1e-5 => display it + visit with the biggest reproducibility error
         error_message = ''
         if not simulation_is_reproducible:
-            # simulation_df = pd.read_csv(path_expected_sim_res)
+            # expected_df_simulation = pd.read_csv(path_expected_sim_res)
             max_diff = 0.
             value_v1 = 0.
             value_v2 = 0.
             count = 0
-            actual_simu_df = simulation_results.data.to_dataframe()
-            for v1, v2 in zip(simulation_df.loc[:, simulation_df.columns != 'ID'].values.tolist(),
-                              actual_simu_df.loc[:, actual_simu_df.columns != 'ID'].values.tolist()):
+            for v1, v2 in zip(expected_df_simulation.values.tolist(),
+                              df_simulation.values.tolist()):
                 diff = [abs(val1 - val2) for val1, val2 in zip(v1, v2)]
                 if max(diff) > tol:
                     count += 1
@@ -103,7 +118,7 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
             error_message += '\n' + str([round(v, round_decimal+1) for v in value_v1])
             error_message += '\n' + str([round(v, round_decimal+1) for v in value_v2])
             error_message += '\nNumber of simulated visits above tolerance error = %d / %d \n' \
-                             % (count, simulation_df.shape[0])
+                             % (count, expected_df_simulation.shape[0])
         # For loop before the last self.assert - otherwise no display is made
         self.assertTrue(simulation_is_reproducible, error_message)
 

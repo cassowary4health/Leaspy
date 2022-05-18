@@ -154,11 +154,7 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
     def test_estimate_ages_from_biomarker_values_multivariate_ordinal(self):
         # multivariate logistic ordinal model
         # feats are "Y0", ...
-        leaspy = self.get_hardcoded_model('logistic_ordinal')
         ip = self.get_hardcoded_individual_params('ip_save.json')
-
-        levels = {feat["name"] : {id_:[list(range(1, feat["max_level"]))] for id_ in ('idx1','idx2')}
-                                  for feat in leaspy.model.ordinal_infos["features"]}
 
         timepoints = {
             "Y0": {'idx1': [69.087, 70.881], 'idx2': [72.841, 74.465]},
@@ -170,17 +166,25 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
                             71.689, 73.992, 73.992, 74.680],
                    'idx2': [72.396, 72.396, 73.174, 73.174, 74.200,
                             74.200, 76.285, 76.285, 76.907]}
-
         }
 
-        # checks with no feature argument
-        with self.assertRaises(ValueError):
-            leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip, biomarker_values=levels)
+        # loss is not involved in estimation so all expected outputs are the same for those 2 models
+        for hardcoded_model in ('logistic_ordinal', 'logistic_ordinal_ranking_same'):
 
-        for feature in ['Y0', 'Y1', 'Y2', 'Y3']:
-            feat_estimations = levels[feature]
+            with self.subTest(hardcoded_model=hardcoded_model):
 
-            estimated_ages = leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip,
-                                                                        biomarker_values=feat_estimations,
-                                                                        feature=feature)
-            self.check_almost_equal_for_all_ind_tpts(estimated_ages, timepoints[feature], tol=1e-3)
+                leaspy = self.get_hardcoded_model(hardcoded_model)
+                levels = {feat["name"]: {id_:[list(range(1, feat["max_level"]))] for id_ in ('idx1','idx2')}
+                                        for feat in leaspy.model.ordinal_infos["features"]}
+
+                # checks with no feature argument
+                with self.assertRaises(ValueError):
+                    leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip, biomarker_values=levels)
+
+                for feature in ['Y0', 'Y1', 'Y2', 'Y3']:
+                    feat_estimations = levels[feature]
+
+                    estimated_ages = leaspy.estimate_ages_from_biomarker_values(individual_parameters=ip,
+                                                                                biomarker_values=feat_estimations,
+                                                                                feature=feature)
+                    self.check_almost_equal_for_all_ind_tpts(estimated_ages, timepoints[feature], tol=1e-3)

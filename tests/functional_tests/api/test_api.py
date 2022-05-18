@@ -50,7 +50,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
         simulation_results = leaspy.simulate(individual_parameters, data, simulation_settings)
 
         self.check_consistency_of_simulation_results(simulation_settings, simulation_results, data,
-                expected_results_file=f'simulation_results_{model_codename}.csv', tol=simulate_tol)
+                expected_results_file=f'simulation_results_{model_codename}.csv', model=leaspy.model, tol=simulate_tol)
 
     def test_usecase_logistic_scalar_noise(self):
 
@@ -167,7 +167,25 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal_ranking', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[1191.7],  # logLL, not noise_std
+            expected_noise_std=[974.15],  # logLL, not noise_std
             tol_noise=0.1,
             simulate_algo_params=simul_params,
+        )
+
+    def test_usecase_logistic_ordinal_ranking_batched(self):
+
+        # Simulation parameters
+        custom_delays_vis = .5
+        simul_params = dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100,
+                            reparametrized_age_bounds=(50, 85))  # noise=...
+
+        self.generic_usecase(
+            'logistic', model_codename='logistic_ordinal_ranking_b',
+            noise_model='ordinal_ranking', source_dimension=2,
+            fit_algo_params=dict(n_iter=200, seed=0),
+            perso_algo='mode_real',
+            expected_noise_std=[971.95],  # logLL, not noise_std
+            tol_noise=0.1,
+            simulate_algo_params=simul_params,
+            batch_deltas_ordinal=True,
         )

@@ -110,7 +110,10 @@ class GibbsSampler(AbstractSampler):
                 scale = scale.mean(dim=scale_squeezed_dims)
 
             self.std = self.STD_SCALE_FACTOR_POP * scale * torch.ones(shape_adapted_std)
-            # nota: we leave as is the masked elements of `std` since they will never be used anyway...
+            # we set `std=0` for masked elements so that they are never updated (full Gibbs only)
+            if self.mask is not None and self.sampler_type == 'Gibbs':
+                self.std[~(self.mask.to(bool))] = 0
+
             self.acceptation_history = torch.zeros(self.acceptation_history_length, *shape_adapted_std)
 
         elif info["type"] == "individual":
@@ -125,7 +128,8 @@ class GibbsSampler(AbstractSampler):
 
         # Torch distribution: all modifications will be in-place on `self.std`
         # So there will be no need to update this distribution!
-        self._distribution = torch.distributions.normal.Normal(loc=0.0, scale=self.std)
+        # (we do not validate args since `std` may contain some zeros for masked elements)
+        self._distribution = torch.distributions.normal.Normal(loc=0.0, scale=self.std, validate_args=False)
 
         # Parameters of the sampler
         self._random_order_dimension = random_order_dimension
@@ -188,7 +192,7 @@ class GibbsSampler(AbstractSampler):
         if self._counter % self.acceptation_history_length == 0:
             mean_acceptation = self.acceptation_history.mean(dim=0)
 
-            # nota: we could prevent masked std[idx_toolow] to be updated everytime but we let it as is since it does not harm at all...
+            # nota: for masked elements in full Gibbs, std will always remain = 0
             idx_toolow = mean_acceptation < self._mean_acceptation_lower_bound_before_adaptation
             idx_toohigh = mean_acceptation > self._mean_acceptation_upper_bound_before_adaptation
 
@@ -245,8 +249,12 @@ class GibbsSampler(AbstractSampler):
             # model attributes used are the ones from the MCMC toolbox that we are currently changing!
             attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type='MCMC').sum()
             # regularity is always computed with model.parameters (not "temporary MCMC parameters")
-            regularity = model.compute_regularity_realization(realization).sum()
-            return attachment, regularity
+            regularity = model.compute_regularity_realization(realization)
+            # mask regularity of masked terms (needed for nan/inf terms such as inf deltas when batched)
+            if self.mask is not None:
+                regularity[~(self.mask.to(bool))] = 0
+
+            return attachment, regularity.sum()
 
         previous_attachment = previous_regularity = None
 
@@ -258,11 +266,13 @@ class GibbsSampler(AbstractSampler):
             # Keep previous realizations and sample new ones
             old_val_idx = realization.tensor_realizations[idx].clone()
             # the previous version with `_proposal` was not incorrect but computationnally inefficient:
-            # because we were sampling on the full shape of `std` whereas we only needed `std[idx]` (scalar)
-            new_val_idx = old_val_idx + self.std[idx] * torch.randn(old_val_idx.shape)
-            if self.mask is not None:
-                new_val_idx = new_val_idx * self.mask[idx]
-            realization.set_tensor_realizations_element(new_val_idx, idx)
+            # because we were sampling on the full shape of `std` whereas we only needed `std[idx]` (smaller)
+            change_idx = self.std[idx] * torch.randn(old_val_idx.shape)
+            # (we don't need to add the mask when full Gibbs since std=0 on masked elements)
+            # (we don't directly mask the `new_val_idx` since it may be infinite, producing nans when trying to multiply them by 0)
+            if self.mask is not None and self.sampler_type != 'Gibbs':
+                change_idx = change_idx * self.mask[idx]
+            realization.set_tensor_realizations_element(old_val_idx + change_idx, idx)
             # Update derived model attributes if necessary (orthonormal basis, ...)
             model.update_MCMC_toolbox([self.name], realizations)
 

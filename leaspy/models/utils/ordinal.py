@@ -16,7 +16,7 @@ class OrdinalModelMixin:
         """Property to check if the model is of ordinal sub-type."""
         return self.noise_model in ['ordinal', 'ordinal_ranking']
 
-    def postprocess_model_estimation(self, estimation: np.ndarray, *, ordinal_method: str, **kws) -> Union[np.ndarray, Dict[Hashable, np.ndarray]]:
+    def postprocess_model_estimation(self, estimation: np.ndarray, *, ordinal_method: str = 'MLE', **kws) -> Union[np.ndarray, Dict[Hashable, np.ndarray]]:
         """
         Extra layer of processing used to output nice estimated values in main API `Leaspy.estimate`.
 
@@ -44,6 +44,11 @@ class OrdinalModelMixin:
         if not self.is_ordinal:
             return estimation
 
+        if self.noise_model == 'ordinal_ranking':
+            # start by computing pdf from sf
+            estimation = self.compute_ordinal_pdf_from_ordinal_sf(torch.tensor(estimation)).numpy()
+
+        # postprocess the ordinal pdf depending on `ordinal_method`
         if ordinal_method in {'MLE', 'maximum_likelihood'}:
             return estimation.argmax(axis=-1)
         elif ordinal_method in {'E', 'expectation'}:
@@ -61,49 +66,70 @@ class OrdinalModelMixin:
                                    f" not {ordinal_method}")
 
 
-    def compute_likelihood_from_ordinal_cdf(self, model_values: torch.Tensor) -> torch.Tensor:
+    def compute_ordinal_pdf_from_ordinal_sf(self, ordinal_sf: torch.Tensor, *, dim_ordinal_levels: int = 3) -> torch.Tensor:
         """
-        Computes the likelihood of an ordinal model assuming that the model_values are the CDF.
+        Computes the probability density (or its jacobian) of an ordinal model [P(X = l), l=0..L] from `ordinal_sf` which are the survival function probabilities [P(X > l), i.e. P(X >= l+1), l=0..L-1] (or its jacobian).
 
         Parameters
         ----------
-        model_values : `torch.Tensor`
-            Cumulative distribution values : model_values[..., l] is the proba to be superior or equal to l+1
+        ordinal_sf : `torch.FloatTensor`
+            Survival function values : ordinal_sf[..., l] is the proba to be superior or equal to l+1
             Dimensions are:
             * 0=individual
             * 1=visit
             * 2=feature
-            * 3=ordinal_level
+            * 3=ordinal_level [l=0..L-1]
             * [4=individual_parameter_dim_when_gradient]
+        dim_ordinal_levels : int, default = 3
+            The dimension of the tensor where the ordinal levels are.
 
         Returns
         -------
-        likelihood : `torch.Tensor` (same shape as input)
-            likelihood[..., l] is the proba to be equal to l
+        ordinal_pdf : `torch.FloatTensor` (same shape as input, except for dimension 3 which has one more element)
+            ordinal_pdf[..., l] is the proba to be equal to l (l=0..L)
         """
         # nota: torch.diff was introduced in v1.8 but would not highly improve performance of this routine anyway
-        s = list(model_values.shape)
-        s[3] = 1
-        mask = self.ordinal_infos["mask"]
+        s = list(ordinal_sf.shape)
+        s[dim_ordinal_levels] = 1
+        last_row = torch.zeros(size=tuple(s))
         if len(s) == 5:  # in the case of gradient we added a dimension
-            mask = mask.unsqueeze(-1)
-            first_row = torch.zeros(size=tuple(s)).float()  # gradient(P>=0) = 0
+            first_row = last_row  # gradient(P>=0) = 0
         else:
-            first_row = torch.ones(size=tuple(s)).float()  # (P>=0) = 1
-        model = model_values * mask
-        cdf_sup = torch.cat([first_row, model], dim=3)
-        last_row = torch.zeros(size=tuple(s)).float()
-        cdf_inf = torch.cat([model, last_row], dim=3)
-        likelihood = cdf_sup - cdf_inf
+            first_row = torch.ones(size=tuple(s))  # (P>=0) = 1
+        sf_sup = torch.cat([first_row, ordinal_sf], dim=dim_ordinal_levels)
+        sf_inf = torch.cat([ordinal_sf, last_row], dim=dim_ordinal_levels)
+        pdf = sf_sup - sf_inf
 
-        return likelihood
+        return pdf
 
+    @staticmethod
+    def compute_ordinal_sf_from_ordinal_pdf(ordinal_pdf: Union[torch.Tensor, np.ndarray]):
+        """Compute the ordinal survival function values [P(X > l), i.e. P(X >= l+1), l=0..L-1] (l=0..L-1) from the ordinal probability density [P(X = l), l=0..L] (assuming ordinal levels are in last dimension)."""
+        return (1 - ordinal_pdf.cumsum(-1))[..., :-1]
+        #return backend.flip(backend.flip(ordinal_pdf, (-1,)).cumsum(-1), (-1,))[..., 1:] # also correct
 
     ## PRIVATE
 
+    def _ordinal_grid_search_value(self, grid_timepoints: torch.Tensor, values: torch.Tensor, *,
+                                   individual_parameters: Dict[str, torch.Tensor], feat_index: int) -> torch.Tensor:
+        """Search first timepoint where ordinal MLE is >= provided values."""
+        grid_model = self.compute_individual_tensorized_logistic(grid_timepoints.unsqueeze(0), individual_parameters,
+                                                                 attribute_type=None)[:,:,[feat_index],:]
+
+        if self.noise_model == 'ordinal_ranking':
+            grid_model = self.compute_ordinal_pdf_from_ordinal_sf(grid_model)
+
+        # we search for the very first timepoint of grid where ordinal MLE was >= provided value
+        # TODO? shouldn't we return the timepoint where P(X = value) is highest instead?
+        MLE = grid_model.squeeze(dim=2).argmax(dim=-1) # squeeze feat_index (after computing pdf when needed)
+        index_cross = (MLE.unsqueeze(1) >= values.unsqueeze(-1)).int().argmax(dim=-1)
+
+        return grid_timepoints[index_cross]
+
+
     @property
     def _attributes_factory_ordinal_kws(self) -> dict:
-        # we put this here because of the
+        # we put this here to remain more generic in the models
         return dict(ordinal_infos=getattr(self, 'ordinal_infos',  None))
 
     def _export_extra_ordinal_settings(self, model_settings) -> None:
@@ -194,12 +220,12 @@ class OrdinalModelMixin:
         if self.ordinal_infos['batch_deltas']:
             assert deltas_p.keys() == {'deltas'}
             # Find ordinal infos from the delta values themselves
-            bool_array = (self.parameters['deltas'] != 0).int()
-            self.ordinal_infos["max_level"] = bool_array.shape[1] + 1
+            undef_levels = torch.isinf(self.parameters['deltas'])
+            self.ordinal_infos["max_level"] = undef_levels.shape[1] + 1
             for i, feat in enumerate(self.features):
-                bool_array_ft = bool_array[i, :]
-                if 0 in bool_array_ft:
-                    max_lvl_ft = bool_array_ft.argmin().item() + 1
+                undef_levels_ft = undef_levels[i, :]
+                if undef_levels_ft.any():
+                    max_lvl_ft = undef_levels_ft.int().argmax().item() + 1
                 else:
                     max_lvl_ft = self.ordinal_infos["max_level"]
                 self.ordinal_infos["features"].append({"name": feat, "max_level": max_lvl_ft})
@@ -212,6 +238,7 @@ class OrdinalModelMixin:
             self.ordinal_infos["max_level"] = max([feat["max_level"] for feat in self.ordinal_infos["features"]])
 
         # re-build the mask to account for possible difference in levels per feature
+        # shape of mask is (1, 1, dimension, ordinal_max_level)
         self.ordinal_infos["mask"] = torch.cat([
             torch.cat([
                 torch.ones((1,1,1,feat['max_level'])),

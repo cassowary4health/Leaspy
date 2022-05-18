@@ -43,9 +43,6 @@
     "xi_std": 0.15936161577701569,
     "sources_mean": 0.0,
     "sources_std": 1.0,
-    "noise_std": [
-      0.100006103515625
-    ],
     "log-likelihood": 115.725341796875,
     "mixing_matrix": [
       [

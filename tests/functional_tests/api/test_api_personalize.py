@@ -161,10 +161,10 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('logistic_ordinal', 'mean_real', mean_real_kws, [616.94]),
 
             # multivariate ordinal ranking model
-            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=False), [1177]),
-            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=True), [1176.3]),
-            ('logistic_ordinal_ranking', 'mode_real', mode_real_kws, [1178.8]),
-            ('logistic_ordinal_ranking', 'mean_real', mean_real_kws, [1175.3]),
+            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=False), [1014.2]),
+            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=True), [1014.1]),
+            ('logistic_ordinal_ranking', 'mode_real', mode_real_kws, [1014.9]),
+            ('logistic_ordinal_ranking', 'mean_real', mean_real_kws, [1015.0]),
 
         ]:
 
@@ -174,13 +174,18 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 # only look at residual MSE to detect any regression in personalization
                 ips, noise_std, _ = self.generic_personalization(model_name, algo_name=perso_name, seed=0, **perso_kws)
 
+                tol_noise_sub = tol_noise
+                # not noise but NLL (less precise...); some minor exact reproducibility issues MacOS vs. Linux
                 if 'binary' in model_name:
-                    tol_noise= 0.1
+                    tol_noise_sub = 0.1
+                elif 'ordinal_ranking' in model_name:
+                    tol_noise_sub = 0.5
+                elif 'ordinal' in model_name:
+                    tol_noise_sub = 3.0  # highest reprod. issues
 
-                if 'ordinal' in model_name:
-                    tol_noise = 5. # reproducibility issues on linux
-
-                self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise, msg=subtest)
+                self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std,
+                                                                  tol_noise=tol_noise_sub,
+                                                                  msg=subtest)
 
     def test_robustness_to_data_sparsity(self, rtol=2e-2, atol=5e-3):
         """

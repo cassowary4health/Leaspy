@@ -289,9 +289,10 @@ def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
     #parameters['v0'] = torch.zeros_like(parameters['v0'])
     max_level = max([feat["max_level"] for feat in model.ordinal_infos['features']])
     if model.ordinal_infos["batch_deltas"]:
-        deltas_ = torch.zeros((len(deltas), max_level - 1))
+        # we set the undefined deltas to be infinity to extend validity of formulas for them as well (and to avoid computations)
+        deltas_ = float('inf') * torch.ones((len(deltas), max_level - 1))
         for i, name in enumerate(deltas):
-            deltas_[i, :deltas[name].shape[0]] = deltas[name]
+            deltas_[i, :len(deltas[name])] = deltas[name]
         parameters["deltas"] = deltas_
     else:
         for col in model.features:
@@ -386,7 +387,6 @@ def initialize_logistic(model, df: pd.DataFrame, method):
             'tau_std': torch.tensor(tau_std),
             'xi_mean': xi_mean,
             'xi_std': torch.tensor(xi_std),
-            'noise_std': torch.tensor(noise_std)
         }
     else:
         parameters = {
@@ -399,11 +399,14 @@ def initialize_logistic(model, df: pd.DataFrame, method):
             'xi_std': torch.tensor(xi_std),
             'sources_mean': torch.tensor(0.),
             'sources_std': torch.tensor(sources_std),
-            'noise_std': torch.tensor([noise_std])
         }
 
     if model.is_ordinal:
         parameters = initialize_deltas_ordinal(model, df, parameters)
+
+    if not (model.is_ordinal or model.noise_model == 'bernoulli'):
+        # do not initialize `noise_std` unless needed
+        parameters['noise_std'] = torch.tensor(noise_std) if 'univariate' in model.name else torch.tensor([noise_std])
 
     return parameters
 
@@ -427,7 +430,7 @@ def initialize_logistic_parallel(model, df, method):
     -------
     parameters : dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters. The parameters' keys are 'g',  'tau_mean',
-        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'delta' and 'beta'.
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'deltas' and 'betas'.
 
     Raises
     ------

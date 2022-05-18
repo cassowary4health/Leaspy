@@ -8,6 +8,7 @@ import warnings
 
 from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.typing import List, Dict
+from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 if TYPE_CHECKING:
     from leaspy.io.data.data import Data
@@ -67,8 +68,9 @@ class Dataset:
     L2_norm : scalar :class:`torch.FloatTensor`
         Sum of all non-nan squared values
 
-    one_hot_encoding : :class:`torch.FloatTensor`, shape (n_individuals, n_visits_max, dimension, max_ordinal_level)
-        Values of patients for each visit for each feature, but tensorized into a one-hot encoding
+    _one_hot_encoding : Dict[sf: bool, :class:`torch.LongTensor`]
+        Values of patients for each visit for each feature, but tensorized into a one-hot encoding (pdf or sf)
+        Shapes of tensors are (n_individuals, n_visits_max, dimension, max_ordinal_level [-1 when `sf=True`])
 
     Raises
     ------
@@ -97,7 +99,9 @@ class Dataset:
 
         self.L2_norm_per_ft: torch.FloatTensor = None
         self.L2_norm: torch.FloatTensor = None
-        self.one_hot_encoding: torch.FloatTensor = None
+
+        # internally used by ordinal models only
+        self._one_hot_encoding: Dict[bool, torch.LongTensor] = None
 
         if model is not None:
             self._check_model_compatibility(data, model)
@@ -107,7 +111,6 @@ class Dataset:
         self._construct_values(data)
         self._construct_timepoints(data)
         self._compute_L2_norm()
-        self._one_hot_encoding: torch.FloatTensor = None
 
     def _construct_values(self, data: Data):
 
@@ -168,7 +171,7 @@ class Dataset:
         """
         return self.timepoints[i, :self.n_visits_per_individual[i]]
 
-    def get_values_patient(self, i: int) -> torch.FloatTensor:
+    def get_values_patient(self, i: int, *, adapt_for_model = None) -> torch.FloatTensor:
         """
         Get values for patient number ``i``, with nans.
 
@@ -176,15 +179,33 @@ class Dataset:
         ----------
         i : int
             The index of the patient (<!> not its identifier)
+        adapt_for_model : None (default) or AbstractModel
+            The values returned are suited for this model.
+            In particular:
+                * For model with `noise_model='ordinal'` will return one-hot-encoded values [P(X = l), l=0..ordinal_max_level]
+                * For model with `noise_model='ordinal_ranking'` will return survival function values [P(X > l), l=0..ordinal_max_level-1]
+            If None, we return the raw values, whatever the model is.
 
         Returns
         -------
-        :class:`torch.Tensor`, shape (n_obs_of_patient, dimension)
+        :class:`torch.Tensor`, shape (n_obs_of_patient, dimension [, extra_dimension_for_ordinal_models])
             Contains float or nans
         """
-        values_with_nans = self.values[i, :self.n_visits_per_individual[i], :].clone().detach()
+
+        # default case (raw values whatever the model)
+        values_to_pick_from = self.values
         nans = self.mask[i, :self.n_visits_per_individual[i], :] == 0
-        values_with_nans[nans] = float('nan')
+
+        # customization when ordinal model
+        if adapt_for_model is not None and getattr(adapt_for_model, 'is_ordinal', False):
+            # we directly fetch the one-hot encoded values (pdf or sf depending on precise `noise_model`)
+            values_to_pick_from = self.get_one_hot_encoding(sf=adapt_for_model.noise_model == 'ordinal_ranking',
+                                                            max_level=adapt_for_model.ordinal_infos['max_level']).float()
+
+        # we restrict to the right individual and mask the irrelevant data
+        values_with_nans = values_to_pick_from[i, :self.n_visits_per_individual[i], ...].clone().detach()
+        values_with_nans[nans, ...] = float('nan')
+
         return values_with_nans
 
     @staticmethod
@@ -241,17 +262,18 @@ class Dataset:
             if isinstance(attribute, torch.Tensor):
                 setattr(self, attribute_name, attribute.to(device))
 
-    def get_one_hot_encoding(self, max_level=None, cdf=False):
+    def get_one_hot_encoding(self, *, sf: bool, max_level: int = None):
         """
         Builds the one-hot encoding of ordinal data once and for all and returns it.
 
         Parameters
         ----------
-        max_level : int
-            Maximum integer value expected in self.values
+        sf : bool
+            Whether the vector should be the survival function [1(X > l), l=0..max_level-1]
+            instead of the probability density function [1(X=l), l=0..max_level]
 
-        cdf : bool
-            Whether the vector should be 1(X>=k) or 1(X=k)
+        max_level : int or None
+            Maximum integer value expected in self.values (or actual maximum if None)
 
         Returns
         -------
@@ -277,8 +299,9 @@ class Dataset:
                 warnings.warn(f"Values were expected to be integers between 0 and {max_level}, but we found that {missing_codes} are missing from the data.")
 
             vals = self.values.long().clamp(0, max_level)
-            vals = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
-            # Builds the CDF by simple cumsum and remove the (X >= 0) line
-            vals2 = torch.flip(torch.flip(vals, (-1,)).cumsum(dim=-1), (-1,))[..., 1:]
-            self._one_hot_encoding = {False: vals, True: vals2}
-        return self._one_hot_encoding[cdf]
+            vals_pdf = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
+            # Builds the survival function by simple (1 - cumsum) and remove the useless P(X >= 0) = 1
+            vals_sf = OrdinalModelMixin.compute_ordinal_sf_from_ordinal_pdf(vals_pdf)
+            self._one_hot_encoding = {False: vals_pdf, True: vals_sf}
+
+        return self._one_hot_encoding[sf]

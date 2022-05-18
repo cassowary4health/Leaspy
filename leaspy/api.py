@@ -279,11 +279,10 @@ class Leaspy:
 
         for subj_id, tpts in timepoints.items():
             ip = individual_parameters[subj_id]
-            est = self.model.compute_individual_trajectory(tpts, ip)
-            est = est[0].numpy() # 1 individual at a time (first dimension of the tensor)
+            est = self.model.compute_individual_trajectory(tpts, ip).numpy()
             if estimation_postprocessor is not None:
                 est = estimation_postprocessor(est, **estimation_postprocessor_kws)
-            estimations[subj_id] = est
+            estimations[subj_id] = est[0] # 1 individual at a time (first dimension of the tensor)
 
         # convert to proper dataframe
         if to_dataframe:

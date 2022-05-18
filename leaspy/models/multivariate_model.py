@@ -74,10 +74,10 @@ class MultivariateModel(AbstractMultivariateModel):
         self.attributes.update(['all'], self.parameters)
 
     @suffixed_method
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
@@ -97,7 +97,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return model # (n_individuals, n_timepoints, n_features)
 
-    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
@@ -117,10 +117,10 @@ class MultivariateModel(AbstractMultivariateModel):
             g = g.unsqueeze(-1)
             b = b.unsqueeze(-1)
             v0 = v0.unsqueeze(-1)
-            deltas = self._get_deltas(attribute_type)
-            deltas_ = torch.cat([torch.zeros((deltas.shape[0], 1)), deltas], dim=1)  # (features, max_level)
-            deltas_ = deltas_.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
-            reparametrized_time = reparametrized_time - deltas_.cumsum(dim=-1)
+            deltas = self._get_deltas(attribute_type)  # (features, max_level)
+            deltas = deltas.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
+            # infinite deltas (impossible ordinal levels) will induce model = 0 which is intended
+            reparametrized_time = reparametrized_time - deltas.cumsum(dim=-1)
 
         LL = v0 * reparametrized_time
 
@@ -135,13 +135,11 @@ class MultivariateModel(AbstractMultivariateModel):
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
 
-        # For ordinal loss, compute likelihoods instead of cumulative distribution function
-        # if ordinal_pdf is False, we simply return the cumulative functions P(X>=k)
-        ordinal_pdf = kwargs.get("ordinal_pdf", True)
-        if self.is_ordinal and ordinal_pdf:
-            model = self.compute_likelihood_from_ordinal_cdf(model)
+        # For ordinal loss, compute pdf instead of survival function
+        if self.noise_model == 'ordinal':
+            model = self.compute_ordinal_pdf_from_ordinal_sf(model)
 
-        return model # (n_individuals, n_timepoints, n_features)
+        return model # (n_individuals, n_timepoints, n_features [, extra_dim_ordinal_models])
 
     @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
@@ -198,7 +196,7 @@ class MultivariateModel(AbstractMultivariateModel):
             Contains the individual parameters.
             Each individual parameter should be a scalar or array_like
 
-        feature : str (or None)
+        feature : str
             Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
 
         Returns
@@ -231,24 +229,21 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # 2/ compute age
         ages_0 = tau + (torch.exp(-xi) / v0) * ((g / (g + 1) ** 2) * torch.log(g) - wi)
-        deltas = self._get_deltas(None)
-        delta_max = deltas[feat_ind].sum()
+        deltas_ft = self._get_deltas(None)[feat_ind]
+        delta_max = deltas_ft[torch.isfinite(deltas_ft)].sum()
         ages_max = tau + (torch.exp(-xi) / v0) * ((g / (g + 1) ** 2) * torch.log(g) - wi + delta_max)
 
-        timepoints = torch.linspace(ages_0.item(), ages_max.item(), 1000).unsqueeze(0)
+        grid_timepoints = torch.linspace(ages_0.item(), ages_max.item(), 1000)
 
-        grid = self.compute_individual_tensorized_logistic(timepoints, individual_parameters, attribute_type=None)[:,:,feat_ind,:]
-
-        MLE = grid.argmax(dim=-1)
-        index_cross = (MLE.unsqueeze(1) >= value.unsqueeze(-1)).int().argmax(dim=-1)
-
-        return timepoints[0,index_cross]
+        return self._ordinal_grid_search_value(grid_timepoints, value,
+                                               individual_parameters=individual_parameters,
+                                               feat_index=feat_ind)
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
         _, v0, mixing_matrix = self._get_attributes(attribute_type)
@@ -275,7 +270,7 @@ class MultivariateModel(AbstractMultivariateModel):
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
         # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized_logistic`)
 
         # Population parameters
@@ -296,10 +291,9 @@ class MultivariateModel(AbstractMultivariateModel):
             LL = reparametrized_time.unsqueeze(-1)
             g = g.unsqueeze(-1)
             b = b.unsqueeze(-1)
-            deltas = self._get_deltas(attribute_type)
-            deltas_ = torch.cat([torch.zeros((deltas.shape[0], 1)), deltas], dim=1)  # (features, max_level)
-            deltas_ = deltas_.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
-            LL = LL - deltas_.cumsum(dim=-1)
+            deltas = self._get_deltas(attribute_type)  # (features, max_level)
+            deltas = deltas.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
+            LL = LL - deltas.cumsum(dim=-1)
             LL = v0.unsqueeze(-1) * LL
 
         else:
@@ -332,13 +326,12 @@ class MultivariateModel(AbstractMultivariateModel):
         for param in derivatives:
             derivatives[param] = c.unsqueeze(-1) * derivatives[param]
 
-        # Compute derivative of the likelihood and not of the cdf
-        ordinal_pdf = kwargs.get("ordinal_pdf", True)
-        if self.is_ordinal and ordinal_pdf:
+        # Compute derivative of the pdf and not of the sf
+        if self.noise_model == 'ordinal':
             for param in derivatives:
-                derivatives[param] = self.compute_likelihood_from_ordinal_cdf(derivatives[param])
+                derivatives[param] = self.compute_ordinal_pdf_from_ordinal_sf(derivatives[param])
 
-        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
+        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts [, extra_dim_ordinal_models], n_dims_param)]
         return derivatives
 
     ##############################

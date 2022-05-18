@@ -69,19 +69,26 @@ class LogisticOrdinalAttributes(LogisticAttributes):
         '''
         Returns the deltas attributes stacked in one tensor
 
+        There are `max_level - 1 = nb_levels - 2` "true" deltas since:
+            * we only model nb_levels - 1 curves, not P(X >= 0) since it's constant = 1
+            * the first curve P(X >= 1) is the anchor ("delta = 0") for it
+        In the returned tensor, we prepend the delta=0 for all features (for the anchor curve).
+        For the impossible levels, delta=+inf, so that survival function is always 0
+
         Returns
         -------
-        The deltas concatenated in a big tensor
+        The deltas concatenated in a big tensor: shape (dimension, max_level)
         '''
         if self.batched_deltas:
-            return self.deltas
-        # There are `max_level - 1 = nb_levels - 2` deltas since:
-        # * we only model nb_levels - 1 curves (not P >= 0 since it's constant = 1)
-        # * the first curve is the anchor ("delta = 0") for it
-        deltas = torch.zeros((len(self.deltas), self.max_level - 1))
-        for i, name in enumerate(self.deltas):
-            deltas[i, :self.deltas[name].shape[0]] = self.deltas[name]
-        return deltas
+            all_deltas_but_first = self.deltas
+        else:
+            # padding impossible deltas with inf ensures correct model values for those levels: P(X > max_level_ft) = 0
+            all_deltas_but_first = float('inf') * torch.ones((self.dimension, self.max_level - 1))
+            for i, name in enumerate(self.deltas):
+                all_deltas_but_first[i, :len(self.deltas[name])] = self.deltas[name]
+
+        t0 = torch.zeros((self.dimension, 1))
+        return torch.cat((t0, all_deltas_but_first), dim=-1)
 
     def update(self, names_of_changed_values: list, values: dict):
         """

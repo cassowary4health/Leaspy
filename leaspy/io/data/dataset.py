@@ -7,7 +7,7 @@ import torch
 import warnings
 
 from leaspy.exceptions import LeaspyInputError
-from leaspy.utils.typing import List, Dict
+from leaspy.utils.typing import KwargsType, List, Dict
 from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 if TYPE_CHECKING:
@@ -200,7 +200,7 @@ class Dataset:
         if adapt_for_model is not None and getattr(adapt_for_model, 'is_ordinal', False):
             # we directly fetch the one-hot encoded values (pdf or sf depending on precise `noise_model`)
             values_to_pick_from = self.get_one_hot_encoding(sf=adapt_for_model.noise_model == 'ordinal_ranking',
-                                                            max_level=adapt_for_model.ordinal_infos['max_level']).float()
+                                                            ordinal_infos=adapt_for_model.ordinal_infos).float()
 
         # we restrict to the right individual and mask the irrelevant data
         values_with_nans = values_to_pick_from[i, :self.n_visits_per_individual[i], ...].clone().detach()
@@ -262,7 +262,7 @@ class Dataset:
             if isinstance(attribute, torch.Tensor):
                 setattr(self, attribute_name, attribute.to(device))
 
-    def get_one_hot_encoding(self, *, sf: bool, max_level: int = None):
+    def get_one_hot_encoding(self, *, sf: bool, ordinal_infos: KwargsType):
         """
         Builds the one-hot encoding of ordinal data once and for all and returns it.
 
@@ -272,8 +272,8 @@ class Dataset:
             Whether the vector should be the survival function [1(X > l), l=0..max_level-1]
             instead of the probability density function [1(X=l), l=0..max_level]
 
-        max_level : int or None
-            Maximum integer value expected in self.values (or actual maximum if None)
+        ordinal_infos : dict[str, Any]
+            All the hyperparameters concerning ordinal modelling (in particular maximum level per features)
 
         Returns
         -------
@@ -281,27 +281,53 @@ class Dataset:
         """
 
         if self._one_hot_encoding is None:
-            if max_level is None:
-                max_level = self.values.max().long().item()
+            ## Check the data & construct the one-hot encodings once for all for fast look-up afterwards
 
-            # Consistency checks
-            expected_codes = set(range(0, max_level + 1))
-            # Checks for values different than integers
+            # Check for values different than integers
             if (self.values != self.values.round()).any():
                 raise LeaspyInputError("Please make sure your data contains only integers when using ordinal noise modelling.")
-            # Now check that integers are within the range [0, max_level]
-            actual_codes = set(self.values.long().unique().tolist())
-            unexpected_codes = sorted(actual_codes.difference(expected_codes))
-            missing_codes = sorted(expected_codes.difference(actual_codes))
-            if len(unexpected_codes) > 0:
-                warnings.warn(f"Values were expected to be integers between 0 and {max_level}, but we found {unexpected_codes} in the data. Values will be clipped between 0 and {max_level}")
-            if len(missing_codes) > 0:
-                warnings.warn(f"Values were expected to be integers between 0 and {max_level}, but we found that {missing_codes} are missing from the data.")
 
-            vals = self.values.long().clamp(0, max_level)
-            vals_pdf = torch.nn.functional.one_hot(vals, num_classes=max_level + 1)
-            # Builds the survival function by simple (1 - cumsum) and remove the useless P(X >= 0) = 1
+            # First of all check consistency of features given in ordinal_infos compared to the ones in the dataset (names & order!)
+            ordinal_feat_names = [d['name'] for d in ordinal_infos['features']]
+            if ordinal_feat_names != self.headers:
+                raise LeaspyInputError(f"Features stored in ordinal model ({ordinal_feat_names}) are not consistent with features in data ({self.headers})")
+
+            # Now check that integers are within the expected range, per feature [0, max_level_ft]
+            vals = self.values.long()
+            vals_issues = {
+                'unexpected': [],
+                'missing': [],
+            }
+            for ft_i, d_ordinal_ft in enumerate(ordinal_infos['features']):
+                ft = d_ordinal_ft['name']
+                max_level_ft = d_ordinal_ft['max_level']  # included
+                expected_codes = set(range(0, max_level_ft + 1))
+
+                vals_ft = vals[:, :, ft_i]
+                actual_codes = set(vals_ft.unique().tolist())
+                unexpected_codes = sorted(actual_codes.difference(expected_codes))
+                missing_codes = sorted(expected_codes.difference(actual_codes))
+                if len(unexpected_codes) > 0:
+                    vals_issues['unexpected'].append(f"- {ft} [[0..{max_level_ft}]]: {unexpected_codes} were unexpected")
+                if len(missing_codes) > 0:
+                    # nota: nans are encoded with 0 in values so if the level 0 is missing but they are nans we'll never catch it... TODO fix?
+                    vals_issues['missing'].append(f"- {ft} [[0..{max_level_ft}]]: {missing_codes} are missing")
+
+                # clip the values (per feature)
+                vals[:, :, ft_i] = vals_ft.clamp(0, max_level_ft)
+
+            if len(vals_issues['unexpected']):
+                warnings.warn(f"Some features have unexpected codes (they were clipped to the maximum known level):\n"
+                              + '\n'.join(vals_issues['unexpected']))
+            if len(vals_issues['missing']):
+                warnings.warn(f"Some features have missing codes:\n"
+                              + '\n'.join(vals_issues['missing']))
+
+            # one-hot encode all the values after the checks & clipping
+            vals_pdf = torch.nn.functional.one_hot(vals, num_classes=ordinal_infos['max_level'] + 1)
+            # build the survival function by simple (1 - cumsum) and remove the useless P(X >= 0) = 1
             vals_sf = OrdinalModelMixin.compute_ordinal_sf_from_ordinal_pdf(vals_pdf)
+            # cache the values to retrive them fast afterwards
             self._one_hot_encoding = {False: vals_pdf, True: vals_sf}
 
         return self._one_hot_encoding[sf]

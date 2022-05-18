@@ -229,7 +229,7 @@ class GibbsSampler(AbstractSampler):
         if self.mask is not None and self.sampler_type == 'Gibbs':
             # example for variable of shape (2,3) with mask = [[1,1,0],[1,1,1]]
             # --> iterator_indices = [(0,0), (0, 1), (1, 0), (1, 1), (1, 2)]
-            iterator_indices = list(map(tuple, self.mask.nonzero().tolist()))
+            iterator_indices = list(map(tuple, self.mask.nonzero(as_tuple=False).tolist()))
         else:
             # depending on sampler type we will loop on all coordinates or (partially) group them:
             # example for variable of shape (2, 3)

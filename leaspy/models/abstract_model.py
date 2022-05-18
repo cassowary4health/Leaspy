@@ -530,11 +530,11 @@ class AbstractModel(ABC):
                 LL = data.values * torch.log(pred) + (1. - data.values) * torch.log(1. - pred)
             elif self.noise_model == 'ordinal':
                 # Compute the simple multinomial loss
-                pdf = data.get_one_hot_encoding(sf=False, max_level=self.ordinal_infos["max_level"])
+                pdf = data.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
                 LL = torch.log((pred * pdf).sum(dim=-1))
             elif self.noise_model == 'ordinal_ranking':
                 # Compute the loss by cross-entropy of P(X>=k)
-                sf = data.get_one_hot_encoding(sf=True, max_level=self.ordinal_infos["max_level"])
+                sf = data.get_one_hot_encoding(sf=True, ordinal_infos=self.ordinal_infos)
                 # <!> `sf` (survival function values) are already masked for the impossible levels
                 #     but we must do the same for their opposite (`cdf`, cumulative distribution values)
                 cdf = (1. - sf) * self.ordinal_infos['mask']

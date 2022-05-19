@@ -262,6 +262,12 @@ class Dataset:
             if isinstance(attribute, torch.Tensor):
                 setattr(self, attribute_name, attribute.to(device))
 
+        ## we have to manually put other variables to the new device
+
+        # Dictionary of one-hot encoded values
+        if self._one_hot_encoding is not None:
+            self._one_hot_encoding = {k: t.to(device) for k, t in self._one_hot_encoding.items()}
+
     def get_one_hot_encoding(self, *, sf: bool, ordinal_infos: KwargsType):
         """
         Builds the one-hot encoding of ordinal data once and for all and returns it.

@@ -279,7 +279,7 @@ class Leaspy:
 
         for subj_id, tpts in timepoints.items():
             ip = individual_parameters[subj_id]
-            est = self.model.compute_individual_trajectory(tpts, ip).numpy()
+            est = self.model.compute_individual_trajectory(tpts, ip).cpu().numpy()
             if estimation_postprocessor is not None:
                 est = estimation_postprocessor(est, **estimation_postprocessor_kws)
             # 1 individual at a time --> squeeze the first dimension of the array
@@ -385,7 +385,7 @@ class Leaspy:
             ip = individual_parameters[index]
 
             # compute individual ages from the value array and individual parameter dict
-            est = self.model.compute_individual_ages_from_biomarker_values(value, ip, feature).numpy().reshape(-1)
+            est = self.model.compute_individual_ages_from_biomarker_values(value, ip, feature).cpu().numpy().reshape(-1)
 
             # convert array to initial type (int or list)
             if isinstance(value, float):

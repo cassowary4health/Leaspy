@@ -46,7 +46,7 @@ class OrdinalModelMixin:
 
         if self.noise_model == 'ordinal_ranking':
             # start by computing pdf from sf
-            estimation = self.compute_ordinal_pdf_from_ordinal_sf(torch.tensor(estimation)).numpy()
+            estimation = self.compute_ordinal_pdf_from_ordinal_sf(torch.tensor(estimation)).cpu().numpy()
 
         # postprocess the ordinal pdf depending on `ordinal_method`
         if ordinal_method in {'MLE', 'maximum_likelihood'}:

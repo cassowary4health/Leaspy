@@ -639,7 +639,7 @@ class SimulationAlgorithm(AbstractAlgo):
 
                 # Generate sources
                 def simulate_sources(x: np.ndarray) -> np.ndarray:
-                    return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).numpy()
+                    return self._sample_sources(x[0], x[1], x[2], model.source_dimension, df_mean, df_cov).cpu().numpy()
 
                 # sources is np.ndarray of shape (n_subjects, n_sources)
                 sources = np.apply_along_axis(simulate_sources, axis=1, arr=samples)

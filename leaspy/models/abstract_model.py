@@ -854,3 +854,9 @@ class AbstractModel(ABC):
             MCMC_toolbox_attributes = self.MCMC_toolbox.get("attributes", None)
             if MCMC_toolbox_attributes is not None:
                 MCMC_toolbox_attributes.move_to_device(device)
+
+        # ordinal models
+        if hasattr(self, "ordinal_infos"):
+            ordinal_mask = self.ordinal_infos.get("mask", None)
+            if ordinal_mask is not None:
+                self.ordinal_infos["mask"] = ordinal_mask.to(device)

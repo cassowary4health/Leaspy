@@ -71,7 +71,7 @@ class FitOutputManager:
 
         self.time = time.time()
 
-        self.save_last_n_realizations = 100
+        self.save_last_n_realizations = outputs.save_last_n_realizations
 
     def iteration(self, algo, data, model, realizations):
         """
@@ -189,6 +189,10 @@ class FitOutputManager:
                     model_parameters_save.pop(key)
                     for column in range(value.shape[1]):
                         model_parameters_save[f"{key}_{column}"] = value[:, column].tolist()
+                if key == "deltas":
+                    model_parameters_save.pop(key)
+                    for line in range(value.shape[0]):
+                        model_parameters_save[f"{key}_{line}"] = value[line].tolist()
                 # P0, V0
                 elif value.shape[0] == 1 and len(value.shape) > 1:
                     model_parameters_save[key] = value[0].tolist()
@@ -271,28 +275,3 @@ class FitOutputManager:
         path_iteration = os.path.join(self.path_plot_patients, f'plot_patients_{iteration}.pdf')
         param_ind = model.get_param_from_real(realizations)
         self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind, **self.plot_options)
-
-        """
-        colors = cm.rainbow(np.linspace(0, 1, self.plot_options['maximum_patient_number']+2))
-        reals_pop, reals_ind = realizations
-
-        fig, ax = plt.subplots(1, 1)
-
-        for i, idx in enumerate(data.indices):
-            model_value = model.compute_individual(data[idx], reals_pop, reals_ind[idx])
-            score = data[idx].tensor_observations
-            ax.plot(data[idx].tensor_timepoints.detach().numpy(), model_value.detach().numpy(), c=colors[i])
-            ax.plot(data[idx].tensor_timepoints.detach().numpy(), score.detach().numpy(), c=colors[i], linestyle='--',
-                    marker='o')
-
-            if i > self.plot_options['maximum_patient_number']:
-                break
-
-        # Plot average model
-        tensor_timepoints = torch.tensor(np.linspace(data.time_min, data.time_max, 40).reshape(-1,1), dtype=torch.float32)
-        model_average = model.compute_average(tensor_timepoints)
-        ax.plot(tensor_timepoints.detach().numpy(), model_average.detach().numpy(), c='black', linewidth=4, alpha=0.3)
-
-        plt.savefig(os.path.join(self.path_plot_patients,f'plot_patients_{iteration}.pdf'))
-        plt.close()
-        """

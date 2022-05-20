@@ -19,7 +19,7 @@ class AbstractModelTest(LeaspyTestCase):
         self.assertFalse(model.is_initialized)
         self.assertEqual(model.name, "dummy_abstractmodel")
         self.assertEqual(model.parameters, None)
-        self.assertIs(model.regularization_distribution_factory, torch.distributions.normal.Normal)
+        #self.assertIs(model.regularization_distribution_factory, torch.distributions.normal.Normal)  # removed
 
         # Test the presence of all these essential methods
         main_methods = ['load_parameters', 'compute_sum_squared_tensorized',

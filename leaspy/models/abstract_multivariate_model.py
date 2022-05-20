@@ -12,6 +12,7 @@ from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.attributes.abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.models.utils.noise_model import NoiseModel
+from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 from leaspy.utils.typing import KwargsType, List, Optional
 from leaspy.utils.docs import doc_with_super
@@ -19,7 +20,7 @@ from leaspy.exceptions import LeaspyModelInputError
 
 
 @doc_with_super()
-class AbstractMultivariateModel(AbstractModel):
+class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     """
     Contains the common attributes & methods of the multivariate models.
 
@@ -96,7 +97,8 @@ class AbstractMultivariateModel(AbstractModel):
 
         self.parameters = initialize_parameters(self, dataset, method)
 
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
+                                                       **self._attributes_factory_ordinal_kws)
 
         # Postpone the computation of attributes when really needed!
         #self.attributes.update(['all'], self.parameters)
@@ -111,13 +113,13 @@ class AbstractMultivariateModel(AbstractModel):
         # TODO to move in a "MCMC-model interface"
 
     @abstractmethod
-    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed: List[str], realizations) -> None:
+    def update_MCMC_toolbox(self, vars_to_update: List[str], realizations) -> None:
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
 
         Parameters
         ----------
-        name_of_the_variables_that_have_been_changed : container[str] (list, tuple, ...)
+        vars_to_update : container[str] (list, tuple, ...)
             Names of the population parameters to update in MCMC toolbox
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with
@@ -147,6 +149,9 @@ class AbstractMultivariateModel(AbstractModel):
 
         # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
         expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
+
+        # special hyperparameter(s) for ordinal model
+        expected_hyperparameters += self._handle_ordinal_hyperparameters(hyperparameters)
 
         self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
@@ -187,6 +192,8 @@ class AbstractMultivariateModel(AbstractModel):
             'parameters': model_parameters_save
         }
 
+        self._export_extra_ordinal_settings(model_settings)
+
         # Default json.dump kwargs:
         kwargs = {'indent': 2, **kwargs}
 
@@ -221,11 +228,15 @@ class AbstractMultivariateModel(AbstractModel):
 
         return self.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
 
-    def _get_attributes(self, attribute_type: Optional[str]):
+    def _call_method_from_attributes(self, method_name: str, attribute_type: Optional[str], **call_kws):
+        # TODO: mutualize with same function in univariate case...
         if attribute_type is None:
-            return self.attributes.get_attributes()
+            return getattr(self.attributes, method_name)(**call_kws)
         elif attribute_type == 'MCMC':
-            return self.MCMC_toolbox['attributes'].get_attributes()
+            return getattr(self.MCMC_toolbox['attributes'], method_name)(**call_kws)
         else:
             raise LeaspyModelInputError(f"The specified attribute type does not exist: {attribute_type}. "
                                         "Should be None or 'MCMC'.")
+
+    def _get_attributes(self, attribute_type: Optional[str]):
+        return self._call_method_from_attributes('get_attributes', attribute_type)

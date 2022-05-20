@@ -47,6 +47,7 @@ class LeaspyTestCase(TestCase):
     example_data_path = os.path.join(_test_data_dir, "data_mock", "data_tiny.csv")
     example_data_covars_path = os.path.join(_test_data_dir, "data_mock", "data_tiny_covariate.csv")
     binary_data_path = os.path.join(_test_data_dir, "data_mock", "binary_data.csv")
+    ordinal_data_path = os.path.join(_test_data_dir, "data_mock", "data_tiny_ordinal.csv")
 
     # to store temporary data (used during tests)
     _test_tmp_dir = os.path.join(_test_data_dir, "_tmp")
@@ -158,6 +159,8 @@ class LeaspyTestCase(TestCase):
         """Helper to load the right test data for functional tests, depending on model name."""
         if 'binary' in model_name:
             df = pd.read_csv(cls.binary_data_path, dtype={'ID': str})
+        elif 'ordinal' in model_name:
+            df = pd.read_csv(cls.ordinal_data_path, dtype={'ID': str})
         else:
             # continuous
             df = pd.read_csv(cls.example_data_path, dtype={'ID': str})

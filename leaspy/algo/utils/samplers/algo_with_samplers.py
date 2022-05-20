@@ -112,8 +112,8 @@ class AlgoWithSamplersMixin:
             raise NotImplementedError("Only 'Gibbs' sampler is supported for individual variables for now, "
                                       "please open an issue on Gitlab if needed.")
 
-        if sampler_pop not in [None, 'Gibbs']:
-            raise NotImplementedError("Only 'Gibbs' sampler is supported for population variables for now, "
+        if sampler_pop not in [None, 'Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
+            raise NotImplementedError("Only 'Gibbs', 'FastGibbs' and 'Metropolis-Hastings' sampler is supported for population variables for now, "
                                       "please open an issue on Gitlab if needed.")
 
         self.samplers = {}
@@ -125,18 +125,21 @@ class AlgoWithSamplersMixin:
                 # But note that for individual parameters the model parameters ***_std should always be OK (> 0)
                 scale_param = info.get('scale', model.parameters[f'{variable}_std'])
 
-                if sampler_ind == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param, **sampler_ind_kws)
-                #elif sampler_ind == 'HMC':  # legacy
+                if sampler_ind in ['Gibbs']:
+                    self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
+                                                           sampler_type=sampler_ind, **sampler_ind_kws)
+                #elif self.algo_parameters['sampler_ind'] == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
             else:
 
                 # To enforce a fixed scale for a given var, one should put it in the random var specs
                 # For instance: for betas & deltas, it is a good idea to define them this way
                 # since they'll probably be = 0 just after initialization!
+                # We have priors which should be better than the variable initial value no ? model.MCMC_toolbox['priors'][f'{variable}_std']
                 scale_param = info.get('scale', model.parameters[variable].abs())
 
-                if sampler_pop == 'Gibbs':
-                    self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param, **sampler_pop_kws)
-                #elif sampler_pop == 'HMC':  # legacy
+                if sampler_pop in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
+                    self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
+                                                           sampler_type=sampler_pop, **sampler_pop_kws)
+                #elif self.algo_parameters['sampler_pop'] == 'HMC':  # legacy
                     #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])

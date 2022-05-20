@@ -195,11 +195,11 @@ class Plotting:
         timepoints = torch.tensor(timepoints, dtype=torch.float32).unsqueeze(0)
 
         # ---- Compute average trajectory
-        mean_trajectory = self.model.compute_mean_traj(timepoints).detach().numpy()
+        mean_trajectory = self.model.compute_mean_traj(timepoints).cpu().detach().numpy()
 
         # ---- plot it for each dimension
         for ft_ix, ft_lbl, ft_color in zip(features_ix, labels, colors):
-            ax.plot(timepoints[0, :].detach().numpy(),
+            ax.plot(timepoints[0, :].cpu().detach().numpy(),
                     mean_trajectory[0, :, ft_ix],
                     c=ft_color,
                     #label=ft_lbl, # not needed
@@ -436,7 +436,7 @@ class Plotting:
 
             # times to plot if reparametrized ages are wanted
             if reparametrized_ages:
-                timepoints = (model.time_reparametrization(t, ind_ip['xi'], ind_ip['tau']) + model.parameters['tau_mean'].item()).squeeze(0).numpy()
+                timepoints = (model.time_reparametrization(t, ind_ip['xi'], ind_ip['tau']) + model.parameters['tau_mean'].item()).squeeze(0).cpu().numpy()
 
             for ft_ix, ft_color in zip(features_ix, colors):
                 ax.plot(timepoints,

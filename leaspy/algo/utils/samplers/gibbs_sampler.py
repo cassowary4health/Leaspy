@@ -45,6 +45,14 @@ class GibbsSampler(AbstractSampler):
         Factor by which we increase or decrease the std-dev of sampler when we are out of
         the custom bounds for the mean acceptation rate. We decrease it by `1 - factor` if too low,
         and increase it with `1 + factor` if too high.
+    sampler_type : str
+        If 'Gibbs', sampling is done iteratively for all coordinate values.
+        If 'FastGibbs', sampling batches along the dimensions except the first one.
+        Speeds up sampling process for 2 dimensional parameters
+        If 'Metropolis-Hastings', sampling is done for all values at once.
+        Speeds up considerably sampling but usually requires more iterations
+        <!> Types other than 'Gibbs' are only supported for population variables for now since;
+            individual variables are handled with a grouped Gibbs sampler.
     **base_sampler_kws
         Keyword arguments passed to `AbstractSampler` init method.
         In particular, you may pass the `acceptation_history_length` hyperparameter.
@@ -55,6 +63,8 @@ class GibbsSampler(AbstractSampler):
 
     std : torch.FloatTensor
         Adaptative std-dev of variable
+    sampler_type : str
+        Sampler type : Gibbs, FastGibbs or Metropolis-Hastings
 
     Raises
     ------
@@ -69,9 +79,12 @@ class GibbsSampler(AbstractSampler):
                  random_order_dimension: bool = True,
                  mean_acceptation_rate_target_bounds: Tuple[float, float] = (0.2, 0.4),
                  adaptive_std_factor: float = 0.1,
+                 sampler_type: str = "Gibbs",
                  **base_sampler_kws):
 
         super().__init__(info, n_patients, **base_sampler_kws)
+
+        self.sampler_type = sampler_type
 
         # Scale of variable should always be positive (component-wise if multidimensional)
         if not isinstance(scale, torch.Tensor):
@@ -81,12 +94,32 @@ class GibbsSampler(AbstractSampler):
             raise LeaspyInputError(f"Scale of variable '{info['name']}' should be positive, not `{scale}`.")
 
         if info["type"] == "population":
-            # Proposition variance is adapted independently on each dimension of the population variable
-            self.std = self.STD_SCALE_FACTOR_POP * scale * torch.ones(self.shape)
+            # Proposition variance is adapted independently on each coordinate of the population variable by default ('Gibbs' sampler)
+            shape_adapted_std = self.shape
+            if self.sampler_type == 'FastGibbs':
+                # Proposition variance is adapted independently for each first-dimension
+                shape_adapted_std = (self.shape[0],)
+            elif self.sampler_type == 'Metropolis-Hastings':
+                # Proposition variance is the same for all coordinates
+                shape_adapted_std = ()  # empty tuple -> we should not use (1,) because `ndindex` would not be correct
+
+            # <!> `scale` has to be of `shape_adapted_std`, otherwise there would be automatic broadcasting and `self.std` could not be of the intended shape! (for samplers other than Gibbs)
+            if scale.ndim > len(shape_adapted_std):
+                # we take the mean of groupped dimension in this case
+                scale_squeezed_dims = tuple(range(len(shape_adapted_std), scale.ndim))
+                scale = scale.mean(dim=scale_squeezed_dims)
+
+            self.std = self.STD_SCALE_FACTOR_POP * scale * torch.ones(shape_adapted_std)
+            # we set `std=0` for masked elements so that they are never updated (full Gibbs only)
+            if self.mask is not None and self.sampler_type == 'Gibbs':
+                self.std[~(self.mask.to(bool))] = 0
+
+            self.acceptation_history = torch.zeros(self.acceptation_history_length, *shape_adapted_std)
+
         elif info["type"] == "individual":
-            # Proposition variance is adapted independently on each patient
-            true_shape = (n_patients, *self.shape)
-            self.std = self.STD_SCALE_FACTOR_IND * scale * torch.ones(true_shape)
+            # Proposition variance is adapted independently on each patient ('Gibbs' sampler only)
+            shape_adapted_std = (n_patients, *self.shape)
+            self.std = self.STD_SCALE_FACTOR_IND * scale * torch.ones(shape_adapted_std)
         else:
             raise LeaspyInputError(f"Unknown variable type '{info['type']}'.")
 
@@ -95,7 +128,8 @@ class GibbsSampler(AbstractSampler):
 
         # Torch distribution: all modifications will be in-place on `self.std`
         # So there will be no need to update this distribution!
-        self._distribution = torch.distributions.normal.Normal(loc=0.0, scale=self.std)
+        # (we do not validate args since `std` may contain some zeros for masked elements)
+        self._distribution = torch.distributions.normal.Normal(loc=0.0, scale=self.std, validate_args=False)
 
         # Parameters of the sampler
         self._random_order_dimension = random_order_dimension
@@ -114,8 +148,18 @@ class GibbsSampler(AbstractSampler):
         self._adaptive_std_factor = adaptive_std_factor
 
     def __str__(self):
-        mean_acceptation_rate = self.acceptation_history.mean().item()  # mean on all dimensions!
-        return f"{self.name} rate : {mean_acceptation_rate:.1%}, std: {self.std.mean():.1e}"
+
+        meaningful_indices = ()  # all indices are meaningful by default
+        # nota: we use tuple to account for the fact that in MH we deal with 0D tensors
+        if self.mask is not None and self.sampler_type == 'Gibbs':
+            # account for possible mask when computing the mean
+            meaningful_indices = (self.mask.to(bool),)
+
+        # mean on all dimensions!
+        mean_std = self.std[meaningful_indices].mean()
+        mean_acceptation_rate = self.acceptation_history[(slice(None),) + meaningful_indices].mean()
+
+        return f"{self.name} rate : {mean_acceptation_rate.item():.1%}, std: {mean_std.item():.1e}"
 
     def _proposal(self, val):
         """
@@ -148,6 +192,7 @@ class GibbsSampler(AbstractSampler):
         if self._counter % self.acceptation_history_length == 0:
             mean_acceptation = self.acceptation_history.mean(dim=0)
 
+            # nota: for masked elements in full Gibbs, std will always remain = 0
             idx_toolow = mean_acceptation < self._mean_acceptation_lower_bound_before_adaptation
             idx_toohigh = mean_acceptation > self._mean_acceptation_upper_bound_before_adaptation
 
@@ -176,9 +221,23 @@ class GibbsSampler(AbstractSampler):
             The attachment and regularity (only for the current variable) at the end of this sampling step (summed on all individuals).
         """
         realization = realizations[self.name]
-        shape_current_variable = realization.shape
-        accepted_array = torch.zeros(shape_current_variable)
-        iterator_indices = list(ndindex(shape_current_variable))
+        accepted_array = torch.zeros_like(self.std)
+
+        # when a mask is set on the random variable and when we sample without any grouping
+        # (i.e. regular Gibbs sampler - i.e. shape of `std` is same as shape of `mask`)
+        # then we'll only loop on coordinates not masked (we skip the un-needed indices)
+        if self.mask is not None and self.sampler_type == 'Gibbs':
+            # example for variable of shape (2,3) with mask = [[1,1,0],[1,1,1]]
+            # --> iterator_indices = [(0,0), (0, 1), (1, 0), (1, 1), (1, 2)]
+            iterator_indices = list(map(tuple, self.mask.nonzero(as_tuple=False).tolist()))
+        else:
+            # depending on sampler type we will loop on all coordinates or (partially) group them:
+            # example for variable of shape (2, 3)
+            # * for 'Gibbs' sampler: [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
+            # * for 'FastGibbs' sampler: [(0,), (1,)]
+            # * for 'Metropolis-Hastings' sampler: [()]
+            iterator_indices = list(ndindex(accepted_array.shape))
+
         if self._random_order_dimension:
             shuffle(iterator_indices)  # shuffle in-place!
 
@@ -190,8 +249,12 @@ class GibbsSampler(AbstractSampler):
             # model attributes used are the ones from the MCMC toolbox that we are currently changing!
             attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type='MCMC').sum()
             # regularity is always computed with model.parameters (not "temporary MCMC parameters")
-            regularity = model.compute_regularity_realization(realization).sum()
-            return attachment, regularity
+            regularity = model.compute_regularity_realization(realization)
+            # mask regularity of masked terms (needed for nan/inf terms such as inf deltas when batched)
+            if self.mask is not None:
+                regularity[~(self.mask.to(bool))] = 0
+
+            return attachment, regularity.sum()
 
         previous_attachment = previous_regularity = None
 
@@ -202,11 +265,14 @@ class GibbsSampler(AbstractSampler):
 
             # Keep previous realizations and sample new ones
             old_val_idx = realization.tensor_realizations[idx].clone()
-            # the previous version with `_proposal` was not incorrect but computationally inefficient:
-            # because we were sampling on the full shape of `std` whereas we only needed `std[idx]` (scalar)
-            new_val_idx = old_val_idx + self.std[idx] * torch.randn(())
-            realization.set_tensor_realizations_element(new_val_idx, idx)
-
+            # the previous version with `_proposal` was not incorrect but computationnally inefficient:
+            # because we were sampling on the full shape of `std` whereas we only needed `std[idx]` (smaller)
+            change_idx = self.std[idx] * torch.randn(old_val_idx.shape)
+            # (we don't need to add the mask when full Gibbs since std=0 on masked elements)
+            # (we don't directly mask the `new_val_idx` since it may be infinite, producing nans when trying to multiply them by 0)
+            if self.mask is not None and self.sampler_type != 'Gibbs':
+                change_idx = change_idx * self.mask[idx]
+            realization.set_tensor_realizations_element(old_val_idx + change_idx, idx)
             # Update derived model attributes if necessary (orthonormal basis, ...)
             model.update_MCMC_toolbox([self.name], realizations)
 
@@ -221,6 +287,7 @@ class GibbsSampler(AbstractSampler):
 
             if accepted:
                 previous_attachment, previous_regularity = new_attachment, new_regularity
+
             else:
                 # Revert modification of realization at idx and its consequences
                 realization.set_tensor_realizations_element(old_val_idx, idx)
@@ -230,8 +297,7 @@ class GibbsSampler(AbstractSampler):
                 model.update_MCMC_toolbox([self.name], realizations)
                 # force re-compute on next iteration:
                 # not performed since it is useless, since we rolled back to the starting state!
-                # previous_attachment = previous_regularity = None
-
+                # self._previous_attachment = self._previous_regularity = None
         self._update_acceptation_rate(accepted_array)
         self._update_std()
 

@@ -1,7 +1,10 @@
 import warnings
+from operator import itemgetter
+from typing import Dict, List
 
 import torch
 from scipy import stats
+import pandas as pd
 
 # <!> circular imports
 import leaspy
@@ -51,42 +54,49 @@ def initialize_parameters(model, dataset, method="default"):
         If no initialization method is known for model type / method
     """
 
+    # we convert once for all dataset to pandas dataframe for convenience
+    df = dataset.to_pandas().dropna(how='all').set_index(['ID', 'TIME']).sort_index()
+    assert df.index.is_unique
+    assert df.index.to_frame().notnull().all(axis=None)
+    if model.features != df.columns.tolist():
+        raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {df.columns}")
+
     if method == 'lme':
-        return lme_init(model, dataset) # support kwargs?
+        return lme_init(model, df) # support kwargs?
 
     name = model.name
     if name in ['logistic', 'univariate_logistic']:
-        parameters = initialize_logistic(model, dataset, method)
+        parameters = initialize_logistic(model, df, method)
     elif name == 'logistic_parallel':
-        parameters = initialize_logistic_parallel(model, dataset, method)
+        parameters = initialize_logistic_parallel(model, df, method)
     elif name in ['linear', 'univariate_linear']:
-        parameters = initialize_linear(model, dataset, method)
+        parameters = initialize_linear(model, df, method)
     #elif name == 'univariate':
-    #    parameters = initialize_univariate(dataset, method)
+    #    parameters = initialize_univariate(df, method)
     elif name == 'mixed_linear-logistic':
         raise NotImplementedError
-        #parameters = initialize_logistic(model, dataset, method)
+        #parameters = initialize_logistic(model, df, method)
     else:
         raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
 
-    # add a rounding step on the initial parameters to ensure full reproducibility
+    # convert to float 32 bits & add a rounding step on the initial parameters to ensure full reproducibility
     rounded_parameters = {
-        str(p): _torch_round(v)
+        str(p): _torch_round(v.to(torch.float32))
         for p, v in parameters.items()
     }
 
     return rounded_parameters
 
 
-def get_lme_results(dataset, n_jobs=-1, *,
+def get_lme_results(df: pd.DataFrame, n_jobs=-1, *,
                     with_random_slope_age=True, **lme_fit_kwargs):
     r"""
     Fit a LME on univariate (per feature) time-series (feature vs. patients' ages with varying intercept & slope)
 
     Parameters
     ----------
-    dataset : :class:`.Dataset`
-        Contains all the data wrapped into a leaspy Dataset object
+    df : :class:`pd.DataFrame`
+        Contains all the data (with nans)
     n_jobs : int
         Number of jobs in parallel when multiple features to init
         Not used for now, buggy
@@ -117,20 +127,19 @@ def get_lme_results(dataset, n_jobs=-1, *,
 
         return lsp_lme_ft.model.parameters
 
-    df = dataset.to_pandas().set_index(['ID','TIME'])
-    #res = Parallel(n_jobs=n_jobs)(delayed(fit_one_ft)(df.loc[:, [ft]].dropna().copy()) for ft in dataset.headers)
-    res = list(fit_one_ft(df.loc[:, [ft]].dropna()) for ft in dataset.headers)
+    #res = Parallel(n_jobs=n_jobs)(delayed(fit_one_ft)(s.dropna().to_frame()) for ft, s in df.items())
+    res = list(fit_one_ft(s.dropna().to_frame()) for ft, s in df.items())
 
     # output a dict of tensor stacked by feature, indexed by param
     param_names = next(iter(res)).keys()
 
     return {
-        param_name: torch.stack([torch.tensor(res_ft[param_name], dtype=torch.float32)
+        param_name: torch.stack([torch.tensor(res_ft[param_name])
                                  for res_ft in res])
         for param_name in param_names
     }
 
-def lme_init(model, dataset, fact_std=1., **kwargs):
+def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
     """
     Initialize the model's group parameters.
 
@@ -138,8 +147,8 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
     ----------
     model : :class:`.AbstractModel`
         The model to initialize (must be an univariate or multivariate linear or logistic manifold model).
-    dataset : :class:`.Dataset`
-        Contains the individual scores.
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
     fact_std : float
         Multiplicative factor to apply on std-dev (tau, xi, noise) found naively with LME
     **kwargs
@@ -161,13 +170,11 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
 
     if not noise_model.startswith('gaussian_'):
         raise LeaspyModelInputError(f'`lme` initialization is only compatible with Gaussian noise models, not {noise_model}.')
-    if model.features != dataset.headers:
-        raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {dataset.headers}")
 
     multiv = 'univariate' not in name
 
     #print('Initialization with linear mixed-effects model...')
-    lme = get_lme_results(dataset, **kwargs)
+    lme = get_lme_results(df, **kwargs)
     #print()
 
     # init
@@ -183,7 +190,7 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
         params['v0' if multiv else 'xi_mean'] = v0_lin.log()
 
     #elif name in ['logistic_parallel']:
-    #    # deltas = torch.zeros((model.dimension - 1,), dtype=torch.float32) ?
+    #    # deltas = torch.zeros((model.dimension - 1,)) ?
     #    pass # TODO...
     elif name in ['logistic', 'univariate_logistic']:
 
@@ -234,17 +241,90 @@ def lme_init(model, dataset, fact_std=1., **kwargs):
 
     # For multivariate models, xi_mean == 0.
     if name in ['linear', 'logistic']: # isinstance(model, MultivariateModel)
-        params['xi_mean'] = torch.tensor(0., dtype=torch.float32)
+        params['xi_mean'] = torch.tensor(0.)
 
     if multiv: # including logistic_parallel
-        params['betas'] = torch.zeros((model.dimension - 1, model.source_dimension), dtype=torch.float32)
-        params['sources_mean'] = torch.tensor(0., dtype=torch.float32)
-        params['sources_std'] = torch.tensor(sources_std, dtype=torch.float32)
+        params['betas'] = torch.zeros((model.dimension - 1, model.source_dimension))
+        params['sources_mean'] = torch.tensor(0.)
+        params['sources_std'] = torch.tensor(sources_std)
 
     return params
 
+def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
+    """
+    Find an initial value the deltas for an ordinal model and initializes ordinal_infos attribute.
 
-def initialize_logistic(model, dataset, method):
+    Parameters
+    ----------
+    model : :class:`.AbstractModel`
+        The model to initialize.
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
+    parameters : dict[str, `torch.Tensor`]
+        The parameters coming from the standard initialization of the logistic model
+
+    Returns
+    -------
+    parameters : dict[str, `torch.Tensor`]
+        The updated parameters initialization, with new parameter deltas
+    """
+
+    deltas = {}
+    for ft, s in df.items():  # preserve feature order
+        max_lvl = int(s.max())  # possible levels not observed in calibration data do not exist for us
+        model.ordinal_infos["features"].append({"name":ft, "max_level":max_lvl})
+        # we do not model P >= 0 (since constant = 1)
+        # we compute stats on P(Y >= k) in our data
+        first_age_gte = {}
+        for k in range(1, max_lvl + 1):
+            s_gte_k = (s >= k).groupby('ID')
+            first_age_gte[k] = s_gte_k.idxmax().map(itemgetter(1)).where(s_gte_k.any()) # (ID, TIME) tuple -> TIME or nan
+        # we do not need a delta for our anchor curve P >= 1
+        # so we start at k == 2
+        delays = [(first_age_gte[k] - first_age_gte[k-1]).mean(skipna=True).item()
+                  for k in range(2, max_lvl + 1)]
+        deltas[ft] = torch.log(torch.clamp(torch.tensor(delays), min=0.1))
+
+    # Changes the meaning of v0 # How do we initialize this ?
+    #parameters['v0'] = torch.zeros_like(parameters['v0'])
+    max_level = max([feat["max_level"] for feat in model.ordinal_infos['features']])
+    if model.ordinal_infos["batch_deltas"]:
+        # we set the undefined deltas to be infinity to extend validity of formulas for them as well (and to avoid computations)
+        deltas_ = float('inf') * torch.ones((len(deltas), max_level - 1))
+        for i, name in enumerate(deltas):
+            deltas_[i, :len(deltas[name])] = deltas[name]
+        parameters["deltas"] = deltas_
+    else:
+        for col in model.features:
+            parameters["deltas_" + col] = deltas[col]
+    model.ordinal_infos["max_level"] = max_level
+    # Mask for setting values > max_level per item to zero
+    model.ordinal_infos["mask"] = torch.cat([
+        torch.cat([
+            torch.ones((1, 1, 1, feat['max_level'])),
+            torch.zeros((1, 1, 1, max_level - feat['max_level'])),
+        ], dim=-1) for feat in model.ordinal_infos['features']
+    ], dim=2)
+
+    return parameters
+
+def linregress_against_time(s: pd.Series) -> Dict[str, float]:
+    """Return intercept & slope of a linear regression of series values against time (present in series index)."""
+    y = s.values
+    t = s.index.get_level_values('TIME').values
+    # Linear regression
+    slope, intercept, r_value, p_value, std_err = stats.linregress(t, y)
+    return {'intercept': intercept, 'slope': slope}
+
+def get_log_velocities(velocities: torch.Tensor, features: List[str], *, min: float = 1e-2) -> torch.Tensor:
+    """Warn if some negative velocities are provided, clamp them to `min` and return their log."""
+    neg_velocities = velocities <= 0
+    if neg_velocities.any():
+        warnings.warn(f"Mean slope of individual linear regressions made at initialization is negative for "
+                      f"{[f for f, vel in zip(features, velocities) if vel <= 0]}: not properly handled in model...")
+    return velocities.clamp(min=min).log()
+
+def initialize_logistic(model, df: pd.DataFrame, method):
     """
     Initialize the logistic model's group parameters.
 
@@ -252,8 +332,8 @@ def initialize_logistic(model, dataset, method):
     ----------
     model : :class:`.AbstractModel`
         The model to initialize.
-    dataset : :class:`.Dataset`
-        Contains the individual scores.
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
     method : str
         Must be one of:
             * ``'default'``: initialize at mean.
@@ -273,33 +353,30 @@ def initialize_logistic(model, dataset, method):
     """
 
     # Get the slopes / values / times mu and sigma
-    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
-    values_mu, values_sigma = compute_patient_values_distribution(dataset)
-    time_mu, time_sigma = compute_patient_time_distribution(dataset)
+    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(df)
+    values_mu, values_sigma = compute_patient_values_distribution(df)
+    time_mu, time_sigma = compute_patient_time_distribution(df)
 
     # Method
     if method == "default":
         slopes = slopes_mu
         values = values_mu
-        time = time_mu
+        t0 = time_mu
+        betas = torch.zeros((model.dimension - 1, model.source_dimension))
     elif method == "random":
         slopes = torch.normal(slopes_mu, slopes_sigma)
         values = torch.normal(values_mu, values_sigma)
-        time = torch.normal(time_mu, time_sigma)
+        t0 = torch.normal(time_mu, time_sigma)
+        betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(sample_shape=(model.dimension - 1, model.source_dimension))
     else:
         raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
 
-    # Check that slopes are >0, values between 0 and 1
-    slopes = slopes.clamp(min=1e-2)
-    values = values.clamp(min=1e-2, max=1-1e-2)
+    # Enforce values are between 0 and 1
+    values = values.clamp(min=1e-2, max=1-1e-2)  # always "works" for ordinal (values >= 1)
 
     # Do transformations
-    t0 = time.clone().detach()
-    v0_array = slopes.log().detach()
-    g_array = torch.log(1. / values - 1.).detach() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
-    betas = torch.zeros((model.dimension - 1, model.source_dimension))
-    # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
-    # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
+    v0_array = get_log_velocities(slopes, model.features)
+    g_array = torch.log(1. / values - 1.) # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
 
     # Create smart initialization dictionary
     if 'univariate' in model.name:
@@ -307,10 +384,9 @@ def initialize_logistic(model, dataset, method):
         parameters = {
             'g': g_array.squeeze(),
             'tau_mean': t0,
-            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'tau_std': torch.tensor(tau_std),
             'xi_mean': xi_mean,
-            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
-            'noise_std': torch.tensor(noise_std, dtype=torch.float32)
+            'xi_std': torch.tensor(xi_std),
         }
     else:
         parameters = {
@@ -318,18 +394,24 @@ def initialize_logistic(model, dataset, method):
             'v0': v0_array,
             'betas': betas,
             'tau_mean': t0,
-            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
-            'xi_mean': torch.tensor(0., dtype=torch.float32),
-            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
-            'sources_mean': torch.tensor(0., dtype=torch.float32),
-            'sources_std': torch.tensor(sources_std, dtype=torch.float32),
-            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
+            'tau_std': torch.tensor(tau_std),
+            'xi_mean': torch.tensor(0.),
+            'xi_std': torch.tensor(xi_std),
+            'sources_mean': torch.tensor(0.),
+            'sources_std': torch.tensor(sources_std),
         }
+
+    if model.is_ordinal:
+        parameters = initialize_deltas_ordinal(model, df, parameters)
+
+    if not (model.is_ordinal or model.noise_model == 'bernoulli'):
+        # do not initialize `noise_std` unless needed
+        parameters['noise_std'] = torch.tensor(noise_std) if 'univariate' in model.name else torch.tensor([noise_std])
 
     return parameters
 
 
-def initialize_logistic_parallel(model, dataset, method):
+def initialize_logistic_parallel(model, df, method):
     """
     Initialize the logistic parallel model's group parameters.
 
@@ -337,8 +419,8 @@ def initialize_logistic_parallel(model, dataset, method):
     ----------
     model : :class:`.AbstractModel`
         The model to initialize.
-    dataset : :class:`.Dataset`
-        Contains the individual scores.
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
     method : str
         Must be one of:
             * ``'default'``: initialize at mean.
@@ -348,7 +430,7 @@ def initialize_logistic_parallel(model, dataset, method):
     -------
     parameters : dict [str, `torch.Tensor`]
         Contains the initialized model's group parameters. The parameters' keys are 'g',  'tau_mean',
-        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'delta' and 'beta'.
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'noise_std', 'deltas' and 'betas'.
 
     Raises
     ------
@@ -357,50 +439,48 @@ def initialize_logistic_parallel(model, dataset, method):
     """
 
     # Get the slopes / values / times mu and sigma
-    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(dataset)
-    values_mu, values_sigma = compute_patient_values_distribution(dataset)
-    time_mu, time_sigma = compute_patient_time_distribution(dataset)
+    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(df)
+    values_mu, values_sigma = compute_patient_values_distribution(df)
+    time_mu, time_sigma = compute_patient_time_distribution(df)
 
     if method == 'default':
         slopes = slopes_mu
         values = values_mu
-        time = time_mu
+        t0 = time_mu
         betas = torch.zeros((model.dimension - 1, model.source_dimension))
     elif method == 'random':
         # Get random variations
         slopes = torch.normal(slopes_mu, slopes_sigma)
         values = torch.normal(values_mu, values_sigma)
-        time = torch.normal(time_mu, time_sigma)
+        t0 = torch.normal(time_mu, time_sigma)
         betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(sample_shape=(model.dimension - 1, model.source_dimension))
     else:
         raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
 
-    # Check that slopes are >0, values between 0 and 1
-    slopes = slopes.clamp(min=1e-2)
+    # Enforce values are between 0 and 1
     values = values.clamp(min=1e-2, max=1-1e-2)
 
     # Do transformations
-    t0 = time.clone()
-    v0 = slopes.log().mean().detach()
-    #v0 = slopes.mean().log().detach() # mean before log
-    g = torch.log(1. / values - 1.).mean().detach() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
-    #g = torch.log(1. / values.mean() - 1.).detach() # mean before transfo
+    v0_array = get_log_velocities(slopes, model.features)
+    v0 = v0_array.mean()
+    #v0 = slopes.mean().log() # mean before log
+    g = torch.log(1. / values - 1.).mean() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
+    #g = torch.log(1. / values.mean() - 1.) # mean before transfo
 
     return {
         'g': g,
-        'deltas': torch.zeros((model.dimension - 1,), dtype=torch.float32),
+        'deltas': torch.zeros((model.dimension - 1,)),
         'betas': betas,
         'tau_mean': t0,
-        'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+        'tau_std': torch.tensor(tau_std),
         'xi_mean': v0,
-        'xi_std': torch.tensor(xi_std, dtype=torch.float32),
-        'sources_mean': torch.tensor(0., dtype=torch.float32),
-        'sources_std': torch.tensor(sources_std, dtype=torch.float32),
-        'noise_std': torch.tensor([noise_std], dtype=torch.float32),
+        'xi_std': torch.tensor(xi_std),
+        'sources_mean': torch.tensor(0.),
+        'sources_std': torch.tensor(sources_std),
+        'noise_std': torch.tensor([noise_std]),
     }
 
-
-def initialize_linear(model, dataset, method):
+def initialize_linear(model, df: pd.DataFrame, method):
     """
     Initialize the linear model's group parameters.
 
@@ -408,8 +488,8 @@ def initialize_linear(model, dataset, method):
     ----------
     model : :class:`.AbstractModel`
         The model to initialize.
-    dataset : :class:`.Dataset`
-        Contains the individual scores.
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
     method : str
         not used for now
 
@@ -419,96 +499,90 @@ def initialize_linear(model, dataset, method):
         Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
     """
-    sum_ages = torch.sum(dataset.timepoints).item()
-    nb_nonzeros = (dataset.timepoints != 0).sum()
+    times = df.index.get_level_values('TIME').values
+    t0 = times.mean()
 
-    t0 = float(sum_ages) / float(nb_nonzeros)
+    d_regress_params = compute_linregress_subjects(df, max_inds=None)
+    df_all_regress_params = pd.concat(d_regress_params, names=['feature'])
+    df_all_regress_params['position'] = df_all_regress_params['intercept'] + t0 * df_all_regress_params['slope']
 
-    df = dataset.to_pandas()
-    df.set_index(["ID", "TIME"], inplace=True)
-
-    positions, velocities = [[] for _ in range(model.dimension)], [[] for _ in range(model.dimension)]
-
-    for idx in dataset.indices:
-        indiv_df = df.loc[idx]
-        ages = indiv_df.index.values
-        features = indiv_df.values
-
-        if len(ages) == 1:
-            continue
-
-        for dim in range(model.dimension):
-
-            ages_list, feature_list = [], []
-            for i, f in enumerate(features[:, dim]):
-                if f == f:
-                    feature_list.append(f)
-                    ages_list.append(ages[i])
-
-            if len(ages_list) < 2:
-                break
-            else:
-                slope, intercept, _, _, _ = stats.linregress(ages_list, feature_list)
-
-                value = intercept + t0 * slope
-
-                velocities[dim].append(slope)
-                positions[dim].append(value)
-
-    positions = [torch.tensor(_) for _ in positions]
-    positions = torch.tensor([torch.mean(_) for _ in positions], dtype=torch.float32)
-    velocities = [torch.tensor(_) for _ in velocities]
-    velocities = torch.tensor([torch.mean(_) for _ in velocities], dtype=torch.float32)
-
-    neg_velocities = velocities <= 0
-    if neg_velocities.any():
-        warnings.warn(f"Mean slope of individual linear regressions made at initialization is negative for {[f for f, vel in zip(model.features, velocities) if vel <= 0]}: not properly handled in model...")
-    velocities = velocities.clamp(min=1e-2)
+    df_grp = df_all_regress_params.groupby('feature', sort=False)
+    positions = torch.tensor(df_grp['position'].mean().values)
+    velocities = torch.tensor(df_grp['slope'].mean().values)
 
     # always take the log (even in non univariate model!)
-    velocities = torch.log(velocities).detach()
+    velocities = get_log_velocities(velocities, model.features)
 
     if 'univariate' in model.name:
         xi_mean = velocities.squeeze()
 
         parameters = {
             'g': positions.squeeze(),
-            'tau_mean': torch.tensor(t0, dtype=torch.float32),
-            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
+            'tau_mean': torch.tensor(t0),
+            'tau_std': torch.tensor(tau_std),
             'xi_mean': xi_mean,
-            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
-            'noise_std': torch.tensor(noise_std, dtype=torch.float32)
+            'xi_std': torch.tensor(xi_std),
+            'noise_std': torch.tensor(noise_std)
         }
     else:
         parameters = {
             'g': positions,
             'v0': velocities,
             'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-            'tau_mean': torch.tensor(t0, dtype=torch.float32),
-            'tau_std': torch.tensor(tau_std, dtype=torch.float32),
-            'xi_mean': torch.tensor(0., dtype=torch.float32),
-            'xi_std': torch.tensor(xi_std, dtype=torch.float32),
-            'sources_mean': torch.tensor(0., dtype=torch.float32),
-            'sources_std': torch.tensor(sources_std, dtype=torch.float32),
-            'noise_std': torch.tensor([noise_std], dtype=torch.float32)
+            'tau_mean': torch.tensor(t0),
+            'tau_std': torch.tensor(tau_std),
+            'xi_mean': torch.tensor(0.),
+            'xi_std': torch.tensor(xi_std),
+            'sources_mean': torch.tensor(0.),
+            'sources_std': torch.tensor(sources_std),
+            'noise_std': torch.tensor([noise_std])
         }
 
     return parameters
 
 
-#def initialize_univariate(dataset, method):
+#def initialize_univariate(df, method):
 #    # TODO?
 #    return 0
 
+def compute_linregress_subjects(df: pd.DataFrame, *, max_inds: int = None) -> Dict[str, pd.DataFrame]:
+    """
+    Linear Regression on each feature to get intercept & slopes
 
-def compute_patient_slopes_distribution(data, max_inds: int = None):
+    Parameters
+    ----------
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
+    max_inds : int, optional (default None)
+        Restrict computation to first `max_inds` individuals.
+
+    Returns
+    -------
+    dict[feat_name: str, regress_params_per_subj: pandas.DataFrame]
+    """
+
+    d_regress_params = {}
+
+    for ft, s in df.items():
+        s = s.dropna()
+        nvis = s.groupby('ID').size()
+        inds_train = nvis[nvis >= 2].index
+        if max_inds is not None:
+            inds_train = inds_train[:max_inds]
+        s_train = s.loc[inds_train]
+        d_regress_params[ft] = s_train.groupby('ID').apply(linregress_against_time).unstack(-1)
+
+    return d_regress_params
+
+
+def compute_patient_slopes_distribution(df: pd.DataFrame, *, max_inds: int = None):
     """
     Linear Regression on each feature to get slopes
 
     Parameters
     ----------
-    data : :class:`.Dataset`
-        The dataset to compute slopes from.
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
     max_inds : int, optional (default None)
         Restrict computation to first `max_inds` individuals.
 
@@ -518,51 +592,24 @@ def compute_patient_slopes_distribution(data, max_inds: int = None):
     slopes_sigma : :class:`torch.Tensor` [n_features,]
     """
 
-    # To Pandas
-    df = data.to_pandas()
-    df.set_index(["ID", "TIME"], inplace=True)
+    d_regress_params = compute_linregress_subjects(df, max_inds=max_inds)
     slopes_mu, slopes_sigma = [], []
 
-    for dim in range(data.dimension):
-        slope_dim_patients = []
-        count = 0
-
-        for idx in data.indices:
-            # Select patient dataframe
-            df_patient = df.loc[idx]
-            df_patient_dim = df_patient.iloc[:, dim].dropna()
-            x = df_patient_dim.index.get_level_values('TIME').values
-            y = df_patient_dim.values
-
-            # Delete if less than 2 visits
-            if len(x) < 2:
-                continue
-            # TODO : DO something if everyone has less than 2 visits
-
-            # Linear regression
-            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-
-            slope_dim_patients.append(slope)
-            count += 1
-
-            # Stop at `max_inds`
-            if max_inds and count > max_inds:
-                break
-
-        slopes_mu.append(torch.mean(torch.tensor(slope_dim_patients)).item())
-        slopes_sigma.append(torch.std(torch.tensor(slope_dim_patients)).item())
+    for ft, df_regress_ft in d_regress_params.items():
+        slopes_mu.append(df_regress_ft['slope'].mean())
+        slopes_sigma.append(df_regress_ft['slope'].std())
 
     return torch.tensor(slopes_mu), torch.tensor(slopes_sigma)
 
 
-def compute_patient_values_distribution(data):
+def compute_patient_values_distribution(df: pd.DataFrame):
     """
     Returns means and standard deviations for the features of the given dataset values.
 
     Parameters
     ----------
-    data : :class:`.Dataset`
-        Contains the scores of all the subjects.
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
 
     Returns
     -------
@@ -571,26 +618,22 @@ def compute_patient_values_distribution(data):
     std : :class:`torch.Tensor` [n_features,]
         One standard deviation per feature.
     """
-    df = data.to_pandas()
-    df.set_index(["ID", "TIME"], inplace=True)
-    return torch.tensor(df.mean().values, dtype=torch.float32), torch.tensor(df.std().values, dtype=torch.float32)
+    return torch.tensor(df.mean().values), torch.tensor(df.std().values)
 
 
-def compute_patient_time_distribution(data):
+def compute_patient_time_distribution(df: pd.DataFrame):
     """
     Returns mu / sigma of given dataset times.
 
     Parameters
     ----------
-    data : :class:`.Dataset`
-        Contains the individual scores
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
 
     Returns
     -------
     mean : :class:`torch.Tensor` scalar
     sigma : :class:`torch.Tensor` scalar
     """
-    df = data.to_pandas()
-    df.set_index(["ID", "TIME"], inplace=True)
-    return torch.mean(torch.tensor(df.index.get_level_values('TIME').tolist())), \
-           torch.std(torch.tensor(df.index.get_level_values('TIME').tolist()))
+    times = df.index.get_level_values('TIME').values
+    return torch.tensor(times.mean()), torch.tensor(times.std())

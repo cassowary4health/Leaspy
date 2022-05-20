@@ -38,6 +38,7 @@ class NoiseModel:
             * `'bernoulli'`: Bernoulli realization
             * `'gaussian_scalar'`: Gaussian noise with scalar std-dev, to give as `scale` parameter
             * `'gaussian_diagonal'`: Gaussian noise with 1 std-dev per feature (<!> order), to give as `scale` parameter
+            * `'ordinal'`: Samejima's model for ordinal scales
         If None: no noise at all (in particular, ultimately `sample(r)_around(values)` will just return `values`)
     **noise_kws
         Keyword arguments to fully characterize the noise structure.

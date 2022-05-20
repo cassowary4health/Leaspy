@@ -45,6 +45,7 @@ class OutputsSettings:
         self.console_print_periodicity = None
         self.plot_periodicity = None
         self.save_periodicity = None
+        self.save_last_n_realizations = 100
 
         self.root_path = None
         self.parameter_convergence_path = None
@@ -54,6 +55,7 @@ class OutputsSettings:
         self._set_console_print_periodicity(settings)
         self._set_save_periodicity(settings)
         self._set_plot_periodicity(settings)
+        self._set_save_last_n_realizations(settings)
 
         # only create folders if the user want to save data or plots and provided a valid path!
         self._create_root_folder(settings)
@@ -82,6 +84,9 @@ class OutputsSettings:
 
     def _set_save_periodicity(self, settings):
         self._set_param_as_int_or_ignore(settings, 'save_periodicity')
+
+    def _set_save_last_n_realizations(self, settings):
+        self._set_param_as_int_or_ignore(settings, 'save_last_n_realizations')
 
     def _set_plot_periodicity(self, settings):
         self._set_param_as_int_or_ignore(settings, 'plot_periodicity')

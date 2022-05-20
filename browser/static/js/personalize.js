@@ -1,14 +1,14 @@
-addIndividualData = (scores) => {
+let addIndividualData = (scores) => {
   var ages = scores['TIME']
   for(var i=0; i < parameters['dimension']; ++i) {
-    feature_name = parameters['features'][i]
-    dataset = {
-      label : '',
+    var feature_name = parameters['features'][i]
+    var dataset = {
+      label: '',
       data: convertData(ages, scores[feature_name]),
       showLine: false,
       fill: true,
       pointBorderColor: 'rgb(0, 0, 0)',
-      pointBackgroundColor: plotColors[i],
+      pointBackgroundColor: PLOT_COLORS[i % PLOT_COLORS.length],
       pointRadius: 7
     }
 
@@ -18,7 +18,7 @@ addIndividualData = (scores) => {
   myChart.update();
 }
 
-individualFit = (result) => {
+let individualFit = (result) => {
   var indivParameters = result['individual_parameters']
   var scores = result['scores'];
 
@@ -31,7 +31,7 @@ individualFit = (result) => {
   addIndividualData(scores);
 }
 
-personalize = () => {
+let personalize = () => {
   var birthday = document.getElementById('start').value;
   var scores = hot.getData();
 

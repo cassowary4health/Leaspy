@@ -2,35 +2,77 @@
 // THE MODEL
 ////////////////////////////////////////
 
-var age_min = 50;
-var age_max = 110;
-var age_step = 0.1;
-var leg_yprecision = 2;
+// constant
+var AGE_PTS = 500; // number of point in ages grid
+var AGE_MIN = 60; // TODO? use custom values depending tau_mean & tau_std ?
+var AGE_MAX = 110;
 
+var LEG_YPRECISION = 2; // in tooltip
+
+var BIRTH_DATE_DEFAULT = '1950-01-01';
+var BIRTH_DATE_OLDEST = '1920-01-01';
+var BIRTH_DATE_YOUNGEST = '2000-01-01';
+
+var N_TAU_STD = 3;
+var N_XI_STD = 2;
+var N_SOURCES_STD = 3;
+var N_TAU_STEPS = 100;
+var N_XI_STEPS = 100;
+var N_SOURCES_STEPS = 100;
+
+var ORDINAL_EXPECTATION = true; // otherwise simply plot the ordinal MLE
+var ORDINAL_NORMALIZE = true; // should we scale all ordinal features into [0, 1]
+
+// seaborn "muted" color palette (10 colors)
+var PLOT_COLORS = [
+  '#4878d0',
+  '#ee854a',
+  '#6acc64',
+  '#d65f5f',
+  '#956cb4',
+  '#8c613c',
+  '#dc7ec0',
+  '#797979',
+  '#d5bb67',
+  '#82c6e2',
+]
+
+// global variables
 var parameters = {};
-var ages = '';
-var plotColors = ['rgb(231, 76, 60)', 'rgb(241, 196, 15)', 'rgb(149, 165, 166)', 'rgb(46, 204, 113)',
-'rgb(0,71,179)', 'rgb(246,113,85)', 'rgb(153, 102, 51)', 'rgb(0, 179, 0)', 'rgb(102, 0, 255)', 'rgb(,,)',
-    'rgb(60, 60, 93)', 'rgb(128, 128, 255)']
+var ages = null;
+var hot = null; // global var for Handsontable object
+var myChart = null; // global Chart.js object
 
+// event listeners
+document.getElementById("file_model").onchange = function() {
+  var files = document.getElementById('file_model').files;
 
-document.getElementById("file_").onchange = function() {
-    var files = document.getElementById('file_').files;
+  if (files.length <= 0) {
+    return false;
+  }
 
-    if (files.length <= 0) {
-      return false;
-    }
+  var fr = new FileReader();
+  fr.onload = initModel;
+  fr.readAsText(files.item(0));
+};
 
-    var fr = new FileReader();
-    fr.onload = initModel;
-    fr.readAsText(files.item(0));
-}
+document.getElementById("file_patients").onchange = function() {
+  var files = document.getElementById('file_patients').files;
 
-triggerInput = (id, value, min, max, step) => {
+  if (files.length <= 0) {
+    return false;
+  }
+
+  var fr = new FileReader();
+  fr.onload = loadExistingPatient;
+  fr.readAsText(files.item(0));
+};
+
+let triggerInput = (id, value, min, max, step) => {
   var input = document.createElement('input');
-  value = Math.round(value/step)*step;
-  min = Math.round(min/step)*step;
-  max = Math.round(max/step)*step;
+  // value is always "precise" (do not round it)
+  min = value - step * Math.floor((value-min)/step);
+  max = value + step * Math.floor((max-value)/step);
 
   input.setAttribute('type', 'range');
   input.setAttribute('id', id);
@@ -43,9 +85,9 @@ triggerInput = (id, value, min, max, step) => {
   return input
 }
 
-triggerCol = (title, id, value, min, max, step) => {
+let triggerCol = (title, id, value, min, max, step) => {
   var title_p = document.createElement('p');
-  //title_p.innerText = title + ' : ' + value;
+  //title_p.innerText = title + ': ' + value;
   title_p.innerText = '';
 
   var input = triggerInput(id, value, min, max, step);
@@ -55,44 +97,38 @@ triggerCol = (title, id, value, min, max, step) => {
   col.appendChild(title_p);
   col.appendChild(input);
 
-
-
   return col
 }
 
-initTriggers = (json) => {
+let initTriggers = (json) => {
   var param = json['parameters'];
   var triggersCol = document.getElementById('triggers');
 
   // Temporal shift
-  var min = - 3 * param['tau_std'];
-  var max = + 3 * param['tau_std'];
-  var step = 0.5;
+  var min = -N_TAU_STD * param['tau_std'];
+  var max =  N_TAU_STD * param['tau_std'];
+  var step = Number(((max - min) / N_TAU_STEPS).toFixed(1));
   var tempCol = triggerCol('Time shift', 'time_shift', 0, min, max, step);
   triggersCol.appendChild(tempCol);
 
   // Acceleration factor
-  var min = Math.exp(- 1 * param['xi_std']);
-  var max = Math.exp(+ 1 * param['xi_std']);
-  var step = 0.05;
-  var accCol = triggerCol('Acceleration factor', 'acc_factor', 1, min, max, step);
+  var min = -N_XI_STD * param['xi_std'];
+  var max =  N_XI_STD * param['xi_std'];
+  var step = Number(((max - min) / N_XI_STEPS).toFixed(2));
+  var accCol = triggerCol('Acceleration factor', 'acc_factor', 0, min, max, step);
   triggersCol.appendChild(accCol);
 
   // Space shifts
-  if(!('source_dimension'in parameters)) {
-    return;
-  }
-
   for(var i=0; i<json['source_dimension']; ++i) {
-    var min = - 3 * param['sources_std'];
-    var max = + 3 * param['sources_std'];
-    var step = 0.1;
+    var min = -N_SOURCES_STD * param['sources_std'];
+    var max =  N_SOURCES_STD * param['sources_std'];
+    var step = Number(((max - min) / N_SOURCES_STEPS).toFixed(1));
     var spaceCol = triggerCol('Geometric pattern '+ (i+1), 'geom_'+i, 0, min, max, step);
     triggersCol.appendChild(spaceCol);
   }
 }
 
-clearPage = () => {
+let clearPage = () => {
   var canvasDiv = document.getElementById("canvas");
   while (canvasDiv.firstChild) {
     canvasDiv.removeChild(canvasDiv.firstChild);
@@ -108,23 +144,23 @@ clearPage = () => {
   }
 }
 
-initPlot = () => {
+let initPlot = () => {
   var indivParameters = getTriggerValues();
   ages = []
-  for(var i=age_min; i<age_max; i=i+age_step) {
-    ages.push(i);
+  var age_step = (AGE_MAX - AGE_MIN)/AGE_PTS;
+  for(var a = AGE_MIN; a <= AGE_MAX; a += age_step) {
+    ages.push(a);
   }
 
   var data = compute_values(ages, parameters, indivParameters);
   var datasets = [];
   var realFeatureLabels = parameters["features"];
-  var labelLength = parameters["dimension"];
-  var emptyFeaturesLabels = new Array(labelLength);
-  for(var i=0; i< labelLength; ++i) {
+  var dimension = parameters["dimension"];
+  var emptyFeaturesLabels = new Array(dimension);
+  for(var i=0; i<dimension; ++i) {
     realFeatureLabels[i] = realFeatureLabels[i][0].toUpperCase() + realFeatureLabels[i].slice(1);
     emptyFeaturesLabels[i] = "";
   }
-
 
   for(var j=0; j<2; ++j) {
     var borderWidth = ( j==0 ? 3: 1.5);
@@ -132,14 +168,14 @@ initPlot = () => {
     var featureNames = ( j==0 ? realFeatureLabels: emptyFeaturesLabels);
 
     for(var i=0; i<data.length; ++i) {
-      dataset = {
+      var dataset = {
         label: featureNames[i],
         data: convertData(ages, data[i]),
         fill: 'rgba(0, 0, 0, 0)',
         showLine: true,
         borderDash: borderDash,
         borderWidth: borderWidth,
-        borderColor: plotColors[i],
+        borderColor: PLOT_COLORS[i % PLOT_COLORS.length],
         pointRadius: 0
       }
 
@@ -165,7 +201,7 @@ initPlot = () => {
         },
         callbacks: {
           title: function(tooltipItems, data) {
-            r_age = tooltipItems[0].xLabel.toFixed(1);
+            var r_age = tooltipItems[0].xLabel.toFixed(1);
             return 'Age: ' + r_age
           },
           label: function(tooltipItem, data) {
@@ -175,11 +211,11 @@ initPlot = () => {
             if(label) {
               label += ': ';
             }
-            val = tooltipItem.yLabel.toFixed(leg_yprecision);
+            var val = tooltipItem.yLabel.toFixed(LEG_YPRECISION);
             label += val
 
             // We also fetch the value of dashed curve (same age index, feature is shifted by nb of features)
-            other_val = data.datasets[tooltipItem.datasetIndex + parameters['dimension']].data[data_ix].y.toFixed(leg_yprecision);
+            var other_val = data.datasets[tooltipItem.datasetIndex + dimension].data[data_ix].y.toFixed(LEG_YPRECISION);
             if(other_val != val) {
               label += ' (' + other_val + ')'
             }
@@ -209,25 +245,38 @@ initPlot = () => {
         }],
         xAxes: [{
           ticks: {
-            min: age_min,
-            max: age_max
+            min: AGE_MIN,
+            max: AGE_MAX
           }
         }],
       },
       animation: {
-        duration : 0
+        duration: 0
       }
     }
   });
 }
 
-initModel = (e) => {
-  parameters = JSON.parse(e.target.result);
+let replaceInfinityString = (key, value) => {
+  if(value == "Infinity"){
+    return Infinity;
+  }
+  return value;
+}
+
+let initModel = (e) => {
+  // support 'Infinity' in JSON (for deltas in ordinal models)
+  var p_json = e.target.result.replaceAll('Infinity', '"Infinity"')
+  parameters = JSON.parse(p_json, replaceInfinityString);
+  // Tweaks so that univariate model is also supported
   parameters['dimension'] = parameters['features'].length;
+  if(!('source_dimension' in parameters)){
+    parameters['source_dimension'] = 0;
+  }
   reinitModel(parameters);
 }
 
-reinitModel = (params) => {
+let reinitModel = (params) => {
   clearPage();
   initTriggers(params);
   initPlot();
@@ -238,9 +287,7 @@ reinitModel = (params) => {
 // INITIALIZATION OF NEW PATIENT
 ////////////////////////////////////////
 
-var hot = '';
-
-resetPatientButton = (individualData) => {
+let resetPatientButton = (individualData) => {
   var patient = document.getElementById("patient");
   while (patient.firstChild) {
     patient.removeChild(patient.firstChild);
@@ -252,20 +299,20 @@ resetPatientButton = (individualData) => {
   input.setAttribute('id', 'start');
   input.setAttribute('name', 'trip-start');
   if(individualData === undefined) {
-    input.setAttribute('value', '1950-01-01');
+    input.setAttribute('value', BIRTH_DATE_DEFAULT);
   } else {
     input.setAttribute('value', individualData['birthday']);
   }
 
-  input.setAttribute('min', '1920-01-01');
-  input.setAttribute('max', '2000-01-01');
+  input.setAttribute('min', BIRTH_DATE_OLDEST);
+  input.setAttribute('max', BIRTH_DATE_YOUNGEST);
   patient.appendChild(input);
 
   var addRow = document.createElement('button');
   addRow.setAttribute('type', 'button');
   addRow.setAttribute('class','btn btn-info btn-sm');
   addRow.setAttribute('onclick', 'addRow()');
-  addRow.style = 'margin:10px';
+  addRow.style.margin = '10px';
   addRow.innerText = 'Add a line';
   patient.appendChild(addRow);
 
@@ -273,7 +320,7 @@ resetPatientButton = (individualData) => {
   removeRow.setAttribute('type', 'button');
   removeRow.setAttribute('class', 'btn btn-warning btn-sm');
   removeRow.setAttribute('onclick', 'removeRow()');
-  removeRow.style = 'margin:10px';
+  removeRow.style.margin = '10px';
   removeRow.innerText = 'Delete last line';
   patient.appendChild(removeRow);
 
@@ -281,7 +328,7 @@ resetPatientButton = (individualData) => {
   personalize.setAttribute('type', 'button');
   personalize.setAttribute('class', 'btn btn-success btn-sm');
   personalize.setAttribute('onclick', 'personalize()');
-  personalize.style = 'margin:10px';
+  personalize.style.margin = '10px';
   personalize.innerText = 'Personalize';
   patient.appendChild(personalize);
 
@@ -289,29 +336,27 @@ resetPatientButton = (individualData) => {
   reset.setAttribute('type', 'button');
   reset.setAttribute('class', 'btn btn-danger btn-sm');
   reset.setAttribute('onclick', 'resetTriggerValues(); reinitModel(parameters)'); // reset plot without individual data
-  reset.style = 'margin:10px';
+  reset.style.margin = '10px';
   reset.innerText = 'Reinitialize';
   patient.appendChild(reset);
-
-
 }
 
-initTable = (parameters, individualData) => {
+let initTable = (parameters, individualData) => {
   var hotElement = document.querySelector('#table');
-  var hotElementContainer = hotElement.parentNode;
 
   var columns = [{
     data: 'asOf',
     type: 'date',
-    dateFormat: 'MM/DD/YYYY'
+    dateFormat: 'DD/MM/YYYY',
+    correctFormat: false,
   }];
   var headers = ["Date"];
 
   for(var i=0; i<parameters['dimension']; ++i){
     headers.push(parameters["features"][i]);
     columns.push({
-      data:'val'+i,
-      type:'numeric',
+      data: 'val'+i,
+      type: 'numeric',
       numericFormat: {
         pattern: '0.00'
       }
@@ -320,7 +365,9 @@ initTable = (parameters, individualData) => {
 
   if (individualData === undefined) {
     var today = new Date();
-    var date = (today.getMonth()+1)+'/'+today.getDate() + '/' + today.getFullYear();
+    var day_padded = ('0' + today.getDate()).slice(-2)
+    var month_padded = ('0' + (today.getMonth() + 1)).slice(-2)
+    var date = day_padded + '/' + month_padded + '/' + today.getFullYear();
     var dataObject = {asOf: date};
 
     for(var i=0; i<parameters['dimension']; ++i){
@@ -331,17 +378,15 @@ initTable = (parameters, individualData) => {
   } else {
     var dataObject = [];
     for(var i=0; i<individualData['visits'].length;++i) {
-      var unitDataObject = {asOf:individualData['visits'][i][0]};
-       for(var j=0; j<parameters['dimension']; ++j){
-         //console.log(i, j+1, individualData['visits'][i][j+1])
-       unitDataObject["val"+j] = individualData['visits'][i][j+1];
+      var unitDataObject = {asOf: individualData['visits'][i][0]};
+      for(var j=0; j<parameters['dimension']; ++j){
+        unitDataObject["val"+j] = individualData['visits'][i][j+1];
       }
 
       dataObject.push(unitDataObject);
 
     }
   }
-
 
   var hotSettings = {
     licenseKey: 'non-commercial-and-evaluation',
@@ -359,31 +404,16 @@ initTable = (parameters, individualData) => {
     }
   };
 
-
   hot = new Handsontable(hotElement, hotSettings);
-
 }
 
-
-initIndividualData = () => {
+let initIndividualData = () => {
   resetPatientButton();
   initTable(parameters);
 }
 
-loadExistingPatient = (e) => {
-  individualData = JSON.parse(e.target.result);
+let loadExistingPatient = (e) => {
+  var individualData = JSON.parse(e.target.result);
   resetPatientButton(individualData);
   initTable(parameters, individualData);
-}
-
-document.getElementById("file-input").onchange = function() {
-    var files = document.getElementById('file-input').files;
-
-    if (files.length <= 0) {
-      return false;
-    }
-
-    var fr = new FileReader();
-    fr.onload = loadExistingPatient;
-    fr.readAsText(files.item(0));
 }

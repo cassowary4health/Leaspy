@@ -1,4 +1,7 @@
+from __future__ import annotations
 import warnings
+from typing import Union
+from collections.abc import Iterable, Iterator
 
 import numpy as np
 import pandas as pd
@@ -7,7 +10,6 @@ import torch
 from leaspy.io.data.csv_data_reader import CSVDataReader
 from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 from leaspy.io.data.individual_data import IndividualData
-# from leaspy.io.data.dataset import Dataset
 
 from leaspy.exceptions import LeaspyDataInputError
 from leaspy.utils.typing import FeatureType, IDType, Dict, List
@@ -16,12 +18,31 @@ from leaspy.utils.typing import FeatureType, IDType, Dict, List
 # TODO or find a good way to say that there are individual parameters here ???
 
 
-class Data:
+class Data(Iterable):
     """
     Main data container, initialized from a `csv file` or a :class:`pandas.DataFrame`.
+
+    It can be iterated over and sliced, both of these operations being
+    applied to the underlying `individuals` attribute.
+
+    Attributes
+    ----------
+    individuals : Dict[IDType, IndividualData]
+        Included individuals and their associated data
+    iter_to_idx : Dict[int, IDType]
+        Maps an integer index to the associated individual ID
+    headers : list[FeatureType]
+        Feature names
+    dimension : int
+        Number of features
+    n_individuals : int
+        Number of individuals
+    n_visits : int
+        Total number of visits
+    cofactors : List[FeatureType]
+        Feature names corresponding to cofactors
     """
     def __init__(self):
-
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
         self.headers: List[FeatureType] = None
@@ -29,8 +50,6 @@ class Data:
         self.n_individuals: int = 0
         self.n_visits: int = 0
         self.cofactors: List[FeatureType] = []
-
-        self.iter: int = 0
 
     def get_by_idx(self, idx: IDType):
         """
@@ -47,21 +66,32 @@ class Data:
         """
         return self.individuals[idx]
 
-    def __getitem__(self, iter: int):
-        return self.individuals[self.iter_to_idx[iter]]
+    def __getitem__(self, key: Union[int, IDType, slice, list[int], list[IDType]]) -> Union[IndividualData, Data]:
+        if isinstance(key, int):
+            return self.individuals[self.iter_to_idx[key]]
 
-    def __iter__(self):
-        # TODO: make a true DataIterator class because quite dirty to have `iter` inside
-        return self
+        elif isinstance(key, IDType):
+            return self.individuals[key]
 
-    def __next__(self):
-        # TODO: make a true DataIterator class because quite dirty to have `iter` inside
-        if self.iter >= self.n_individuals:
-            self.iter = 0
-            raise StopIteration
-        else:
-            self.iter += 1
-            return self.__getitem__(self.iter - 1)
+        elif isinstance(key, (slice, list)):
+            if isinstance(key, slice):
+                slice_indices = range(self.n_individuals)[key]
+                individual_indices = [self.iter_to_idx[i] for i in slice_indices]
+            else:
+                if all(isinstance(value, int) for value in key):
+                    individual_indices = [self.iter_to_idx[i] for i in key]
+                elif all(isinstance(value, IDType) for value in key):
+                    individual_indices = key
+                else:
+                    raise KeyError("Cannot access a Data item using a list of this type")
+
+            individuals = [self.individuals[i] for i in individual_indices]
+            return Data.from_individuals(individuals, self.headers)
+
+        raise KeyError("Cannot access a data item this way")
+
+    def __iter__(self) -> DataIterator:
+        return DataIterator(self)
 
     def load_cofactors(self, df: pd.DataFrame, *, cofactors: List[FeatureType] = None):
         """
@@ -229,7 +259,7 @@ class Data:
         return data
 
     @staticmethod
-    def from_individuals(indices: List[IDType], timepoints: List[List], values: List[List], headers: List[FeatureType]):
+    def from_individual_values(indices: List[IDType], timepoints: List[List], values: List[List], headers: List[FeatureType]):
         """
         Create a `Data` class object from lists of `ID`, `timepoints` and the corresponding `values`.
 
@@ -251,21 +281,60 @@ class Data:
         `Data`
             Data class object with all ID, timepoints, values and features' names.
         """
-        data = Data()
+        individuals = []
+        for i, idx in enumerate(indices):
+            indiv = IndividualData(idx)
+            indiv.add_observations(timepoints[i], values[i])
+            individuals.append(indiv)
 
+        return Data.from_individuals(individuals, headers)
+
+    @staticmethod
+    def from_individuals(individuals: List[IndividualData], headers: List[FeatureType]) -> Data:
+        """
+        Create a `Data` object from a list of `individuals`
+
+        Parameters
+        ----------
+        individuals : List[IndividualData]
+            List of individuals
+        headers : List[FeatureType]
+            List of feature names
+
+        Returns
+        -------
+        Data
+            Data class object storing the input individuals' data
+        """        
+        data = Data()
         data.headers = headers
         data.dimension = len(headers)
-
-        for i, idx in enumerate(indices):
-            # Create individual
-            data.individuals[idx] = IndividualData(idx)
-            data.iter_to_idx[data.n_individuals] = idx
+        for indiv in individuals:
+            data.individuals[indiv.idx] = indiv
+            data.iter_to_idx[data.n_individuals] = indiv.idx
             data.n_individuals += 1
-
-            # Add observations / timepoints
-            data.individuals[idx].add_observations(timepoints[i], values[i])
-
-            # Update Data metrics
-            data.n_visits += len(timepoints[i])
-
+            data.n_visits += len(indiv.timepoints)
         return data
+
+
+class DataIterator(Iterator):
+    """
+    Iterates over individuals of a Data container
+
+    Parameters
+    ----------
+    data : Data
+        The data container used as an iterable collection
+    """
+    def __init__(self, data: Data) -> None:
+        self._data = data
+        self.iter = 0
+
+    def __next__(self):
+        try:
+            value = self._data.__getitem__(self.iter)
+            self.iter += 1
+        except KeyError:
+            raise StopIteration
+
+        return value

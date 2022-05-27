@@ -48,6 +48,18 @@ class IndividualDataTest(LeaspyTestCase):
         data.add_individual_parameters("xi", 0.02)
         self.assertEqual(data.individual_parameters, {'xi': 0.02})
 
-        # Add cofactors
-        data.add_cofactor('gender', 'male')
-        self.assertEqual(data.cofactors, {'gender': 'male'})
+    def test_add_cofactors(self):
+        data = IndividualData("test")
+        cofactors_dict = {
+            "gender": "male",
+            "weight": 60
+        }
+        data.add_cofactors(cofactors_dict)
+        self.assertEqual(data.cofactors, cofactors_dict)
+
+        with pytest.raises(TypeError):
+            data.add_cofactors({5: 5})
+        
+        with pytest.raises(LeaspyDataInputError):
+            data.add_cofactors({"weight": 5})
+        

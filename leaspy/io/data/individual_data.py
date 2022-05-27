@@ -3,7 +3,8 @@ from bisect import bisect
 import numpy as np
 
 from leaspy.exceptions import LeaspyDataInputError, LeaspyInputError
-from leaspy.utils.typing import IDType, DictParams, KwargsType, List, Iterable
+from leaspy.utils.typing import (Any, Dict, DictParams, FeatureType, IDType,
+                                 Iterable, KwargsType, List)
 
 
 class IndividualData:
@@ -35,7 +36,7 @@ class IndividualData:
         Parameters
         ----------
         timepoints : List[float]
-            Timepoints associated with the observations
+            Timepoints associated with the observations to include
         observations : List[List[float]]
             Observations to include
 
@@ -59,11 +60,27 @@ class IndividualData:
     def add_individual_parameters(self, name, value):
         self.individual_parameters[name] = value
 
-    def add_cofactors(self, d: dict):
+    def add_cofactors(self, d: Dict[FeatureType, Any]) -> None:
+        """
+        Include new cofactors
+
+        Parameters
+        ----------
+        d : Dict[FeatureType, Any]
+            Cofactors to include, in the form `{name: value}`
+
+        Raises
+        ------
+        :exc:`.LeaspyDataInputError`
+        """
+        if not (
+            isinstance(d, dict)
+            and all(isinstance(k, str) for k in d.keys())
+        ):
+            raise TypeError("Invalid argument type for `d`")
+
         for k, v in d.items():
             if k in self.cofactors.keys() and v != self.cofactors[k]:
-                raise LeaspyDataInputError(f"The cofactor {k} is already present for patient {self.idx}")
+                raise LeaspyDataInputError(f"Cofactor {k} is already present"
+                                           f" for patient {self.idx}")
             self.cofactors[k] = v
-
-    def add_cofactor(self, name, value):
-        self.cofactors[name] = value

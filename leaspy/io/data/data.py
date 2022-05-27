@@ -5,7 +5,6 @@ from collections.abc import Iterable, Iterator
 
 import numpy as np
 import pandas as pd
-import torch
 
 from leaspy.io.data.csv_data_reader import CSVDataReader
 from leaspy.io.data.dataframe_data_reader import DataframeDataReader
@@ -168,61 +167,71 @@ class Data(Iterable):
         reader = CSVDataReader(path, **kws)
         return Data._from_reader(reader)
 
-    def to_dataframe(self, *, cofactors=None):
+    def to_dataframe(self, *, cofactors=None) -> pd.DataFrame:
         """
-        Return the subjects' observations in a :class:`pandas.DataFrame` along their ID and ages at all visits.
+        Convert the Data object to a :class:`pandas.DataFrame`
 
         Parameters
         ----------
         cofactors : list[str], 'all', or None (default None)
-            Contains the cofactors' names to be included in the DataFrame.
-            If None (default), no cofactors are returned.
-            If "all", all the available cofactors are returned.
+            Cofactors to include in the DataFrame.
+            If None (default), no cofactors are included.
+            If "all", all the available cofactors are included.
 
         Returns
         -------
         :class:`pandas.DataFrame`
-            Contains the subjects' ID, age and scores (optional - and cofactors) for each timepoint.
+            A DataFrame containing the individuals' ID, timepoints and
+            associated observations (optional - and cofactors).
 
         Raises
         ------
         :exc:`.LeaspyDataInputError`
         """
-        indices = []
-        timepoints = torch.zeros((self.n_visits, 1))
-        arr = torch.zeros((self.n_visits, self.dimension))
-
-        iteration = 0
-        for indiv in self.individuals.values():
-            ages = indiv.timepoints
-            for j, age in enumerate(ages):
-                indices.append(indiv.idx)
-                timepoints[iteration] = age
-                # TODO: IndividualData.observations is really badly constructed (list of numpy 1D arrays), we should change this...
-                arr[iteration] = torch.tensor(np.array(indiv.observations[j]), dtype=torch.float32)
-
-                iteration += 1
-
-        arr = torch.cat((timepoints, arr), dim=1).tolist()
-
-        df = pd.DataFrame(data=arr, index=indices, columns=['TIME'] + self.headers)
-        df.index.name = 'ID'
-
-        if cofactors is not None:
-            cofactors_list = None
-
-            if isinstance(cofactors, str) and cofactors == "all":
+        if cofactors is None:
+            cofactors_list = []
+        elif isinstance(cofactors, str):
+            if cofactors == "all":
                 cofactors_list = self.cofactors
-            elif isinstance(cofactors, list):
-                cofactors_list = cofactors
+            else:
+                raise ValueError("Invalid `cofactors` argument value")
+        elif (
+            isinstance(cofactors, list)
+            and all(isinstance(c, str) for c in cofactors)
+        ):
+            cofactors_list = cofactors
+        else:
+            raise TypeError("Invalid `cofactors` argument type")
 
-            if cofactors_list is None:
-                raise LeaspyDataInputError("`cofactor` should either be 'all' or a list[str]")
+        unknown_cofactors = list(set(cofactors_list) - set(self.cofactors))
+        if len(unknown_cofactors):
+            raise LeaspyDataInputError(f'These cofactors are not part of'
+                                       f' your Data: {unknown_cofactors}')
 
-            for cofactor in cofactors_list:
-                df[cofactor] = ''
-                for subject_name in indices:
-                    df.loc[subject_name, cofactor] = self.individuals[subject_name].cofactors[cofactor]
+        # Build the dataframe, one individual at a time
+        def get_individual_block(individual: IndividualData):
+            individual_product = [[individual.idx], individual.timepoints]
+            individual_index = pd.MultiIndex.from_product(individual_product)
+            individual_values = individual.observations
+            return individual_index, individual_values
+
+        index = None
+        values = None
+        for i in self.individuals.values():
+            if index is None:
+                index, values = get_individual_block(i)
+            else:
+                index_i, values_i = get_individual_block(i)
+                index = index.union(index_i, sort=False)
+                values = np.concatenate([values, values_i], axis=0)
+
+        df = pd.DataFrame(data=values, index=index, columns=self.headers)
+        df.index.names = ['ID', 'TIME']
+
+        for cofactor in cofactors_list:
+            for i in self.individuals.values():
+                indiv_slice = pd.IndexSlice[i.idx, :]
+                df.loc[indiv_slice, cofactor] = i.cofactors[cofactor]
 
         return df.reset_index()
 

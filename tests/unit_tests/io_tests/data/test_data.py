@@ -1,6 +1,9 @@
 import pytest
 
+import pandas as pd
+
 from leaspy.io.data.data import Data
+from leaspy.exceptions import LeaspyDataInputError
 
 from tests import LeaspyTestCase
 
@@ -105,3 +108,58 @@ class DataTest(LeaspyTestCase):
             self.assertEqual(individual.observations.tolist(), expected_individual.observations.tolist())
             if iter > 4:
                 break
+
+    def test_data_cofactors_and_dataframe(self):
+        data = self.load_multivariate_data()
+        individual_key = 3
+        individual = data[3]
+
+        # Test load_cofactors()
+        idx_list = data.individuals.keys()
+        cofactors_list = ["Cofactor_1", "Cofactor_2"]
+        cofactors_df = pd.DataFrame(
+            index=idx_list,
+            data=[(idx[0], idx[-1]) for idx in idx_list],
+            columns=cofactors_list
+        )
+        cofactors_df.index.name = "ID"
+        data.load_cofactors(cofactors_df, cofactors=None)
+        self.assertEqual(data.cofactors, cofactors_list)
+        self.assertEqual(individual.cofactors["Cofactor_2"], individual.idx[-1])
+
+        # Cover load_cofactors() errors
+        with pytest.raises(LeaspyDataInputError):
+            wrong_cofactors_df = cofactors_df.copy()
+            wrong_cofactors_df.index.name = "Wrong_index_name"
+            data.load_cofactors(wrong_cofactors_df, cofactors=None)
+        
+        with pytest.raises(LeaspyDataInputError):
+            wrong_cofactors_df = cofactors_df.copy()
+            wrong_cofactors_df.loc[4] = [0 for _ in cofactors_list]
+            data.load_cofactors(wrong_cofactors_df, cofactors=None)
+        
+        with pytest.raises(ValueError):
+            wrong_cofactors_df = cofactors_df.copy()
+            wrong_cofactors_df.drop(individual.idx, inplace=True)
+            data.load_cofactors(wrong_cofactors_df, cofactors=None)
+
+        # Test to_dataframe()
+        df = data.to_dataframe(cofactors="all")
+        self.assertEqual(
+            df.shape,
+            (data.n_visits, len(data.headers + data.cofactors) + 2)
+        )
+        self.assertEqual(
+            df.loc[df["ID"] == individual.idx, "Cofactor_1"].to_list(),
+            [individual.idx[0] for _ in range(len(individual.timepoints))]
+        )
+
+        # Cover to_dataframe() errors
+        with pytest.raises(ValueError):
+            _ = data.to_dataframe(cofactors="Cofactor_1")
+        
+        with pytest.raises(TypeError):
+            _ = data.to_dataframe(cofactors={})
+        
+        with pytest.raises(LeaspyDataInputError):
+            _ = data.to_dataframe(cofactors=["Wrong_cofactor"])

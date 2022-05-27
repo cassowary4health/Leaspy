@@ -188,11 +188,14 @@ class DataframeDataReader:
 
         df = self._check_features(df, warn_empty_column=warn_empty_column)
 
-        for (idx_subj, timepoint), observations in df.iterrows():
-
+        for idx_subj in df.index.get_level_values('ID').unique():
             if idx_subj not in self.individuals:
                 self.individuals[idx_subj] = IndividualData(idx_subj)
                 self.iter_to_idx[self.n_individuals] = idx_subj
                 self.n_individuals += 1
-
-            self.individuals[idx_subj].add_observation(timepoint, observations.tolist())
+            
+            df_subj = df.loc[idx_subj]
+            self.individuals[idx_subj].add_observations(
+                timepoints = df_subj.index.get_level_values('TIME').to_list(),
+                observations = df_subj.values.tolist()
+            )

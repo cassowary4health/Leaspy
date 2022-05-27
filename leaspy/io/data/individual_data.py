@@ -1,6 +1,8 @@
 from bisect import bisect
 
-from leaspy.exceptions import LeaspyDataInputError
+import numpy as np
+
+from leaspy.exceptions import LeaspyDataInputError, LeaspyInputError
 from leaspy.utils.typing import IDType, DictParams, KwargsType, List, Iterable
 
 
@@ -21,27 +23,38 @@ class IndividualData:
     def __init__(self, idx: IDType):
         self.idx = idx
         self.timepoints: List[float] = None
-        self.observations: List[Iterable[float]] = None
+        self.observations: Iterable[Iterable[float]] = None
         self.individual_parameters: DictParams = {}
         self.cofactors: KwargsType = {}
 
-    def add_observation(self, timepoint, observation):
-        if self.timepoints is None:
-            self.timepoints = []
-            self.observations = []
+    def add_observations(self, timepoints: List[float],
+                         observations: List[List[float]]) -> None:
+        """
+        Include new observations and associated timepoints
 
-        if timepoint in self.timepoints:
-            raise LeaspyDataInputError(
-                f'You are trying to overwrite the observation at time {timepoint} of the subject {self.idx}')
+        Parameters
+        ----------
+        timepoints : List[float]
+            Timepoints associated with the observations
+        observations : List[List[float]]
+            Observations to include
 
-        index = bisect(self.timepoints, timepoint)
-        self.timepoints.insert(index, timepoint)
-        self.observations.insert(index, observation)
-
-    def add_observations(self, timepoints, observations):
-
-        for i, timepoint in enumerate(timepoints):
-            self.add_observation(timepoint, observations[i])
+        Raises
+        ------
+        :exc:`.LeaspyDataInputError`
+        """
+        for i, t in enumerate(timepoints):
+            if self.timepoints is None:
+                self.timepoints = [timepoints[0]]
+                self.observations = np.array([observations[0]])
+            elif t in self.timepoints:
+                raise LeaspyDataInputError(f'Trying to overwrite timepoint {t}'
+                                           f' of individual {self.idx}')
+            else:
+                index = bisect(self.timepoints, t)
+                self.timepoints.insert(index, t)
+                self.observations = np.insert(self.observations, index,
+                                              observations[i], axis=0)            
 
     def add_individual_parameters(self, name, value):
         self.individual_parameters[name] = value

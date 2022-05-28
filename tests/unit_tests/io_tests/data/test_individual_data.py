@@ -1,9 +1,6 @@
-import unittest
-
-import numpy as np
 import pytest
-from leaspy.exceptions import LeaspyDataInputError
 
+from leaspy.exceptions import LeaspyDataInputError
 from leaspy.io.data.individual_data import IndividualData
 
 from tests import LeaspyTestCase

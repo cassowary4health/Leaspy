@@ -2,9 +2,9 @@ from bisect import bisect
 
 import numpy as np
 
-from leaspy.exceptions import LeaspyDataInputError, LeaspyInputError
+from leaspy.exceptions import LeaspyDataInputError
 from leaspy.utils.typing import (Any, Dict, DictParams, FeatureType, IDType,
-                                 Iterable, KwargsType, List)
+                                 Iterable, List)
 
 
 class IndividualData:
@@ -26,7 +26,7 @@ class IndividualData:
         self.timepoints: List[float] = None
         self.observations: Iterable[Iterable[float]] = None
         self.individual_parameters: DictParams = {}
-        self.cofactors: KwargsType = {}
+        self.cofactors: Dict[FeatureType, Any] = {}
 
     def add_observations(self, timepoints: List[float],
                          observations: List[List[float]]) -> None:

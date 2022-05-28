@@ -3,8 +3,7 @@ from bisect import bisect
 import numpy as np
 
 from leaspy.exceptions import LeaspyDataInputError
-from leaspy.utils.typing import (Any, Dict, DictParams, FeatureType, IDType,
-                                 Iterable, List)
+from leaspy.utils.typing import Any, Dict, FeatureType, IDType, Iterable, List
 
 
 class IndividualData:
@@ -25,7 +24,6 @@ class IndividualData:
         self.idx = idx
         self.timepoints: List[float] = None
         self.observations: Iterable[Iterable[float]] = None
-        self.individual_parameters: DictParams = {}
         self.cofactors: Dict[FeatureType, Any] = {}
 
     def add_observations(self, timepoints: List[float],
@@ -56,9 +54,6 @@ class IndividualData:
                 self.timepoints.insert(index, t)
                 self.observations = np.insert(self.observations, index,
                                               observations[i], axis=0)            
-
-    def add_individual_parameters(self, name, value):
-        self.individual_parameters[name] = value
 
     def add_cofactors(self, d: Dict[FeatureType, Any]) -> None:
         """

@@ -13,7 +13,6 @@ class IndividualDataTest(LeaspyTestCase):
         self.assertEqual(data_int.idx, 1)
         self.assertEqual(data_int.timepoints, None)
         self.assertEqual(data_int.observations, None)
-        self.assertEqual(data_int.individual_parameters, {})
         self.assertEqual(data_int.cofactors, {})
 
         data_float = IndividualData(1.2)
@@ -28,8 +27,6 @@ class IndividualDataTest(LeaspyTestCase):
         data.add_observations([70], [[30]])
 
         self.assertEqual(data.idx, 'test')
-        self.assertEqual(data.individual_parameters, {})
-
         self.assertEqual(data.timepoints, [70])
         self.assertEqual(data.observations.tolist(), [[30]])
 
@@ -40,10 +37,6 @@ class IndividualDataTest(LeaspyTestCase):
 
         with pytest.raises(LeaspyDataInputError):
             data.add_observations([70], [[40]])
-
-        # Add individual parameter
-        data.add_individual_parameters("xi", 0.02)
-        self.assertEqual(data.individual_parameters, {'xi': 0.02})
 
     def test_add_cofactors(self):
         data = IndividualData("test")

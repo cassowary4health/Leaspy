@@ -50,21 +50,6 @@ class Data(Iterable):
         self.n_visits: int = 0
         self.cofactors: List[FeatureType] = []
 
-    def get_by_idx(self, idx: IDType):
-        """
-        Get the :class:`~leaspy.io.data.individual_data.IndividualData` of a an individual identified by its ID.
-
-        Parameters
-        ----------
-        idx : IDType
-            The identifier of the patient you want to get the individual data.
-
-        Returns
-        -------
-        :class:`~leaspy.io.data.individual_data.IndividualData`
-        """
-        return self.individuals[idx]
-
     def __getitem__(self, key: Union[int, IDType, slice, list[int], list[IDType]]) -> Union[IndividualData, Data]:
         if isinstance(key, int):
             return self.individuals[self.iter_to_idx[key]]

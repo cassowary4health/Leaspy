@@ -8,26 +8,33 @@ from leaspy.utils.typing import Any, Dict, FeatureType, IDType, Iterable, List
 
 class IndividualData:
     """
-    Data container for individual parameters, used to construct a `Data` container.
+    Container for an individual's data
 
     Parameters
     ----------
-    idx : str
-        The identifier of subject.
-
-    Raises
-    ------
-    :exc:`.LeaspyDataInputError`
+    idx : IDType
+        Unique ID
+        
+    Attributes
+    ----------
+    idx : IDType
+        Unique ID
+    timepoints : List[float]
+        Timepoints associated with the observations
+    observations : np.ndarray[float, 2D]
+        Observed data points.
+        Shape is ``(n_timepoints, n_features)``
+    cofactors : Dict[FeatureType, Any]
+        Cofactors in the form {cofactor_name: cofactor_value}
     """
 
     def __init__(self, idx: IDType):
-        self.idx = idx
+        self.idx: IDType = idx
         self.timepoints: List[float] = None
-        self.observations: Iterable[Iterable[float]] = None
+        self.observations: np.ndarray = None
         self.cofactors: Dict[FeatureType, Any] = {}
 
-    def add_observations(self, timepoints: List[float],
-                         observations: List[List[float]]) -> None:
+    def add_observations(self, timepoints: List[float], observations: List[List[float]]) -> None:
         """
         Include new observations and associated timepoints
 
@@ -35,7 +42,7 @@ class IndividualData:
         ----------
         timepoints : List[float]
             Timepoints associated with the observations to include
-        observations : List[List[float]]
+        observations : array-like[float, 2D]
             Observations to include
 
         Raises

@@ -19,7 +19,7 @@ from leaspy.utils.typing import FeatureType, IDType, Dict, List
 
 class Data(Iterable):
     """
-    Main data container, initialized from a `csv file` or a :class:`pandas.DataFrame`.
+    Main data container for a collection of individuals
 
     It can be iterated over and sliced, both of these operations being
     applied to the underlying `individuals` attribute.
@@ -50,7 +50,9 @@ class Data(Iterable):
         self.n_visits: int = 0
         self.cofactors: List[FeatureType] = []
 
-    def __getitem__(self, key: Union[int, IDType, slice, list[int], list[IDType]]) -> Union[IndividualData, Data]:
+    def __getitem__(
+        self, key: int | IDType | slice | List[int] | List[IDType]
+    ) -> Union[IndividualData, Data]:
         if isinstance(key, int):
             return self.individuals[self.iter_to_idx[key]]
 
@@ -77,7 +79,12 @@ class Data(Iterable):
     def __iter__(self) -> DataIterator:
         return DataIterator(self)
 
-    def load_cofactors(self, df: pd.DataFrame, *, cofactors: List[FeatureType] = None):
+    def load_cofactors(
+        self,
+        df: pd.DataFrame,
+        *,
+        cofactors: List[FeatureType] | None = None
+    ) -> None:
         """
         Load cofactors from a `pandas.DataFrame` to the `Data` object
 
@@ -134,7 +141,7 @@ class Data(Iterable):
         self.cofactors += cofactors
 
     @staticmethod
-    def from_csv_file(path: str, **kws):
+    def from_csv_file(path: str, **kws) -> Data:
         """
         Create a `Data` object from a CSV file.
 
@@ -152,7 +159,7 @@ class Data(Iterable):
         reader = CSVDataReader(path, **kws)
         return Data._from_reader(reader)
 
-    def to_dataframe(self, *, cofactors=None) -> pd.DataFrame:
+    def to_dataframe(self, *, cofactors: List[str] | str | None = None) -> pd.DataFrame:
         """
         Convert the Data object to a :class:`pandas.DataFrame`
 
@@ -221,7 +228,7 @@ class Data(Iterable):
         return df.reset_index()
 
     @staticmethod
-    def from_dataframe(df: pd.DataFrame, **kws):
+    def from_dataframe(df: pd.DataFrame, **kws) -> Data:
         """
         Create a `Data` object from a :class:`pandas.DataFrame`.
 
@@ -234,7 +241,7 @@ class Data(Iterable):
 
         Returns
         -------
-        `Data`
+        :class:`.Data`
         """
         reader = DataframeDataReader(df, **kws)
         return Data._from_reader(reader)
@@ -253,27 +260,34 @@ class Data(Iterable):
         return data
 
     @staticmethod
-    def from_individual_values(indices: List[IDType], timepoints: List[List], values: List[List], headers: List[FeatureType]):
+    def from_individual_values(
+        indices: List[IDType],
+        timepoints: List[List[float]],
+        values: List[List[List[float]]],
+        headers: List[FeatureType]
+    ) -> Data:
         """
-        Create a `Data` class object from lists of `ID`, `timepoints` and the corresponding `values`.
+        Construct `Data` from a collection of individual data points
 
         Parameters
         ----------
-        indices : list[str]
-            Contains the individuals' ID.
-        timepoints : list[array-like 1D]
-            For each individual ``i``, list of ages at visits.
-            Number of timepoints is referred below as ``n_timepoints_i``
-        values : list[array-like 2D]
-            For each individual ``i``, all values at visits.
-            Shape is ``(n_timepoints_i, n_features)``.
-        headers : list[str]
-            Contains the features' names.
+        indices : List[IDType]
+            List of the individuals' unique ID
+        timepoints : List[List[float]]
+            For each individual ``i``, list of timepoints associated
+            with the observations.
+            The number of such timepoints is noted ``n_timepoints_i``
+        values : List[array-like[float, 2D]]
+            For each individual ``i``, two-dimensional array-like object
+            containing observed data points.
+            Its expected shape is ``(n_timepoints_i, n_features)``
+        headers : List[FeatureType]
+            Feature names.
+            The number of features is noted ``n_features``
 
         Returns
         -------
-        `Data`
-            Data class object with all ID, timepoints, values and features' names.
+        :class:`.Data`
         """
         individuals = []
         for i, idx in enumerate(indices):
@@ -286,7 +300,7 @@ class Data(Iterable):
     @staticmethod
     def from_individuals(individuals: List[IndividualData], headers: List[FeatureType]) -> Data:
         """
-        Create a `Data` object from a list of `individuals`
+        Construct `Data` from a list of individuals
 
         Parameters
         ----------
@@ -297,9 +311,8 @@ class Data(Iterable):
 
         Returns
         -------
-        Data
-            Data class object storing the input individuals' data
-        """        
+        :class:`.Data`
+        """
         data = Data()
         data.headers = headers
         data.dimension = len(headers)
@@ -313,7 +326,7 @@ class Data(Iterable):
 
 class DataIterator(Iterator):
     """
-    Iterates over individuals of a Data container
+    Iterator over individuals of a Data container
 
     Parameters
     ----------

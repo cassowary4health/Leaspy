@@ -98,6 +98,16 @@ class DataTest(LeaspyTestCase):
         # Unsupported slicing
         with pytest.raises(KeyError):
             _ = data[{}]
+        
+        # Membership
+        assert individual.idx in data
+        assert individual in data
+        assert data[0].idx not in sub_data_slice
+        assert data[0] not in sub_data_slice
+
+        # Unsupported membership
+        with pytest.raises(TypeError):
+            _ = (0 in data)
 
     def test_data_iteration(self):
         data = self.load_multivariate_data()

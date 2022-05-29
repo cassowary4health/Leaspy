@@ -79,6 +79,15 @@ class Data(Iterable):
     def __iter__(self) -> DataIterator:
         return DataIterator(self)
 
+    def __contains__(self, key: IDType | IndividualData) -> bool:
+        if isinstance(key, IDType):
+            return (key in self.individuals.keys())
+        elif isinstance(key, IndividualData):
+            return (key.idx in self.individuals.keys())
+        else:
+            raise TypeError("Cannot test Data membership for an element of"
+                            " this type")
+
     def load_cofactors(
         self,
         df: pd.DataFrame,

@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 
 from leaspy.io.data.data import Data
-from leaspy.exceptions import LeaspyDataInputError
+from leaspy.exceptions import LeaspyDataInputError, LeaspyTypeError
 
 from tests import LeaspyTestCase
 
@@ -96,7 +96,7 @@ class DataTest(LeaspyTestCase):
         self.check_sub_data(data, sub_data_id, individual, sub_individual_id)
 
         # Unsupported slicing
-        with pytest.raises(KeyError):
+        with pytest.raises(LeaspyTypeError):
             _ = data[{}]
         
         # Membership
@@ -106,7 +106,7 @@ class DataTest(LeaspyTestCase):
         assert data[0] not in sub_data_slice
 
         # Unsupported membership
-        with pytest.raises(TypeError):
+        with pytest.raises(LeaspyTypeError):
             _ = (0 in data)
 
     def test_data_iteration(self):
@@ -148,7 +148,7 @@ class DataTest(LeaspyTestCase):
             wrong_cofactors_df.loc[4] = [0 for _ in cofactors_list]
             data.load_cofactors(wrong_cofactors_df, cofactors=None)
         
-        with pytest.raises(ValueError):
+        with pytest.raises(LeaspyDataInputError):
             wrong_cofactors_df = cofactors_df.copy()
             wrong_cofactors_df.drop(individual.idx, inplace=True)
             data.load_cofactors(wrong_cofactors_df, cofactors=None)
@@ -165,10 +165,10 @@ class DataTest(LeaspyTestCase):
         )
 
         # Cover to_dataframe() errors
-        with pytest.raises(ValueError):
+        with pytest.raises(LeaspyDataInputError):
             _ = data.to_dataframe(cofactors="Cofactor_1")
         
-        with pytest.raises(TypeError):
+        with pytest.raises(LeaspyTypeError):
             _ = data.to_dataframe(cofactors={})
         
         with pytest.raises(LeaspyDataInputError):

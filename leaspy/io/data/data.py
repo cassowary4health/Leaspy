@@ -10,7 +10,7 @@ from leaspy.io.data.csv_data_reader import CSVDataReader
 from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 from leaspy.io.data.individual_data import IndividualData
 
-from leaspy.exceptions import LeaspyDataInputError
+from leaspy.exceptions import LeaspyDataInputError, LeaspyTypeError
 from leaspy.utils.typing import FeatureType, IDType, Dict, List
 
 # TODO : object data as logs ??? or a result object ? Because there could be ambiguities here
@@ -61,20 +61,21 @@ class Data(Iterable):
 
         elif isinstance(key, (slice, list)):
             if isinstance(key, slice):
-                slice_indices = range(self.n_individuals)[key]
-                individual_indices = [self.iter_to_idx[i] for i in slice_indices]
+                slice_iter = range(self.n_individuals)[key]
+                individual_indices = [self.iter_to_idx[i] for i in slice_iter]
             else:
                 if all(isinstance(value, int) for value in key):
                     individual_indices = [self.iter_to_idx[i] for i in key]
                 elif all(isinstance(value, IDType) for value in key):
                     individual_indices = key
                 else:
-                    raise KeyError("Cannot access a Data item using a list of this type")
+                    raise LeaspyTypeError("Cannot access a Data object using"
+                                          " a list of this type")
 
             individuals = [self.individuals[i] for i in individual_indices]
             return Data.from_individuals(individuals, self.headers)
 
-        raise KeyError("Cannot access a data item this way")
+        raise LeaspyTypeError("Cannot access a Data object this way")
 
     def __iter__(self) -> DataIterator:
         return DataIterator(self)
@@ -85,15 +86,10 @@ class Data(Iterable):
         elif isinstance(key, IndividualData):
             return (key.idx in self.individuals.keys())
         else:
-            raise TypeError("Cannot test Data membership for an element of"
-                            " this type")
+            raise LeaspyTypeError("Cannot test Data membership for"
+                                  " an element of this type")
 
-    def load_cofactors(
-        self,
-        df: pd.DataFrame,
-        *,
-        cofactors: List[FeatureType] | None = None
-    ) -> None:
+    def load_cofactors(self, df: pd.DataFrame, *, cofactors: List[FeatureType] | None = None) -> None:
         """
         Load cofactors from a `pandas.DataFrame` to the `Data` object
 
@@ -129,11 +125,12 @@ class Data(Iterable):
                                        f"is inconsistent with the ID type in Data ({internal_dtype_indices}):\n{df.index}")
 
         internal_indices = pd.Index(self.iter_to_idx.values())
-        individuals_without_cofactors = internal_indices.difference(df.index)
+        missing_individuals = internal_indices.difference(df.index)
         unknown_individuals = df.index.difference(internal_indices)
 
-        if len(individuals_without_cofactors):
-            raise ValueError(f"These individuals do not have cofactors: {individuals_without_cofactors}")
+        if len(missing_individuals):
+            raise LeaspyDataInputError(f"These individuals are missing:"
+                                       f" {missing_individuals}")
         if len(unknown_individuals):
             warnings.warn(f"These individuals with cofactors are not part of your Data: {unknown_individuals}")
 
@@ -188,6 +185,7 @@ class Data(Iterable):
         Raises
         ------
         :exc:`.LeaspyDataInputError`
+        :exc:`.LeaspyTypeError`
         """
         if cofactors is None:
             cofactors_list = []
@@ -195,14 +193,14 @@ class Data(Iterable):
             if cofactors == "all":
                 cofactors_list = self.cofactors
             else:
-                raise ValueError("Invalid `cofactors` argument value")
+                raise LeaspyDataInputError("Invalid `cofactors` argument value")
         elif (
             isinstance(cofactors, list)
             and all(isinstance(c, str) for c in cofactors)
         ):
             cofactors_list = cofactors
         else:
-            raise TypeError("Invalid `cofactors` argument type")
+            raise LeaspyTypeError("Invalid `cofactors` argument type")
 
         unknown_cofactors = list(set(cofactors_list) - set(self.cofactors))
         if len(unknown_cofactors):

@@ -2,8 +2,8 @@ from bisect import bisect
 
 import numpy as np
 
-from leaspy.exceptions import LeaspyDataInputError
-from leaspy.utils.typing import Any, Dict, FeatureType, IDType, Iterable, List
+from leaspy.exceptions import LeaspyDataInputError, LeaspyTypeError
+from leaspy.utils.typing import Any, Dict, FeatureType, IDType, List
 
 
 class IndividualData:
@@ -74,12 +74,13 @@ class IndividualData:
         Raises
         ------
         :exc:`.LeaspyDataInputError`
+        :exc:`.LeaspyTypeError`
         """
         if not (
             isinstance(d, dict)
             and all(isinstance(k, str) for k in d.keys())
         ):
-            raise TypeError("Invalid argument type for `d`")
+            raise LeaspyTypeError("Invalid argument type for `d`")
 
         for k, v in d.items():
             if k in self.cofactors.keys() and v != self.cofactors[k]:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 import warnings
-from typing import Union
 from collections.abc import Iterable, Iterator
 
 import numpy as np
@@ -11,7 +10,7 @@ from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 from leaspy.io.data.individual_data import IndividualData
 
 from leaspy.exceptions import LeaspyDataInputError, LeaspyTypeError
-from leaspy.utils.typing import FeatureType, IDType, Dict, List
+from leaspy.utils.typing import FeatureType, IDType, Dict, List, Union
 
 # TODO : object data as logs ??? or a result object ? Because there could be ambiguities here
 # TODO or find a good way to say that there are individual parameters here ???
@@ -45,11 +44,34 @@ class Data(Iterable):
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
         self.headers: List[FeatureType] = None
-        self.dimension: int = None
-        self.n_individuals: int = 0
-        self.n_visits: int = 0
-        self.cofactors: List[FeatureType] = []
 
+    @property
+    def dimension(self) -> int | None:
+        """Number of features"""
+        if self.headers is None:
+            return None
+        return len(self.headers)
+    
+    @property
+    def n_individuals(self) -> int:
+        """Number of individuals"""
+        return len(self.individuals)
+    
+    @property
+    def n_visits(self) -> int:
+        """Total number of visits"""
+        return sum(len(indiv.timepoints) for indiv in self.individuals.values())
+    
+    @property
+    def cofactors(self) -> List[FeatureType]:
+        """Feature names corresponding to cofactors"""
+        if len(self.individuals) == 0:
+            return []
+        # Consistency checks are in place to ensure that cofactors are the same
+        # for all individuals, so they can be retrieved from any one
+        indiv = next(x for x in self.individuals.values())
+        return list(indiv.cofactors.keys())
+    
     def __getitem__(
         self, key: int | IDType | slice | List[int] | List[IDType]
     ) -> Union[IndividualData, Data]:
@@ -143,8 +165,6 @@ class Data(Iterable):
         # Loop per individual
         for idx_subj, d_cofactors_subj in d_cofactors.items():
             self.individuals[idx_subj].add_cofactors(d_cofactors_subj)
-
-        self.cofactors += cofactors
 
     @staticmethod
     def from_csv_file(path: str, **kws) -> Data:
@@ -256,14 +276,9 @@ class Data(Iterable):
     @staticmethod
     def _from_reader(reader):
         data = Data()
-
         data.individuals = reader.individuals
         data.iter_to_idx = reader.iter_to_idx
         data.headers = reader.headers
-        data.dimension = reader.dimension
-        data.n_individuals = reader.n_individuals
-        data.n_visits = reader.n_visits
-
         return data
 
     @staticmethod
@@ -322,12 +337,9 @@ class Data(Iterable):
         """
         data = Data()
         data.headers = headers
-        data.dimension = len(headers)
         for indiv in individuals:
             data.individuals[indiv.idx] = indiv
-            data.iter_to_idx[data.n_individuals] = indiv.idx
-            data.n_individuals += 1
-            data.n_visits += len(indiv.timepoints)
+            data.iter_to_idx[data.n_individuals - 1] = indiv.idx
         return data
 
 

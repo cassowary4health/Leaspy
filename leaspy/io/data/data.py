@@ -10,7 +10,7 @@ from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 from leaspy.io.data.individual_data import IndividualData
 
 from leaspy.exceptions import LeaspyDataInputError, LeaspyTypeError
-from leaspy.utils.typing import FeatureType, IDType, Dict, List, Union
+from leaspy.utils.typing import FeatureType, IDType, Dict, List
 
 # TODO : object data as logs ??? or a result object ? Because there could be ambiguities here
 # TODO or find a good way to say that there are individual parameters here ???
@@ -29,7 +29,7 @@ class Data(Iterable):
         Included individuals and their associated data
     iter_to_idx : Dict[int, IDType]
         Maps an integer index to the associated individual ID
-    headers : list[FeatureType]
+    headers : List[FeatureType]
         Feature names
     dimension : int
         Number of features
@@ -43,7 +43,7 @@ class Data(Iterable):
     def __init__(self):
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
-        self.headers: List[FeatureType] = None
+        self.headers: List[FeatureType] | None = None
 
     @property
     def dimension(self) -> int | None:
@@ -72,9 +72,7 @@ class Data(Iterable):
         indiv = next(x for x in self.individuals.values())
         return list(indiv.cofactors.keys())
     
-    def __getitem__(
-        self, key: int | IDType | slice | List[int] | List[IDType]
-    ) -> Union[IndividualData, Data]:
+    def __getitem__(self, key: int | IDType | slice | List[int] | List[IDType]) -> IndividualData | Data:
         if isinstance(key, int):
             return self.individuals[self.iter_to_idx[key]]
 
@@ -121,7 +119,7 @@ class Data(Iterable):
             The dataframe where the cofactors are stored.
             Its index should be ID, the identifier of subjects
             and it should uniquely index the dataframe (i.e. one row per individual).
-        cofactors : list[str] or None (default)
+        cofactors : List[FeatureType] or None (default)
             Names of the column(s) of df which shall be loaded as cofactors.
             If None, all the columns from the input dataframe will be loaded as cofactors.
 
@@ -185,13 +183,13 @@ class Data(Iterable):
         reader = CSVDataReader(path, **kws)
         return Data._from_reader(reader)
 
-    def to_dataframe(self, *, cofactors: List[str] | str | None = None) -> pd.DataFrame:
+    def to_dataframe(self, *, cofactors: List[FeatureType] | str | None = None) -> pd.DataFrame:
         """
         Convert the Data object to a :class:`pandas.DataFrame`
 
         Parameters
         ----------
-        cofactors : list[str], 'all', or None (default None)
+        cofactors : List[FeatureType], 'all', or None (default None)
             Cofactors to include in the DataFrame.
             If None (default), no cofactors are included.
             If "all", all the available cofactors are included.

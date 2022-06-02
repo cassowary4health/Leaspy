@@ -335,9 +335,18 @@ class Data(Iterable):
         """
         data = Data()
         data.headers = headers
+        n_features = len(headers)
         for indiv in individuals:
-            data.individuals[indiv.idx] = indiv
-            data.iter_to_idx[data.n_individuals - 1] = indiv.idx
+            idx = indiv.idx
+            _, n_features_i = indiv.observations.shape
+            if n_features_i != n_features:
+                raise LeaspyDataInputError(
+                    f"Inconsistent number of features for individual {idx}:"
+                    f"Expected {n_features}, received {n_features_i}")
+
+            data.individuals[idx] = indiv
+            data.iter_to_idx[data.n_individuals - 1] = idx
+
         return data
 
 

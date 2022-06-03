@@ -54,8 +54,8 @@ class IndividualData:
                 self.timepoints = [timepoints[0]]
                 self.observations = np.array([observations[0]])
             elif t in self.timepoints:
-                raise LeaspyDataInputError(f'Trying to overwrite timepoint {t}'
-                                           f' of individual {self.idx}')
+                raise LeaspyDataInputError(f"Trying to overwrite timepoint {t} "
+                                           f"of individual {self.idx}")
             else:
                 index = bisect(self.timepoints, t)
                 self.timepoints.insert(index, t)
@@ -84,6 +84,6 @@ class IndividualData:
 
         for k, v in d.items():
             if k in self.cofactors.keys() and v != self.cofactors[k]:
-                raise LeaspyDataInputError(f"Cofactor {k} is already present"
-                                           f" for patient {self.idx}")
+                raise LeaspyDataInputError(f"Cofactor {k} is already present "
+                                           f"for patient {self.idx}")
             self.cofactors[k] = v

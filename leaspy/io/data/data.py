@@ -89,8 +89,8 @@ class Data(Iterable):
                 elif all(isinstance(value, IDType) for value in key):
                     individual_indices = key
                 else:
-                    raise LeaspyTypeError("Cannot access a Data object using"
-                                          " a list of this type")
+                    raise LeaspyTypeError("Cannot access a Data object using "
+                                          "a list of this type")
 
             individuals = [self.individuals[i] for i in individual_indices]
             return Data.from_individuals(individuals, self.headers)
@@ -106,8 +106,8 @@ class Data(Iterable):
         elif isinstance(key, IndividualData):
             return (key.idx in self.individuals.keys())
         else:
-            raise LeaspyTypeError("Cannot test Data membership for"
-                                  " an element of this type")
+            raise LeaspyTypeError("Cannot test Data membership for "
+                                  "an element of this type")
 
     def load_cofactors(self, df: pd.DataFrame, *, cofactors: List[FeatureType] | None = None) -> None:
         """
@@ -149,8 +149,7 @@ class Data(Iterable):
         unknown_individuals = df.index.difference(internal_indices)
 
         if len(missing_individuals):
-            raise LeaspyDataInputError(f"These individuals are missing:"
-                                       f" {missing_individuals}")
+            raise LeaspyDataInputError(f"These individuals are missing: {missing_individuals}")
         if len(unknown_individuals):
             warnings.warn(f"These individuals with cofactors are not part of your Data: {unknown_individuals}")
 
@@ -222,8 +221,8 @@ class Data(Iterable):
 
         unknown_cofactors = list(set(cofactors_list) - set(self.cofactors))
         if len(unknown_cofactors):
-            raise LeaspyDataInputError(f'These cofactors are not part of'
-                                       f' your Data: {unknown_cofactors}')
+            raise LeaspyDataInputError(f'These cofactors are not part of '
+                                       f'your Data: {unknown_cofactors}')
 
         # Build the dataframe, one individual at a time
         def get_individual_block(individual: IndividualData):
@@ -341,7 +340,7 @@ class Data(Iterable):
             _, n_features_i = indiv.observations.shape
             if n_features_i != n_features:
                 raise LeaspyDataInputError(
-                    f"Inconsistent number of features for individual {idx}:"
+                    f"Inconsistent number of features for individual {idx}:\n"
                     f"Expected {n_features}, received {n_features_i}")
 
             data.individuals[idx] = indiv

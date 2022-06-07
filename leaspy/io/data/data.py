@@ -97,11 +97,9 @@ class Data(Iterable):
     def __iter__(self) -> DataIterator:
         return DataIterator(self)
 
-    def __contains__(self, key: Union[IDType, IndividualData]) -> bool:
+    def __contains__(self, key: IDType) -> bool:
         if isinstance(key, IDType):
             return (key in self.individuals.keys())
-        elif isinstance(key, IndividualData):
-            return (key.idx in self.individuals.keys())
         else:
             raise LeaspyTypeError("Cannot test Data membership for "
                                   "an element of this type")

@@ -10,10 +10,7 @@ from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 from leaspy.io.data.individual_data import IndividualData
 
 from leaspy.exceptions import LeaspyDataInputError, LeaspyTypeError
-from leaspy.utils.typing import FeatureType, IDType, Dict, List
-
-# TODO : object data as logs ??? or a result object ? Because there could be ambiguities here
-# TODO or find a good way to say that there are individual parameters here ???
+from leaspy.utils.typing import FeatureType, IDType, Dict, List, Optional, Union
 
 
 class Data(Iterable):
@@ -43,10 +40,10 @@ class Data(Iterable):
     def __init__(self):
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
-        self.headers: List[FeatureType] | None = None
+        self.headers: Optional[List[FeatureType]] = None
 
     @property
-    def dimension(self) -> int | None:
+    def dimension(self) -> Optional[int]:
         """Number of features"""
         if self.headers is None:
             return None
@@ -72,7 +69,7 @@ class Data(Iterable):
         indiv = next(x for x in self.individuals.values())
         return list(indiv.cofactors.keys())
     
-    def __getitem__(self, key: int | IDType | slice | List[int] | List[IDType]) -> IndividualData | Data:
+    def __getitem__(self, key: Union[int, IDType, slice, List[int], List[IDType]]) -> Union[IndividualData, Data]:
         if isinstance(key, int):
             return self.individuals[self.iter_to_idx[key]]
 
@@ -100,7 +97,7 @@ class Data(Iterable):
     def __iter__(self) -> DataIterator:
         return DataIterator(self)
 
-    def __contains__(self, key: IDType | IndividualData) -> bool:
+    def __contains__(self, key: Union[IDType, IndividualData]) -> bool:
         if isinstance(key, IDType):
             return (key in self.individuals.keys())
         elif isinstance(key, IndividualData):
@@ -109,7 +106,7 @@ class Data(Iterable):
             raise LeaspyTypeError("Cannot test Data membership for "
                                   "an element of this type")
 
-    def load_cofactors(self, df: pd.DataFrame, *, cofactors: List[FeatureType] | None = None) -> None:
+    def load_cofactors(self, df: pd.DataFrame, *, cofactors: Optional[List[FeatureType]] = None) -> None:
         """
         Load cofactors from a `pandas.DataFrame` to the `Data` object
 
@@ -182,7 +179,7 @@ class Data(Iterable):
         reader = CSVDataReader(path, **kws)
         return Data._from_reader(reader)
 
-    def to_dataframe(self, *, cofactors: List[FeatureType] | str | None = None) -> pd.DataFrame:
+    def to_dataframe(self, *, cofactors: Union[List[FeatureType], str, None] = None) -> pd.DataFrame:
         """
         Convert the Data object to a :class:`pandas.DataFrame`
 

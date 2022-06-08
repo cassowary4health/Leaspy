@@ -101,9 +101,7 @@ class DataTest(LeaspyTestCase):
         
         # Membership
         assert individual.idx in data
-        assert individual in data
         assert data[0].idx not in sub_data_slice
-        assert data[0] not in sub_data_slice
 
         # Unsupported membership
         with pytest.raises(LeaspyTypeError):

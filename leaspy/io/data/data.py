@@ -94,8 +94,14 @@ class Data(Iterable):
 
         raise LeaspyTypeError("Cannot access a Data object this way")
 
-    def __iter__(self) -> DataIterator:
-        return DataIterator(self)
+    def __iter__(self) -> Iterator:
+        # Ordering the index list first ensures that the order used by the
+        # iterator is consistent with integer indexing  of individual data,
+        # e.g. when using `enumerate`
+        ordered_idx_list = [
+            self.iter_to_idx[k] for k in sorted(self.iter_to_idx.keys())
+        ]
+        return iter([self.individuals[it] for it in ordered_idx_list])
 
     def __contains__(self, key: IDType) -> bool:
         if isinstance(key, IDType):
@@ -342,26 +348,3 @@ class Data(Iterable):
             data.iter_to_idx[data.n_individuals - 1] = idx
 
         return data
-
-
-class DataIterator(Iterator):
-    """
-    Iterator over individuals of a Data container
-
-    Parameters
-    ----------
-    data : Data
-        The data container used as an iterable collection
-    """
-    def __init__(self, data: Data) -> None:
-        self._data = data
-        self.iter = 0
-
-    def __next__(self):
-        try:
-            value = self._data.__getitem__(self.iter)
-            self.iter += 1
-        except KeyError:
-            raise StopIteration
-
-        return value

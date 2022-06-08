@@ -28,7 +28,7 @@ class DataTest(LeaspyTestCase):
         self.assertEqual(data.cofactors, [])
 
         self.assertEqual(individual.idx, '027_S_0179')
-        self.assertEqual(individual.timepoints, [80.9, 81.9, 82.4, 82.8])
+        self.assertEqual(individual.timepoints.tolist(), [80.9, 81.9, 82.4, 82.8])
         self.assertEqual(individual.observations.tolist(), [[0.2], [0.2], [0.3], [0.5]])
 
     def test_constructor_multivariate(self):
@@ -44,7 +44,7 @@ class DataTest(LeaspyTestCase):
         self.assertEqual(data.cofactors, [])
 
         self.assertEqual(individual.idx, '130_S_0102')
-        self.assertEqual(individual.timepoints, [71.3, 71.8])
+        self.assertEqual(individual.timepoints.tolist(), [71.3, 71.8])
         self.assertEqual(individual.observations.tolist(), [[0.3, 0.4, 0.5], [0.4, 0.5, 0.6]])
 
     def check_sub_data(self, data, sub_data, individual, sub_individual):
@@ -68,7 +68,7 @@ class DataTest(LeaspyTestCase):
         self.assertEqual(data.cofactors, sub_data.cofactors)
 
         self.assertEqual(individual.idx, sub_individual.idx)
-        self.assertEqual(individual.timepoints, sub_individual.timepoints)
+        self.assertEqual(individual.timepoints.tolist(), sub_individual.timepoints.tolist())
         self.assertEqual(individual.observations.tolist(), sub_individual.observations.tolist())
         self.assertEqual(individual.cofactors, sub_individual.cofactors)
 
@@ -112,7 +112,7 @@ class DataTest(LeaspyTestCase):
         for iter, individual in enumerate(data):
             expected_individual = data[iter]
             self.assertEqual(individual.idx, expected_individual.idx)
-            self.assertEqual(individual.timepoints, expected_individual.timepoints)
+            self.assertEqual(individual.timepoints.tolist(), expected_individual.timepoints.tolist())
             self.assertEqual(individual.observations.tolist(), expected_individual.observations.tolist())
             if iter > 4:
                 break

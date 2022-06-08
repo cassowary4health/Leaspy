@@ -19,7 +19,7 @@ class IndividualData:
     ----------
     idx : IDType
         Unique ID
-    timepoints : List[float]
+    timepoints : np.ndarray[float, 1D]
         Timepoints associated with the observations
     observations : np.ndarray[float, 2D]
         Observed data points.
@@ -30,7 +30,7 @@ class IndividualData:
 
     def __init__(self, idx: IDType):
         self.idx: IDType = idx
-        self.timepoints: List[float] = None
+        self.timepoints: np.ndarray = None
         self.observations: np.ndarray = None
         self.cofactors: Dict[FeatureType, Any] = {}
 
@@ -40,7 +40,7 @@ class IndividualData:
 
         Parameters
         ----------
-        timepoints : List[float]
+        timepoints : array-like[float, 1D]
             Timepoints associated with the observations to include
         observations : array-like[float, 2D]
             Observations to include
@@ -49,18 +49,25 @@ class IndividualData:
         ------
         :exc:`.LeaspyDataInputError`
         """
-        for i, t in enumerate(timepoints):
+        for t, obs in zip(timepoints, observations):
             if self.timepoints is None:
-                self.timepoints = [timepoints[0]]
-                self.observations = np.array([observations[0]])
+                self.timepoints = np.array([t])
+                self.observations = np.array([obs])
             elif t in self.timepoints:
                 raise LeaspyDataInputError(f"Trying to overwrite timepoint {t} "
                                            f"of individual {self.idx}")
             else:
                 index = bisect(self.timepoints, t)
-                self.timepoints.insert(index, t)
-                self.observations = np.insert(self.observations, index,
-                                              observations[i], axis=0)            
+                self.timepoints = np.concatenate([
+                    self.timepoints[:index],
+                    [t],
+                    self.timepoints[index:]
+                ])
+                self.observations = np.concatenate([
+                    self.observations[:index],
+                    [obs],
+                    self.observations[index:]
+                ])
 
     def add_cofactors(self, d: Dict[FeatureType, Any]) -> None:
         """

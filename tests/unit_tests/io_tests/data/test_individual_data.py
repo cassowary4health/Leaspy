@@ -27,12 +27,12 @@ class IndividualDataTest(LeaspyTestCase):
         data.add_observations([70], [[30]])
 
         self.assertEqual(data.idx, 'test')
-        self.assertEqual(data.timepoints, [70])
+        self.assertEqual(data.timepoints.tolist(), [70])
         self.assertEqual(data.observations.tolist(), [[30]])
 
         # Add new observations
         data.add_observations([80, 75], [[40], [35]])
-        self.assertEqual(data.timepoints, [70, 75, 80])
+        self.assertEqual(data.timepoints.tolist(), [70, 75, 80])
         self.assertEqual(data.observations.tolist(), [[30], [35], [40]])
 
         with pytest.raises(LeaspyDataInputError):

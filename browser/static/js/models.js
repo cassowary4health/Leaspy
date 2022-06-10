@@ -6,7 +6,7 @@ let compute_values = (ages, model_parameters, individual_parameters) => {
   } else if(model_parameters['name'] == 'linear' || model_parameters['name'] == 'univariate_linear') {
     return compute_linear(ages, model_parameters['parameters'], individual_parameters)
   } else {
-    console.log("Unknown model: " + model_parameters['name'])
+    alert("Unknown model: " + model_parameters['name'])
   }
 }
 
@@ -19,6 +19,7 @@ let compute_linear = (ages, parameters, individual_parameters) => {
   var mixing_matrix = null
 
   if (univariate) {
+    if (typeof g == 'number'){ g = [g] }
     log_v0 = [parameters['xi_mean']]
   } else {
     log_v0 = parameters['v0']
@@ -92,6 +93,7 @@ let compute_logistic = (ages, parameters, individual_parameters, model) => {
   var mixing_matrix = null
 
   if (univariate) {
+    if (typeof log_g == 'number'){ log_g = [log_g] }
     log_v0 = [parameters['xi_mean']]
   } else {
     log_v0 = parameters['v0']

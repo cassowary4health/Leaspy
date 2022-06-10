@@ -7,18 +7,22 @@ var AGE_PTS = 500; // number of point in ages grid
 var AGE_MIN = 60; // TODO? use custom values depending tau_mean & tau_std ?
 var AGE_MAX = 110;
 
-var LEG_YPRECISION = 2; // in tooltip
-
 var BIRTH_DATE_DEFAULT = '1950-01-01';
 var BIRTH_DATE_OLDEST = '1920-01-01';
 var BIRTH_DATE_YOUNGEST = '2000-01-01';
 
-var N_TAU_STD = 3;
-var N_XI_STD = 2;
-var N_SOURCES_STD = 3;
+var N_TAU_STD = 3; // ~99% CI
+var N_XI_STD = 2; // ~95% CI
+var N_SOURCES_STD = 2; // ~95% CI
 var N_TAU_STEPS = 100;
 var N_XI_STEPS = 100;
 var N_SOURCES_STEPS = 100;
+
+var DECIMALS_TAU = 1;
+var DECIMALS_XI = 2;
+var DECIMALS_SOURCES = 2;
+var DECIMALS_Y = 2; // in tooltip
+var DECIMALS_AGE = 1; // in tooltip
 
 var ORDINAL_EXPECTATION = true; // otherwise simply plot the ordinal MLE
 var ORDINAL_NORMALIZE = true; // should we scale all ordinal features into [0, 1]
@@ -38,7 +42,7 @@ var PLOT_COLORS = [
 ]
 
 // global variables
-var parameters = {};
+var model = {};
 var ages = null;
 var hot = null; // global var for Handsontable object
 var myChart = null; // global Chart.js object
@@ -100,29 +104,29 @@ let triggerCol = (title, id, value, min, max, step) => {
   return col
 }
 
-let initTriggers = (json) => {
-  var param = json['parameters'];
+let initTriggers = (model_p) => {
+  var param = model_p['parameters'];
   var triggersCol = document.getElementById('triggers');
 
   // Temporal shift
   var min = -N_TAU_STD * param['tau_std'];
   var max =  N_TAU_STD * param['tau_std'];
-  var step = Number(((max - min) / N_TAU_STEPS).toFixed(1));
+  var step = Number(((max - min) / N_TAU_STEPS).toFixed(DECIMALS_TAU));
   var tempCol = triggerCol('Time shift', 'time_shift', 0, min, max, step);
   triggersCol.appendChild(tempCol);
 
   // Acceleration factor
   var min = -N_XI_STD * param['xi_std'];
   var max =  N_XI_STD * param['xi_std'];
-  var step = Number(((max - min) / N_XI_STEPS).toFixed(2));
+  var step = Number(((max - min) / N_XI_STEPS).toFixed(DECIMALS_XI));
   var accCol = triggerCol('Acceleration factor', 'acc_factor', 0, min, max, step);
   triggersCol.appendChild(accCol);
 
   // Space shifts
-  for(var i=0; i<json['source_dimension']; ++i) {
+  for(var i=0; i<model_p['source_dimension']; ++i) {
     var min = -N_SOURCES_STD * param['sources_std'];
     var max =  N_SOURCES_STD * param['sources_std'];
-    var step = Number(((max - min) / N_SOURCES_STEPS).toFixed(1));
+    var step = Number(((max - min) / N_SOURCES_STEPS).toFixed(DECIMALS_SOURCES));
     var spaceCol = triggerCol('Geometric pattern '+ (i+1), 'geom_'+i, 0, min, max, step);
     triggersCol.appendChild(spaceCol);
   }
@@ -152,10 +156,10 @@ let initPlot = () => {
     ages.push(a);
   }
 
-  var data = compute_values(ages, parameters, indivParameters);
+  var data = compute_values(ages, model, indivParameters);
   var datasets = [];
-  var realFeatureLabels = parameters["features"];
-  var dimension = parameters["dimension"];
+  var realFeatureLabels = model["features"];
+  var dimension = model["dimension"];
   var emptyFeaturesLabels = new Array(dimension);
   for(var i=0; i<dimension; ++i) {
     realFeatureLabels[i] = realFeatureLabels[i][0].toUpperCase() + realFeatureLabels[i].slice(1);
@@ -201,7 +205,7 @@ let initPlot = () => {
         },
         callbacks: {
           title: function(tooltipItems, data) {
-            var r_age = tooltipItems[0].xLabel.toFixed(1);
+            var r_age = tooltipItems[0].xLabel.toFixed(DECIMALS_AGE);
             return 'Age: ' + r_age
           },
           label: function(tooltipItem, data) {
@@ -211,11 +215,11 @@ let initPlot = () => {
             if(label) {
               label += ': ';
             }
-            var val = tooltipItem.yLabel.toFixed(LEG_YPRECISION);
+            var val = tooltipItem.yLabel.toFixed(DECIMALS_Y);
             label += val
 
             // We also fetch the value of dashed curve (same age index, feature is shifted by nb of features)
-            var other_val = data.datasets[tooltipItem.datasetIndex + dimension].data[data_ix].y.toFixed(LEG_YPRECISION);
+            var other_val = data.datasets[tooltipItem.datasetIndex + dimension].data[data_ix].y.toFixed(DECIMALS_Y);
             if(other_val != val) {
               label += ' (' + other_val + ')'
             }
@@ -265,15 +269,41 @@ let replaceInfinityString = (key, value) => {
 }
 
 let initModel = (e) => {
+
+  var model_raw_json = e.target.result;
+
+  // launch a background task to fetch model derived parameters from python Leaspy library
+  // (it would be too cumbersome to manually compute those here js)
+  $.ajax({
+    async: true,
+    type: 'POST',
+    contentType: 'application/json',
+    data: model_raw_json, // we send this before any post-treatment (esp. regarding Infinity)
+    dataType: 'json',
+    url: '/model/load',
+    success: updateModelDerivedParameters
+  });
+
   // support 'Infinity' in JSON (for deltas in ordinal models)
-  var p_json = e.target.result.replaceAll('Infinity', '"Infinity"')
-  parameters = JSON.parse(p_json, replaceInfinityString);
+  var model_json = model_raw_json.replaceAll('Infinity', '"Infinity"')
+  model = JSON.parse(model_json, replaceInfinityString);
   // Tweaks so that univariate model is also supported
-  parameters['dimension'] = parameters['features'].length;
-  if(!('source_dimension' in parameters)){
-    parameters['source_dimension'] = 0;
+  model['dimension'] = model['features'].length;
+  if(!('source_dimension' in model)){
+    model['source_dimension'] = 0;
   }
-  reinitModel(parameters);
+  reinitModel(model);
+}
+
+let updateModelDerivedParameters = (model_derived_params) => {
+  // handle errors
+  if('error' in model_derived_params){
+    alert(model_derived_params['error'])
+  }
+  // global update of model parameters
+  for(var p in model_derived_params){
+    model['parameters'][p] = model_derived_params[p]
+  }
 }
 
 let reinitModel = (params) => {
@@ -335,13 +365,13 @@ let resetPatientButton = (individualData) => {
   var reset = document.createElement('button');
   reset.setAttribute('type', 'button');
   reset.setAttribute('class', 'btn btn-danger btn-sm');
-  reset.setAttribute('onclick', 'resetTriggerValues(); reinitModel(parameters)'); // reset plot without individual data
+  reset.setAttribute('onclick', 'resetTriggerValues(); reinitModel(model)'); // reset plot without individual data
   reset.style.margin = '10px';
   reset.innerText = 'Reinitialize';
   patient.appendChild(reset);
 }
 
-let initTable = (parameters, individualData) => {
+let initTable = (model, individualData) => {
   var hotElement = document.querySelector('#table');
 
   var columns = [{
@@ -352,8 +382,8 @@ let initTable = (parameters, individualData) => {
   }];
   var headers = ["Date"];
 
-  for(var i=0; i<parameters['dimension']; ++i){
-    headers.push(parameters["features"][i]);
+  for(var i=0; i<model['dimension']; ++i){
+    headers.push(model["features"][i]);
     columns.push({
       data: 'val'+i,
       type: 'numeric',
@@ -370,7 +400,7 @@ let initTable = (parameters, individualData) => {
     var date = day_padded + '/' + month_padded + '/' + today.getFullYear();
     var dataObject = {asOf: date};
 
-    for(var i=0; i<parameters['dimension']; ++i){
+    for(var i=0; i<model['dimension']; ++i){
       dataObject["val"+i] = '';
     }
     dataObject = [dataObject]
@@ -379,7 +409,7 @@ let initTable = (parameters, individualData) => {
     var dataObject = [];
     for(var i=0; i<individualData['visits'].length;++i) {
       var unitDataObject = {asOf: individualData['visits'][i][0]};
-      for(var j=0; j<parameters['dimension']; ++j){
+      for(var j=0; j<model['dimension']; ++j){
         unitDataObject["val"+j] = individualData['visits'][i][j+1];
       }
 
@@ -409,11 +439,11 @@ let initTable = (parameters, individualData) => {
 
 let initIndividualData = () => {
   resetPatientButton();
-  initTable(parameters);
+  initTable(model);
 }
 
 let loadExistingPatient = (e) => {
   var individualData = JSON.parse(e.target.result);
   resetPatientButton(individualData);
-  initTable(parameters, individualData);
+  initTable(model, individualData);
 }

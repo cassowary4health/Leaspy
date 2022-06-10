@@ -6,19 +6,19 @@ let setTriggerValues = (individualParameters) => {
   document.getElementById('time_shift').value = tau;
 
   var sources = individualParameters['sources'];
-  for(var i=0; i<parameters['source_dimension']; ++i) {
+  for(var i=0; i<model['source_dimension']; ++i) {
     document.getElementById('geom_'+i).value = sources[i];
   };
 }
 
 let resetTriggerValues = () => {
-  if(!parameters) {
+  if(!model) {
     return;
   }
   var individualParameters = {
     'xi': 0,
     'tau': 0,
-    'sources': new Array(parameters['source_dimension']).fill(0)
+    'sources': new Array(model['source_dimension']).fill(0)
   }
   setTriggerValues(individualParameters);
   changeTriggerText(individualParameters);
@@ -31,7 +31,7 @@ let getTriggerValues = () => {
     'sources': []
   }
 
-  for(var i=0; i<parameters['source_dimension']; ++i) {
+  for(var i=0; i<model['source_dimension']; ++i) {
     values['sources'].push(parseFloat(document.getElementById('geom_'+i).value));
   }
 
@@ -41,23 +41,23 @@ let getTriggerValues = () => {
 let changeTriggerText = (indivParameters) => {
   // For the acceleration factor: we store & slide in log-space (xi) but we display exp(xi)
   var xi = indivParameters['xi'];
-  document.getElementById('acc_factor').previousSibling.innerHTML = 'Acceleration factor: ' + Math.exp(xi).toFixed(2);
+  document.getElementById('acc_factor').previousSibling.innerHTML = 'Acceleration factor: ' + Math.exp(xi).toFixed(DECIMALS_XI);
 
   var tau = indivParameters['tau'];
-  document.getElementById('time_shift').previousSibling.innerHTML = 'Time shift: ' + tau.toFixed(1);
+  document.getElementById('time_shift').previousSibling.innerHTML = 'Time shift: ' + tau.toFixed(DECIMALS_TAU);
 
   var sources = indivParameters['sources'];
-  for(var i=0; i<parameters['source_dimension']; ++i) {
-    document.getElementById('geom_'+i).previousSibling.innerHTML = 'Geometric pattern ' + (i+1) + ': ' + sources[i].toFixed(1);
+  for(var i=0; i<model['source_dimension']; ++i) {
+    document.getElementById('geom_'+i).previousSibling.innerHTML = 'Geometric pattern ' + (i+1) + ': ' + sources[i].toFixed(DECIMALS_SOURCES);
   }
 }
 
 let onTriggerChange = () => {
   var indivParameters = getTriggerValues();
   changeTriggerText(indivParameters);
-  var values = compute_values(ages, parameters, indivParameters);
+  var values = compute_values(ages, model, indivParameters);
 
-  for(var i=0; i<parameters['dimension']; ++i) {
+  for(var i=0; i<model['dimension']; ++i) {
     var data = convertData(ages, values[i])
     myChart.data.datasets[i].data = data;
   }

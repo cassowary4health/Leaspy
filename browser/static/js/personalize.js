@@ -1,7 +1,7 @@
 let addIndividualData = (scores) => {
   var ages = scores['TIME']
-  for(var i=0; i < parameters['dimension']; ++i) {
-    var feature_name = parameters['features'][i]
+  for(var i=0; i < model['dimension']; ++i) {
+    var feature_name = model['features'][i]
     var dataset = {
       label: '',
       data: convertData(ages, scores[feature_name]),
@@ -22,8 +22,8 @@ let individualFit = (result) => {
   var indivParameters = result['individual_parameters']
   var scores = result['scores'];
 
-  indivParameters['xi'] = indivParameters['xi'] - parameters['parameters']['xi_mean'];
-  indivParameters['tau'] = indivParameters['tau'] - parameters['parameters']['tau_mean'];
+  indivParameters['xi'] = indivParameters['xi'] - model['parameters']['xi_mean'];
+  indivParameters['tau'] = indivParameters['tau'] - model['parameters']['tau_mean'];
 
   setTriggerValues(indivParameters);
   onTriggerChange();
@@ -38,7 +38,7 @@ let personalize = () => {
   var data = {
     'birthday': birthday,
     'scores': scores,
-    'model': parameters
+    'model': model,
   }
 
   $.ajax({
@@ -46,7 +46,7 @@ let personalize = () => {
     contentType: 'application/json',
     data: JSON.stringify(data),
     dataType: 'json',
-    url: '/',
+    url: '/model/personalize',
     success: individualFit
   });
 

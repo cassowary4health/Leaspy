@@ -1,56 +1,70 @@
-setTriggerValues = (individualParameters) => {
-  var acc = Math.exp(individualParameters['xi']);
-  document.getElementById('acc_factor').value = acc;
+let setTriggerValues = (individualParameters) => {
+  var xi = individualParameters['xi'];
+  document.getElementById('acc_factor').value = xi;
 
   var tau = individualParameters['tau'];
   document.getElementById('time_shift').value = tau;
 
-  if(!('source_dimension'in parameters)) {
-    return;
-  }
-
   var sources = individualParameters['sources'];
-  for(var i=0; i<parameters['source_dimension']; ++i) {
+  for(var i=0; i<model['source_dimension']; ++i) {
     document.getElementById('geom_'+i).value = sources[i];
   };
 }
 
-resetTriggerValues = () => {
-  if(!parameters) {
+let resetTriggerValues = () => {
+  if(!model) {
     return;
   }
-  individualParameters = {
+  var individualParameters = {
     'xi': 0,
-    'alpha': 1, // useful for text update...
     'tau': 0,
-    'sources': new Array(parameters['source_dimension']).fill(0)
+    'sources': new Array(model['source_dimension']).fill(0)
   }
   setTriggerValues(individualParameters);
   changeTriggerText(individualParameters);
 }
 
-
-getTriggerValues = () => {
+let getTriggerValues = () => {
   var values = {
-    'alpha': document.getElementById('acc_factor').value,
-    'tau': document.getElementById('time_shift').value
+    'xi': parseFloat(document.getElementById('acc_factor').value),
+    'tau': parseFloat(document.getElementById('time_shift').value),
+    'sources': []
   }
 
-  if(!('source_dimension'in parameters)) {
-    return;
+  for(var i=0; i<model['source_dimension']; ++i) {
+    values['sources'].push(parseFloat(document.getElementById('geom_'+i).value));
   }
-
-  var sources = []
-  for(var i=0; i<parameters['source_dimension']; ++i) {
-    sources.push(document.getElementById('geom_'+i).value)
-  }
-  values['sources'] = sources;
 
   return values
 }
 
+let changeTriggerText = (indivParameters) => {
+  // For the acceleration factor: we store & slide in log-space (xi) but we display exp(xi)
+  var xi = indivParameters['xi'];
+  document.getElementById('acc_factor').previousSibling.innerHTML = 'Acceleration factor: ' + Math.exp(xi).toFixed(DECIMALS_XI);
 
-convertData = (ages, values) => {
+  var tau = indivParameters['tau'];
+  document.getElementById('time_shift').previousSibling.innerHTML = 'Time shift: ' + tau.toFixed(DECIMALS_TAU);
+
+  var sources = indivParameters['sources'];
+  for(var i=0; i<model['source_dimension']; ++i) {
+    document.getElementById('geom_'+i).previousSibling.innerHTML = 'Geometric pattern ' + (i+1) + ': ' + sources[i].toFixed(DECIMALS_SOURCES);
+  }
+}
+
+let onTriggerChange = () => {
+  var indivParameters = getTriggerValues();
+  changeTriggerText(indivParameters);
+  var values = compute_values(ages, model, indivParameters);
+
+  for(var i=0; i<model['dimension']; ++i) {
+    var data = convertData(ages, values[i])
+    myChart.data.datasets[i].data = data;
+  }
+  myChart.update();
+}
+
+let convertData = (ages, values) => {
   var scatter = []
   for(var i=0; i<ages.length; i++){
     scatter.push({x:ages[i], y:values[i]})
@@ -58,41 +72,22 @@ convertData = (ages, values) => {
   return scatter;
 }
 
-changeTriggerText = (indivParameters) => {
-  var acc = indivParameters['alpha'];
-  document.getElementById('acc_factor').previousSibling.innerHTML = 'Acceleration factor : ' + acc;
-
-  var time = indivParameters['tau'];
-  document.getElementById('time_shift').previousSibling.innerHTML = 'Time shift : ' + time;
-
-  if(!('source_dimension'in parameters)) { return; }
-
-  var sources = indivParameters['sources'];
-  for(var i=0; i<parameters['source_dimension']; ++i) {
-    document.getElementById('geom_'+i).previousSibling.innerHTML = 'Geometric pattern ' + (i+1) + ' : ' + sources[i];
-  }
-
-}
-
-
-
-onTriggerChange = () => {
-  var indivParameters = getTriggerValues();
-  changeTriggerText(indivParameters);
-  var values = compute_values(ages, parameters, indivParameters);
-
-  for(var i=0; i<parameters['dimension']; ++i) {
-    var data = convertData(ages, values[i])
-    myChart.data.datasets[i].data = data;
-  }
-  myChart.update();
-}
-
-
-addRow = () => {
+let addRow = () => {
   hot.alter('insert_row');
 }
 
-removeRow = () => {
+let removeRow = () => {
   hot.alter('remove_row');
+}
+
+let argMax = (array) => {
+  var greatest;
+  var indexOfGreatest;
+  for (var i = 0; i < array.length; i++) {
+    if (!greatest || array[i] > greatest) {
+      greatest = array[i];
+      indexOfGreatest = i;
+    }
+  }
+  return indexOfGreatest;
 }

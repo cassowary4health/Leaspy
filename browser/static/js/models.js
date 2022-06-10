@@ -1,39 +1,48 @@
-compute_values = (ages, model_parameters, individual_parameters) => {
+let compute_values = (ages, model_parameters, individual_parameters) => {
   if(model_parameters['name'] == 'logistic_parallel') {
     return compute_logistic_parallel(ages, model_parameters['parameters'], individual_parameters)
-  } else if(model_parameters['name'] == 'logistic') {
-    return compute_logistic(ages, model_parameters['parameters'], individual_parameters)
-  } else if(model_parameters['name'] == 'linear') {
+  } else if(model_parameters['name'] == 'logistic' || model_parameters['name'] == 'univariate_logistic') {
+    return compute_logistic(ages, model_parameters['parameters'], individual_parameters, model_parameters)
+  } else if(model_parameters['name'] == 'linear' || model_parameters['name'] == 'univariate_linear') {
     return compute_linear(ages, model_parameters['parameters'], individual_parameters)
+  } else {
+    alert("Unknown model: " + model_parameters['name'])
   }
 }
 
-compute_linear = (ages, parameters, individual_parameters) => {
+let compute_linear = (ages, parameters, individual_parameters) => {
   // Model parameters
-  var g = parameters['g']
+  var univariate = !('v0' in parameters)
   var t0 = parameters['tau_mean']
-  var v0 = parameters['v0']
-  var mixing_matrix = parameters['mixing_matrix']
+  var g = parameters['g']
+  var log_v0 = null
+  var mixing_matrix = null
+
+  if (univariate) {
+    if (typeof g == 'number'){ g = [g] }
+    log_v0 = [parameters['xi_mean']]
+  } else {
+    log_v0 = parameters['v0']
+    mixing_matrix = parameters['mixing_matrix']
+  }
 
   // Individual parameters
-  var alpha = individual_parameters['alpha']
+  var alpha = Math.exp(individual_parameters['xi'])
   var tau = individual_parameters['tau']
-  var sources = individual_parameters['sources'];
-  var space_shift = undefined;
-  if('space_shift' in individual_parameters) {
-    space_shift = individual_parameters['space_shift'];
-  } else {
+  var sources = individual_parameters['sources']
+  var space_shift = new Array(g.length).fill(0)
+  if (mixing_matrix) {
     space_shift = math.multiply(mixing_matrix, sources);
   }
 
-
   // Compute values
   var outputs = []
-  for(var i=0; i<g.length; ++i) {
+  for(var i=0; i < g.length; ++i) {
     var output = []
-    for(var j=0; j<ages.length; ++j) {
+    var v_i = Math.exp(log_v0[i])
+    for(var j=0; j < ages.length; ++j) {
       var r_age = alpha * (ages[j] - t0 - tau);
-      var val = g[i] + space_shift[i] + v0[i] * r_age;
+      var val = g[i] + space_shift[i] + v_i * r_age;
       output.push(val);
     }
     outputs.push(output);
@@ -41,61 +50,151 @@ compute_linear = (ages, parameters, individual_parameters) => {
   return outputs;
 }
 
+let get_deltas_i = (model, parameters, i) => {
+  // For ordinal models: compute deltas for the feature `i`
+  if ('deltas' in parameters) {
+    // Batched deltas
+    deltas_i = parameters['deltas'][i];
+    // Truncate before infinity if any
+    first_inf = deltas_i.indexOf(Infinity)
+    if (first_inf != -1){
+      deltas_i = deltas_i.slice(0, first_inf)
+    }
+  } else {
+    deltas_i = parameters['deltas_'+model['features'][i]];
+  }
+  // Prepend 0, exponentialize (> 0) and cumsum the deltas
+  deltas_i = [0].concat(math.cumsum(math.exp(deltas_i)))
 
+  return deltas_i;
+}
 
-compute_logistic = (ages, parameters, individual_parameters) => {
+let compute_ordinal_pdf_from_ordinal_sf = (sf) => {
+  // cf. leaspy.models.utils.ordinal.compute_ordinal_pdf_from_ordinal_sf
+  var sf_sup = [1].concat(sf) // P(Y >= 0) = 1
+  var sf_inf = sf.concat([0]) // P(Y > max_level) = 0
+  return math.diff([sf_inf, sf_sup])[0] // = sf_sup - sf_inf
+}
+
+let compute_ordinal_expectation = (pdf) => {
+  var cs = math.cumsum(pdf.slice(1).reverse())
+  return math.sum(cs)
+}
+
+let compute_logistic = (ages, parameters, individual_parameters, model) => {
+  // Specific types of models
+  var univariate = !('v0' in parameters)
+  var is_ordinal = 'noise_model' in model && model['noise_model'].startsWith('ordinal')
+
   // Model parameters
-  var g = parameters['g']
   var t0 = parameters['tau_mean']
-  var v0 = parameters['v0']
-  var mixing_matrix = parameters['mixing_matrix']
+  var log_g = parameters['g']
+  var log_v0 = null
+  var mixing_matrix = null
+
+  if (univariate) {
+    if (typeof log_g == 'number'){ log_g = [log_g] }
+    log_v0 = [parameters['xi_mean']]
+  } else {
+    log_v0 = parameters['v0']
+    mixing_matrix = parameters['mixing_matrix']
+  }
 
   // Individual parameters
-  var alpha = individual_parameters['alpha']
+  var alpha = Math.exp(individual_parameters['xi'])
   var tau = individual_parameters['tau']
   var sources = individual_parameters['sources']
-  var space_shift = math.multiply(mixing_matrix, sources);
+  var space_shift = new Array(log_g.length).fill(0)
+  if (mixing_matrix) {
+    space_shift = math.multiply(mixing_matrix, sources);
+  }
 
   // Compute values
   var outputs = []
-  for(var i=0; i<g.length; ++i) {
+  for(var i=0; i < log_g.length; ++i) {
+
     var output = []
-    for(var j=0; j<ages.length; ++j) {
-      g_k = Math.exp(g[i])
-      v_k = Math.exp(v0[i])
+    var g_i = Math.exp(log_g[i])
+    var v_i = Math.exp(log_v0[i])
+    if (univariate) {
+      var b_i = 1. // no such thing in univariate
+    } else {
+      var b_i = (1+g_i) * (1+g_i) / g_i
+    }
+
+    var deltas_i = null;
+
+    if (is_ordinal) {
+      deltas_i = get_deltas_i(model, parameters, i)
+    }
+
+    for(var j=0; j < ages.length; ++j) {
       var r_age = alpha * (ages[j] - t0 - tau);
-      var val = v_k * r_age * (1+g_k) * (1+g_k) / g_k + space_shift[i];
-      output.push(1./(1. + g_k * Math.exp(- val)))
+      if (!is_ordinal) {
+        var x_ij = v_i * r_age + space_shift[i];
+        output.push(1./(1. + Math.exp(log_g[i] - b_i * x_ij)))
+      } else {
+        // Ordinal model --> loop on levels
+        var sf_ij = [];
+        for(var k=0; k < deltas_i.length; ++k) {
+          // Survival function: P(Y_i > k), k=0..max_level_i-1
+          var x_ijk;
+          if (univariate) {
+            // <!> This is subtle but by design: in univariate `deltas` <-> `deltas * v0` compared to multivariate
+            x_ijk = v_i * r_age - deltas_i[k];
+          } else {
+            x_ijk = v_i * (r_age - deltas_i[k]) + space_shift[i];
+          }
+          sf_ij.push(1./(1. + Math.exp(log_g[i] - b_i * x_ijk)))
+        }
+        // Compute MLE (or expectation?)
+        var pdf_ij = compute_ordinal_pdf_from_ordinal_sf(sf_ij);
+        var ordinal_val_ij;
+
+        if (ORDINAL_EXPECTATION) {
+          ordinal_val_ij = compute_ordinal_expectation(pdf_ij);
+        } else {
+          ordinal_val_ij = argMax(pdf_ij); // MLE
+        }
+        if (ORDINAL_NORMALIZE) {
+          ordinal_val_ij /= pdf_ij.length - 1; // max_level_ft <=> 1
+        }
+        output.push(ordinal_val_ij);
+      }
     }
     outputs.push(output);
   }
+
   return outputs;
 }
 
-
-compute_logistic_parallel = (ages, parameters, individual_parameters) => {
-
+let compute_logistic_parallel = (ages, parameters, individual_parameters) => {
   // Model parameters
-  var g = Math.exp(parameters['g'])
+  var log_g = parameters['g']
   var t0 = parameters['tau_mean']
   var v0 = Math.exp(parameters['xi_mean'])
   var deltas = [0].concat(parameters['deltas'])
   var mixing_matrix = parameters['mixing_matrix']
 
   // Individual parameters
-  var alpha = individual_parameters['alpha']
+  var alpha = Math.exp(individual_parameters['xi'])
   var tau = individual_parameters['tau']
   var sources = individual_parameters['sources']
-  var space_shift = math.multiply(mixing_matrix, sources);
+  var space_shift = new Array(deltas.length).fill(0)
+  if (mixing_matrix) {
+    space_shift = math.multiply(mixing_matrix, sources);
+  }
 
   // Compute values
   var outputs = []
-  for(var i=0; i<deltas.length; ++i) {
+  for(var i=0; i < deltas.length; ++i) {
     var output = []
-    for(var j=0; j<ages.length; ++j) {
-      var r_age = alpha * v0 * (ages[j] - t0 - tau);
-      var val = - deltas[i] - r_age - space_shift[i]
-      output.push(1./(1.+g*Math.exp(val)))
+    var g_i = Math.exp(log_g - deltas[i])
+    var shift_i = deltas[i] + space_shift[i] * (1+g_i) * (1+g_i) / g_i
+    for(var j=0; j < ages.length; ++j) {
+      var r_age = v0 * alpha * (ages[j] - t0 - tau);
+      var val = r_age + shift_i
+      output.push(1./(1. + Math.exp(log_g - val)))
     }
     outputs.push(output)
   }

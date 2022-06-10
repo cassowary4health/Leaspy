@@ -47,7 +47,12 @@ def get_individual_parameters(data):
     # Algorithm
     settings = AlgorithmSettings('scipy_minimize', seed=0, progress_bar=False, use_jacobian=True)
 
-    # Leaspy
+    # Remove non-supported model hyperparameters
+    if data['model']['name'].startswith('univariate_'):
+        data['model'].pop('dimension')
+        data['model'].pop('source_dimension')
+
+    # Leaspy loading + personalization
     leaspy = Leaspy.load(data['model'])
     individual_parameters = leaspy.personalize(leaspy_data, settings=settings)
 

@@ -149,4 +149,4 @@ class DataframeDataReaderTest(LeaspyTestCase):
         self.assertEqual(reader.n_individuals, 3)
         self.assertEqual(reader.n_visits, 6)
         self.assertEqual(list(reader.individuals.keys()), ['S1', 'S2', 'S3'])  # re-ordered
-        self.assertEqual(reader.individuals['S3'].timepoints, [75., 76.])
+        self.assertEqual(reader.individuals['S3'].timepoints.tolist(), [75., 76.])

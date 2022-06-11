@@ -181,7 +181,7 @@ class Plotter:
             indices = [indices]
 
         for idx in indices:
-            indiv = results.data.get_by_idx(idx)
+            indiv = results.data[idx]
             timepoints = indiv.timepoints
             observations = np.array(indiv.observations)
             t = torch.tensor(timepoints).unsqueeze(0)

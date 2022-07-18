@@ -278,6 +278,7 @@ class AlgorithmSettings:
         algo_family = self.algo_class.family
         if algo_family == 'fit':
             json_settings['model_initialization_method'] = self.model_initialization_method
+        if hasattr(self, 'device'):
             json_settings['device'] = self.device
 
         """

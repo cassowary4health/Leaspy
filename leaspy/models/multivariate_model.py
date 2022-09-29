@@ -74,10 +74,10 @@ class MultivariateModel(AbstractMultivariateModel):
         self.attributes.update(['all'], self.parameters)
 
     @suffixed_method
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         pass
 
-    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
@@ -97,7 +97,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return model # (n_individuals, n_timepoints, n_features)
 
-    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)

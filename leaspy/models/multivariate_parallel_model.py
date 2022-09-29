@@ -36,7 +36,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.attributes = LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
 
         # Population parameters
         g, deltas, mixing_matrix = self._get_attributes(attribute_type)

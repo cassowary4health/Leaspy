@@ -433,7 +433,7 @@ class AbstractModel(ABC):
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
-                                      attribute_type=None) -> torch.FloatTensor:
+                                      attribute_type=None, **kwargs) -> torch.FloatTensor:
         """
         Compute the individual values at timepoints according to the model.
 

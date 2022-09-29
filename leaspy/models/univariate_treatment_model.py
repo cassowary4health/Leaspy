@@ -21,7 +21,7 @@ from leaspy.exceptions import LeaspyModelInputError
 
 
 @doc_with_super()
-class UnivariateModel(AbstractModel, OrdinalModelMixin):
+class UnivariateTreatmentModel(AbstractModel, OrdinalModelMixin):
     """
     Univariate (logistic or linear) model for a single variable of interest.
 
@@ -29,28 +29,35 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
     ----------
     name : str
         Name of the model
+    treatment : Union[str, Callable]
+        Function implementing how treatment modifies the derivative at the point of change.
+        default : identity
     **kwargs
         Hyperparameters of the model
 
     Raises
     ------
     :exc:`.LeaspyModelInputError`
-        * If `name` is not one of allowed sub-type: 'univariate_linear' or 'univariate_logistic'
+        * If `name` is not one of allowed sub-type: 'univariate_treatment_linear' or 'univariate_treatment_logistic'
         * If hyperparameters are inconsistent
     """
 
     SUBTYPES_SUFFIXES = {
-        'univariate_linear': '_linear',
-        'univariate_logistic': '_logistic'
+        'univariate_treatment_linear': '_linear',
+        'univariate_treatment_logistic': '_logistic'
     }
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, treatment = 'identity', **kwargs):
 
         super().__init__(name)
 
         self.dimension = 1
         self.source_dimension = 0  # TODO, None ???
         self.noise_model = 'gaussian_scalar'
+        if treatment == 'identity':
+            self.treatment = lambda p, v, covariates=None: v
+        else:
+            self.treatment = treatment
 
         self.parameters = {
             "g": None,
@@ -235,44 +242,112 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         pass
 
-    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **treatment_options):
+
+        if "treatment_dates" in treatment_options:
+            treatment_dates = treatment_options['treatment_dates'].unsqueeze(-1)
+        else:
+            treatment_dates = timepoints.unsqueeze(-1)
+        treatment_dates = treatment_dates.unsqueeze(-1)
 
         # Population parameters
         g = self._get_attributes(attribute_type)
+        g_plus_1 = 1. + g
+        b = g_plus_1 * g_plus_1 / g
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+        tau = tau.view(-1, 1, 1)
+        xi = xi.view(-1, 1, 1)
 
-        LL = reparametrized_time.unsqueeze(-1)
+        tpts = timepoints.unsqueeze(-1)
 
         if self.is_ordinal:
             # add an extra dimension for the levels of the ordinal item
-            LL = LL.unsqueeze(-1)
+            timepoints = timepoints.unsqueeze(-1)
             g = g.unsqueeze(-1)
+            b = b.unsqueeze(-1)
             deltas = self._get_deltas(attribute_type) # (features, max_level)
             deltas = deltas.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
-            LL = LL - deltas.cumsum(dim=-1)
+            # TODO : include deltas possibility
 
-        # TODO? more efficient & accurate to compute `torch.exp(-LL + log_g)` since we directly sample & stored log_g
-        model = 1. / (1. + g * torch.exp(-LL))
+        # Proper torch construction for autograd to work
+        values = []
+        max_length = treatment_dates.shape[1]
+        mask = torch.zeros((max_length + 1, tpts.shape[0], tpts.shape[1], self.dimension), dtype=bool)
+        v = torch.exp(xi)
+        p = 1. / (1. + g * torch.exp(-b * v * (treatment_dates[:, 0] - tau)))
+        mask[0] = (tpts - treatment_dates[:, 0]) <= 0.
+        values.append((1. / (1. + g * torch.exp(-b * v * (tpts - tau)))))
+        for i in range(1, max_length):
+            velocity = v * p * (1. - p) * b
+            v = self.treatment(p.squeeze(1), velocity.squeeze(1)).unsqueeze(1)
+            b = 1 / (p * (1. - p))
+            g = 1. / p - 1.
+            p = 1. / (1. + g * torch.exp(-b * v * (treatment_dates[:, i] - treatment_dates[:, i - 1])))
+            sup = (tpts - treatment_dates[:, i]) <= 0.
+            inf = (tpts - treatment_dates[:, i - 1]) > 0.
+            mask[i] = torch.logical_and(inf, sup)
+            values.append((1. / (1. + g * torch.exp(-b * v * (tpts - treatment_dates[:, i - 1])))))
+
+        velocity = v * p * (1. - p) * b
+        v = self.treatment(p.squeeze(1), velocity.squeeze(1)).unsqueeze(1)
+        b = 1 / (p * (1. - p))
+        g = 1. / p - 1.
+        sup = tpts != 0.
+        inf = (tpts - treatment_dates[:, -1]) * treatment_dates[:,
+                                                -1] > 0.  # trick to avoid cases where the end of the table of treatment_dates are 0.
+        mask[-1] = torch.logical_and(inf, sup)
+        values.append((1. / (1. + g * torch.exp(-b * v * (tpts - treatment_dates[:, -1])))))
+        values = (torch.stack(values)*mask).sum(dim=0)
 
         # Compute the pdf and not the sf
         if self.noise_model == 'ordinal':
-            model = self.compute_ordinal_pdf_from_ordinal_sf(model)
+            values = self.compute_ordinal_pdf_from_ordinal_sf(values)
 
-        return model # (n_individuals, n_timepoints, n_features == 1 [, extra_dim_ordinal_models])
+        return values # (n_individuals, n_timepoints, n_features == 1 [, extra_dim_ordinal_models])
 
-    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **treatment_options):
+
+        if "treatment_dates" in treatment_options:
+            treatment_dates = treatment_options['treatment_dates'].unsqueeze(-1)
+        else:
+            treatment_dates = timepoints.unsqueeze(-1)
 
         # Population parameters
         positions = self._get_attributes(attribute_type)
+        positions = positions.view(1, 1, -1)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+        tau = tau.view(-1, 1, 1)
+        xi = xi.view(-1, 1, 1)
 
-        return positions + reparametrized_time.unsqueeze(-1)
+        tpts = timepoints.unsqueeze(-1)
+
+        # Proper torch construction for autograd to work
+        values = []
+        max_length = treatment_dates.shape[1]
+        mask = torch.zeros((max_length + 1, tpts.shape[0], tpts.shape[1], self.dimension), dtype=bool)
+        v = torch.exp(xi)
+        p = (positions + treatment_dates[:, 0])
+        mask[0] = (tpts - treatment_dates[:, 0]) <= 0.
+        values.append(p + (tpts - treatment_dates[:, 0]) * v)
+        for i in range(1, max_length):
+            v = self.treatment(p.squeeze(1), v.squeeze(1)).unsqueeze(1)
+            p = p + (treatment_dates[:, i] - treatment_dates[:, i - 1]) * v
+            sup = (tpts - treatment_dates[:, i]) <= 0.
+            inf = (tpts - treatment_dates[:, i - 1]) > 0.
+            mask[i] = torch.logical_and(inf, sup)
+            values.append(p + (tpts - treatment_dates[:, i]) * v)
+
+        v = self.treatment(p.squeeze(1), v.squeeze(1)).unsqueeze(1)
+        sup = tpts != 0.
+        inf = (tpts - treatment_dates[:, -1]) * treatment_dates[:, -1] > 0.
+        mask[-1] = torch.logical_and(inf, sup)
+        values.append(p + (tpts - treatment_dates[:, -1]) * v)
+        values = (torch.stack(values) * mask).sum(dim=0)  #
+        return values
 
     @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
@@ -448,6 +523,8 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
                                                                                                     attribute_type='MCMC')
+        # TODO not at the right place but need to carry IP on to M-step for this one
+        self.treatment.optimization_step(self, data, self.get_param_from_real(realizations))
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
@@ -472,6 +549,8 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
                                                                                               attribute_type='MCMC').sum()
         else:
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
+
+        self.treatment.optimization_step(self, data, self.get_param_from_real(realizations))
 
     def update_model_parameters_normal(self, data, suff_stats):
         # Stochastic sufficient statistics used to update the parameters of the model
@@ -513,7 +592,6 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
             noise_var = (S1 - 2. * S2 + S3) / data.n_observations_per_ft.float()
             self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
 
-
     def random_variable_informations(self):
 
         ## Population variables
@@ -550,20 +628,20 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         return variables_infos
 
 # document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
-doc_with_(UnivariateModel.compute_individual_tensorized_linear,
-          UnivariateModel.compute_individual_tensorized,
+doc_with_(UnivariateTreatmentModel.compute_individual_tensorized_linear,
+          UnivariateTreatmentModel.compute_individual_tensorized,
           mapping={'the model': 'the model (linear)'})
-doc_with_(UnivariateModel.compute_individual_tensorized_logistic,
-          UnivariateModel.compute_individual_tensorized,
+doc_with_(UnivariateTreatmentModel.compute_individual_tensorized_logistic,
+          UnivariateTreatmentModel.compute_individual_tensorized,
           mapping={'the model': 'the model (logistic)'})
 
-doc_with_(UnivariateModel.compute_jacobian_tensorized_linear,
-          UnivariateModel.compute_jacobian_tensorized,
+doc_with_(UnivariateTreatmentModel.compute_jacobian_tensorized_linear,
+          UnivariateTreatmentModel.compute_jacobian_tensorized,
           mapping={'the model': 'the model (linear)'})
-doc_with_(UnivariateModel.compute_jacobian_tensorized_logistic,
-          UnivariateModel.compute_jacobian_tensorized,
+doc_with_(UnivariateTreatmentModel.compute_jacobian_tensorized_logistic,
+          UnivariateTreatmentModel.compute_jacobian_tensorized,
           mapping={'the model': 'the model (logistic)'})
 
-doc_with_(UnivariateModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
-          UnivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+doc_with_(UnivariateTreatmentModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
+          UnivariateTreatmentModel.compute_individual_ages_from_biomarker_values_tensorized,
           mapping={'the model': 'the model (logistic)'})

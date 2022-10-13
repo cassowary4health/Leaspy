@@ -12,6 +12,7 @@ from torch._tensor_str import PRINT_OPTS as torch_print_opts
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
 from leaspy.models.utils.noise_model import NoiseModel
+from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 from leaspy.exceptions import LeaspyConvergenceError, LeaspyIndividualParamsInputError, LeaspyModelInputError
 from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Iterable, Optional
@@ -724,7 +725,7 @@ class AbstractModel(ABC):
                 cf. :class:`~leaspy.algo.utils.samplers.GibbsSampler`
         """
 
-    def smart_initialization_realizations(self, dataset: Dataset, realizations: CollectionRealization) -> CollectionRealization:
+    def smart_initialization_realizations(self, dataset: Dataset, realizations: CollectionRealization, init = None) -> CollectionRealization:
         """
         Smart initialization of realizations if needed (input may be modified in-place).
 
@@ -739,6 +740,10 @@ class AbstractModel(ABC):
         -------
         :class:`.CollectionRealization`
         """
+        if isinstance(init, IndividualParameters):
+            values = init.to_pytorch()[1]
+            for key in realizations.reals_ind_variable_names:
+                realizations.realizations[key]._tensor_realizations = values[key].clone()
         return realizations
 
     def _create_dictionary_of_population_realizations(self):

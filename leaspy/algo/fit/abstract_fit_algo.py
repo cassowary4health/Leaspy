@@ -82,13 +82,15 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                 The optimized parameters.
             * None : placeholder for noise-std
         """
-
         with self._device_manager(model, dataset):
             # Initialize the `CollectionRealization` (from the random variables of the model)
             realizations = model.initialize_realizations_for_model(dataset.n_individuals)
 
             # Smart init the realizations
-            realizations = model.smart_initialization_realizations(dataset, realizations)
+            init_values = None
+            if "init_real" in self.algo_parameters:
+                init_values = self.algo_parameters["init_real"]
+            realizations = model.smart_initialization_realizations(dataset, realizations, init=init_values)
 
             # Initialize Algo
             self._initialize_algo(dataset, model, realizations)
@@ -98,7 +100,6 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
 
             # Iterate
             for self.current_iteration in range(1, self.algo_parameters['n_iter']+1):
-
                 self.iteration(dataset, model, realizations)
 
                 if self.output_manager is not None:
@@ -117,7 +118,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         return realizations, loss
 
     @abstractmethod
-    def iteration(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
+    def iteration(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization, **kwargs):
         """
         Update the parameters (abstract method).
 
@@ -172,6 +173,10 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                                               for k, v in self.sufficient_statistics.items()}
 
             model.update_model_parameters_normal(dataset, self.sufficient_statistics)
+
+        if "update_treatment_periodicity" in self.algo_parameters and (
+                self.current_iteration % self.algo_parameters["update_treatment_periodicity"]) == 0:
+            model.update_treatment_function(dataset, realizations)
 
         # No need to update model attributes (derived from model parameters)
         # since all model computations are done with the MCMC toolbox during calibration

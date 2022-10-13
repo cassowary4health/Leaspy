@@ -312,11 +312,12 @@ class UnivariateTreatmentModel(AbstractModel, OrdinalModelMixin):
         if "treatment_dates" in treatment_options:
             treatment_dates = treatment_options['treatment_dates'].unsqueeze(-1)
         else:
-            treatment_dates = timepoints.unsqueeze(-1)
+            treatment_dates = timepoints
+        treatment_dates = treatment_dates.view(timepoints.shape[0], -1, 1, 1)
 
         # Population parameters
         positions = self._get_attributes(attribute_type)
-        positions = positions.view(1, 1, -1)
+        p = positions.view(1, 1, -1)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -330,16 +331,16 @@ class UnivariateTreatmentModel(AbstractModel, OrdinalModelMixin):
         max_length = treatment_dates.shape[1]
         mask = torch.zeros((max_length + 1, tpts.shape[0], tpts.shape[1], self.dimension), dtype=bool)
         v = torch.exp(xi)
-        p = (positions + treatment_dates[:, 0])
         mask[0] = (tpts - treatment_dates[:, 0]) <= 0.
-        values.append(p + (tpts - treatment_dates[:, 0]) * v)
+        values.append(p + (tpts - tau) * v)
+        p = p + (treatment_dates[:, 0] - tau) * v
         for i in range(1, max_length):
             v = self.treatment(p.squeeze(1), v.squeeze(1)).unsqueeze(1)
-            p = p + (treatment_dates[:, i] - treatment_dates[:, i - 1]) * v
             sup = (tpts - treatment_dates[:, i]) <= 0.
             inf = (tpts - treatment_dates[:, i - 1]) > 0.
             mask[i] = torch.logical_and(inf, sup)
-            values.append(p + (tpts - treatment_dates[:, i]) * v)
+            values.append(p + (tpts - treatment_dates[:, i-1]) * v)
+            p = p + (treatment_dates[:, i] - treatment_dates[:, i - 1]) * v
 
         v = self.treatment(p.squeeze(1), v.squeeze(1)).unsqueeze(1)
         sup = tpts != 0.
@@ -493,6 +494,10 @@ class UnivariateTreatmentModel(AbstractModel, OrdinalModelMixin):
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts == 1 [, extra_dim_ordinal_models], n_dims_param)]
         return derivatives
 
+    def update_treatment_function(self, data, realizations):
+
+        self.treatment.optimization_step(self, data, self.get_param_from_real(realizations))
+
     def compute_sufficient_statistics(self, data, realizations):
 
         # unlink all sufficient statistics from updates in realizations!
@@ -523,8 +528,7 @@ class UnivariateTreatmentModel(AbstractModel, OrdinalModelMixin):
         if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
                                                                                                     attribute_type='MCMC')
-        # TODO not at the right place but need to carry IP on to M-step for this one
-        self.treatment.optimization_step(self, data, self.get_param_from_real(realizations))
+
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
@@ -549,8 +553,6 @@ class UnivariateTreatmentModel(AbstractModel, OrdinalModelMixin):
                                                                                               attribute_type='MCMC').sum()
         else:
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
-
-        self.treatment.optimization_step(self, data, self.get_param_from_real(realizations))
 
     def update_model_parameters_normal(self, data, suff_stats):
         # Stochastic sufficient statistics used to update the parameters of the model

@@ -66,7 +66,7 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
     ## Core
     ###########################
 
-    def iteration(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
+    def iteration(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization, **kwargs):
         """
         MCMC-SAEM iteration.
 

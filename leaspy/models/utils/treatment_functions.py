@@ -131,17 +131,21 @@ class TreatmentFunction():
 
         def compute_loss(dataset, model, ip):
             values = model.compute_individual_tensorized(dataset.timepoints, ip, attribute_type='MCMC')
-            if model.loss in ['gaussian_scalar', 'gaussian_diagonal']:
+            if model.noise_model in ['gaussian_scalar', 'gaussian_diagonal']:
                 return torch.nn.functional.mse_loss(values, dataset.values)
 
-        def backtracking_line_search(eval_function, direction, param, max_step=1., alpha=0.1, beta=0.7):
+        def backtracking_line_search(eval_function, direction, param, max_step=1., alpha=0.1, beta=0.7, max_iter=1000):
+            if torch.norm(direction) == 0.:
+                return param, 0.
             x0 = param
             current_val = eval_function(x0)
             t = max_step
             x = x0 - t * direction
-            while eval_function(x) - current_val >= - alpha * t * (direction * direction).sum():
+            i = 0
+            while eval_function(x) - current_val >= - alpha * t * (direction * direction).sum() and i < max_iter:
                 t = beta * t
                 x = x0 - t * direction
+                i += 1
             return x, t
 
         def eval_function(x):

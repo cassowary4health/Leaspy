@@ -366,13 +366,13 @@ class Plotter:
 
         min_time, max_time = np.percentile(dataset.timepoints[dataset.timepoints > 0.0].cpu().detach().numpy(), [10, 90])
 
-        timepoints_np = np.linspace(min_time, max_time, 100)
+        timepoints_torch = torch.linspace(min_time, max_time, 100)
         model_values_np = cls._compute_mean_traj_postprocessed(
-                                model, torch.tensor(timepoints_np).unsqueeze(0),
+                                model, timepoints_torch.unsqueeze(0),
                                 attribute_type=attribute_type)
 
         for ft_k in range(model.dimension):
-            ax.plot(timepoints_np, model_values_np[0, :, ft_k], c="black", linewidth=3, alpha=0.3)
+            ax.plot(timepoints_torch, model_values_np[0, :, ft_k], c="black", linewidth=3, alpha=0.3)
 
         plt.savefig(path)
         plt.close()

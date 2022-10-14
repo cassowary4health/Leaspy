@@ -69,6 +69,10 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             self.orthonormal_basis: torch.FloatTensor = None
             self.update_possibilities = ('all', 'g', 'v0', 'v0_collinear', 'betas')
 
+        if self.joint:
+            self.update_possibilities += ("nu", "rho")
+
+
     def get_attributes(self):
         """
         Returns the attributes of the model.

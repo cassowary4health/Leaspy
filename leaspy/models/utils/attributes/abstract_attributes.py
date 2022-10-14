@@ -52,6 +52,7 @@ class AbstractAttributes(ABC):
             raise LeaspyModelInputError("In model attributes, you must provide an integer >= 1 for the parameter `dimension`.")
         self.dimension = dimension
         self.univariate = dimension == 1
+        self.joint = "joint" in  self.name
 
         self.source_dimension = source_dimension
         self.has_sources = bool(source_dimension) # False iff None or == 0

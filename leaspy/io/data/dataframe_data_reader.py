@@ -182,6 +182,8 @@ class DataframeDataReader:
         if sort_index:
             df.sort_index(inplace=True)
 
+        # Separate events and features
+
         self.headers = df.columns.tolist()
         if self.dimension < 1:
             raise LeaspyDataInputError('Dataframe should have at least 1 feature...')

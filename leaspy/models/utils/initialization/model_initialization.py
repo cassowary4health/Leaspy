@@ -76,6 +76,8 @@ def initialize_parameters(model, dataset, method="default"):
     elif name == 'mixed_linear-logistic':
         raise NotImplementedError
         #parameters = initialize_logistic(model, df, method)
+    elif name == "joint_univariate_logistic":
+        parameters = initialize_joint_logistic(model, df, method)
     else:
         raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
 
@@ -410,6 +412,41 @@ def initialize_logistic(model, df: pd.DataFrame, method):
 
     return parameters
 
+def initialize_joint_logistic(model, df: pd.DataFrame, method):
+    """
+    Initialize the logistic model's group parameters.
+
+    Parameters
+    ----------
+    model : :class:`.AbstractModel`
+        The model to initialize.
+    df : :class:`pd.DataFrame`
+        Contains the individual scores (with nans).
+    method : str
+        Must be one of:
+            * ``'default'``: initialize at mean.
+            * ``'random'``:  initialize with a gaussian realization with same mean and variance.
+
+    Returns
+    -------
+    parameters : dict [str, `torch.Tensor`]
+        Contains the initialized model's group parameters.
+        The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
+        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std' and 'noise_std'.
+
+    Raises
+    ------
+    :exc:`.LeaspyInputError`
+        If method is not handled
+    """
+
+
+    parameters_long = initialize_logistic(model, df, method)
+    parameters_surv = {
+        'rho': torch.tensor(1.),
+        'nu': torch.tensor(1.),
+    }
+    return dict(parameters_long, **parameters_surv)
 
 def initialize_logistic_parallel(model, df, method):
     """

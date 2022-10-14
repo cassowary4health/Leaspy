@@ -1,6 +1,7 @@
 from .abstract_model import AbstractModel
 
 from .univariate_model import UnivariateModel
+from .joint_univariate_model import JointUnivariateModel
 from .multivariate_model import MultivariateModel
 from .multivariate_parallel_model import MultivariateParallelModel
 from .constant_model import ConstantModel
@@ -21,4 +22,7 @@ all_models = {
     # naive models (for benchmarks)
     'lme': LMEModel,
     'constant': ConstantModel,
+
+    #joint model
+    'joint_univariate_logistic': JointUnivariateModel,
 }

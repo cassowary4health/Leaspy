@@ -100,6 +100,10 @@ class Dataset:
         self.L2_norm_per_ft: torch.FloatTensor = None
         self.L2_norm: torch.FloatTensor = None
 
+        # events # To Do
+        self.event_time_min = data.event_time_min
+        self.event_time_max = data.event_time_max
+
         # internally used by ordinal models only
         self._one_hot_encoding: Dict[bool, torch.LongTensor] = None
 
@@ -109,6 +113,7 @@ class Dataset:
             self._check_algo_compatibility(data, algo)
 
         self._construct_values(data)
+        #self._construct_events(data) # To Do
         self._construct_timepoints(data)
         self._compute_L2_norm()
 

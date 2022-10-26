@@ -44,6 +44,7 @@ class Data(Iterable):
 
         self.event_time_min = None
         self.event_time_max = None
+        self.mask_event = None
 
     @property
     def dimension(self) -> Optional[int]:

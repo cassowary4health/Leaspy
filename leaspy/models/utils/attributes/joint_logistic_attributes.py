@@ -49,6 +49,7 @@ class JointLogisticAttributes(AbstractManifoldModelAttributes):
         if not self.univariate:
             self.velocities: torch.FloatTensor = None
 
+
     def update(self, names_of_changed_values, values):
         """
         Update model group average parameter(s).
@@ -76,12 +77,12 @@ class JointLogisticAttributes(AbstractManifoldModelAttributes):
             If `names_of_changed_values` contains unknown parameters.
         """
         self._check_names(names_of_changed_values)
-
         compute_betas = False
+        compute_rho = False
+        compute_nu = False
         compute_positions = False
         compute_velocities = False
         dgamma_t0_not_collinear_to_previous = False
-
         if 'all' in names_of_changed_values:
             # make all possible updates
             names_of_changed_values = self.update_possibilities
@@ -90,12 +91,21 @@ class JointLogisticAttributes(AbstractManifoldModelAttributes):
             compute_betas = True
         if 'g' in names_of_changed_values:
             compute_positions = True
+        if 'rho' in names_of_changed_values:
+            compute_rho = True
+        if 'nu' in names_of_changed_values:
+            compute_nu = True
         if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values):
             compute_velocities = True
             dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
 
         if compute_positions:
             self._compute_positions(values)
+
+        if compute_rho:
+            self.rho = torch.exp(values['rho'])
+        if compute_nu:
+            self.nu = torch.exp(values['nu'])
         if compute_velocities:
             self._compute_velocities(values)
 

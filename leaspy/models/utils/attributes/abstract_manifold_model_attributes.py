@@ -56,9 +56,12 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         super().__init__(name, dimension, source_dimension)
 
         self.positions: torch.FloatTensor = None
+        if self.joint:
+            self.rho = None
+            self.nu = None
 
         if self.univariate:
-            self.update_possibilities = ('all', 'g')
+            self.update_possibilities = ('all', 'g', "v0", 'v0_collinear')
         else:
             if not (isinstance(source_dimension, int) and (0 <= source_dimension < dimension)):
                 raise LeaspyModelInputError("In `AbstractManifoldModelAttributes` you must provide "
@@ -71,6 +74,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
         if self.joint:
             self.update_possibilities += ("nu", "rho")
+
 
 
     def get_attributes(self):
@@ -92,8 +96,10 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             * velocities: `torch.Tensor`
             * mixing_matrix: `torch.Tensor`
         """
-        if self.univariate:
-            return self.positions
+        if self.joint:
+            return self.positions, self.rho, self.nu
+        elif self.univariate:
+            return self.positions, self.velocities
         else:
             return self.positions, self.velocities, self.mixing_matrix
 

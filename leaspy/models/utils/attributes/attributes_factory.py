@@ -1,5 +1,5 @@
 from leaspy.models.utils.attributes.abstract_attributes import AbstractAttributes
-from leaspy.models.utils.attributes import LogisticParallelAttributes, LogisticAttributes, LinearAttributes, LogisticOrdinalAttributes
+from leaspy.models.utils.attributes import LogisticParallelAttributes, LogisticAttributes, LinearAttributes, LogisticOrdinalAttributes, JointLogisticAttributes
 
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -12,7 +12,7 @@ class AttributesFactory:
     _attributes = {
         'logistic': LogisticAttributes,
         'univariate_logistic': LogisticAttributes,
-        'joint_univariate_logistic': LogisticAttributes,
+        'joint_univariate_logistic': JointLogisticAttributes,
 
         'logistic_parallel': LogisticParallelAttributes,
 

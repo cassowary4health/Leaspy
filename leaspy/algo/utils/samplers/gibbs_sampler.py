@@ -274,6 +274,7 @@ class GibbsSampler(AbstractSampler):
                 change_idx = change_idx * self.mask[idx]
             realization.set_tensor_realizations_element(old_val_idx + change_idx, idx)
             # Update derived model attributes if necessary (orthonormal basis, ...)
+
             model.update_MCMC_toolbox([self.name], realizations)
 
             # Compute the attachment and regularity
@@ -281,11 +282,15 @@ class GibbsSampler(AbstractSampler):
 
             alpha = torch.exp(-((new_regularity - previous_regularity) * temperature_inv +
                                 (new_attachment - previous_attachment)))
-
+            print("\npop",self.name, alpha, new_regularity, previous_regularity, new_attachment, previous_attachment)
+            if alpha > 10000:
+                print("OUTCH")
             accepted = self._metropolis_step(alpha)
             accepted_array[idx] = accepted
 
             if accepted:
+                if (alpha < 0.01):
+                    print("AIIIIIIIE", alpha)
                 previous_attachment, previous_regularity = new_attachment, new_regularity
 
             else:
@@ -368,8 +373,8 @@ class GibbsSampler(AbstractSampler):
         # if new is "better" than previous, then alpha > 1 so it will always be accepted in `_group_metropolis_step`
         alpha = torch.exp(-((new_regularity - previous_regularity) * temperature_inv +
                             (new_attachment - previous_attachment)))
-
         accepted = self._group_metropolis_step(alpha)
+
         self._update_acceptation_rate(accepted)
         self._update_std()
 
@@ -377,8 +382,13 @@ class GibbsSampler(AbstractSampler):
         attachment = accepted*new_attachment + (1-accepted)*previous_attachment
         regularity = accepted*new_regularity + (1-accepted)*previous_regularity
 
+        print((((alpha * accepted)>0.001) + ((alpha * accepted)==0)).sum()==500)
+
         # we accept together all dimensions of individual parameter
         accepted = accepted.unsqueeze(-1)  # shape = (n_individuals, 1)
+        print("\nind", self.name, accepted, alpha, new_regularity, previous_regularity, new_attachment,
+              previous_attachment)
+
         realization.tensor_realizations = accepted*realization.tensor_realizations + (1-accepted)*previous_reals
 
         return attachment, regularity

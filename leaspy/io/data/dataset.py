@@ -100,9 +100,10 @@ class Dataset:
         self.L2_norm_per_ft: torch.FloatTensor = None
         self.L2_norm: torch.FloatTensor = None
 
-        # events # To Do
-        self.event_time_min = data.event_time_min
-        self.event_time_max = data.event_time_max
+        # events # To Dotorch.nan_to_num(hazard, nan=1.)
+        self.event_time_min = torch.nan_to_num(data.event_time_min, nan=1.)
+        self.event_time_max = torch.nan_to_num(data.event_time_max, nan=1.)
+        self.mask_event = data.mask_event
 
         # internally used by ordinal models only
         self._one_hot_encoding: Dict[bool, torch.LongTensor] = None

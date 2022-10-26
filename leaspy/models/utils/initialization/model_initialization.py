@@ -382,12 +382,12 @@ def initialize_logistic(model, df: pd.DataFrame, method):
 
     # Create smart initialization dictionary
     if 'univariate' in model.name:
-        xi_mean = v0_array.squeeze() # already log'ed
         parameters = {
             'g': g_array.squeeze(),
+            'v0': v0_array,
             'tau_mean': t0,
             'tau_std': torch.tensor(tau_std),
-            'xi_mean': xi_mean,
+            'xi_mean': torch.tensor(0.),
             'xi_std': torch.tensor(xi_std),
         }
     else:
@@ -443,8 +443,8 @@ def initialize_joint_logistic(model, df: pd.DataFrame, method):
 
     parameters_long = initialize_logistic(model, df, method)
     parameters_surv = {
-        'rho': torch.tensor(1.),
-        'nu': torch.tensor(1.),
+        'rho': torch.tensor(2.),
+        'nu': torch.tensor(3.),
     }
     return dict(parameters_long, **parameters_surv)
 

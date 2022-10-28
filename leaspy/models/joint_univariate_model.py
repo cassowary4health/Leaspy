@@ -63,6 +63,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
 
         self.parameters = {
             "g": None,
+            "v0": None,
             "rho": None,
             "nu": None,
             "tau_mean": None, "tau_std": None,
@@ -79,6 +80,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
                 # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
                 # for linear: "p0" = g
                 'g_std': None,
+                'v0_std': None,
                 'rho_std': None,
                 'nu_std': None,
             }
@@ -131,6 +133,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         # TODO to move in the MCMC-fit algorithm
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01,
+                       'v0_std': 0.01,
                        'rho_std': 0.01,
                        'nu_std': 0.01,}, # population parameter
         }
@@ -148,6 +151,12 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         ## Population variables
         g_infos = {
             "name": "g",
+            "shape": torch.Size([1]),
+            "type": "population",
+            "rv_type": "multigaussian"
+        }
+        v0_infos = {
+            "name": "v0",
             "shape": torch.Size([1]),
             "type": "population",
             "rv_type": "multigaussian"
@@ -186,6 +195,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
             "nu": nu_infos,
             "tau": tau_infos,
             "xi": xi_infos,
+            "v0": v0_infos
         }
 
         self._add_ordinal_random_variables(variables_infos)
@@ -252,6 +262,9 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         if any(c in vars_to_update for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
 
+        if any(c in vars_to_update for c in ('v0', 'v0_collinear', 'all')):
+            values['v0'] = realizations['v0'].tensor_realizations
+
         if any(c in vars_to_update for c in ('rho', 'all')):
             values['rho'] = realizations['rho'].tensor_realizations
 
@@ -306,20 +319,20 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
     def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        g, rho, nu = self._get_attributes(attribute_type)
+        g, v0, rho, nu = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        LL = reparametrized_time.unsqueeze(-1)
+        LL = torch.exp(v0)*reparametrized_time.unsqueeze(-1)
         if self.is_ordinal:
             # add an extra dimension for the levels of the ordinal item
             LL = LL.unsqueeze(-1)
             g = g.unsqueeze(-1)
             deltas = self._get_deltas(attribute_type) # (features, max_level)
             deltas = deltas.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
-            LL = LL - deltas.cumsum(dim=-1)
+            LL = LL - deltas.cumsum(dim=-1) #TODO
 
         # TODO? more efficient & accurate to compute `torch.exp(-LL + log_g)` since we directly sample & stored log_g
         model = 1. / (1. + g * torch.exp(-LL))
@@ -332,11 +345,11 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
 
     def compute_individual_tensorized_survival(self, timepoints, individual_parameters, *, attribute_type=None):
         # Population parameters
-        g, rho, nu = self._get_attributes(attribute_type)
+        g, v0, rho, nu = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi = individual_parameters['xi'].reshape(timepoints.shape)
-        reparametrized_time = (torch.exp(xi-torch.mean(xi))*timepoints)
+        reparametrized_time = (torch.exp(xi)*timepoints)
 
         survival = torch.exp(-(reparametrized_time / nu) ** rho)
 
@@ -344,11 +357,11 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
 
     def compute_individual_tensorized_hazard(self, timepoints, individual_parameters, *, attribute_type=None):
         # Population parameters
-        g, rho, nu = self._get_attributes(attribute_type)
+        g, v0, rho, nu = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi = individual_parameters['xi'].reshape(timepoints.shape)
-        reparametrized_time = (torch.exp(xi-torch.mean(xi)))*timepoints
+        reparametrized_time = (torch.exp(xi))*timepoints
 
         hazard = (rho/nu)*((reparametrized_time/nu)**(rho-1))
 
@@ -373,7 +386,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
     def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        g, rho, nu = self._get_attributes(attribute_type)
+        g, v0, rho, nu = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -381,7 +394,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         alpha = torch.exp(xi).reshape(-1, 1, 1)
 
         # Log likelihood computation
-        LL = reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, n_features==1)
+        LL = torch.exp(v0)*reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, n_features==1)
 
         if self.is_ordinal:
             # add an extra dimension for the levels of the ordinal item
@@ -520,8 +533,11 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
 
         hazard = torch.nan_to_num(hazard, nan=1.)
         #print(data.mask_event*torch.log(hazard))
-
-        return -data.mask_event*torch.log(hazard)-1*torch.log(survival)
+        indiv_ = -data.mask_event*torch.log(hazard)-1*torch.log(survival)
+        #print(data.mask.squeeze().shape, indiv_.unsqueeze(-1).expand(data.timepoints.shape).shape)
+        #per_vis = data.mask.squeeze()*indiv_.unsqueeze(-1).expand(data.timepoints.shape)
+        #print(per_vis.sum(axis = 1).shape)
+        return indiv_ # per_vis.sum(axis = 1)
 
 
     def compute_individual_attachment_tensorized(self, data, param_ind: DictParamsTorch, *,
@@ -571,7 +587,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 
         attachment_events = self.compute_individual_attachment_event(data, param_ind, attribute_type=attribute_type)
-        attachment_total = attachment_visits + data.timepoints.shape[1]*attachment_events
+        attachment_total = attachment_visits + attachment_events #data.timepoints.shape[1]*
         #print(attachment_visits.shape, attachment_events.shape)
 
         return attachment_total
@@ -583,6 +599,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
 
         sufficient_statistics = {}
         sufficient_statistics['g'] = realizations['g'].tensor_realizations
+        sufficient_statistics['v0'] = realizations['v0'].tensor_realizations
         sufficient_statistics['nu'] = realizations['nu'].tensor_realizations
         sufficient_statistics['rho'] = realizations['rho'].tensor_realizations
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
@@ -608,10 +625,11 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         realizations = realizations.clone_realizations()
 
         self.parameters['g'] = realizations['g'].tensor_realizations
+        self.parameters['v0'] = realizations['v0'].tensor_realizations
         self.parameters['nu'] = realizations['nu'].tensor_realizations
         self.parameters['rho'] = realizations['rho'].tensor_realizations
         xi = realizations['xi'].tensor_realizations
-        self.parameters['xi_mean'] = torch.mean(xi)
+        #self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
         tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
@@ -629,6 +647,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         # Stochastic sufficient statistics used to update the parameters of the model
 
         self.parameters['g'] = suff_stats['g']
+        self.parameters['v0'] = suff_stats['v0']
         self.parameters['nu'] = suff_stats['nu']
         self.parameters['rho'] = suff_stats['rho']
 
@@ -642,7 +661,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
         xi_var = xi_var_updt + xi_mean ** 2
         self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
-        self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
+        #self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
         self._add_ordinal_sufficient_statistics(suff_stats, self.parameters)
 

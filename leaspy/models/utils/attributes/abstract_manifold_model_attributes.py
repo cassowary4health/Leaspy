@@ -97,7 +97,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             * mixing_matrix: `torch.Tensor`
         """
         if self.joint:
-            return self.positions, self.rho, self.nu
+            return self.positions, self.velocities, self.rho, self.nu
         elif self.univariate:
             return self.positions, self.velocities
         else:

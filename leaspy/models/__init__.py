@@ -1,6 +1,7 @@
 from .abstract_model import AbstractModel
 
 from .univariate_model import UnivariateModel
+from .survival_model import SurvivalModel
 from .multivariate_model import MultivariateModel
 from .multivariate_parallel_model import MultivariateParallelModel
 from .constant_model import ConstantModel
@@ -21,4 +22,7 @@ all_models = {
     # naive models (for benchmarks)
     'lme': LMEModel,
     'constant': ConstantModel,
+
+    # survival
+    'univariate_survival_weibull': SurvivalModel
 }

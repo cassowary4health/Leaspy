@@ -53,6 +53,8 @@ class AbstractAttributes(ABC):
         self.dimension = dimension
         self.univariate = dimension == 1
 
+        self.survival = ("joint" in  self.name) or ("survival" in  self.name)
+
         self.source_dimension = source_dimension
         self.has_sources = bool(source_dimension) # False iff None or == 0
 

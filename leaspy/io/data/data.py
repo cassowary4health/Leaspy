@@ -42,6 +42,11 @@ class Data(Iterable):
         self.iter_to_idx: Dict[int, IDType] = {}
         self.headers: Optional[List[FeatureType]] = None
 
+        # Survival attributes
+        self.event_time_min = None
+        self.event_time_max = None
+        self.mask_event = None
+
     @property
     def dimension(self) -> Optional[int]:
         """Number of features"""

@@ -469,7 +469,7 @@ class Plotter:
             yscale_kw = dict(nonpositive='clip')
 
         # Noise std-dev
-        model_with_ll = getattr(model, 'is_ordinal', False) or getattr(model, 'noise_model', None) == 'bernoulli'
+        model_with_ll = getattr(model, 'is_ordinal', False) or getattr(model, 'noise_model', None) == 'bernoulli' or getattr(model, 'noise_model', None) == 'survival'
         if not model_with_ll:
             import_path = os.path.join(path, 'noise_std.csv')
             df_convergence = pd.read_csv(import_path, index_col=0, header=None)

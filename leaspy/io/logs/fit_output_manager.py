@@ -119,7 +119,7 @@ class FitOutputManager:
         if self.periodicity_plot is not None:
             if iteration % self.periodicity_plot == 0:
                 # do not plot first iteration (useless, no lines yet)
-                self.plot_patient_reconstructions(iteration, data, model, realizations)
+                #self.plot_patient_reconstructions(iteration, data, model, realizations)
                 self.plot_convergence_model_parameters(model)
 
         if (algo.algo_parameters['n_iter'] - iteration) < self.save_last_n_realizations:
@@ -220,7 +220,7 @@ class FitOutputManager:
             Current state of the realizations
         """
         # TODO: not generic at all
-        for name in ['xi', 'tau']:
+        for name in ['xi']:
             value = realizations[name].tensor_realizations.squeeze(1).detach().tolist()
             path = os.path.join(self.path_save_model_parameters_convergence, name + ".csv")
             with open(path, 'a', newline='') as filename:

@@ -76,6 +76,14 @@ def initialize_parameters(model, dataset, method="default"):
     elif name == 'mixed_linear-logistic':
         raise NotImplementedError
         #parameters = initialize_logistic(model, df, method)
+    elif name in ['univariate_survival_weibull']:
+        parameters = {
+        'rho': torch.log(torch.tensor(1.1)),
+        'nu': torch.log(torch.tensor(1/3.)),
+        'xi_mean': torch.tensor(0.),
+        'xi_std': torch.tensor(0.5),
+    }
+
     else:
         raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
 

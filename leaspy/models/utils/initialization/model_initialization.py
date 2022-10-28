@@ -78,8 +78,8 @@ def initialize_parameters(model, dataset, method="default"):
         #parameters = initialize_logistic(model, df, method)
     elif name in ['univariate_survival_weibull']:
         parameters = {
-        'rho': torch.log(torch.tensor(1.1)),
-        'nu': torch.log(torch.tensor(1/3.)),
+        'rho': torch.log(torch.tensor(4)),
+        'nu': torch.log(torch.tensor(1.1)),
         'xi_mean': torch.tensor(0.),
         'xi_std': torch.tensor(0.5),
     }

@@ -10,6 +10,8 @@ from leaspy.models.utils.initialization.model_initialization import initialize_p
 from leaspy.models.utils.noise_model import NoiseModel
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
+from leaspy.exceptions import LeaspyConvergenceError, LeaspyIndividualParamsInputError, LeaspyModelInputError
+
 
 from leaspy.utils.typing import DictParamsTorch
 
@@ -294,7 +296,7 @@ class SurvivalModel(ABC):
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with
         """
-        print("MCMC",vars_to_update, realizations['rho'].tensor_realizations)
+        #print("MCMC",vars_to_update, realizations['rho'].tensor_realizations)
         values = {}
         if any(c in vars_to_update for c in ('rho', 'all')):
             values['rho'] = realizations['rho'].tensor_realizations
@@ -583,16 +585,16 @@ class SurvivalModel(ABC):
             xi = individual_parameters['xi'].reshape(data.event_time_min.shape)
 
             # Reparametrized survival
-            reparametrized_time_min = (torch.exp(xi) * data.event_time_min)
-            reparametrized_time_max = (torch.exp(xi) * data.event_time_max)
+            reparametrized_time_min = (data.event_time_min)
+            reparametrized_time_max = (data.event_time_max)
 
             # Survival
             survival = torch.exp(-(reparametrized_time_min * nu) ** rho)
-            print(rho, nu)
-
+            #print(rho, nu)
             # Hazard only for patient with event not censored
             hazard = (rho * nu) * ((reparametrized_time_max * nu) ** (rho - 1))
-            hazard = torch.nan_to_num((data.mask_event * hazard), nan=1.)
+            hazard = (data.mask_event * hazard)
+            hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
 
             return hazard * survival
 
@@ -733,7 +735,6 @@ class SurvivalModel(ABC):
 
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
-
         return -torch.log(attachment)
 
     def _center_xi_realizations(self, realizations):
@@ -746,7 +747,7 @@ class SurvivalModel(ABC):
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
         realizations['nu'].tensor_realizations = realizations['nu'].tensor_realizations + mean_xi
 
-        #self.update_MCMC_toolbox(['nu_collinear'], realizations)
+        self.update_MCMC_toolbox(['nu_collinear'], realizations)
 
         return realizations
 
@@ -762,7 +763,7 @@ class SurvivalModel(ABC):
         sufficient_statistics['nu'] = realizations['nu'].tensor_realizations
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
-        print("suff", sufficient_statistics['rho'])
+        #print("suff", sufficient_statistics['rho'])
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         individual_parameters = self.get_param_from_real(realizations)
 
@@ -780,7 +781,7 @@ class SurvivalModel(ABC):
 
         # unlink model parameters from updates in realizations!
         realizations = realizations.clone_realizations()
-        print("burn", realizations['rho'].tensor_realizations)
+        #print("burn", realizations['rho'].tensor_realizations)
         self.parameters['rho'] = realizations['rho'].tensor_realizations
         self.parameters['nu'] = realizations['nu'].tensor_realizations
         xi = realizations['xi'].tensor_realizations

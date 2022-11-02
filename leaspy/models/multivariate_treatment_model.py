@@ -14,7 +14,7 @@ from leaspy.exceptions import LeaspyModelInputError
 
 
 @doc_with_super()
-class MultivariateModel(AbstractMultivariateModel):
+class MultivariateTreatmentModel(AbstractMultivariateModel):
     """
     Manifold model for multiple variables of interest (logistic or linear formulation).
 
@@ -22,6 +22,9 @@ class MultivariateModel(AbstractMultivariateModel):
     ----------
     name : str
         Name of the model
+    treatment : Union[str, Callable]
+        Function implementing how treatment modifies the derivative at the point of change.
+        default : identity
     **kwargs
         Hyperparameters of the model
 
@@ -33,12 +36,11 @@ class MultivariateModel(AbstractMultivariateModel):
     """
 
     SUBTYPES_SUFFIXES = {
-        'linear': '_linear',
-        'logistic': '_logistic',
-        'mixed_linear-logistic': '_mixed',
+        'multivariate_treatment_linear': '_linear',
+        'multivariate_treatment_logistic': '_logistic'
     }
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, treatment, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
@@ -47,11 +49,15 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # enforce a prior for v0_mean --> legacy / never used in practice
         self._set_v0_prior = False
+        if treatment == 'identity':
+            self.treatment = lambda p, v, covariates=None: v
+        else:
+            self.treatment = treatment
 
 
     def _check_subtype(self):
         if self.name not in self.SUBTYPES_SUFFIXES.keys():
-            raise LeaspyModelInputError(f'Multivariate model name should be among these valid sub-types: '
+            raise LeaspyModelInputError(f'Multivariate treatment model name should be among these valid sub-types: '
                                         f'{list(self.SUBTYPES_SUFFIXES.keys())}.')
 
         return self.SUBTYPES_SUFFIXES[self.name]
@@ -77,27 +83,62 @@ class MultivariateModel(AbstractMultivariateModel):
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
         pass
 
-    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None, **treatment_options):
+
+        if "treatment_dates" in treatment_options:
+            treatment_dates = treatment_options['treatment_dates'].unsqueeze(-1)
+        else:
+            treatment_dates = timepoints
+        treatment_dates = treatment_dates.view(timepoints.shape[0], -1, 1, 1)
 
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
+        p = positions.view(1, 1, -1)
+        v = velocities.view(1, 1, -1)
+
+        # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
+        tau = tau.view(-1, 1, 1)
+        xi = xi.view(-1, 1, 1)
 
-        # Reshaping
-        reparametrized_time = reparametrized_time.unsqueeze(-1)  # for automatic broadcast on n_features (last dim)
+        tpts = timepoints.unsqueeze(-1)
 
-        # Model expected value
-        model = positions + velocities * reparametrized_time
-
+        # Proper torch construction for autograd to work
+        values = []
+        max_length = treatment_dates.shape[1]
+        mask = torch.zeros((max_length + 1, tpts.shape[0], tpts.shape[1], self.dimension), dtype=bool)
+        v = v * torch.exp(xi)
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
-            wi = sources.matmul(mixing_matrix.t())
-            model += wi.unsqueeze(-2)
+            wi = sources.matmul(mixing_matrix.t()).view(-1, 1, self.dimension)
+        else:
+            wi = 0.
+        mask[0] = (tpts - treatment_dates[:, 0]) <= 0.
+        values.append(p + (tpts - tau) * v + wi)
+        p = p + (treatment_dates[:, 0] - tau) * v + wi
+        for i in range(1, max_length):
+            v = self.treatment(p.squeeze(1), v.squeeze(1)).unsqueeze(1)
+            sup = (tpts - treatment_dates[:, i]) <= 0.
+            inf = (tpts - treatment_dates[:, i - 1]) > 0.
+            mask[i] = torch.logical_and(inf, sup)
+            values.append(p + (tpts - treatment_dates[:, i-1]) * v)
+            p = p + (treatment_dates[:, i] - treatment_dates[:, i - 1]) * v
+
+        v = self.treatment(p.squeeze(1), v.squeeze(1)).unsqueeze(1)
+        sup = tpts != 0.
+        inf = (tpts - treatment_dates[:, -1]) * treatment_dates[:, -1] > 0.
+        mask[-1] = torch.logical_and(inf, sup)
+        values.append(p + (tpts - treatment_dates[:, -1]) * v)
+        values = (torch.stack(values) * mask).sum(dim=0)  #
+        return values
+
+
 
         return model # (n_individuals, n_timepoints, n_features)
 
     def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None, **kwargs):
+
+        #TODO
 
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
@@ -388,6 +429,10 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return realizations
 
+    def update_treatment_function(self, data, realizations):
+
+        self.treatment.optimization_step(self, data, self.get_param_from_real(realizations))
+
     def compute_sufficient_statistics(self, data, realizations):
 
         # modify realizations in-place
@@ -411,8 +456,12 @@ class MultivariateModel(AbstractMultivariateModel):
 
         individual_parameters = self.get_param_from_real(realizations)
 
+        kwargs = {}
+        if hasattr(data, "treatment_dates"):
+            kwargs['treatment_dates'] = data.treatment_dates
+
         data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters,
-                                                                 attribute_type='MCMC')
+                                                                 attribute_type='MCMC', **kwargs)
 
         if self.noise_model in ['gaussian_scalar', 'gaussian_diagonal']:
             data_reconstruction *= data.mask.float()  # speed-up computations
@@ -596,32 +645,32 @@ class MultivariateModel(AbstractMultivariateModel):
         return variables_infos
 
 # document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
-doc_with_(MultivariateModel.compute_individual_tensorized_linear,
-          MultivariateModel.compute_individual_tensorized,
+doc_with_(MultivariateTreatmentModel.compute_individual_tensorized_linear,
+          MultivariateTreatmentModel.compute_individual_tensorized,
           mapping={'the model': 'the model (linear)'})
-doc_with_(MultivariateModel.compute_individual_tensorized_logistic,
-          MultivariateModel.compute_individual_tensorized,
+doc_with_(MultivariateTreatmentModel.compute_individual_tensorized_logistic,
+          MultivariateTreatmentModel.compute_individual_tensorized,
           mapping={'the model': 'the model (logistic)'})
-#doc_with_(MultivariateModel.compute_individual_tensorized_mixed,
-#          MultivariateModel.compute_individual_tensorized,
+#doc_with_(MultivariateTreatmentModel.compute_individual_tensorized_mixed,
+#          MultivariateTreatmentModel.compute_individual_tensorized,
 #          mapping={'the model': 'the model (mixed logistic-linear)'})
 
-doc_with_(MultivariateModel.compute_jacobian_tensorized_linear,
-          MultivariateModel.compute_jacobian_tensorized,
+doc_with_(MultivariateTreatmentModel.compute_jacobian_tensorized_linear,
+          MultivariateTreatmentModel.compute_jacobian_tensorized,
           mapping={'the model': 'the model (linear)'})
-doc_with_(MultivariateModel.compute_jacobian_tensorized_logistic,
-          MultivariateModel.compute_jacobian_tensorized,
+doc_with_(MultivariateTreatmentModel.compute_jacobian_tensorized_logistic,
+          MultivariateTreatmentModel.compute_jacobian_tensorized,
           mapping={'the model': 'the model (logistic)'})
-#doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed,
-#          MultivariateModel.compute_jacobian_tensorized,
+#doc_with_(MultivariateTreatmentModel.compute_jacobian_tensorized_mixed,
+#          MultivariateTreatmentModel.compute_jacobian_tensorized,
 #          mapping={'the model': 'the model (mixed logistic-linear)'})
 
-#doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_linear,
-#          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+#doc_with_(MultivariateTreatmentModel.compute_individual_ages_from_biomarker_values_tensorized_linear,
+#          MultivariateTreatmentModel.compute_individual_ages_from_biomarker_values_tensorized,
 #          mapping={'the model': 'the model (linear)'})
-doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
-          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+doc_with_(MultivariateTreatmentModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
+          MultivariateTreatmentModel.compute_individual_ages_from_biomarker_values_tensorized,
           mapping={'the model': 'the model (logistic)'})
-#doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_mixed,
-#          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
+#doc_with_(MultivariateTreatmentModel.compute_individual_ages_from_biomarker_values_tensorized_mixed,
+#          MultivariateTreatmentModel.compute_individual_ages_from_biomarker_values_tensorized,
 #          mapping={'the model': 'the model (mixed logistic-linear)'})

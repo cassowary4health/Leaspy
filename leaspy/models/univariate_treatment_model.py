@@ -86,7 +86,7 @@ class UnivariateTreatmentModel(AbstractModel, OrdinalModelMixin):
 
     def _check_subtype(self):
         if self.name not in self.SUBTYPES_SUFFIXES.keys():
-            raise LeaspyModelInputError(f'Univariate model name should be among these valid sub-types: '
+            raise LeaspyModelInputError(f'Univariate treatment model name should be among these valid sub-types: '
                                         f'{list(self.SUBTYPES_SUFFIXES.keys())}.')
 
         return self.SUBTYPES_SUFFIXES[self.name]
@@ -514,7 +514,10 @@ class UnivariateTreatmentModel(AbstractModel, OrdinalModelMixin):
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         individual_parameters = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters, attribute_type='MCMC')
+        kwargs = {}
+        if hasattr(data, "treatment_dates"):
+            kwargs['treatment_dates'] = data.treatment_dates
+        data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters, attribute_type='MCMC', **kwargs)
 
         if self.noise_model in ['gaussian_scalar', 'gaussian_diagonal']:
             data_reconstruction *= data.mask.float() # speed-up computations

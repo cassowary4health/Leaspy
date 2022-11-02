@@ -32,14 +32,18 @@ class TreatmentFunction():
         if self.type not in available_types:
             raise LeaspyModelInputError(f'Only {available_types} treatment function is implemented as of now.')
         if self.type == 'gaussian_kernel':
-            self.nb_control_points = kwargs.get("nb_control_points", 100)
+            self.sigma = kwargs.get('sigma', 1.)
+            self.nb_control_points = kwargs.get("nb_control_points", 10**self.dimension)
             self.control_points = kwargs.get("control_points", None)
             if self.control_points is None:
                 if data is None:
                     raise LeaspyModelInputError("TreatmentFunction of 'gaussian_kernel' type requires either control_points or data argument in order to work")
                 else:
                     self.create_control_points(data)
-            self.sigma = kwargs.get('sigma', 1.)
+            elif self.control_points == 'grid':
+                self.grid_control(data, self.sigma, max_control=self.nb_control_points)
+            else:
+                self.nb_control_points = self.control_points.shape[0]
             self.regularization = kwargs.get('regularization', 'L1')
             self.regularization_weight = kwargs.get('regularization_weight', 1.)
         if initial_weights is None:
@@ -83,12 +87,12 @@ class TreatmentFunction():
         """
         centers = self.control_points
         W = self.weights
-        sigma =self.sigma
+        sigma = self.sigma
 
         size = p.shape[0]
 
         c = torch.tile(centers.unsqueeze(0), (size, 1, 1))
-        p = torch.tile(p.unsqueeze(-1), (1, self.nb_control_points, 1))
+        p = torch.tile(p.unsqueeze(1), (1, self.nb_control_points, 1))
         # Computing Gaussian kernel between centroids and positions p
         K = c - p
         sig = sigma * sigma * 2.
@@ -112,6 +116,61 @@ class TreatmentFunction():
         centers, indices = kmeans_plusplus(p.numpy(), n_clusters=self.nb_control_points, random_state=random_state)
         self.control_points = p[indices]
 
+    def grid_control(self, Y, sig, max_control=10000):
+        """
+        Parameters
+        ----------
+            Y: torch.tensor (nb_visite,dim)
+            sig: float (kernel size)
+            max_control: int (max control points allowed)
+        Returns:
+        ---------
+            control points uniformly distributed in euclidean space distant from sig aroud the points in Y
+
+
+
+
+        """
+        dim = Y.shape[1]
+        if isinstance(sig, float):
+            sigma = torch.tensor([sig] * dim, dtype=torch.float32)
+        else:
+            sigma = sig
+
+        L = []
+        for d in range(dim):
+            mind = Y[:, d][Y[:, d] != 0.].quantile(0.05) - sigma[d]
+            maxd = Y[:, d][Y[:, d] != 0.].quantile(0.95) + sigma[d]
+            nk = int((maxd - mind) / sigma[d])
+            grid = torch.linspace(mind, maxd, nk + 1)  # grid for axis corresponding to dimension d
+            L.append(grid)
+        T = torch.meshgrid(L)  # total grid as D vectors for the coordinates on the D dimensions
+        shape = T[0].shape  # shape of the grid
+
+        # Construction of tensor with full coordinates (x1, ... xD) for each mesh point
+        Z = torch.stack(T, dim=len(shape))
+        Z = Z.reshape((-1, dim))
+
+        # Keeping only relevant points + under max_control points limit
+        index = []
+        permutation = np.arange(len(Z))
+        np.random.shuffle(permutation)
+        c = 0
+        signorm = torch.norm(sigma)
+        for j in range(len(Z)):
+            A = Z[permutation[j]]
+            dist = torch.norm(Y - A, dim=1)
+            m = dist.min().item()
+            if m < signorm:
+                index.append(j)
+                c += 1
+                if c >= max_control:
+                    break
+        X_con = Z[index]
+
+        self.control_points = X_con
+        self.nb_control_points = len(X_con)
+
     def optimization_step(self, model, dataset, ip, alpha=0.1, beta=0.7):
         """
         Operates a backtracking line search step in the gradient direction.
@@ -130,9 +189,12 @@ class TreatmentFunction():
         #TODO optimize the computation of gradient steps
 
         def compute_loss(dataset, model, ip):
-            values = model.compute_individual_tensorized(dataset.timepoints, ip, attribute_type='MCMC')
+            kwargs = {}
+            if "treatment" in model.name and hasattr(dataset, "treatment_dates"):
+                kwargs['treatment_dates'] = dataset.treatment_dates
+            values = model.compute_individual_tensorized(dataset.timepoints, ip, attribute_type='MCMC', **kwargs)
             if model.noise_model in ['gaussian_scalar', 'gaussian_diagonal']:
-                return torch.nn.functional.mse_loss(values, dataset.values)
+                return torch.nn.functional.mse_loss(values*dataset.mask / model.parameters['noise_std'], dataset.values*dataset.mask / model.parameters['noise_std'])
 
         def backtracking_line_search(eval_function, direction, param, max_step=1., alpha=0.1, beta=0.7, max_iter=1000):
             if torch.norm(direction) == 0.:
@@ -158,11 +220,18 @@ class TreatmentFunction():
         self.weights.grad = None
         loss = compute_loss(dataset, model, ip)
         # Regularization
+        if 'univariate' in model.name:
+            feature_norm = 0.
+        elif 'linear' in model.name:
+            feature_norm = torch.abs(model.parameters['v0'])
+        else:
+            feature_norm = torch.exp(model.parameters['v0'])
+        feature_norm = feature_norm + torch.exp(model.parameters['xi_mean'])
         if self.regularization == 'L1':
-            reg = torch.norm(self.weights, 1)
+            reg = torch.norm(self.weights / feature_norm, 1)
         elif self.regularization == 'L2':
             reg = torch.norm(self.weights, 2)
-        loss = loss + reg
+        loss = loss + self.regularization_weight * reg
         loss.backward()
         grad = self.weights.grad
         better_param, step = backtracking_line_search(eval_function, grad, self.weights, alpha=alpha, beta=beta)

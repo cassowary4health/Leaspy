@@ -112,6 +112,9 @@ class Dataset:
         self._construct_timepoints(data)
         self._compute_L2_norm()
 
+        if hasattr(data, "treatment_dates"):
+            self.treatment_dates = data.treatment_dates
+
     def _construct_values(self, data: Data):
 
         self.n_visits_per_individual = [len(_.timepoints) for _ in data]

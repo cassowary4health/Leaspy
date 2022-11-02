@@ -348,3 +348,6 @@ class Data(Iterable):
             data.iter_to_idx[data.n_individuals - 1] = idx
 
         return data
+
+    def set_treatment_dates(self, treatment_dates):
+        self.treatment_dates = treatment_dates

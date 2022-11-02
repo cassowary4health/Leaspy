@@ -125,6 +125,17 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         """
         self.positions = values['g'].clone()
 
+    # Override : no need for non-decreasing linear functions : linear is really easy
+    def _compute_velocities(self, values):
+        """
+        Update the attribute ``velocities`` (only for multivariate - not parallel - models).
+
+        Parameters
+        ----------
+        values : dict [str, `torch.Tensor`]
+        """
+        self.velocities = values['v0'].clone()
+
 
     def _compute_orthonormal_basis(self):
         """

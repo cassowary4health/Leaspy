@@ -15,6 +15,7 @@ from leaspy.models.utils.noise_model import NoiseModel
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 from leaspy.exceptions import LeaspyConvergenceError, LeaspyIndividualParamsInputError, LeaspyModelInputError
+import warnings
 from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Iterable, Optional
 
 if TYPE_CHECKING:
@@ -154,7 +155,11 @@ class AbstractModel(ABC):
         :class:`torch.Tensor` of shape (n_individuals,dimension)
             Contains L2 residual for each subject and each feature
         """
-        res = self.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
+        # Potential additional arguments
+        kwargs = {}
+        if "treatment" in self.name and hasattr(dataset, "treatment_dates"):
+            kwargs['treatment_dates'] = dataset.treatment_dates
+        res = self.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type, **kwargs)
         r1 = dataset.mask.float() * (res - dataset.values) # ijk tensor (i=individuals, j=visits, k=features)
         return (r1 * r1).sum(dim=1)  # sum on visits
 
@@ -165,7 +170,7 @@ class AbstractModel(ABC):
 
         Parameters
         ----------
-        dataset : :class:`.Dataset`
+        dataset : :class:`.Dtaset`
             Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
         param_ind : dict
             Contain the individual parameters
@@ -505,6 +510,11 @@ class AbstractModel(ABC):
             If invalid `noise_model` for model
         """
 
+        # Potential additional arguments
+        kwargs = {}
+        if "treatment" in self.name and hasattr(data, "treatment_dates"):
+            kwargs['treatment_dates'] = data.treatment_dates
+
         # TODO: this snippet could be implemented directly in NoiseModel (or subclasses depending on noise structure)
         if self.noise_model is None:
             raise LeaspyModelInputError('`noise_model` was not set correctly set.')
@@ -522,7 +532,7 @@ class AbstractModel(ABC):
 
         else:
             # log-likelihood based models
-            pred = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type)
+            pred = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type, **kwargs)
             # safety before taking logarithms
             pred = torch.clamp(pred, 1e-7, 1. - 1e-7)
 
@@ -826,7 +836,7 @@ class AbstractModel(ABC):
         :exc:`.LeaspyConvergenceError`
         """
         if (variance < tol).any():
-            raise LeaspyConvergenceError(f"The parameter '{varname}' collapsed to zero, which indicates a convergence issue.\n"
+            warnings.warn(f"The parameter '{varname}' collapsed to zero, which indicates a convergence issue.\n"
                                          "Start by investigating what happened in the logs of your calibration and try to double check:"
                                          "\n- your training dataset (not enough subjects and/or visits? too much missing data?)"
                                          "\n- the hyperparameters of your Leaspy model (`source_dimension` too low or too high? "
@@ -834,7 +844,7 @@ class AbstractModel(ABC):
                                          "\n- the hyperparameters of your calibration algorithm"
                                         )
 
-        return variance.sqrt()
+        return torch.clamp(variance, tol).sqrt() # safety after raising the warning
 
     def move_to_device(self, device: torch.device) -> None:
         """

@@ -13,12 +13,14 @@ class AttributesFactory:
         'logistic': LogisticAttributes,
         'univariate_logistic': LogisticAttributes,
         'univariate_treatment_logistic': LogisticAttributes,
+        'multivariate_treatment_logistic': LogisticAttributes,
 
         'logistic_parallel': LogisticParallelAttributes,
 
         'linear': LinearAttributes,
         'univariate_linear': LinearAttributes,
         'univariate_treatment_linear': LinearAttributes,
+        'multivariate_treatment_linear':LinearAttributes,
 
         #'mixed_linear-logistic': ... # TODO
     }

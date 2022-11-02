@@ -65,11 +65,11 @@ def initialize_parameters(model, dataset, method="default"):
         return lme_init(model, df) # support kwargs?
 
     name = model.name
-    if name in ['logistic', 'univariate_logistic']:
+    if name in ['logistic', 'univariate_logistic', 'multivariate_treatment_logistic']:
         parameters = initialize_logistic(model, df, method)
     elif name == 'logistic_parallel':
         parameters = initialize_logistic_parallel(model, df, method)
-    elif name in ['linear', 'univariate_linear', 'univariate_treatment_linear']:
+    elif name in ['linear', 'univariate_linear', 'univariate_treatment_linear', 'multivariate_treatment_linear']:
         parameters = initialize_linear(model, df, method)
     #elif name == 'univariate':
     #    parameters = initialize_univariate(df, method)
@@ -187,7 +187,7 @@ def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
         params['tau_mean'] = lme['ages_mean'].mean()
 
         params['g'] = lme['fe_params'][:, 0] + v0_lin * (params['tau_mean'] - lme['ages_mean'])
-        params['v0' if multiv else 'xi_mean'] = v0_lin.log()
+        params['v0' if multiv else 'xi_mean'] = v0_lin #.log()
 
     #elif name in ['logistic_parallel']:
     #    # deltas = torch.zeros((model.dimension - 1,)) ?
@@ -510,8 +510,8 @@ def initialize_linear(model, df: pd.DataFrame, method):
     positions = torch.tensor(df_grp['position'].mean().values)
     velocities = torch.tensor(df_grp['slope'].mean().values)
 
-    # always take the log (even in non univariate model!)
-    velocities = get_log_velocities(velocities, model.features)
+    # always take the log (even in non univariate model!) -> Nope
+    #velocities = get_log_velocities(velocities, model.features)
 
     if 'univariate' in model.name:
         xi_mean = velocities.squeeze()

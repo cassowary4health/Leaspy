@@ -162,7 +162,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return torch.cat(to_cat, dim=-1).squeeze(0) # 1 individual at a time
 
-    def _get_reconstruction_error(self, model, times, values, individual_parameters):
+    def _get_reconstruction_error(self, model, times, values, individual_parameters, **kwargs):
         """
         Compute model values minus real values of a patient for a given model, timepoints, real values & individual parameters.
 
@@ -187,7 +187,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             return float('nan') * torch.ones((len(times), model.dimension))
 
         # computation for 1 individual (level dropped after computation)
-        predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters).squeeze(0)
+        predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters, **kwargs).squeeze(0)
         return predicted - values
 
     def _get_regularity(self, model, individual_parameters):
@@ -270,14 +270,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
 
         # Extra arguments passed by scipy minimize
-        model, times, values, with_gradient = args
+        model, times, values, with_gradient, kwargs = args
         nans = torch.isnan(values)
 
         ## Attachment term
         individual_parameters = self._pull_individual_parameters(x, model)
 
         # compute 1 individual at a time (1st dimension is squeezed)
-        predicted = model.compute_individual_tensorized(times, individual_parameters).squeeze(0)
+        predicted = model.compute_individual_tensorized(times, individual_parameters, **kwargs).squeeze(0)
 
         # we clamp the predictions for log-based losses (safety before taking the log)
         # cf. torch.finfo(torch.float32).eps ~= 1.19e-7
@@ -371,7 +371,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             # result is objective only
             return res['objective'].item()
 
-    def _get_individual_parameters_patient(self, model, times, values, *, with_jac: bool, patient_id=None):
+    def _get_individual_parameters_patient(self, model, times, values, *, with_jac: bool, patient_id=None, **kwargs):
         """
         Compute the individual parameter by minimizing the objective loss function with scipy solver.
 
@@ -400,12 +400,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         res = minimize(self.obj,
                        jac=with_jac,
                        x0=initial_value,
-                       args=(model, times.unsqueeze(0), values, with_jac),
+                       args=(model, times.unsqueeze(0), values, with_jac, kwargs),
                        **self.scipy_minimize_params
                        )
 
         individual_params_f = self._pull_individual_parameters(res.x, model)
-        err_f = self._get_reconstruction_error(model, times, values, individual_params_f)
+        err_f = self._get_reconstruction_error(model, times, values, individual_params_f, **kwargs)
 
         if not res.success and self.logger:
             # log full results if optimization failed
@@ -449,8 +449,12 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # torch.Tensor[n_tpts, n_fts [, extra_dim_for_ordinal_model]] with nans (to avoid re-doing one-hot-encoding)
         values = data.get_values_patient(it, adapt_for_model=model)
 
+        kwargs = {}
+        if "treatment" in model.name and hasattr(data, "treatment_dates"):
+            kwargs['treatment_dates'] = data.treatment_dates[it]
+
         individual_params_tensorized, _ = self._get_individual_parameters_patient(model, times, values,
-                                                                                  with_jac=with_jac, patient_id=patient_id)
+                                                                                  with_jac=with_jac, patient_id=patient_id, **kwargs)
 
         if self.algo_parameters.get('progress_bar', True):
             self._display_progress_bar(it, data.n_individuals, suffix='subjects')

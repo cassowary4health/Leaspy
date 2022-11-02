@@ -6,6 +6,7 @@ from .multivariate_parallel_model import MultivariateParallelModel
 from .constant_model import ConstantModel
 from .lme_model import LMEModel
 from .univariate_treatment_model import UnivariateTreatmentModel
+from .multivariate_treatment_model import MultivariateTreatmentModel
 
 # flexible dictionary to have a simpler and more maintainable ModelFactory
 all_models = {
@@ -16,6 +17,10 @@ all_models = {
     # univariate treatment Leaspy models
     'univariate_treatment_logistic': UnivariateTreatmentModel,
     'univariate_treatment_linear': UnivariateTreatmentModel,
+
+    # multivariate treatment Leaspy models
+    'multivariate_treatment_logistic': MultivariateTreatmentModel,
+    'multivariate_treatment_linear': MultivariateTreatmentModel,
 
     # multivariate Leaspy models
     'logistic': MultivariateModel,

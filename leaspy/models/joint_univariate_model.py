@@ -2,22 +2,26 @@ import json
 import torch
 import math
 
-
 from leaspy import __version__
 
-from leaspy.models.abstract_model import AbstractModel
+from abc import ABC, abstractmethod
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.models.utils.noise_model import NoiseModel
-from leaspy.models.utils.ordinal import OrdinalModelMixin
+from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.realizations.realization import Realization
+from leaspy.exceptions import LeaspyConvergenceError, LeaspyIndividualParamsInputError, LeaspyModelInputError
+
 
 from leaspy.utils.typing import DictParamsTorch
-
 
 from leaspy.utils.typing import Optional
 from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
+
+from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Iterable, Optional
+
 
 
 TWO_PI = torch.tensor(2 * math.pi)
@@ -29,7 +33,7 @@ TWO_PI = torch.tensor(2 * math.pi)
 
 
 @doc_with_super()
-class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
+class JointUnivariateModel(ABC):
     """
     Univariate (logistic or linear) model for a single variable of interest.
 
@@ -49,14 +53,17 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
 
     SUBTYPES_SUFFIXES = {
         #'univariate_linear': '_linear',
-        'joint_univariate_logistic': '_logistic'
+        'joint_univariate_logistic': '_logistic_weibull'
     }
 
     ## --- INITIALIZATION FUNCTIONS ---
     def __init__(self, name: str, **kwargs):
 
-        super().__init__(name)
-
+        self.is_initialized: bool = False
+        self.is_ordinal = False
+        self.name = name
+        self.features: List[FeatureType] = None
+        self.univariate = True
         self.dimension = 1
         self.source_dimension = 0  # TODO, None ???
         self.noise_model = 'joint'
@@ -109,17 +116,13 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         # TODO? forbid the usage of `gaussian_diagonal` noise for such model?
         expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
 
-        # special hyperparameter(s) for ordinal model
-        expected_hyperparameters += self._handle_ordinal_hyperparameters(hyperparameters)
-
         self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
     ## --- WHAT IS THIS INITIALIZATION? ---
     def initialize(self, dataset, method="default"):
         self.features = dataset.headers
         self.parameters = initialize_parameters(self, dataset, method)
-        self.attributes = AttributesFactory.attributes(self.name, dimension=1,
-                                                       **self._attributes_factory_ordinal_kws)
+        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
 
         # Postpone the computation of attributes when really needed!
         #self.attributes.update(['all'], self.parameters)
@@ -138,11 +141,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
                        'nu_std': 0.01,}, # population parameter
         }
 
-        # specific priors for ordinal models
-        self._initialize_MCMC_toolbox_ordinal_priors()
-
-        self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(self.name, dimension=1,
-                                                                       **self._attributes_factory_ordinal_kws)
+        self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(self.name, dimension=1)
         population_dictionary = self._create_dictionary_of_population_realizations()
         self.update_MCMC_toolbox(["all"], population_dictionary)
 
@@ -198,8 +197,6 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
             "v0": v0_infos
         }
 
-        self._add_ordinal_random_variables(variables_infos)
-
         return variables_infos
 
     ## --- LOAD & SAVE FUNCTIONS ---
@@ -209,12 +206,8 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         for k in parameters.keys():
             self.parameters[k] = torch.tensor(parameters[k])
 
-        # re-build the ordinal_infos if relevant
-        self._rebuild_ordinal_infos_from_model_parameters()
-
         # derive the model attributes from model parameters upon reloading of model
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
-                                                       **self._attributes_factory_ordinal_kws)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension)
         self.attributes.update(['all'], self.parameters)
 
     def save(self, path: str, **kwargs):
@@ -231,8 +224,6 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
             'noise_model': self.noise_model,
             'parameters': model_parameters_save
         }
-
-        self._export_extra_ordinal_settings(model_settings)
 
         # TODO : in leaspy models there should be a method to only return the dict describing the model
         # and then another generic method (inherited) should save this dict
@@ -271,7 +262,6 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         if any(c in vars_to_update for c in ('nu', 'all')):
             values['nu'] = realizations['nu'].tensor_realizations
 
-        self._update_MCMC_toolbox_ordinal(vars_to_update, realizations, values)
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
     def _call_method_from_attributes(self, method_name: str, attribute_type: Optional[str], **call_kws):
@@ -312,9 +302,28 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         return self.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
 
     ## --- [BASIC] COMPUTATION OF LONGITUDINAL PATIENT VALUE FUNCTIONS ---
-    @suffixed_method
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
-        pass
+    @staticmethod
+    def time_reparametrization(timepoints: torch.FloatTensor, xi: torch.FloatTensor,
+                               tau: torch.FloatTensor) -> torch.FloatTensor:
+        """
+        Tensorized time reparametrization formula
+
+        <!> Shapes of tensors must be compatible between them.
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor`
+            Timepoints to reparametrize
+        xi : :class:`torch.Tensor`
+            Log-acceleration of individual(s)
+        tau : :class:`torch.Tensor`
+            Time-shift(s)
+
+        Returns
+        -------
+        :class:`torch.Tensor` of same shape as `timepoints`
+        """
+        return torch.exp(xi) * (timepoints - tau)
 
     def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
@@ -326,34 +335,35 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         LL = torch.exp(v0)*reparametrized_time.unsqueeze(-1)
-        if self.is_ordinal:
-            # add an extra dimension for the levels of the ordinal item
-            LL = LL.unsqueeze(-1)
-            g = g.unsqueeze(-1)
-            deltas = self._get_deltas(attribute_type) # (features, max_level)
-            deltas = deltas.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
-            LL = LL - deltas.cumsum(dim=-1) #TODO
 
         # TODO? more efficient & accurate to compute `torch.exp(-LL + log_g)` since we directly sample & stored log_g
         model = 1. / (1. + g * torch.exp(-LL))
 
-        # Compute the pdf and not the sf
-        if self.noise_model == 'ordinal':
-            model = self.compute_ordinal_pdf_from_ordinal_sf(model)
 
         return model # (n_individuals, n_timepoints, n_features == 1 [, extra_dim_ordinal_models])
 
-    def compute_individual_tensorized_survival(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized_event(self, data, individual_parameters, *, attribute_type=None):
         # Population parameters
         g, v0, rho, nu = self._get_attributes(attribute_type)
 
-        # Individual parameters
-        xi = individual_parameters['xi'].reshape(timepoints.shape)
-        reparametrized_time = (torch.exp(xi)*timepoints)
+        # Get Individual parameters
+        xi = individual_parameters['xi'].reshape(data.event_time_min.shape)
 
-        survival = torch.exp(-(reparametrized_time / nu) ** rho)
+        # Reparametrized survival
+        reparametrized_time_min = torch.exp(xi)*(data.event_time_min)
+        reparametrized_time_max = torch.exp(xi)*(data.event_time_max)
 
-        return survival  # (n_individuals, 1, 1_features)
+        # Survival
+        survival = torch.exp(-(reparametrized_time_min * nu) ** rho)
+        print(-(reparametrized_time_min * nu) ** rho)
+        print(survival)
+        # print(rho, nu)
+        # Hazard only for patient with event not censored
+        hazard = (rho * nu) * ((reparametrized_time_max * nu) ** (rho - 1))
+        hazard = (data.mask_event * hazard)
+        hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
+
+        return hazard * survival
 
     def compute_individual_tensorized_hazard(self, timepoints, individual_parameters, *, attribute_type=None):
         # Population parameters
@@ -378,74 +388,9 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
 
         return positions + reparametrized_time.unsqueeze(-1)"""
 
-    ## --- [JACOBIAN] COMPUTATION OF LONGITUDINAL PATIENT VALUE FUNCTIONS ---
-    @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
-        pass
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+    ##################################################@@
 
-        # Population parameters
-        g, v0, rho, nu = self._get_attributes(attribute_type)
-
-        # Individual parameters
-        xi, tau = individual_parameters['xi'], individual_parameters['tau']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-        alpha = torch.exp(xi).reshape(-1, 1, 1)
-
-        # Log likelihood computation
-        LL = torch.exp(v0)*reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, n_features==1)
-
-        if self.is_ordinal:
-            # add an extra dimension for the levels of the ordinal item
-            LL = LL.unsqueeze(-1)
-            g = g.unsqueeze(-1)
-            deltas = self._get_deltas(attribute_type)  # (features, max_level)
-            deltas = deltas.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
-            LL = LL - deltas.cumsum(dim=-1)
-
-        model = 1. / (1. + g * torch.exp(-LL))
-
-        c = model * (1. - model)
-
-        derivatives = {
-            'xi': (reparametrized_time).unsqueeze(-1).unsqueeze(-1),
-            'tau': (-alpha).unsqueeze(-1),
-        }
-
-        if self.is_ordinal:
-            ordinal_lvls_shape = c.shape[-1]
-            for param in derivatives:
-                derivatives[param] = derivatives[param].unsqueeze(-2).repeat(1, 1, 1, ordinal_lvls_shape, 1)
-
-        for param in derivatives:
-            derivatives[param] = c.unsqueeze(-1) * derivatives[param]
-
-        # Compute derivative of the pdf and not of the sf
-        if self.noise_model == 'ordinal':
-            for param in derivatives:
-                derivatives[param] = self.compute_ordinal_pdf_from_ordinal_sf(derivatives[param])
-
-        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts == 1 [, extra_dim_ordinal_models], n_dims_param)]
-        return derivatives
-
-    """def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
-
-            # Individual parameters
-            xi, tau = individual_parameters['xi'], individual_parameters['tau']
-            reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
-            # Reshaping
-            reparametrized_time = reparametrized_time.unsqueeze(-1)
-            alpha = torch.exp(xi).unsqueeze(-1)
-
-            # Jacobian of model expected value w.r.t. individual parameters
-            derivatives = {
-                'xi': reparametrized_time.unsqueeze(-1),
-                'tau': (-alpha * torch.ones_like(reparametrized_time)).unsqueeze(-1),
-            }
-
-            return derivatives"""
     ## --- WHERE ARE THEY CALL??? ---
     @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
@@ -458,8 +403,6 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         if value.dim() != 2:
             raise LeaspyModelInputError(f"The biomarker value should be dim 2, not {value.dim()}!")
 
-        if self.is_ordinal:
-            return self._compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(value, individual_parameters)
 
         # avoid division by zero:
         value = value.masked_fill((value == 0) | (value == 1), float('nan'))
@@ -525,20 +468,268 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
                                                individual_parameters=individual_parameters,
                                                feat_index=feat_ind)'''
 
+    def get_population_realization_names(self) -> List[str]:
+        """
+        Get names of population variables of the model.
+
+        Returns
+        -------
+        list[str]
+        """
+        return [name for name, value in self.random_variable_informations().items()
+                if value['type'] == 'population']
+
+    def get_individual_realization_names(self) -> List[str]:
+        """
+        Get names of individual variables of the model.
+
+        Returns
+        -------
+        list[str]
+        """
+        return [name for name, value in self.random_variable_informations().items()
+                if value['type'] == 'individual']
+
+    def __str__(self):
+        output = "=== MODEL ==="
+        for p, v in self.parameters.items():
+            if isinstance(v, float) or (hasattr(v, 'ndim') and v.ndim == 0):
+                # for 0D tensors / arrays the default behavior is to print all digits...
+                # change this!
+                v_repr = f'{v:.{1 + torch_print_opts.precision}g}'
+            else:
+                # torch.tensor, np.array, ...
+                # in particular you may use `torch.set_printoptions` and `np.set_printoptions` globally
+                # to tune the number of decimals when printing tensors / arrays
+                v_repr = str(v)
+                # remove tensor prefix & possible dtype suffix
+                v_repr = re.sub(r'^[^\(]+\(', '', v_repr)
+                v_repr = re.sub(r'(?:, dtype=.+)?\)$', '', v_repr)
+                # adjust justification
+                spaces = " " * len(f"{p} : [")
+                v_repr = re.sub(r'\n[ ]+\[', f'\n{spaces}[', v_repr)
+
+            output += f"\n{p} : {v_repr}"
+        return output
+
+    @classmethod
+    def _raise_if_unknown_hyperparameters(cls, known_hps: Iterable[str], given_hps: KwargsType) -> None:
+        """Helper function raising a :exc:`.LeaspyModelInputError` if any unknown hyperparameter provided for model."""
+        # TODO: replace with better logic from GenericModel in the future
+        unexpected_hyperparameters = set(given_hps.keys()).difference(known_hps)
+        if len(unexpected_hyperparameters) > 0:
+            raise LeaspyModelInputError(
+                f"Only {known_hps} are valid hyperparameters for {cls.__qualname__}. "
+                f"Unknown hyperparameters provided: {unexpected_hyperparameters}.")
+
+    def compute_regularity_realization(self, realization: Realization):
+        """
+        Compute regularity term for a :class:`.Realization` instance.
+
+        Parameters
+        ----------
+        realization : :class:`.Realization`
+
+        Returns
+        -------
+        :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
+        """
+        if realization.variable_type == 'population':
+            # Regularization of population variables around current model values
+            mean = self.parameters[realization.name]
+            std = self.MCMC_toolbox['priors'][f"{realization.name}_std"]
+        elif realization.variable_type == 'individual':
+            # Regularization of individual parameters around mean / std from model parameters
+            mean = self.parameters[f"{realization.name}_mean"]
+            std = self.parameters[f"{realization.name}_std"]
+        else:
+            raise LeaspyModelInputError(
+                f"Variable type '{realization.variable_type}' not known, should be 'population' or 'individual'.")
+
+        # we do not need to include regularity constant (priors are always fixed at a given iteration)
+        return self.compute_regularity_variable(realization.tensor_realizations, mean, std, include_constant=False)
+
+    def compute_regularity_variable(self, value: torch.FloatTensor, mean: torch.FloatTensor, std: torch.FloatTensor,
+                                    *, include_constant: bool = True) -> torch.FloatTensor:
+        """
+        Compute regularity term (Gaussian distribution), low-level.
+
+        TODO: should be encapsulated in a RandomVariableSpecification class together with other specs of RV.
+
+        Parameters
+        ----------
+        value, mean, std : :class:`torch.Tensor` of same shapes
+        include_constant : bool (default True)
+            Whether we include or not additional terms constant with respect to `value`.
+
+        Returns
+        -------
+        :class:`torch.Tensor` of same shape than input
+        """
+        # This is really slow when repeated on tiny tensors (~3x slower than direct formula!)
+        # return -self.regularization_distribution_factory(mean, std).log_prob(value)
+
+        y = (value - mean) / std
+        neg_loglike = 0.5 * y * y
+        if include_constant:
+            neg_loglike += 0.5 * torch.log(TWO_PI * std ** 2)
+
+        return neg_loglike
+
+    def initialize_realizations_for_model(self, n_individuals: int, **init_kws) -> CollectionRealization:
+        """
+        Initialize a :class:`.CollectionRealization` used during model fitting or mode/mean realization personalization.
+
+        Parameters
+        ----------
+        n_individuals : int
+            Number of individuals to track
+        **init_kws
+            Keyword arguments passed to :meth:`.CollectionRealization.initialize`.
+            (In particular `individual_variable_init_at_mean` to "initialize at mean" or `skip_variable` to filter some variables)
+
+        Returns
+        -------
+        :class:`.CollectionRealization`
+        """
+        realizations = CollectionRealization()
+        realizations.initialize(n_individuals, self, **init_kws)
+        return realizations
+
+    def smart_initialization_realizations(self, dataset, realizations: CollectionRealization) -> CollectionRealization:
+        """
+        Smart initialization of realizations if needed (input may be modified in-place).
+
+        Default behavior to return `realizations` as they are (no smart trick).
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+        realizations : :class:`.CollectionRealization`
+
+        Returns
+        -------
+        :class:`.CollectionRealization`
+        """
+        return realizations
+
+    def _create_dictionary_of_population_realizations(self):
+        pop_dictionary: Dict[str, Realization] = {}
+        for name_var, info_var in self.random_variable_informations().items():
+            if info_var['type'] != "population":
+                continue
+            real = Realization.from_tensor(name_var, info_var['shape'], info_var['type'], self.parameters[name_var])
+            pop_dictionary[name_var] = real
+
+        return pop_dictionary
+
+    def get_param_from_real(self, realizations: CollectionRealization) -> DictParamsTorch:
+        """
+        Get individual parameters realizations from all model realizations
+
+        <!> The tensors are not cloned and so a link continue to exist between the individual parameters
+            and the underlying tensors of realizations.
+
+        Parameters
+        ----------
+        realizations : :class:`.CollectionRealization`
+
+        Returns
+        -------
+        dict[param_name: str, :class:`torch.Tensor` [n_individuals, dims_param]]
+            Individual parameters
+        """
+        return {
+            variable_ind: realizations[variable_ind].tensor_realizations
+            for variable_ind in self.get_individual_realization_names()
+        }
+
+    @staticmethod
+    def _compute_std_from_var(variance: torch.FloatTensor, *, varname: str, tol: float = 1e-5) -> torch.FloatTensor:
+        """
+        Check that variance is strictly positive and return its square root, otherwise fail with a convergence error.
+
+        If variance is multivariate check that all components are strictly positive.
+
+        TODO? a full Bayesian setting with good priors on all variables should prevent such convergence issues.
+
+        Parameters
+        ----------
+        var : :class:`torch.Tensor`
+            The variance we would like to convert to a std-dev.
+        varname : str
+            The name of the variable - to display a nice error message.
+        tol : float
+            The lower bound on variance, under which the converge error is raised.
+
+        Returns
+        -------
+        torch.FloatTensor
+
+        Raises
+        ------
+        :exc:`.LeaspyConvergenceError`
+        """
+        if (variance < tol).any():
+            raise LeaspyConvergenceError(
+                f"The parameter '{varname}' collapsed to zero, which indicates a convergence issue.\n"
+                "Start by investigating what happened in the logs of your calibration and try to double check:"
+                "\n- your training dataset (not enough subjects and/or visits? too much missing data?)"
+                "\n- the hyperparameters of your Leaspy model (`source_dimension` too low or too high? "
+                "`noise_model` not suited to your data?)"
+                "\n- the hyperparameters of your calibration algorithm"
+                )
+
+        return variance.sqrt()
+
+    def move_to_device(self, device: torch.device) -> None:
+        """
+        Move a model and its relevant attributes to the specified device.
+
+        Parameters
+        ----------
+        device : torch.device
+        """
+
+        # Note that in a model, the only tensors that need offloading to a
+        # particular device are in the model.parameters dict as well as in the
+        # attributes and MCMC_toolbox['attributes'] objects
+
+        for parameter in self.parameters:
+            self.parameters[parameter] = self.parameters[parameter].to(device)
+
+        if hasattr(self, "attributes"):
+            self.attributes.move_to_device(device)
+
+        if hasattr(self, "MCMC_toolbox"):
+            MCMC_toolbox_attributes = self.MCMC_toolbox.get("attributes", None)
+            if MCMC_toolbox_attributes is not None:
+                MCMC_toolbox_attributes.move_to_device(device)
+
     ## --- SUFFICIENT STATISTICS & FOLLOWING PARAMETER UPDATE ---
-    def compute_individual_attachment_event(self, data, param_ind, attribute_type=None):
 
-        survival = self.compute_individual_tensorized_survival(data.event_time_min, param_ind, attribute_type=attribute_type)
-        hazard = self.compute_individual_tensorized_hazard(data.event_time_max, param_ind, attribute_type=attribute_type)
+    def compute_sum_squared_per_ft_tensorized(self, dataset, param_ind: DictParamsTorch, *,
+                                              attribute_type=None) -> torch.FloatTensor:
+        """
+        Compute the square of the residuals per subject per feature
 
-        hazard = torch.nan_to_num(hazard, nan=1.)
-        #print(data.mask_event*torch.log(hazard))
-        indiv_ = -data.mask_event*torch.log(hazard)-1*torch.log(survival)
-        #print(data.mask.squeeze().shape, indiv_.unsqueeze(-1).expand(data.timepoints.shape).shape)
-        #per_vis = data.mask.squeeze()*indiv_.unsqueeze(-1).expand(data.timepoints.shape)
-        #print(per_vis.sum(axis = 1).shape)
-        return indiv_ # per_vis.sum(axis = 1)
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
+        param_ind : dict
+            Contain the individual parameters
+        attribute_type : Any (default None)
+            Flag to ask for MCMC attributes instead of model's attributes.
 
+        Returns
+        -------
+        :class:`torch.Tensor` of shape (n_individuals,dimension)
+            Contains L2 residual for each subject and each feature
+        """
+        res = self.compute_individual_tensorized_logistic(dataset.timepoints, param_ind, attribute_type=attribute_type)
+        r1 = dataset.mask.float() * (res - dataset.values) # ijk tensor (i=individuals, j=visits, k=features)
+        return (r1 * r1).sum(dim=1)  # sum on visits
 
     def compute_individual_attachment_tensorized(self, data, param_ind: DictParamsTorch, *,
                                                  attribute_type) -> torch.FloatTensor:
@@ -572,6 +763,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
             raise LeaspyModelInputError('`noise_model` was not set correctly set.')
 
         elif 'joint' in self.noise_model:
+            # CALCULER A LA MAIN NE PA
             # diagonal noise (squared) [same for all features if it's forced to be a scalar]
             # TODO? shouldn't 'noise_std' be part of the "MCMC_toolbox" to use the one we want??
             noise_var = self.parameters['noise_std'] * self.parameters['noise_std'] # slight perf improvement over ** 2, k tensor (or scalar tensor)
@@ -583,16 +775,52 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
             attachment_visits += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
             attachment_visits = attachment_visits.reshape((data.n_individuals,))
 
+            # Population parameters
+            g, v0, rho, nu = self._get_attributes(attribute_type)
+
+            # Get Individual parameters
+            xi = param_ind['xi'].reshape(data.event_time_min.shape)
+
+            # Reparametrized survival
+            reparametrized_time_min = torch.exp(xi) * (data.event_time_min)
+            reparametrized_time_max = torch.exp(xi) * (data.event_time_max)
+
+            # Survival
+            m_log_survival = (reparametrized_time_min * nu) ** rho
+
+            # Hazard only for patient with event not censored
+            hazard = (rho * nu) * ((reparametrized_time_max * nu) ** (rho - 1))
+            hazard = (data.mask_event * hazard)
+            hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
+
+            attachment_events = m_log_survival -torch.log(hazard)
+            attachment_total = attachment_events + attachment_visits
+
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 
-        attachment_events = self.compute_individual_attachment_event(data, param_ind, attribute_type=attribute_type)
-        attachment_total = attachment_visits + attachment_events #data.timepoints.shape[1]*
-        #print(attachment_visits.shape, attachment_events.shape)
-
         return attachment_total
 
+    def _center_xi_realizations(self, realizations):
+        # This operation does not change the orthonormal basis
+        # (since the resulting v0 is collinear to the previous one)
+        # Nor all model computations (only v0 * exp(xi_i) matters),
+        # it is only intended for model identifiability / `xi_i` regularization
+        # <!> all operations are performed in "log" space (v0 is log'ed)
+        mean_xi = torch.mean(realizations['xi'].tensor_realizations)
+        realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
+        realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
+        realizations['nu'].tensor_realizations = realizations['nu'].tensor_realizations + mean_xi
+
+        self.update_MCMC_toolbox(['v0_collinear'], realizations)
+        self.update_MCMC_toolbox(['nu_collinear'], realizations)
+
+        return realizations
+
     def compute_sufficient_statistics(self, data, realizations):
+
+        # modify realizations in-place
+        realizations = self._center_xi_realizations(realizations)
 
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
@@ -607,11 +835,8 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
-        self._add_ordinal_tensor_realizations(realizations, sufficient_statistics)
-
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         individual_parameters = self.get_param_from_real(realizations)
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters, attribute_type='MCMC')
 
         if self.noise_model in ['joint']:
             sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
@@ -620,6 +845,9 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
 
     def update_model_parameters_burn_in(self, data, realizations):
         # Memoryless part of the algorithm
+
+        # modify realizations in-place!
+        realizations = self._center_xi_realizations(realizations)
 
         # unlink model parameters from updates in realizations!
         realizations = realizations.clone_realizations()
@@ -634,8 +862,6 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
-
-        self._add_ordinal_tensor_realizations(realizations, self.parameters)
 
         param_ind = self.get_param_from_real(realizations)
         if self.noise_model in ['joint']:
@@ -663,28 +889,7 @@ class JointUnivariateModel(AbstractModel, OrdinalModelMixin):
         self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
         #self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        self._add_ordinal_sufficient_statistics(suff_stats, self.parameters)
-
         if self.noise_model in ['joint']:
             self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
         else:
             raise()
-
-# document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
-#doc_with_(JointUnivariateModel.compute_individual_tensorized_linear,
-#          JointUnivariateModel.compute_individual_tensorized,
-#          mapping={'the model': 'the model (linear)'})
-doc_with_(JointUnivariateModel.compute_individual_tensorized_logistic,
-          JointUnivariateModel.compute_individual_tensorized,
-          mapping={'the model': 'the model (logistic)'})
-
-#doc_with_(JointUnivariateModel.compute_jacobian_tensorized_linear,
-#          JointUnivariateModel.compute_jacobian_tensorized,
-#          mapping={'the model': 'the model (linear)'})
-doc_with_(JointUnivariateModel.compute_jacobian_tensorized_logistic,
-          JointUnivariateModel.compute_jacobian_tensorized,
-          mapping={'the model': 'the model (logistic)'})
-
-doc_with_(JointUnivariateModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
-          JointUnivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
-          mapping={'the model': 'the model (logistic)'})

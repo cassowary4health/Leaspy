@@ -73,7 +73,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             self.update_possibilities = ('all', 'g', 'v0', 'v0_collinear', 'betas')
 
         if self.joint:
-            self.update_possibilities += ("nu", "rho")
+            self.update_possibilities += ("nu", "rho", "nu_collinear")
 
 
 

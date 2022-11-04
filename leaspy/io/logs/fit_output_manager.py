@@ -119,7 +119,7 @@ class FitOutputManager:
         if self.periodicity_plot is not None:
             if iteration % self.periodicity_plot == 0:
                 # do not plot first iteration (useless, no lines yet)
-                self.plot_patient_reconstructions(iteration, data, model, realizations)
+                #self.plot_patient_reconstructions(iteration, data, model, realizations)
                 self.plot_convergence_model_parameters(model)
 
         if (algo.algo_parameters['n_iter'] - iteration) < self.save_last_n_realizations:

@@ -585,8 +585,8 @@ class SurvivalModel(ABC):
             xi = individual_parameters['xi'].reshape(data.event_time_min.shape)
 
             # Reparametrized survival
-            reparametrized_time_min = (data.event_time_min)*xi
-            reparametrized_time_max = (data.event_time_max)*xi
+            reparametrized_time_min = torch.exp(xi) * (data.event_time_min)
+            reparametrized_time_max = torch.exp(xi) * (data.event_time_max)
 
             # Survival
             survival = torch.exp(-(reparametrized_time_min * nu) ** rho)
@@ -730,12 +730,29 @@ class SurvivalModel(ABC):
         if self.noise_model is None:
             raise LeaspyModelInputError('`noise_model` was not set correctly set.')
 
-        elif 'survival' in self.noise_model:
-            attachment = self.compute_individual_tensorized(data, param_ind, attribute_type=attribute_type)
+        elif 'survival' in self.noise_model:            # Population parameters
+            rho, nu = self._get_attributes(attribute_type)
 
+            # Get Individual parameters
+            xi = param_ind['xi'].reshape(data.event_time_min.shape)
+
+            # Reparametrized survival
+            reparametrized_time_min = torch.exp(xi) * (data.event_time_min)
+            reparametrized_time_max = torch.exp(xi) * (data.event_time_max)
+
+            # Survival
+            m_log_survival = (reparametrized_time_min * nu) ** rho
+
+            # Hazard only for patient with event not censored
+            hazard = (rho * nu) * ((reparametrized_time_max * nu) ** (rho - 1))
+            hazard = (data.mask_event * hazard)
+            hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
+
+            attachment = m_log_survival -torch.log(hazard)
+            
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
-        return -torch.log(attachment)
+        return attachment
 
     def _center_xi_realizations(self, realizations):
         # This operation does not change the orthonormal basis

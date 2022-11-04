@@ -585,8 +585,8 @@ class SurvivalModel(ABC):
             xi = individual_parameters['xi'].reshape(data.event_time_min.shape)
 
             # Reparametrized survival
-            reparametrized_time_min = (data.event_time_min)
-            reparametrized_time_max = (data.event_time_max)
+            reparametrized_time_min = (data.event_time_min)*xi
+            reparametrized_time_max = (data.event_time_max)*xi
 
             # Survival
             survival = torch.exp(-(reparametrized_time_min * nu) ** rho)

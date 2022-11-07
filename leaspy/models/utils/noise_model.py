@@ -69,7 +69,8 @@ class NoiseModel:
     OLD_MAPPING_FROM_LOSS = {
         'MSE': 'gaussian_scalar',
         'MSE_diag_noise': 'gaussian_diagonal',
-        'crossentropy': 'bernoulli'
+        'crossentropy': 'bernoulli',
+        'survival': 'survival'
     }
 
     def __init__(self, noise_struct: Union[NoiseStruct, str, None], **noise_kws):

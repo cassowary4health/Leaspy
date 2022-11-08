@@ -234,5 +234,8 @@ NOISE_STRUCTS = {
     ),
     'ordinal_ranking': NoiseStruct(
         distribution_factory=MultinomialDistribution, # from survival function directly
+    ),
+    'joint': NoiseStruct(
+        distribution_factory=MultinomialDistribution, # from survival function directly
     )
 }

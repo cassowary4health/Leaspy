@@ -2,6 +2,7 @@ from .abstract_model import AbstractModel
 
 from .univariate_model import UnivariateModel
 from .joint_univariate_model import JointUnivariateModel
+from .survival_model import SurvivalModel
 from .multivariate_model import MultivariateModel
 from .multivariate_parallel_model import MultivariateParallelModel
 from .constant_model import ConstantModel
@@ -25,4 +26,8 @@ all_models = {
 
     #joint model
     'joint_univariate_logistic': JointUnivariateModel,
+
+    # survival
+    'univariate_survival_weibull': SurvivalModel
+
 }

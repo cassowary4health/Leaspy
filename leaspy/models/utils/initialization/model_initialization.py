@@ -78,6 +78,13 @@ def initialize_parameters(model, dataset, method="default"):
         #parameters = initialize_logistic(model, df, method)
     elif name == "joint_univariate_logistic":
         parameters = initialize_joint_logistic(model, df, method)
+    elif name in ['univariate_survival_weibull']:
+        parameters = {
+        'rho': torch.log(torch.tensor(4)),
+        'nu': torch.log(torch.tensor(1.1)),
+        'xi_mean': torch.tensor(0.),
+        'xi_std': torch.tensor(0.5),
+    }
     else:
         raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
 

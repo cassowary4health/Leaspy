@@ -451,7 +451,7 @@ def initialize_joint_logistic(model, df: pd.DataFrame, method):
     parameters_long = initialize_logistic(model, df, method)
     parameters_surv = {
         'rho': torch.log(torch.tensor(4.)),
-        'nu': torch.log(torch.tensor(2.)),
+        'nu': torch.log(torch.tensor(1.1)),
     }
     return dict(parameters_long, **parameters_surv)
 

@@ -477,6 +477,9 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
     def update_model_parameters_burn_in(self, data, realizations):
         # Memoryless part of the algorithm
 
+        # modify realizations in-place!
+        realizations = self._center_xi_realizations(realizations)
+
         # unlink model parameters from updates in realizations!
         realizations = realizations.clone_realizations()
 

@@ -236,7 +236,9 @@ NOISE_STRUCTS = {
         distribution_factory=MultinomialDistribution, # from survival function directly
     ),
     'joint': NoiseStruct(
-        distribution_factory=MultinomialDistribution, # from survival function directly
+        distribution_factory=torch.distributions.normal.Normal,
+        model_kws_to_dist_kws={'noise_std': 'scale'},
+        dist_kws_validators=(convert_input_to_1D_float_tensors, check_scale_is_positive, check_scale_is_univariate)
     ),
     'survival': NoiseStruct(
         distribution_factory=None, # from survival function directly

@@ -490,7 +490,7 @@ class JointUnivariateModel(ABC):
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        LL = torch.exp(v0)*reparametrized_time.unsqueeze(-1)
+        LL = v0*reparametrized_time.unsqueeze(-1)
 
         # TODO? more efficient & accurate to compute `torch.exp(-LL + log_g)` since we directly sample & stored log_g
         model = 1. / (1. + g * torch.exp(-LL))
@@ -905,6 +905,28 @@ class JointUnivariateModel(ABC):
         r1 = dataset.mask.float() * (res - dataset.values) # ijk tensor (i=individuals, j=visits, k=features)
         return (r1 * r1).sum(dim=1)  # sum on visits
 
+    def compute_sum_squared_tensorized(self, dataset, param_ind, *,
+                                       attribute_type=None) -> torch.FloatTensor:
+        """
+        Compute the square of the residuals per subject
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
+        param_ind : dict
+            Contain the individual parameters
+        attribute_type : Any (default None)
+            Flag to ask for MCMC attributes instead of model's attributes.
+
+        Returns
+        -------
+        :class:`torch.Tensor` of shape (n_individuals,)
+            Contains L2 residual for each subject
+        """
+        L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(dataset, param_ind, attribute_type=attribute_type)
+        return L2_res_per_ind_per_ft.sum(dim=1)  # sum on features
+
     def compute_individual_attachment_tensorized(self, data, param_ind: DictParamsTorch, *,
                                                  attribute_type) -> torch.FloatTensor:
         """
@@ -968,7 +990,7 @@ class JointUnivariateModel(ABC):
             hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
 
             attachment_events = m_log_survival -torch.log(hazard)
-            attachment_total = attachment_events + attachment_visits
+            attachment_total = attachment_events + attachment_visits  #attachment_events + attachment_visits
 
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
@@ -1015,6 +1037,17 @@ class JointUnivariateModel(ABC):
         if self.noise_model in ['joint']:
             sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
                                                                                                     attribute_type='MCMC').sum()
+            individual_parameters = self.get_param_from_real(realizations)
+            data_reconstruction = self.compute_individual_tensorized_logistic(data.timepoints, individual_parameters,
+                                                                     attribute_type='MCMC')
+
+            data_reconstruction *= data.mask.float()  # speed-up computations
+
+            norm_1 = data.values * data_reconstruction  # * data.mask.float()
+            norm_2 = data_reconstruction * data_reconstruction  # * data.mask.float()
+
+            sufficient_statistics['obs_x_reconstruction'] = norm_1  # .sum(dim=2)
+            sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2)
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
@@ -1042,6 +1075,7 @@ class JointUnivariateModel(ABC):
             total_attachment = self.compute_individual_attachment_tensorized(data, param_ind,
                                                                               attribute_type='MCMC').sum()
             self.parameters['log-likelihood'] = total_attachment
+            self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
     def update_model_parameters_normal(self, data, suff_stats):
         # Stochastic sufficient statistics used to update the parameters of the model
@@ -1065,5 +1099,13 @@ class JointUnivariateModel(ABC):
 
         if self.noise_model in ['joint']:
             self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
+
+            # scalar noise (same for all features)
+            S1 = data.L2_norm
+            S2 = suff_stats['obs_x_reconstruction'].sum()
+            S3 = suff_stats['reconstruction_x_reconstruction'].sum()
+
+            noise_var = (S1 - 2. * S2 + S3) / data.n_observations
+            self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
         else:
             raise()

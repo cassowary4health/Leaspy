@@ -927,7 +927,9 @@ class JointUnivariateModel(ABC):
         L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(dataset, param_ind, attribute_type=attribute_type)
         return L2_res_per_ind_per_ft.sum(dim=1)  # sum on features
 
-    def compute_individual_attachment_tensorized(self, data, param_ind: DictParamsTorch, *,
+
+
+    def compute_individual_attachment_visits(self, data, param_ind: DictParamsTorch, *,
                                                  attribute_type) -> torch.FloatTensor:
         """
         Compute attachment term (per subject)
@@ -959,7 +961,7 @@ class JointUnivariateModel(ABC):
             raise LeaspyModelInputError('`noise_model` was not set correctly set.')
 
         elif 'joint' in self.noise_model:
-            # CALCULER A LA MAIN NE PA
+
             # diagonal noise (squared) [same for all features if it's forced to be a scalar]
             # TODO? shouldn't 'noise_std' be part of the "MCMC_toolbox" to use the one we want??
             noise_var = self.parameters['noise_std'] * self.parameters['noise_std'] # slight perf improvement over ** 2, k tensor (or scalar tensor)
@@ -970,6 +972,45 @@ class JointUnivariateModel(ABC):
             attachment_visits = (0.5 / noise_var) @ L2_res_per_ind_per_ft.t()
             attachment_visits += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
             attachment_visits = attachment_visits.reshape((data.n_individuals,))
+            print(attachment_visits, noise_var)
+        else:
+            raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
+
+        return attachment_visits
+
+
+    def compute_individual_attachment_events(self, data, param_ind: DictParamsTorch, *,
+                                                 attribute_type) -> torch.FloatTensor:
+        """
+        Compute attachment term (per subject)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            Contains the data of the subjects, in particular the subjects' time-points and the mask for nan values & padded visits
+
+        param_ind : dict
+            Contain the individual parameters
+
+        attribute_type : Any
+            Flag to ask for MCMC attributes instead of model's attributes.
+
+        Returns
+        -------
+        attachment : :class:`torch.Tensor`
+            Negative Log-likelihood, shape = (n_subjects,)
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            If invalid `noise_model` for model
+        """
+
+        # TODO: this snippet could be implemented directly in NoiseModel (or subclasses depending on noise structure)
+        if self.noise_model is None:
+            raise LeaspyModelInputError('`noise_model` was not set correctly set.')
+
+        elif 'joint' in self.noise_model:
 
             # Population parameters
             g, v0, rho, nu = self._get_attributes(attribute_type)
@@ -988,12 +1029,44 @@ class JointUnivariateModel(ABC):
             hazard = (rho * nu) * ((reparametrized_time_max * nu) ** (rho - 1))
             hazard = (data.mask_event * hazard)
             hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
-
             attachment_events = m_log_survival -torch.log(hazard)
-            attachment_total = attachment_events + attachment_visits  #attachment_events + attachment_visits
 
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
+
+        return attachment_events
+
+
+    def compute_individual_attachment_tensorized(self, data, param_ind: DictParamsTorch, *,
+                                                 attribute_type) -> torch.FloatTensor:
+        """
+        Compute attachment term (per subject)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            Contains the data of the subjects, in particular the subjects' time-points and the mask for nan values & padded visits
+
+        param_ind : dict
+            Contain the individual parameters
+
+        attribute_type : Any
+            Flag to ask for MCMC attributes instead of model's attributes.
+
+        Returns
+        -------
+        attachment : :class:`torch.Tensor`
+            Negative Log-likelihood, shape = (n_subjects,)
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            If invalid `noise_model` for model
+        """
+
+        attachment_events = self.compute_individual_attachment_events(data, param_ind, attribute_type=attribute_type)
+        attachment_visits = self.compute_individual_attachment_visits(data, param_ind, attribute_type=attribute_type)
+        attachment_total = attachment_events + 10*attachment_visits #attachment_events + attachment_visits
 
         return attachment_total
 

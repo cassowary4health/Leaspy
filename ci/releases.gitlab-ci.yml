@@ -46,7 +46,7 @@ check_env:
 
 .dev_release_condition:
   rules:
-    #  we check consistency between version registered in code & in tag
+    # we check consistency between version registered in code & in tag
     - if: $TAG_WITHOUT_PREFIX == $PKG_VERSION
 
 .public_release_condition_manual:

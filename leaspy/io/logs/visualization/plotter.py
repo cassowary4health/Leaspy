@@ -1,6 +1,7 @@
 import os
 import math
 from typing import Optional
+from itertools import cycle
 
 import pandas as pd
 import numpy as np
@@ -37,19 +38,45 @@ class Plotter:
         self._block = False
         self._show = True
 
+    @staticmethod
+    def _torch_model_values_to_numpy_postprocessed_values(model_values: torch.Tensor, *, model) -> np.ndarray:
+        """Helper to convert torch model values to numpy & apply them the default postprocessing (useful for ordinal models)."""
+
+        model_values_np = model_values.cpu().detach().numpy()
+
+        # post-process the mean trajectory if needed (with default arguments)
+        estimation_postprocessor = getattr(model, 'postprocess_model_estimation', None)
+        if estimation_postprocessor is not None:
+            model_values_np = estimation_postprocessor(model_values_np)
+
+        return model_values_np
+
+    @classmethod
+    def _compute_mean_traj_postprocessed(cls, model, timepoints: torch.Tensor, **kws) -> np.ndarray:
+        mean_trajectory = model.compute_mean_traj(timepoints, **kws)
+        return cls._torch_model_values_to_numpy_postprocessed_values(mean_trajectory, model=model)
+
+    @classmethod
+    def _compute_individual_tensorized_postprocessed(cls, model, timepoints: torch.Tensor, individual_parameters: dict, **kws) -> np.ndarray:
+        model_values = model.compute_individual_tensorized(timepoints, individual_parameters, **kws)
+        return cls._torch_model_values_to_numpy_postprocessed_values(model_values, model=model)
+
+    @classmethod
+    def _compute_individual_trajectory_postprocessed(cls, model, timepoints, individual_parameters, **kws) -> np.ndarray:
+        model_values = model.compute_individual_trajectory(timepoints, individual_parameters, **kws)
+        return cls._torch_model_values_to_numpy_postprocessed_values(model_values, model=model)
+
     def plt_show(self):
         if self._show:
             plt.show(block=self._block)
 
-    def plot_mean_trajectory(self, model, *, attribute_type: Optional[str] = None, **kwargs):
-        # colors = kwargs['color'] if 'color' in kwargs.keys() else cm.gist_rainbow(np.linspace(0, 1, model.dimension))
+    def plot_mean_trajectory(self, model, *, attribute_type: Optional[str] = None,
+                             n_pts = 100, n_std_left = 3, n_std_right = 6, **kwargs):
 
         labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
-        #colors = color_palette(range(8))
-
-        colors = cm.get_cmap("tab20").colors
+        colors = kwargs.get('color', cycle(cm.get_cmap("tab20").colors))
 
         try:
             iter(model)
@@ -60,19 +87,21 @@ class Plotter:
                 raise LeaspyInputError("Please initialize the model before plotting")
 
             # not iterable
-            if 'logistic' in model.name:
-                plt.ylim(0, 1)
+            if getattr(model, 'is_ordinal', False):
+                ax.set_ylim(0, model.ordinal_infos['max_level'])
+            elif 'logistic' in model.name:
+                ax.set_ylim(0, 1)
 
             mean_time = model.parameters['tau_mean']
             std_time = max(model.parameters['tau_std'], 4)
-            timepoints = np.linspace(mean_time - 3 * std_time, mean_time + 6 * std_time, 100)
-            timepoints = torch.tensor(timepoints).unsqueeze(0)
+            timepoints_np = np.linspace(mean_time - n_std_left * std_time, mean_time + n_std_right * std_time, n_pts)
 
-            mean_trajectory = model.compute_mean_traj(timepoints, attribute_type=attribute_type).cpu().detach().numpy()
+            mean_trajectory = self._compute_mean_traj_postprocessed(model, torch.tensor(timepoints_np).unsqueeze(0),
+                                        attribute_type=attribute_type)
 
-            for i in range(mean_trajectory.shape[-1]):
-                ax.plot(timepoints[0, :].cpu().detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
-                        linewidth=4, alpha=0.9, c=colors[i])  # , c=colors[i])
+            for i, color_ft in zip(range(mean_trajectory.shape[-1]), colors):
+                ax.plot(timepoints_np, mean_trajectory[0, :, i], label=labels[i],
+                        linewidth=4, alpha=0.9, c=color_ft)
             plt.legend()
 
         else:
@@ -82,23 +111,26 @@ class Plotter:
                 raise LeaspyInputError("Please initialize the model before plotting")
 
             # iterable
-            if 'logistic' in model[0].name:
-                plt.ylim(0, 1)
+            if getattr(model[0], 'is_ordinal', False):
+                ax.set_ylim(0, model[0].ordinal_infos['max_level'])
+            elif 'logistic' in model[0].name:
+                ax.set_ylim(0, 1)
 
-            timepoints = np.linspace(model[0].parameters['tau_mean'] - 3 * np.sqrt(model[0].parameters['tau_std']),
-                                     model[0].parameters['tau_mean'] + 6 * np.sqrt(model[0].parameters['tau_std']),
-                                     100)
-            timepoints = torch.tensor(timepoints).unsqueeze(0)
+            mean_time = model[0].parameters['tau_mean']
+            std_time = max(model[0].parameters['tau_std'], 4)
+            timepoints_np = np.linspace(mean_time - n_std_left * std_time, mean_time + n_std_right * std_time, n_pts)
 
-            for j, el in enumerate(model):
-                mean_trajectory = el.compute_mean_traj(timepoints, attribute_type=attribute_type).cpu().detach().numpy()
+            for j, model_j in enumerate(model):
+                mean_trajectory_np = self._compute_mean_traj_postprocessed(
+                                        model_j, torch.tensor(timepoints_np).unsqueeze(0),
+                                        attribute_type=attribute_type)
 
-                for i in range(mean_trajectory.shape[-1]):
-                    ax.plot(timepoints[0, :].cpu().detach().numpy(), mean_trajectory[0, :, i], label=labels[i],
-                            linewidth=4, alpha=0.5, c=colors[i])  # , )
+                for i, color_ft in zip(range(mean_trajectory_np.shape[-1]), colors):
+                    ax.plot(timepoints_np, mean_trajectory_np[0, :, i], label=labels[i],
+                            linewidth=4, alpha=0.5, c=color_ft)
 
                 if j == 0:
-                    plt.legend()
+                    ax.legend()
 
         title = kwargs['title'] if 'title' in kwargs.keys() else None
         if title is not None:
@@ -138,54 +170,57 @@ class Plotter:
         if 'ax' in kwargs.keys():
             ax = kwargs['ax']
         else:
-            (fig, ax) = plt.subplots(1, 1, figsize=(8, 8))
+            fig, ax = plt.subplots(1, 1, figsize=(8, 8))
 
-        if 'logistic' in model.name:
-            plt.ylim(0, 1)
+        if getattr(model, 'is_ordinal', False):
+            ax.set_ylim(0, model.ordinal_infos['max_level'])
+        elif 'logistic' in model.name:
+            ax.set_ylim(0, 1)
 
         if not isinstance(indices, list):
             indices = [indices]
 
         for idx in indices:
-            indiv = results.data.get_by_idx(idx)
+            indiv = results.data[idx]
             timepoints = indiv.timepoints
             observations = np.array(indiv.observations)
             t = torch.tensor(timepoints).unsqueeze(0)
             indiv_parameters = results.get_patient_individual_parameters(idx)
 
-            trajectory = model.compute_individual_tensorized(t, indiv_parameters).squeeze(0)
+            trajectory_np = self._compute_individual_tensorized_postprocessed(model, t, indiv_parameters).squeeze(0)
             for dim in range(model.dimension):
                 not_nans_idx = np.array(~np.isnan(observations[:, dim]), dtype=bool)
-                ax.plot(np.array(timepoints), trajectory.cpu().detach().numpy()[:, dim], c=colors[dim])
+                ax.plot(np.array(timepoints), trajectory_np[:, dim], c=colors[dim])
                 ax.plot(np.array(timepoints)[not_nans_idx], observations[:, dim][not_nans_idx], c=colors[dim], linestyle='--')
+
+        if 'title' in kwargs.keys():
+            ax.set_title(kwargs['title'])
+
+        custom_lines = [Line2D([0], [0], color=colors[i], lw=4) for i in range((model.dimension))]
+
+        ax.legend(custom_lines, labels, loc='upper right')
 
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
-
-        if 'title' in kwargs.keys():
-            plt.title(kwargs['title'])
-
-        custom_lines = [Line2D([0], [0], color=colors[i%8], lw=4) for i in range((model.dimension))]
-
-        ax.legend(custom_lines, labels, loc='upper right')
 
         if 'ax' not in kwargs.keys():
             self.plt_show()
             plt.close()
 
     def plot_from_individual_parameters(self, model, indiv_parameters, timepoints, **kwargs):
+        # 1 individual at a time...
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
         labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
-        trajectory = model.compute_individual_trajectory(timepoints, indiv_parameters).squeeze()
+        trajectory_np = self._compute_individual_trajectory_postprocessed(model, timepoints, indiv_parameters).squeeze(0)
         for dim in range(model.dimension):
-            ax.plot(timepoints, trajectory[:, dim], c=colors[dim], label=labels[dim])
+            ax.plot(timepoints, trajectory_np[:, dim], c=colors[dim], label=labels[dim])
 
+        ax.legend()
         if 'save_as' in kwargs.keys():
             plt.savefig(os.path.join(self.output_path, kwargs['save_as']))
 
-        plt.legend()
         self.plt_show()
         plt.close()
 
@@ -228,13 +263,14 @@ class Plotter:
         self.plt_show()
         plt.close()
 
-    def plot_patients_mapped_on_mean_trajectory(self, model, results):
+    def plot_patients_mapped_on_mean_trajectory(self, model, results, *, n_std_left = 2, n_std_right = 4, n_pts = 100):
         dataset = Dataset(results.data, model)
 
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, results.individual_parameters)
-        timepoints = np.linspace(model.parameters['tau_mean'] - 2 * np.sqrt(model.parameters['tau_std']),
-                                 model.parameters['tau_mean'] + 4 * np.sqrt(model.parameters['tau_std']),
-                                 100)
+        model_values_np = self._compute_individual_tensorized_postprocessed(
+                                    model, dataset.timepoints, results.individual_parameters)
+        timepoints = np.linspace(model.parameters['tau_mean'] - n_std_left * model.parameters['tau_std'],
+                                 model.parameters['tau_mean'] + n_std_right * model.parameters['tau_std'],
+                                 n_pts)
         timepoints = torch.tensor(timepoints).unsqueeze(0)
 
         xi = results.individual_parameters['xi']
@@ -245,38 +281,40 @@ class Plotter:
 
         for i in range(dataset.values.shape[-1]):
             fig, ax = plt.subplots(1, 1)
-            # ax.plot(timepoints[0,:].detach().numpy(), mean_values[0,:,i].detach().numpy(), c=colors[i])
             for idx in range(min(50, len(tau))):
                 ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].cpu().detach().numpy(),
                         dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy(), 'x', )
                 ax.plot(reparametrized_time[idx, 0:dataset.n_visits_per_individual[idx]].cpu().detach().numpy(),
-                        patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy(),
+                        model_values_np[idx, 0:dataset.n_visits_per_individual[idx], i],
                         alpha=0.8)
-            if 'logistic' in model.name:
-                plt.ylim(0, 1)
+
+            if getattr(model, 'is_ordinal', False):
+                ax.set_ylim(0, model.ordinal_infos['max_level'])
+            elif 'logistic' in model.name:
+                ax.set_ylim(0, 1)
 
         self.plt_show()
         plt.close()
 
     ############## TODO : The next functions are related to the plots during the fit. Disentangle them properly
 
-    @staticmethod
-    def plot_error(path, dataset, model, param_ind, colors=None, labels=None):
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind)
+    @classmethod
+    def plot_error(cls, path, dataset, model, param_ind, colors=None, labels=None):
+        model_values_np = cls._compute_individual_tensorized_postprocessed(model, dataset.timepoints, param_ind)
 
         if colors is None:
-            colors = cm.rainbow(np.linspace(0, 1, patient_values.shape[-1]))
+            colors = cm.rainbow(np.linspace(0, 1, model_values_np.shape[-1]))
         if labels is None:
-            labels = np.arange(patient_values.shape[-1])
+            labels = np.arange(model_values_np.shape[-1])
             labels = [str(k) for k in labels]
 
         err = {}
         err['all'] = []
         for i in range(dataset.values.shape[-1]):
             err[i] = []
-            for idx in range(patient_values.shape[0]):
+            for idx in range(model_values_np.shape[0]):
                 err[i].extend(dataset.values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy() -
-                              patient_values[idx, 0:dataset.n_visits_per_individual[idx], i].cpu().detach().numpy())
+                              model_values_np[idx, 0:dataset.n_visits_per_individual[idx], i])
 
             err['all'].extend(err[i])
             err[i] = np.array(err[i])
@@ -295,8 +333,8 @@ class Plotter:
         plt.close()
         pdf.close()
 
-    @staticmethod
-    def plot_patient_reconstructions(path, dataset, model, param_ind, *, max_patient_number=5, attribute_type=None):
+    @classmethod
+    def plot_patient_reconstructions(cls, path, dataset, model, param_ind, *, max_patient_number=5, attribute_type=None):
 
         if isinstance(max_patient_number, int):
             max_patient_number = min(max_patient_number, dataset.n_individuals)
@@ -311,32 +349,30 @@ class Plotter:
 
         fig, ax = plt.subplots(1, 1)
 
-        patient_values = model.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
-
+        model_values_np = cls._compute_individual_tensorized_postprocessed(
+                                model, dataset.timepoints, param_ind,
+                                attribute_type=attribute_type)
 
         for i in patients_list:
-            model_value = patient_values[i, 0:dataset.n_visits_per_individual[i], :]
-            score = dataset.values[i, 0:dataset.n_visits_per_individual[i], :]
-            ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].cpu().detach().numpy(),
-                    model_value.cpu().detach().numpy(), c=colors[i])
-            ax.plot(dataset.timepoints[i, 0:dataset.n_visits_per_individual[i]].cpu().detach().numpy(),
-                    score.cpu().detach().numpy(), c=colors[i], linestyle='--',
-                    marker='o')
+            times_pat = dataset.get_times_patient(i).cpu().detach().numpy()
+            true_values_pat = dataset.get_values_patient(i).cpu().detach().numpy()
+            model_values_pat = model_values_np[i, 0:dataset.n_visits_per_individual[i], :]
+
+            ax.plot(times_pat, model_values_pat, c=colors[i])
+            ax.plot(times_pat, true_values_pat, c=colors[i], linestyle='--', marker='o')
 
         # Plot the mean also
         # min_time, max_time = torch.min(dataset.timepoints[dataset.timepoints>0.0]), torch.max(dataset.timepoints)
 
         min_time, max_time = np.percentile(dataset.timepoints[dataset.timepoints > 0.0].cpu().detach().numpy(), [10, 90])
 
-        timepoints = np.linspace(min_time,
-                                 max_time,
-                                 100)
-        timepoints = torch.tensor(timepoints).unsqueeze(0)
+        timepoints_np = np.linspace(min_time, max_time, 100)
+        model_values_np = cls._compute_mean_traj_postprocessed(
+                                model, torch.tensor(timepoints_np).unsqueeze(0),
+                                attribute_type=attribute_type)
 
-        patient_values = model.compute_mean_traj(timepoints, attribute_type=attribute_type)
-        for i in range(patient_values.shape[-1]):
-            ax.plot(timepoints[0, :].cpu().detach().numpy(), patient_values[0, :, i].cpu().detach().numpy(),
-                    c="black", linewidth=3, alpha=0.3)
+        for ft_k in range(model.dimension):
+            ax.plot(timepoints_np, model_values_np[0, :, ft_k], c="black", linewidth=3, alpha=0.3)
 
         plt.savefig(path)
         plt.close()
@@ -388,6 +424,8 @@ class Plotter:
         # Make the plot 1
 
         to_skip_1 = ['betas'] + ['sources_mean', 'sources_std']*int(skip_sources)
+        if getattr(model, 'is_ordinal', False):
+            to_skip_1.append('deltas')
         params_to_plot_1 = [p for p in model.parameters.keys() if p not in to_skip_1]
 
         n_plots_1 = len(params_to_plot_1)
@@ -415,9 +453,7 @@ class Plotter:
         reals_pop_name = model.get_population_realization_names()
         reals_ind_name = model.get_individual_realization_names()
 
-        additional_plots = 1 # for noise_std
-        if model.noise_model == 'bernoulli':
-            additional_plots += 1 # for crossentropy
+        additional_plots = 1 # for noise_std / log-likelihood depending on noise_model
 
         if skip_sources and 'sources' in reals_ind_name:
             additional_plots -= 1
@@ -433,29 +469,37 @@ class Plotter:
             yscale_kw = dict(nonpositive='clip')
 
         # Noise std-dev
-        import_path = os.path.join(path, 'noise_std.csv')
-        df_convergence = pd.read_csv(import_path, index_col=0, header=None)
-        df_convergence.index.rename("iter", inplace=True)
-        y_position = 0
-        df_convergence.plot(ax=ax[y_position], legend=False)
-        ax[y_position].set_title('noise_std')
-        ax[y_position].set_yscale("log", **yscale_kw)
-        plt.grid(True)
-
-        if model.noise_model == 'bernoulli':
-            import_path = os.path.join(path, 'crossentropy.csv')
+        model_with_ll = getattr(model, 'is_ordinal', False) or getattr(model, 'noise_model', None) == 'bernoulli'
+        if not model_with_ll:
+            import_path = os.path.join(path, 'noise_std.csv')
             df_convergence = pd.read_csv(import_path, index_col=0, header=None)
             df_convergence.index.rename("iter", inplace=True)
-            y_position = 1
+            y_position = 0
             df_convergence.plot(ax=ax[y_position], legend=False)
-            ax[y_position].set_title('crossentropy')
+            ax[y_position].set_title('noise_std')
+            ax[y_position].set_yscale("log", **yscale_kw)
+            plt.grid(True)
+        # LL for other models
+        else:
+            import_path = os.path.join(path, 'log-likelihood.csv')
+            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+            df_convergence.index.rename("iter", inplace=True)
+            y_position = 0
+            df_convergence.plot(ax=ax[y_position], legend=False)
+            ax[y_position].set_title('log-likelihood')
             ax[y_position].set_yscale("log", **yscale_kw)
             plt.grid(True)
 
         for i, key in enumerate(reals_pop_name):
             y_position += 1
             ax[y_position].set_title(key)
-            if key not in ['betas']:
+            if key == 'deltas' and getattr(model, 'is_ordinal', False):
+                for dim in range(model.dimension):
+                    import_path = os.path.join(path, key + "_" + str(dim) + ".csv")
+                    df_convergence = pd.read_csv(import_path, index_col=0, header=None)
+                    df_convergence.index.rename("iter", inplace=True)
+                    df_convergence.plot(ax=ax[y_position], legend=False)
+            elif key not in ['betas']:
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                 df_convergence.index.rename("iter", inplace=True)

@@ -278,6 +278,7 @@ class AlgorithmSettings:
         algo_family = self.algo_class.family
         if algo_family == 'fit':
             json_settings['model_initialization_method'] = self.model_initialization_method
+        if hasattr(self, 'device'):
             json_settings['device'] = self.device
 
         """
@@ -340,7 +341,7 @@ class AlgorithmSettings:
         }
 
         for k, v in kwargs.items():
-            if k in ['console_print_periodicity', 'plot_periodicity', 'save_periodicity']:
+            if k in ['console_print_periodicity', 'plot_periodicity', 'save_periodicity', 'save_last_n_realizations']:
                 if v is not None and not isinstance(v, int):
                     raise LeaspyAlgoInputError(f'You must provide a integer to the input <{k}>! '
                                     f'You provide {v} of type {type(v)}.')

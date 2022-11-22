@@ -113,17 +113,16 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         population_dictionary = self._create_dictionary_of_population_realizations()
         self.update_MCMC_toolbox(["all"], population_dictionary)
 
-    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
-        L = name_of_the_variables_that_have_been_changed
+    def update_MCMC_toolbox(self, vars_to_update, realizations):
         values = {}
-        if any(c in L for c in ('g', 'all')):
+        if any(c in vars_to_update for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
-        if any(c in L for c in ('deltas', 'all')):
+        if any(c in vars_to_update for c in ('deltas', 'all')):
             values['deltas'] = realizations['deltas'].tensor_realizations
-        if any(c in L for c in ('betas', 'all')) and self.source_dimension != 0:
+        if any(c in vars_to_update for c in ('betas', 'all')) and self.source_dimension != 0:
             values['betas'] = realizations['betas'].tensor_realizations
 
-        self.MCMC_toolbox['attributes'].update(L, values)
+        self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
     def compute_sufficient_statistics(self, data, realizations):
 
@@ -154,8 +153,8 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2) # no sum on features...
 
         if self.noise_model == 'bernoulli':
-            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
-                                                                                                  attribute_type='MCMC')
+            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
+                                                                                                    attribute_type='MCMC')
 
         return sufficient_statistics
 
@@ -179,8 +178,8 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
         if self.noise_model == 'bernoulli':
-            self.parameters['crossentropy'] = self.compute_individual_attachment_tensorized(data, param_ind,
-                                                                                            attribute_type='MCMC').sum()
+            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
+                                                                                              attribute_type='MCMC').sum()
 
     def update_model_parameters_normal(self, data, suff_stats):
 
@@ -221,7 +220,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
 
         if self.noise_model == 'bernoulli':
-            self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
+            self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
 
     ###################################
     ### Random Variable Information ###

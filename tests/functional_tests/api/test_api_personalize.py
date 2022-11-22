@@ -143,16 +143,28 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('linear_diag_noise', 'mean_real', mean_real_kws,                             [0.1000, 0.1265, 0.1242, 0.1485]),
 
             # multivariate binary model
-            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),               [0.3150, 0.1140, 0.1385, 0.2155]),
-            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                [0.3150, 0.1140, 0.1385, 0.2154]),
-            ('logistic_binary', 'mode_real', mode_real_kws,                               [0.3171, 0.1159, 0.1378, 0.2132]),
-            ('logistic_binary', 'mean_real', mean_real_kws,                               [0.3162, 0.1118, 0.1379, 0.2188]),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),               [103.7]),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                [103.67]),
+            ('logistic_binary', 'mode_real', mode_real_kws,                               [103.96]),
+            ('logistic_binary', 'mean_real', mean_real_kws,                               [101.95]),
 
             # multivariate parallel binary model
-            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),      [0.3341, 0.1337, 0.1336, 0.2405]),
-            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),       [0.3340, 0.1342, 0.1334, 0.2404]),
-            ('logistic_parallel_binary', 'mode_real', mode_real_kws,                      [0.3328, 0.1345, 0.1354, 0.2415]),
-            ('logistic_parallel_binary', 'mean_real', mean_real_kws,                      [0.3437, 0.1279, 0.1444, 0.2624]),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),      [112.66]),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),       [112.63]),
+            ('logistic_parallel_binary', 'mode_real', mode_real_kws,                      [111.96]),
+            ('logistic_parallel_binary', 'mean_real', mean_real_kws,                      [120.06]),
+
+            # multivariate ordinal model
+            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=False), [700.55]),
+            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=True), [638.66]),
+            ('logistic_ordinal', 'mode_real', mode_real_kws, [619.64]),
+            ('logistic_ordinal', 'mean_real', mean_real_kws, [616.94]),
+
+            # multivariate ordinal ranking model
+            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=False), [1014.2]),
+            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=True), [1014.1]),
+            ('logistic_ordinal_ranking', 'mode_real', mode_real_kws, [1014.9]),
+            ('logistic_ordinal_ranking', 'mean_real', mean_real_kws, [1015.0]),
 
         ]:
 
@@ -162,7 +174,18 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 # only look at residual MSE to detect any regression in personalization
                 ips, noise_std, _ = self.generic_personalization(model_name, algo_name=perso_name, seed=0, **perso_kws)
 
-                self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std, tol_noise=tol_noise, msg=subtest)
+                tol_noise_sub = tol_noise
+                # not noise but NLL (less precise...); some minor exact reproducibility issues MacOS vs. Linux
+                if 'binary' in model_name:
+                    tol_noise_sub = 0.1
+                elif 'ordinal_ranking' in model_name:
+                    tol_noise_sub = 0.5
+                elif 'ordinal' in model_name:
+                    tol_noise_sub = 3.0  # highest reprod. issues
+
+                self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std,
+                                                                  tol_noise=tol_noise_sub,
+                                                                  msg=subtest)
 
     def test_robustness_to_data_sparsity(self, rtol=2e-2, atol=5e-3):
         """
@@ -213,11 +236,11 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=True),              [0.1023, 0.1630, 0.2081, 0.1480]),
 
             # binary models (noise_std is reported as diagonal)
-            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),               [0.1011, 0.0352, 0.0602, 0.2217]),
-            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                [0.1016, 0.0335, 0.0602, 0.2217]),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),               [8.4722]),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                [8.4718]),
 
-            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),      [0.1806, 0.1226, 0.1695, 0.1890]),
-            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),       [0.1805, 0.1224, 0.1693, 0.1887]),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),      [8.8422]),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),       [8.8408]),
         ]:
 
             subtest = dict(model_name=model_name, perso_name=perso_name, perso_kws=perso_kws)

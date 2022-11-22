@@ -1,0 +1,23 @@
+{
+  "leaspy_version": "1.3.1",
+  "name": "univariate_logistic",
+  "features": [
+    "Y0"
+  ],
+  "noise_model": "ordinal",
+  "parameters": {
+    "g": [
+      -4.507537841796875
+    ],
+    "tau_mean": 84.5403823852539,
+    "tau_std": 5.738014221191406,
+    "xi_mean": -1.3751164674758911,
+    "xi_std": 0.015398288145661354,
+    "deltas_Y0": [
+      1.102103053906638,
+      1.6550278912578926
+    ],
+    "log-likelihood": 105.17070770263672
+  },
+  "batch_deltas_ordinal": false
+}

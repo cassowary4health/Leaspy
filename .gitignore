@@ -20,6 +20,9 @@ __pycache__/
 # Pycharm folders
 .idea/
 
+# Visual Studio Code folders
+.vscode/
+
 # Distribution / packaging
 .Python
 build/

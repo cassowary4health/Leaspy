@@ -125,7 +125,6 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         """
         self.positions = torch.exp(values['g'])
 
-
     def _compute_orthonormal_basis(self):
         """
         Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,

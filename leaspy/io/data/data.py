@@ -1,69 +1,116 @@
+from __future__ import annotations
 import warnings
+from collections.abc import Iterable, Iterator
 
 import numpy as np
 import pandas as pd
-import torch
 
 from leaspy.io.data.csv_data_reader import CSVDataReader
 from leaspy.io.data.dataframe_data_reader import DataframeDataReader
 from leaspy.io.data.individual_data import IndividualData
-# from leaspy.io.data.dataset import Dataset
 
-from leaspy.exceptions import LeaspyDataInputError
-from leaspy.utils.typing import FeatureType, IDType, Dict, List
-
-# TODO : object data as logs ??? or a result object ? Because there could be ambiguities here
-# TODO or find a good way to say that there are individual parameters here ???
+from leaspy.exceptions import LeaspyDataInputError, LeaspyTypeError
+from leaspy.utils.typing import FeatureType, IDType, Dict, List, Optional, Union
 
 
-class Data:
+class Data(Iterable):
     """
-    Main data container, initialized from a `csv file` or a :class:`pandas.DataFrame`.
+    Main data container for a collection of individuals
+
+    It can be iterated over and sliced, both of these operations being
+    applied to the underlying `individuals` attribute.
+
+    Attributes
+    ----------
+    individuals : Dict[IDType, IndividualData]
+        Included individuals and their associated data
+    iter_to_idx : Dict[int, IDType]
+        Maps an integer index to the associated individual ID
+    headers : List[FeatureType]
+        Feature names
+    dimension : int
+        Number of features
+    n_individuals : int
+        Number of individuals
+    n_visits : int
+        Total number of visits
+    cofactors : List[FeatureType]
+        Feature names corresponding to cofactors
     """
     def __init__(self):
-
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
-        self.headers: List[FeatureType] = None
-        self.dimension: int = None
-        self.n_individuals: int = 0
-        self.n_visits: int = 0
-        self.cofactors: List[FeatureType] = []
+        self.headers: Optional[List[FeatureType]] = None
 
-        self.iter: int = 0
+    @property
+    def dimension(self) -> Optional[int]:
+        """Number of features"""
+        if self.headers is None:
+            return None
+        return len(self.headers)
+    
+    @property
+    def n_individuals(self) -> int:
+        """Number of individuals"""
+        return len(self.individuals)
+    
+    @property
+    def n_visits(self) -> int:
+        """Total number of visits"""
+        return sum(len(indiv.timepoints) for indiv in self.individuals.values())
+    
+    @property
+    def cofactors(self) -> List[FeatureType]:
+        """Feature names corresponding to cofactors"""
+        if len(self.individuals) == 0:
+            return []
+        # Consistency checks are in place to ensure that cofactors are the same
+        # for all individuals, so they can be retrieved from any one
+        indiv = next(x for x in self.individuals.values())
+        return list(indiv.cofactors.keys())
+    
+    def __getitem__(self, key: Union[int, IDType, slice, List[int], List[IDType]]) -> Union[IndividualData, Data]:
+        if isinstance(key, int):
+            return self.individuals[self.iter_to_idx[key]]
 
-    def get_by_idx(self, idx: IDType):
-        """
-        Get the :class:`~leaspy.io.data.individual_data.IndividualData` of a an individual identified by its ID.
+        elif isinstance(key, IDType):
+            return self.individuals[key]
 
-        Parameters
-        ----------
-        idx : IDType
-            The identifier of the patient you want to get the individual data.
+        elif isinstance(key, (slice, list)):
+            if isinstance(key, slice):
+                slice_iter = range(self.n_individuals)[key]
+                individual_indices = [self.iter_to_idx[i] for i in slice_iter]
+            else:
+                if all(isinstance(value, int) for value in key):
+                    individual_indices = [self.iter_to_idx[i] for i in key]
+                elif all(isinstance(value, IDType) for value in key):
+                    individual_indices = key
+                else:
+                    raise LeaspyTypeError("Cannot access a Data object using "
+                                          "a list of this type")
 
-        Returns
-        -------
-        :class:`~leaspy.io.data.individual_data.IndividualData`
-        """
-        return self.individuals[idx]
+            individuals = [self.individuals[i] for i in individual_indices]
+            return Data.from_individuals(individuals, self.headers)
 
-    def __getitem__(self, iter: int):
-        return self.individuals[self.iter_to_idx[iter]]
+        raise LeaspyTypeError("Cannot access a Data object this way")
 
-    def __iter__(self):
-        # TODO: make a true DataIterator class because quite dirty to have `iter` inside
-        return self
+    def __iter__(self) -> Iterator:
+        # Ordering the index list first ensures that the order used by the
+        # iterator is consistent with integer indexing  of individual data,
+        # e.g. when using `enumerate`
+        ordered_idx_list = [
+            self.iter_to_idx[k] for k in sorted(self.iter_to_idx.keys())
+        ]
+        return iter([self.individuals[it] for it in ordered_idx_list])
 
-    def __next__(self):
-        # TODO: make a true DataIterator class because quite dirty to have `iter` inside
-        if self.iter >= self.n_individuals:
-            self.iter = 0
-            raise StopIteration
+    def __contains__(self, key: IDType) -> bool:
+        if isinstance(key, IDType):
+            return (key in self.individuals.keys())
         else:
-            self.iter += 1
-            return self.__getitem__(self.iter - 1)
+            raise LeaspyTypeError("Cannot test Data membership for "
+                                  "an element of this type")
 
-    def load_cofactors(self, df: pd.DataFrame, *, cofactors: List[FeatureType] = None):
+    def load_cofactors(self, df: pd.DataFrame, *, cofactors: Optional[List[FeatureType]] = None) -> None:
         """
         Load cofactors from a `pandas.DataFrame` to the `Data` object
 
@@ -73,7 +120,7 @@ class Data:
             The dataframe where the cofactors are stored.
             Its index should be ID, the identifier of subjects
             and it should uniquely index the dataframe (i.e. one row per individual).
-        cofactors : list[str] or None (default)
+        cofactors : List[FeatureType] or None (default)
             Names of the column(s) of df which shall be loaded as cofactors.
             If None, all the columns from the input dataframe will be loaded as cofactors.
 
@@ -99,11 +146,11 @@ class Data:
                                        f"is inconsistent with the ID type in Data ({internal_dtype_indices}):\n{df.index}")
 
         internal_indices = pd.Index(self.iter_to_idx.values())
-        individuals_without_cofactors = internal_indices.difference(df.index)
+        missing_individuals = internal_indices.difference(df.index)
         unknown_individuals = df.index.difference(internal_indices)
 
-        if len(individuals_without_cofactors):
-            raise ValueError(f"These individuals do not have cofactors: {individuals_without_cofactors}")
+        if len(missing_individuals):
+            raise LeaspyDataInputError(f"These individuals are missing: {missing_individuals}")
         if len(unknown_individuals):
             warnings.warn(f"These individuals with cofactors are not part of your Data: {unknown_individuals}")
 
@@ -117,10 +164,8 @@ class Data:
         for idx_subj, d_cofactors_subj in d_cofactors.items():
             self.individuals[idx_subj].add_cofactors(d_cofactors_subj)
 
-        self.cofactors += cofactors
-
     @staticmethod
-    def from_csv_file(path: str, **kws):
+    def from_csv_file(path: str, **kws) -> Data:
         """
         Create a `Data` object from a CSV file.
 
@@ -138,66 +183,77 @@ class Data:
         reader = CSVDataReader(path, **kws)
         return Data._from_reader(reader)
 
-    def to_dataframe(self, *, cofactors=None):
+    def to_dataframe(self, *, cofactors: Union[List[FeatureType], str, None] = None) -> pd.DataFrame:
         """
-        Return the subjects' observations in a :class:`pandas.DataFrame` along their ID and ages at all visits.
+        Convert the Data object to a :class:`pandas.DataFrame`
 
         Parameters
         ----------
-        cofactors : list[str], 'all', or None (default None)
-            Contains the cofactors' names to be included in the DataFrame.
-            If None (default), no cofactors are returned.
-            If "all", all the available cofactors are returned.
+        cofactors : List[FeatureType], 'all', or None (default None)
+            Cofactors to include in the DataFrame.
+            If None (default), no cofactors are included.
+            If "all", all the available cofactors are included.
 
         Returns
         -------
         :class:`pandas.DataFrame`
-            Contains the subjects' ID, age and scores (optional - and cofactors) for each timepoint.
+            A DataFrame containing the individuals' ID, timepoints and
+            associated observations (optional - and cofactors).
 
         Raises
         ------
         :exc:`.LeaspyDataInputError`
+        :exc:`.LeaspyTypeError`
         """
-        indices = []
-        timepoints = torch.zeros((self.n_visits, 1))
-        arr = torch.zeros((self.n_visits, self.dimension))
-
-        iteration = 0
-        for indiv in self.individuals.values():
-            ages = indiv.timepoints
-            for j, age in enumerate(ages):
-                indices.append(indiv.idx)
-                timepoints[iteration] = age
-                # TODO: IndividualData.observations is really badly constructed (list of numpy 1D arrays), we should change this...
-                arr[iteration] = torch.tensor(np.array(indiv.observations[j]), dtype=torch.float32)
-
-                iteration += 1
-
-        arr = torch.cat((timepoints, arr), dim=1).tolist()
-
-        df = pd.DataFrame(data=arr, index=indices, columns=['TIME'] + self.headers)
-        df.index.name = 'ID'
-
-        if cofactors is not None:
-            cofactors_list = None
-
-            if isinstance(cofactors, str) and cofactors == "all":
+        if cofactors is None:
+            cofactors_list = []
+        elif isinstance(cofactors, str):
+            if cofactors == "all":
                 cofactors_list = self.cofactors
-            elif isinstance(cofactors, list):
-                cofactors_list = cofactors
+            else:
+                raise LeaspyDataInputError("Invalid `cofactors` argument value")
+        elif (
+            isinstance(cofactors, list)
+            and all(isinstance(c, str) for c in cofactors)
+        ):
+            cofactors_list = cofactors
+        else:
+            raise LeaspyTypeError("Invalid `cofactors` argument type")
 
-            if cofactors_list is None:
-                raise LeaspyDataInputError("`cofactor` should either be 'all' or a list[str]")
+        unknown_cofactors = list(set(cofactors_list) - set(self.cofactors))
+        if len(unknown_cofactors):
+            raise LeaspyDataInputError(f'These cofactors are not part of '
+                                       f'your Data: {unknown_cofactors}')
 
-            for cofactor in cofactors_list:
-                df[cofactor] = ''
-                for subject_name in indices:
-                    df.loc[subject_name, cofactor] = self.individuals[subject_name].cofactors[cofactor]
+        # Build the dataframe, one individual at a time
+        def get_individual_block(individual: IndividualData):
+            individual_product = [[individual.idx], individual.timepoints]
+            individual_index = pd.MultiIndex.from_product(individual_product)
+            individual_values = individual.observations
+            return individual_index, individual_values
+
+        index = None
+        values = None
+        for i in self.individuals.values():
+            if index is None:
+                index, values = get_individual_block(i)
+            else:
+                index_i, values_i = get_individual_block(i)
+                index = index.union(index_i, sort=False)
+                values = np.concatenate([values, values_i], axis=0)
+
+        df = pd.DataFrame(data=values, index=index, columns=self.headers)
+        df.index.names = ['ID', 'TIME']
+
+        for cofactor in cofactors_list:
+            for i in self.individuals.values():
+                indiv_slice = pd.IndexSlice[i.idx, :]
+                df.loc[indiv_slice, cofactor] = i.cofactors[cofactor]
 
         return df.reset_index()
 
     @staticmethod
-    def from_dataframe(df: pd.DataFrame, **kws):
+    def from_dataframe(df: pd.DataFrame, **kws) -> Data:
         """
         Create a `Data` object from a :class:`pandas.DataFrame`.
 
@@ -210,7 +266,7 @@ class Data:
 
         Returns
         -------
-        `Data`
+        :class:`.Data`
         """
         reader = DataframeDataReader(df, **kws)
         return Data._from_reader(reader)
@@ -218,54 +274,77 @@ class Data:
     @staticmethod
     def _from_reader(reader):
         data = Data()
-
         data.individuals = reader.individuals
         data.iter_to_idx = reader.iter_to_idx
         data.headers = reader.headers
-        data.dimension = reader.dimension
-        data.n_individuals = reader.n_individuals
-        data.n_visits = reader.n_visits
-
         return data
 
     @staticmethod
-    def from_individuals(indices: List[IDType], timepoints: List[List], values: List[List], headers: List[FeatureType]):
+    def from_individual_values(
+        indices: List[IDType],
+        timepoints: List[List[float]],
+        values: List[List[List[float]]],
+        headers: List[FeatureType]
+    ) -> Data:
         """
-        Create a `Data` class object from lists of `ID`, `timepoints` and the corresponding `values`.
+        Construct `Data` from a collection of individual data points
 
         Parameters
         ----------
-        indices : list[str]
-            Contains the individuals' ID.
-        timepoints : list[array-like 1D]
-            For each individual ``i``, list of ages at visits.
-            Number of timepoints is referred below as ``n_timepoints_i``
-        values : list[array-like 2D]
-            For each individual ``i``, all values at visits.
-            Shape is ``(n_timepoints_i, n_features)``.
-        headers : list[str]
-            Contains the features' names.
+        indices : List[IDType]
+            List of the individuals' unique ID
+        timepoints : List[List[float]]
+            For each individual ``i``, list of timepoints associated
+            with the observations.
+            The number of such timepoints is noted ``n_timepoints_i``
+        values : List[array-like[float, 2D]]
+            For each individual ``i``, two-dimensional array-like object
+            containing observed data points.
+            Its expected shape is ``(n_timepoints_i, n_features)``
+        headers : List[FeatureType]
+            Feature names.
+            The number of features is noted ``n_features``
 
         Returns
         -------
-        `Data`
-            Data class object with all ID, timepoints, values and features' names.
+        :class:`.Data`
+        """
+        individuals = []
+        for i, idx in enumerate(indices):
+            indiv = IndividualData(idx)
+            indiv.add_observations(timepoints[i], values[i])
+            individuals.append(indiv)
+
+        return Data.from_individuals(individuals, headers)
+
+    @staticmethod
+    def from_individuals(individuals: List[IndividualData], headers: List[FeatureType]) -> Data:
+        """
+        Construct `Data` from a list of individuals
+
+        Parameters
+        ----------
+        individuals : List[IndividualData]
+            List of individuals
+        headers : List[FeatureType]
+            List of feature names
+
+        Returns
+        -------
+        :class:`.Data`
         """
         data = Data()
-
         data.headers = headers
-        data.dimension = len(headers)
+        n_features = len(headers)
+        for indiv in individuals:
+            idx = indiv.idx
+            _, n_features_i = indiv.observations.shape
+            if n_features_i != n_features:
+                raise LeaspyDataInputError(
+                    f"Inconsistent number of features for individual {idx}:\n"
+                    f"Expected {n_features}, received {n_features_i}")
 
-        for i, idx in enumerate(indices):
-            # Create individual
-            data.individuals[idx] = IndividualData(idx)
-            data.iter_to_idx[data.n_individuals] = idx
-            data.n_individuals += 1
-
-            # Add observations / timepoints
-            data.individuals[idx].add_observations(timepoints[i], values[i])
-
-            # Update Data metrics
-            data.n_visits += len(timepoints[i])
+            data.individuals[idx] = indiv
+            data.iter_to_idx[data.n_individuals - 1] = idx
 
         return data

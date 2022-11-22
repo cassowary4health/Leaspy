@@ -8,6 +8,7 @@ from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.models.utils.noise_model import NoiseModel
+from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 from leaspy.utils.typing import Optional
 from leaspy.utils.docs import doc_with_super, doc_with_
@@ -20,7 +21,7 @@ from leaspy.exceptions import LeaspyModelInputError
 
 
 @doc_with_super()
-class UnivariateModel(AbstractModel):
+class UnivariateModel(AbstractModel, OrdinalModelMixin):
     """
     Univariate (logistic or linear) model for a single variable of interest.
 
@@ -98,6 +99,8 @@ class UnivariateModel(AbstractModel):
             'parameters': model_parameters_save
         }
 
+        self._export_extra_ordinal_settings(model_settings)
+
         # TODO : in leaspy models there should be a method to only return the dict describing the model
         # and then another generic method (inherited) should save this dict
         # (with extra standard fields such as 'leaspy_version' for instance)
@@ -118,6 +121,9 @@ class UnivariateModel(AbstractModel):
         # TODO? forbid the usage of `gaussian_diagonal` noise for such model?
         expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
 
+        # special hyperparameter(s) for ordinal model
+        expected_hyperparameters += self._handle_ordinal_hyperparameters(hyperparameters)
+
         self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
     def initialize(self, dataset, method="default"):
@@ -125,8 +131,8 @@ class UnivariateModel(AbstractModel):
         self.features = dataset.headers
 
         self.parameters = initialize_parameters(self, dataset, method)
-
-        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
+        self.attributes = AttributesFactory.attributes(self.name, dimension=1,
+                                                       **self._attributes_factory_ordinal_kws)
 
         # Postpone the computation of attributes when really needed!
         #self.attributes.update(['all'], self.parameters)
@@ -135,11 +141,16 @@ class UnivariateModel(AbstractModel):
 
     def load_parameters(self, parameters):
         self.parameters = {}
+
         for k in parameters.keys():
             self.parameters[k] = torch.tensor(parameters[k])
 
+        # re-build the ordinal_infos if relevant
+        self._rebuild_ordinal_infos_from_model_parameters()
+
         # derive the model attributes from model parameters upon reloading of model
-        self.attributes = AttributesFactory.attributes(self.name, dimension=1)
+        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
+                                                       **self._attributes_factory_ordinal_kws)
         self.attributes.update(['all'], self.parameters)
 
     def initialize_MCMC_toolbox(self):
@@ -149,16 +160,20 @@ class UnivariateModel(AbstractModel):
         # TODO to move in the MCMC-fit algorithm
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01}, # population parameter
-            'attributes': AttributesFactory.attributes(self.name, dimension=1)
         }
 
+        # specific priors for ordinal models
+        self._initialize_MCMC_toolbox_ordinal_priors()
+
+        self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(self.name, dimension=1,
+                                                                       **self._attributes_factory_ordinal_kws)
         population_dictionary = self._create_dictionary_of_population_realizations()
         self.update_MCMC_toolbox(["all"], population_dictionary)
 
     ##########
     # CORE
     ##########
-    def update_MCMC_toolbox(self, name_of_the_variables_that_have_been_changed, realizations):
+    def update_MCMC_toolbox(self, vars_to_update, realizations):
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
 
@@ -166,27 +181,31 @@ class UnivariateModel(AbstractModel):
 
         Parameters
         ----------
-        name_of_the_variables_that_have_been_changed : container[str] (list, tuple, ...)
+        vars_to_update : container[str] (list, tuple, ...)
             Names of the population parameters to update in MCMC toolbox
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with
         """
-        L = name_of_the_variables_that_have_been_changed
         values = {}
-        if any(c in L for c in ('g', 'all')):
+        if any(c in vars_to_update for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
 
-        self.MCMC_toolbox['attributes'].update(L, values)
+        self._update_MCMC_toolbox_ordinal(vars_to_update, realizations, values)
 
+        self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
-    def _get_attributes(self, attribute_type: Optional[str]):
+    def _call_method_from_attributes(self, method_name: str, attribute_type: Optional[str], **call_kws):
+        # TODO: move in a abstract parent class for univariate & multivariate models (like AbstractManifoldModel...)
         if attribute_type is None:
-            return self.attributes.get_attributes()
+            return getattr(self.attributes, method_name)(**call_kws)
         elif attribute_type == 'MCMC':
-            return self.MCMC_toolbox['attributes'].get_attributes()
+            return getattr(self.MCMC_toolbox['attributes'], method_name)(**call_kws)
         else:
             raise LeaspyModelInputError(f"The specified attribute type does not exist: {attribute_type}. "
                                         "Should be None or 'MCMC'.")
+
+    def _get_attributes(self, attribute_type: Optional[str]):
+        return self._call_method_from_attributes('get_attributes', attribute_type)
 
     def compute_mean_traj(self, timepoints, *, attribute_type: Optional[str] = None):
         """
@@ -225,11 +244,24 @@ class UnivariateModel(AbstractModel):
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        # TODO? more efficient & accurate to compute `torch.exp(-t + log_g)` since we directly sample & stored log_g
-        t = reparametrized_time.unsqueeze(-1)
-        model = 1. / (1. + g * torch.exp(-t))
+        LL = reparametrized_time.unsqueeze(-1)
 
-        return model
+        if self.is_ordinal:
+            # add an extra dimension for the levels of the ordinal item
+            LL = LL.unsqueeze(-1)
+            g = g.unsqueeze(-1)
+            deltas = self._get_deltas(attribute_type) # (features, max_level)
+            deltas = deltas.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
+            LL = LL - deltas.cumsum(dim=-1)
+
+        # TODO? more efficient & accurate to compute `torch.exp(-LL + log_g)` since we directly sample & stored log_g
+        model = 1. / (1. + g * torch.exp(-LL))
+
+        # Compute the pdf and not the sf
+        if self.noise_model == 'ordinal':
+            model = self.compute_ordinal_pdf_from_ordinal_sf(model)
+
+        return model # (n_individuals, n_timepoints, n_features == 1 [, extra_dim_ordinal_models])
 
     def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
@@ -249,6 +281,13 @@ class UnivariateModel(AbstractModel):
 
     def compute_individual_ages_from_biomarker_values_tensorized_logistic(self, value: torch.Tensor,
                                                                           individual_parameters: dict, feature: str):
+
+        if value.dim() != 2:
+            raise LeaspyModelInputError(f"The biomarker value should be dim 2, not {value.dim()}!")
+
+        if self.is_ordinal:
+            return self._compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(value, individual_parameters)
+
         # avoid division by zero:
         value = value.masked_fill((value == 0) | (value == 1), float('nan'))
 
@@ -261,6 +300,55 @@ class UnivariateModel(AbstractModel):
         assert ages.shape == value.shape
 
         return ages
+
+    def _compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(self, value: torch.Tensor,
+                                                                          individual_parameters: dict):
+        """
+        For one individual, compute age(s) breakpoints at which the given features levels are the most likely (given the subject's
+        individual parameters).
+
+        Consistency checks are done in the main API layer.
+
+        Parameters
+        ----------
+        value : :class:`torch.Tensor`
+            Contains the biomarker level value(s) of the subject.
+
+        individual_parameters : dict
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's ages computed at the given values(s)
+            Shape of tensor is (1, n_values)
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            if computation is tried on more than 1 individual
+        """
+
+        # 1/ get attributes
+        g = self._get_attributes(None)
+        xi, tau = individual_parameters['xi'], individual_parameters['tau']
+
+        # get feature value for g, v0 and wi
+        feat_ind = 0  # univariate model
+        g = torch.tensor([g[feat_ind]])  # g and v0 were shape: (n_features in the multivariate model)
+
+        # 2/ compute age
+        ages_0 = tau + (torch.exp(-xi)) * ((g / (g + 1) ** 2) * torch.log(g))
+        deltas_ft = self._get_deltas(None)[feat_ind]
+        delta_max = deltas_ft[torch.isfinite(deltas_ft)].sum()
+        ages_max = tau + (torch.exp(-xi)) * ((g / (g + 1) ** 2) * torch.log(g) + delta_max)
+
+        grid_timepoints = torch.linspace(ages_0.item(), ages_max.item(), 1000)
+
+        return self._ordinal_grid_search_value(grid_timepoints, value,
+                                               individual_parameters=individual_parameters,
+                                               feat_index=feat_ind)
 
     @suffixed_method
     def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
@@ -292,21 +380,42 @@ class UnivariateModel(AbstractModel):
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
-        # Reshaping
-        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features==1)
         alpha = torch.exp(xi).reshape(-1, 1, 1)
 
-        # Jacobian of model expected value w.r.t. individual parameters
-        model = 1. / (1. + g * torch.exp(-reparametrized_time))
+        # Log likelihood computation
+        LL = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features==1)
+
+        if self.is_ordinal:
+            # add an extra dimension for the levels of the ordinal item
+            LL = LL.unsqueeze(-1)
+            g = g.unsqueeze(-1)
+            deltas = self._get_deltas(attribute_type)  # (features, max_level)
+            deltas = deltas.unsqueeze(0).unsqueeze(0)  # add (ind, timepoints) dimensions
+            LL = LL - deltas.cumsum(dim=-1)
+
+        model = 1. / (1. + g * torch.exp(-LL))
+
         c = model * (1. - model)
 
         derivatives = {
-            'xi': (c * reparametrized_time).unsqueeze(-1),
-            'tau': (c * -alpha).unsqueeze(-1),
+            'xi': (reparametrized_time).unsqueeze(-1).unsqueeze(-1),
+            'tau': (-alpha).unsqueeze(-1),
         }
 
-        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
+        if self.is_ordinal:
+            ordinal_lvls_shape = c.shape[-1]
+            for param in derivatives:
+                derivatives[param] = derivatives[param].unsqueeze(-2).repeat(1, 1, 1, ordinal_lvls_shape, 1)
+
+        for param in derivatives:
+            derivatives[param] = c.unsqueeze(-1) * derivatives[param]
+
+        # Compute derivative of the pdf and not of the sf
+        if self.noise_model == 'ordinal':
+            for param in derivatives:
+                derivatives[param] = self.compute_ordinal_pdf_from_ordinal_sf(derivatives[param])
+
+        # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts == 1 [, extra_dim_ordinal_models], n_dims_param)]
         return derivatives
 
     def compute_sufficient_statistics(self, data, realizations):
@@ -321,21 +430,24 @@ class UnivariateModel(AbstractModel):
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
 
+        self._add_ordinal_tensor_realizations(realizations, sufficient_statistics)
+
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         individual_parameters = self.get_param_from_real(realizations)
         data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters, attribute_type='MCMC')
 
-        data_reconstruction *= data.mask.float() # speed-up computations
+        if self.noise_model in ['gaussian_scalar', 'gaussian_diagonal']:
+            data_reconstruction *= data.mask.float() # speed-up computations
 
-        norm_1 = data.values * data_reconstruction #* data.mask.float()
-        norm_2 = data_reconstruction * data_reconstruction #* data.mask.float()
+            norm_1 = data.values * data_reconstruction #* data.mask.float()
+            norm_2 = data_reconstruction * data_reconstruction #* data.mask.float()
 
-        sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2)
-        sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2)
+            sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2)
+            sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2)
 
-        if self.noise_model == 'bernoulli':
-            sufficient_statistics['crossentropy'] = self.compute_individual_attachment_tensorized(data, individual_parameters, attribute_type='MCMC')
-
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
+            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
+                                                                                                    attribute_type='MCMC')
         return sufficient_statistics
 
     def update_model_parameters_burn_in(self, data, realizations):
@@ -352,12 +464,14 @@ class UnivariateModel(AbstractModel):
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
-        param_ind = self.get_param_from_real(realizations)
-        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
+        self._add_ordinal_tensor_realizations(realizations, self.parameters)
 
-        if self.noise_model == 'bernoulli':
-            crossentropy = self.compute_individual_attachment_tensorized(data, param_ind, attribute_type='MCMC').sum()
-            self.parameters['crossentropy'] = crossentropy
+        param_ind = self.get_param_from_real(realizations)
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
+            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
+                                                                                              attribute_type='MCMC').sum()
+        else:
+            self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
     def update_model_parameters_normal(self, data, suff_stats):
         # Stochastic sufficient statistics used to update the parameters of the model
@@ -376,15 +490,28 @@ class UnivariateModel(AbstractModel):
         self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
         self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
-        S1 = data.L2_norm
-        S2 = suff_stats['obs_x_reconstruction'].sum()
-        S3 = suff_stats['reconstruction_x_reconstruction'].sum()
+        self._add_ordinal_sufficient_statistics(suff_stats, self.parameters)
 
-        noise_var = (S1 - 2. * S2 + S3) / data.n_observations
-        self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
+        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
+            self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
 
-        if self.noise_model == 'bernoulli':
-            self.parameters['crossentropy'] = suff_stats['crossentropy'].sum()
+        elif 'scalar' in self.noise_model:
+            # scalar noise (same for all features)
+            S1 = data.L2_norm
+            S2 = suff_stats['obs_x_reconstruction'].sum()
+            S3 = suff_stats['reconstruction_x_reconstruction'].sum()
+
+            noise_var = (S1 - 2. * S2 + S3) / data.n_observations
+            self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
+        else:
+            # keep feature dependence on feature to update diagonal noise (1 free param per feature)
+            S1 = data.L2_norm_per_ft
+            S2 = suff_stats['obs_x_reconstruction'].sum(dim=(0, 1))
+            S3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0, 1))
+
+            # tensor 1D, shape (dimension,)
+            noise_var = (S1 - 2. * S2 + S3) / data.n_observations_per_ft.float()
+            self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
 
 
     def random_variable_informations(self):
@@ -417,6 +544,8 @@ class UnivariateModel(AbstractModel):
             "tau": tau_infos,
             "xi": xi_infos,
         }
+
+        self._add_ordinal_random_variables(variables_infos)
 
         return variables_infos
 

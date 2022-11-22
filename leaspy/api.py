@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import numpy as np
 
 from leaspy.io.data.dataset import Dataset
 from leaspy.models.model_factory import ModelFactory
@@ -49,6 +50,7 @@ class Leaspy:
                 * ``'gaussian_scalar'``: gaussian error, with same standard deviation for all features
                 * ``'gaussian_diagonal'``: gaussian error, with one standard deviation parameter per feature (default)
                 * ``'bernoulli'``: for binary data (Bernoulli realization)
+                * ``'ordinal'``: for ordinal data. WARNING : make sure your dataset only contains positive integers.
 
         source_dimension : int, optional
             `For multivariate models only`.
@@ -56,6 +58,13 @@ class Leaspy:
             This number MUST BE strictly lower than the number of features.
             By default, this number is equal to square root of the number of features.
             One can interpret this hyperparameter as a way to reduce the dimension of inter-individual _spatial_ variability between progressions.
+
+        batch_deltas_ordinal : bool, optional
+            `For logistic models with ordinal noise model only`.
+            If True, concatenates the deltas for each feature into a 2-dimensional Tensor "deltas" model parameter, which essentially allows faster sampling with new samplers.
+            If False, each feature will induce a new model parameter "deltas_<feature_name>".
+            The default is False but it is preferable to switch to True when ordinal items have many levels or when there are many items (when fit takes too long basically).
+            Batching deltas will speed up the sampling part of the MCMC SAEM by trading for less accuracy in the estimation of deltas.
 
     Attributes
     ----------
@@ -211,7 +220,7 @@ class Leaspy:
             return res
 
     def estimate(self, timepoints: Union[pd.MultiIndex, Dict[IDType, List[float]]], individual_parameters: IndividualParameters, *,
-                 to_dataframe: bool = None) -> Union[pd.DataFrame, Dict[IDType, np.ndarray]]:
+                 to_dataframe: bool = None, ordinal_method: str = 'MLE') -> Union[pd.DataFrame, Dict[IDType, np.ndarray]]:
         r"""
         Return the model values for individuals characterized by their individual parameters :math:`z_i` at time-points :math:`(t_{i,j})_j`.
 
@@ -225,6 +234,11 @@ class Leaspy:
         to_dataframe : bool or None (default)
             Whether to output a dataframe of estimations?
             If None: default is to be True if and only if timepoints is a `pandas.MultiIndex`
+        ordinal_method : str
+            <!> Only used for ordinal models.
+            * 'MLE' or 'maximum_likelihood' returns maximum likelihood estimator for each point (int)
+            * 'E' or 'expectation' returns expectation (float)
+            * 'P' or 'probabilities' returns probabilities of all levels (array[float]).
 
         Returns
         -------
@@ -257,24 +271,39 @@ class Leaspy:
                 to_dataframe = True
 
             ix = timepoints # keep for future
-            timepoints = {pat_id: ages.values for pat_id, ages in timepoints.to_frame()['TIME'].groupby('ID')}
+            timepoints = {subj_id: tpts.values for subj_id, tpts in timepoints.to_frame()['TIME'].groupby('ID')}
 
-        for index, time in timepoints.items():
-            ip = individual_parameters[index]
-            est = self.model.compute_individual_trajectory(time, ip)
-            estimations[index] = est[0].numpy() # 1 individual at a time (first dimension of tensor)
+        # special post-processing function for some models (only `ordinal` for now)
+        estimation_postprocessor_kws = dict(ordinal_method=ordinal_method)
+        estimation_postprocessor = getattr(self.model, 'postprocess_model_estimation', None)
+
+        for subj_id, tpts in timepoints.items():
+            ip = individual_parameters[subj_id]
+            est = self.model.compute_individual_trajectory(tpts, ip).cpu().numpy()
+            if estimation_postprocessor is not None:
+                est = estimation_postprocessor(est, **estimation_postprocessor_kws)
+            # 1 individual at a time --> squeeze the first dimension of the array
+            if isinstance(est, dict):
+                # can occur due to `estimation_postprocessor` (cf. `ordinal_method='probabilities'``)
+                estimations[subj_id] = {k: v[0] for k, v in est.items()}
+            else:
+                estimations[subj_id] = est[0]
 
         # convert to proper dataframe
         if to_dataframe:
             estimations = pd.concat({
-                pat_id: pd.DataFrame(ests, index=timepoints[pat_id], columns=self.model.features)
-                for pat_id, ests in estimations.items()
-            }, names=['ID','TIME'])
+                subj_id: pd.DataFrame(# columns names may be directly embedded in the dictionary after a `postprocess_model_estimation`
+                                      ests, columns=None if isinstance(ests, dict) else self.model.features,
+                                      index=timepoints[subj_id])
+                for subj_id, ests in estimations.items()
+            }, names=['ID', 'TIME'])
 
             # reindex back to given index being careful to index order (join so to handle multi-levels cases)
             if ix is not None:
                 # we need to explicitly pass `on` to preserve order of index levels
-                estimations = pd.DataFrame([], index=ix).join(estimations, on=['ID','TIME'])
+                # and to explicitly pass columns to preserve 2D columns when they are
+                empty_df_like_ests = pd.DataFrame([], index=ix, columns=estimations.columns)
+                estimations = empty_df_like_ests[[]].join(estimations, on=['ID', 'TIME'])
 
         return estimations
 
@@ -356,8 +385,7 @@ class Leaspy:
             ip = individual_parameters[index]
 
             # compute individual ages from the value array and individual parameter dict
-            est = self.model.compute_individual_ages_from_biomarker_values(value, ip, feature).numpy()
-            est = est.reshape(-1)
+            est = self.model.compute_individual_ages_from_biomarker_values(value, ip, feature).cpu().numpy().reshape(-1)
 
             # convert array to initial type (int or list)
             if isinstance(value, float):

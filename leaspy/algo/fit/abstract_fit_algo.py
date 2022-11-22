@@ -112,7 +112,9 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
             # Finally we compute model attributes once converged
             model.attributes.update(['all'], model.parameters)
 
-        return realizations, model.parameters['noise_std']
+        loss = model.parameters['log-likelihood'] if model.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking'] else model.parameters['noise_std']
+
+        return realizations, loss
 
     @abstractmethod
     def iteration(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
@@ -165,7 +167,8 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                 # 1st iteration post burn-in
                 self.sufficient_statistics = sufficient_statistics
             else:
-                self.sufficient_statistics = {k: v + burn_in_step * (sufficient_statistics[k] - v)
+                # this new formulation (instead of v + burn_in_step*(sufficient_statistics[k] - v)) enables to keep `inf` deltas
+                self.sufficient_statistics = {k: v * (1. - burn_in_step) + burn_in_step * sufficient_statistics[k]
                                               for k, v in self.sufficient_statistics.items()}
 
             model.update_model_parameters_normal(dataset, self.sufficient_statistics)

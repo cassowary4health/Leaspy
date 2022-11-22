@@ -1,5 +1,5 @@
 from leaspy.models.utils.attributes.abstract_attributes import AbstractAttributes
-from leaspy.models.utils.attributes import LogisticParallelAttributes, LogisticAttributes, LinearAttributes
+from leaspy.models.utils.attributes import LogisticParallelAttributes, LogisticAttributes, LinearAttributes, LogisticOrdinalAttributes
 
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -22,7 +22,7 @@ class AttributesFactory:
     }
 
     @classmethod
-    def attributes(cls, name: str, dimension: int, source_dimension: int = None) -> AbstractAttributes:
+    def attributes(cls, name: str, dimension: int, source_dimension: int = None, ordinal_infos = None, ) -> AbstractAttributes:
         """
         Class method to build correct model attributes depending on model `name`.
 
@@ -31,6 +31,8 @@ class AttributesFactory:
         name : str
         dimension : int
         source_dimension : int, optional (default None)
+        ordinal_infos : dict, optional
+            Only for models with ordinal noise. Cf ordinal_infos attribute of MultivariateModel
 
         Returns
         -------
@@ -52,5 +54,8 @@ class AttributesFactory:
 
         if not (('univariate' in name) ^ (dimension != 1)):
             raise LeaspyModelInputError(f"Name `{name}` should contain 'univariate', if and only if `dimension` equals 1.")
+
+        if ordinal_infos is not None:
+            return LogisticOrdinalAttributes(name, dimension, source_dimension, ordinal_infos)
 
         return cls._attributes[name](name, dimension, source_dimension)

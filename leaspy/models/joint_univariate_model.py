@@ -71,6 +71,8 @@ class JointUnivariateModel(ABC):
         self.noise_model = 'joint'
 
         self.parameters = {
+            "visit_likelihood": None,
+            "event_likelihood": None,
             "g": None,
             "v0": None,
             "rho": None,
@@ -972,7 +974,7 @@ class JointUnivariateModel(ABC):
             attachment_visits = (0.5 / noise_var) @ L2_res_per_ind_per_ft.t()
             attachment_visits += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
             attachment_visits = attachment_visits.reshape((data.n_individuals,))
-            print(attachment_visits, noise_var)
+
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 
@@ -1108,6 +1110,11 @@ class JointUnivariateModel(ABC):
         individual_parameters = self.get_param_from_real(realizations)
 
         if self.noise_model in ['joint']:
+            sufficient_statistics['events_likelihood'] = self.compute_individual_attachment_events(data, individual_parameters,
+                                                                                             attribute_type='MCMC').sum()
+            sufficient_statistics['visits_likelihood'] = self.compute_individual_attachment_visits(data, individual_parameters,
+                                                                                             attribute_type='MCMC').sum()
+
             sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
                                                                                                     attribute_type='MCMC').sum()
             individual_parameters = self.get_param_from_real(realizations)
@@ -1148,6 +1155,11 @@ class JointUnivariateModel(ABC):
             total_attachment = self.compute_individual_attachment_tensorized(data, param_ind,
                                                                               attribute_type='MCMC').sum()
             self.parameters['log-likelihood'] = total_attachment
+            self.parameters['events_likelihood'] = self.compute_individual_attachment_events(data, param_ind,
+                                                                          attribute_type='MCMC').sum()
+            self.parameters['visits_likelihood'] = self.compute_individual_attachment_visits(data, param_ind,
+                                                                          attribute_type='MCMC').sum()
+
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
     def update_model_parameters_normal(self, data, suff_stats):
@@ -1172,6 +1184,8 @@ class JointUnivariateModel(ABC):
 
         if self.noise_model in ['joint']:
             self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
+            self.parameters['events_likelihood'] = suff_stats['events_likelihood'].sum()
+            self.parameters['visits_likelihood'] = suff_stats['visits_likelihood'].sum()
 
             # scalar noise (same for all features)
             S1 = data.L2_norm

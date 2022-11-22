@@ -391,7 +391,7 @@ def initialize_logistic(model, df: pd.DataFrame, method):
     if 'univariate' in model.name:
         parameters = {
             'g': g_array.squeeze(),
-            'v0': v0_array,
+            'v0': v0_array.squeeze(),
             'tau_mean': t0,
             'tau_std': torch.tensor(tau_std),
             'xi_mean': torch.tensor(0.),
@@ -451,7 +451,7 @@ def initialize_joint_logistic(model, df: pd.DataFrame, method):
     parameters_long = initialize_logistic(model, df, method)
     parameters_surv = {
         'rho': torch.log(torch.tensor(4.)),
-        'nu': torch.log(torch.tensor(1.1)),
+        'nu': torch.log(torch.tensor(4.)),
     }
     return dict(parameters_long, **parameters_surv)
 

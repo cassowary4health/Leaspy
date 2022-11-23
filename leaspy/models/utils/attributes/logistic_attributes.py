@@ -14,6 +14,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
     name : str
     dimension : int
     source_dimension : int
+    use_householder (optional, default True): bool
 
     Attributes
     ----------
@@ -42,9 +43,9 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
     :class:`~leaspy.models.multivariate_model.MultivariateModel`
     """
 
-    def __init__(self, name, dimension, source_dimension, *, use_householder=True):
+    def __init__(self, name, dimension, source_dimension, **kwargs):
 
-        super().__init__(name, dimension, source_dimension, use_householder=use_householder)
+        super().__init__(name, dimension, source_dimension, **kwargs)
 
         if not self.univariate:
             self.velocities: torch.FloatTensor = None
@@ -67,7 +68,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
                   (no need to perform the verification it is - would not be really efficient)
                 * ``betas`` correspond to the linear combination of columns from the orthonormal basis
                   to derive the :attr:`mixing_matrix`.
-                * ``independant_directions`` correspond to directions sampled, which will be projected
+                * ``unprojected_directions`` correspond to directions sampled, which will be projected
                   onto the orthogonal complement of Span(v0) to derive the :attr:`mixing_matrix`.
         values : dict [str, `torch.Tensor`]
             New values used to update the model's group average parameters
@@ -82,7 +83,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         compute_betas = False
         compute_positions = False
         compute_velocities = False
-        compute_independant_directions = False
+        compute_unprojected_directions = False
         dgamma_t0_not_collinear_to_previous = False
 
         if 'all' in names_of_changed_values:
@@ -96,16 +97,16 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values):
             compute_velocities = True
             dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
-        if 'independant_directions' in names_of_changed_values:
-            compute_independant_directions = True
+        if 'unprojected_directions' in names_of_changed_values:
+            compute_unprojected_directions = True
 
         if compute_positions:
             self._compute_positions(values)
         if compute_velocities:
             self._compute_velocities(values)
 
-        if compute_independant_directions:
-            self._compute_independant_directions(values)
+        if compute_unprojected_directions:
+            self._compute_unprojected_directions(values)
 
         # only for models with sources beyond this point
         if not self.has_sources:
@@ -125,20 +126,22 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
                 self._compute_mixing_matrix()
 
         else:
-            if compute_positions or compute_independant_directions or dgamma_t0_not_collinear_to_previous:
+            if compute_positions or compute_unprojected_directions or dgamma_t0_not_collinear_to_previous:
                 # without Householder, computing the mixing matrix amounts to
                 # projecting its columns on Orthogonal_g(Span(v0))
                 self._compute_mixing_matrix()
 
-    def _compute_metric(self, p: torch.FloatTensor) -> torch.FloatTensor:
+    def _compute_metric(self, position: torch.FloatTensor) -> torch.FloatTensor:
         """
-        Compute the metric matrix at point p.
+        Compute the metric matrix at the point defined by 1/(1+position). This is usually
+        applied to the position attribute, which is updated as exp(g). This allows
+        to convert g which is sampled over the real line to a value in [0,1].
 
         Parameters:
-            p : :class:`torch.FloatTensor` 1D
+            position : :class:`torch.FloatTensor` 1D
 
         """
-        G_metric = (1 + p).pow(4) / p.pow(2) # = "1/(p * (1-p))**2"
+        G_metric = (1 + position).pow(4) / position.pow(2) # = "1/(p * (1-p))**2"
         return G_metric
 
     def _compute_positions(self, values):
@@ -150,14 +153,3 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         values : dict [str, `torch.Tensor`]
         """
         self.positions = torch.exp(values['g'])
-
-    def _compute_orthonormal_basis(self):
-        """
-        Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
-        of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
-        """
-        G_metric = self._compute_metric(self.positions)
-        dgamma_t0 = self.velocities
-
-        # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
-        self._compute_Q(dgamma_t0, G_metric)

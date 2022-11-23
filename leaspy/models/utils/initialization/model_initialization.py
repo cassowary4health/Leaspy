@@ -357,17 +357,25 @@ def initialize_logistic(model, df: pd.DataFrame, method):
     values_mu, values_sigma = compute_patient_values_distribution(df)
     time_mu, time_sigma = compute_patient_time_distribution(df)
 
+    # depending on the model._use_householder flag, the spatial variable ('betas'
+    # or 'unprojected_direction') have different shapes
+    if 'univariate' not in model.name:
+        spatial_variable_dimension = (model.dimension - 1, model.source_dimension) if model._use_householder else (model.dimension, model.source_dimension)
+
     # Method
     if method == "default":
         slopes = slopes_mu
         values = values_mu
         t0 = time_mu
-        betas = torch.zeros((model.dimension - 1, model.source_dimension))
+
+        if 'univariate' not in model.name:
+            spatial_variable = torch.zeros(spatial_variable_dimension)
     elif method == "random":
         slopes = torch.normal(slopes_mu, slopes_sigma)
         values = torch.normal(values_mu, values_sigma)
         t0 = torch.normal(time_mu, time_sigma)
-        betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(sample_shape=(model.dimension - 1, model.source_dimension))
+        if 'univariate' not in model.name:
+            spatial_variable = torch.distributions.normal.Normal(loc=0., scale=1.).sample(sample_shape=spatial_variable_dimension)
     else:
         raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
 
@@ -395,14 +403,13 @@ def initialize_logistic(model, df: pd.DataFrame, method):
         parameters = {
             'g': g_array,
             'v0': v0_array,
-            'betas': betas,
-            'independant_directions': independant_directions,
             'tau_mean': t0,
             'tau_std': torch.tensor(tau_std),
             'xi_mean': torch.tensor(0.),
             'xi_std': torch.tensor(xi_std),
             'sources_mean': torch.tensor(0.),
             'sources_std': torch.tensor(sources_std),
+            model._spatial_variable_id: spatial_variable, # either 'betas' or 'unprojected_direction'
         }
 
     if model.is_ordinal:
@@ -517,6 +524,10 @@ def initialize_linear(model, df: pd.DataFrame, method):
     # always take the log (even in non univariate model!)
     velocities = get_log_velocities(velocities, model.features)
 
+    if 'univariate' not in model.name:
+        spatial_variable_dimension = (model.dimension - 1, model.source_dimension) if model._use_householder else (model.dimension, model.source_dimension)
+        spatial_variable = torch.zeros(spatial_variable_dimension)
+
     if 'univariate' in model.name:
         xi_mean = velocities.squeeze()
 
@@ -532,7 +543,7 @@ def initialize_linear(model, df: pd.DataFrame, method):
         parameters = {
             'g': positions,
             'v0': velocities,
-            'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
+            model._spatial_variable_id: spatial_variable, # either 'betas' or 'unprojected_direction'
             'tau_mean': torch.tensor(t0),
             'tau_std': torch.tensor(tau_std),
             'xi_mean': torch.tensor(0.),

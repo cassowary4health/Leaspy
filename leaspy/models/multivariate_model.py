@@ -558,8 +558,8 @@ class MultivariateModel(AbstractMultivariateModel):
             "scale": .5  # cf. GibbsSampler
         }
 
-        independant_directions_infos = {
-            "name": "independant_directions",
+        unprojected_directions_infos = {
+            "name": "unprojected_directions",
             "shape": torch.Size([self.dimension, self.source_dimension]),
             "type": "population",
             "rv_type": "multigaussian",
@@ -601,7 +601,7 @@ class MultivariateModel(AbstractMultivariateModel):
             if self._use_householder:
                 variables_infos['betas'] = betas_infos
             else:
-                variables_infos['independant_directions'] = independant_directions_infos
+                variables_infos['unprojected_directions'] = unprojected_directions_infos
 
         self._add_ordinal_random_variables(variables_infos)
 

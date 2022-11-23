@@ -46,8 +46,6 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
         self.parameters = {
             "g": None,
-            "betas": None,
-            "independant_directions": None,
             "tau_mean": None, "tau_std": None,
             "xi_mean": None, "xi_std": None,
             "sources_mean": None, "sources_std": None,
@@ -70,7 +68,8 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         # Load hyperparameters at end to overwrite default for new hyperparameters
         self.load_hyperparameters(kwargs)
 
-        self._spatial_variable_id = "betas" if self._use_householder else "independant_directions"
+        self._spatial_variable_id = "betas" if self._use_householder else "unprojected_directions"
+        self.parameters[self._spatial_variable_id] = None
 
     """
     def smart_initialization_realizations(self, data, realizations):

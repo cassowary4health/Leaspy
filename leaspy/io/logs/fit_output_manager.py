@@ -185,7 +185,7 @@ class FitOutputManager:
         for key, value in model_parameters.items():
 
             if value.ndim > 1:
-                if key == "betas" or key == "independant_directions":
+                if key == "betas" or key == "unprojected_directions":
                     model_parameters_save.pop(key)
                     for column in range(value.shape[1]):
                         model_parameters_save[f"{key}_{column}"] = value[:, column].tolist()

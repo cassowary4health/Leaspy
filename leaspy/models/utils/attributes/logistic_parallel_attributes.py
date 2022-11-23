@@ -46,9 +46,9 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
     """
 
 
-    def __init__(self, name, dimension, source_dimension):
+    def __init__(self, name, dimension, source_dimension, **kwargs):
 
-        super().__init__(name, dimension, source_dimension)
+        super().__init__(name, dimension, source_dimension, **kwargs)
 
         if self.dimension < 2:
             raise LeaspyModelInputError(f"`LogisticParallelAttributes` with dimension = {self.dimension} (< 2)")
@@ -171,6 +171,20 @@ class LogisticParallelAttributes(AbstractManifoldModelAttributes):
         # collin_to_dgamma_t0 *= self.velocities * self.positions
 
         return gamma_t0, collin_to_dgamma_t0
+
+    def _compute_metric(self, position: torch.FloatTensor) -> torch.FloatTensor:
+        """
+        Compute the metric matrix at point p.
+
+        Parameters:
+            p : :class:`torch.FloatTensor` 1D
+
+        """
+        exp_d = torch.exp(-self.deltas)
+        denom = 1. + positions * exp_d
+        gamma_t0 = 1. / denom
+
+        return (gamma_t0 * (1 - gamma_t0)) ** -2
 
     def _compute_orthonormal_basis(self):
         """

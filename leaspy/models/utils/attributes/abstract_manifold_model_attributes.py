@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 import torch
 
 from .abstract_attributes import AbstractAttributes
@@ -73,8 +75,8 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
                 self.orthonormal_basis: torch.FloatTensor = None
                 self.update_possibilities += ('betas',)
             else:
-                self.independant_directions: torch.FloatTensor = None
-                self.update_possibilities += ('independant_directions',)
+                self.unprojected_directions: torch.FloatTensor = None
+                self.update_possibilities += ('unprojected_directions',)
 
             self.mixing_matrix: torch.FloatTensor = None
 
@@ -122,17 +124,27 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         """
         self.betas = values['betas'].clone()
 
-    def _compute_independant_directions(self, values: DictParamsTorch):
+    def _compute_unprojected_directions(self, values: DictParamsTorch):
         """
-        Update the attribute ``independant_directions``.
+        Update the attribute ``unprojected_directions``.
 
         Parameters
         ----------
         values : dict [str, `torch.Tensor`]
         """
-        self.independant_directions = values['independant_directions'].clone()
+        self.unprojected_directions = values['unprojected_directions'].clone()
 
-    def _local_metric_to_canonical(
+    @abstractmethod
+    def _compute_metric(self, p: torch.FloatTensor) -> torch.FloatTensor:
+        """
+        Compute the metric matrix at point p.
+
+        Parameters:
+            p : :class:`torch.FloatTensor` 1D
+
+        """
+
+    def _premultiply_by_local_metric(
                 self,
                 tangent_vector: torch.FloatTensor,
                 G_metric: torch.FloatTensor) -> torch.FloatTensor:
@@ -176,27 +188,27 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
 
             # enforce `G_metric` to be a tensor
             if not isinstance(G_metric, torch.Tensor):
-                G_metric = torch.tensor(G_metric) # convert from scalar...
+                G_metric = torch.tensor(G_metric)
 
-            # compute the vector that others columns should be orthogonal to, w.r.t canonical inner product
             G_shape = G_metric.shape
-            if len(G_shape) == 0: # 0D
-                if G_metric.item() <= 0:
+
+            # if diagonal or general metric, check that dimensions match before multiplying
+            if len(G_shape) == 1 and G_shape != torch.Size([self.dimension]):
+                raise LeaspyModelInputError(f'Incoherent 1D metric size: {len(G_metric)} != {self.dimension}.')
+            elif len(G_shape) == 2 and G_shape != torch.Size([self.dimension, self.dimension]):
+                raise LeaspyModelInputError(f'Incoherent 2D metric shape: {G_shape} != {(self.dimension, self.dimension)}.')
+
+            if len(G_shape) in [0, 1]: # 0D or 1D
+                # metric should be positive definite
+                if not (G_metric > 0).all():
                     raise LeaspyModelInputError('Incoherent negative scalar metric.')
 
-                tangent_vector = G_metric.item() * tangent_vector # homothetic
-            elif len(G_shape) == 1: # 1D
-                if not (G_metric > 0).all():
-                    raise LeaspyModelInputError('Incoherent 1D metric with negative values.')
-                if len(G_metric) != self.dimension:
-                    raise LeaspyModelInputError(f'Incoherent 1D metric size: {len(G_metric)} != {self.dimension}.')
+                tangent_vector = G_metric * tangent_vector # homothetic or component-wise multiplication
 
-                tangent_vector = G_metric * tangent_vector # component-wise multiplication of vectors
             elif len(G_shape) == 2: # matrix (general case)
-                if len(G_metric) != self.dimension:
-                    raise LeaspyModelInputError(f'Incoherent 2D metric shape: {G_shape} != {(self.dimension, self.dimension)}.')
-
+                # TODO: should we check that G_metric is positive definite as in 1D case?
                 tangent_vector = G_metric @ tangent_vector # matrix multiplication
+
             else:
                 raise LeaspyModelInputError('Unexpected metric of dim > 2 when computing orthonormal basis.')
 
@@ -247,7 +259,7 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             if incoherent metric `G_metric`
         """
 
-        dgamma_t0 = self._local_metric_to_canonical(dgamma_t0, G_metric)
+        dgamma_t0 = self._premultiply_by_local_metric(dgamma_t0, G_metric)
 
         """
         Automatically choose the best column to strip?
@@ -309,20 +321,20 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         torch_matrix_rank = getattr(linalg_mod, 'matrix_rank', torch.matrix_rank)
         return torch_matrix_rank(torch.stack(vectors).view(len(vectors), -1)).item() <= 1
 
-    def _orthogonal_projection(self, independant_directions, dgamma_t0):
+    def _orthogonal_projection(self, unprojected_directions, dgamma_t0):
         """
         Returns the mixing matrix, whose columns are those of
-        independant_directions where the orthogonal component (for the local
+        unprojected_directions where the orthogonal component (for the local
         metric) onto dgamma_t0 have been substracted. This makes sure that any
         column of the mixing matrix is indeed orthogonal (for the local metric)
         to dgamma_t0.
         """
         G_metric = self._compute_metric(self.positions)
-        dgamma_t0 = self._local_metric_to_canonical(dgamma_t0, G_metric)
+        dgamma_t0 = self._premultiply_by_local_metric(dgamma_t0, G_metric)
 
-        orthogonal_projection = (independant_directions.t() @(dgamma_t0/dgamma_t0.norm()**2).reshape(-1,1) @ dgamma_t0.reshape(1,-1)).t()
+        orthogonal_projection = (unprojected_directions.t() @(dgamma_t0/dgamma_t0.norm()**2).reshape(-1,1) @ dgamma_t0.reshape(1,-1)).t()
 
-        return independant_directions - orthogonal_projection
+        return unprojected_directions - orthogonal_projection
 
     def _compute_mixing_matrix(self):
         """
@@ -332,4 +344,17 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         if self._use_householder:
             self.mixing_matrix = self._mixing_matrix_utils(self.betas, self.orthonormal_basis)
         else:
-            self.mixing_matrix = self._orthogonal_projection(self.independant_directions, self.velocities)
+            self.mixing_matrix = self._orthogonal_projection(self.unprojected_directions, self.velocities)
+
+    def _compute_orthonormal_basis(self):
+        """
+        Compute the attribute ``orthonormal_basis`` which is an orthonormal
+        basis, w.r.t the canonical inner product, of the sub-space orthogonal,
+        w.r.t the inner product implied by the metric, to the time-derivative of
+        the geodesic at initial time.
+        """
+        G_metric = self._compute_metric(self.positions)
+        dgamma_t0 = self.velocities
+
+        # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
+        self._compute_Q(dgamma_t0, G_metric)

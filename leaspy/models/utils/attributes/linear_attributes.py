@@ -14,6 +14,7 @@ class LinearAttributes(AbstractManifoldModelAttributes):
     name : str
     dimension : int
     source_dimension : int
+    use_householder (optional, default True): bool
 
     Attributes
     ----------
@@ -42,9 +43,9 @@ class LinearAttributes(AbstractManifoldModelAttributes):
     :class:`~leaspy.models.multivariate_model.MultivariateModel`
     """
 
-    def __init__(self, name, dimension, source_dimension):
+    def __init__(self, name, dimension, source_dimension, **kwargs):
 
-        super().__init__(name, dimension, source_dimension)
+        super().__init__(name, dimension, source_dimension, **kwargs)
 
         if not self.univariate:
             self.velocities: torch.FloatTensor = None
@@ -79,6 +80,7 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         self._check_names(names_of_changed_values)
 
         compute_betas = False
+        compute_unprojected_directions = False
         compute_positions = False
         compute_velocities = False
         dgamma_t0_not_collinear_to_previous = False
@@ -89,6 +91,9 @@ class LinearAttributes(AbstractManifoldModelAttributes):
 
         if 'betas' in names_of_changed_values:
             compute_betas = True
+        if 'unprojected_directions' in names_of_changed_values:
+            compute_unprojected_directions = True
+
         if 'g' in names_of_changed_values:
             compute_positions = True
         if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values):
@@ -104,16 +109,38 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         if not self.has_sources:
             return
 
-        if compute_betas:
-            self._compute_betas(values)
+        if self._use_householder:
+            if compute_betas:
+                self._compute_betas(values)
 
-        # do not recompute orthonormal basis when we know dgamma_t0 is collinear
-        # to previous velocities to avoid useless computations!
-        recompute_ortho_basis = dgamma_t0_not_collinear_to_previous
-        if recompute_ortho_basis:
-            self._compute_orthonormal_basis()
-        if recompute_ortho_basis or compute_betas:
-            self._compute_mixing_matrix()
+            # do not recompute orthonormal basis when we know dgamma_t0 is collinear
+            # to previous velocities to avoid useless computations!
+            recompute_ortho_basis = dgamma_t0_not_collinear_to_previous
+            if recompute_ortho_basis:
+                self._compute_orthonormal_basis()
+            if recompute_ortho_basis or compute_betas:
+                self._compute_mixing_matrix()
+
+        else:
+            if compute_unprojected_directions:
+                self._compute_unprojected_directions(values)
+
+            if compute_positions or compute_unprojected_directions or dgamma_t0_not_collinear_to_previous:
+                # without Householder, computing the mixing matrix amounts to
+                # projecting its columns on Orthogonal_g(Span(v0))
+                self._compute_mixing_matrix()
+
+    def _compute_metric(self, p: torch.FloatTensor) -> torch.FloatTensor:
+        """
+        Compute the metric matrix at point p. In the linear case, since we are
+        working in the euclidean space R^d, the local metric is the identity matrix
+        (which we can efficiently encode as the 0D unitary homothety (i.e. 1.0)
+
+        Parameters:
+            p : :class:`torch.FloatTensor` 1D
+
+        """
+        return 1.0
 
     def _compute_positions(self, values):
         """
@@ -124,15 +151,3 @@ class LinearAttributes(AbstractManifoldModelAttributes):
         values : dict [str, `torch.Tensor`]
         """
         self.positions = values['g'].clone()
-
-
-    def _compute_orthonormal_basis(self):
-        """
-        Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
-        of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
-        In linear case, this inner product corresponds to canonical Euclidean one.
-        """
-        dgamma_t0 = self.velocities
-
-        # Householder decomposition in Euclidean case, updates `orthonormal_basis` in-place
-        self._compute_Q(dgamma_t0, 1.)

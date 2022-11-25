@@ -438,7 +438,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts == 1 [, extra_dim_ordinal_models], n_dims_param)]
         return derivatives
 
-    def compute_sufficient_statistics(self, data, realizations):
+    def compute_sufficient_statistics(self, data, realizations, iteration = None):
 
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
@@ -474,7 +474,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
                                                                                                     attribute_type='MCMC')
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, realizations):
+    def update_model_parameters_burn_in(self, data, realizations, iteration = None):
         # Memoryless part of the algorithm
 
         # modify realizations in-place!
@@ -501,7 +501,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         else:
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
-    def update_model_parameters_normal(self, data, suff_stats):
+    def update_model_parameters_normal(self, data, suff_stats, iteration = None):
         # Stochastic sufficient statistics used to update the parameters of the model
 
         self.parameters['g'] = suff_stats['g']

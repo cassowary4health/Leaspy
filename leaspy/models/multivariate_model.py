@@ -385,7 +385,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return realizations
 
-    def compute_sufficient_statistics(self, data, realizations):
+    def compute_sufficient_statistics(self, data, realizations, iteration = None):
 
         # modify realizations in-place
         realizations = self._center_xi_realizations(realizations)
@@ -426,7 +426,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, realizations):
+    def update_model_parameters_burn_in(self, data, realizations, iteration = None):
         # During the burn-in phase, we only need to store the following parameters (cf. !66 and #60)
         # - noise_std
         # - *_mean/std for regularization of individual variables
@@ -478,7 +478,7 @@ class MultivariateModel(AbstractMultivariateModel):
         else:
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
-    def update_model_parameters_normal(self, data, suff_stats):
+    def update_model_parameters_normal(self, data, suff_stats, iteration = None):
         # TODO? add a true, configurable, validation for all parameters? (e.g.: bounds on tau_var/std but also on tau_mean, ...)
 
         # Stochastic sufficient statistics used to update the parameters of the model

@@ -548,7 +548,7 @@ class AbstractModel(ABC):
         return attachment.reshape((data.n_individuals,))
 
     @abstractmethod
-    def update_model_parameters_burn_in(self, data: Dataset, realizations: CollectionRealization) -> None:
+    def update_model_parameters_burn_in(self, data: Dataset, realizations: CollectionRealization, iteration = None) -> None:
         """
         Update model parameters (burn-in phase)
 
@@ -559,7 +559,7 @@ class AbstractModel(ABC):
         """
 
     @abstractmethod
-    def update_model_parameters_normal(self, data: Dataset, suff_stats: DictParamsTorch) -> None:
+    def update_model_parameters_normal(self, data: Dataset, suff_stats: DictParamsTorch, iteration = None) -> None:
         """
         Update model parameters (after burn-in phase)
 
@@ -570,7 +570,7 @@ class AbstractModel(ABC):
         """
 
     @abstractmethod
-    def compute_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> DictParamsTorch:
+    def compute_sufficient_statistics(self, data: Dataset,realizations: CollectionRealization, iteration = None) -> DictParamsTorch:
         """
         Compute sufficient statistics from realizations
 

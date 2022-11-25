@@ -60,7 +60,6 @@ class JointUnivariateModel(ABC):
 
     ## --- INITIALIZATION FUNCTIONS ---
     def __init__(self, name: str, **kwargs):
-
         self.is_initialized: bool = False
         self.is_ordinal = False
         self.name = name
@@ -1068,11 +1067,11 @@ class JointUnivariateModel(ABC):
 
         attachment_events = self.compute_individual_attachment_events(data, param_ind, attribute_type=attribute_type)
         attachment_visits = self.compute_individual_attachment_visits(data, param_ind, attribute_type=attribute_type)
-        attachment_total = attachment_events + 10*attachment_visits #attachment_events + attachment_visits
+        attachment_total = attachment_events + attachment_visits #attachment_events + attachment_visits
 
         return attachment_total
 
-    def _center_xi_realizations(self, realizations):
+    def _center_xi_realizations(self, realizations, iteration = None):
         # This operation does not change the orthonormal basis
         # (since the resulting v0 is collinear to the previous one)
         # Nor all model computations (only v0 * exp(xi_i) matters),
@@ -1080,31 +1079,36 @@ class JointUnivariateModel(ABC):
         # <!> all operations are performed in "log" space (v0 is log'ed)
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
-        realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
-        realizations['nu'].tensor_realizations = realizations['nu'].tensor_realizations + mean_xi
-
-        self.update_MCMC_toolbox(['v0_collinear'], realizations)
-        self.update_MCMC_toolbox(['nu_collinear'], realizations)
+        if self.test_if_event_iteration(iteration) in ["event","sum"]:
+            print("update")
+            realizations['nu'].tensor_realizations = realizations['nu'].tensor_realizations + mean_xi
+            self.update_MCMC_toolbox(['nu_collinear'], realizations)
+        if self.test_if_event_iteration(iteration) in ["visit", "sum"]:
+            realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
+            self.update_MCMC_toolbox(['v0_collinear'], realizations)
 
         return realizations
 
-    def compute_sufficient_statistics(self, data, realizations):
+    def compute_sufficient_statistics(self, data, realizations, iteration = None):
 
         # modify realizations in-place
-        realizations = self._center_xi_realizations(realizations)
+        realizations = self._center_xi_realizations(realizations, iteration)
 
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
 
         sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations
-        sufficient_statistics['v0'] = realizations['v0'].tensor_realizations
-        sufficient_statistics['nu'] = realizations['nu'].tensor_realizations
-        sufficient_statistics['rho'] = realizations['rho'].tensor_realizations
-        sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
-        sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
         sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
+        if self.test_if_event_iteration(iteration) in ["event", "sum"]:
+            sufficient_statistics['nu'] = realizations['nu'].tensor_realizations
+            sufficient_statistics['rho'] = realizations['rho'].tensor_realizations
+        if self.test_if_event_iteration(iteration) in ["visit", "sum"]:
+            sufficient_statistics['g'] = realizations['g'].tensor_realizations
+            sufficient_statistics['v0'] = realizations['v0'].tensor_realizations
+            sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
+            sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
+
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
         individual_parameters = self.get_param_from_real(realizations)
@@ -1130,25 +1134,32 @@ class JointUnivariateModel(ABC):
             sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2)
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, realizations):
+    def update_model_parameters_burn_in(self, data, realizations, iteration = None):
         # Memoryless part of the algorithm
 
         # modify realizations in-place!
-        realizations = self._center_xi_realizations(realizations)
+        realizations = self._center_xi_realizations(realizations, iteration)
 
         # unlink model parameters from updates in realizations!
         realizations = realizations.clone_realizations()
 
-        self.parameters['g'] = realizations['g'].tensor_realizations
-        self.parameters['v0'] = realizations['v0'].tensor_realizations
-        self.parameters['nu'] = realizations['nu'].tensor_realizations
-        self.parameters['rho'] = realizations['rho'].tensor_realizations
+        if self.test_if_event_iteration(iteration) in ["event","sum"]:
+
+            self.parameters['nu'] = realizations['nu'].tensor_realizations
+            self.parameters['rho'] = realizations['rho'].tensor_realizations
+
+        if self.test_if_event_iteration(iteration) in ["visit","sum"]:
+
+            self.parameters['g'] = realizations['g'].tensor_realizations
+            self.parameters['v0'] = realizations['v0'].tensor_realizations
+            tau = realizations['tau'].tensor_realizations
+            self.parameters['tau_mean'] = torch.mean(tau)
+            self.parameters['tau_std'] = torch.std(tau)
+
         xi = realizations['xi'].tensor_realizations
         #self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
-        tau = realizations['tau'].tensor_realizations
-        self.parameters['tau_mean'] = torch.mean(tau)
-        self.parameters['tau_std'] = torch.std(tau)
+
 
         param_ind = self.get_param_from_real(realizations)
         if self.noise_model in ['joint']:
@@ -1162,19 +1173,28 @@ class JointUnivariateModel(ABC):
 
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
-    def update_model_parameters_normal(self, data, suff_stats):
+    def test_if_event_iteration(self, iteration):
+        if  iteration < 2000 and iteration % 50 == 0:
+                return "event"
+        elif iteration < 3000 and iteration % 50 != 0:
+                return "visit"
+        else:
+            return "sum"
+    def update_model_parameters_normal(self, data, suff_stats, iteration = None):
+
         # Stochastic sufficient statistics used to update the parameters of the model
-
-        self.parameters['g'] = suff_stats['g']
-        self.parameters['v0'] = suff_stats['v0']
-        self.parameters['nu'] = suff_stats['nu']
-        self.parameters['rho'] = suff_stats['rho']
-
-        tau_mean = self.parameters['tau_mean']
-        tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
-        tau_var = tau_var_updt + tau_mean ** 2
-        self.parameters['tau_std'] = self._compute_std_from_var(tau_var, varname='tau_std')
-        self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
+        if self.test_if_event_iteration(iteration) in ["event","sum"]:
+            print("update")
+            self.parameters['nu'] = suff_stats['nu']
+            self.parameters['rho'] = suff_stats['rho']
+        if self.test_if_event_iteration(iteration) in ["visit","sum"]:
+            self.parameters['g'] = suff_stats['g']
+            self.parameters['v0'] = suff_stats['v0']
+            tau_mean = self.parameters['tau_mean']
+            tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
+            tau_var = tau_var_updt + tau_mean ** 2
+            self.parameters['tau_std'] = self._compute_std_from_var(tau_var, varname='tau_std')
+            self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
         xi_mean = self.parameters['xi_mean']
         xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])

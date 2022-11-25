@@ -124,7 +124,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
-    def compute_sufficient_statistics(self, data, realizations):
+    def compute_sufficient_statistics(self, data, realizations, iteration = None):
 
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
@@ -158,7 +158,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, realizations):
+    def update_model_parameters_burn_in(self, data, realizations, iteration = None):
 
         # unlink model parameters from updates in realizations!
         realizations = realizations.clone_realizations()
@@ -181,7 +181,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
                                                                                               attribute_type='MCMC').sum()
 
-    def update_model_parameters_normal(self, data, suff_stats):
+    def update_model_parameters_normal(self, data, suff_stats, iteration = None):
 
         self.parameters['g'] = suff_stats['g']
         self.parameters['deltas'] = suff_stats['deltas']

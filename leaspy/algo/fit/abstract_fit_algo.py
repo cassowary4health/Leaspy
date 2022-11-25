@@ -156,9 +156,9 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         """
         if self._is_burn_in():
             # the maximization step is memoryless
-            model.update_model_parameters_burn_in(dataset, realizations)
+            model.update_model_parameters_burn_in(dataset, realizations, iteration = self.current_iteration)
         else:
-            sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
+            sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations, iteration = self.current_iteration)
 
             burn_in_step = self.current_iteration - self.algo_parameters['n_burn_in_iter'] # min = 1, max = n_iter - n_burn_in_iter
             burn_in_step **= -self.algo_parameters['burn_in_step_power']
@@ -171,7 +171,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                 self.sufficient_statistics = {k: v * (1. - burn_in_step) + burn_in_step * sufficient_statistics[k]
                                               for k, v in self.sufficient_statistics.items()}
 
-            model.update_model_parameters_normal(dataset, self.sufficient_statistics)
+            model.update_model_parameters_normal(dataset, self.sufficient_statistics,  iteration = self.current_iteration)
 
         # No need to update model attributes (derived from model parameters)
         # since all model computations are done with the MCMC toolbox during calibration

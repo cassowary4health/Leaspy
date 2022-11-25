@@ -199,7 +199,7 @@ class GibbsSampler(AbstractSampler):
             self.std[idx_toolow] *= (1 - self._adaptive_std_factor)
             self.std[idx_toohigh] *= (1 + self._adaptive_std_factor)
 
-    def _sample_population_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws):
+    def _sample_population_realizations(self, data, model, realizations, temperature_inv, iteration = None, **attachment_computation_kws):
         """
         For each dimension (1D or 2D) of the population variable, compute current attachment and regularity.
         Propose a new value for the given dimension of the given population variable,
@@ -220,6 +220,7 @@ class GibbsSampler(AbstractSampler):
         attachment, regularity_var : `torch.FloatTensor` 0D (scalars)
             The attachment and regularity (only for the current variable) at the end of this sampling step (summed on all individuals).
         """
+
         realization = realizations[self.name]
         accepted_array = torch.zeros_like(self.std)
 
@@ -246,8 +247,21 @@ class GibbsSampler(AbstractSampler):
         ind_params = model.get_param_from_real(realizations)
 
         def compute_attachment_regularity():
-            # model attributes used are the ones from the MCMC toolbox that we are currently changing!
-            attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type='MCMC').sum()
+            if model.name == "joint_univariate_logistic" :
+                if  model.test_if_event_iteration(iteration) == "event":
+                    attachment = model.compute_individual_attachment_events(data, ind_params,
+                                                                                attribute_type='MCMC').sum()
+                elif  model.test_if_event_iteration(iteration) == "visit":
+                    attachment = model.compute_individual_attachment_visits(data, ind_params,
+                                                                                attribute_type='MCMC').sum()
+                elif  model.test_if_event_iteration(iteration) == "sum":
+                    attachment = model.compute_individual_attachment_tensorized(data, ind_params,
+                                                                                attribute_type='MCMC').sum()
+                else:
+                    raise
+            else:
+                # model attributes used are the ones from the MCMC toolbox that we are currently changing!
+                attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type='MCMC').sum()
             # regularity is always computed with model.parameters (not "temporary MCMC parameters")
             regularity = model.compute_regularity_realization(realization)
             # mask regularity of masked terms (needed for nan/inf terms such as inf deltas when batched)
@@ -282,15 +296,12 @@ class GibbsSampler(AbstractSampler):
 
             alpha = torch.exp(-((new_regularity - previous_regularity) * temperature_inv +
                                 (new_attachment - previous_attachment)))
-            #print("\npop",self.name, alpha, new_regularity, previous_regularity, new_attachment, previous_attachment)
-            #if alpha > 10000:
-                #print("OUTCH")
+
             accepted = self._metropolis_step(alpha)
             accepted_array[idx] = accepted
 
             if accepted:
-                #if (alpha < 0.01):
-                    #print("AIIIIIIIE", alpha)
+
                 previous_attachment, previous_regularity = new_attachment, new_regularity
 
             else:
@@ -303,13 +314,14 @@ class GibbsSampler(AbstractSampler):
                 # force re-compute on next iteration:
                 # not performed since it is useless, since we rolled back to the starting state!
                 # self._previous_attachment = self._previous_regularity = None
+        
         self._update_acceptation_rate(accepted_array)
         self._update_std()
 
         # Return last attachment and regularity_var
         return previous_attachment, previous_regularity
 
-    def _sample_individual_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws):
+    def _sample_individual_realizations(self, data, model, realizations, temperature_inv, iteration = None, **attachment_computation_kws):
         """
         For each individual variable, compute current patient-batched attachment and regularity.
         Propose a new value for the individual variable,
@@ -348,8 +360,22 @@ class GibbsSampler(AbstractSampler):
             # current realizations => individual parameters
             ind_params = model.get_param_from_real(realizations)
 
-            # individual parameters => compare reconstructions vs values (per subject)
-            attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type=attribute_type)
+            if model.name == "joint_univariate_logistic":
+                if  model.test_if_event_iteration(iteration) == "event":
+                    attachment = model.compute_individual_attachment_events(data, ind_params,
+                                                                                attribute_type=attribute_type)
+                elif  model.test_if_event_iteration(iteration) == "visit":
+                    attachment = model.compute_individual_attachment_visits(data, ind_params,
+                                                                                attribute_type=attribute_type)
+                elif model.test_if_event_iteration(iteration) == "sum":
+                    attachment = model.compute_individual_attachment_tensorized(data, ind_params,
+                                                                                attribute_type=attribute_type)
+                else:
+                    raise
+
+            else:
+                # individual parameters => compare reconstructions vs values (per subject)
+                attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type=attribute_type)
 
             # compute log-likelihood of just the given parameter (tau or xi or sources)
             # (per subject; all dimensions of the individual parameter are summed together)

@@ -86,7 +86,14 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
             shuffle(vars_order)  # shuffle order in-place!
 
         for key in vars_order:
-            self.samplers[key].sample(dataset, model, realizations, self.temperature_inv)
+            if model.name == "joint_univariate_logistic":
+                if  (model.test_if_event_iteration(self.current_iteration) in ["visit", "sum"]) and key in ["tau", "v0", "g", "xi"] :
+                    self.samplers[key].sample(dataset, model, realizations, self.temperature_inv, iteration = self.current_iteration)
+                if  (model.test_if_event_iteration(self.current_iteration) in ["event", "sum"]) and key in ["nu", "rho", "xi"] :
+                    self.samplers[key].sample(dataset, model, realizations, self.temperature_inv, iteration = self.current_iteration)
+            else:
+                self.samplers[key].sample(dataset, model, realizations, self.temperature_inv,
+                                          iteration=self.current_iteration)
 
         # Maximization step
         self._maximization_step(dataset, model, realizations)

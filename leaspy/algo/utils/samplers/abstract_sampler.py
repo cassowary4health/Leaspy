@@ -99,7 +99,7 @@ class AbstractSampler(ABC):
                     f"Mask for sampler should be of size {self.shape} but is of shape {self.mask.shape}")
 
 
-    def sample(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    def sample(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, iteration = None, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
         """
         Sample new realization (either population or individual) for a given realization state, dataset, model and temperature
 
@@ -129,9 +129,9 @@ class AbstractSampler(ABC):
             (globally or per individual, depending on variable type).
         """
         if self.type == 'pop':
-            return self._sample_population_realizations(dataset, model, realizations, temperature_inv, **attachment_computation_kws)
+            return self._sample_population_realizations(dataset, model, realizations, temperature_inv, iteration = iteration, **attachment_computation_kws)
         else:
-            return self._sample_individual_realizations(dataset, model, realizations, temperature_inv, **attachment_computation_kws)
+            return self._sample_individual_realizations(dataset, model, realizations, temperature_inv, iteration = iteration, **attachment_computation_kws)
 
     @abstractmethod
     def _sample_population_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:

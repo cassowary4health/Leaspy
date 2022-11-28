@@ -303,7 +303,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         # Loss is based on log-likelihood for model, which ultimately depends on noise structure
         # TODO: should be directly handled in model or NoiseModel (probably in NoiseModel)
-        if 'gaussian' in model.noise_model:
+        if 'gaussian' in model.noise_model or "joint" in model.noise_model:
             noise_var = model.parameters['noise_std'] * model.parameters['noise_std']
             noise_var = noise_var.expand((1, model.dimension)) # tensor 1,n_fts (works with diagonal noise or scalar noise)
             res['objective'] = torch.sum((0.5 / noise_var) @ (diff * diff).t()) # <!> noise per feature

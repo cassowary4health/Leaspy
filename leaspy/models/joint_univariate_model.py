@@ -552,6 +552,43 @@ class JointUnivariateModel(ABC):
         # Compute the individual trajectory
         return torch.cat((longitudinal, survival), -1)
 
+    def compute_individual_tensorized(self, timepoints, individual_parameters: DictParams, *,
+                                      skip_ips_checks: bool = False):
+        """
+        Compute scores values at the given time-point(s) given a subject's individual parameters.
+
+        Parameters
+        ----------
+        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
+            Contains the age(s) of the subject.
+        individual_parameters : dict
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like
+        skip_ips_checks : bool (default: False)
+            Flag to skip consistency/compatibility checks and tensorization
+            of individual_parameters when it was done earlier (speed-up)
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's scores computed at the given age(s)
+            Shape of tensor is (1, n_tpts, n_features)
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            if computation is tried on more than 1 individual
+        :exc:`.LeaspyIndividualParamsInputError`
+            if invalid individual parameters
+        """
+
+        timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
+                                                                        skip_ips_checks=skip_ips_checks)
+        longitudinal = self.compute_individual_tensorized_logistic(timepoints, individual_parameters)
+        survival = self.compute_individual_tensorized_survival(timepoints, individual_parameters)
+        # Compute the individual trajectory
+        return longitudinal
+
     """def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
@@ -1080,7 +1117,6 @@ class JointUnivariateModel(ABC):
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
         if self.test_if_event_iteration(iteration) in ["event","sum"]:
-            print("update")
             realizations['nu'].tensor_realizations = realizations['nu'].tensor_realizations + mean_xi
             self.update_MCMC_toolbox(['nu_collinear'], realizations)
         if self.test_if_event_iteration(iteration) in ["visit", "sum"]:
@@ -1184,7 +1220,6 @@ class JointUnivariateModel(ABC):
 
         # Stochastic sufficient statistics used to update the parameters of the model
         if self.test_if_event_iteration(iteration) in ["event","sum"]:
-            print("update")
             self.parameters['nu'] = suff_stats['nu']
             self.parameters['rho'] = suff_stats['rho']
         if self.test_if_event_iteration(iteration) in ["visit","sum"]:

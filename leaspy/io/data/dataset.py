@@ -100,15 +100,6 @@ class Dataset:
         self.L2_norm_per_ft: torch.FloatTensor = None
         self.L2_norm: torch.FloatTensor = None
 
-        # events # To Dotorch.nan_to_num(hazard, nan=1.)
-        if data.event_time_min != None:
-            self.event_time_min = torch.nan_to_num(data.event_time_min, nan=1.)
-            self.event_time_max = torch.nan_to_num(data.event_time_max, nan=1.)
-        else:
-            self.event_time_min = None
-            self.event_time_max = None
-        self.mask_event = data.mask_event
-
         # internally used by ordinal models only
         self._one_hot_encoding: Dict[bool, torch.LongTensor] = None
 
@@ -121,6 +112,22 @@ class Dataset:
         #self._construct_events(data) # To Do
         self._construct_timepoints(data)
         self._compute_L2_norm()
+
+        if "joint" in model.name:
+            # events # To Dotorch.nan_to_num(hazard, nan=1.)
+            self.event_time_start = data.event_time_start
+            if data.event_time_min != None :
+                self.event_time_min = torch.nan_to_num(data.event_time_min, nan=1.)
+            else:
+                assert(self.event_time_start != None, "You have to specified start date if you don't know event")
+                self.event_time_min = torch.nan_to_num(self.timepoints.max(axis=1)[0] - self.event_time_start, nan=1.)
+            if data.event_time_max != None:
+                self.mask_event = (~torch.isnan(data.event_time_max)).float()
+                self.event_time_max = torch.nan_to_num(data.event_time_max, nan=1.)
+            else:
+                self.mask_event = torch.zeros(self.event_time_min.shape, dtype=torch.double)
+                self.event_time_max = torch.ones(self.event_time_min.shape, dtype=torch.double)
+
 
     def _construct_values(self, data: Data):
 
@@ -165,7 +172,7 @@ class Dataset:
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0,1)) # 1D tensor of shape (dimension,)
         self.L2_norm = self.L2_norm_per_ft.sum() # sum on all features
 
-    def get_times_patient(self, i: int) -> torch.FloatTensor:
+    def get_times_patient(self, i: int, adapt_for_model = None) -> torch.FloatTensor:
         """
         Get ages for patient number ``i``
 
@@ -179,7 +186,13 @@ class Dataset:
         :class:`torch.Tensor`, shape (n_obs_of_patient,)
             Contains float
         """
-        return self.timepoints[i, :self.n_visits_per_individual[i]]
+        if adapt_for_model == None:
+            return self.timepoints[i, :self.n_visits_per_individual[i]]
+        elif 'joint' in adapt_for_model.name:
+            return (
+                self.timepoints[i, :self.n_visits_per_individual[i]], self.event_time_min[i])
+        else:
+            return self.timepoints[i, :self.n_visits_per_individual[i]]
 
     def get_values_patient(self, i: int, *, adapt_for_model = None) -> torch.FloatTensor:
         """
@@ -220,11 +233,20 @@ class Dataset:
 
     @staticmethod
     def _check_model_compatibility(data: Data, model: AbstractModel):
-        if model.dimension is not None and data.dimension != model.dimension:
-            raise LeaspyInputError(f"Unmatched dimensions: {model.dimension} (model) ≠ {data.dimension} (data).")
 
-        if model.features is not None and data.headers != model.features:
-            raise LeaspyInputError(f"Unmatched features: {model.features} (model) ≠ {data.headers} (data).")
+        if "survival" in data.headers and "joint" in model.name:
+            feat = model.features+["survival"]
+            dim = model.dimension+1
+        else:
+            feat = model.features
+            dim = model.dimension
+
+        if model.dimension is not None and data.dimension != dim:
+            raise LeaspyInputError(f"Unmatched dimensions: {dim} (model) ≠ {data.dimension} (data).")
+
+        if model.features is not None and data.headers != feat:
+            raise LeaspyInputError(f"Unmatched features: {feat} (model) ≠ {data.headers} (data).")
+
 
     @staticmethod
     def _check_algo_compatibility(data: Data, algo: AbstractAlgo):

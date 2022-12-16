@@ -1,6 +1,7 @@
 import warnings
 from operator import itemgetter
 from typing import Dict, List
+from lifelines import WeibullFitter
 
 import torch
 from scipy import stats
@@ -77,7 +78,7 @@ def initialize_parameters(model, dataset, method="default"):
         raise NotImplementedError
         #parameters = initialize_logistic(model, df, method)
     elif name == "joint_univariate_logistic":
-        parameters = initialize_joint_logistic(model, df, method)
+        parameters = initialize_joint_logistic(model, df, method, dataset)
     elif name in ['univariate_survival_weibull']:
         parameters = {
         'rho': torch.log(torch.tensor(4)),
@@ -419,7 +420,7 @@ def initialize_logistic(model, df: pd.DataFrame, method):
 
     return parameters
 
-def initialize_joint_logistic(model, df: pd.DataFrame, method):
+def initialize_joint_logistic(model, df: pd.DataFrame, method, dataset):
     """
     Initialize the logistic model's group parameters.
 
@@ -449,10 +450,15 @@ def initialize_joint_logistic(model, df: pd.DataFrame, method):
 
 
     parameters_long = initialize_logistic(model, df, method)
+
+    wbf = WeibullFitter().fit(dataset.event_time_min,
+                        dataset.mask_event)
+
     parameters_surv = {
-        'rho': torch.log(torch.tensor(4.)),
-        'nu': torch.log(torch.tensor(4.)),
+        'rho': torch.log(torch.tensor(wbf.rho_)),
+        'nu': -torch.log(torch.tensor(wbf.lambda_)),
     }
+
     return dict(parameters_long, **parameters_surv)
 
 def initialize_logistic_parallel(model, df, method):

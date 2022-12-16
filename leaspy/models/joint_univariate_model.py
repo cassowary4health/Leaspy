@@ -552,7 +552,46 @@ class JointUnivariateModel(ABC):
         # Compute the individual trajectory
         return torch.cat((longitudinal, survival), -1)
 
-    def compute_individual_tensorized(self, timepoints, individual_parameters: DictParams, *,
+    def compute_individual_tensorized(self, timepoints_in, individual_parameters: DictParams, *,
+                                      skip_ips_checks: bool = False):
+        """
+        Compute scores values at the given time-point(s) given a subject's individual parameters.
+
+        Parameters
+        ----------
+        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
+            Contains the age(s) of the subject.
+        individual_parameters : dict
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like
+        skip_ips_checks : bool (default: False)
+            Flag to skip consistency/compatibility checks and tensorization
+            of individual_parameters when it was done earlier (speed-up)
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's scores computed at the given age(s)
+            Shape of tensor is (1, n_tpts, n_features)
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            if computation is tried on more than 1 individual
+        :exc:`.LeaspyIndividualParamsInputError`
+            if invalid individual parameters
+        """
+        timepoints, t_start = timepoints_in
+        timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
+                                                                        skip_ips_checks=skip_ips_checks)
+
+        longitudinal = self.compute_individual_tensorized_logistic(timepoints, individual_parameters)
+        survival = self.compute_individual_tensorized_survival(timepoints-t_start, individual_parameters)
+
+        # Compute the individual trajectory
+        return torch.cat((longitudinal, survival), -1)
+
+    '''    def compute_perso_loss(self, timepoints_in, values, individual_parameters: DictParams, *,
                                       skip_ips_checks: bool = False):
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
@@ -582,12 +621,91 @@ class JointUnivariateModel(ABC):
             if invalid individual parameters
         """
 
+        timepoints, t_start = timepoints_in
+        nans = torch.isnan(values)
+
+        t_min = timepoints[:,-1]-t_start
+        predicted = self.compute_individual_tensorized_logistic(timepoints, individual_parameters).squeeze(0)
+        diff = predicted - values  # tensor j,k[,l] (j=visits, k=features [, l=ordinal_ranking_level])
+        diff[nans] = 0.  # set nans to zero, not to count in the sum
+
+        noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
+        noise_var = noise_var.expand((1, self.dimension))  # tensor 1,n_fts (works with diagonal noise or scalar noise)
+        attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
+
+        # Population parameters
+        g, v0, rho, nu = self._get_attributes(None)
+
+        # Get Individual parameters
+        xi = individual_parameters['xi'].reshape(t_min.shape)
+
+        # Reparametrized survival
+        reparametrized_time_min = torch.exp(xi) * (t_min)
+
+        # Survival
+        attachment_events = (reparametrized_time_min * nu) ** rho
+
+        # Compute the individual trajectory
+        return (attachment_visit , attachment_events)
+    '''
+    def compute_perso_attachment(self, timepoints_in, values, individual_parameters: DictParams, *,
+                                      skip_ips_checks: bool = False):
+        """
+        Compute scores values at the given time-point(s) given a subject's individual parameters.
+
+        Parameters
+        ----------
+        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
+            Contains the age(s) of the subject.
+        individual_parameters : dict
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like
+        skip_ips_checks : bool (default: False)
+            Flag to skip consistency/compatibility checks and tensorization
+            of individual_parameters when it was done earlier (speed-up)
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's scores computed at the given age(s)
+            Shape of tensor is (1, n_tpts, n_features)
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            if computation is tried on more than 1 individual
+        :exc:`.LeaspyIndividualParamsInputError`
+            if invalid individual parameters
+        """
+
+        timepoints, t_min = timepoints_in
+        nans = torch.isnan(values)
         timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
                                                                         skip_ips_checks=skip_ips_checks)
-        longitudinal = self.compute_individual_tensorized_logistic(timepoints, individual_parameters)
-        survival = self.compute_individual_tensorized_survival(timepoints, individual_parameters)
+
+        predicted = self.compute_individual_tensorized_logistic(timepoints, individual_parameters).squeeze(0)
+        diff = predicted - values  # tensor j,k[,l] (j=visits, k=features [, l=ordinal_ranking_level])
+        diff[nans] = 0.  # set nans to zero, not to count in the sum
+
+        noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
+        noise_var = noise_var.expand((1, self.dimension))  # tensor 1,n_fts (works with diagonal noise or scalar noise)
+        #attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
+        attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
+        # Population parameters
+        g, v0, rho, nu = self._get_attributes(None)
+
+        # Get Individual parameters
+        xi = individual_parameters['xi'].reshape(t_min.shape)
+
+        # Reparametrized survival
+        reparametrized_time_min = torch.exp(xi) * (t_min)
+
+        # Survival
+        attachment_events = (reparametrized_time_min * nu) ** rho
+        #print(attachment_events)
+
         # Compute the individual trajectory
-        return longitudinal
+        return (attachment_visit, attachment_events )
 
     """def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
@@ -1139,11 +1257,21 @@ class JointUnivariateModel(ABC):
         if self.test_if_event_iteration(iteration) in ["event", "sum"]:
             sufficient_statistics['nu'] = realizations['nu'].tensor_realizations
             sufficient_statistics['rho'] = realizations['rho'].tensor_realizations
+
+            sufficient_statistics['g'] = self.parameters['g']
+            sufficient_statistics['v0'] = self.parameters['v0']
+            sufficient_statistics['tau'] = self.parameters['tau_mean']
+            sufficient_statistics['tau_sqrd'] = torch.pow(self.parameters['tau_mean'], 2)
+
+
         if self.test_if_event_iteration(iteration) in ["visit", "sum"]:
             sufficient_statistics['g'] = realizations['g'].tensor_realizations
             sufficient_statistics['v0'] = realizations['v0'].tensor_realizations
             sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
             sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
+
+            sufficient_statistics['nu'] = self.parameters['nu']
+            sufficient_statistics['rho'] = self.parameters['rho']
 
 
         # TODO : Optimize to compute the matrix multiplication only once for the reconstruction
@@ -1210,10 +1338,13 @@ class JointUnivariateModel(ABC):
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
     def test_if_event_iteration(self, iteration):
-        if  iteration < 2000 and iteration % 50 == 0:
-                return "event"
-        elif iteration < 3000 and iteration % 50 != 0:
+        it_merge = 2000
+        nb_it_vis = 50
+
+        if  iteration < it_merge :#and iteration % nb_it_vis == 0:
                 return "visit"
+        #elif (iteration < it_merge or self.parameters['noise_std']<0.1) and iteration % nb_it_vis != 0:
+        #        return "visit"
         else:
             return "sum"
     def update_model_parameters_normal(self, data, suff_stats, iteration = None):
@@ -1222,6 +1353,7 @@ class JointUnivariateModel(ABC):
         if self.test_if_event_iteration(iteration) in ["event","sum"]:
             self.parameters['nu'] = suff_stats['nu']
             self.parameters['rho'] = suff_stats['rho']
+
         if self.test_if_event_iteration(iteration) in ["visit","sum"]:
             self.parameters['g'] = suff_stats['g']
             self.parameters['v0'] = suff_stats['v0']

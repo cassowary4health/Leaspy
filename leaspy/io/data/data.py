@@ -45,6 +45,7 @@ class Data(Iterable):
         # Survival attributes
         self.event_time_min = None
         self.event_time_max = None
+        self.event_time_start = None
         self.mask_event = None
 
     @property

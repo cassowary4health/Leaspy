@@ -2,6 +2,8 @@ import csv
 import os
 import time
 
+import numpy as np
+
 from leaspy.io.logs.visualization.plotter import Plotter
 
 
@@ -115,6 +117,19 @@ class FitOutputManager:
                 # save first iteration
                 self.save_model_parameters_convergence(iteration, model)
                 # model.save(...)
+
+                # TMP Dirty hack
+                # store corr(tau, 1/alpha)
+                tau = realizations['tau'].tensor_realizations.squeeze(1).detach().cpu().numpy()
+                xi = realizations['xi'].tensor_realizations.squeeze(1).detach().cpu().numpy()
+                alpha = np.exp(xi)
+                corr_tau_inv_alpha = np.corrcoef(tau, 1/alpha)[0, 1]  # interesting from theory
+                corr_tau_alpha = np.corrcoef(tau, alpha)[0, 1]
+                corr_tau_xi = np.corrcoef(tau, xi)[0, 1]
+                with open(os.path.join(self.path_save_model_parameters_convergence, 'corr_tau_inv_alpha.csv'), 'a', newline='') as fp:
+                    writer = csv.writer(fp)
+                    writer.writerow([iteration] + [corr_tau_inv_alpha, corr_tau_alpha, corr_tau_xi])
+
 
         if self.periodicity_plot is not None:
             if iteration % self.periodicity_plot == 0:

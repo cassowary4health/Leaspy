@@ -426,7 +426,7 @@ class Plotter:
         to_skip_1 = ['betas'] + ['sources_mean', 'sources_std']*int(skip_sources)
         if getattr(model, 'is_ordinal', False):
             to_skip_1.append('deltas')
-        params_to_plot_1 = [p for p in model.parameters.keys() if p not in to_skip_1]
+        params_to_plot_1 = [p for p in model.parameters.keys() if p not in to_skip_1] + ['corr_tau_inv_alpha']
 
         n_plots_1 = len(params_to_plot_1)
         n_rows_1 = math.ceil(n_plots_1 / 2)

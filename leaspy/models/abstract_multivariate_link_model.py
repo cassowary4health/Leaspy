@@ -87,9 +87,27 @@ class AbstractMultivariateLinkModel(AbstractModel):
         self.cofactors_dimension = dataset.cofactors_dimension
         self.cofactors = dataset.cofactors
         #self.link_shape = torch.Size([self.dimension+1, self.cofactors_dimension+1])
-        self.link_v0_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
-        self.link_g_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
-        self.link_t_mean_shape = torch.Size([1, self.cofactors_dimension+1])
+
+        if self.link_type == 'linear':
+            self.link_v0_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
+            self.link_g_shape = torch.Size([self.dimension, self.cofactors_dimension+1])
+            self.link_t_mean_shape = torch.Size([1, self.cofactors_dimension+1])
+
+        elif self.link_type == 'perceptron':
+            # input cofactors_dimension
+            # intermediary layer 
+            # output
+            link_v0_network = self._get_link_speed()
+            link_v0_params_count = sum(p.numel() for p in link_v0_network().parameters() if p.requires_grad)
+            self.link_v0_shape = torch.Size([link_v0_params_count])
+
+            link_g_network = self._get_link_positions()
+            link_g_params_count = sum(p.numel() for p in link_g_network().parameters() if p.requires_grad)
+            self.link_g_shape = torch.Size([link_g_params_count])
+
+            link_t_network = self._get_link_time()
+            link_t_params_count = sum(p.numel() for p in link_t_network().parameters() if p.requires_grad)
+            self.link_t_mean_shape = torch.Size([link_t_params_count])
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
@@ -135,7 +153,9 @@ class AbstractMultivariateLinkModel(AbstractModel):
         if 'loss' in hyperparameters.keys():
             self.loss = hyperparameters['loss']
 
-        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension')
+        self.link_type = hyperparameters.get('link_type', 'linear')
+
+        expected_hyperparameters = ('features', 'loss', 'dimension', 'source_dimension', 'link_type')
         unexpected_hyperparameters = set(hyperparameters.keys()).difference(expected_hyperparameters)
         if len(unexpected_hyperparameters) > 0:
             raise LeaspyModelInputError(
@@ -210,7 +230,7 @@ class AbstractMultivariateLinkModel(AbstractModel):
             'sources': torch.zeros(self.source_dimension, dtype=torch.float32, device=self.device),
             'v0': torch.exp(self.get_intersept('v0')[None,:]),
             'g': torch.exp(self.get_intersept('g')[None,:]),
-            'tau_mean': self.get_intersept('tau_mean')[None,:],
+            'tau_mean': self.get_intersept('tau_mean')[None,:] if self.link_type == 'linear' else self.get_intersept('tau_mean').reshape(-1,1),
             'tau': torch.tensor([0.]),
         }
 

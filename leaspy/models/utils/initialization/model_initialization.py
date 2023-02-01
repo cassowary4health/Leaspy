@@ -376,16 +376,27 @@ def initialize_logistic_link(model, dataset, method, precomputed=None):
     link_g = torch.zeros(model.link_g_shape)
     link_t_mean = torch.zeros(model.link_t_mean_shape)
 
-    link_t_mean[:, -1] = t0
+    if model.link_type == 'linear':
+        link_t_mean[:, -1] = t0
 
-    if precomputed is not None:
-        if 'v0' in precomputed:
-            link_v0[:, -1] = precomputed['v0']
-        if 'g' in precomputed:
-            link_g[:, -1] = precomputed['g']
-        if 't_mean' in precomputed:
-            link_t_mean[:, -1] = precomputed['t_mean']
-  
+        if precomputed is not None:
+            if 'v0' in precomputed:
+                link_v0[:, -1] = precomputed['v0']
+            if 'g' in precomputed:
+                link_g[:, -1] = precomputed['g']
+            if 't_mean' in precomputed:
+                link_t_mean[:, -1] = precomputed['t_mean']
+
+    elif model.link_type == 'perceptron':
+        link_t_mean[-1] = t0
+
+        if precomputed is not None:
+            if 'v0' in precomputed:
+                link_v0[-model.dimension:] = precomputed['v0']
+            if 'g' in precomputed:
+                link_g[-model.dimension:] = precomputed['g']
+            if 't_mean' in precomputed:
+                link_t_mean[-1] = precomputed['t_mean']  
     # normal = torch.distributions.normal.Normal(loc=0, scale=0.1)
     # betas = normal.sample(sample_shape=(model.dimension - 1, model.source_dimension))
 

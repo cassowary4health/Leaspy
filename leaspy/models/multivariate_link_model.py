@@ -7,6 +7,10 @@ from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
 # TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
@@ -98,6 +102,9 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         #v0 = v0.reshape(1, 1, -1) # not needed, automatic broadcast on last dim (n_features)
         #v0 = self.compute_individual_speeds(self.cofactors.transpose(0,1))
 
+        #print("run")
+        #print(v0.shape)
+        #print(reparametrized_time.shape)
         LL = v0[:,None,:] * reparametrized_time
 
         # compute orthonormal basis and mixing matrix for every subject
@@ -179,12 +186,44 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         return derivatives
 
     def get_intersept(self, variable_name):
-        if variable_name == "v0":
-            return self.parameters['link_v0'][:, -1]
-        if variable_name == "g":
-            return self.parameters['link_g'][:, -1]            
-        elif variable_name == "tau_mean" or variable_name == 't_mean':
-            return self.parameters['link_t_mean'][:, -1]
+        if self.link_type == 'linear':
+            if variable_name == "v0":
+                return self.parameters['link_v0'][:, -1]
+            if variable_name == "g":
+                return self.parameters['link_g'][:, -1]            
+            elif variable_name == "tau_mean" or variable_name == 't_mean':
+                return self.parameters['link_t_mean'][:, -1]
+        elif self.link_type == 'perceptron':
+            if variable_name == "v0":
+                return self.parameters['link_v0'][-self.dimension:]
+            if variable_name == "g":
+                return self.parameters['link_g'][-self.dimension:]
+            elif variable_name == "tau_mean" or variable_name == 't_mean':
+                return self.parameters['link_t_mean'][-1]
+
+    def _get_link_positions(model):
+        class LinkPosition(nn.Module):
+            def __init__(self):
+                super(LinkPosition, self).__init__()
+
+                intermediate_layer = 3
+                self.layer_1 = nn.Linear(model.cofactors_dimension, intermediate_layer)
+                self.layer_2 = nn.Linear(intermediate_layer, model.dimension)
+
+            def forward(self, x):
+                x = self.layer_1(x)
+                x = F.relu(x)
+                x = self.layer_2(x)
+                return x
+        return LinkPosition
+
+    def fill_nn(self, network, params):
+        params = params.flatten()
+
+        for param in network.parameters():
+            param_size = torch.numel(param)
+            param.data = torch.nn.Parameter(params[:param_size].reshape(param.shape))
+            params = params[param_size:] 
 
     def compute_individual_positions(self, cofactors, attribute_type=None):
         if attribute_type == 'model':
@@ -193,7 +232,29 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
             links = self._get_attributes(attribute_type)
             link_g = links['g']
 
-        return torch.exp(link_g @ torch.cat((cofactors, torch.ones(1, cofactors.shape[1], device=self.device))))
+        if self.link_type == 'linear':
+            return torch.exp(link_g @ torch.cat((cofactors, torch.ones(1, cofactors.shape[1], device=self.device))))
+        elif self.link_type == 'perceptron':
+            model = self._get_link_positions()()
+            self.fill_nn(model, link_g)
+
+            return torch.exp(model.forward(cofactors.transpose(0,1)).transpose(0,1))
+
+    def _get_link_speed(model):
+        class LinkSpeed(nn.Module):
+            def __init__(self):
+                super(LinkSpeed, self).__init__()
+
+                intermediate_layer = 3
+                self.layer_1 = nn.Linear(model.cofactors_dimension, intermediate_layer)
+                self.layer_2 = nn.Linear(intermediate_layer, model.dimension)
+
+            def forward(self, x):
+                x = self.layer_1(x)
+                x = F.relu(x)
+                x = self.layer_2(x)
+                return x
+        return LinkSpeed
 
     def compute_individual_speeds(self, cofactors, attribute_type=None):
         """
@@ -206,7 +267,29 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
             links = self._get_attributes(attribute_type)
             link_v0 = links['v0']
 
-        return torch.exp(link_v0 @ torch.cat((cofactors, torch.ones(1, cofactors.shape[1], device=self.device))))
+        if self.link_type == 'linear':
+            return torch.exp(link_v0 @ torch.cat((cofactors, torch.ones(1, cofactors.shape[1], device=self.device))))
+        elif self.link_type == 'perceptron':
+            model = self._get_link_speed()()
+            self.fill_nn(model, link_v0)
+
+            return torch.exp(model.forward(cofactors.transpose(0,1)).transpose(0,1))
+
+    def _get_link_time(model):
+        class LinkTime(nn.Module):
+            def __init__(self):
+                super(LinkTime, self).__init__()
+
+                intermediate_layer = 3
+                self.layer_1 = nn.Linear(model.cofactors_dimension, intermediate_layer)
+                self.layer_2 = nn.Linear(intermediate_layer, 1)
+
+            def forward(self, x):
+                x = self.layer_1(x)
+                x = F.relu(x)
+                x = self.layer_2(x)
+                return x
+        return LinkTime
 
     def compute_individual_tau_means(self, cofactors, attribute_type=None):
         if attribute_type == 'model':
@@ -214,7 +297,14 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         else:
             links = self._get_attributes(attribute_type)
             link_t_mean = links['t_mean']
-        return (link_t_mean @ torch.cat((cofactors, torch.ones(1, cofactors.shape[1], device=self.device)))).squeeze(-1)
+
+        if self.link_type == 'linear':
+            return (link_t_mean @ torch.cat((cofactors, torch.ones(1, cofactors.shape[1], device=self.device)))).squeeze(-1)
+        elif self.link_type == 'perceptron':
+            model = self._get_link_time()()
+            self.fill_nn(model, link_t_mean)
+
+            return model.forward(cofactors.transpose(0,1)).transpose(0,1)
 
     ##############################
     ### MCMC-related functions ###
@@ -265,7 +355,11 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
     def _center_xi_realizations(self, realizations):
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
-        realizations['link_v0'].tensor_realizations[:,-1] = realizations['link_v0'].tensor_realizations[:,-1] + mean_xi
+
+        if self.link_type == 'linear':
+            realizations['link_v0'].tensor_realizations[:,-1] = realizations['link_v0'].tensor_realizations[:,-1] + mean_xi
+        elif self.link_type == 'perceptron':
+            realizations['link_v0'].tensor_realizations[-self.dimension:] = realizations['link_v0'].tensor_realizations[-self.dimension:] + mean_xi
 
         self.update_MCMC_toolbox(['link_v0'], realizations)
         return realizations
@@ -274,7 +368,10 @@ class MultivariateLinkModel(AbstractMultivariateLinkModel):
         mean_tau = torch.mean(realizations['tau'].tensor_realizations)
         #print(f"Mean tau : {mean_tau}")
         realizations['tau'].tensor_realizations = realizations['tau'].tensor_realizations - mean_tau
-        realizations['link_t_mean'].tensor_realizations[:,-1] = realizations['link_t_mean'].tensor_realizations[:,-1] + mean_tau
+        if self.link_type == 'linear':
+            realizations['link_t_mean'].tensor_realizations[:,-1] = realizations['link_t_mean'].tensor_realizations[:,-1] + mean_tau
+        elif self.link_type == 'perceptron':
+            realizations['link_t_mean'].tensor_realizations[-1] = realizations['link_t_mean'].tensor_realizations[-1] + mean_tau
 
         self.update_MCMC_toolbox(['link_t_mean'], realizations)
         return realizations

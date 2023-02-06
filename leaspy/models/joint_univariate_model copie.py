@@ -140,8 +140,8 @@ class JointUnivariateModel(ABC):
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01,
                        'v0_std': 0.01,
-                       'rho_std': 0.01,
-                       'nu_std': 0.01,}, # population parameter
+                       'rho_std': 0.001,
+                       'nu_std': 0.001,}, # population parameter
         }
 
         self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(self.name, dimension=1)
@@ -648,6 +648,67 @@ class JointUnivariateModel(ABC):
         # Compute the individual trajectory
         return (attachment_visit , attachment_events)
     '''
+    def compute_perso_attachment(self, timepoints_in, values, individual_parameters: DictParams, *,
+                                      skip_ips_checks: bool = False):
+        """
+        Compute scores values at the given time-point(s) given a subject's individual parameters.
+
+        Parameters
+        ----------
+        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
+            Contains the age(s) of the subject.
+        individual_parameters : dict
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like
+        skip_ips_checks : bool (default: False)
+            Flag to skip consistency/compatibility checks and tensorization
+            of individual_parameters when it was done earlier (speed-up)
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's scores computed at the given age(s)
+            Shape of tensor is (1, n_tpts, n_features)
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            if computation is tried on more than 1 individual
+        :exc:`.LeaspyIndividualParamsInputError`
+            if invalid individual parameters
+        """
+
+        timepoints, t_min = timepoints_in
+        nans = torch.isnan(values)
+        timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
+                                                                        skip_ips_checks=skip_ips_checks)
+
+        predicted = self.compute_individual_tensorized_logistic(timepoints, individual_parameters).squeeze(0)
+        diff = predicted - values  # tensor j,k[,l] (j=visits, k=features [, l=ordinal_ranking_level])
+        diff[nans] = 0.  # set nans to zero, not to count in the sum
+
+        noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
+        #print(self.parameters['noise_std'])
+        noise_var = noise_var.expand((1, self.dimension))  # tensor 1,n_fts (works with diagonal noise or scalar noise)
+        #attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
+        attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
+        # Population parameters
+        g, v0, rho, nu = self._get_attributes(None)
+
+        # Get Individual parameters
+        xi = individual_parameters['xi'].reshape(t_min.shape)
+
+        # Reparametrized survival
+        reparametrized_time_min = torch.exp(xi) * (t_min)
+
+        # Survival
+        attachment_events = (reparametrized_time_min * nu) ** rho
+        #print(attachment_events)
+        #print(timepoints.shape)
+        # Compute the individual trajectory
+        regularity, regularity_grads = self._get_regularity( individual_parameters)
+        return attachment_visit, attachment_events#, regularity  #*timepoints.shape[1]
+
     def _get_regularity(self, individual_parameters):
         """
         Compute the regularity of a patient given his individual parameters for a given model.
@@ -689,125 +750,6 @@ class JointUnivariateModel(ABC):
 
         return (regularity, regularity_grads)
 
-    def compute_perso_attachment(self, timepoints_in, values, individual_parameters: DictParams, *,
-                                      skip_ips_checks: bool = False):
-        """
-        Compute scores values at the given time-point(s) given a subject's individual parameters.
-
-        Parameters
-        ----------
-        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
-            Contains the age(s) of the subject.
-        individual_parameters : dict
-            Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
-        skip_ips_checks : bool (default: False)
-            Flag to skip consistency/compatibility checks and tensorization
-            of individual_parameters when it was done earlier (speed-up)
-
-        Returns
-        -------
-        :class:`torch.Tensor`
-            Contains the subject's scores computed at the given age(s)
-            Shape of tensor is (1, n_tpts, n_features)
-
-        Raises
-        ------
-        :exc:`.LeaspyModelInputError`
-            if computation is tried on more than 1 individual
-        :exc:`.LeaspyIndividualParamsInputError`
-            if invalid individual parameters
-        """
-
-        timepoints, t_min = timepoints_in
-        nans = torch.isnan(values)
-        timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
-                                                                        skip_ips_checks=skip_ips_checks)
-
-        predicted = self.compute_individual_tensorized_logistic(timepoints, individual_parameters).squeeze(0)
-        diff = predicted - values  # tensor j,k[,l] (j=visits, k=features [, l=ordinal_ranking_level])
-        diff[nans] = 0.  # set nans to zero, not to count in the sum
-
-        noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
-        noise_var = noise_var.expand((1, self.dimension))  # tensor 1,n_fts (works with diagonal noise or scalar noise)
-        #attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
-        attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
-
-        # Population parameters
-        g, v0, rho, nu = self._get_attributes(None)
-
-        # Get Individual parameters
-        xi = individual_parameters['xi'].reshape(t_min.shape)
-
-        # Reparametrized survival
-        reparametrized_time_min = torch.exp(xi) * (t_min)
-
-        # Survival
-        attachment_events = (reparametrized_time_min * nu) ** rho
-
-        return (attachment_visit, attachment_events)
-
-
-    def test_perso_attachment(self, timepoints_in, values, individual_parameters: DictParams, *,
-                                      skip_ips_checks: bool = False):
-        """
-        Compute scores values at the given time-point(s) given a subject's individual parameters.
-
-        Parameters
-        ----------
-        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
-            Contains the age(s) of the subject.
-        individual_parameters : dict
-            Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
-        skip_ips_checks : bool (default: False)
-            Flag to skip consistency/compatibility checks and tensorization
-            of individual_parameters when it was done earlier (speed-up)
-
-        Returns
-        -------
-        :class:`torch.Tensor`
-            Contains the subject's scores computed at the given age(s)
-            Shape of tensor is (1, n_tpts, n_features)
-
-        Raises
-        ------
-        :exc:`.LeaspyModelInputError`
-            if computation is tried on more than 1 individual
-        :exc:`.LeaspyIndividualParamsInputError`
-            if invalid individual parameters
-        """
-
-        timepoints, t_min = timepoints_in
-        nans = torch.isnan(values)
-        timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
-                                                                        skip_ips_checks=skip_ips_checks)
-
-        predicted = self.compute_individual_tensorized_logistic(timepoints, individual_parameters).squeeze(0)
-        diff = predicted - values  # tensor j,k[,l] (j=visits, k=features [, l=ordinal_ranking_level])
-        diff[nans] = 0.  # set nans to zero, not to count in the sum
-
-        noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
-        noise_var = noise_var.expand((1, self.dimension))  # tensor 1,n_fts (works with diagonal noise or scalar noise)
-        #attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
-        attachment_visit = torch.sum((0.5 / noise_var) @ (diff * diff).t())  # <!> noise per feature
-        # Population parameters
-        g, v0, rho, nu = self._get_attributes(None)
-
-        # Get Individual parameters
-        xi = individual_parameters['xi'].reshape(t_min.shape)
-
-        # Reparametrized survival
-        reparametrized_time_min = torch.exp(xi) * (t_min)
-
-        # Survival
-        attachment_events = (reparametrized_time_min * nu) ** rho
-        #print(attachment_events)
-
-        # Regularization
-        regularity, regularity_grads = self._get_regularity(individual_parameters)
-
-        return (attachment_visit, attachment_events,regularity )
 
     """def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
@@ -966,20 +908,14 @@ class JointUnivariateModel(ABC):
         -------
         :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
         """
-        
         if realization.variable_type == 'population':
             # Regularization of population variables around current model values
             mean = self.parameters[realization.name]
             std = self.MCMC_toolbox['priors'][f"{realization.name}_std"]
         elif realization.variable_type == 'individual':
-            if realization.name == "xi":
-                # Regularization of individual parameters around mean / std from model parameters
-                mean = self.parameters[f"{realization.name}_mean"]
-                std = self.parameters[f"{realization.name}_std"]
-            else:
-                # Regularization of individual parameters around mean / std from model parameters
-                mean = self.parameters[f"{realization.name}_mean"]
-                std = self.parameters[f"{realization.name}_std"]
+            # Regularization of individual parameters around mean / std from model parameters
+            mean = self.parameters[f"{realization.name}_mean"]
+            std = self.parameters[f"{realization.name}_std"]
         else:
             raise LeaspyModelInputError(
                 f"Variable type '{realization.variable_type}' not known, should be 'population' or 'individual'.")
@@ -1007,7 +943,7 @@ class JointUnivariateModel(ABC):
         # This is really slow when repeated on tiny tensors (~3x slower than direct formula!)
         # return -self.regularization_distribution_factory(mean, std).log_prob(value)
 
-        y = (value - mean) / (std)
+        y = (value - mean) / std
         neg_loglike = 0.5 * y * y
         if include_constant:
             neg_loglike += 0.5 * torch.log(TWO_PI * std ** 2)
@@ -1278,8 +1214,7 @@ class JointUnivariateModel(ABC):
 
             # Population parameters
             g, v0, rho, nu = self._get_attributes(attribute_type)
-            #rho = torch.exp(self.parameters["rho"])
-            #nu = torch.exp(self.parameters["nu"])
+
             # Get Individual parameters
             xi = param_ind['xi'].reshape(data.event_time_min.shape)
 
@@ -1288,24 +1223,26 @@ class JointUnivariateModel(ABC):
             reparametrized_time_max = torch.exp(xi) * (data.event_time_max)
 
             # Survival
-            m_log_survival = (reparametrized_time_min * nu) ** rho
-            #m_log_survival = torch.where(m_log_survival == torch.inf, torch.tensor(1000., dtype=torch.double), m_log_survival)
+            m_log_survival = torch.exp(-(reparametrized_time_min * nu) ** rho)
+            #z_log_survival = torch.exp(-(torch.tensor(0.001, dtype=torch.double)* nu) ** rho)
 
             # Hazard only for patient with event not censored
-            hazard = (rho * nu * torch.exp(xi)) * ((reparametrized_time_max * nu) ** (rho - 1.))
-            hazard = (data.mask_event * hazard)
-            hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
-            #hazard = torch.where(hazard > 1., torch.tensor(1., dtype=torch.double), hazard)
-            #hazard = torch.where(hazard == torch.inf, torch.tensor(1000., dtype=torch.double),
-            #                             hazard)
+            hazard = (rho * nu) * ((reparametrized_time_max * nu) ** (rho - 1))
+            #hazard = (data.mask_event * hazard)
+            hazard = torch.where(data.mask_event == 0, torch.tensor(1., dtype=torch.double), hazard)
 
-
-            attachment_events = m_log_survival -torch.log(hazard)
+            #z_hazard = (rho * nu) * ((torch.tensor(0.001, dtype=torch.double) * nu) ** (rho - 1))
+            #z_hazard = (data.mask_event * z_hazard).double()
+            #z_hazard = torch.where(data.mask_event == 0., torch.tensor(0., dtype=torch.double), z_hazard.double())
+            #print(z_log_survival, z_hazard)
+            alpha = data.mask_event.shape[0]/data.mask_event.sum()
+            attachment_events = -torch.log(m_log_survival) - torch.log(hazard)
+                #-torch.log( (torch.tensor(1., dtype=torch.double)-m_log_survival)**2) - alpha*torch.log((1.-hazard)**2) #+ (torch.log((2.-z_hazard)**2)**2)
 
         else:
             raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
 
-        return attachment_events
+        return attachment_events #+ 1000*(nu**2+rho**2)
 
 
     def compute_individual_attachment_tensorized(self, data, param_ind: DictParamsTorch, *,
@@ -1349,12 +1286,15 @@ class JointUnivariateModel(ABC):
         # <!> all operations are performed in "log" space (v0 is log'ed)
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
-        #if self.test_if_event_iteration(iteration) in ["event","sum"]:
-        realizations['nu'].tensor_realizations = realizations['nu'].tensor_realizations + mean_xi
-        self.update_MCMC_toolbox(['nu_collinear'], realizations)
-        #if self.test_if_event_iteration(iteration) in ["visit", "sum"]:
-        realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
-        self.update_MCMC_toolbox(['v0_collinear'], realizations)
+        if self.test_if_event_iteration(iteration) in ["event","sum"]:
+            realizations['nu'].tensor_realizations = realizations['nu'].tensor_realizations + mean_xi
+            self.update_MCMC_toolbox(['nu_collinear'], realizations)
+        if self.test_if_event_iteration(iteration) in ["visit", "sum"]:
+            realizations['nu'].set_tensor_realizations_element(self.parameters['nu'], 0)
+            realizations['nu'].tensor_realizations = realizations['nu'].tensor_realizations + mean_xi
+            self.update_MCMC_toolbox(['nu_collinear'], realizations)
+            realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
+            self.update_MCMC_toolbox(['v0_collinear'], realizations)
 
         return realizations
 
@@ -1385,7 +1325,8 @@ class JointUnivariateModel(ABC):
             sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
             sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
 
-            sufficient_statistics['nu'] = self.parameters['nu']
+            sufficient_statistics['nu'] = realizations['nu'].tensor_realizations
+            #sufficient_statistics['nu'] = self.parameters['nu']
             sufficient_statistics['rho'] = self.parameters['rho']
 
 
@@ -1428,7 +1369,7 @@ class JointUnivariateModel(ABC):
             self.parameters['rho'] = realizations['rho'].tensor_realizations
 
         if self.test_if_event_iteration(iteration) in ["visit","sum"]:
-
+            self.parameters['nu'] = realizations['nu'].tensor_realizations
             self.parameters['g'] = realizations['g'].tensor_realizations
             self.parameters['v0'] = realizations['v0'].tensor_realizations
             tau = realizations['tau'].tensor_realizations
@@ -1453,15 +1394,15 @@ class JointUnivariateModel(ABC):
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
     def test_if_event_iteration(self, iteration):
-        it_visit = 2000
-        it_event = 200
-        it_ = 50
+        it_merge = 1000
+        nb_it_vis = 50
 
-        if iteration<it_visit: #(iteration // it_event)%2 ==0 :#or iteration % nb_it_vis != 0:
-            return "visit"
+        if  iteration < it_merge :#and iteration % nb_it_vis == 0:
+                return "visit"
+        #elif (iteration < it_merge or self.parameters['noise_std']<0.1) and iteration % nb_it_vis != 0:
+        #        return "visit"
         else:
             return "sum"
-
     def update_model_parameters_normal(self, data, suff_stats, iteration = None):
 
         # Stochastic sufficient statistics used to update the parameters of the model
@@ -1470,6 +1411,7 @@ class JointUnivariateModel(ABC):
             self.parameters['rho'] = suff_stats['rho']
 
         if self.test_if_event_iteration(iteration) in ["visit","sum"]:
+            self.parameters['nu'] = suff_stats['nu']
             self.parameters['g'] = suff_stats['g']
             self.parameters['v0'] = suff_stats['v0']
             tau_mean = self.parameters['tau_mean']

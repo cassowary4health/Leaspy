@@ -444,7 +444,7 @@ class Plotter:
             df_convergence.plot(ax=ax[x_position][y_position], legend=False)
             ax[x_position][y_position].set_title(key)
 
-        plt.tight_layout()
+        #plt.tight_layout()
         plt.savefig(path_saveplot_1)
         plt.close()
 

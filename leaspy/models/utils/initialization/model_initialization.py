@@ -66,11 +66,11 @@ def initialize_parameters(model, dataset, method="default"):
         return lme_init(model, df) # support kwargs?
 
     name = model.name
-    if name in ['logistic', 'univariate_logistic']:
+    if name in ['logistic', 'univariate_logistic', 'univariatev0_logistic']:
         parameters = initialize_logistic(model, df, method)
     elif name == 'logistic_parallel':
         parameters = initialize_logistic_parallel(model, df, method)
-    elif name in ['linear', 'univariate_linear']:
+    elif name in ['linear', 'univariate_linear', 'univariatev0_linear']:
         parameters = initialize_linear(model, df, method)
     #elif name == 'univariate':
     #    parameters = initialize_univariate(df, method)
@@ -389,7 +389,7 @@ def initialize_logistic(model, df: pd.DataFrame, method):
     g_array = torch.log(1. / values - 1.) # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
 
     # Create smart initialization dictionary
-    if 'univariate' in model.name:
+    if 'univariatev0' in model.name or 'joint' in model.name:
         parameters = {
             'g': g_array.squeeze(),
             'v0': v0_array.squeeze(),
@@ -398,6 +398,15 @@ def initialize_logistic(model, df: pd.DataFrame, method):
             'xi_mean': torch.tensor(0.),
             'xi_std': torch.tensor(xi_std),
         }
+    elif 'univariate' in model.name:
+        xi_mean = v0_array.squeeze()  # already log'ed
+        parameters = {
+                'g': g_array.squeeze(),
+                'tau_mean': t0,
+                'tau_std': torch.tensor(tau_std),
+                'xi_mean': xi_mean,
+                'xi_std': torch.tensor(xi_std),
+            }
     else:
         parameters = {
             'g': g_array,

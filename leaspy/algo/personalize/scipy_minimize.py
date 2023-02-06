@@ -288,7 +288,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             (attachment_visit , attachment_events) = model.compute_perso_attachment(times, values, individual_parameters)
             #print("visits", attachment_visit)
             #print("events", attachment_events)
-            res['objective'] = attachment_visit #+ attachment_events
+            res['objective'] = attachment_visit + attachment_events
 
         else:
 
@@ -372,12 +372,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         ## Regularity term
         regularity, regularity_grads = self._get_regularity(model, individual_parameters)
-
-        res['objective'] += regularity.squeeze(0)
+        param_reg = 1.
+        if 'joint' in model.name:
+            res['objective'] += regularity.squeeze(0)/param_reg
+        else:
+            res['objective'] += regularity.squeeze(0)/param_reg
 
         if with_gradient:
             # add regularity term, shape (n_dims_params, )
-            res['gradient'] += self._get_normalized_grad_tensor_from_grad_dict(regularity_grads, model)
+            res['gradient'] += self._get_normalized_grad_tensor_from_grad_dict(regularity_grads, model)/param_reg
 
             # result tuple (objective, jacobian)
             return (res['objective'].item(), res['gradient'].detach())

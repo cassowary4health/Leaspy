@@ -60,8 +60,10 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
             self.rho = None
             self.nu = None
 
-        if self.univariate:
+        if self.univariate and self.v0:
             self.update_possibilities = ('all', 'g', "v0", 'v0_collinear')
+        elif self.univariate :
+            self.update_possibilities = ('all', 'g')
         else:
             if not (isinstance(source_dimension, int) and (0 <= source_dimension < dimension)):
                 raise LeaspyModelInputError("In `AbstractManifoldModelAttributes` you must provide "
@@ -98,8 +100,10 @@ class AbstractManifoldModelAttributes(AbstractAttributes):
         """
         if self.joint:
             return self.positions, self.velocities, self.rho, self.nu
-        elif self.univariate:
+        elif self.univariate and self.v0:
             return self.positions, self.velocities
+        elif self.univariate:
+            return self.positions
         else:
             return self.positions, self.velocities, self.mixing_matrix
 

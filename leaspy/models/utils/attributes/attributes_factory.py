@@ -13,6 +13,7 @@ class AttributesFactory:
     _attributes = {
         'logistic': LogisticAttributes,
         'univariate_logistic': LogisticAttributes,
+        'univariatev0_logistic': LogisticAttributes,
         'joint_univariate_logistic': JointLogisticAttributes,
         'univariate_survival_weibull': SurvivalAttributes,
         'logistic_parallel': LogisticParallelAttributes,

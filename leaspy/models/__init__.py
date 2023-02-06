@@ -1,6 +1,7 @@
 from .abstract_model import AbstractModel
 
 from .univariate_model import UnivariateModel
+from .univariatev0_model import UnivariateV0Model
 from .joint_univariate_model import JointUnivariateModel
 from .survival_model import SurvivalModel
 from .multivariate_model import MultivariateModel
@@ -13,6 +14,8 @@ all_models = {
     # univariate Leaspy models
     'univariate_logistic': UnivariateModel,
     'univariate_linear': UnivariateModel,
+    'univariatev0_logistic': UnivariateV0Model,
+    'univariatev0_linear': UnivariateV0Model,
 
     # multivariate Leaspy models
     'logistic': MultivariateModel,

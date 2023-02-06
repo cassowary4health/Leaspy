@@ -165,12 +165,16 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
 
             if self.sufficient_statistics is None:
                 # 1st iteration post burn-in
+                self.it_count = 1
                 self.sufficient_statistics = sufficient_statistics
             else:
+
                 # this new formulation (instead of v + burn_in_step*(sufficient_statistics[k] - v)) enables to keep `inf` deltas
                 self.sufficient_statistics = {k: v * (1. - burn_in_step) + burn_in_step * sufficient_statistics[k]
                                               for k, v in self.sufficient_statistics.items()}
-
+                #self.sufficient_statistics = {k: (v * self.it_count + sufficient_statistics[k])/(self.it_count+1)
+                #                             for k, v in self.sufficient_statistics.items()}
+                self.it_count+=1
             model.update_model_parameters_normal(dataset, self.sufficient_statistics,  iteration = self.current_iteration)
 
         # No need to update model attributes (derived from model parameters)

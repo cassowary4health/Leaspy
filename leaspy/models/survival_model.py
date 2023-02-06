@@ -851,7 +851,7 @@ class SurvivalModel(ABC):
 
         return realizations
 
-    def compute_sufficient_statistics(self, data, realizations):
+    def compute_sufficient_statistics(self, data, realizations, iteration = None):
 
         # modify realizations in-place
         realizations = self._center_xi_realizations(realizations)
@@ -873,7 +873,7 @@ class SurvivalModel(ABC):
                                                                                                     attribute_type='MCMC').sum()
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, realizations):
+    def update_model_parameters_burn_in(self, data, realizations, iteration = None):
         # Memoryless part of the algorithm
 
         # modify realizations in-place!
@@ -893,7 +893,7 @@ class SurvivalModel(ABC):
             self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
                                                                                               attribute_type='MCMC').sum()
 
-    def update_model_parameters_normal(self, data, suff_stats):
+    def update_model_parameters_normal(self, data, suff_stats, iteration = None):
         # Stochastic sufficient statistics used to update the parameters of the model
 
         self.parameters['rho'] = suff_stats['rho']

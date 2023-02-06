@@ -248,17 +248,17 @@ class GibbsSampler(AbstractSampler):
 
         def compute_attachment_regularity():
             if model.name == "joint_univariate_logistic" :
-                if  model.test_if_event_iteration(iteration) == "event":
-                    attachment = model.compute_individual_attachment_events(data, ind_params,
+                #if  model.test_if_event_iteration(iteration) == "event":
+                #    attachment = model.compute_individual_attachment_events(data, ind_params,
+                #                                                                attribute_type='MCMC').sum()
+                #elif  model.test_if_event_iteration(iteration) == "visit":
+                #    attachment = model.compute_individual_attachment_visits(data, ind_params,
+                #                                                                attribute_type='MCMC').sum()
+                #elif  model.test_if_event_iteration(iteration) == "sum":
+                attachment = model.compute_individual_attachment_tensorized(data, ind_params,
                                                                                 attribute_type='MCMC').sum()
-                elif  model.test_if_event_iteration(iteration) == "visit":
-                    attachment = model.compute_individual_attachment_visits(data, ind_params,
-                                                                                attribute_type='MCMC').sum()
-                elif  model.test_if_event_iteration(iteration) == "sum":
-                    attachment = model.compute_individual_attachment_tensorized(data, ind_params,
-                                                                                attribute_type='MCMC').sum()
-                else:
-                    raise
+                #else:
+                #    raise
             else:
                 # model attributes used are the ones from the MCMC toolbox that we are currently changing!
                 attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type='MCMC').sum()
@@ -361,29 +361,42 @@ class GibbsSampler(AbstractSampler):
             ind_params = model.get_param_from_real(realizations)
 
             if model.name == "joint_univariate_logistic":
-                if  model.test_if_event_iteration(iteration) == "event":
-                    attachment = model.compute_individual_attachment_events(data, ind_params,
+                att_visit = model.compute_individual_attachment_visits(data, ind_params,
                                                                                 attribute_type=attribute_type)
-                elif  model.test_if_event_iteration(iteration) == "visit":
-                    attachment = model.compute_individual_attachment_visits(data, ind_params,
+                att_event = model.compute_individual_attachment_events(data, ind_params,
                                                                                 attribute_type=attribute_type)
-                elif model.test_if_event_iteration(iteration) == "sum":
-                    attachment = model.compute_individual_attachment_tensorized(data, ind_params,
-                                                                                attribute_type=attribute_type)
+                # compute log-likelihood of just the given parameter (tau or xi or sources)
+                # (per subject; all dimensions of the individual parameter are summed together)
+                # regularity is always computed with model.parameters (not "temporary MCMC parameters")
+                regularity = model.compute_regularity_realization(realization)
+                regularity = regularity.sum(dim=self.ind_param_dims_but_individual).reshape(data.n_individuals)
+
+                if self.name == "xi":
+                    if  model.test_if_event_iteration(iteration) == "event":
+                        attachment = att_event
+                    elif  model.test_if_event_iteration(iteration) == "visit":
+                        attachment = att_visit
+                    elif model.test_if_event_iteration(iteration) == "sum":
+                        attachment = (att_event+ att_visit)
+                        #regularity = 9*regularity
+                    else:
+                        raise
                 else:
-                    raise
+                    attachment = att_visit
+
 
             else:
                 # individual parameters => compare reconstructions vs values (per subject)
                 attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type=attribute_type)
+                # compute log-likelihood of just the given parameter (tau or xi or sources)
+                # (per subject; all dimensions of the individual parameter are summed together)
+                # regularity is always computed with model.parameters (not "temporary MCMC parameters")
+                regularity = model.compute_regularity_realization(realization)
+                regularity = regularity.sum(dim=self.ind_param_dims_but_individual).reshape(data.n_individuals)
 
-            # compute log-likelihood of just the given parameter (tau or xi or sources)
-            # (per subject; all dimensions of the individual parameter are summed together)
-            # regularity is always computed with model.parameters (not "temporary MCMC parameters")
-            regularity = model.compute_regularity_realization(realization)
-            regularity = regularity.sum(dim=self.ind_param_dims_but_individual).reshape(data.n_individuals)
 
             return attachment, regularity
+
 
         previous_attachment, previous_regularity = compute_attachment_regularity()
 
@@ -397,8 +410,8 @@ class GibbsSampler(AbstractSampler):
 
         # alpha is per patient and > 0, shape = (n_individuals,)
         # if new is "better" than previous, then alpha > 1 so it will always be accepted in `_group_metropolis_step`
-        alpha = torch.exp(-((new_regularity - previous_regularity) * temperature_inv +
-                            (new_attachment - previous_attachment)))
+        alpha = torch.exp(-((new_regularity - previous_regularity) * temperature_inv +(new_attachment - previous_attachment)))
+
         accepted = self._group_metropolis_step(alpha)
 
         self._update_acceptation_rate(accepted)

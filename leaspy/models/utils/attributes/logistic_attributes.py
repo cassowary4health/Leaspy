@@ -46,7 +46,8 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
 
         super().__init__(name, dimension, source_dimension)
 
-        self.velocities: torch.FloatTensor = None
+        if self.v0:
+            self.velocities: torch.FloatTensor = None
 
     def update(self, names_of_changed_values, values):
         """

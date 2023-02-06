@@ -54,7 +54,6 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
 
         self.parameters = {
             "g": None,
-            "v0": None,
             "tau_mean": None, "tau_std": None,
             "xi_mean": None, "xi_std": None,
             "noise_std": None
@@ -69,7 +68,6 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
                 # for logistic: "p0" = 1 / (1+exp(g)) i.e. exp(g) = 1/p0 - 1
                 # for linear: "p0" = g
                 'g_std': None,
-                'v0_std': None,
             }
         }
 
@@ -161,8 +159,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         """
         # TODO to move in the MCMC-fit algorithm
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01,
-                       'v0_std': 0.01}, # population parameter
+            'priors': {'g_std': 0.01}, # population parameter
         }
 
         # specific priors for ordinal models
@@ -193,26 +190,9 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         if any(c in vars_to_update for c in ('g', 'all')):
             values['g'] = realizations['g'].tensor_realizations
 
-        if any(c in vars_to_update for c in ('v0', 'v0_collinear', 'all')):
-            values['v0'] = realizations['v0'].tensor_realizations
-
         self._update_MCMC_toolbox_ordinal(vars_to_update, realizations, values)
 
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
-
-    def _center_xi_realizations(self, realizations):
-        # This operation does not change the orthonormal basis
-        # (since the resulting v0 is collinear to the previous one)
-        # Nor all model computations (only v0 * exp(xi_i) matters),
-        # it is only intended for model identifiability / `xi_i` regularization
-        # <!> all operations are performed in "log" space (v0 is log'ed)
-        mean_xi = torch.mean(realizations['xi'].tensor_realizations)
-        realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
-        realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
-
-        self.update_MCMC_toolbox(['v0_collinear'], realizations)
-
-        return realizations
 
     def _call_method_from_attributes(self, method_name: str, attribute_type: Optional[str], **call_kws):
         # TODO: move in a abstract parent class for univariate & multivariate models (like AbstractManifoldModel...)
@@ -258,13 +238,13 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
     def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        g, v0 = self._get_attributes(attribute_type)
+        g = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        LL = v0*reparametrized_time.unsqueeze(-1)
+        LL = reparametrized_time.unsqueeze(-1)
 
         if self.is_ordinal:
             # add an extra dimension for the levels of the ordinal item
@@ -286,13 +266,13 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
     def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        positions, v0 = self._get_attributes(attribute_type)
+        positions = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
-        return positions + reparametrized_time.unsqueeze(-1) # TODO
+        return positions + reparametrized_time.unsqueeze(-1)
 
     @suffixed_method
     def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
@@ -312,11 +292,11 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         value = value.masked_fill((value == 0) | (value == 1), float('nan'))
 
         # get tensorized attributes
-        g, v0 = self._get_attributes(None)
+        g = self._get_attributes(None)
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
 
         # compute age
-        ages = torch.exp(-xi) * torch.log(g/(1 / value - 1))/v0 + tau
+        ages = torch.exp(-xi) * torch.log(g/(1 / value - 1)) + tau
         assert ages.shape == value.shape
 
         return ages
@@ -351,7 +331,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         """
 
         # 1/ get attributes
-        g, v0 = self._get_attributes(None)
+        g = self._get_attributes(None)
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
 
         # get feature value for g, v0 and wi
@@ -359,16 +339,174 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         g = torch.tensor([g[feat_ind]])  # g and v0 were shape: (n_features in the multivariate model)
 
         # 2/ compute age
-        ages_0 = tau + (torch.exp(-xi)) * ((g / (g + 1) ** 2) * torch.log(g))/v0
+        ages_0 = tau + (torch.exp(-xi)) * ((g / (g + 1) ** 2) * torch.log(g))
         deltas_ft = self._get_deltas(None)[feat_ind]
         delta_max = deltas_ft[torch.isfinite(deltas_ft)].sum()
-        ages_max = tau + (torch.exp(-xi)) * ((g / (g + 1) ** 2) * torch.log(g)/v0 + delta_max)
+        ages_max = tau + (torch.exp(-xi)) * ((g / (g + 1) ** 2) * torch.log(g) + delta_max)
 
         grid_timepoints = torch.linspace(ages_0.item(), ages_max.item(), 1000)
 
         return self._ordinal_grid_search_value(grid_timepoints, value,
                                                individual_parameters=individual_parameters,
                                                feat_index=feat_ind)
+
+    def _get_regularity(self, individual_parameters):
+        """
+        Compute the regularity of a patient given his individual parameters for a given model.
+
+        Parameters
+        ----------
+        model : :class:`.AbstractModel`
+            Model used to compute the group average parameters.
+
+        individual_parameters : dict[str, :class:`torch.Tensor` [n_ind,n_dims_param]]
+            Individual parameters as a dict
+
+        Returns
+        -------
+        regularity : :class:`torch.Tensor` [n_individuals]
+            Regularity of the patient(s) corresponding to the given individual parameters.
+            (Sum on all parameters)
+
+        regularity_grads : dict[param_name: str, :class:`torch.Tensor` [n_individuals, n_dims_param]]
+            Gradient of regularity term with respect to individual parameters.
+        """
+
+        regularity = 0
+        regularity_grads = {}
+
+        for param_name, param_val in individual_parameters.items():
+            # priors on this parameter
+            priors = dict(
+                mean = self.parameters[param_name+"_mean"],
+                std = self.parameters[param_name+"_std"]
+            )
+
+            # summation term
+            #print(self.compute_regularity_variable(param_val, **priors, include_constant=False))
+            regularity += self.compute_regularity_variable(param_val, **priors, include_constant=False)#.sum(dim=1)
+
+            # derivatives: <!> formula below is for Normal parameters priors only
+            # TODO? create a more generic method in model `compute_regularity_variable_gradient`? but to do so we should probably wait to have some more generic `compute_regularity_variable` as well (at least pass the parameter name to this method to compute regularity term)
+            regularity_grads[param_name] = (param_val - priors['mean']) / (priors['std']**2)
+
+        return (regularity, regularity_grads)
+
+    def _get_normalized_grad_tensor_from_grad_dict(self, dict_grad_tensors):
+        """
+        From a dict of gradient tensors per param (without normalization),
+        returns the full tensor of gradients (= for all params, consecutively):
+            * concatenated with conventional order of x0
+            * normalized because we derive w.r.t. "standardized" parameter (adimensional gradient)
+        """
+        to_cat = [
+            dict_grad_tensors['xi'] * self.parameters['xi_std'],
+            dict_grad_tensors['tau'][0] * self.parameters['tau_std']
+        ]
+        #print(to_cat)
+        if 'univariate' not in self.name and model.source_dimension > 0:
+            to_cat.append(dict_grad_tensors['sources'] * self.parameters['sources_std'])
+
+        return torch.cat(to_cat, dim=-1).squeeze(0)  # 1 individual at a time
+
+    def compute_perso_attachment(self, times, values, individual_parameters, *,with_gradient = False,
+                                      skip_ips_checks: bool = False):
+        """
+        Objective loss function to minimize in order to get patient's individual parameters
+
+        Parameters
+        ----------
+        x : array-like [float]
+            Individual **standardized** parameters
+            At initialization ``x = [xi_mean/xi_std, tau_mean/tau_std] (+ [0.] * n_sources if multivariate model)``
+
+        *args
+            * model : :class:`.AbstractModel`
+                Model used to compute the group average parameters.
+            * timepoints : :class:`torch.Tensor` [1,n_tpts]
+                Contains the individual ages corresponding to the given ``values``
+            * values : :class:`torch.Tensor` [n_tpts, n_fts [, extra_dim_for_ordinal_model]]
+                Contains the individual true scores corresponding to the given ``times``, with nans.
+            * with_gradient : bool
+                * If True: return (objective, gradient_objective)
+                * Else: simply return objective
+
+        Returns
+        -------
+        objective : float
+            Value of the loss function (opposite of log-likelihood).
+
+        if `with_gradient` is True:
+            2-tuple (as expected by :func:`scipy.optimize.minimize` when ``jac=True``)
+                * objective : float
+                * gradient : array-like[float] of length n_dims_params
+
+        Raises
+        ------
+        :exc:`.LeaspyAlgoInputError`
+            if noise model is not currently supported by algorithm.
+            TODO: everything that is not generic here concerning noise structure should be handle by model/NoiseModel directly!!!!
+        """
+
+        # Extra arguments passed by scipy minimize
+        nans = torch.isnan(values)
+
+        # Placeholder for result (objective and, if needed, gradient)
+        res = {}
+        ## Attachment term
+
+        # compute 1 individual at a time (1st dimension is squeezed)
+        predicted = self.compute_individual_tensorized(times, individual_parameters).squeeze(0)
+
+        # we clamp the predictions for log-based losses (safety before taking the log)
+        # cf. torch.finfo(torch.float32).eps ~= 1.19e-7
+        # (and we do it before computing `diff` unlike before for bernoulli model)
+        if self.noise_model == 'bernoulli':
+            predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
+
+        diff = None
+        if self.noise_model != 'ordinal':
+            diff = predicted - values  # tensor j,k[,l] (j=visits, k=features [, l=ordinal_ranking_level])
+            diff[nans] = 0.  # set nans to zero, not to count in the sum
+
+        # compute gradient of model with respect to individual parameters
+        grads = None
+        if with_gradient:
+            grads = self.compute_jacobian_tensorized(times, individual_parameters)
+            # put derivatives consecutively in the right order and drop ind level
+            # --> output shape [n_tpts, n_fts [, n_ordinal_lvls], n_dims_params]
+            grads = self._get_normalized_grad_tensor_from_grad_dict(grads)
+
+        # Loss is based on log-likelihood for model, which ultimately depends on noise structure
+        # TODO: should be directly handled in model or NoiseModel (probably in NoiseModel)
+        if 'gaussian' in self.noise_model:
+
+            noise_var = self.parameters['noise_std'] * self.parameters['noise_std']
+            noise_var = noise_var.expand((1, self.dimension)) # tensor 1,n_fts (works with diagonal noise or scalar noise)
+            res['objective'] = torch.mean((0.5 / noise_var) @ (diff * diff).t()) # <!> noise per feature
+
+            if with_gradient:
+                res['gradient'] = torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0,1))
+
+        elif self.noise_model == 'bernoulli':
+            neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
+            neg_crossentropy[nans] = 0. # set nans to zero, not to count in the sum
+            res['objective'] = -torch.sum(neg_crossentropy)
+
+            if with_gradient:
+                crossentropy_fact = diff / (predicted * (1. - predicted))
+                res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
+        else:
+            raise LeaspyAlgoInputError(f"'{model.noise_model}' noise is currently not implemented in 'scipy_minimize' algorithm. "
+                                       f"Please open an issue on Gitlab if needed.")
+
+        ## Regularity term
+        #regularity, regularity_grads = self._get_regularity(individual_parameters)
+
+        #res['objective'] += regularity.squeeze(0)
+
+
+        return res['objective'].item()
 
     @suffixed_method
     def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
@@ -395,7 +533,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
     def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        g, v0 = self._get_attributes(attribute_type)
+        g = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -403,7 +541,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         alpha = torch.exp(xi).reshape(-1, 1, 1)
 
         # Log likelihood computation
-        LL = v0*reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features==1)
+        LL = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features==1)
 
         if self.is_ordinal:
             # add an extra dimension for the levels of the ordinal item
@@ -443,12 +581,8 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
 
-        # modify realizations in-place
-        realizations = self._center_xi_realizations(realizations)
-
         sufficient_statistics = {}
         sufficient_statistics['g'] = realizations['g'].tensor_realizations
-        sufficient_statistics['v0'] = realizations['v0'].tensor_realizations
         sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
         sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
         sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
@@ -477,16 +611,12 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
     def update_model_parameters_burn_in(self, data, realizations, iteration = None):
         # Memoryless part of the algorithm
 
-        # modify realizations in-place!
-        realizations = self._center_xi_realizations(realizations)
-
         # unlink model parameters from updates in realizations!
         realizations = realizations.clone_realizations()
 
         self.parameters['g'] = realizations['g'].tensor_realizations
-        self.parameters['v0'] = realizations['v0'].tensor_realizations
         xi = realizations['xi'].tensor_realizations
-        #self.parameters['xi_mean'] = torch.mean(xi)
+        self.parameters['xi_mean'] = torch.mean(xi)
         self.parameters['xi_std'] = torch.std(xi)
         tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
@@ -505,7 +635,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         # Stochastic sufficient statistics used to update the parameters of the model
 
         self.parameters['g'] = suff_stats['g']
-        self.parameters['v0'] = suff_stats['v0']
+
         tau_mean = self.parameters['tau_mean']
         tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
         tau_var = tau_var_updt + tau_mean ** 2
@@ -516,7 +646,7 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
         xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
         xi_var = xi_var_updt + xi_mean ** 2
         self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
-        #self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
+        self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
 
         self._add_ordinal_sufficient_statistics(suff_stats, self.parameters)
 
@@ -552,13 +682,6 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
             "rv_type": "multigaussian"
         }
 
-        v0_infos = {
-            "name": "v0",
-            "shape": torch.Size([1]),
-            "type": "population",
-            "rv_type": "multigaussian"
-        }
-
         ## Individual variables
         tau_infos = {
             "name": "tau",
@@ -578,7 +701,6 @@ class UnivariateModel(AbstractModel, OrdinalModelMixin):
             "g": g_infos,
             "tau": tau_infos,
             "xi": xi_infos,
-            "v0": v0_infos,
         }
 
         self._add_ordinal_random_variables(variables_infos)

@@ -113,7 +113,7 @@ class Dataset:
         self._construct_timepoints(data)
         self._compute_L2_norm()
 
-        if "joint" in model.name:
+        if "joint" in model.name or "surv" in model.name:
             # events # To Dotorch.nan_to_num(hazard, nan=1.)
             self.event_time_start = data.event_time_start
             if data.event_time_min != None :

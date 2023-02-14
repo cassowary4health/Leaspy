@@ -10,16 +10,17 @@ import pandas as pd
 import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
 
-#from joblib import Parallel, delayed
 
 xi_std = .5
 tau_std = 5.
 noise_std = .1
 sources_std = 1.
 
+
 def _torch_round(t: torch.FloatTensor, *, tol: float = 1 << 16) -> torch.FloatTensor:
     # Round values to ~ 10**-4.8
     return (t * tol).round() * (1./tol)
+
 
 def initialize_parameters(model, dataset, method="default"):
     """
@@ -71,8 +72,6 @@ def initialize_parameters(model, dataset, method="default"):
         parameters = initialize_logistic_parallel(model, df, method)
     elif name in ['linear', 'univariate_linear']:
         parameters = initialize_linear(model, df, method)
-    #elif name == 'univariate':
-    #    parameters = initialize_univariate(df, method)
     elif name == 'mixed_linear-logistic':
         raise NotImplementedError
         #parameters = initialize_logistic(model, df, method)
@@ -138,6 +137,7 @@ def get_lme_results(df: pd.DataFrame, n_jobs=-1, *,
                                  for res_ft in res])
         for param_name in param_names
     }
+
 
 def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
     """
@@ -250,6 +250,7 @@ def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
 
     return params
 
+
 def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
     """
     Find an initial value the deltas for an ordinal model and initializes ordinal_infos attribute.
@@ -308,6 +309,7 @@ def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
 
     return parameters
 
+
 def linregress_against_time(s: pd.Series) -> Dict[str, float]:
     """Return intercept & slope of a linear regression of series values against time (present in series index)."""
     y = s.values
@@ -316,6 +318,7 @@ def linregress_against_time(s: pd.Series) -> Dict[str, float]:
     slope, intercept, r_value, p_value, std_err = stats.linregress(t, y)
     return {'intercept': intercept, 'slope': slope}
 
+
 def get_log_velocities(velocities: torch.Tensor, features: List[str], *, min: float = 1e-2) -> torch.Tensor:
     """Warn if some negative velocities are provided, clamp them to `min` and return their log."""
     neg_velocities = velocities <= 0
@@ -323,6 +326,7 @@ def get_log_velocities(velocities: torch.Tensor, features: List[str], *, min: fl
         warnings.warn(f"Mean slope of individual linear regressions made at initialization is negative for "
                       f"{[f for f, vel in zip(features, velocities) if vel <= 0]}: not properly handled in model...")
     return velocities.clamp(min=min).log()
+
 
 def initialize_logistic(model, df: pd.DataFrame, method):
     """
@@ -376,30 +380,20 @@ def initialize_logistic(model, df: pd.DataFrame, method):
 
     # Do transformations
     v0_array = get_log_velocities(slopes, model.features)
-    g_array = torch.log(1. / values - 1.) # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
+    g_array = torch.log(1. / values - 1.)  # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
 
     # Create smart initialization dictionary
-    if 'univariate' in model.name:
-        xi_mean = v0_array.squeeze() # already log'ed
-        parameters = {
-            'g': g_array.squeeze(),
-            'tau_mean': t0,
-            'tau_std': torch.tensor(tau_std),
-            'xi_mean': xi_mean,
-            'xi_std': torch.tensor(xi_std),
-        }
-    else:
-        parameters = {
-            'g': g_array,
-            'v0': v0_array,
-            'betas': betas,
-            'tau_mean': t0,
-            'tau_std': torch.tensor(tau_std),
-            'xi_mean': torch.tensor(0.),
-            'xi_std': torch.tensor(xi_std),
-            'sources_mean': torch.tensor(0.),
-            'sources_std': torch.tensor(sources_std),
-        }
+    parameters = {
+        "g": g_array,
+        "v0": v0_array,
+        "betas": betas,
+        "tau_mean": t0,
+        "tau_std": torch.tensor(tau_std),
+        "xi_mean": torch.tensor(0.),
+        "xi_std": torch.tensor(xi_std),
+        "sources_mean": torch.tensor(0.),
+        "sources_std": torch.tensor(sources_std),
+    }
 
     if model.is_ordinal:
         parameters = initialize_deltas_ordinal(model, df, parameters)
@@ -480,6 +474,7 @@ def initialize_logistic_parallel(model, df, method):
         'noise_std': torch.tensor([noise_std]),
     }
 
+
 def initialize_linear(model, df: pd.DataFrame, method):
     """
     Initialize the linear model's group parameters.
@@ -513,37 +508,19 @@ def initialize_linear(model, df: pd.DataFrame, method):
     # always take the log (even in non univariate model!)
     velocities = get_log_velocities(velocities, model.features)
 
-    if 'univariate' in model.name:
-        xi_mean = velocities.squeeze()
+    return {
+        "g": positions,
+        "v0": velocities,
+        "betas": torch.zeros((model.dimension - 1, model.source_dimension)),
+        "tau_mean": torch.tensor(t0),
+        "tau_std": torch.tensor(tau_std),
+        "xi_mean": torch.tensor(0.),
+        "xi_std": torch.tensor(xi_std),
+        "sources_mean": torch.tensor(0.),
+        "sources_std": torch.tensor(sources_std),
+        "noise_std": torch.tensor([noise_std]),
+    }
 
-        parameters = {
-            'g': positions.squeeze(),
-            'tau_mean': torch.tensor(t0),
-            'tau_std': torch.tensor(tau_std),
-            'xi_mean': xi_mean,
-            'xi_std': torch.tensor(xi_std),
-            'noise_std': torch.tensor(noise_std)
-        }
-    else:
-        parameters = {
-            'g': positions,
-            'v0': velocities,
-            'betas': torch.zeros((model.dimension - 1, model.source_dimension)),
-            'tau_mean': torch.tensor(t0),
-            'tau_std': torch.tensor(tau_std),
-            'xi_mean': torch.tensor(0.),
-            'xi_std': torch.tensor(xi_std),
-            'sources_mean': torch.tensor(0.),
-            'sources_std': torch.tensor(sources_std),
-            'noise_std': torch.tensor([noise_std])
-        }
-
-    return parameters
-
-
-#def initialize_univariate(df, method):
-#    # TODO?
-#    return 0
 
 def compute_linregress_subjects(df: pd.DataFrame, *, max_inds: int = None) -> Dict[str, pd.DataFrame]:
     """

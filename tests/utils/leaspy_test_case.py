@@ -242,9 +242,17 @@ class LeaspyTestCase(TestCase):
             return re.sub(r'^[^\(]+\((\[.+\])(?:, dtype=[^\)]+)?\)$', r'\1', obj_casted_repr)
 
     @classmethod
+    def get_shape(cls, a: Any) -> tuple:
+        """Get the shape of an input castable to a numpy array."""
+        if hasattr(a, 'shape'):
+            return tuple(a.shape)
+        return np.array(a).shape
+
+    @classmethod
     def is_equal_or_almost_equal(cls, left: Any, right: Any, *,
                                  allclose_kws: KwargsType = {},
                                  ineq_msg_template: str = 'Values are different{cmp_suffix}:\n`{left_desc}` -> {left_repr} != {right_repr} <- `{right_desc}`',
+                                 ineq_shapes_msg_template: str = 'Shapes are different:\n`{left_desc}` -> {left_shape} != {right_shape} <- `{right_desc}`',
                                  **vars_for_ineq_msg) -> Optional[str]:
         """
         Check for equality, or almost equality when relevant, of two objects.
@@ -259,8 +267,10 @@ class LeaspyTestCase(TestCase):
 
         ineq_msg_template : str
             Template used for the message returned in case of inequality.
+        ineq_shapes_msg_template : str
+            Template used for the message returned when shapes mismatch.
         **vars_for_ineq_msg
-            Keyword variables to be sent to `ineq_template`.
+            Keyword variables to be sent to `ineq_msg_template` and `ineq_shapes_msg_template`.
             Especially: `left_desc` and `right_desc` for default inequality template.
 
         Returns
@@ -268,13 +278,23 @@ class LeaspyTestCase(TestCase):
         str or None
             String summarizing the difference if objects are different, else None.
         """
+
+        # always check shapes first
+        left_shape, right_shape = cls.get_shape(left), cls.get_shape(right)
+        if left_shape != right_shape:
+            return ineq_shapes_msg_template.format(
+                left=left, left_shape=left_shape, right=right, right_shape=right_shape, **vars_for_ineq_msg
+            )
+
         cmp_details = ["numpy.allclose"]
         if allclose_kws:
             cmp_details.append(str(allclose_kws))
         cmp_suffix = f' ({", ".join(cmp_details)})'
 
         try:
+            # check content (<!> numpy.allclose does not care about shape as long as arrays are broadcastable)
             eq_or_almost_eq = np.allclose(left, right, **allclose_kws)
+
         except Exception as e:
             if 'got an unexpected keyword argument' in str(e):
                 # invalid argument send to `numpy.allclose`, raise for that!
@@ -334,13 +354,6 @@ class LeaspyTestCase(TestCase):
             Description of ALL reasons why dictionary are NOT equal.
             Empty if and only if ``left`` ~= ``right`` (up to customized tolerances)
         """
-        try:
-            if left == right:
-                return []
-        except Exception:
-            # in case comparison is not possible directly
-            pass
-
         if not isinstance(left, dict):
             return [f"`{left_desc}` should be a dictionary"]
         if not isinstance(right, dict):

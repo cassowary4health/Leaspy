@@ -107,7 +107,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
         univariate_model = self.get_hardcoded_model('univariate_logistic')
         param = algo._initialize_parameters(univariate_model.model)
 
-        self.assertEqual(param, [torch.tensor([-1.0/0.01]), torch.tensor([70.0/2.5])])
+        self.assertEqual(param, [torch.tensor([0.0/0.01]), torch.tensor([70.0/2.5])])
 
         multivariate_model = self.get_hardcoded_model('logistic_scalar_noise')
         param = algo._initialize_parameters(multivariate_model.model)
@@ -184,7 +184,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
         individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
         expected_reg = 0.5 * (torch.tensor(s) ** 2).sum()  # gaussian regularity (without constant)
         reg, _ = algo._get_regularity(leaspy.model, individual_parameters)
-        self.assertAllClose(reg, expected_reg)
+        self.assertAllClose(reg, [expected_reg])
 
     def get_individual_parameters_patient(self, model_name, times, values, *, noise_model, **algo_kwargs):
         # already a functional test in fact...
@@ -215,10 +215,10 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
         for (model_name, use_jacobian), expected_dict in {
 
-            ('univariate_logistic', False): {'tau': 69.2868, 'xi': -1.0002, 'err': [[-0.1765], [0.5498]]},
-            ('univariate_logistic', True ): {'tau': 69.2868, 'xi': -1.0002, 'err': [[-0.1765], [0.5498]]},
-            ('univariate_linear',   False): {'tau': 78.1131, 'xi': -4.2035, 'err': [[-0.1212], [0.1282]]},
-            ('univariate_linear',   True ): {'tau': 78.0821, 'xi': -4.2016, 'err': [[-0.1210], [0.1287]]},
+            ('univariate_logistic', False): {'tau': 69.2868, 'xi': -.0002, 'err': [[-0.1765], [0.5498]]},
+            ('univariate_logistic', True ): {'tau': 69.2868, 'xi': -.0002, 'err': [[-0.1765], [0.5498]]},
+            ('univariate_linear',   False): {'tau': 78.1131, 'xi': -.2035, 'err': [[-0.1212], [0.1282]]},
+            ('univariate_linear',   True ): {'tau': 78.0821, 'xi': -.2035, 'err': [[-0.1210], [0.1287]]},
 
         }.items():
 

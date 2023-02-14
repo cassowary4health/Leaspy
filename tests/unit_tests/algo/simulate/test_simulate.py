@@ -163,7 +163,7 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         # noise: value (scalar)
         settings = AlgorithmSettings('simulation', seed=0, noise=.12)
         r = lsp_diag.simulate(individual_parameters, data, settings)
-        self.assertAllClose(r.noise_std, .12, what='noise')
+        self.assertAllClose(r.noise_std, [.12], what='noise')
 
         # noise: value (diagonal)
         diag_noise = .08 + .02*np.arange(lsp_bin.model.dimension)
@@ -199,7 +199,7 @@ class SimulationAlgorithmTest(LeaspyTestCase):
         for lsp_obj in [lsp_scal, lsp_diag, lsp_bin]:
             r = lsp_obj.simulate(individual_parameters, data, settings)
             if lsp_obj != lsp_bin:
-                self.assertAllClose(r.noise_std, lsp_obj.model.parameters['noise_std'], what='noise')
+                self.assertAllClose(r.noise_std, lsp_obj.model.parameters['noise_std'].view(-1), what='noise')
             else:
                 self.assertIsNone(r.noise_std)
                 self._check_bin_values(r)

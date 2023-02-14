@@ -45,15 +45,6 @@ class AbstractMultivariateModelTest(ManifoldModelTest_Mixin):
         self.assertEqual(model.parameters['sources_std'], None)
         self.assertEqual(model.MCMC_toolbox['priors']['betas_std'], None)
 
-    def test_bad_initialize_univariate(self):
-
-        m = AbstractMultivariateModel('dummy')
-
-        mock_dataset = MockDataset(['ft_1'])
-        with self.assertRaisesRegex(ValueError, 'at least 2 features'):
-            # should not univariate
-            m.initialize(mock_dataset)
-
     def test_bad_initialize_features_dimension_inconsistent(self):
 
         with self.assertRaisesRegex(ValueError, 'does not match'):

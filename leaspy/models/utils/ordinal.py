@@ -170,7 +170,7 @@ class OrdinalModelMixin:
             for feat in self.ordinal_infos["features"]:
                 self.MCMC_toolbox['priors'][f'deltas_{feat["name"]}_std'] = 0.1
 
-    def _update_MCMC_toolbox_ordinal(self, vars_to_update: tuple, realizations, values: dict) -> None:
+    def _update_MCMC_toolbox_ordinal(self, vars_to_update: set, realizations, values: dict) -> None:
         # update `values` dict in-place
 
         if not self.is_ordinal:

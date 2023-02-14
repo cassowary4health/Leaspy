@@ -1,12 +1,8 @@
-import os
-import sys
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-# Add leaspy source to path (overwrite any existing leaspy package by inserting instead of appending)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from leaspy import Leaspy, Data, AlgorithmSettings
 
@@ -46,11 +42,6 @@ def get_individual_parameters(data):
 
     # Algorithm
     settings = AlgorithmSettings('scipy_minimize', seed=0, progress_bar=False, use_jacobian=True)
-
-    # Remove non-supported model hyperparameters
-    if data['model']['name'].startswith('univariate_'):
-        data['model'].pop('dimension')
-        data['model'].pop('source_dimension')
 
     # Leaspy loading + personalization
     leaspy = Leaspy.load(data['model'])

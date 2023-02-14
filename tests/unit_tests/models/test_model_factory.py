@@ -50,28 +50,34 @@ class ModelFactoryTest(ModelFactoryTest_Mixin):
         # --- Univariate
         for name in ('univariate_linear', 'univariate_logistic'):
             with self.subTest(model_name=name):
-                model = ModelFactory.model(name, features=['t1','t2','t3'], noise_model='gaussian_scalar')
-                self.assertEqual(model.features, ['t1','t2','t3'])
+                model = ModelFactory.model(
+                    name,
+                    features=['t1'],
+                )
+                self.assertEqual(model.features, ['t1'])
                 self.assertEqual(model.noise_model, 'gaussian_scalar')
-                with self.assertRaises(ValueError) as err:
-                    ModelFactory.model(name, source_dimension=2, dimension=3)
-                    hyperparameters = {'source_dimension': 2, 'dimension': 3}
-                    self.assertEqual(str(err), "Only ('features', 'loss', 'noise_model') are valid hyperparameters for UnivariateModel. "
-                                               f"You gave {hyperparameters}.")
+                self.assertEqual(model.dimension, 1)
+                self.assertEqual(model.source_dimension, 0)
+                # inconsistent features for a univariate model (dimension=1)
+                with self.assertRaisesRegex(ValueError, r"(?i)\bdimension\b.+\bfeatures\b"):
+                    ModelFactory.model(name, features=['t1', 't2', 't3'])
+
 
         # -- Multivariate
         for name in ('linear', 'logistic', 'logistic_parallel'):
             with self.subTest(model_name=name):
-                model = ModelFactory.model(name, features=['t1','t2','t3'], noise_model='gaussian_diagonal', source_dimension=2, dimension=3)
+                model = ModelFactory.model(
+                    name,
+                    features=['t1', 't2', 't3'],
+                    source_dimension=2,
+                    dimension=3,
+                )
                 self.assertEqual(model.features, ['t1','t2','t3'])
                 self.assertEqual(model.noise_model, 'gaussian_diagonal')
                 self.assertEqual(model.dimension, 3) # TODO: automatic from length of features?
                 self.assertEqual(model.source_dimension, 2)
-                with self.assertRaises(ValueError) as err:
+                with self.assertRaisesRegex(ValueError, r"(?i)\bhyperparameters\b.+\bblabla\b"):
                     ModelFactory.model(name, blabla=2)
-                    hyperparameters = {'blabla': 2}
-                    self.assertEqual(str(err), "Only ('features', 'dimension', 'source_dimension', 'loss', 'noise_model') are valid "
-                                               f"hyperparameters for AbstractMultivariateModel. You gave {hyperparameters}.")
 
     def test_bad_noise_model_or_old_loss(self):
         # raise if invalid loss

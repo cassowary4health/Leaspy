@@ -110,7 +110,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                     self._display_progress_bar(self.current_iteration - 1, self.algo_parameters['n_iter'], suffix='iterations')
 
             # Finally we compute model attributes once converged
-            model.attributes.update(['all'], model.parameters)
+            model.attributes.update({'all'}, model.parameters)
 
         loss = model.parameters['log-likelihood'] if model.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking'] else model.parameters['noise_std']
 

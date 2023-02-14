@@ -44,10 +44,16 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             leaspy = Leaspy(name, source_dimension=2)
             self.assertEqual(leaspy.model.source_dimension, 2)
 
-        with self.assertRaises(ValueError):
-            Leaspy('univariate_logistic', source_dimension=2)
-        with self.assertRaises(ValueError):
-            Leaspy('univariate_linear', source_dimension=1)
+        for name in ['linear', 'logistic']:
+            leaspy = Leaspy(f"univariate_{name}")
+            self.assertEqual(leaspy.model.source_dimension, 0)
+            self.assertEqual(leaspy.model.dimension, 1)
+
+            with self.assertRaisesRegex(ValueError, r"`dimension`.+univariate model"):
+                Leaspy(f"univariate_{name}", dimension=42)
+            with self.assertRaisesRegex(ValueError, r"`source_dimension`.+univariate model"):
+                Leaspy(f"univariate_{name}", source_dimension=1)
+
         with self.assertRaises(ValueError):
             Leaspy('univariate') # old name
 
@@ -88,9 +94,8 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             "sources_std": 1.0,
             "noise_std": 0.2
         }
-        for k, v in parameters.items():
-            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
-            self.assertTrue(equality)
+
+        self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -131,9 +136,8 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             "deltas": [-3, -2.5, -1.0],
             "betas": [[0.1, -0.1], [0.5, -0.3], [0.3, 0.4]],
         }
-        for k, v in parameters.items():
-            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
-            self.assertTrue(equality)
+
+        self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -174,9 +178,8 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             "sources_std": 1.0,
             "noise_std": 0.1,
         }
-        for k, v in parameters.items():
-            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
-            self.assertTrue(equality)
+
+        self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -204,23 +207,27 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the parameters
         parameters = {
-            "g": 1.0,
+            "g": [1.0],
+            "v0": [-2.6265233750364456],
             "tau_mean": 70.0,
             "tau_std": 2.5,
-            "xi_mean": -1.0,
+            "xi_mean": 0.0,
             "xi_std": 0.01,
-            "noise_std": 0.2
+            "noise_std": 0.2,
+            # never used parameters
+            "betas": [],
+            "sources_mean": 0,
+            "sources_std": 1,
         }
 
-        for k, v in parameters.items():
-            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
-            self.assertTrue(equality)
+        self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
         # Test that the model attributes were initialized
-        self.assertIsInstance(leaspy.model._get_attributes(None), torch.Tensor)
+        for attribute in leaspy.model._get_attributes(None):
+            self.assertIsInstance(attribute, torch.FloatTensor)
 
     def test_load_univariate_linear(self):
         """
@@ -238,23 +245,27 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
 
         # Test the parameters
         parameters = {
-            "g": 0.5,
+            "g": [0.5],
+            "v0": [-4.0],
             "tau_mean": 78.0,
             "tau_std": 5.0,
-            "xi_mean": -4.0,
+            "xi_mean": 0.0,
             "xi_std": 0.5,
-            "noise_std": 0.15
+            "noise_std": 0.15,
+            # never used parameters
+            "betas": [],
+            "sources_mean": 0,
+            "sources_std": 1,
         }
 
-        for k, v in parameters.items():
-            equality = torch.eq(leaspy.model.parameters[k], torch.tensor(v)).all()
-            self.assertTrue(equality)
+        self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
 
         # Test that the model attributes were initialized
-        self.assertIsInstance(leaspy.model._get_attributes(None), torch.Tensor)
+        for attribute in leaspy.model._get_attributes(None):
+            self.assertIsInstance(attribute, torch.FloatTensor)
 
     def test_load_save_load(self, *, atol=1e-4):
         """

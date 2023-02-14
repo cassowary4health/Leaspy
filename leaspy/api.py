@@ -356,6 +356,9 @@ class Leaspy:
         # check input
         model_features = self.model.features
 
+        if feature is None and len(model_features) == 1:
+            feature = model_features[0]
+
         if feature is not None:
             if not isinstance(feature, str):
                 raise LeaspyTypeError(f"The 'feature' parameter must be a string, not {type(feature)} !")

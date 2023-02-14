@@ -34,7 +34,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         # derive the model attributes from model parameters upon reloading of model
         self.attributes = LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
-        self.attributes.update(['all'], self.parameters)
+        self.attributes.update({'all'}, self.parameters)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
 
@@ -111,15 +111,16 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         }
 
         population_dictionary = self._create_dictionary_of_population_realizations()
-        self.update_MCMC_toolbox(["all"], population_dictionary)
+        self.update_MCMC_toolbox({"all"}, population_dictionary)
 
-    def update_MCMC_toolbox(self, vars_to_update, realizations):
+    def update_MCMC_toolbox(self, vars_to_update: set, realizations):
         values = {}
-        if any(c in vars_to_update for c in ('g', 'all')):
+        update_all = 'all' in vars_to_update
+        if update_all or 'g' in vars_to_update:
             values['g'] = realizations['g'].tensor_realizations
-        if any(c in vars_to_update for c in ('deltas', 'all')):
+        if update_all or 'deltas' in vars_to_update:
             values['deltas'] = realizations['deltas'].tensor_realizations
-        if any(c in vars_to_update for c in ('betas', 'all')) and self.source_dimension != 0:
+        if self.source_dimension != 0 and (update_all or 'betas' in vars_to_update):
             values['betas'] = realizations['betas'].tensor_realizations
 
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)

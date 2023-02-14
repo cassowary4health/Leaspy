@@ -48,11 +48,12 @@ class MultivariateModel(AbstractMultivariateModel):
         # enforce a prior for v0_mean --> legacy / never used in practice
         self._set_v0_prior = False
 
-
     def _check_subtype(self):
         if self.name not in self.SUBTYPES_SUFFIXES.keys():
-            raise LeaspyModelInputError(f'Multivariate model name should be among these valid sub-types: '
-                                        f'{list(self.SUBTYPES_SUFFIXES.keys())}.')
+            raise LeaspyModelInputError(
+                f"{self.__class__.__name__} name should be among these valid sub-types: "
+                f"{list(self.SUBTYPES_SUFFIXES.keys())}."
+            )
 
         return self.SUBTYPES_SUFFIXES[self.name]
 
@@ -71,7 +72,7 @@ class MultivariateModel(AbstractMultivariateModel):
         # derive the model attributes from model parameters upon reloading of model
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
                                                        **self._attributes_factory_ordinal_kws)
-        self.attributes.update(['all'], self.parameters)
+        self.attributes.update({'all'}, self.parameters)
 
     @suffixed_method
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
@@ -244,7 +245,6 @@ class MultivariateModel(AbstractMultivariateModel):
         pass
 
     def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
-
         # Population parameters
         _, v0, mixing_matrix = self._get_attributes(attribute_type)
 
@@ -265,7 +265,7 @@ class MultivariateModel(AbstractMultivariateModel):
         }
 
         if self.source_dimension > 0:
-            derivatives['sources'] = mixing_matrix.expand((1,1,-1,-1)) * dummy_to_broadcast_n_ind_n_tpts.unsqueeze(-1)
+            derivatives['sources'] = mixing_matrix.expand((1, 1, -1, -1)) * dummy_to_broadcast_n_ind_n_tpts.unsqueeze(-1)
 
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
@@ -316,7 +316,7 @@ class MultivariateModel(AbstractMultivariateModel):
             'tau': (-v0 * alpha).unsqueeze(-1),
         }
         if self.source_dimension > 0:
-            derivatives['sources'] = a_matrix.expand((1,1,-1,-1))
+            derivatives['sources'] = a_matrix.expand((1, 1, -1, -1))
 
         if self.is_ordinal:
             ordinal_lvls_shape = c.shape[-1]
@@ -356,15 +356,16 @@ class MultivariateModel(AbstractMultivariateModel):
                                                                        **self._attributes_factory_ordinal_kws)
         # TODO? why not passing the ready-to-use collection realizations that is initialized at beginning of fit algo and use it here instead?
         population_dictionary = self._create_dictionary_of_population_realizations()
-        self.update_MCMC_toolbox(["all"], population_dictionary)
+        self.update_MCMC_toolbox({"all"}, population_dictionary)
 
-    def update_MCMC_toolbox(self, vars_to_update, realizations):
+    def update_MCMC_toolbox(self, vars_to_update: set, realizations):
         values = {}
-        if any(c in vars_to_update for c in ('g', 'all')):
+        update_all = 'all' in vars_to_update
+        if update_all or 'g' in vars_to_update:
             values['g'] = realizations['g'].tensor_realizations
-        if any(c in vars_to_update for c in ('v0', 'v0_collinear', 'all')):
+        if update_all or len(vars_to_update.intersection({'v0', 'v0_collinear'})):
             values['v0'] = realizations['v0'].tensor_realizations
-        if self.source_dimension != 0 and any(c in vars_to_update for c in ('betas', 'all')):
+        if self.source_dimension != 0 and (update_all or 'betas' in vars_to_update):
             values['betas'] = realizations['betas'].tensor_realizations
 
         self._update_MCMC_toolbox_ordinal(vars_to_update, realizations, values)
@@ -381,7 +382,7 @@ class MultivariateModel(AbstractMultivariateModel):
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
         realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
 
-        self.update_MCMC_toolbox(['v0_collinear'], realizations)
+        self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
         return realizations
 
@@ -408,9 +409,9 @@ class MultivariateModel(AbstractMultivariateModel):
 
         individual_parameters = self.get_param_from_real(realizations)
 
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints, individual_parameters,
-                                                                 attribute_type='MCMC')
-
+        data_reconstruction = self.compute_individual_tensorized(
+            data.timepoints, individual_parameters, attribute_type='MCMC'
+        )
         if self.noise_model in ['gaussian_scalar', 'gaussian_diagonal']:
             data_reconstruction *= data.mask.float()  # speed-up computations
 
@@ -421,8 +422,9 @@ class MultivariateModel(AbstractMultivariateModel):
             sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2) # no sum on features...
 
         if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
-            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
-                                                                                                    attribute_type='MCMC')
+            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(
+                data, individual_parameters, attribute_type='MCMC'
+            )
 
         return sufficient_statistics
 
@@ -460,9 +462,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         self._add_ordinal_tensor_realizations(realizations, self.parameters)
 
-        xi = realizations['xi'].tensor_realizations
-        # self.parameters['xi_mean'] = torch.mean(xi)  # fixed = 0 by design
-        self.parameters['xi_std'] = torch.std(xi)
+        self.parameters['xi_std'] = torch.std(realizations['xi'].tensor_realizations)
         tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
@@ -473,8 +473,9 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # Should we really keep this ? cf #54 issue
         if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
-            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
-                                                                                              attribute_type='MCMC').sum()
+            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(
+                data, param_ind, attribute_type='MCMC'
+            ).sum()
         else:
             self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
 
@@ -503,35 +504,27 @@ class MultivariateModel(AbstractMultivariateModel):
         xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
         xi_var = xi_var_updt + xi_mean ** 2
         self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
-        # self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])  # fixed = 0 by design
 
         if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
 
-        elif 'scalar' in self.noise_model:
-            # scalar noise (same for all features)
-            S1 = data.L2_norm
-            S2 = suff_stats['obs_x_reconstruction'].sum()
-            S3 = suff_stats['reconstruction_x_reconstruction'].sum()
-
-            noise_var = (S1 - 2. * S2 + S3) / data.n_observations
-            self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
         else:
-            # keep feature dependence on feature to update diagonal noise (1 free param per feature)
-            S1 = data.L2_norm_per_ft
-            S2 = suff_stats['obs_x_reconstruction'].sum(dim=(0, 1))
-            S3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0, 1))
-
-            # tensor 1D, shape (dimension,)
-            noise_var = (S1 - 2. * S2 + S3) / data.n_observations_per_ft.float()
+            if 'scalar' in self.noise_model:
+                # scalar noise (same for all features)
+                s1 = data.L2_norm
+                s2 = suff_stats['obs_x_reconstruction'].sum()
+                s3 = suff_stats['reconstruction_x_reconstruction'].sum()
+                noise_var = (s1 - 2. * s2 + s3) / data.n_observations
+            else:
+                # keep feature dependence on feature to update diagonal noise (1 free param per feature)
+                s1 = data.L2_norm_per_ft
+                s2 = suff_stats['obs_x_reconstruction'].sum(dim=(0, 1))
+                s3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0, 1))
+                # tensor 1D, shape (dimension,)
+                noise_var = (s1 - 2. * s2 + s3) / data.n_observations_per_ft.float()
             self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
-
-    ###################################
-    ### Random Variable Information ###
-    ###################################
 
     def random_variable_informations(self):
-
         # --- Population variables
         g_infos = {
             "name": "g",
@@ -539,14 +532,12 @@ class MultivariateModel(AbstractMultivariateModel):
             "type": "population",
             "rv_type": "multigaussian"
         }
-
         v0_infos = {
             "name": "v0",
             "shape": torch.Size([self.dimension]),
             "type": "population",
             "rv_type": "multigaussian"
         }
-
         betas_infos = {
             "name": "betas",
             "shape": torch.Size([self.dimension - 1, self.source_dimension]),
@@ -554,7 +545,6 @@ class MultivariateModel(AbstractMultivariateModel):
             "rv_type": "multigaussian",
             "scale": .5  # cf. GibbsSampler
         }
-
         # --- Individual variables
         tau_infos = {
             "name": "tau",
@@ -562,28 +552,24 @@ class MultivariateModel(AbstractMultivariateModel):
             "type": "individual",
             "rv_type": "gaussian"
         }
-
         xi_infos = {
             "name": "xi",
             "shape": torch.Size([1]),
             "type": "individual",
             "rv_type": "gaussian"
         }
-
         sources_infos = {
             "name": "sources",
             "shape": torch.Size([self.source_dimension]),
             "type": "individual",
             "rv_type": "gaussian"
         }
-
         variables_infos = {
             "g": g_infos,
             "v0": v0_infos,
             "tau": tau_infos,
             "xi": xi_infos,
         }
-
         if self.source_dimension != 0:
             variables_infos['sources'] = sources_infos
             variables_infos['betas'] = betas_infos

@@ -200,11 +200,14 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
                 # input is output (no noise & no copy)
                 rv = nm.rv_around(locs)
                 self.assertIsInstance(rv, torch.distributions.Normal)
-                self.assertEqual(rv.scale, scale)
-                self.assertEqual(rv.loc, locs)
+                # <!> torch internally broadcast loc & scale parameters
+                broadcasted_loc, broadcasted_scale = torch.broadcast_tensors(locs, scale)
+                self.assertEqual(rv.scale, broadcasted_scale)
+                self.assertEqual(rv.loc, broadcasted_loc)
 
                 # shape is broadcasted between noise shape and locs shape <!>
                 expected_shape = torch_broadcast_shapes(locs.shape, scale.shape)
+                self.assertEqual(expected_shape, broadcasted_scale.shape)
 
                 self.assertEqual(nm.sample_around(locs).shape, expected_shape)
                 self.assertEqual(nm.sampler_around(locs)().shape, expected_shape)
@@ -301,7 +304,7 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
         # forced scalar mode (no matter noise model)
         fake_model = FakeModel(['blabla', 'ft2'], 'no_matter')
         n = NoiseModel.rmse_model(fake_model, self.dataset, {}, scalar=True)
-        self.assertEqual(n, FakeModel.MOCK_NOISE_STD_SCALAR)
+        self.assertEqual(n, FakeModel.MOCK_NOISE_STD_SCALAR.item())
 
         fake_model = FakeModel([f'ft{i}' for i in range(FakeModel.MOCK_NOISE_STD_DIAG.numel())], 'no_matter')
         n = NoiseModel.rmse_model(fake_model, self.dataset, {}, scalar=False)
@@ -310,7 +313,7 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
         # scalar inferred from model.noise_model
         fake_model = FakeModel(['blabla', 'ft2'], 'gaussian_scalar')
         n = NoiseModel.rmse_model(fake_model, self.dataset, {})
-        self.assertEqual(n, FakeModel.MOCK_NOISE_STD_SCALAR)
+        self.assertEqual(n, FakeModel.MOCK_NOISE_STD_SCALAR.item())
 
         fake_model = FakeModel([f'ft{i}' for i in range(FakeModel.MOCK_NOISE_STD_DIAG.numel())], 'gaussian_diagonal')
         n = NoiseModel.rmse_model(fake_model, self.dataset, {})
@@ -339,10 +342,10 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
             self.assertEqual(sampler().shape, probs.shape[:-1])
             self.assertEqual(rv.sample().shape, probs.shape[:-1])
 
-        self.assertEqual(nm.sample_around(torch.tensor([0., 1.])), torch.tensor([1]))
+        self.assertEqual(nm.sample_around(torch.tensor([0., 1.])), torch.tensor(1))
         self.assertEqual(nm.sample_around(torch.tensor([[1., 0., 0.]])), torch.tensor([0]))
-        self.assertEqual(nm.sample_around(torch.tensor([[0., 0., 1.]])), torch.tensor([[2]]))
-        self.assertEqual(nm.sample_around(torch.tensor([[0., 1., 0.], [1., 0., 0.]])), torch.tensor([[1, 0]]))
+        self.assertEqual(nm.sample_around(torch.tensor([[0., 0., 1.]])), torch.tensor([2]))
+        self.assertEqual(nm.sample_around(torch.tensor([[0., 1., 0.], [1., 0., 0.]])), torch.tensor([1, 0]))
 
         # errors in input
         with self.assertRaises(Exception):
@@ -382,10 +385,10 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
             self.assertEqual(sampler().shape, probs.shape[:-1])
             self.assertEqual(rv.sample().shape, probs.shape[:-1])
 
-        self.assertEqual(nm.sample_around(torch.tensor([1., 0.])), torch.tensor([1]))
+        self.assertEqual(nm.sample_around(torch.tensor([1., 0.])), torch.tensor(1))
         self.assertEqual(nm.sample_around(torch.tensor([[0., 0., 0.]])), torch.tensor([0]))
-        self.assertEqual(nm.sample_around(torch.tensor([[1., 1., 0.]])), torch.tensor([[2]]))
-        self.assertEqual(nm.sample_around(torch.tensor([[1., 1., 1.], [1., 0., 0.]])), torch.tensor([[3, 1]]))
+        self.assertEqual(nm.sample_around(torch.tensor([[1., 1., 0.]])), torch.tensor([2]))
+        self.assertEqual(nm.sample_around(torch.tensor([[1., 1., 1.], [1., 0., 0.]])), torch.tensor([3, 1]))
 
         # errors in input
         with self.assertRaises(Exception):

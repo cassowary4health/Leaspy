@@ -5,6 +5,8 @@ from .abstract_sampler import AbstractSampler
 from .gibbs_sampler import GibbsSampler
 #from .hmc_sampler import HMCSampler  # legacy
 
+from leaspy.exceptions import LeaspyAlgoInputError
+
 
 class AlgoWithSamplersMixin:
     """
@@ -51,8 +53,9 @@ class AlgoWithSamplersMixin:
 
         if self.algo_parameters.get('n_burn_in_iter', None) is None:
             if n_burn_in_iter_frac is None:
-                raise ValueError("You should NOT have both `n_burn_in_iter_frac` and `n_burn_in_iter` None."
-                                 "\nPlease set a value for at least one of those settings.")
+                raise LeaspyAlgoInputError(
+                    "You should NOT have both `n_burn_in_iter_frac` and `n_burn_in_iter` None."
+                    "\nPlease set a value for at least one of those settings.")
 
             self.algo_parameters['n_burn_in_iter'] = int(n_burn_in_iter_frac * self.algo_parameters['n_iter'])
 

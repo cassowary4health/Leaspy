@@ -274,7 +274,7 @@ class GibbsSampler(AbstractSampler):
                 change_idx = change_idx * self.mask[idx]
             realization.set_tensor_realizations_element(old_val_idx + change_idx, idx)
             # Update derived model attributes if necessary (orthonormal basis, ...)
-            model.update_MCMC_toolbox([self.name], realizations)
+            model.update_MCMC_toolbox({self.name}, realizations)
 
             # Compute the attachment and regularity
             new_attachment, new_regularity = compute_attachment_regularity()
@@ -294,7 +294,7 @@ class GibbsSampler(AbstractSampler):
                 # Update (back) derived model attributes if necessary
                 # TODO: Shouldn't we backup the old MCMC toolbox instead to avoid heavy computations?
                 # (e.g. orthonormal basis re-computation just for a single change)
-                model.update_MCMC_toolbox([self.name], realizations)
+                model.update_MCMC_toolbox({self.name}, realizations)
                 # force re-compute on next iteration:
                 # not performed since it is useless, since we rolled back to the starting state!
                 # self._previous_attachment = self._previous_regularity = None

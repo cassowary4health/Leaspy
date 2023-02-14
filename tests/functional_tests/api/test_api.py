@@ -2,7 +2,6 @@
 from .test_api_fit import LeaspyFitTest_Mixin
 from .test_api_personalize import LeaspyPersonalizeTest_Mixin
 from .test_api_simulate import LeaspySimulateTest_Mixin
-import torch
 
 
 class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimulateTest_Mixin):
@@ -95,7 +94,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[105.18],  # logLL, not noise_std
+            expected_noise_std=105.18,  # logLL, not noise_std
             simulate_algo_params=simul_params,
         )
 
@@ -111,7 +110,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[1029.1],  # logLL, not noise_std
+            expected_noise_std=1029.1,  # logLL, not noise_std
             tol_noise=0.1,
             simulate_algo_params=simul_params,
         )
@@ -131,7 +130,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             fit_algo_params=dict(n_iter=200, seed=0),
             fit_check_kws=dict(atol=0.005),
             perso_algo='mean_real',
-            expected_noise_std=[1132.6],  # logLL, not noise_std
+            expected_noise_std=1132.6,  # logLL, not noise_std
             tol_noise=0.1,
             simulate_algo_params=simul_params,
             simulate_tol=5e-2,
@@ -150,7 +149,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal',
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[96.567],  # logLL, not noise_std
+            expected_noise_std=169.8,  # logLL, not noise_std
             tol_noise=0.1,
             simulate_algo_params=simul_params,
         )
@@ -167,7 +166,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal_ranking', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=[974.15],  # logLL, not noise_std
+            expected_noise_std=974.15,  # logLL, not noise_std
             tol_noise=0.1,
             simulate_algo_params=simul_params,
         )
@@ -184,7 +183,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal_ranking', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mode_real',
-            expected_noise_std=[971.95],  # logLL, not noise_std
+            expected_noise_std=971.95,  # logLL, not noise_std
             tol_noise=0.1,
             simulate_algo_params=simul_params,
             batch_deltas_ordinal=True,

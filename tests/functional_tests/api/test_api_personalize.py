@@ -143,28 +143,28 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('linear_diag_noise', 'mean_real', mean_real_kws,                             [0.1000, 0.1265, 0.1242, 0.1485]),
 
             # multivariate binary model
-            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),               [103.7]),
-            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                [103.67]),
-            ('logistic_binary', 'mode_real', mode_real_kws,                               [103.96]),
-            ('logistic_binary', 'mean_real', mean_real_kws,                               [101.95]),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),                103.7),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                 103.67),
+            ('logistic_binary', 'mode_real', mode_real_kws,                                103.96),
+            ('logistic_binary', 'mean_real', mean_real_kws,                                101.95),
 
             # multivariate parallel binary model
-            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),      [112.66]),
-            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),       [112.63]),
-            ('logistic_parallel_binary', 'mode_real', mode_real_kws,                      [111.96]),
-            ('logistic_parallel_binary', 'mean_real', mean_real_kws,                      [120.06]),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),       112.66),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),        112.63),
+            ('logistic_parallel_binary', 'mode_real', mode_real_kws,                       111.96),
+            ('logistic_parallel_binary', 'mean_real', mean_real_kws,                       120.06),
 
             # multivariate ordinal model
-            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=False), [700.55]),
-            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=True), [638.66]),
-            ('logistic_ordinal', 'mode_real', mode_real_kws, [619.64]),
-            ('logistic_ordinal', 'mean_real', mean_real_kws, [616.94]),
+            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=False),               700.55),
+            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=True),                638.66),
+            ('logistic_ordinal', 'mode_real', mode_real_kws,                               619.64),
+            ('logistic_ordinal', 'mean_real', mean_real_kws,                               616.94),
 
             # multivariate ordinal ranking model
-            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=False), [1014.2]),
-            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=True), [1014.1]),
-            ('logistic_ordinal_ranking', 'mode_real', mode_real_kws, [1014.9]),
-            ('logistic_ordinal_ranking', 'mean_real', mean_real_kws, [1015.0]),
+            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=False),       1014.2),
+            ('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=True),        1014.1),
+            ('logistic_ordinal_ranking', 'mode_real', mode_real_kws,                       1014.9),
+            ('logistic_ordinal_ranking', 'mean_real', mean_real_kws,                       1015.0),
 
         ]:
 
@@ -236,11 +236,11 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=True),              [0.1023, 0.1630, 0.2081, 0.1480]),
 
             # binary models (noise_std is reported as diagonal)
-            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),               [8.4722]),
-            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                [8.4718]),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),                8.4722),
+            ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                 8.4718),
 
-            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),      [8.8422]),
-            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),       [8.8408]),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),       8.8422),
+            ('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),        8.8408),
         ]:
 
             subtest = dict(model_name=model_name, perso_name=perso_name, perso_kws=perso_kws)
@@ -339,9 +339,9 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                     if pi['type'] == 'individual'
                 }
                 self.assertDictAlmostEqual(dict_1, {
-                    'tau': [lsp.model.parameters['tau_mean']],
-                    'xi': [0.],
-                    'sources': lsp.model.source_dimension*[0.]
+                    'tau': [[lsp.model.parameters['tau_mean']]],
+                    'xi': [[0.]],
+                    'sources': [lsp.model.source_dimension*[0.]],
                 }, allclose_custom=allclose_custom, msg=subtest)
 
     def test_personalize_same_if_extra_totally_nan_visits(self):

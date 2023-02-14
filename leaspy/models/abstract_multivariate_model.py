@@ -14,7 +14,7 @@ from leaspy.models.utils.initialization.model_initialization import initialize_p
 from leaspy.models.utils.noise_model import NoiseModel
 from leaspy.models.utils.ordinal import OrdinalModelMixin
 
-from leaspy.utils.typing import KwargsType, List, Optional
+from leaspy.utils.typing import KwargsType, Set, Optional
 from leaspy.utils.docs import doc_with_super
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -78,11 +78,6 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     """
 
     def initialize(self, dataset, method: str = 'default'):
-
-        if dataset.dimension < 2:
-            raise LeaspyModelInputError("A multivariate model should have at least 2 features but your dataset "
-                                        f"only contains {dataset.dimension} features ({dataset.headers}).")
-
         self.dimension = dataset.dimension
         self.features = dataset.headers
 
@@ -101,7 +96,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                                                        **self._attributes_factory_ordinal_kws)
 
         # Postpone the computation of attributes when really needed!
-        #self.attributes.update(['all'], self.parameters)
+        #self.attributes.update({'all'}, self.parameters)
 
         self.is_initialized = True
 
@@ -113,13 +108,13 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         # TODO to move in a "MCMC-model interface"
 
     @abstractmethod
-    def update_MCMC_toolbox(self, vars_to_update: List[str], realizations) -> None:
+    def update_MCMC_toolbox(self, vars_to_update: Set[str], realizations) -> None:
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
 
         Parameters
         ----------
-        vars_to_update : container[str] (list, tuple, ...)
+        vars_to_update : set[str]
             Names of the population parameters to update in MCMC toolbox
         realizations : :class:`.CollectionRealization`
             All the realizations to update MCMC toolbox with
@@ -135,7 +130,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
         if 'dimension' in hyperparameters.keys():
             if self.features and hyperparameters['dimension'] != len(self.features):
-                raise LeaspyModelInputError(f"Dimension provided ({hyperparameters['dimension']}) does not match features ({len(self.features)})")
+                raise LeaspyModelInputError(
+                    f"Dimension provided ({hyperparameters['dimension']}) does not match "
+                    f"features ({len(self.features)})"
+                )
             self.dimension = hyperparameters['dimension']
 
         if 'source_dimension' in hyperparameters.keys():
@@ -144,7 +142,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                 and (hyperparameters['source_dimension'] >= 0)
                 and (not self.dimension or hyperparameters['source_dimension'] <= self.dimension - 1)
             ):
-                raise LeaspyModelInputError(f"Source dimension should be an integer in [0, dimension - 1], not {hyperparameters['source_dimension']}")
+                raise LeaspyModelInputError(
+                    f"Source dimension should be an integer in [0, dimension - 1], "
+                    f"not {hyperparameters['source_dimension']}"
+                )
             self.source_dimension = hyperparameters['source_dimension']
 
         # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
@@ -235,8 +236,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         elif attribute_type == 'MCMC':
             return getattr(self.MCMC_toolbox['attributes'], method_name)(**call_kws)
         else:
-            raise LeaspyModelInputError(f"The specified attribute type does not exist: {attribute_type}. "
-                                        "Should be None or 'MCMC'.")
+            raise LeaspyModelInputError(
+                f"The specified attribute type does not exist: {attribute_type}. "
+                "Should be None or 'MCMC'."
+            )
 
     def _get_attributes(self, attribute_type: Optional[str]):
         return self._call_method_from_attributes('get_attributes', attribute_type)

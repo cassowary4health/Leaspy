@@ -47,19 +47,20 @@ class AbstractModelTest(LeaspyTestCase):
 
         abstract_model.load_parameters(leaspy_object.model.parameters)
 
-        self.assertTrue(torch.equal(abstract_model.parameters['g'],
-                                    torch.tensor([0.5, 1.5, 1.0, 2.0])))
-        self.assertTrue(torch.equal(abstract_model.parameters['v0'],
-                                    torch.tensor([-2.0, -3.5, -3.0, -2.5])))
-        self.assertTrue(torch.equal(abstract_model.parameters['betas'],
-                                    torch.tensor([[0.1, 0.6], [-0.1, 0.4], [0.3, 0.8]])))
-        self.assertTrue(torch.equal(abstract_model.parameters['tau_mean'], torch.tensor(75.2)))
-        self.assertTrue(torch.equal(abstract_model.parameters['tau_std'], torch.tensor(7.1)))
-        self.assertTrue(torch.equal(abstract_model.parameters['xi_mean'], torch.tensor(0.0)))
-        self.assertTrue(torch.equal(abstract_model.parameters['xi_std'], torch.tensor(0.2)))
-        self.assertTrue(torch.equal(abstract_model.parameters['sources_mean'], torch.tensor(0.0)))
-        self.assertTrue(torch.equal(abstract_model.parameters['sources_std'], torch.tensor(1.0)))
-        self.assertTrue(torch.equal(abstract_model.parameters['noise_std'], torch.tensor(0.2)))
+        expected_parameters = {
+            'g': [0.5, 1.5, 1.0, 2.0],
+            'v0': [-2.0, -3.5, -3.0, -2.5],
+            'betas': [[0.1, 0.6], [-0.1, 0.4], [0.3, 0.8]],
+            'tau_mean': 75.2,
+            'tau_std': 7.1,
+            'xi_mean': 0.0,
+            'xi_std': 0.2,
+            'sources_mean': 0.0,
+            'sources_std': 1.0,
+            'noise_std': 0.2,
+        }
+
+        self.assertDictAlmostEqual(abstract_model.parameters, expected_parameters)
 
     def test_all_model_run(self):
         """

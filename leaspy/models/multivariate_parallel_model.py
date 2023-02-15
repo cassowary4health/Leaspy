@@ -1,8 +1,14 @@
 import torch
+from typing import Optional
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
+from leaspy.models.noise_models import (
+    BaseNoiseModel,
+    BernouilliNoiseModel,
+    LogLikelihoodBasedNoiseModel,
+    AbstractGaussianNoiseModel,
+)
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
-from leaspy.models.utils.noise_model import NoiseModel
 
 from leaspy.utils.docs import doc_with_super
 
@@ -19,8 +25,8 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     **kwargs
         Hyperparameters of the model
     """
-    def __init__(self, name: str, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, name: str, noise_model: Optional[BaseNoiseModel] = None, **kwargs):
+        super().__init__(name, noise_model, **kwargs)
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None
 
@@ -153,9 +159,10 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2) # no sum on features...
         sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2) # no sum on features...
 
-        if self.noise_model == 'bernoulli':
-            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(data, individual_parameters,
-                                                                                                    attribute_type='MCMC')
+        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
+            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(
+                data, individual_parameters, attribute_type='MCMC'
+            )
 
         return sufficient_statistics
 
@@ -176,11 +183,15 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters['tau_std'] = torch.std(tau)
 
         param_ind = self.get_param_from_real(realizations)
-        self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
-
-        if self.noise_model == 'bernoulli':
-            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(data, param_ind,
-                                                                                              attribute_type='MCMC').sum()
+        if isinstance(self.noise_model, AbstractGaussianNoiseModel):
+            predictions = self.compute_individual_tensorized(
+                data.timepoints, param_ind, attribute_type="MCMC",
+            )
+            self.parameters['noise_std'] = self.noise_model.compute_rmse(data, predictions)
+        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
+            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(
+                data, param_ind, attribute_type='MCMC'
+            ).sum()
 
     def update_model_parameters_normal(self, data, suff_stats):
 

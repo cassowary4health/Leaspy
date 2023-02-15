@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import re
 import math
@@ -11,8 +11,8 @@ from torch._tensor_str import PRINT_OPTS as torch_print_opts
 
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
-from leaspy.models.utils.noise_model import NoiseModel
 from leaspy.models.base import BaseModel
+from leaspy.models.noise_models import BaseNoiseModel
 
 from leaspy.exceptions import LeaspyConvergenceError, LeaspyIndividualParamsInputError, LeaspyModelInputError
 from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Iterable, Optional
@@ -45,9 +45,8 @@ class AbstractModel(BaseModel):
         Names of the model features
     parameters : dict
         Contains the model's parameters
-    noise_model : str
-        The noise structure for the model.
-        cf.  :class:`.NoiseModel` to see possible values.
+    noise_model : BaseNoiseModel
+        The noise model associated to the model.
     regularization_distribution_factory : function dist params -> :class:`torch.distributions.Distribution`
         Factory of torch distribution to compute log-likelihoods for regularization (gaussian by default)
         (Not used anymore)
@@ -56,7 +55,7 @@ class AbstractModel(BaseModel):
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters: KwargsType = None
-        self.noise_model: str = None
+        self._noise_model: Optional[BaseNoiseModel] = None
 
         ## TODO? shouldn't it belong to each random variable specs?
         # We do not use this anymore as many initializations of the distribution will considerably slow down software
@@ -66,6 +65,38 @@ class AbstractModel(BaseModel):
         # load hyperparameters
         # <!> in children classes with new hyperparameter you should do it manually at end of __init__ to overwrite default values
         self.load_hyperparameters(kwargs)
+
+    @property
+    def noise_model(self):
+        return self._noise_model
+
+    @noise_model.setter
+    def noise_model(self, model: BaseNoiseModel):
+        self.check_noise_model_compatibility(model)
+        self._noise_model = model
+
+    @abstractmethod
+    def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
+        """Raise a ValueError is the provided noise model isn't compatible
+        with the model instance.
+        This needs to be implemented in subclasses.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+        """
+        Initialize the model given a dataset and an initialization method.
+
+        After calling this method :attr:`is_initialized` should be True and model should be ready for use.
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            The dataset we want to initialize from.
+        method : str
+            A custom method to initialize the model
+        """
 
     def load_parameters(self, parameters: KwargsType) -> None:
         """
@@ -447,15 +478,17 @@ class AbstractModel(BaseModel):
         dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
         """
 
-    def compute_individual_attachment_tensorized(self, data: Dataset, param_ind: DictParamsTorch, *,
-                                                 attribute_type) -> torch.FloatTensor:
+    def compute_individual_attachment_tensorized(
+            self, data: Dataset, param_ind: DictParamsTorch, *, attribute_type,
+    ) -> torch.FloatTensor:
         """
         Compute attachment term (per subject)
 
         Parameters
         ----------
         data : :class:`.Dataset`
-            Contains the data of the subjects, in particular the subjects' time-points and the mask for nan values & padded visits
+            Contains the data of the subjects, in particular the subjects'
+            time-points and the mask for nan values & padded visits
 
         param_ind : dict
             Contain the individual parameters
@@ -473,49 +506,12 @@ class AbstractModel(BaseModel):
         :exc:`.LeaspyModelInputError`
             If invalid `noise_model` for model
         """
-
-        # TODO: this snippet could be implemented directly in NoiseModel (or subclasses depending on noise structure)
         if self.noise_model is None:
             raise LeaspyModelInputError('`noise_model` was not set correctly set.')
-
-        elif 'gaussian' in self.noise_model:
-            # diagonal noise (squared) [same for all features if it's forced to be a scalar]
-            # TODO? shouldn't 'noise_std' be part of the "MCMC_toolbox" to use the one we want??
-            noise_var = self.parameters['noise_std'] * self.parameters['noise_std'] # slight perf improvement over ** 2, k tensor (or scalar tensor)
-            noise_var = noise_var.expand((1, data.dimension)) # 1,k tensor (for scalar products just after) # <!> this formula works with scalar noise as well
-
-            L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(data, param_ind, attribute_type=attribute_type) # ik tensor
-
-            attachment = (0.5 / noise_var) @ L2_res_per_ind_per_ft.t()
-            attachment += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
-
-        else:
-            # log-likelihood based models
-            pred = self.compute_individual_tensorized(data.timepoints, param_ind, attribute_type=attribute_type)
-            # safety before taking logarithms
-            pred = torch.clamp(pred, 1e-7, 1. - 1e-7)
-
-            if self.noise_model == 'bernoulli':
-                # Compute the simple cross-entropy loss
-                LL = data.values * torch.log(pred) + (1. - data.values) * torch.log(1. - pred)
-            elif self.noise_model == 'ordinal':
-                # Compute the simple multinomial loss
-                pdf = data.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
-                LL = torch.log((pred * pdf).sum(dim=-1))
-            elif self.noise_model == 'ordinal_ranking':
-                # Compute the loss by cross-entropy of P(X>=k)
-                sf = data.get_one_hot_encoding(sf=True, ordinal_infos=self.ordinal_infos)
-                # <!> `sf` (survival function values) are already masked for the impossible levels
-                #     but we must do the same for their opposite (`cdf`, cumulative distribution values)
-                cdf = (1. - sf) * self.ordinal_infos['mask']
-                LL = (sf * torch.log(pred) + cdf * torch.log(1. - pred)).sum(dim=-1)
-            else:
-                raise LeaspyModelInputError(f'`noise_model` should be in {NoiseModel.VALID_NOISE_STRUCTS}')
-
-            attachment = -torch.sum(data.mask.float() * LL, dim=(1, 2))
-
-        # 1D tensor of shape(n_individuals,)
-        return attachment.reshape((data.n_individuals,))
+        predictions = self.compute_individual_tensorized(
+            data.timepoints, param_ind, attribute_type=attribute_type,
+        )
+        return self.noise_model.compute_attachment(data, predictions)
 
     @abstractmethod
     def update_model_parameters_burn_in(self, data: Dataset, realizations: CollectionRealization) -> None:

@@ -1,8 +1,15 @@
 import torch
+from typing import Optional
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
+from leaspy.models.noise_models import (
+    BaseNoiseModel,
+    LogLikelihoodBasedNoiseModel,
+    AbstractOrdinalNoiseModel,
+    AbstractGaussianNoiseModel,
+    GaussianScalarNoiseModel,
+)
 from leaspy.models.utils.attributes import AttributesFactory
-from leaspy.models.utils.noise_model import NoiseModel
 
 from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
@@ -38,8 +45,8 @@ class MultivariateModel(AbstractMultivariateModel):
         'mixed_linear-logistic': '_mixed',
     }
 
-    def __init__(self, name: str, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, name: str, noise_model: Optional[BaseNoiseModel] = None, **kwargs):
+        super().__init__(name, noise_model, **kwargs)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 
@@ -137,7 +144,7 @@ class MultivariateModel(AbstractMultivariateModel):
         model = 1. / LL
 
         # For ordinal loss, compute pdf instead of survival function
-        if self.noise_model == 'ordinal':
+        if isinstance(self.noise_model, AbstractOrdinalNoiseModel):
             model = self.compute_ordinal_pdf_from_ordinal_sf(model)
 
         return model # (n_individuals, n_timepoints, n_features [, extra_dim_ordinal_models])
@@ -327,7 +334,7 @@ class MultivariateModel(AbstractMultivariateModel):
             derivatives[param] = c.unsqueeze(-1) * derivatives[param]
 
         # Compute derivative of the pdf and not of the sf
-        if self.noise_model == 'ordinal':
+        if isinstance(self.noise_model, AbstractOrdinalNoiseModel):
             for param in derivatives:
                 derivatives[param] = self.compute_ordinal_pdf_from_ordinal_sf(derivatives[param])
 
@@ -412,7 +419,7 @@ class MultivariateModel(AbstractMultivariateModel):
         data_reconstruction = self.compute_individual_tensorized(
             data.timepoints, individual_parameters, attribute_type='MCMC'
         )
-        if self.noise_model in ['gaussian_scalar', 'gaussian_diagonal']:
+        if isinstance(self.noise_model, AbstractGaussianNoiseModel):
             data_reconstruction *= data.mask.float()  # speed-up computations
 
             norm_1 = data.values * data_reconstruction
@@ -421,7 +428,7 @@ class MultivariateModel(AbstractMultivariateModel):
             sufficient_statistics['obs_x_reconstruction'] = norm_1  # .sum(dim=2) # no sum on features...
             sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2) # no sum on features...
 
-        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
+        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
             sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(
                 data, individual_parameters, attribute_type='MCMC'
             )
@@ -472,12 +479,15 @@ class MultivariateModel(AbstractMultivariateModel):
         param_ind = self.get_param_from_real(realizations)
 
         # Should we really keep this ? cf #54 issue
-        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
+        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
             self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(
                 data, param_ind, attribute_type='MCMC'
             ).sum()
         else:
-            self.parameters['noise_std'] = NoiseModel.rmse_model(self, data, param_ind, attribute_type='MCMC')
+            predictions = self.compute_individual_tensorized(
+                data.timepoints, param_ind, attribute_type="MCMC",
+            )
+            self.parameters['noise_std'] = self.noise_model.compute_rmse(data, predictions)
 
     def update_model_parameters_normal(self, data, suff_stats):
         # TODO? add a true, configurable, validation for all parameters? (e.g.: bounds on tau_var/std but also on tau_mean, ...)
@@ -505,11 +515,10 @@ class MultivariateModel(AbstractMultivariateModel):
         xi_var = xi_var_updt + xi_mean ** 2
         self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
 
-        if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
+        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
             self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
-
         else:
-            if 'scalar' in self.noise_model:
+            if isinstance(self.noise_model, GaussianScalarNoiseModel):
                 # scalar noise (same for all features)
                 s1 = data.L2_norm
                 s2 = suff_stats['obs_x_reconstruction'].sum()

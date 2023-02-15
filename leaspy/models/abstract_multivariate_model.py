@@ -8,10 +8,11 @@ import torch
 from leaspy import __version__
 
 from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.noise_models import GaussianDiagonalNoiseModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.attributes.abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
-from leaspy.models.utils.noise_model import NoiseModel
+from leaspy.models.noise_models import BaseNoiseModel
 from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 from leaspy.utils.typing import KwargsType, Set, Optional
@@ -36,12 +37,13 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     :exc:`.LeaspyModelInputError`
         if inconsistent hyperparameters
     """
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, noise_model: Optional[BaseNoiseModel] = None, **kwargs):
 
         super().__init__(name)
 
         self.source_dimension: int = None
-        self.noise_model = 'gaussian_diagonal'
+        noise_model = noise_model or GaussianDiagonalNoiseModel(name)
+        self.noise_model = noise_model
 
         self.parameters = {
             "g": None,
@@ -68,14 +70,11 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         # Load hyperparameters at end to overwrite default for new hyperparameters
         self.load_hyperparameters(kwargs)
 
-    """
-    def smart_initialization_realizations(self, data, realizations):
-        # TODO : Qui a fait ça? A quoi ça sert?
-        # means_time = torch.tensor([torch.mean(data.get_times_patient(i)) for
-        # i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
-        # realizations['tau'].tensor_realizations = means_time
-        return realizations
-    """
+    def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
+        if not isinstance(model, GaussianDiagonalNoiseModel):
+            raise ValueError(
+                f"Expected a GaussianDiagonalNoiseModel instance, but received a {model.__class__.__name__}"
+            )
 
     def initialize(self, dataset, method: str = 'default'):
         if self.is_initialized and self.features is not None:
@@ -157,9 +156,6 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                 )
             self.source_dimension = hyperparameters['source_dimension']
 
-        # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
-        expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
-
         # special hyperparameter(s) for ordinal model
         expected_hyperparameters += self._handle_ordinal_hyperparameters(hyperparameters)
 
@@ -198,7 +194,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             'features': self.features,
             'dimension': self.dimension,
             'source_dimension': self.source_dimension,
-            'noise_model': self.noise_model,
+            'noise_model': self.noise_model.__class__.__name__,
             'parameters': model_parameters_save
         }
 

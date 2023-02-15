@@ -1,4 +1,7 @@
+from typing import Optional
+
 from leaspy.models.multivariate_model import MultivariateModel
+from leaspy.models.noise_models import GaussianScalarNoiseModel, BaseNoiseModel
 from leaspy.exceptions import LeaspyModelInputError
 from leaspy.utils.docs import doc_with_super
 
@@ -31,7 +34,7 @@ class UnivariateModel(MultivariateModel):
         'univariate_logistic': '_logistic'
     }
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, noise_model: Optional[BaseNoiseModel] = None, **kwargs):
 
         # consistency checks
         if kwargs.pop('dimension', 1) not in {1, None}:
@@ -41,6 +44,12 @@ class UnivariateModel(MultivariateModel):
             raise LeaspyModelInputError("You should not provide `source_dimension` != 0 for univariate model.")
 
         # default noise model is gaussian_scalar
-        noise_model = kwargs.pop('noise_model', 'gaussian_scalar')
+        noise_model = noise_model or GaussianScalarNoiseModel(name)
 
         super().__init__(name, dimension=1, source_dimension=0, noise_model=noise_model, **kwargs)
+
+    def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
+        if not isinstance(model, GaussianScalarNoiseModel):
+            raise ValueError(
+                f"Expected a GaussianScalarNoiseModel instance, but received a {model.__class__.__name__}"
+            )

@@ -101,9 +101,7 @@ class MultivariateModel(AbstractMultivariateModel):
     def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
 
         # Population parameters
-        g, v0, a_matrix = self._get_attributes(attribute_type)
-        g_plus_1 = 1. + g
-        b = g_plus_1 * g_plus_1 / g
+        log_g, k, a_matrix = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -113,6 +111,7 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
 
         if self.is_ordinal:
+            raise NotImplementedError("Reparametrized ordinal model not yet implemented...")
             # add an extra dimension for the levels of the ordinal item
             reparametrized_time = reparametrized_time.unsqueeze(-1)
             g = g.unsqueeze(-1)
@@ -123,17 +122,18 @@ class MultivariateModel(AbstractMultivariateModel):
             # infinite deltas (impossible ordinal levels) will induce model = 0 which is intended
             reparametrized_time = reparametrized_time - deltas.cumsum(dim=-1)
 
-        LL = v0 * reparametrized_time
+        LL = k * reparametrized_time
 
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
+            # <!> space-shifts are also reparametrized: they represent the old "w_i/(p*(1-p))"
             wi = sources.matmul(a_matrix.t()).unsqueeze(-2) # unsqueeze for (n_timepoints)
             if self.is_ordinal:
                 wi = wi.unsqueeze(-1)
             LL += wi
 
         # TODO? more efficient & accurate to compute `torch.exp(-t*b + log_g)` since we directly sample & stored log_g
-        LL = 1. + g * torch.exp(-LL * b)
+        LL = 1. + torch.exp(-LL + log_g)
         model = 1. / LL
 
         # For ordinal loss, compute pdf instead of survival function
@@ -151,6 +151,8 @@ class MultivariateModel(AbstractMultivariateModel):
                                                                           individual_parameters: dict, feature: str):
         if value.dim() != 2:
             raise LeaspyModelInputError(f"The biomarker value should be dim 2, not {value.dim()}!")
+
+        raise NotImplementedError("Reparametrized reciprocal model not yet implemented...")
 
         if self.is_ordinal:
             return self._compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(value, individual_parameters, feature)
@@ -211,6 +213,8 @@ class MultivariateModel(AbstractMultivariateModel):
         :exc:`.LeaspyModelInputError`
             if computation is tried on more than 1 individual
         """
+
+        raise NotImplementedError("Reparametrized reciprocal ordinal model not yet implemented...")
 
         # 1/ get attributes
         g, v0, a_matrix = self._get_attributes(None)
@@ -274,9 +278,7 @@ class MultivariateModel(AbstractMultivariateModel):
         # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized_logistic`)
 
         # Population parameters
-        g, v0, a_matrix = self._get_attributes(attribute_type)
-        g_plus_1 = 1. + g
-        b = g_plus_1 * g_plus_1 / g
+        log_g, k, a_matrix = self._get_attributes(attribute_type)
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -287,6 +289,7 @@ class MultivariateModel(AbstractMultivariateModel):
         alpha = torch.exp(xi).reshape(-1, 1, 1)
 
         if self.is_ordinal:
+            raise NotImplementedError("Reparametrized ordinal model not yet implemented...")
             # add an extra dimension for the levels of the ordinal item
             LL = reparametrized_time.unsqueeze(-1)
             g = g.unsqueeze(-1)
@@ -297,7 +300,7 @@ class MultivariateModel(AbstractMultivariateModel):
             LL = v0.unsqueeze(-1) * LL
 
         else:
-            LL = v0 * reparametrized_time
+            LL = k * reparametrized_time
 
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
@@ -305,15 +308,15 @@ class MultivariateModel(AbstractMultivariateModel):
             if self.is_ordinal:
                 wi = wi.unsqueeze(-1)
             LL += wi
-        LL = 1. + g * torch.exp(-LL * b)
+        LL = 1. + torch.exp(-LL + log_g)
         model = 1. / LL
 
         # Jacobian of model expected value w.r.t. individual parameters
-        c = model * (1. - model) * b
+        c = model * (1. - model)
 
         derivatives = {
-            'xi': (v0 * reparametrized_time).unsqueeze(-1),
-            'tau': (-v0 * alpha).unsqueeze(-1),
+            'xi': (k * reparametrized_time).unsqueeze(-1),
+            'tau': (-k * alpha).unsqueeze(-1),
         }
         if self.source_dimension > 0:
             derivatives['sources'] = a_matrix.expand((1, 1, -1, -1))

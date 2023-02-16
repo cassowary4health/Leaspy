@@ -376,16 +376,16 @@ def initialize_logistic(model, df: pd.DataFrame, method):
         raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
 
     # Enforce values are between 0 and 1
-    values = values.clamp(min=1e-2, max=1-1e-2)  # always "works" for ordinal (values >= 1)
+    p0 = values.clamp(min=1e-2, max=1-1e-2)  # always "works" for ordinal (values >= 1)
 
     # Do transformations
-    v0_array = get_log_velocities(slopes, model.features)
-    g_array = torch.log(1. / values - 1.)  # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
+    log_k_array = get_log_velocities(slopes / (p0 * (1 - p0)), model.features)
+    log_g_array = torch.log(1. / p0 - 1.)
 
     # Create smart initialization dictionary
     parameters = {
-        "g": g_array,
-        "v0": v0_array,
+        "g": log_g_array,
+        "v0": log_k_array,
         "betas": betas,
         "tau_mean": t0,
         "tau_std": torch.tensor(tau_std),

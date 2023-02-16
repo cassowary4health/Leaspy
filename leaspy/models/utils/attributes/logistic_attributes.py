@@ -76,7 +76,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         compute_betas = False
         compute_positions = False
         compute_velocities = False
-        dgamma_t0_not_collinear_to_previous = False
+        k_not_collinear_to_previous = False
 
         if 'all' in names_of_changed_values:
             # make all possible updates
@@ -88,7 +88,7 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
             compute_positions = True
         if ('v0' in names_of_changed_values) or ('v0_collinear' in names_of_changed_values):
             compute_velocities = True
-            dgamma_t0_not_collinear_to_previous = 'v0' in names_of_changed_values
+            k_not_collinear_to_previous = 'v0' in names_of_changed_values
 
         if compute_positions:
             self._compute_positions(values)
@@ -102,9 +102,9 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         if compute_betas:
             self._compute_betas(values)
 
-        # do not recompute orthonormal basis when we know dgamma_t0 is collinear
-        # to previous velocities to avoid useless computations!
-        recompute_ortho_basis = compute_positions or dgamma_t0_not_collinear_to_previous
+        # do not recompute orthonormal basis when we know that the new `k` is collinear
+        # to previous one, to avoid useless computations!
+        recompute_ortho_basis = k_not_collinear_to_previous
 
         if recompute_ortho_basis:
             self._compute_orthonormal_basis()
@@ -119,17 +119,15 @@ class LogisticAttributes(AbstractManifoldModelAttributes):
         ----------
         values : dict [str, `torch.Tensor`]
         """
-        self.positions = torch.exp(values['g'])
+        # we store log_g for convenience...
+        self.positions = values['g']
 
     def _compute_orthonormal_basis(self):
         """
         Compute the attribute ``orthonormal_basis`` which is an orthonormal basis, w.r.t the canonical inner product,
         of the sub-space orthogonal, w.r.t the inner product implied by the metric, to the time-derivative of the geodesic at initial time.
         """
-        # Compute the diagonal of metric matrix (cf. `_compute_Q`)
-        G_metric = (1 + self.positions).pow(4) / self.positions.pow(2) # = "1/(p0 * (1-p0))**2"
 
-        dgamma_t0 = self.velocities
-
-        # Householder decomposition in non-Euclidean case, updates `orthonormal_basis` in-place
-        self._compute_Q(dgamma_t0, G_metric)
+        # Householder decomposition to get basis of orthogonal(v): updates `orthonormal_basis` in-place
+        # Thanks to the reparametrization `k=v0/(p*(1-p))` and `w'=w/(p*(1-p))`, we fall back to Euclidean case
+        self._compute_Q(self.velocities, 1.)

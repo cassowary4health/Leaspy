@@ -103,7 +103,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if not self.scipy_minimize_params.get('method', 'BFGS').upper() == 'BFGS':
             print('\n' + msg + '\n')
 
-    def _initialize_parameters(self, model):
+    def _initialize_parameters(self, model, times = None):
         """
         Initialize individual parameters of one patient with group average parameter.
 
@@ -118,13 +118,22 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         list [float]
             The individual **standardized** parameters to start with.
         """
-        # rescale parameters to their natural scale so they are comparable (as well as their gradient)
-        x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
-             model.parameters["tau_mean"] / model.parameters["tau_std"]
-            ]
-        if model.name != "univariate":
-            x += [torch.tensor(0., dtype=torch.float32)
-                  for _ in range(model.source_dimension)]
+        if True: #times == None :
+            # rescale parameters to their natural scale so they are comparable (as well as their gradient)
+            x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
+                 model.parameters["tau_mean"] / model.parameters["tau_std"]
+                ]
+            if model.name != "univariate":
+                x += [torch.tensor(0., dtype=torch.float32)
+                      for _ in range(model.source_dimension)]
+        else:
+            # rescale parameters to their natural scale so they are comparable (as well as their gradient)
+            x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
+                 times.mean() / model.parameters["tau_std"]
+                 ]
+            if model.name != "univariate":
+                x += [torch.tensor(0., dtype=torch.float32)
+                      for _ in range(model.source_dimension)]
         return x
 
     def _pull_individual_parameters(self, x, model):
@@ -285,11 +294,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         individual_parameters = self._pull_individual_parameters(x, model)
 
         if 'joint' in model.name :
+
             (attachment_visit , attachment_events) = model.compute_perso_attachment(times, values, individual_parameters)
-            #print("visits", attachment_visit)
-            #print("events", attachment_events)
             res['objective'] = attachment_visit + attachment_events
 
+            if with_gradient:
+                (grad_visit, grad_events) = model.compute_perso_grad_attachment(times, values, individual_parameters)
+                res['gradient'] = grad_visit + grad_events
+            #print(res['objective'], individual_parameters)
         else:
 
             # compute 1 individual at a time (1st dimension is squeezed)
@@ -313,8 +325,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
                 # put derivatives consecutively in the right order and drop ind level
                 # --> output shape [n_tpts, n_fts [, n_ordinal_lvls], n_dims_params]
                 grads = self._get_normalized_grad_tensor_from_grad_dict(grads, model)
-
-
 
             # Loss is based on log-likelihood for model, which ultimately depends on noise structure
             # TODO: should be directly handled in model or NoiseModel (probably in NoiseModel)
@@ -372,15 +382,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         ## Regularity term
         regularity, regularity_grads = self._get_regularity(model, individual_parameters)
-        param_reg = 1.
+
         if 'joint' in model.name:
-            res['objective'] += regularity.squeeze(0)/param_reg
+            res['objective'] += regularity.squeeze(0)
         else:
-            res['objective'] += regularity.squeeze(0)/param_reg
+            res['objective'] += regularity.squeeze(0)
 
         if with_gradient:
             # add regularity term, shape (n_dims_params, )
-            res['gradient'] += self._get_normalized_grad_tensor_from_grad_dict(regularity_grads, model)/param_reg
+            res['gradient'] += self._get_normalized_grad_tensor_from_grad_dict(regularity_grads, model)
 
             # result tuple (objective, jacobian)
             return (res['objective'].item(), res['gradient'].detach())
@@ -413,17 +423,20 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         reconstruction error : :class:`torch.Tensor` [n_tpts, n_features]
             Model values minus real values (with nans).
         """
-
-        initial_value = self._initialize_parameters(model)
-        if model.name == "joint":
-            res = minimize(self.obj,
-                           jac=with_jac,
-                           x0=initial_value,
-                           args=(model, times.unsqueeze(0), values, with_jac),
-                           **self.scipy_minimize_params
-                           )
+        if 'joint' in model.name:
+            initial_value = self._initialize_parameters(model, times=times[0])
+            #print(initial_value)
         else:
-            res = minimize(self.obj,
+            initial_value = self._initialize_parameters(model)
+        #if model.name == "joint":
+        #    res = minimize(self.obj,
+        #                   jac=with_jac,
+        #                   x0=initial_value,
+        #                   args=(model, times.unsqueeze(0), values, with_jac),
+        #                   **self.scipy_minimize_params
+        #                   )
+        #else:
+        res = minimize(self.obj,
                            jac=with_jac,
                            x0=initial_value,
                            args=(model, times, values, with_jac),
@@ -490,8 +503,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         default_individual_params = self._pull_individual_parameters(self._initialize_parameters(model), model)
         empty_tpts = torch.tensor([[]], dtype=torch.float32)
         try:
-            model.compute_jacobian_tensorized(empty_tpts, default_individual_params)
-            return True
+            if 'joint' in model.name :
+                return True
+            else:
+                model.compute_jacobian_tensorized(empty_tpts, default_individual_params)
+                return True
         except NotImplementedError:
             return False
 

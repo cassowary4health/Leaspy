@@ -102,7 +102,7 @@ class FitOutputManager:
                 self.plot_patient_reconstructions(iteration, data, model, realizations)
                 self.plot_convergence_model_parameters(model)
 
-        if (algo.algo_parameters['n_iter'] - iteration) < 100:
+        if (algo.algo_parameters['n_iter'] - iteration) > 0:
             self.save_realizations(iteration, realizations)
 
     ########
@@ -255,6 +255,10 @@ class FitOutputManager:
         with open(os.path.join(self.path_plot_patients, f'patients_ip_{iteration}.pickle'), 'wb+') as pickle_file:
             import pickle
             pickle.dump(param_ind, pickle_file)
+
+        with open(os.path.join(self.path_plot_patients, f'model_{iteration}.pickle'), 'wb+') as pickle_file:
+            import pickle
+            pickle.dump(model, pickle_file)
 
         self.plotter.plot_patient_reconstructions(path_iteration, data, model, param_ind,
                                                   self.plot_options['maximum_patient_number'])

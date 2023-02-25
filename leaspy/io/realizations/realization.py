@@ -5,6 +5,7 @@ import torch
 
 from leaspy.exceptions import LeaspyModelInputError
 from leaspy.utils.typing import ParamType, Tuple
+from leaspy.models.utils.distributions import get_distribution
 
 if TYPE_CHECKING:
     from leaspy.models.abstract_model import AbstractModel
@@ -20,6 +21,8 @@ class Realization:
         Variable name
     shape : tuple of int
         Shape of variable (multiple dimensions allowed)
+    dist_name : str
+        Name of distribution
     variable_type : str
         ``'individual'`` or ``'population'`` variable?
 
@@ -29,40 +32,39 @@ class Realization:
         Variable name
     shape : tuple of int
         Shape of variable (multiple dimensions allowed)
+    dist_name : str
+        Name of distribution
     variable_type : str
         ``'individual'`` or ``'population'`` variable?
     tensor_realizations : :class:`torch.Tensor`
         Actual realizations, whose shape is given by `shape`
     """
-    def __init__(self, name: ParamType, shape: Tuple[int, ...], variable_type: str):
+    def __init__(self, name: ParamType, shape: Tuple[int, ...], dist_name: str, variable_type: str):
         self.name = name
         self.shape = shape
+        self.dist_name = dist_name
         self.variable_type = variable_type
         self._tensor_realizations: torch.FloatTensor = None
 
     @classmethod
-    def from_tensor(cls, name: str, shape: Tuple[int, ...], variable_type: str, tensor_realization: torch.FloatTensor):
+    def from_tensor(cls, *, tensor_realizations: torch.FloatTensor, **params):
         """
         Create realization from variable infos and torch tensor object
 
         Parameters
         ----------
-        name : str
-            Variable name
-        shape : tuple of int
-            Shape of variable (multiple dimensions allowed)
-        variable_type : str
-            ``'individual'`` or ``'population'`` variable?
-        tensor_realization : :class:`torch.Tensor`
+        tensor_realizations : :class:`torch.Tensor`
             Actual realizations, whose shape is given by `shape`
+        **params
+            Base keyword parameters to be sent to constructor of `Realization`.
 
         Returns
         -------
         :class:`.Realization`
         """
         # TODO : a check of shapes
-        realization = cls(name, shape, variable_type)
-        realization.tensor_realizations = tensor_realization.clone().detach()
+        realization = cls(**params)
+        realization.tensor_realizations = tensor_realizations.clone().detach()
         return realization
 
     def initialize(self, n_individuals: int, model: AbstractModel, *, individual_variable_init_at_mean: bool = False):
@@ -90,11 +92,11 @@ class Realization:
             self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
         elif self.variable_type == 'individual':
             if individual_variable_init_at_mean:
+                # TODO: rather use "mode" or "loc" terminology instead of "mean" (since incorrect for ALD)
                 self._tensor_realizations = model.parameters[f"{self.name}_mean"] * torch.ones((n_individuals, *self.shape))
             else:
-                distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
-                                                                scale=model.parameters[f"{self.name}_std"])
-                self._tensor_realizations = distribution.sample(sample_shape=(n_individuals, *self.shape))
+                sampler = get_distribution(self.dist_name, self.name, model.parameters).sample
+                self._tensor_realizations = sampler(sample_shape=(n_individuals, *self.shape))
         else:
             raise LeaspyModelInputError(f"Unknown variable type '{self.variable_type}'.")
 
@@ -117,7 +119,7 @@ class Realization:
     def __str__(self):
         s = f"Realization of {self.name}\n"
         s += f"Shape : {self.shape}\n"
-        s += f"Variable type : {self.variable_type}"
+        s += f"Variable type : {self.variable_type} ({self.dist_name})"
         return s
 
     def set_autograd(self):
@@ -171,4 +173,10 @@ class Realization:
         -------
         `Realization`
         """
-        return Realization.from_tensor(self.name, self.shape, self.variable_type, self.tensor_realizations)
+        return Realization.from_tensor(
+            name=self.name,
+            shape=self.shape,
+            dist_name=self.dist_name,
+            variable_type=self.variable_type,
+            tensor_realizations=self.tensor_realizations
+        )

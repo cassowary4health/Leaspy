@@ -7,6 +7,7 @@ from scipy.optimize import minimize
 
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
+from leaspy.models.utils.distributions import get_distribution
 
 from leaspy.exceptions import LeaspyAlgoInputError
 
@@ -103,7 +104,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if not self.scipy_minimize_params.get('method', 'BFGS').upper() == 'BFGS':
             print('\n' + msg + '\n')
 
-    def _initialize_parameters(self, model):
+    def _get_normalization_factors(self, model):
+        """Get normalization factors for individual parameters so that gradients for the different parameters are of the same order of magnitude."""
+        return {
+            p: get_distribution(p_info['rv_type'], p, model.parameters).variance ** .5
+            for p, p_info in model.random_variable_informations().items()
+            if p_info['type'] == 'individual'
+        }
+
+    def _initialize_parameters(self, model, normalization_factors):
         """
         Initialize individual parameters of one patient with group average parameter.
 
@@ -112,6 +121,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         Parameters
         ----------
         model : :class:`.AbstractModel`
+        normalization_factors : dict
 
         Returns
         -------
@@ -119,15 +129,19 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             The individual **standardized** parameters to start with.
         """
         # rescale parameters to their natural scale so they are comparable (as well as their gradient)
-        x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
-             model.parameters["tau_mean"] / model.parameters["tau_std"]
-            ]
+        x = [
+            # we should rather say "mode" instead of "mean"
+            model.parameters["xi_mean"] / normalization_factors["xi"],
+            model.parameters["tau_mean"] / normalization_factors["tau"],
+        ]
         if model.name != "univariate":
-            x += [torch.tensor(0., dtype=torch.float32)
-                  for _ in range(model.source_dimension)]
+            x += [
+                model.parameters["sources_mean"] / normalization_factors["sources"]
+                for _ in range(model.source_dimension)
+            ]
         return x
 
-    def _pull_individual_parameters(self, x, model):
+    def _pull_individual_parameters(self, x, normalization_factors):
         """
         Get individual parameters as a dict[param_name: str, :class:`torch.Tensor` [1,n_dims_param]]
         from a condensed array-like version of it
@@ -138,15 +152,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         # <!> order + rescaling of parameters
         individual_parameters = {
-            'xi': tensorized_params[:,[0]] * model.parameters['xi_std'],
-            'tau': tensorized_params[:,[1]] * model.parameters['tau_std'],
+            'xi': tensorized_params[:,[0]] * normalization_factors['xi'],
+            'tau': tensorized_params[:,[1]] * normalization_factors['tau'],
         }
-        if 'univariate' not in model.name and model.source_dimension > 0:
-            individual_parameters['sources'] = tensorized_params[:, 2:] * model.parameters['sources_std']
+        if tensorized_params.shape[-1] > 2:
+            individual_parameters['sources'] = tensorized_params[:, 2:] * normalization_factors['sources']
 
         return individual_parameters
 
-    def _get_normalized_grad_tensor_from_grad_dict(self, dict_grad_tensors, model):
+    def _get_normalized_grad_tensor_from_grad_dict(self, dict_grad_tensors, normalization_factors):
         """
         From a dict of gradient tensors per param (without normalization),
         returns the full tensor of gradients (= for all params, consecutively):
@@ -154,11 +168,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             * normalized because we derive w.r.t. "standardized" parameter (adimensional gradient)
         """
         to_cat = [
-            dict_grad_tensors['xi'] * model.parameters['xi_std'],
-            dict_grad_tensors['tau'] * model.parameters['tau_std']
+            g * normalization_factors[p]
+            for p, g in dict_grad_tensors.items()
         ]
-        if 'univariate' not in model.name and model.source_dimension > 0:
-            to_cat.append( dict_grad_tensors['sources'] * model.parameters['sources_std'] )
 
         return torch.cat(to_cat, dim=-1).squeeze(0) # 1 individual at a time
 
@@ -194,6 +206,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
         Compute the regularity of a patient given his individual parameters for a given model.
 
+        TODO? not very efficient (re-building priors and dist_name each time, whereas it is fixed...)
+
         Parameters
         ----------
         model : :class:`.AbstractModel`
@@ -209,27 +223,33 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             (Sum on all parameters)
 
         regularity_grads : dict[param_name: str, :class:`torch.Tensor` [n_individuals, n_dims_param]]
-            Gradient of regularity term with respect to individual parameters.
+            Gradient of regularity term with respect to original individual parameters (= not taking into account the normalization).
         """
 
-        regularity = 0
+        regularity_tot = 0.
         regularity_grads = {}
 
         for param_name, param_val in individual_parameters.items():
             # priors on this parameter
-            priors = dict(
-                mean = model.parameters[param_name+"_mean"],
-                std = model.parameters[param_name+"_std"]
+            param_prefix = f"{param_name}_"
+            priors = {
+                k[len(param_prefix):]: v
+                for k, v in model.parameters.items()
+                if k.startswith(param_prefix)
+            }
+
+            p_regularity, p_regularity_grad = model.compute_regularity_variable(
+                param_val,
+                dist_name=model.random_variable_informations()[param_name]['rv_type'],
+                and_grad=True, include_constant=False,
+                **priors
             )
 
-            # summation term
-            regularity += model.compute_regularity_variable(param_val, **priors, include_constant=False).sum(dim=1)
+            # add/store the terms, after summation over all dimensions of the parameter
+            regularity_tot += p_regularity.sum(dim=1)
+            regularity_grads[param_name] = p_regularity_grad
 
-            # derivatives: <!> formula below is for Normal parameters priors only
-            # TODO? create a more generic method in model `compute_regularity_variable_gradient`? but to do so we should probably wait to have some more generic `compute_regularity_variable` as well (at least pass the parameter name to this method to compute regularity term)
-            regularity_grads[param_name] = (param_val - priors['mean']) / (priors['std']**2)
-
-        return (regularity, regularity_grads)
+        return regularity_tot, regularity_grads
 
     def obj(self, x, *args):
         """
@@ -270,11 +290,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
 
         # Extra arguments passed by scipy minimize
-        model, times, values, with_gradient = args
+        model, times, values, with_gradient, normalization_factors = args
         nans = torch.isnan(values)
 
         ## Attachment term
-        individual_parameters = self._pull_individual_parameters(x, model)
+        individual_parameters = self._pull_individual_parameters(x, normalization_factors)
 
         # compute 1 individual at a time (1st dimension is squeezed)
         predicted = model.compute_individual_tensorized(times, individual_parameters).squeeze(0)
@@ -296,7 +316,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             grads = model.compute_jacobian_tensorized(times, individual_parameters)
             # put derivatives consecutively in the right order and drop ind level
             # --> output shape [n_tpts, n_fts [, n_ordinal_lvls], n_dims_params]
-            grads = self._get_normalized_grad_tensor_from_grad_dict(grads, model)
+            grads = self._get_normalized_grad_tensor_from_grad_dict(grads, normalization_factors)
 
         # Placeholder for result (objective and, if needed, gradient)
         res = {}
@@ -362,7 +382,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         if with_gradient:
             # add regularity term, shape (n_dims_params, )
-            res['gradient'] += self._get_normalized_grad_tensor_from_grad_dict(regularity_grads, model)
+            res['gradient'] += self._get_normalized_grad_tensor_from_grad_dict(regularity_grads, normalization_factors)
 
             # result tuple (objective, jacobian)
             return (res['objective'].item(), res['gradient'].detach())
@@ -371,7 +391,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             # result is objective only
             return res['objective'].item()
 
-    def _get_individual_parameters_patient(self, model, times, values, *, with_jac: bool, patient_id=None):
+    def _get_individual_parameters_patient(self, model, times, values, *, normalization_factors: dict, with_jac: bool, patient_id=None):
         """
         Compute the individual parameter by minimizing the objective loss function with scipy solver.
 
@@ -396,15 +416,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Model values minus real values (with nans).
         """
 
-        initial_value = self._initialize_parameters(model)
+        initial_value = self._initialize_parameters(model, normalization_factors)
         res = minimize(self.obj,
                        jac=with_jac,
                        x0=initial_value,
-                       args=(model, times.unsqueeze(0), values, with_jac),
+                       args=(model, times.unsqueeze(0), values, with_jac, normalization_factors),
                        **self.scipy_minimize_params
                        )
 
-        individual_params_f = self._pull_individual_parameters(res.x, model)
+        individual_params_f = self._pull_individual_parameters(res.x, normalization_factors)
         err_f = self._get_reconstruction_error(model, times, values, individual_params_f)
 
         if not res.success and self.logger:
@@ -423,7 +443,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return individual_params_f, err_f
 
-    def _get_individual_parameters_patient_master(self, it, data, model, *, with_jac: bool, patient_id=None):
+    def _get_individual_parameters_patient_master(self, it, data, model, *, normalization_factors: dict, with_jac: bool, patient_id=None):
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
@@ -435,6 +455,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual scores.
         model : :class:`.AbstractModel`
             Model used to compute the group average parameters.
+        normalization_factors : dict
+            The normalization factors to scale the different parameters (so that gradient of loss w.r.t those params are comparable)
         with_jac : bool
             Should we speed-up the minimization by sending exact gradient of optimized function?
         patient_id : str (or None)
@@ -449,8 +471,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # torch.Tensor[n_tpts, n_fts [, extra_dim_for_ordinal_model]] with nans (to avoid re-doing one-hot-encoding)
         values = data.get_values_patient(it, adapt_for_model=model)
 
-        individual_params_tensorized, _ = self._get_individual_parameters_patient(model, times, values,
-                                                                                  with_jac=with_jac, patient_id=patient_id)
+        individual_params_tensorized, _ = self._get_individual_parameters_patient(
+            model, times, values,
+            normalization_factors=normalization_factors,
+            with_jac=with_jac, patient_id=patient_id
+        )
 
         if self.algo_parameters.get('progress_bar', True):
             self._display_progress_bar(it, data.n_individuals, suffix='subjects')
@@ -459,9 +484,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         return {k: v.item() if k != 'sources' else v.detach().squeeze(0).tolist()
                 for k,v in individual_params_tensorized.items()}
 
-    def is_jacobian_implemented(self, model) -> bool:
+    def is_jacobian_implemented(self, model, normalization_factors: dict) -> bool:
         """Check that the jacobian of model is implemented."""
-        default_individual_params = self._pull_individual_parameters(self._initialize_parameters(model), model)
+        default_individual_params = self._pull_individual_parameters(self._initialize_parameters(model, normalization_factors), normalization_factors)
         empty_tpts = torch.tensor([[]], dtype=torch.float32)
         try:
             model.compute_jacobian_tensorized(empty_tpts, default_individual_params)
@@ -487,13 +512,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         """
 
         individual_parameters = IndividualParameters()
+        normalization_factors = self._get_normalization_factors(model)
 
         if self.algo_parameters.get('progress_bar', True):
             self._display_progress_bar(-1, dataset.n_individuals, suffix='subjects')
 
         # optimize by sending exact gradient of optimized function?
         with_jac = self.algo_parameters['use_jacobian']
-        if with_jac and not self.is_jacobian_implemented(model):
+        if with_jac and not self.is_jacobian_implemented(model, normalization_factors):
             warnings.warn('In `scipy_minimize` you requested `use_jacobian=True` but it is not implemented in your model'
                           f'"{model.name}". Falling back to `use_jacobian=False`...')
             with_jac = False
@@ -503,7 +529,9 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             # TODO? change default logger as well?
 
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
-            delayed(self._get_individual_parameters_patient_master)(it_pat, dataset, model, with_jac=with_jac, patient_id=id_pat)
+            delayed(self._get_individual_parameters_patient_master)(
+                it_pat, dataset, model, normalization_factors=normalization_factors, with_jac=with_jac, patient_id=id_pat
+            )
             for it_pat, id_pat in enumerate(dataset.indices)
         )
 

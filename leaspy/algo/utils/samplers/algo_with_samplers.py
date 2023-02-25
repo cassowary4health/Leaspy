@@ -6,6 +6,7 @@ from .gibbs_sampler import GibbsSampler
 #from .hmc_sampler import HMCSampler  # legacy
 
 from leaspy.exceptions import LeaspyAlgoInputError
+from leaspy.models.utils.distributions import get_distribution
 
 
 class AlgoWithSamplersMixin:
@@ -125,8 +126,10 @@ class AlgoWithSamplersMixin:
             if info["type"] == "individual":
 
                 # To enforce a fixed scale for a given var, one should put it in the random var specs
-                # But note that for individual parameters the model parameters ***_std should always be OK (> 0)
-                scale_param = info.get('scale', model.parameters[f'{variable}_std'])
+                # But if missing for individual parameters, the std-dev of the prior will be used
+                scale_param = info.get('scale', None)
+                if scale_param is None:
+                    scale_param = get_distribution(info["rv_type"], variable, model.parameters).variance ** .5
 
                 if sampler_ind in ['Gibbs']:
                     self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
@@ -139,6 +142,7 @@ class AlgoWithSamplersMixin:
                 # For instance: for betas & deltas, it is a good idea to define them this way
                 # since they'll probably be = 0 just after initialization!
                 # We have priors which should be better than the variable initial value no ? model.MCMC_toolbox['priors'][f'{variable}_std']
+                # -> No, because it's a "fake prior" (really tiny std-dev around population value)
                 scale_param = info.get('scale', model.parameters[variable].abs())
 
                 if sampler_pop in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:

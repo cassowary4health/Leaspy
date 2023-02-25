@@ -47,7 +47,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             "g": None,
             "betas": None,
             "tau_mean": None, "tau_std": None,
-            "xi_mean": None, "xi_std": None,
+            "xi_mean": None, "xi_asym": None,  # with ALD we should rename xi_mean -> xi_mode (because 0 is only the mode, not the mean!)
             "sources_mean": None, "sources_std": None,
             "noise_std": None
         }

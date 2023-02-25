@@ -11,10 +11,10 @@ import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
 
 
-xi_std = .5
-tau_std = 5.
-noise_std = .1
-sources_std = 1.
+XI_ASYM = 1.5 # lowest value for exp(X) to have a defined variance
+TAU_STD = 5.
+NOISE_STD = .1
+SOURCES_STD = 1.
 
 
 def _torch_round(t: torch.FloatTensor, *, tol: float = 1 << 16) -> torch.FloatTensor:
@@ -63,12 +63,14 @@ def initialize_parameters(model, dataset, method="default"):
         raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {df.columns}")
 
     if method == 'lme':
+        raise NotImplementedError("TODO after xi became ALD")
         return lme_init(model, df) # support kwargs?
 
     name = model.name
     if name in ['logistic', 'univariate_logistic']:
         parameters = initialize_logistic(model, df, method)
     elif name == 'logistic_parallel':
+        raise NotImplementedError("TODO after xi became ALD")
         parameters = initialize_logistic_parallel(model, df, method)
     elif name in ['linear', 'univariate_linear']:
         parameters = initialize_linear(model, df, method)
@@ -246,7 +248,7 @@ def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
     if multiv: # including logistic_parallel
         params['betas'] = torch.zeros((model.dimension - 1, model.source_dimension))
         params['sources_mean'] = torch.tensor(0.)
-        params['sources_std'] = torch.tensor(sources_std)
+        params['sources_std'] = torch.tensor(SOURCES_STD)
 
     return params
 
@@ -388,11 +390,11 @@ def initialize_logistic(model, df: pd.DataFrame, method):
         "v0": log_k_array,
         "betas": betas,
         "tau_mean": t0,
-        "tau_std": torch.tensor(tau_std),
-        "xi_mean": torch.tensor(0.),
-        "xi_std": torch.tensor(xi_std),
+        "tau_std": torch.tensor(TAU_STD),
+        "xi_mean": torch.tensor(0.),  # 0. is the mode actually, not the mean (but log(E(exp(xi))) = 0)
+        "xi_asym": torch.tensor(XI_ASYM),
         "sources_mean": torch.tensor(0.),
-        "sources_std": torch.tensor(sources_std),
+        "sources_std": torch.tensor(SOURCES_STD),
     }
 
     if model.is_ordinal:
@@ -400,7 +402,7 @@ def initialize_logistic(model, df: pd.DataFrame, method):
 
     if not (model.is_ordinal or model.noise_model == 'bernoulli'):
         # do not initialize `noise_std` unless needed
-        parameters['noise_std'] = torch.tensor(noise_std) if 'univariate' in model.name else torch.tensor([noise_std])
+        parameters['noise_std'] = torch.tensor(NOISE_STD) if 'univariate' in model.name else torch.tensor([NOISE_STD])
 
     return parameters
 
@@ -466,12 +468,12 @@ def initialize_logistic_parallel(model, df, method):
         'deltas': torch.zeros((model.dimension - 1,)),
         'betas': betas,
         'tau_mean': t0,
-        'tau_std': torch.tensor(tau_std),
+        'tau_std': torch.tensor(TAU_STD),
         'xi_mean': v0,
-        'xi_std': torch.tensor(xi_std),
+        #'xi_std': torch.tensor(xi_std),
         'sources_mean': torch.tensor(0.),
-        'sources_std': torch.tensor(sources_std),
-        'noise_std': torch.tensor([noise_std]),
+        'sources_std': torch.tensor(SOURCES_STD),
+        'noise_std': torch.tensor([NOISE_STD]),
     }
 
 
@@ -513,12 +515,12 @@ def initialize_linear(model, df: pd.DataFrame, method):
         "v0": velocities,
         "betas": torch.zeros((model.dimension - 1, model.source_dimension)),
         "tau_mean": torch.tensor(t0),
-        "tau_std": torch.tensor(tau_std),
-        "xi_mean": torch.tensor(0.),
-        "xi_std": torch.tensor(xi_std),
+        "tau_std": torch.tensor(TAU_STD),
+        "xi_mean": torch.tensor(0.),  # 0. is the mode actually, not the mean (but log(E(exp(xi))) = 0)
+        "xi_asym": torch.tensor(XI_ASYM),
         "sources_mean": torch.tensor(0.),
-        "sources_std": torch.tensor(sources_std),
-        "noise_std": torch.tensor([noise_std]),
+        "sources_std": torch.tensor(SOURCES_STD),
+        "noise_std": torch.tensor([NOISE_STD]),
     }
 
 

@@ -34,6 +34,8 @@ class AbstractSampler(ABC):
         Name of variable
     shape : tuple
         Shape of variable
+    dist_name : str
+        Name of distribution
     acceptation_history_length : int
         Deepness (= number of iterations) of the history kept for computing the mean acceptation rate.
         (It is the same for population or individual variables.)
@@ -59,6 +61,7 @@ class AbstractSampler(ABC):
 
         self.name: str = info["name"]
         self.shape: Tuple[int, ...] = info["shape"]
+        self.dist_name: str = info["rv_type"]
         self.acceptation_history_length = acceptation_history_length
 
         self.ind_param_dims_but_individual: Optional[Tuple[int, ...]] = None

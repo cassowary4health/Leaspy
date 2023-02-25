@@ -15,6 +15,7 @@ import matplotlib.backends.backend_pdf
 
 from leaspy.io.data.dataset import Dataset
 from leaspy.exceptions import LeaspyInputError
+from leaspy.models.utils.distributions import get_distribution
 
 
 class Plotter:
@@ -452,6 +453,7 @@ class Plotter:
 
         reals_pop_name = model.get_population_realization_names()
         reals_ind_name = model.get_individual_realization_names()
+        rv_info = model.random_variable_informations()
 
         additional_plots = 1 # for noise_std / log-likelihood depending on noise_model
 
@@ -512,34 +514,38 @@ class Plotter:
                     df_convergence.index.rename("iter", inplace=True)
                     df_convergence.plot(ax=ax[y_position], legend=False)
 
-        quartiles_factor = 0.6745 # = scipy.stats.norm.ppf(.75)
+        PLOT_PERCENTILE = torch.tensor(.25)  # Q1, Q3
 
-        for i, key in enumerate(reals_ind_name):
+        for i, ind_var_name in enumerate(reals_ind_name):
 
-            if skip_sources and key in ['sources']:
+            if skip_sources and ind_var_name in ['sources']:
                 continue
 
-            import_path_mean = os.path.join(path, f"{key}_mean.csv")
-            df_convergence_mean = pd.read_csv(import_path_mean, index_col=0, header=None)
-            df_convergence_mean.index.rename("iter", inplace=True)
-
-            import_path_std = os.path.join(path, f"{key}_std.csv")
-            df_convergence_std = pd.read_csv(import_path_std, index_col=0, header=None)
-            df_convergence_std.index.rename("iter", inplace=True)
-
-            df_convergence_mean.columns = [f"{key}_mean"]
-            df_convergence_std.columns = [f"{key}_std"] # is it variance or std-dev??
-
-            df_convergence = pd.concat([df_convergence_mean, df_convergence_std], axis=1)
+            df_ind_var_params = pd.concat([
+                (
+                    pd.read_csv(os.path.join(path, f"{k}.csv"), index_col=0, header=None)
+                    .rename(columns=lambda _: k)  # trick to rename the single column to `k`
+                    .rename_axis("iter")
+                )
+                for k in model.parameters.keys()
+                if k.startswith(f"{ind_var_name}_")
+            ], axis=1)
 
             y_position += 1
-            df_convergence.plot(use_index=True, y=f"{key}_mean", ax=ax[y_position], legend=False)
+            df_ind_var_params.plot(use_index=True, y=f"{ind_var_name}_mean", ax=ax[y_position], legend=False)
 
-            mu, sd = df_convergence[f"{key}_mean"], df_convergence[f"{key}_std"]
+            dist = get_distribution(
+                rv_info[ind_var_name]['rv_type'],
+                ind_var_name,
+                # we need torch tensors to be able to use torch distributions...
+                {k: torch.tensor(v.values) for k, v in df_ind_var_params.items()},
+            )
+            ci_low = dist.icdf(PLOT_PERCENTILE).cpu().numpy()
+            ci_upp = dist.icdf(1 - PLOT_PERCENTILE).cpu().numpy()
             ax[y_position].fill_between(df_convergence.index,
-                                        mu - quartiles_factor*sd, mu + quartiles_factor*sd,
+                                        ci_low, ci_upp,
                                         color='b', alpha=0.2)
-            ax[y_position].set_title(key)
+            ax[y_position].set_title(ind_var_name)
 
         plt.tight_layout()
         plt.savefig(path_saveplot_2)

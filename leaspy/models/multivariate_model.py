@@ -376,6 +376,10 @@ class MultivariateModel(AbstractMultivariateModel):
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
     def _center_xi_realizations(self, realizations):
+
+        # NOOP
+        return realizations
+
         # This operation does not change the orthonormal basis
         # (since the resulting v0 is collinear to the previous one)
         # Nor all model computations (only v0 * exp(xi_i) matters),
@@ -402,8 +406,7 @@ class MultivariateModel(AbstractMultivariateModel):
             'v0': realizations['v0'].tensor_realizations,
             'tau': realizations['tau'].tensor_realizations,
             'tau_sqrd': torch.pow(realizations['tau'].tensor_realizations, 2),
-            'xi': realizations['xi'].tensor_realizations,
-            'xi_sqrd': torch.pow(realizations['xi'].tensor_realizations, 2)
+            'xi_abs': realizations['xi'].tensor_realizations.abs(),  # for ALD
         }
         if self.source_dimension != 0:
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
@@ -430,6 +433,12 @@ class MultivariateModel(AbstractMultivariateModel):
             )
 
         return sufficient_statistics
+
+    def _compute_xi_asym(self, m: torch.FloatTensor) -> torch.FloatTensor:
+        """Solves the maximization problem, given m = E_i(|xi_i|), w.r.t. the free parameter of `xi` prior (ALD with E[exp(X)] = 1 & mode(X) = 0)."""
+        q = 1 + 9/2 * m**2
+        d =  3 * m / 8 * (3 * (500 - (m**2 - 22)**2)) ** .5
+        return 1/(3*m) * (1 + (q + d)**(1/3) + (q - d)**(1/3))
 
     def update_model_parameters_burn_in(self, data, realizations):
         # During the burn-in phase, we only need to store the following parameters (cf. !66 and #60)
@@ -465,10 +474,12 @@ class MultivariateModel(AbstractMultivariateModel):
 
         self._add_ordinal_tensor_realizations(realizations, self.parameters)
 
-        self.parameters['xi_std'] = torch.std(realizations['xi'].tensor_realizations)
         tau = realizations['tau'].tensor_realizations
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
+
+        xi_abs_mean = realizations['xi'].tensor_realizations.abs().mean()
+        self.parameters['xi_asym'] = self._compute_xi_asym(xi_abs_mean)
 
         # by design: sources_mean = 0., sources_std = 1.
 
@@ -503,10 +514,7 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['tau_std'] = self._compute_std_from_var(tau_var, varname='tau_std')
         self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
 
-        xi_mean = self.parameters['xi_mean']
-        xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
-        xi_var = xi_var_updt + xi_mean ** 2
-        self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
+        self.parameters['xi_asym'] = self._compute_xi_asym(suff_stats['xi_abs'].mean())
 
         if self.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking']:
             self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
@@ -559,7 +567,7 @@ class MultivariateModel(AbstractMultivariateModel):
             "name": "xi",
             "shape": torch.Size([1]),
             "type": "individual",
-            "rv_type": "gaussian"
+            "rv_type": "ALD_exp_centered" # Asymmetric Laplace distribution (such as E[exp(xi)] = 1)
         }
         sources_infos = {
             "name": "sources",

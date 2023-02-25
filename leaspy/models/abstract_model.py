@@ -60,11 +60,6 @@ class AbstractModel(ABC):
         self.parameters: KwargsType = None
         self.noise_model: str = None
 
-        ## TODO? shouldn't it belong to each random variable specs?
-        # We do not use this anymore as many initializations of the distribution will considerably slow down software
-        # (it is especially true when personalizing with `scipy_minimize` since there are many regularity computations - per individual)
-        #self.regularization_distribution_factory = torch.distributions.normal.Normal
-
         # load hyperparameters
         # <!> in children classes with new hyperparameter you should do it manually at end of __init__ to overwrite default values
         self.load_hyperparameters(kwargs)
@@ -631,6 +626,7 @@ class AbstractModel(ABC):
     def compute_regularity_realization(self, realization: Realization):
         """
         Compute regularity term for a :class:`.Realization` instance.
+        (without constant term, which is useful for personalization tasks)
 
         Parameters
         ----------
@@ -640,44 +636,87 @@ class AbstractModel(ABC):
         -------
         :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
         """
+        var_prefix = f"{realization.name}_"
         if realization.variable_type == 'population':
             # Regularization of population variables around current model values
-            mean = self.parameters[realization.name]
-            std = self.MCMC_toolbox['priors'][f"{realization.name}_std"]
+            # Always Gaussian
+            dist_params = {
+                "mean": self.parameters[realization.name],
+                "std": self.MCMC_toolbox['priors'][f"{realization.name}_std"]
+            }
         elif realization.variable_type == 'individual':
             # Regularization of individual parameters around mean / std from model parameters
-            mean = self.parameters[f"{realization.name}_mean"]
-            std = self.parameters[f"{realization.name}_std"]
+            dist_params = {
+                k[len(var_prefix):]: v
+                for k, v in self.parameters.items()
+                if k.startswith(var_prefix)
+            }
         else:
             raise LeaspyModelInputError(f"Variable type '{realization.variable_type}' not known, should be 'population' or 'individual'.")
 
         # we do not need to include regularity constant (priors are always fixed at a given iteration)
-        return self.compute_regularity_variable(realization.tensor_realizations, mean, std, include_constant=False)
+        return self.compute_regularity_variable(
+            realization.tensor_realizations,
+            dist_name=realization.dist_name,
+            include_constant=False,
+            and_grad=False,
+            **dist_params
+        )
 
-    def compute_regularity_variable(self, value: torch.FloatTensor, mean: torch.FloatTensor, std: torch.FloatTensor,
-                                    *, include_constant: bool = True) -> torch.FloatTensor:
+    def compute_regularity_variable(self, value: torch.FloatTensor, *, dist_name: str, include_constant: bool = True, and_grad: bool = False, **dist_params) -> Union[torch.FloatTensor, Tuple[torch.FloatTensor, torch.FloatTensor]]:
         """
-        Compute regularity term (Gaussian distribution), low-level.
+        Compute regularity term (-log_prob), and possibility its gradient w.r.t `value` (low-level).
 
         TODO: should be encapsulated in a RandomVariableSpecification class together with other specs of RV.
 
         Parameters
         ----------
-        value, mean, std : :class:`torch.Tensor` of same shapes
+        value : :class:`torch.Tensor`
+            Value to compute regularity against.
+        dist_name : str
+            Name of prior distribution.
+            Can be '*gaussian*' or 'ALD_exp_centered' now.
         include_constant : bool (default True)
             Whether we include or not additional terms constant with respect to `value`.
+        and_grad : bool (default False)
+            If False (default): returns the regularity term only.
+            If True, returns a tuple (regularity_term, grad_regularity_term)
+        **dist_params : :class:`torch.Tensor`
+            Parameters of the distribution (should have same shapes as `value`)
 
         Returns
         -------
         :class:`torch.Tensor` of same shape than input
         """
-        # This is really slow when repeated on tiny tensors (~3x slower than direct formula!)
-        #return -self.regularization_distribution_factory(mean, std).log_prob(value)
 
-        y = (value - mean) / std
-        neg_loglike = 0.5*y*y
-        if include_constant:
-            neg_loglike += 0.5*torch.log(TWO_PI * std**2)
+        if 'gaussian' in dist_name:
+            mean, std = dist_params['mean'], dist_params['std']
+
+            # This is really slow when repeated on tiny tensors (~3x slower than direct formula!)
+            #return -self.regularization_distribution_factory(mean, std).log_prob(value)
+
+            y = (value - mean) / std
+            neg_loglike = 0.5*y*y
+            if include_constant:
+                neg_loglike += 0.5*torch.log(TWO_PI * std**2)
+
+            if and_grad:
+                neg_loglike = (neg_loglike, y / std)
+
+        elif dist_name == 'ALD_exp_centered':
+            asym = dist_params['asym']
+            # <!> we must have asym > 1/2
+            # regularity is always positive except at mode=0 (i.e. contributing to centering value towards mode)
+            neg_loglike = value * (0.5 + asym*value.sign())
+            if include_constant:
+                neg_loglike -= torch.log(asym/2 - 1/(8*asym))
+
+            if and_grad:
+                # <!> Gradient is discontinuous at mode (= 0), and piecewise constant (± depending on domain)
+                neg_loglike = (neg_loglike, 0.5 + asym*value.sign())
+
+        else:
+            raise NotImplementedError(dist_name)
 
         return neg_loglike
 
@@ -716,8 +755,8 @@ class AbstractModel(ABC):
             * shape: tuple[int, ...]
                 Shape of the variable (only 1D for individual and 1D or 2D for pop. are supported)
             * rv_type: str
-                An indication (not used in code) on the probability distribution used for the var
-                (only Gaussian is supported)
+                The probability distribution used for the var
+                (only '*gaussian*' and 'ALD_exp_centered' are supported)
             * scale: optional float
                 The fixed scale to use for initial std-dev in the corresponding sampler.
                 When not defined, sampler will rely on scales estimated at model initialization.
@@ -746,7 +785,13 @@ class AbstractModel(ABC):
         for name_var, info_var in self.random_variable_informations().items():
             if info_var['type'] != "population":
                 continue
-            real = Realization.from_tensor(name_var, info_var['shape'], info_var['type'], self.parameters[name_var])
+            real = Realization.from_tensor(
+                name=name_var,
+                shape=info_var['shape'],
+                dist_name=info_var['rv_type'],
+                variable_type=info_var['type'],
+                tensor_realizations=self.parameters[name_var]
+            )
             pop_dictionary[name_var] = real
 
         return pop_dictionary

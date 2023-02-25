@@ -1,4 +1,4 @@
-__version__ = '1.4.0-reparam-v0'
+__version__ = '1.4.0-reparam-v0-xi-ALD'
 
 dtype = 'float32'
 

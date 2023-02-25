@@ -46,7 +46,12 @@ class CollectionRealization:
         for variable, info_variable in infos.items():
             if skip_variable is not None and skip_variable(info_variable):
                 continue
-            realization = Realization(info_variable['name'], info_variable['shape'], info_variable['type'])
+            realization = Realization(
+                name=info_variable['name'],
+                shape=info_variable['shape'],
+                dist_name=info_variable['rv_type'],
+                variable_type=info_variable['type'],
+            )
             realization.initialize(n_individuals, model, **realization_init_kws)
             self.realizations[variable] = realization
 

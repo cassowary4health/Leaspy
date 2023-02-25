@@ -19,6 +19,7 @@ def load_model():
     from models.utils import get_model_derived_parameters
 
     model = request.get_json()
+    assert "reparam-v0" in model.get("leaspy_version", ""), "This browser version only support models with reparametrized v0"
     model_derived_parameters = get_model_derived_parameters(model)
     return json.dumps(model_derived_parameters, allow_nan=False)
 
@@ -33,4 +34,4 @@ def personalize():
 
 
 if __name__ == "__main__":
-    application.run()
+    application.run(port=5001)

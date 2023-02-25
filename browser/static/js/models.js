@@ -79,7 +79,7 @@ let compute_logistic = (ages, parameters, individual_parameters, model) => {
   // Model parameters
   var t0 = parameters['tau_mean']
   var log_g = parameters['g']
-  var log_v0 = parameters['v0']
+  var log_k = parameters['v0']
   var mixing_matrix = parameters['mixing_matrix']
 
   // Individual parameters
@@ -96,21 +96,20 @@ let compute_logistic = (ages, parameters, individual_parameters, model) => {
   for(var i=0; i < log_g.length; ++i) {
 
     var output = []
-    var g_i = Math.exp(log_g[i])
-    var v_i = Math.exp(log_v0[i])
-    var b_i = (1+g_i) * (1+g_i) / g_i
+    var k_i = Math.exp(log_k[i])
 
     var deltas_i = null;
 
     if (is_ordinal) {
+      alert("Ordinal reparametrized model is not implemented")
       deltas_i = get_deltas_i(model, parameters, i)
     }
 
     for(var j=0; j < ages.length; ++j) {
       var r_age = alpha * (ages[j] - t0 - tau);
       if (!is_ordinal) {
-        var x_ij = v_i * r_age + space_shift[i];
-        output.push(1./(1. + Math.exp(log_g[i] - b_i * x_ij)))
+        var x_ij = k_i * r_age + space_shift[i];
+        output.push(1./(1. + Math.exp(log_g[i] - x_ij)))
       } else {
         // Ordinal model --> loop on levels
         var sf_ij = [];

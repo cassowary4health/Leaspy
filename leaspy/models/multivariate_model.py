@@ -419,7 +419,9 @@ class MultivariateModel(AbstractMultivariateModel):
         prediction = self.compute_individual_tensorized(
             data.timepoints, individual_parameters, attribute_type='MCMC'
         )
-        sufficient_statistics.update(self.noise_model.get_sufficient_statistics(data, prediction))
+        sufficient_statistics.update(
+            self.noise_model.get_sufficient_statistics(data, prediction)
+        )
 
         return sufficient_statistics
 
@@ -462,64 +464,58 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['tau_mean'] = torch.mean(tau)
         self.parameters['tau_std'] = torch.std(tau)
 
-        # by design: sources_mean = 0., sources_std = 1.
+        individual_parameters = self.get_param_from_real(realizations)
 
-        param_ind = self.get_param_from_real(realizations)
+        prediction = self.compute_individual_tensorized(
+            data.timepoints, individual_parameters, attribute_type='MCMC'
+        )
+        self.parameters.update(
+            self.noise_model.get_parameters(data, prediction)
+        )
 
-        # Should we really keep this ? cf #54 issue
-        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
-            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(
-                data, param_ind, attribute_type='MCMC'
-            ).sum()
-        else:
-            predictions = self.compute_individual_tensorized(
-                data.timepoints, param_ind, attribute_type="MCMC",
-            )
-            self.parameters['noise_std'] = self.noise_model.compute_rmse(data, predictions)
+    def update_model_parameters_normal(self, data, sufficient_statistics: dict) -> None:
+        """
+        Stochastic sufficient statistics used to update the parameters of the model.
 
-    def update_model_parameters_normal(self, data, suff_stats):
-        # TODO? add a true, configurable, validation for all parameters? (e.g.: bounds on tau_var/std but also on tau_mean, ...)
+        TODOs:
+            - add a true, configurable, validation for all parameters?
+              (e.g.: bounds on tau_var/std but also on tau_mean, ...)
+            - check the SS, especially the issue with mean(xi) and v_k
+            - Learn the mean of xi and v_k
+            - Set the mean of xi to 0 and add it to the mean of V_k
 
-        # Stochastic sufficient statistics used to update the parameters of the model
+        Parameters
+        ----------
+        data
+        sufficient_statistics
+        """
+        from .utilities import compute_std_from_variance
 
-        # TODO with Raphael : check the SS, especially the issue with mean(xi) and v_k
-        # TODO : 1. Learn the mean of xi and v_k
-        # TODO : 2. Set the mean of xi to 0 and add it to the mean of V_k
-        self.parameters['g'] = suff_stats['g']
-        self.parameters['v0'] = suff_stats['v0']
+        for param in ("g", "v0"):
+            self.parameters[param] = sufficient_statistics[param]
+
         if self.source_dimension != 0:
-            self.parameters['betas'] = suff_stats['betas']
+            self.parameters['betas'] = sufficient_statistics['betas']
 
-        self._add_ordinal_sufficient_statistics(suff_stats, self.parameters)
+        self._add_ordinal_sufficient_statistics(sufficient_statistics, self.parameters)
 
-        tau_mean = self.parameters['tau_mean']
-        tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
-        tau_var = tau_var_updt + tau_mean ** 2
-        self.parameters['tau_std'] = self._compute_std_from_var(tau_var, varname='tau_std')
-        self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
+        for param in ("tau", "xi"):
+            param_mean = self.parameters[f"{param}_mean"]
+            param_variance_update = (
+                torch.mean(sufficient_statistics[f"{param}_sqrd"]) -
+                2. * param_mean * torch.mean(sufficient_statistics[param])
+            )
+            param_variance = param_variance_update + param_mean ** 2
+            self.parameters[f"{param}_std"] = compute_std_from_variance(
+                param_variance, varname=f"{param}_std"
+            )
+        self.parameters["tau_mean"] = torch.mean(sufficient_statistics["tau"])
 
-        xi_mean = self.parameters['xi_mean']
-        xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
-        xi_var = xi_var_updt + xi_mean ** 2
-        self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
-
-        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
-            self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
-        else:
-            if isinstance(self.noise_model, GaussianScalarNoiseModel):
-                # scalar noise (same for all features)
-                s1 = data.L2_norm
-                s2 = suff_stats['obs_x_reconstruction'].sum()
-                s3 = suff_stats['reconstruction_x_reconstruction'].sum()
-                noise_var = (s1 - 2. * s2 + s3) / data.n_observations
-            else:
-                # keep feature dependence on feature to update diagonal noise (1 free param per feature)
-                s1 = data.L2_norm_per_ft
-                s2 = suff_stats['obs_x_reconstruction'].sum(dim=(0, 1))
-                s3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0, 1))
-                # tensor 1D, shape (dimension,)
-                noise_var = (s1 - 2. * s2 + s3) / data.n_observations_per_ft.float()
-            self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
+        self.parameters.update(
+            self.noise_model.get_updated_parameters_from_sufficient_statistics(
+                data, sufficient_statistics
+            )
+        )
 
     def random_variable_informations(self):
         # --- Population variables

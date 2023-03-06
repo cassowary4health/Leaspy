@@ -155,6 +155,23 @@ class BaseNoiseModel(abc.ABC):
     def get_sufficient_statistics(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
         return {"log-likelihood": self.compute_log_likelihood(data, prediction)}
 
+    @staticmethod
+    def get_parameters(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
+        return {"log-likelihood": self.compute_log_likelihood(data, prediction)}
+
+    @staticmethod
+    def get_updated_parameters_from_sufficient_statistics(
+            self,
+            data: Dataset,
+            sufficient_statistics: dict,
+    ) -> dict:
+        if "log-likelihood" not in sufficient_statistics:
+            raise ValueError(
+                "Could not find the log likelihood in the provided "
+                f"sufficient statistics: {sufficient_statistics}."
+            )
+        return {"log-likelihood": sufficient_statistics["log-likelihood"].sum()}
+
 
 class BernouilliNoiseModel(BaseNoiseModel):
     """Class implementing Bernouilli noise models."""
@@ -223,6 +240,43 @@ class AbstractGaussianNoiseModel(abc.ABC, BaseNoiseModel):
         )
         return statistics
 
+    @staticmethod
+    def check_sufficient_statistics(self, sufficient_statistics: dict) -> None:
+        for stat in ("obs_x_reconstruction", "reconstruction_x_reconstruction"):
+            if stat not in sufficient_statistics:
+                raise ValueError(
+                    f"Could not find the {stat} in the provided "
+                    f"sufficient statistics: {sufficient_statistics}."
+                )
+
+    @staticmethod
+    def get_updated_parameters_from_sufficient_statistics(
+            self,
+            data: Dataset,
+            sufficient_statistics: dict,
+    ) -> dict:
+        from .utilities import compute_std_from_variance
+        parameters = super().get_updated_parameters_from_sufficient_statistics(data, sufficient_statistics)
+        self.check_sufficient_statistics(sufficient_statistics)
+        noise_var = self.compute_noise_variance_from_sufficient_statistics(data, sufficient_statistics)
+        parameters["noise_std"] = compute_std_from_variance(noise_var, varname='noise_std')
+        return parameters
+
+    @staticmethod
+    @abc.abstractmethod
+    def compute_noise_variance_from_sufficient_statistics(
+            self,
+            data: Dataset,
+            sufficient_statistics: dict,
+    ) -> torch.FloatTensor:
+        raise NotImplementedError
+
+    @staticmethod
+    def get_parameters(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
+        parameters = super().get_parameters(data, prediction)
+        parameters["noise_std"] = self.compute_rmse(data, prediction)
+        return parameters
+
 
 class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
     """Class implementing scalar Gaussian noise models."""
@@ -243,6 +297,16 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
             ).sum(dim=1).sum(dim=0) / data.n_observations
         )
 
+    @staticmethod
+    def compute_noise_variance_from_sufficient_statistics(
+            self,
+            data: Dataset,
+            sufficient_statistics: dict,
+    ) -> torch.FloatTensor:
+        s1 = sufficient_statistics['obs_x_reconstruction'].sum()
+        s2 = sufficient_statistics['reconstruction_x_reconstruction'].sum()
+        return (data.L2_norm - 2. * s1 + s2) / data.n_observations
+
 
 class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
     """Class implementing diagonal Gaussian noise models."""
@@ -254,6 +318,16 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
             self.compute_l2_residuals_per_individual_per_feature(data, predictions).sum(dim=0) /
             data.n_observations_per_ft.float()
         )
+
+    @staticmethod
+    def compute_noise_variance_from_sufficient_statistics(
+            self,
+            data: Dataset,
+            sufficient_statistics: dict,
+    ) -> torch.FloatTensor:
+        s1 = sufficient_statistics['obs_x_reconstruction'].sum(dim=(0, 1))
+        s2 = sufficient_statistics['reconstruction_x_reconstruction'].sum(dim=(0, 1))
+        return (data.L2_norm_per_ft - 2. * s1 + s2) / data.n_observations_per_ft.float()
 
 
 class AbstractOrdinalNoiseModel(abc.ABC, BaseNoiseModel):

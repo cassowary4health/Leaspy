@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 import re
 import math
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import copy
 
 import torch
@@ -12,6 +12,7 @@ from torch._tensor_str import PRINT_OPTS as torch_print_opts
 from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.io.realizations.realization import Realization
 from leaspy.models.utils.noise_model import NoiseModel
+from leaspy.models.base import BaseModel
 
 from leaspy.exceptions import LeaspyConvergenceError, LeaspyIndividualParamsInputError, LeaspyModelInputError
 from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Iterable, Optional
@@ -23,7 +24,7 @@ TWO_PI = torch.tensor(2 * math.pi)
 
 
 # TODO? refact so to only contain methods needed for the Leaspy api + add another abstract class (interface) on top of it for MCMC fittable models + one for "manifold models"
-class AbstractModel(ABC):
+class AbstractModel(BaseModel):
     """
     Contains the common attributes & methods of the different models.
 
@@ -53,10 +54,7 @@ class AbstractModel(ABC):
     """
 
     def __init__(self, name: str, **kwargs):
-        self.is_initialized: bool = False
-        self.name = name
-        self.features: List[FeatureType] = None
-        self.dimension: int = None  # TODO: to be converted into a read-only property (cf. in GenericModel)
+        super().__init__(name, **kwargs)
         self.parameters: KwargsType = None
         self.noise_model: str = None
 
@@ -68,21 +66,6 @@ class AbstractModel(ABC):
         # load hyperparameters
         # <!> in children classes with new hyperparameter you should do it manually at end of __init__ to overwrite default values
         self.load_hyperparameters(kwargs)
-
-    @abstractmethod
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
-        """
-        Initialize the model given a dataset and an initialization method.
-
-        After calling this method :attr:`is_initialized` should be True and model should be ready for use.
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            The dataset we want to initialize from.
-        method : str
-            A custom method to initialize the model
-        """
 
     def load_parameters(self, parameters: KwargsType) -> None:
         """
@@ -120,19 +103,6 @@ class AbstractModel(ABC):
             raise LeaspyModelInputError(
                     f"Only {known_hps} are valid hyperparameters for {cls.__qualname__}. "
                     f"Unknown hyperparameters provided: {unexpected_hyperparameters}.")
-
-    @abstractmethod
-    def save(self, path: str, **kwargs) -> None:
-        """
-        Save Leaspy object as json model parameter file.
-
-        Parameters
-        ----------
-        path : str
-            Path to store the model's parameters.
-        **kwargs
-            Keyword arguments for json.dump method.
-        """
 
     def compute_sum_squared_per_ft_tensorized(self, dataset: Dataset, param_ind: DictParamsTorch, *,
                                               attribute_type=None) -> torch.FloatTensor:

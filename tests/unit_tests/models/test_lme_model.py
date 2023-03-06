@@ -20,7 +20,7 @@ class LMEModelTest(LeaspyTestCase):
         self.assertEqual(model.name, 'lme')
         self.assertFalse(model.is_initialized)  # new: more coherent (needs a fit)
         self.assertEqual(model.features, None)
-        self.assertEqual(model.dimension, None)
+        self.assertEqual(model.dimension, 1)
 
     def test_str_repr(self):
         model = LMEModel('lme')

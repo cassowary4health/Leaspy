@@ -78,8 +78,17 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     """
 
     def initialize(self, dataset, method: str = 'default'):
-        self.dimension = dataset.dimension
+        if self.is_initialized and self.features is not None:
+            warn_msg = '<!> Re-initializing an already initialized model.'
+            if dataset.headers != self.features:
+                warn_msg += (
+                    f" Overwritting previous model features ({self.features}) "
+                    f"with new ones ({dataset.headers})."
+                )
+            warnings.warn(warn_msg)
         self.features = dataset.headers
+        self.validate_compatibility_of_dataset(dataset)
+        self.dimension = dataset.dimension
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))

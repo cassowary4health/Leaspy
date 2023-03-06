@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import pandas as pd
@@ -12,8 +12,6 @@ from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 if TYPE_CHECKING:
     from leaspy.io.data.data import Data
-    from leaspy.models.abstract_model import AbstractModel
-    from leaspy.algo.abstract_algo import AbstractAlgo
 
 
 class Dataset:
@@ -24,10 +22,6 @@ class Dataset:
     ----------
     data : :class:`.Data`
         Create `Dataset` from `Data` object
-    model : :class:`.AbstractModel` (optional)
-        If not None, will check compatibility of model and data
-    algo : :class:`.AbstractAlgo` (optional)
-        If not None, will check compatibility of algo and data
 
     Attributes
     ----------
@@ -39,21 +33,18 @@ class Dataset:
         Number of individuals
     indices : list[ID]
         Order of patients
-
     n_visits_per_individual : list[int]
         Number of visits per individual
     n_visits_max : int
         Maximum number of visits for one individual
     n_visits : int
         Total number of visits
-
     n_observations_per_ind_per_ft : :class:`torch.LongTensor`, shape (n_individuals, dimension)
         Number of observations (not taking into account missing values) per individual per feature
     n_observations_per_ft : :class:`torch.LongTensor`, shape (dimension,)
         Total number of observations per feature
     n_observations : int
         Total number of observations
-
     timepoints : :class:`torch.FloatTensor`, shape (n_individuals, n_visits_max)
         Ages of patients at their different visits
     values : :class:`torch.FloatTensor`, shape (n_individuals, n_visits_max, dimension)
@@ -62,7 +53,6 @@ class Dataset:
         Binary mask associated to values.
         If 1: value is meaningful
         If 0: value is meaningless (either was nan or does not correspond to a real visit - only here for padding)
-
     L2_norm_per_ft : :class:`torch.FloatTensor`, shape (dimension,)
         Sum of all non-nan squared values, feature per feature
     L2_norm : scalar :class:`torch.FloatTensor`
@@ -78,7 +68,7 @@ class Dataset:
         if data, model or algo are not compatible together.
     """
 
-    def __init__(self, data: Data, model: AbstractModel = None, algo: AbstractAlgo = None):
+    def __init__(self, data: Data):
 
         self.headers = data.headers
         self.dimension = data.dimension
@@ -86,27 +76,22 @@ class Dataset:
         self.n_visits = data.n_visits
         self.indices = list(data.individuals.keys())
 
-        self.timepoints: torch.FloatTensor = None
-        self.values: torch.FloatTensor = None
-        self.mask: torch.FloatTensor = None
+        self.timepoints: Optional[torch.FloatTensor] = None
+        self.values: Optional[torch.FloatTensor] = None
+        self.mask: Optional[torch.FloatTensor] = None
 
-        self.n_observations: int = None
-        self.n_observations_per_ft: torch.LongTensor = None
-        self.n_observations_per_ind_per_ft: torch.LongTensor = None
+        self.n_observations: Optional[int] = None
+        self.n_observations_per_ft: Optional[torch.LongTensor] = None
+        self.n_observations_per_ind_per_ft: Optional[torch.LongTensor] = None
 
-        self.n_visits_per_individual: List[int] = None
-        self.n_visits_max: int = None
-
-        self.L2_norm_per_ft: torch.FloatTensor = None
-        self.L2_norm: torch.FloatTensor = None
+        self.n_visits_per_individual: Optional[List[int]] = None
+        self.n_visits_max: Optional[int] = None
 
         # internally used by ordinal models only
-        self._one_hot_encoding: Dict[bool, torch.LongTensor] = None
+        self._one_hot_encoding: Optional[Dict[bool, torch.LongTensor]] = None
 
-        if model is not None:
-            self._check_model_compatibility(data, model)
-        if algo is not None:
-            self._check_algo_compatibility(data, algo)
+        self.L2_norm_per_ft: Optional[torch.FloatTensor] = None
+        self.L2_norm: Optional[torch.FloatTensor] = None
 
         self._construct_values(data)
         self._construct_timepoints(data)
@@ -152,7 +137,7 @@ class Dataset:
             self.timepoints[i, 0:nb_vis] = torch.tensor(data[i].timepoints)
 
     def _compute_L2_norm(self):
-        self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0,1)) # 1D tensor of shape (dimension,)
+        self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0, 1))  # 1D tensor of shape (dimension,)
         self.L2_norm = self.L2_norm_per_ft.sum() # sum on all features
 
     def get_times_patient(self, i: int) -> torch.FloatTensor:
@@ -207,18 +192,6 @@ class Dataset:
         values_with_nans[nans, ...] = float('nan')
 
         return values_with_nans
-
-    @staticmethod
-    def _check_model_compatibility(data: Data, model: AbstractModel):
-        if model.dimension is not None and data.dimension != model.dimension:
-            raise LeaspyInputError(f"Unmatched dimensions: {model.dimension} (model) ≠ {data.dimension} (data).")
-
-        if model.features is not None and data.headers != model.features:
-            raise LeaspyInputError(f"Unmatched features: {model.features} (model) ≠ {data.headers} (data).")
-
-    @staticmethod
-    def _check_algo_compatibility(data: Data, algo: AbstractAlgo):
-        return
 
     def to_pandas(self) -> pd.DataFrame:
         """

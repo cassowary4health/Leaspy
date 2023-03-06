@@ -1,8 +1,12 @@
+import torch
 from abc import abstractmethod
+from typing import Tuple
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.models.utils.noise_model import NoiseModel
+from leaspy.models import AbstractModel
+from leaspy.io.data.dataset import Dataset
 
 
 class AbstractPersonalizeAlgo(AbstractAlgo):
@@ -32,7 +36,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
     family = 'personalize'
 
-    def run_impl(self, model, dataset):
+    def run_impl(self, model: AbstractModel, dataset: Dataset) -> Tuple[IndividualParameters, torch.FloatTensor]:
         r"""
         Main personalize function, wraps the abstract :meth:`._get_individual_parameters` method.
 
@@ -70,7 +74,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         return individual_parameters, loss
 
     @abstractmethod
-    def _get_individual_parameters(self, model, dataset) -> IndividualParameters:
+    def _get_individual_parameters(self, model: AbstractModel, data: Dataset) -> IndividualParameters:
         """
         Estimate individual parameters from a `Dataset`.
 

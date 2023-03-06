@@ -264,7 +264,7 @@ class Plotter:
         plt.close()
 
     def plot_patients_mapped_on_mean_trajectory(self, model, results, *, n_std_left = 2, n_std_right = 4, n_pts = 100):
-        dataset = Dataset(results.data, model)
+        dataset = Dataset(results.data)
 
         model_values_np = self._compute_individual_tensorized_postprocessed(
                                     model, dataset.timepoints, results.individual_parameters)

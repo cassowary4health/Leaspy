@@ -135,15 +135,14 @@ class Leaspy:
         noise_std : 0.021265486255288124
         """
         algorithm = AlgoFactory.algo("fit", settings)
-        dataset = Dataset(data, algo=algorithm, model=self.model)
+        dataset = Dataset(data)
+        self.model.validate_compatibility_of_dataset(dataset)
         if not self.model.is_initialized:
             # at this point randomness is not yet fixed even if seed was set in AlgoSettings
             # it will only be set at the beginning of `algorithm.run` just afterwards
             # so a `initialization_method='random'` won't be reproducible for now, TODO?
-            initialization_method = settings.model_initialization_method
-            self.model.initialize(dataset, initialization_method)
+            self.model.initialize(dataset, settings.model_initialization_method)
         algorithm.run(self.model, dataset)
-
 
     def calibrate(self, data: Data, settings: AlgorithmSettings) -> None:
         r"""
@@ -208,7 +207,8 @@ class Leaspy:
         self.check_if_initialized()
 
         algorithm = AlgoFactory.algo("personalize", settings)
-        dataset = Dataset(data, algo=algorithm, model=self.model)
+        dataset = Dataset(data)
+        self.model.validate_compatibility_of_dataset(dataset)
 
         # only do the following for proper type hints due to the fact that algorithm.run is improper (return type depends on algorithm class... TODO fix this)
         if return_noise:

@@ -13,6 +13,7 @@ import torch
 from leaspy.io.logs.fit_output_manager import FitOutputManager
 from leaspy.utils.typing import Optional, Tuple, Any
 from leaspy.exceptions import LeaspyModelInputError, LeaspyAlgoInputError
+from leaspy.io.settings.outputs_settings import OutputsSettings
 
 if TYPE_CHECKING:
     from leaspy.io.settings.algorithm_settings import AlgorithmSettings
@@ -117,7 +118,11 @@ class AbstractAlgo(ABC):
     ###########################
 
     @abstractmethod
-    def run_impl(self, model: AbstractModel, *args, **extra_kwargs) -> Tuple[Any, Optional[torch.FloatTensor]]:
+    def run_impl(
+            self,
+            model: AbstractModel,
+            *args, **extra_kwargs,
+    ) -> Tuple[Any, Optional[torch.FloatTensor]]:
         """
         Run the algorithm (actual implementation), to be implemented in children classes.
 
@@ -252,7 +257,7 @@ class AbstractAlgo(ABC):
                 print(f"Replacing {k} parameter from value {previous_v} to value {v}")
             self.algo_parameters[k] = v
 
-    def set_output_manager(self, output_settings):
+    def set_output_manager(self, output_settings: OutputsSettings) -> None:
         """
         Set a :class:`~.io.logs.fit_output_manager.FitOutputManager` object for the run of the algorithm
 
@@ -279,7 +284,7 @@ class AbstractAlgo(ABC):
             self.output_manager = FitOutputManager(output_settings)
 
     @staticmethod
-    def _display_progress_bar(iteration, n_iter, suffix, n_step_default=50):
+    def _display_progress_bar(iteration: int, n_iter: int, suffix: str, n_step_default: int = 50):
         """
         Display a progression bar while running algorithm, simply based on `sys.stdout`.
 

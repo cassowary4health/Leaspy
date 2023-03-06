@@ -1,15 +1,10 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
 import numpy as np
 import statsmodels.api as sm
 import torch
 
 from leaspy.models.generic_model import GenericModel
-from leaspy.exceptions import LeaspyDataInputError
-
-if TYPE_CHECKING:
-    from leaspy.io.data.dataset import Dataset
 
 
 class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
@@ -79,24 +74,9 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
         'with_random_slope_age': True
     }
 
-    def validate_compatibility_of_dataset(self, dataset: Dataset):
-        """
-        Raise if the given dataset is not compatible with the current model.
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            The dataset we want to model.
-
-        Raises
-        ------
-        LeaspyDataInputError :
-            if data is not univariate.
-        """
-
-        # model can only apply to univariate data!
-        if len(dataset.headers) != 1:
-            raise LeaspyDataInputError(f"LME model is univariate only, you provided features: {dataset.headers}")
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+        self.dimension = 1
 
     def compute_individual_trajectory(self, timepoints, individual_parameters: dict):
         """

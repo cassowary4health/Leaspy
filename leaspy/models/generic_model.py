@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import itertools
 import json
 import warnings
@@ -12,12 +12,13 @@ import numpy as np
 from leaspy import __version__
 from leaspy.exceptions import LeaspyModelInputError
 from leaspy.utils.typing import KwargsType, FeatureType, Optional, List, Tuple
+from leaspy.models.base import BaseModel
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
 
 
-class GenericModel(ABC):
+class GenericModel(BaseModel):
     """
     Generic model (temporary until :class:`.AbstractModel` is really **abstract**).
 
@@ -56,14 +57,10 @@ class GenericModel(ABC):
 
     def __init__(self, name: str, **kwargs):
 
-        self.name = name
+        super().__init__(name, **kwargs)
         #self.reset_hyperparameters()
-        self.features: List[FeatureType] = None
         self.parameters: KwargsType = {}
-        #self.dimension = None
         #self.noise_model = None
-
-        self.is_initialized: bool = False # to be explicitly set as True by subclasses if so
 
         # Load hyperparameters at init (and set at default values when missing)
         self.load_hyperparameters(kwargs, with_defaults=True)
@@ -75,22 +72,6 @@ class GenericModel(ABC):
             setattr(self, hp_name, None)
             self.__annotations__[hp_name] = hp_type_hint #Optional[hp_type_hint]
     """
-
-    def validate_compatibility_of_dataset(self, dataset: Dataset):
-        """
-        Raise if the given dataset is not compatible with the current model.
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            The dataset we want to model.
-
-        Raises
-        ------
-        :exc:`~leaspy.exceptions.LeaspyDataInputError`
-            If and only if data is incompatible with model.
-        """
-        return
 
     def initialize(self, dataset: Dataset, method: str = None):
         """
@@ -113,8 +94,8 @@ class GenericModel(ABC):
                 warn_msg += f' Overwritting previous model features ({self.features}) with new ones ({dataset.headers}).'
             warnings.warn(warn_msg)
 
-        self.validate_compatibility_of_dataset(dataset)
         self.features = dataset.headers
+        self.validate_compatibility_of_dataset(dataset)
         self.is_initialized = True
 
     def get_hyperparameters(self, *, with_features = True, with_properties = True, default = None) -> KwargsType:
@@ -170,14 +151,6 @@ class GenericModel(ABC):
         return all(d_ok.values())
 
     # 'features' (and 'dimension') are really core hyperparameters
-
-    @property
-    def dimension(self) -> Optional[int]:
-        # read-only <-> number of modelled features
-        if self.features is None:
-            return None
-        else:
-            return len(self.features)
 
     """
     # if we want hyperparameters direct access without storing them in top-level
@@ -277,7 +250,7 @@ class GenericModel(ABC):
             raise LeaspyModelInputError(f"Dynamic hyperparameters provided do not correspond to the expected ones:\n"
                                         f"{dynamic_hps_given_value_neq_expected_value}")
 
-    def save(self, path: str, **kwargs):
+    def save(self, path: str, **kwargs) -> None:
         """
         Save Leaspy object as json model parameter file.
 

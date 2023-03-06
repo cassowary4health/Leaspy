@@ -748,7 +748,12 @@ class SimulationAlgorithm(AbstractAlgo):
 
         return ratio_selected
 
-    def run_impl(self, model: AbstractModel, individual_parameters: IndividualParameters, data: Data) -> Tuple[Result, Optional[torch.FloatTensor]]:
+    def run_impl(
+            self,
+            model: AbstractModel,
+            individual_parameters: IndividualParameters,
+            data: Data,
+    ) -> Tuple[Result, Optional[torch.FloatTensor]]:
         """
         Run simulation - learn joined distribution of patients' individual parameters and return a results object
         containing the simulated individual parameters and the simulated scores.
@@ -783,8 +788,8 @@ class SimulationAlgorithm(AbstractAlgo):
         _, dict_pytorch = individual_parameters.to_pytorch()
         results = Result(data, dict_pytorch)
 
-        # tmp while data argument is not a dataset (cf. signature remark)
-        dataset = Dataset(data, model=model, algo=self)
+        dataset = Dataset(data)
+        model.validate_compatibility_of_dataset(dataset)
 
         # validate and get noise model for simulation
         noise_model = self._get_noise_model(model, dataset, dict_pytorch)
@@ -873,7 +878,7 @@ class SimulationAlgorithm(AbstractAlgo):
                             individual_parameters=simulated_subjects.individual_parameters,
                             noise_std=noise_std_used)
 
-        return (result_obj, noise_std_used)
+        return result_obj, noise_std_used
 
 
 @dataclass

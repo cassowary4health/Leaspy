@@ -416,22 +416,10 @@ class MultivariateModel(AbstractMultivariateModel):
 
         individual_parameters = self.get_param_from_real(realizations)
 
-        data_reconstruction = self.compute_individual_tensorized(
+        prediction = self.compute_individual_tensorized(
             data.timepoints, individual_parameters, attribute_type='MCMC'
         )
-        if isinstance(self.noise_model, AbstractGaussianNoiseModel):
-            data_reconstruction *= data.mask.float()  # speed-up computations
-
-            norm_1 = data.values * data_reconstruction
-            norm_2 = data_reconstruction * data_reconstruction
-
-            sufficient_statistics['obs_x_reconstruction'] = norm_1  # .sum(dim=2) # no sum on features...
-            sufficient_statistics['reconstruction_x_reconstruction'] = norm_2  # .sum(dim=2) # no sum on features...
-
-        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
-            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(
-                data, individual_parameters, attribute_type='MCMC'
-            )
+        sufficient_statistics.update(self.noise_model.get_sufficient_statistics(data, prediction))
 
         return sufficient_statistics
 

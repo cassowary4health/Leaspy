@@ -151,6 +151,10 @@ class BaseNoiseModel(abc.ABC):
     def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         raise NotImplementedError
 
+    @staticmethod
+    def get_sufficient_statistics(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
+        return {"log-likelihood": self.compute_log_likelihood(data, prediction)}
+
 
 class BernouilliNoiseModel(BaseNoiseModel):
     """Class implementing Bernouilli noise models."""
@@ -206,6 +210,18 @@ class AbstractGaussianNoiseModel(abc.ABC, BaseNoiseModel):
     @abc.abstractmethod
     def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.Tensor:
         raise NotImplementedError
+
+    @staticmethod
+    def get_sufficient_statistics(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
+        prediction *= data.mask.float()
+        statistics = super().get_sufficient_statistics(data, prediction)
+        statistics.update(
+            {
+                "obs_x_reconstruction": data.values * prediction,
+                "reconstruction_x_reconstruction": prediction * prediction,
+            }
+        )
+        return statistics
 
 
 class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):

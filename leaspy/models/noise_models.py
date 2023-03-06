@@ -82,7 +82,7 @@ def convert_scalar_to_1d_tensors(value) -> torch.Tensor:
     return value
 
 
-class BaseNoiseModel:
+class BaseNoiseModel(abc.ABC):
     """Base class for noise models.
 
     Attributes
@@ -142,29 +142,17 @@ class BaseNoiseModel:
 
         return self.distribution(loc, **self._distribution_parameters)
 
-    @abc.abstractmethod
-    def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
-        raise NotImplementedError
-
-
-class LogLikelihoodBasedNoiseModel(BaseNoiseModel):
-    def __init__(self, name, **kwargs):
-        super().__init__(name, **kwargs)
-
     @staticmethod
     @abc.abstractmethod
     def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         raise NotImplementedError
 
+    @abc.abstractmethod
     def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
-        attachment = -torch.sum(
-            data.mask.float() * self.compute_log_likelihood(data, prediction),
-            dim=(1, 2),
-        )
-        return attachment.reshape((data.n_individuals,))
+        raise NotImplementedError
 
 
-class BernouilliNoiseModel(LogLikelihoodBasedNoiseModel):
+class BernouilliNoiseModel(BaseNoiseModel):
     """Class implementing Bernouilli noise models."""
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
@@ -178,8 +166,15 @@ class BernouilliNoiseModel(LogLikelihoodBasedNoiseModel):
             + (1. - data.values) * torch.log(1. - prediction)
         )
 
+    def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+        attachment = -torch.sum(
+            data.mask.float() * self.compute_log_likelihood(data, prediction),
+            dim=(1, 2),
+        )
+        return attachment.reshape((data.n_individuals,))
 
-class AbstractGaussianNoiseModel(BaseNoiseModel):
+
+class AbstractGaussianNoiseModel(abc.ABC, BaseNoiseModel):
     """Base class for Gaussian noise models."""
     _valid_distribution_parameters = ("scale",)
 
@@ -245,11 +240,18 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
         )
 
 
-class AbstractOrdinalNoiseModel(LogLikelihoodBasedNoiseModel):
+class AbstractOrdinalNoiseModel(abc.ABC, BaseNoiseModel):
     """Base class for Ordinal noise models."""
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
         self._is_ordinal = True
+
+    def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+        attachment = -torch.sum(
+            data.mask.float() * self.compute_log_likelihood(data, prediction),
+            dim=(1, 2),
+        )
+        return attachment.reshape((data.n_individuals,))
 
 
 class OrdinalNoiseModel(AbstractOrdinalNoiseModel):

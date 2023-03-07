@@ -221,6 +221,11 @@ class AbstractGaussianNoiseModel(abc.ABC, BaseNoiseModel):
         attachment += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
         return attachment.reshape((data.n_individuals,))
 
+    @staticmethod
+    def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+        # FIXME
+        return -1 * self.compute_rmse(data, prediction)
+
     @abc.abstractmethod
     def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.Tensor:
         raise NotImplementedError

@@ -4,6 +4,7 @@ import torch
 import math
 from typing import Callable, TypeVar
 from torch.distributions.constraints import unit_interval
+from typing import Union
 
 from leaspy.io.data.dataset import Dataset
 
@@ -87,9 +88,6 @@ class BaseNoiseModel(abc.ABC):
 
     Attributes
     ----------
-    name : str
-        Name of the model.
-
     is_ordinal : bool
         Whether the noise model is ordinal or not.
 
@@ -98,8 +96,7 @@ class BaseNoiseModel(abc.ABC):
     """
     _valid_distribution_parameters = ()
 
-    def __init__(self, name: str, **kwargs):
-        self.name = name
+    def __init__(self, **kwargs):
         self._is_ordinal = None
         self._distribution = None
         self._distribution_parameters = {}
@@ -123,7 +120,7 @@ class BaseNoiseModel(abc.ABC):
             if k in self._valid_distribution_parameters:
                 self._distribution_parameters[k] = v
             else:
-                warnings.warn(f"Cannot set parameter {k} for model {self.name}.")
+                warnings.warn(f"Cannot set parameter {k} for noise model.")
 
     def sample_around(self, values: torch.FloatTensor) -> torch.FloatTensor:
         """Realization around `values` with respect to noise model."""
@@ -175,8 +172,8 @@ class BaseNoiseModel(abc.ABC):
 
 class BernouilliNoiseModel(BaseNoiseModel):
     """Class implementing Bernouilli noise models."""
-    def __init__(self, name, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._distribution = torch.distributions.bernoulli.Bernoulli
         self._is_ordinal = False
 
@@ -199,8 +196,8 @@ class AbstractGaussianNoiseModel(abc.ABC, BaseNoiseModel):
     """Base class for Gaussian noise models."""
     _valid_distribution_parameters = ("scale",)
 
-    def __init__(self, name: str, noise_std: torch.Tensor, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, noise_std: torch.Tensor, **kwargs):
+        super().__init__(**kwargs)
         self._is_ordinal = False
         if (noise_std <= 0).any():
             raise ValueError(
@@ -280,7 +277,7 @@ class AbstractGaussianNoiseModel(abc.ABC, BaseNoiseModel):
 
 class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
     """Class implementing scalar Gaussian noise models."""
-    def __init__(self, name: str, noise_std=DEFAULT_NOISE_STD, **kwargs):
+    def __init__(self, noise_std=DEFAULT_NOISE_STD, **kwargs):
         noise_std = convert_scalar_to_1d_tensors(noise_std)
         if noise_std.numel() != 1:
             raise ValueError(
@@ -288,7 +285,7 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
                 "whereas the `noise_struct` = 'gaussian_scalar' you requested requires a "
                 "univariate scale (e.g. `scale = 0.1`)."
             )
-        super().__init__(name, noise_std, **kwargs)
+        super().__init__(noise_std, **kwargs)
 
     def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.Tensor:
         return torch.sqrt(
@@ -310,8 +307,8 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
 
 class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
     """Class implementing diagonal Gaussian noise models."""
-    def __init__(self, name: str, noise_std=DEFAULT_NOISE_STD, **kwargs):
-        super().__init__(name, convert_scalar_to_1d_tensors(noise_std), **kwargs)
+    def __init__(self, noise_std=DEFAULT_NOISE_STD, **kwargs):
+        super().__init__(convert_scalar_to_1d_tensors(noise_std), **kwargs)
 
     def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.Tensor:
         return torch.sqrt(
@@ -332,8 +329,8 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
 
 class AbstractOrdinalNoiseModel(abc.ABC, BaseNoiseModel):
     """Base class for Ordinal noise models."""
-    def __init__(self, name: str, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._is_ordinal = True
 
     def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
@@ -346,8 +343,8 @@ class AbstractOrdinalNoiseModel(abc.ABC, BaseNoiseModel):
 
 class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
     """Class implementing ordinal noise models."""
-    def __init__(self, name: str, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._distribution = MultinomialDistribution.from_pdf
 
     @staticmethod
@@ -359,8 +356,8 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
 
 class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
     """Class implementing ordinal ranking noise models."""
-    def __init__(self, name: str, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._distribution = MultinomialDistribution
 
     @staticmethod
@@ -369,3 +366,44 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
         cdf = (1. - sf) * self.ordinal_infos['mask']
 
         return (sf * torch.log(prediction) + cdf * torch.log(1. - prediction)).sum(dim=-1)
+
+
+def noise_model_factory(noise_model: Union[str, BaseNoiseModel]) -> BaseNoiseModel:
+    """
+    Factory for noise models.
+
+    Parameters
+    ----------
+    noise_model : str or BaseNoiseModel
+        If an instance of a subclass of BaseNoiseModel, returns the instance.
+        If a string, then return the appropriate class.
+
+    Returns
+    -------
+    BaseNoiseModel :
+        The desired noise model.
+
+    Raises
+    ------
+    ValueError:
+        If noise_model is not supported.
+    """
+    if isinstance(noise_model, BaseNoiseModel):
+        return noise_model
+    noise_model = noise_model.lower()
+    if noise_model == "bernouilli":
+        return BernouilliNoiseModel
+    if noise_model == "gaussian-scalar":
+        return GaussianScalarNoiseModel
+    if noise_model == "gaussian-diagonal":
+        return GaussianDiagonalNoiseModel
+    if noise_model == "ordinal":
+        return OrdinalNoiseModel
+    if noise_model == "ordinal-ranking":
+        return OrdinalRankingNoiseModel
+    raise ValueError(
+        f"Noise model {noise_model} is not supported."
+        "Supported noise models are : 'bernouilli', "
+        "'gaussian-scalar', 'gaussian-diagonal', "
+        "'ordinal', 'ordinal-ranking'."
+    )

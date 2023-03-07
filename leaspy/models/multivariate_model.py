@@ -1,5 +1,5 @@
 import torch
-from typing import Optional
+from typing import Optional, Union
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.noise_models import (
@@ -45,7 +45,7 @@ class MultivariateModel(AbstractMultivariateModel):
         'mixed_linear-logistic': '_mixed',
     }
 
-    def __init__(self, name: str, noise_model: Optional[BaseNoiseModel] = None, **kwargs):
+    def __init__(self, name: str, noise_model: Optional[Union[str, BaseNoiseModel]] = None, **kwargs):
         super().__init__(name, noise_model, **kwargs)
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef

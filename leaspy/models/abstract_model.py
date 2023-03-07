@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import re
 import math
@@ -71,9 +71,12 @@ class AbstractModel(BaseModel):
         return self._noise_model
 
     @noise_model.setter
-    def noise_model(self, model: BaseNoiseModel):
-        self.check_noise_model_compatibility(model)
-        self._noise_model = model
+    def noise_model(self, model: Union[str, BaseNoiseModel]):
+        from leaspy.models.noise_models import noise_model_factory
+
+        noise_model = noise_model_factory(model)
+        self.check_noise_model_compatibility(noise_model)
+        self._noise_model = noise_model
 
     @abstractmethod
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:

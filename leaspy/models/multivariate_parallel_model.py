@@ -1,13 +1,8 @@
 import torch
-from typing import Optional
+from typing import Optional, Union
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from leaspy.models.noise_models import (
-    BaseNoiseModel,
-    BernouilliNoiseModel,
-    LogLikelihoodBasedNoiseModel,
-    AbstractGaussianNoiseModel,
-)
+from leaspy.models.noise_models import BaseNoiseModel
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
 
 from leaspy.utils.docs import doc_with_super
@@ -25,7 +20,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     **kwargs
         Hyperparameters of the model
     """
-    def __init__(self, name: str, noise_model: Optional[BaseNoiseModel] = None, **kwargs):
+    def __init__(self, name: str, noise_model: Optional[Union[str, BaseNoiseModel]] = None, **kwargs):
         super().__init__(name, noise_model, **kwargs)
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None

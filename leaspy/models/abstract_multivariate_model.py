@@ -2,13 +2,13 @@ from abc import abstractmethod
 import json
 import math
 import warnings
+from typing import Union
 
 import torch
 
 from leaspy import __version__
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.noise_models import GaussianDiagonalNoiseModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.attributes.abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
@@ -37,12 +37,12 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     :exc:`.LeaspyModelInputError`
         if inconsistent hyperparameters
     """
-    def __init__(self, name: str, noise_model: Optional[BaseNoiseModel] = None, **kwargs):
+    def __init__(self, name: str, noise_model: Optional[Union[str, BaseNoiseModel]] = None, **kwargs):
 
         super().__init__(name)
 
         self.source_dimension: int = None
-        noise_model = noise_model or GaussianDiagonalNoiseModel(name)
+        noise_model = noise_model or "gaussian-diagonal"
         self.noise_model = noise_model
 
         self.parameters = {
@@ -71,9 +71,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         self.load_hyperparameters(kwargs)
 
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
-        if not isinstance(model, GaussianDiagonalNoiseModel):
+        if not isinstance(model, BaseNoiseModel):
             raise ValueError(
-                f"Expected a GaussianDiagonalNoiseModel instance, but received a {model.__class__.__name__}"
+                "Expected a subclass of BaselNoiseModel, but received "
+                f"a {model.__class__.__name__} instead."
             )
 
     def initialize(self, dataset, method: str = 'default'):

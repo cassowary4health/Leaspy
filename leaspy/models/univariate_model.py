@@ -1,7 +1,12 @@
-from typing import Optional
+from typing import Optional, Union
 
 from leaspy.models.multivariate_model import MultivariateModel
-from leaspy.models.noise_models import GaussianScalarNoiseModel, BaseNoiseModel
+from leaspy.models.noise_models import (
+    BaseNoiseModel,
+    BernouilliNoiseModel,
+    GaussianScalarNoiseModel,
+    OrdinalNoiseModel,
+)
 from leaspy.exceptions import LeaspyModelInputError
 from leaspy.utils.docs import doc_with_super
 
@@ -34,22 +39,22 @@ class UnivariateModel(MultivariateModel):
         'univariate_logistic': '_logistic'
     }
 
-    def __init__(self, name: str, noise_model: Optional[BaseNoiseModel] = None, **kwargs):
+    def __init__(self, name: str, noise_model: Optional[Union[str, BaseNoiseModel]] = None, **kwargs):
 
-        # consistency checks
         if kwargs.pop('dimension', 1) not in {1, None}:
             raise LeaspyModelInputError("You should not provide `dimension` != 1 for univariate model.")
 
         if kwargs.pop('source_dimension', 0) not in {0, None}:
             raise LeaspyModelInputError("You should not provide `source_dimension` != 0 for univariate model.")
 
-        # default noise model is gaussian_scalar
-        noise_model = noise_model or GaussianScalarNoiseModel(name)
+        noise_model = noise_model or "gaussian-scalar"
 
         super().__init__(name, dimension=1, source_dimension=0, noise_model=noise_model, **kwargs)
 
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
-        if not isinstance(model, GaussianScalarNoiseModel):
+        if not isinstance(model, (BernouilliNoiseModel, GaussianScalarNoiseModel, OrdinalNoiseModel)):
             raise ValueError(
-                f"Expected a GaussianScalarNoiseModel instance, but received a {model.__class__.__name__}"
+                f"The univariate model is only compatible with the following noise models: "
+                "'bernouilli', 'gaussian-scalar', and 'ordinal'. "
+                f"You provided a {model.__class__.__name__}."
             )

@@ -9,7 +9,11 @@ import pandas as pd
 # <!> circular imports
 import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
-
+from leaspy.models.noise_models import (
+    AbstractGaussianNoiseModel,
+    BernouilliNoiseModel,
+    GaussianScalarNoiseModel,
+)
 
 xi_std = .5
 tau_std = 5.
@@ -164,12 +168,13 @@ def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
     :exc:`.LeaspyInputError`
         If model is not supported for this initialization
     """
-
     name = model.name
     noise_model = model.noise_model # has to be set directly at model init and not in algo settings step to be available here
 
-    if not noise_model.startswith('gaussian_'):
-        raise LeaspyModelInputError(f'`lme` initialization is only compatible with Gaussian noise models, not {noise_model}.')
+    if not isinstance(noise_model, AbstractGaussianNoiseModel):
+        raise LeaspyModelInputError(
+            f'`lme` initialization is only compatible with Gaussian noise models, not {noise_model}.'
+        )
 
     multiv = 'univariate' not in name
 
@@ -232,9 +237,9 @@ def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
     params['xi_std'] = fact_std * (1/xi_var_ft).mean() ** -.5
 
     # Residual gaussian noise
-    if 'scalar' in noise_model:
+    if isinstance(noise_model, GaussianScalarNoiseModel):
         # arithmetic mean on variances
-        params['noise_std'] = fact_std * (lme['noise_std'] ** 2).mean().reshape((1,)) ** .5 # 1D tensor
+        params['noise_std'] = fact_std * (lme['noise_std'] ** 2).mean().reshape((1,)) ** .5  # 1D tensor
     else:
         # one noise-std per feature
         params['noise_std'] = fact_std * lme['noise_std']
@@ -398,7 +403,7 @@ def initialize_logistic(model, df: pd.DataFrame, method):
     if model.is_ordinal:
         parameters = initialize_deltas_ordinal(model, df, parameters)
 
-    if not (model.is_ordinal or model.noise_model == 'bernoulli'):
+    if not (model.is_ordinal or isinstance(model.noise_model, BernouilliNoiseModel)):
         # do not initialize `noise_std` unless needed
         parameters['noise_std'] = torch.tensor(noise_std) if 'univariate' in model.name else torch.tensor([noise_std])
 

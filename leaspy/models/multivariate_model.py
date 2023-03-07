@@ -402,15 +402,12 @@ class MultivariateModel(AbstractMultivariateModel):
         realizations = realizations.clone_realizations()
 
         sufficient_statistics = {
-            'g': realizations['g'].tensor_realizations,
-            'v0': realizations['v0'].tensor_realizations,
-            'tau': realizations['tau'].tensor_realizations,
-            'tau_sqrd': torch.pow(realizations['tau'].tensor_realizations, 2),
-            'xi': realizations['xi'].tensor_realizations,
-            'xi_sqrd': torch.pow(realizations['xi'].tensor_realizations, 2)
+            param: realizations[param].tensor_realizations for param in ("g", "v0", "tau", "xi")
         }
         if self.source_dimension != 0:
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
+        for param in ("tau", "xi"):
+            sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor_realizations, 2)
 
         self._add_ordinal_tensor_realizations(realizations, sufficient_statistics)
 

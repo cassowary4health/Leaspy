@@ -136,33 +136,22 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
 
-        sufficient_statistics = {}
-        sufficient_statistics['g'] = realizations['g'].tensor_realizations
-        sufficient_statistics['deltas'] = realizations['deltas'].tensor_realizations
+        sufficient_statistics = {
+            param: realizations[param].tensor_realizations for param in ("g", "deltas", "tau", "xi")
+        }
         if self.source_dimension != 0:
             sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
-        sufficient_statistics['tau'] = realizations['tau'].tensor_realizations
-        sufficient_statistics['tau_sqrd'] = torch.pow(realizations['tau'].tensor_realizations, 2)
-        sufficient_statistics['xi'] = realizations['xi'].tensor_realizations
-        sufficient_statistics['xi_sqrd'] = torch.pow(realizations['xi'].tensor_realizations, 2)
+        for param in ("tau", "xi"):
+            sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor_realizations, 2)
 
         individual_parameters = self.get_param_from_real(realizations)
 
-        data_reconstruction = self.compute_individual_tensorized(data.timepoints,
-                                                                 individual_parameters,
-                                                                 attribute_type='MCMC')
-        data_reconstruction *= data.mask.float() # speed-up computations
-
-        norm_1 = data.values * data_reconstruction #* data.mask.float()
-        norm_2 = data_reconstruction * data_reconstruction #* data.mask.float()
-
-        sufficient_statistics['obs_x_reconstruction'] = norm_1 #.sum(dim=2) # no sum on features...
-        sufficient_statistics['reconstruction_x_reconstruction'] = norm_2 #.sum(dim=2) # no sum on features...
-
-        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
-            sufficient_statistics['log-likelihood'] = self.compute_individual_attachment_tensorized(
-                data, individual_parameters, attribute_type='MCMC'
-            )
+        prediction = self.compute_individual_tensorized(
+            data.timepoints, individual_parameters, attribute_type='MCMC'
+        )
+        sufficient_statistics.update(
+            self.noise_model.get_sufficient_statistics(data, prediction)
+        )
 
         return sufficient_statistics
 
@@ -171,68 +160,47 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         # unlink model parameters from updates in realizations!
         realizations = realizations.clone_realizations()
 
-        self.parameters['g'] = realizations['g'].tensor_realizations
-        self.parameters['deltas'] = realizations['deltas'].tensor_realizations
+        for param in ("g", "deltas"):
+            self.parameters[param] = realizations[param].tensor_realizations
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations
-        xi = realizations['xi'].tensor_realizations
-        self.parameters['xi_mean'] = torch.mean(xi)
-        self.parameters['xi_std'] = torch.std(xi)
-        tau = realizations['tau'].tensor_realizations
-        self.parameters['tau_mean'] = torch.mean(tau)
-        self.parameters['tau_std'] = torch.std(tau)
+        for param in ("xi", "tau"):
+            param_realization = realizations[param].tensor_realizations
+            self.parameters[f"{param}_mean"] = torch.mean(param_realization)
+            self.parameters[f"{param}_std"] = torch.std(param_realization)
 
-        param_ind = self.get_param_from_real(realizations)
-        if isinstance(self.noise_model, AbstractGaussianNoiseModel):
-            predictions = self.compute_individual_tensorized(
-                data.timepoints, param_ind, attribute_type="MCMC",
-            )
-            self.parameters['noise_std'] = self.noise_model.compute_rmse(data, predictions)
-        if isinstance(self.noise_model, LogLikelihoodBasedNoiseModel):
-            self.parameters['log-likelihood'] = self.compute_individual_attachment_tensorized(
-                data, param_ind, attribute_type='MCMC'
-            ).sum()
+        individual_parameters = self.get_param_from_real(realizations)
+        prediction = self.compute_individual_tensorized(
+            data.timepoints, individual_parameters, attribute_type='MCMC'
+        )
+        self.parameters.update(
+            self.noise_model.get_parameters(data, prediction)
+        )
 
-    def update_model_parameters_normal(self, data, suff_stats):
+    def update_model_parameters_normal(self, data, sufficient_statistics: dict) -> None:
+        from .utilities import compute_std_from_variance
 
-        self.parameters['g'] = suff_stats['g']
-        self.parameters['deltas'] = suff_stats['deltas']
+        for param in ("g", "deltas"):
+            self.parameters[param] = sufficient_statistics[param]
         if self.source_dimension != 0:
-            self.parameters['betas'] = suff_stats['betas']
+            self.parameters['betas'] = sufficient_statistics['betas']
 
-        tau_mean = self.parameters['tau_mean']
-        tau_var_updt = torch.mean(suff_stats['tau_sqrd']) - 2. * tau_mean * torch.mean(suff_stats['tau'])
-        tau_var = tau_var_updt + tau_mean ** 2
-        self.parameters['tau_std'] = self._compute_std_from_var(tau_var, varname='tau_std')
-        self.parameters['tau_mean'] = torch.mean(suff_stats['tau'])
-
-        xi_mean = self.parameters['xi_mean']
-        xi_var_updt = torch.mean(suff_stats['xi_sqrd']) - 2. * xi_mean * torch.mean(suff_stats['xi'])
-        xi_var = xi_var_updt + xi_mean ** 2
-        self.parameters['xi_std'] = self._compute_std_from_var(xi_var, varname='xi_std')
-        self.parameters['xi_mean'] = torch.mean(suff_stats['xi'])
+        for param in ("tau", "xi"):
+            param_mean = self.parameters[f"{param}_mean"]
+            param_variance_update = (
+                torch.mean(sufficient_statistics[f"{param}_sqrd"]) -
+                2. * param_mean * torch.mean(sufficient_statistics[param])
+            )
+            param_variance = param_variance_update + param_mean ** 2
+            self.parameters[f"{param}_std"] = compute_std_from_variance(param_variance, varname='tau_std')
+            self.parameters["{param}_mean"] = torch.mean(sufficient_statistics[param])
 
         # TODO: same as MultivariateModel, should we factorize code?
-        if 'scalar' in self.noise_model:
-            # scalar noise (same for all features)
-            S1 = data.L2_norm
-            S2 = suff_stats['obs_x_reconstruction'].sum()
-            S3 = suff_stats['reconstruction_x_reconstruction'].sum()
-
-            noise_var = (S1 - 2. * S2 + S3) / data.n_observations
-        else:
-            # keep feature dependence on feature to update diagonal noise (1 free param per feature)
-            S1 = data.L2_norm_per_ft
-            S2 = suff_stats['obs_x_reconstruction'].sum(dim=(0, 1))
-            S3 = suff_stats['reconstruction_x_reconstruction'].sum(dim=(0, 1))
-
-            # tensor 1D, shape (dimension,)
-            noise_var = (S1 - 2. * S2 + S3) / data.n_observations_per_ft.float()
-
-        self.parameters['noise_std'] = self._compute_std_from_var(noise_var, varname='noise_std')
-
-        if self.noise_model == 'bernoulli':
-            self.parameters['log-likelihood'] = suff_stats['log-likelihood'].sum()
+        self.parameters.update(
+            self.noise_model.get_updated_parameters_from_sufficient_statistics(
+                data, sufficient_statistics
+            )
+        )
 
     ###################################
     ### Random Variable Information ###

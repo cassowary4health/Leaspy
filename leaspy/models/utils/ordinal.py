@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
+from leaspy.models.noise_models import OrdinalRankingNoiseModel
 
 
 class OrdinalModelMixin:
@@ -14,9 +15,15 @@ class OrdinalModelMixin:
     @property
     def is_ordinal(self) -> bool:
         """Property to check if the model is of ordinal sub-type."""
-        return self.noise_model in ['ordinal', 'ordinal_ranking']
+        return self.noise_model.is_ordinal
 
-    def postprocess_model_estimation(self, estimation: np.ndarray, *, ordinal_method: str = 'MLE', **kws) -> Union[np.ndarray, Dict[Hashable, np.ndarray]]:
+    def postprocess_model_estimation(
+            self,
+            estimation: np.ndarray,
+            *,
+            ordinal_method: str = 'MLE',
+            **kws,
+    ) -> Union[np.ndarray, Dict[Hashable, np.ndarray]]:
         """
         Extra layer of processing used to output nice estimated values in main API `Leaspy.estimate`.
 
@@ -44,31 +51,35 @@ class OrdinalModelMixin:
         if not self.is_ordinal:
             return estimation
 
-        if self.noise_model == 'ordinal_ranking':
-            # start by computing pdf from sf
+        if isinstance(self.noise_model, OrdinalRankingNoiseModel):
             estimation = self.compute_ordinal_pdf_from_ordinal_sf(torch.tensor(estimation)).cpu().numpy()
 
-        # postprocess the ordinal pdf depending on `ordinal_method`
         if ordinal_method in {'MLE', 'maximum_likelihood'}:
             return estimation.argmax(axis=-1)
-        elif ordinal_method in {'E', 'expectation'}:
+        if ordinal_method in {'E', 'expectation'}:
             return np.flip(estimation, axis=-1).cumsum(axis=-1).sum(axis=-1) - 1.
-        elif ordinal_method in {'P', 'probabilities'}:
-            # we construct a dictionary with the appropriate keys
+        if ordinal_method in {'P', 'probabilities'}:
             d_ests = {}
             for ft_i, feat in enumerate(self.ordinal_infos["features"]):
-                for ft_lvl in range(0, feat["max_level"] + 1):
+                for ft_lvl in range(feat["max_level"] + 1):
                     d_ests[(feat["name"], ft_lvl)] = estimation[..., ft_i, ft_lvl]
-
             return d_ests
-        else:
-            raise LeaspyInputError("`ordinal_method` should be in: {'maximum_likelihood', 'MLE', 'expectation', 'E', 'probabilities', 'P'}"
-                                   f" not {ordinal_method}")
+        raise LeaspyInputError(
+            "`ordinal_method` should be in: {'maximum_likelihood', 'MLE', "
+            f"'expectation', 'E', 'probabilities', 'P'} not {ordinal_method}."
+        )
 
-
-    def compute_ordinal_pdf_from_ordinal_sf(self, ordinal_sf: torch.Tensor, *, dim_ordinal_levels: int = 3) -> torch.Tensor:
+    @staticmethod
+    def compute_ordinal_pdf_from_ordinal_sf(
+            self,
+            ordinal_sf: torch.Tensor,
+            *,
+            dim_ordinal_levels: int = 3,
+    ) -> torch.Tensor:
         """
-        Computes the probability density (or its jacobian) of an ordinal model [P(X = l), l=0..L] from `ordinal_sf` which are the survival function probabilities [P(X > l), i.e. P(X >= l+1), l=0..L-1] (or its jacobian).
+        Computes the probability density (or its jacobian) of an ordinal
+        model [P(X = l), l=0..L] from `ordinal_sf` which are the survival
+        function probabilities [P(X > l), i.e. P(X >= l+1), l=0..L-1] (or its jacobian).
 
         Parameters
         ----------
@@ -104,7 +115,11 @@ class OrdinalModelMixin:
 
     @staticmethod
     def compute_ordinal_sf_from_ordinal_pdf(ordinal_pdf: Union[torch.Tensor, np.ndarray]):
-        """Compute the ordinal survival function values [P(X > l), i.e. P(X >= l+1), l=0..L-1] (l=0..L-1) from the ordinal probability density [P(X = l), l=0..L] (assuming ordinal levels are in last dimension)."""
+        """
+        Compute the ordinal survival function values [P(X > l), i.e.
+        P(X >= l+1), l=0..L-1] (l=0..L-1) from the ordinal probability density
+        [P(X = l), l=0..L] (assuming ordinal levels are in last dimension).
+        """
         return (1 - ordinal_pdf.cumsum(-1))[..., :-1]
         #return backend.flip(backend.flip(ordinal_pdf, (-1,)).cumsum(-1), (-1,))[..., 1:] # also correct
 
@@ -116,7 +131,7 @@ class OrdinalModelMixin:
         grid_model = self.compute_individual_tensorized_logistic(grid_timepoints.unsqueeze(0), individual_parameters,
                                                                  attribute_type=None)[:,:,[feat_index],:]
 
-        if self.noise_model == 'ordinal_ranking':
+        if isinstance(self.noise_model, OrdinalRankingNoiseModel):
             grid_model = self.compute_ordinal_pdf_from_ordinal_sf(grid_model)
 
         # we search for the very first timepoint of grid where ordinal MLE was >= provided value
@@ -133,7 +148,6 @@ class OrdinalModelMixin:
         return dict(ordinal_infos=getattr(self, 'ordinal_infos',  None))
 
     def _export_extra_ordinal_settings(self, model_settings) -> None:
-
         if self.is_ordinal:
             model_settings['batch_deltas_ordinal'] = self.ordinal_infos["batch_deltas"]
 
@@ -144,7 +158,10 @@ class OrdinalModelMixin:
             return tuple()  # no extra hyperparameters recognized
 
         if self.name not in {'logistic', 'univariate_logistic'}:
-            raise LeaspyModelInputError(f"Noise model 'ordinal' is only compatible with 'logistic' and 'univariate_logistic' models, not {self.name}")
+            raise LeaspyModelInputError(
+                "Noise model 'ordinal' is only compatible with 'logistic' and "
+                f"'univariate_logistic' models, not {self.name}"
+            )
 
         if hasattr(self, 'ordinal_infos'):
             self.ordinal_infos["batch_deltas"] = hyperparameters.get('batch_deltas_ordinal',

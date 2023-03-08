@@ -4,9 +4,9 @@ from typing import Tuple
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.outputs.individual_parameters import IndividualParameters
-from leaspy.models.utils.noise_model import NoiseModel
 from leaspy.models import AbstractModel
 from leaspy.io.data.dataset import Dataset
+from leaspy.models.noise_models import AbstractGaussianNoiseModel
 
 
 class AbstractPersonalizeAlgo(AbstractAlgo):
@@ -65,11 +65,16 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         individual_parameters = self._get_individual_parameters(model, dataset)
 
         # Compute the noise with the estimated individual parameters (per feature or not, depending on model noise)
-        _, individual_params_torch = individual_parameters.to_pytorch()
-        if 'gaussian' in model.noise_model:
-            loss = NoiseModel.rmse_model(model, dataset, individual_params_torch)
+        _, individual_parameters = individual_parameters.to_pytorch()
+        prediction = model.compute_individual_tensorized(
+            dataset.timepoints, individual_parameters, attribute_type=None
+        )
+        if isinstance(model.noise_model, AbstractGaussianNoiseModel):
+            loss = model.noise_model.compute_rmse(dataset, prediction)
         else:
-            loss = model.compute_individual_attachment_tensorized(dataset, individual_params_torch, attribute_type=None).sum()
+            loss = model.compute_individual_attachment_tensorized(
+                dataset, individual_parameters, attribute_type=None
+            ).sum()
 
         return individual_parameters, loss
 

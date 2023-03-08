@@ -528,14 +528,14 @@ class AbstractModel(BaseModel):
         """
 
     @abstractmethod
-    def update_model_parameters_normal(self, data: Dataset, suff_stats: DictParamsTorch) -> None:
+    def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
         """
         Update model parameters (after burn-in phase)
 
         Parameters
         ----------
         data : :class:`.Dataset`
-        suff_stats : dict[suff_stat: str, :class:`torch.Tensor`]
+        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
         """
 
     @abstractmethod

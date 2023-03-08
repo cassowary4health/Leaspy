@@ -52,7 +52,7 @@ class OrdinalModelMixin:
             return estimation
 
         if isinstance(self.noise_model, OrdinalRankingNoiseModel):
-            estimation = self.compute_ordinal_pdf_from_ordinal_sf(torch.tensor(estimation)).cpu().numpy()
+            estimation = compute_ordinal_pdf_from_ordinal_sf(torch.tensor(estimation)).cpu().numpy()
 
         if ordinal_method in {'MLE', 'maximum_likelihood'}:
             return estimation.argmax(axis=-1)
@@ -66,62 +66,9 @@ class OrdinalModelMixin:
             return d_ests
         raise LeaspyInputError(
             "`ordinal_method` should be in: {'maximum_likelihood', 'MLE', "
-            f"'expectation', 'E', 'probabilities', 'P'} not {ordinal_method}."
+            "'expectation', 'E', 'probabilities', 'P'} "
+            f"not {ordinal_method}."
         )
-
-    @staticmethod
-    def compute_ordinal_pdf_from_ordinal_sf(
-            self,
-            ordinal_sf: torch.Tensor,
-            *,
-            dim_ordinal_levels: int = 3,
-    ) -> torch.Tensor:
-        """
-        Computes the probability density (or its jacobian) of an ordinal
-        model [P(X = l), l=0..L] from `ordinal_sf` which are the survival
-        function probabilities [P(X > l), i.e. P(X >= l+1), l=0..L-1] (or its jacobian).
-
-        Parameters
-        ----------
-        ordinal_sf : `torch.FloatTensor`
-            Survival function values : ordinal_sf[..., l] is the proba to be superior or equal to l+1
-            Dimensions are:
-            * 0=individual
-            * 1=visit
-            * 2=feature
-            * 3=ordinal_level [l=0..L-1]
-            * [4=individual_parameter_dim_when_gradient]
-        dim_ordinal_levels : int, default = 3
-            The dimension of the tensor where the ordinal levels are.
-
-        Returns
-        -------
-        ordinal_pdf : `torch.FloatTensor` (same shape as input, except for dimension 3 which has one more element)
-            ordinal_pdf[..., l] is the proba to be equal to l (l=0..L)
-        """
-        # nota: torch.diff was introduced in v1.8 but would not highly improve performance of this routine anyway
-        s = list(ordinal_sf.shape)
-        s[dim_ordinal_levels] = 1
-        last_row = torch.zeros(size=tuple(s))
-        if len(s) == 5:  # in the case of gradient we added a dimension
-            first_row = last_row  # gradient(P>=0) = 0
-        else:
-            first_row = torch.ones(size=tuple(s))  # (P>=0) = 1
-        sf_sup = torch.cat([first_row, ordinal_sf], dim=dim_ordinal_levels)
-        sf_inf = torch.cat([ordinal_sf, last_row], dim=dim_ordinal_levels)
-        pdf = sf_sup - sf_inf
-
-        return pdf
-
-    @staticmethod
-    def compute_ordinal_sf_from_ordinal_pdf(ordinal_pdf: Union[torch.Tensor, np.ndarray]):
-        """
-        Compute the ordinal survival function values [P(X > l), i.e.
-        P(X >= l+1), l=0..L-1] (l=0..L-1) from the ordinal probability density
-        [P(X = l), l=0..L] (assuming ordinal levels are in last dimension).
-        """
-        return (1 - ordinal_pdf.cumsum(-1))[..., :-1]
-        #return backend.flip(backend.flip(ordinal_pdf, (-1,)).cumsum(-1), (-1,))[..., 1:] # also correct
 
     ## PRIVATE
 
@@ -132,7 +79,7 @@ class OrdinalModelMixin:
                                                                  attribute_type=None)[:,:,[feat_index],:]
 
         if isinstance(self.noise_model, OrdinalRankingNoiseModel):
-            grid_model = self.compute_ordinal_pdf_from_ordinal_sf(grid_model)
+            grid_model = compute_ordinal_pdf_from_ordinal_sf(grid_model)
 
         # we search for the very first timepoint of grid where ordinal MLE was >= provided value
         # TODO? shouldn't we return the timepoint where P(X = value) is highest instead?
@@ -309,3 +256,55 @@ class OrdinalModelMixin:
         # Finally: change the v0 scale since it has not the same meaning
         if 'v0' in variables_infos:  # not in univariate case!
             variables_infos['v0']['scale'] = 0.1
+
+
+def compute_ordinal_pdf_from_ordinal_sf(
+    ordinal_sf: torch.Tensor,
+    dim_ordinal_levels: int = 3,
+) -> torch.Tensor:
+    """
+    Computes the probability density (or its jacobian) of an ordinal
+    model [P(X = l), l=0..L] from `ordinal_sf` which are the survival
+    function probabilities [P(X > l), i.e. P(X >= l+1), l=0..L-1] (or its jacobian).
+
+    Parameters
+    ----------
+    ordinal_sf : `torch.FloatTensor`
+        Survival function values : ordinal_sf[..., l] is the proba to be superior or equal to l+1
+        Dimensions are:
+        * 0=individual
+        * 1=visit
+        * 2=feature
+        * 3=ordinal_level [l=0..L-1]
+        * [4=individual_parameter_dim_when_gradient]
+    dim_ordinal_levels : int, default = 3
+        The dimension of the tensor where the ordinal levels are.
+
+    Returns
+    -------
+    ordinal_pdf : `torch.FloatTensor` (same shape as input, except for dimension 3 which has one more element)
+        ordinal_pdf[..., l] is the proba to be equal to l (l=0..L)
+    """
+    # nota: torch.diff was introduced in v1.8 but would not highly improve performance of this routine anyway
+    s = list(ordinal_sf.shape)
+    s[dim_ordinal_levels] = 1
+    last_row = torch.zeros(size=tuple(s))
+    if len(s) == 5:  # in the case of gradient we added a dimension
+        first_row = last_row  # gradient(P>=0) = 0
+    else:
+        first_row = torch.ones(size=tuple(s))  # (P>=0) = 1
+    sf_sup = torch.cat([first_row, ordinal_sf], dim=dim_ordinal_levels)
+    sf_inf = torch.cat([ordinal_sf, last_row], dim=dim_ordinal_levels)
+    pdf = sf_sup - sf_inf
+
+    return pdf
+
+
+def compute_ordinal_sf_from_ordinal_pdf(ordinal_pdf: Union[torch.Tensor, np.ndarray]):
+    """
+    Compute the ordinal survival function values [P(X > l), i.e.
+    P(X >= l+1), l=0..L-1] (l=0..L-1) from the ordinal probability density
+    [P(X = l), l=0..L] (assuming ordinal levels are in last dimension).
+    """
+    return (1 - ordinal_pdf.cumsum(-1))[..., :-1]
+    #return backend.flip(backend.flip(ordinal_pdf, (-1,)).cumsum(-1), (-1,))[..., 1:] # also correct

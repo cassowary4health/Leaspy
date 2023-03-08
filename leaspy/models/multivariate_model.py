@@ -4,16 +4,14 @@ from typing import Optional, Union
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.noise_models import (
     BaseNoiseModel,
-    LogLikelihoodBasedNoiseModel,
     AbstractOrdinalNoiseModel,
-    AbstractGaussianNoiseModel,
-    GaussianScalarNoiseModel,
 )
 from leaspy.models.utils.attributes import AttributesFactory
 
 from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
+from leaspy.utils.typing import DictParamsTorch
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
@@ -470,7 +468,7 @@ class MultivariateModel(AbstractMultivariateModel):
             self.noise_model.get_parameters(data, prediction)
         )
 
-    def update_model_parameters_normal(self, data, sufficient_statistics: dict) -> None:
+    def update_model_parameters_normal(self, data, sufficient_statistics: DictParamsTorch) -> None:
         """
         Stochastic sufficient statistics used to update the parameters of the model.
 

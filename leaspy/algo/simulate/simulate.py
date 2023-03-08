@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import copy
 from typing import TYPE_CHECKING
 from collections.abc import Sized, Callable
 from dataclasses import dataclass
@@ -13,8 +15,12 @@ from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.outputs.result import Result
 from leaspy.io.outputs.individual_parameters import IndividualParameters
-from leaspy.models.utils.noise_model import NoiseModel
-
+from leaspy.models.noise_models import (
+    BaseNoiseModel,
+    AbstractGaussianNoiseModel,
+    GaussianScalarNoiseModel,
+    GaussianDiagonalNoiseModel,
+)
 from leaspy.exceptions import LeaspyAlgoInputError
 from leaspy.utils.typing import List, Tuple, Optional, DictParamsTorch
 
@@ -514,35 +520,55 @@ class SimulationAlgorithm(AbstractAlgo):
 
         return (bl + yrs_since_bl).tolist()
 
-    def _get_noise_model(self, model: AbstractModel, dataset: Dataset, individual_params: DictParamsTorch) -> NoiseModel:
-
-        # special compatibility check for ordinal model
-        if getattr(model, 'is_ordinal', False) and self.noise not in ('inherit_struct', 'default', 'model'):
-            raise LeaspyAlgoInputError("For an ordinal model, you HAVE to simulate observations with `noise=inherit_struct`"
-                                       "(or `noise=model` which is the same in this case).")
-
+    def _get_noise_model(
+            self,
+            model: AbstractModel,
+            dataset: Dataset,
+            individual_parameters: DictParamsTorch,
+    ) -> BaseNoiseModel:
+        # no noise at all (will send back raw values upon call)
         if self.noise is None:
-            # no noise at all (will send back raw values upon call)
-            return NoiseModel(None)
+            new_noise_model = copy.deepcopy(model.noise_model)
+            new_noise_model.set_distribution_to_none()
+            return new_noise_model
+        if isinstance(self.noise, str):
+            return self._get_noise_model_from_string(model, dataset, individual_parameters)
+        return self._get_noise_model_from_numeric()
 
-        elif isinstance(self.noise, str):
+    def _get_noise_model_from_string(
+            self,
+            model: AbstractModel,
+            dataset: Dataset,
+            individual_parameters: DictParamsTorch,
+    ) -> BaseNoiseModel:
+        if model.is_ordinal and self.noise not in ('inherit_struct', 'default', 'model'):
+            raise LeaspyAlgoInputError(
+                "For an ordinal model, you HAVE to simulate observations with "
+                "`noise=inherit_struct`(or `noise=model` which is the same in this case)."
+            )
+        new_noise_model = copy.deepcopy(model.noise_model)
+        if (
+            self.noise in ['inherit_struct', 'default']
+            and isinstance(model.noise_model, AbstractGaussianNoiseModel)
+        ):
+            prediction = model.compute_individual_tensorized(
+                dataset.timepoints, individual_parameters, attribute_type='MCMC'
+            )
+            new_noise_model.set_noise_std(
+                model.noise_model.compute_rmse(dataset, prediction)
+            )
+        return new_noise_model
 
-            noise_kws = {}
-            if self.noise in ['inherit_struct', 'default'] and 'gaussian' in model.noise_model:
-                # 'inherit_struct' (and deprecated 'default') option: compute from model reconstruction rmse
-                noise_kws['scale'] = NoiseModel.rmse_model(model, dataset, individual_params)
-
-            return NoiseModel.from_model(model, self.noise, **noise_kws)
-
-        else:
-            # float or array-like[float] --> gaussian noise
-            try:
-                noise_scale = torch.tensor(self.noise, dtype=torch.float32).view(-1)
-            except Exception:
-                raise LeaspyAlgoInputError('The "noise" parameter should be a float or array-like[float] when neither a string nor None.')
-
-            noise_struct = 'gaussian_scalar' if noise_scale.numel() == 1 else 'gaussian_diagonal'
-            return NoiseModel.from_model(model, noise_struct, scale=noise_scale)
+    def _get_noise_model_from_numeric(self) -> BaseNoiseModel:
+        try:
+            noise_scale = torch.tensor(self.noise, dtype=torch.float32).view(-1)
+        except Exception:
+            raise LeaspyAlgoInputError(
+                "The 'noise' parameter should be a float or array-like[float] "
+                "when neither a string nor None."
+            )
+        new_noise_model = GaussianScalarNoiseModel if noise_scale.numel() == 1 else GaussianDiagonalNoiseModel
+        return new_noise_model(noise_scale)
 
     @staticmethod
     def _get_reparametrized_age(timepoints, tau, xi, tau_mean):
@@ -650,7 +676,7 @@ class SimulationAlgorithm(AbstractAlgo):
         return _SimulatedSubjects(simulated_parameters, timepoints)
 
     @staticmethod
-    def _simulate_subjects_values(subjects: _SimulatedSubjects, model, noise_model: NoiseModel):
+    def _simulate_subjects_values(subjects: _SimulatedSubjects, model, noise_model: BaseNoiseModel):
         """
         Compute the simulated scores given the simulated individual parameters, timepoints & noise model.
 
@@ -660,7 +686,7 @@ class SimulationAlgorithm(AbstractAlgo):
             Helper class to store simulated individual parameters and timepoints
         model : :class:`~.models.abstract_model.AbstractModel`
             A subclass object of leaspy `AbstractModel`.
-        noise_model : :class:`.NoiseModel`
+        noise_model : BaseNoiseModel
             The noise model that is able to sample realizations around model mean values.
 
         Returns
@@ -677,7 +703,7 @@ class SimulationAlgorithm(AbstractAlgo):
             # Sample observations as realizations of the noise model
             observations = noise_model.sample_around(mean_observations)
             # Clip in 0-1 for logistic models (could be out because of noise!), except for ordinal case
-            if 'logistic' in model.name and not getattr(model, 'is_ordinal', False):
+            if 'logistic' in model.name and not model.is_ordinal:
                 observations = observations.clamp(0, 1)
 
             observations = observations.squeeze(0).detach()

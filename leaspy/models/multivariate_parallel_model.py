@@ -4,7 +4,7 @@ from typing import Optional, Union
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.noise_models import BaseNoiseModel
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
-
+from leaspy.utils.typing import DictParamsTorch
 from leaspy.utils.docs import doc_with_super
 
 
@@ -172,7 +172,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             self.noise_model.get_parameters(data, prediction)
         )
 
-    def update_model_parameters_normal(self, data, sufficient_statistics: dict) -> None:
+    def update_model_parameters_normal(self, data, sufficient_statistics: DictParamsTorch) -> None:
         from .utilities import compute_std_from_variance
 
         for param in ("g", "deltas"):

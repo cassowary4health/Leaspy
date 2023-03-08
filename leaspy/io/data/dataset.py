@@ -8,7 +8,6 @@ import warnings
 
 from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.typing import KwargsType, List, Dict
-from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 if TYPE_CHECKING:
     from leaspy.io.data.data import Data
@@ -258,6 +257,7 @@ class Dataset:
         -------
         One-hot encoding of data values.
         """
+        from leaspy.models.utils.ordinal import compute_ordinal_sf_from_ordinal_pdf
 
         if self._one_hot_encoding is None:
             ## Check the data & construct the one-hot encodings once for all for fast look-up afterwards
@@ -305,7 +305,7 @@ class Dataset:
             # one-hot encode all the values after the checks & clipping
             vals_pdf = torch.nn.functional.one_hot(vals, num_classes=ordinal_infos['max_level'] + 1)
             # build the survival function by simple (1 - cumsum) and remove the useless P(X >= 0) = 1
-            vals_sf = OrdinalModelMixin.compute_ordinal_sf_from_ordinal_pdf(vals_pdf)
+            vals_sf = compute_ordinal_sf_from_ordinal_pdf(vals_pdf)
             # cache the values to retrive them fast afterwards
             self._one_hot_encoding = {False: vals_pdf, True: vals_sf}
 

@@ -2,8 +2,7 @@ from typing import List, Tuple
 
 import torch
 
-from leaspy.models.utils.noise_struct import NoiseStruct, NOISE_STRUCTS, MultinomialDistribution
-from leaspy.models.utils.noise_model import NoiseModel
+from leaspy.models.noise_models import MultinomialDistribution
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 
@@ -64,6 +63,7 @@ class FakeModel:
         assert s.shape == (1, self.dimension)
         return s
 
+
 class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
 
     def assertEqual(self, a, b):
@@ -103,9 +103,9 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
     def setUp(self) -> None:
         torch.random.manual_seed(42)
 
-    def test_predefined_noise_structs(self):
-        for noise_struct_name, noise_struct in NOISE_STRUCTS.items():
-            self.assertIsInstance(noise_struct, NoiseStruct, msg=noise_struct_name)
+    #def test_predefined_noise_structs(self):
+    #    for noise_struct_name, noise_struct in NOISE_STRUCTS.items():
+    #        self.assertIsInstance(noise_struct, NoiseStruct, msg=noise_struct_name)
 
     def test_no_noise(self):
         nm = NoiseModel(None)

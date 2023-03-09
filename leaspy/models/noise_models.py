@@ -2,7 +2,7 @@ import abc
 
 import torch
 import math
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Optional
 from torch.distributions.constraints import unit_interval
 from typing import Union
 
@@ -129,6 +129,10 @@ class BaseNoiseModel(abc.ABC):
             else:
                 warnings.warn(f"Cannot set parameter {k} for noise model.")
 
+    def configure_from_parameters(self, parameters: dict, **kwargs) -> None:
+        """Configure noise model with model parameters."""
+        pass
+
     def sample_around(self, values: torch.FloatTensor) -> torch.FloatTensor:
         """Realization around `values` with respect to noise model."""
         return self.sampler_around(values)()
@@ -147,15 +151,32 @@ class BaseNoiseModel(abc.ABC):
         return self.distribution(loc, **self._distribution_parameters)
 
     @abc.abstractmethod
-    def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+    def compute_log_likelihood_from_dataset(
+            self,
+            data: Dataset,
+            prediction: torch.FloatTensor,
+    ) -> torch.FloatTensor:
         raise NotImplementedError
 
     @abc.abstractmethod
     def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def compute_objective(self, values: torch.FloatTensor, predicted: torch.FloatTensor, **kwargs) -> torch.Tensor:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def compute_gradient(
+        self,
+        values: torch.FloatTensor,
+        predicted: torch.FloatTensor,
+        grads: torch.FloatTensor,
+    ) -> torch.Tensor:
+        raise NotImplementedError
+
     def get_sufficient_statistics(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
-        return {"log-likelihood": self.compute_log_likelihood(data, prediction)}
+        return {"log-likelihood": self.compute_log_likelihood_from_dataset(data, prediction)}
 
     def get_parameters(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
         return {"log-likelihood": self.compute_attachment(data, prediction).sum()}
@@ -180,19 +201,42 @@ class BernoulliNoiseModel(BaseNoiseModel):
         self._distribution = torch.distributions.bernoulli.Bernoulli
         self._is_ordinal = False
 
-    def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+    def compute_log_likelihood_from_dataset(
+            self,
+            data: Dataset,
+            prediction: torch.FloatTensor,
+    ) -> torch.FloatTensor:
+        return self.compute_log_likelihood(data.values, prediction)
+
+    def compute_log_likelihood(self, values: torch.FloatTensor, prediction: torch.FloatTensor) -> torch.FloatTensor:
         prediction = torch.clamp(prediction, 1e-7, 1. - 1e-7)
-        return (
-            data.values * torch.log(prediction)
-            + (1. - data.values) * torch.log(1. - prediction)
-        )
+        return values * torch.log(prediction) + (1. - values) * torch.log(1. - prediction)
 
     def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         attachment = -torch.sum(
-            data.mask.float() * self.compute_log_likelihood(data, prediction),
+            data.mask.float() * self.compute_log_likelihood(data.values, prediction),
             dim=(1, 2),
         )
         return attachment.reshape((data.n_individuals,))
+
+    def compute_objective(self, values: torch.FloatTensor, predicted: torch.FloatTensor, **kwargs) -> torch.FloatTensor:
+        nan_mask = torch.isnan(values)
+        neg_cross_entropy = self.compute_log_likelihood(values, predicted)
+        neg_cross_entropy[nan_mask] = 0.0
+        return -torch.sum(neg_cross_entropy)
+
+    def compute_gradient(
+        self,
+        values: torch.FloatTensor,
+        predicted: torch.FloatTensor,
+        grads: torch.FloatTensor,
+    ) -> torch.Tensor:
+        nan_mask = torch.isnan(values)
+        predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
+        diff = predicted - values
+        diff[nan_mask] = 0.0
+        cross_entropy_fact = diff / (predicted * (1. - predicted))
+        return torch.sum(cross_entropy_fact.unsqueeze(-1) * grads, dim=(0, 1))
 
 
 class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
@@ -222,19 +266,21 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
         r1 = data.mask.float() * (prediction - data.values)
         return (r1 * r1).sum(dim=1)
 
-    def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+    def get_noise_var_in_dimension(self, dimension: int) -> torch.FloatTensor:
         noise_var = self.distribution_parameters['scale'] ** 2
-        noise_var = noise_var.expand((1, data.dimension))
+        return noise_var.expand((1, dimension))
+
+    def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+        noise_var = self.get_noise_var_in_dimension(data.dimension)
         attachment = (0.5 / noise_var) @ self.compute_l2_residuals_per_individual_per_feature(data, prediction).t()
         attachment += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
         return attachment.reshape((data.n_individuals,))
 
-    def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
-        # FIXME
-        return -1 * self.compute_rmse(data, prediction)
+    def compute_log_likelihood_from_dataset(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+        return self.compute_rmse(data, prediction)
 
     @abc.abstractmethod
-    def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.Tensor:
+    def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.FloatTensor:
         raise NotImplementedError
 
     def get_sufficient_statistics(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
@@ -281,6 +327,28 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
         parameters["noise_std"] = self.compute_rmse(data, prediction)
         return parameters
 
+    def compute_objective(self, values: torch.FloatTensor, predicted: torch.FloatTensor, **kwargs) -> torch.Tensor:
+        model_dimension = kwargs.pop("model_dimension", 1)
+        nan_mask = torch.isnan(values)
+        diff = predicted - values
+        diff[nan_mask] = 0.0
+        noise_var = self.get_noise_var_in_dimension(model_dimension)
+        return torch.sum((0.5 / noise_var) @ (diff * diff).t())
+
+    def compute_gradient(
+            self,
+            values: torch.FloatTensor,
+            predicted: torch.FloatTensor,
+            grads: torch.FloatTensor,
+            **kwargs,
+    ) -> torch.Tensor:
+        model_dimension = kwargs.pop("model_dimension", 1)
+        nan_mask = torch.isnan(values)
+        diff = predicted - values
+        diff[nan_mask] = 0.0
+        noise_var = self.get_noise_var_in_dimension(model_dimension)
+        return torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0, 1))
+
 
 class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
     """Class implementing scalar Gaussian noise models."""
@@ -297,7 +365,7 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
             )
         return super().check_noise_std(noise_std)
 
-    def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.Tensor:
+    def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.FloatTensor:
         return torch.sqrt(
             self.compute_l2_residuals_per_individual_per_feature(
                 data, predictions
@@ -322,7 +390,7 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
     def check_noise_std(self, noise_std: torch.Tensor) -> torch.Tensor:
         return super().check_noise_std(convert_scalar_to_1d_tensors(noise_std))
 
-    def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.Tensor:
+    def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.FloatTensor:
         return torch.sqrt(
             self.compute_l2_residuals_per_individual_per_feature(data, predictions).sum(dim=0) /
             data.n_observations_per_ft.float()
@@ -342,14 +410,91 @@ class AbstractOrdinalNoiseModel(BaseNoiseModel, abc.ABC):
     """Base class for Ordinal noise models."""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._is_ordinal = True
+        self._is_ordinal: bool = True
+        self.batch_deltas: bool = False
+        self.max_level: Optional[int] = None
+        self.features: list = []
+        self.mask: Optional[torch.FloatTensor] = None
+
+    @property
+    def ordinal_infos(self) -> dict:
+        return {
+            "batch_deltas": self.batch_deltas,
+            "max_level": self.max_level,
+            "features": self.features,
+            "mask": self.mask,
+        }
+
+    def configure_from_parameters(self, parameters: dict, **kwargs) -> None:
+        """Set the ordinal info from model parameters."""
+        model_features = kwargs.pop("features", [])
+        deltas_p = self._check_delta_parameters(parameters, model_features)
+        if self.batch_deltas:
+            self._set_features_and_max_level_from_parameters_batch_deltas(parameters, model_features)
+        else:
+            self._set_features_and_max_level_from_deltas(deltas_p)
+        self.build_mask()
+
+    def _check_delta_parameters(self, parameters: dict, model_features: list) -> dict:
+        deltas_p = {k: v for k, v in parameters.items() if k.startswith('deltas')}
+        expected = {'deltas'} if self.batch_deltas else {f'deltas_{ft}' for ft in model_features}
+        if deltas_p.keys() != expected:
+            raise ValueError(
+                f"Unexpected delta parameters. Expected {expected} but got {deltas_p.keys()}"
+            )
+        return deltas_p
+
+    def _set_features_and_max_level_from_parameters_batch_deltas(
+            self,
+            parameters: dict,
+            model_features: list,
+    ) -> None:
+        undef_levels = torch.isinf(parameters['deltas'])
+        self.max_level = undef_levels.shape[1] + 1
+        for i, feat in enumerate(model_features):
+            undef_levels_ft = undef_levels[i, :]
+            max_lvl_ft = self.max_level
+            if undef_levels_ft.any():
+                max_lvl_ft = undef_levels_ft.int().argmax().item() + 1
+            self.features.append({"name": feat, "max_level": max_lvl_ft})
+
+    def _set_features_and_max_level_from_deltas(self, deltas: dict) -> None:
+        for feat, v in deltas.items():
+            self.features.append(
+                {"name": feat.lstrip("deltas_"), "max_level": v.shape[0] + 1}
+            )
+        self.max_level = max([feat["max_level"] for feat in self.features])
+
+    def build_mask(self):
+        """
+        Build the mask to account for possible difference in levels per feature.
+
+        The shape of the mask is (1, 1, dimension, ordinal_max_level).
+        """
+        self.mask = torch.cat([
+            torch.cat([
+                torch.ones((1, 1, 1, feat['max_level'])),
+                torch.zeros((1, 1, 1, self.max_level - feat['max_level'])),
+            ], dim=-1) for feat in self.features
+        ], dim=2)
 
     def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         attachment = -torch.sum(
-            data.mask.float() * self.compute_log_likelihood(data, prediction),
+            data.mask.float() * self.compute_log_likelihood_from_dataset(data, prediction),
             dim=(1, 2),
         )
         return attachment.reshape((data.n_individuals,))
+
+    @abc.abstractmethod
+    def compute_log_likelihood(self, values: torch.FloatTensor, prediction: torch.FloatTensor) -> torch.Tensor:
+        raise NotImplementedError
+
+    def compute_objective(self, values: torch.FloatTensor, predicted: torch.FloatTensor, **kwargs) -> torch.FloatTensor:
+        nan_mask = torch.isnan(values)
+        predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
+        log_likelihood = self.compute_log_likelihood(values, predicted)
+        log_likelihood[nan_mask[..., 0]] = 0.0
+        return -torch.sum(log_likelihood)
 
 
 class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
@@ -358,10 +503,25 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
         super().__init__(**kwargs)
         self._distribution = MultinomialDistribution.from_pdf
 
-    def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.Tensor:
+    def compute_log_likelihood_from_dataset(self, data: Dataset, prediction: torch.FloatTensor) -> torch.Tensor:
         pdf = data.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
+        return self.compute_log_likelihood(pdf, prediction)
 
-        return torch.log((prediction * pdf).sum(dim=-1))
+    def compute_log_likelihood(self, values: torch.FloatTensor, prediction: torch.FloatTensor) -> torch.Tensor:
+        return torch.log((values * prediction).sum(dim=-1))
+
+    def compute_gradient(
+            self,
+            values: torch.FloatTensor,
+            predicted: torch.FloatTensor,
+            grads: torch.FloatTensor,
+    ) -> torch.Tensor:
+        nan_mask = torch.isnan(values)
+        predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
+        log_likelihood_grad_fact = values / predicted
+        log_likelihood_grad_fact[nan_mask] = 0.0
+        grad = torch.sum(log_likelihood_grad_fact.unsqueeze(-1) * grads, dim=2)
+        return -grad.sum(dim=(0, 1))
 
 
 class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
@@ -370,11 +530,36 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
         super().__init__(**kwargs)
         self._distribution = MultinomialDistribution
 
-    def compute_log_likelihood(self, data: Dataset, prediction) -> torch.Tensor:
+    def compute_log_likelihood_from_dataset(self, data: Dataset, prediction) -> torch.Tensor:
         sf = data.get_one_hot_encoding(sf=True, ordinal_infos=self.ordinal_infos)
-        cdf = (1. - sf) * self.ordinal_infos['mask']
+        return self.compute_log_likelihood(sf, prediction)
 
-        return (sf * torch.log(prediction) + cdf * torch.log(1. - prediction)).sum(dim=-1)
+    def compute_log_likelihood(
+            self,
+            values: torch.FloatTensor,
+            prediction: torch.FloatTensor,
+            **kwargs,
+    ) -> torch.Tensor:
+        squeeze_mask = kwargs.pop("squeeze_mask", True)
+        if squeeze_mask:
+            cdf = (1. - values) * self.mask.squeeze(0)
+        else:
+            cdf = (1. - values) * self.mask
+        return (values * torch.log(prediction) + cdf * torch.log(1. - prediction)).sum(dim=-1)
+
+    def compute_gradient(
+            self,
+            values: torch.FloatTensor,
+            predicted: torch.FloatTensor,
+            grads: torch.FloatTensor,
+    ) -> torch.Tensor:
+        nan_mask = torch.isnan(values)
+        predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
+        diff = predicted - values
+        diff[nan_mask] = 0.0
+        log_likelihood_grad_fact = -diff * self.mask.squeeze(0) / (predicted * (1. - predicted))
+        grad = torch.sum(log_likelihood_grad_fact.unsqueeze(-1) * grads, dim=2)
+        return -grad.sum(dim=(0, 1))
 
 
 NOISE_MODELS = {

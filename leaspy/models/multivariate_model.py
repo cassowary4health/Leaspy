@@ -71,8 +71,7 @@ class MultivariateModel(AbstractMultivariateModel):
                 continue
             self.parameters[k] = torch.tensor(parameters[k])
 
-        # re-build the ordinal_infos if relevant
-        self._rebuild_ordinal_infos_from_model_parameters()
+        self.noise_model.configure_from_parameters(self.parameters, features=self.features)
 
         # derive the model attributes from model parameters upon reloading of model
         self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
@@ -407,7 +406,7 @@ class MultivariateModel(AbstractMultivariateModel):
         for param in ("tau", "xi"):
             sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor_realizations, 2)
 
-        self._add_ordinal_tensor_realizations(realizations, sufficient_statistics)
+        sufficient_statistics.update(self.get_ordinal_tensor_realizations(realizations))
 
         individual_parameters = self.get_param_from_real(realizations)
 
@@ -452,7 +451,7 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = realizations['betas'].tensor_realizations
 
-        self._add_ordinal_tensor_realizations(realizations, self.parameters)
+        self.parameters.update(self.get_ordinal_tensor_realizations(realizations))
 
         self.parameters['xi_std'] = torch.std(realizations['xi'].tensor_realizations)
         tau = realizations['tau'].tensor_realizations
@@ -492,7 +491,9 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = sufficient_statistics['betas']
 
-        self._add_ordinal_sufficient_statistics(sufficient_statistics, self.parameters)
+        self.parameters.update(
+            self.get_ordinal_sufficient_statistics(sufficient_statistics)
+        )
 
         for param in ("tau", "xi"):
             param_mean = self.parameters[f"{param}_mean"]

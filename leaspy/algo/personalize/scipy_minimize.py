@@ -8,8 +8,6 @@ from scipy.optimize import minimize
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
 
-from leaspy.exceptions import LeaspyAlgoInputError
-
 if hasattr(torch, 'nanmean'):
     # torch.nanmean was only introduced in torch 1.10
     torch_nanmean = torch.nanmean
@@ -20,6 +18,7 @@ else:
         t = t.clone()
         t[is_nan] = 0
         return t.sum(*args, **kwargs) / (~is_nan).float().sum(*args, **kwargs)
+
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
     """
@@ -266,110 +265,40 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ------
         :exc:`.LeaspyAlgoInputError`
             if noise model is not currently supported by algorithm.
-            TODO: everything that is not generic here concerning noise structure should be handle by model/NoiseModel directly!!!!
         """
-
         # Extra arguments passed by scipy minimize
         model, times, values, with_gradient = args
-        nans = torch.isnan(values)
 
         ## Attachment term
         individual_parameters = self._pull_individual_parameters(x, model)
 
         # compute 1 individual at a time (1st dimension is squeezed)
         predicted = model.compute_individual_tensorized(times, individual_parameters).squeeze(0)
-
-        # we clamp the predictions for log-based losses (safety before taking the log)
-        # cf. torch.finfo(torch.float32).eps ~= 1.19e-7
-        # (and we do it before computing `diff` unlike before for bernoulli model)
-        if model.is_ordinal or model.noise_model == 'bernoulli':
-            predicted = torch.clamp(predicted, 1e-7, 1. - 1e-7)
-
-        diff = None
-        if model.noise_model != 'ordinal':
-            diff = predicted - values # tensor j,k[,l] (j=visits, k=features [, l=ordinal_ranking_level])
-            diff[nans] = 0.  # set nans to zero, not to count in the sum
-
-        # compute gradient of model with respect to individual parameters
-        grads = None
+        res = {
+            "objective": model.noise_model.compute_objective(
+                values, predicted, model_dimension=model.dimension
+            )
+        }
         if with_gradient:
             grads = model.compute_jacobian_tensorized(times, individual_parameters)
             # put derivatives consecutively in the right order and drop ind level
             # --> output shape [n_tpts, n_fts [, n_ordinal_lvls], n_dims_params]
             grads = self._get_normalized_grad_tensor_from_grad_dict(grads, model)
-
-        # Placeholder for result (objective and, if needed, gradient)
-        res = {}
-
-        # Loss is based on log-likelihood for model, which ultimately depends on noise structure
-        # TODO: should be directly handled in model or NoiseModel (probably in NoiseModel)
-        if 'gaussian' in model.noise_model:
-            noise_var = model.parameters['noise_std'] * model.parameters['noise_std']
-            noise_var = noise_var.expand((1, model.dimension)) # tensor 1,n_fts (works with diagonal noise or scalar noise)
-            res['objective'] = torch.sum((0.5 / noise_var) @ (diff * diff).t()) # <!> noise per feature
-
-            if with_gradient:
-                res['gradient'] = torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0,1))
-
-        elif model.noise_model == 'bernoulli':
-            neg_crossentropy = values * torch.log(predicted) + (1. - values) * torch.log(1. - predicted)
-            neg_crossentropy[nans] = 0. # set nans to zero, not to count in the sum
-            res['objective'] = -torch.sum(neg_crossentropy)
-
-            if with_gradient:
-                crossentropy_fact = diff / (predicted * (1. - predicted))
-                res['gradient'] = torch.sum(crossentropy_fact.unsqueeze(-1) * grads, dim=(0,1))
-
-        elif model.is_ordinal:
-
-            LL_grad_fact = None # init to avoid linter warning...
-
-            if model.noise_model == 'ordinal':
-                # Compute the simple multinomial loss
-                LL = torch.log((predicted * values).sum(dim=-1))
-
-                if with_gradient:
-                    LL_grad_fact = values / predicted
-                    LL_grad_fact[nans] = 0.
-            else:
-                # Compute the cross-entropy for each P(X>=k)
-                # values (`sf`) are already masked for impossible ordinal levels but not `cdf`
-                mask_ordinal_lvls = model.ordinal_infos['mask'].squeeze(0) # squeeze individual dimension to preserve shape
-                cdf = (1. - values) * mask_ordinal_lvls
-                LL = (values * torch.log(predicted) + cdf * torch.log(1. - predicted)).sum(dim=-1)
-
-                if with_gradient:
-                    # diff (= predicted - values) is already 0 where nans
-                    # we explicitely set LL_grad_fact to 0 outside possible ordinal levels
-                    LL_grad_fact = -diff * mask_ordinal_lvls / (predicted * (1. - predicted))
-
-            # we squeeze the last dimension of nans (raw int value is nan <=> all the ordinal levels are nan)
-            LL[nans[..., 0]] = 0.
-            res['objective'] = -torch.sum(LL)
-
-            if with_gradient:
-                grad = torch.sum(LL_grad_fact.unsqueeze(-1) * grads, dim=2)
-                res['gradient'] = -grad.sum(dim=(0,1))
-
-        else:
-            raise LeaspyAlgoInputError(f"'{model.noise_model}' noise is currently not implemented in 'scipy_minimize' algorithm. "
-                                       f"Please open an issue on Gitlab if needed.")
-
-        ## Regularity term
+            res.update(
+                {
+                    "gradient": model.noise_model.compute_gradient(
+                        values, predicted, grads, model_dimension=model.dimension
+                    )
+                }
+            )
         regularity, regularity_grads = self._get_regularity(model, individual_parameters)
 
         res['objective'] += regularity.squeeze(0)
-
         if with_gradient:
             # add regularity term, shape (n_dims_params, )
             res['gradient'] += self._get_normalized_grad_tensor_from_grad_dict(regularity_grads, model)
-
-            # result tuple (objective, jacobian)
-            return (res['objective'].item(), res['gradient'].detach())
-
-        else:
-            # result is objective only
-            return res['objective'].item()
+            return res['objective'].item(), res['gradient'].detach()
+        return res['objective'].item()
 
     def _get_individual_parameters_patient(self, model, times, values, *, with_jac: bool, patient_id=None):
         """

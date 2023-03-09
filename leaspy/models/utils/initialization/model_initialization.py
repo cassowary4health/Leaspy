@@ -278,7 +278,7 @@ def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
     deltas = {}
     for ft, s in df.items():  # preserve feature order
         max_lvl = int(s.max())  # possible levels not observed in calibration data do not exist for us
-        model.ordinal_infos["features"].append({"name":ft, "max_level":max_lvl})
+        model.noise_model.features.append({"name": ft, "max_level": max_lvl})
         # we do not model P >= 0 (since constant = 1)
         # we compute stats on P(Y >= k) in our data
         first_age_gte = {}
@@ -293,8 +293,8 @@ def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
 
     # Changes the meaning of v0 # How do we initialize this ?
     #parameters['v0'] = torch.zeros_like(parameters['v0'])
-    max_level = max([feat["max_level"] for feat in model.ordinal_infos['features']])
-    if model.ordinal_infos["batch_deltas"]:
+    max_level = max([feat["max_level"] for feat in model.noise_model.features])
+    if model.noise_model.batch_deltas:
         # we set the undefined deltas to be infinity to extend validity of formulas for them as well (and to avoid computations)
         deltas_ = float('inf') * torch.ones((len(deltas), max_level - 1))
         for i, name in enumerate(deltas):
@@ -303,14 +303,8 @@ def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
     else:
         for col in model.features:
             parameters["deltas_" + col] = deltas[col]
-    model.ordinal_infos["max_level"] = max_level
-    # Mask for setting values > max_level per item to zero
-    model.ordinal_infos["mask"] = torch.cat([
-        torch.cat([
-            torch.ones((1, 1, 1, feat['max_level'])),
-            torch.zeros((1, 1, 1, max_level - feat['max_level'])),
-        ], dim=-1) for feat in model.ordinal_infos['features']
-    ], dim=2)
+    model.noise_model.max_level = max_level
+    model.noise_model.build_mask()
 
     return parameters
 

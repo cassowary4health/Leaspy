@@ -134,10 +134,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
         expected_hyperparameters = ('features', 'dimension', 'source_dimension')
 
-        if 'features' in hyperparameters.keys():
+        if 'features' in hyperparameters:
             self.features = hyperparameters['features']
 
-        if 'dimension' in hyperparameters.keys():
+        if 'dimension' in hyperparameters:
             if self.features and hyperparameters['dimension'] != len(self.features):
                 raise LeaspyModelInputError(
                     f"Dimension provided ({hyperparameters['dimension']}) does not match "
@@ -145,7 +145,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                 )
             self.dimension = hyperparameters['dimension']
 
-        if 'source_dimension' in hyperparameters.keys():
+        if 'source_dimension' in hyperparameters:
             if not (
                 isinstance(hyperparameters['source_dimension'], int)
                 and (hyperparameters['source_dimension'] >= 0)
@@ -156,6 +156,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                     f"not {hyperparameters['source_dimension']}"
                 )
             self.source_dimension = hyperparameters['source_dimension']
+
+        if 'noise_model' in hyperparameters:
+            expected_hyperparameters += ("noise_model", "loss")
+            self.noise_model = hyperparameters["noise_model"]
 
         # special hyperparameter(s) for ordinal model
         expected_hyperparameters += self._handle_ordinal_hyperparameters(hyperparameters)

@@ -11,7 +11,7 @@ import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
 from leaspy.models.noise_models import (
     AbstractGaussianNoiseModel,
-    BernouilliNoiseModel,
+    BernoulliNoiseModel,
     GaussianScalarNoiseModel,
 )
 
@@ -403,7 +403,7 @@ def initialize_logistic(model, df: pd.DataFrame, method):
     if model.is_ordinal:
         parameters = initialize_deltas_ordinal(model, df, parameters)
 
-    if not (model.is_ordinal or isinstance(model.noise_model, BernouilliNoiseModel)):
+    if not (model.is_ordinal or isinstance(model.noise_model, BernoulliNoiseModel)):
         # do not initialize `noise_std` unless needed
         parameters['noise_std'] = torch.tensor(noise_std) if 'univariate' in model.name else torch.tensor([noise_std])
 

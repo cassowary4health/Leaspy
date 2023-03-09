@@ -15,6 +15,8 @@ class OrdinalModelMixin:
     @property
     def is_ordinal(self) -> bool:
         """Property to check if the model is of ordinal sub-type."""
+        if self.noise_model is None:
+            return False
         return self.noise_model.is_ordinal
 
     def postprocess_model_estimation(

@@ -3,7 +3,7 @@ from typing import Optional, Union
 from leaspy.models.multivariate_model import MultivariateModel
 from leaspy.models.noise_models import (
     BaseNoiseModel,
-    BernouilliNoiseModel,
+    BernoulliNoiseModel,
     GaussianScalarNoiseModel,
     OrdinalNoiseModel,
 )
@@ -11,8 +11,10 @@ from leaspy.exceptions import LeaspyModelInputError
 from leaspy.utils.docs import doc_with_super
 
 # TODO refact? implement a single function
-# compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
-# TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
+# compute_individual_tensorized(..., with_jacobian: bool) -> returning either
+# model values or model values + jacobians wrt individual parameters
+# TODO refact? subclass or other proper code technique to extract model's concrete
+#  formulation depending on if linear, logistic, mixed log-lin, ...
 
 
 @doc_with_super()
@@ -52,7 +54,7 @@ class UnivariateModel(MultivariateModel):
         super().__init__(name, dimension=1, source_dimension=0, noise_model=noise_model, **kwargs)
 
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
-        if not isinstance(model, (BernouilliNoiseModel, GaussianScalarNoiseModel, OrdinalNoiseModel)):
+        if not isinstance(model, (BernoulliNoiseModel, GaussianScalarNoiseModel, OrdinalNoiseModel)):
             raise ValueError(
                 f"The univariate model is only compatible with the following noise models: "
                 "'bernouilli', 'gaussian-scalar', and 'ordinal'. "

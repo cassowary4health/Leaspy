@@ -9,7 +9,7 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
-  "noise_model": "gaussian_diagonal",
+  "noise_model": "GaussianDiagonalNoiseModel",
   "parameters": {
     "g": [
       0.13736356794834137,
@@ -43,6 +43,7 @@
     "xi_std": 0.4625287652015686,
     "sources_mean": 0.0,
     "sources_std": 1.0,
+    "log-likelihood": -0.3349112272262573,
     "noise_std": [
       0.07141246646642685,
       0.03827395290136337,

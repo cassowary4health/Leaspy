@@ -74,7 +74,7 @@ class AbstractModel(BaseModel):
     def noise_model(self, model: Union[str, BaseNoiseModel]):
         from leaspy.models.noise_models import noise_model_factory
 
-        noise_model = noise_model_factory(model)
+        noise_model = noise_model_factory(model)()
         self.check_noise_model_compatibility(noise_model)
         self._noise_model = noise_model
 

@@ -48,7 +48,7 @@ class MultinomialDistribution(torch.distributions.Distribution):
         """Generate a new MultinomialDistribution from its probability density
         function instead of its survival function.
         """
-        from .utils import compute_ordinal_sf_from_ordinal_pdf
+        from leaspy.models.utils.ordinal import compute_ordinal_sf_from_ordinal_pdf
 
         return cls(compute_ordinal_sf_from_ordinal_pdf(pdf))
 
@@ -146,7 +146,6 @@ class BaseNoiseModel(abc.ABC):
 
         return self.distribution(loc, **self._distribution_parameters)
 
-    @staticmethod
     @abc.abstractmethod
     def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         raise NotImplementedError
@@ -155,15 +154,12 @@ class BaseNoiseModel(abc.ABC):
     def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         raise NotImplementedError
 
-    @staticmethod
     def get_sufficient_statistics(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
         return {"log-likelihood": self.compute_log_likelihood(data, prediction)}
 
-    @staticmethod
     def get_parameters(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
-        return {"log-likelihood": self.compute_log_likelihood(data, prediction)}
+        return {"log-likelihood": self.compute_attachment(data, prediction).sum()}
 
-    @staticmethod
     def get_updated_parameters_from_sufficient_statistics(
             self,
             data: Dataset,
@@ -177,15 +173,15 @@ class BaseNoiseModel(abc.ABC):
         return {"log-likelihood": sufficient_statistics["log-likelihood"].sum()}
 
 
-class BernouilliNoiseModel(BaseNoiseModel):
+class BernoulliNoiseModel(BaseNoiseModel):
     """Class implementing Bernouilli noise models."""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._distribution = torch.distributions.bernoulli.Bernoulli
         self._is_ordinal = False
 
-    @staticmethod
     def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
+        prediction = torch.clamp(prediction, 1e-7, 1. - 1e-7)
         return (
             data.values * torch.log(prediction)
             + (1. - data.values) * torch.log(1. - prediction)
@@ -220,7 +216,6 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
     def set_noise_std(self, noise_std: torch.Tensor) -> None:
         self.update_distribution_parameters({"scale": self.check_noise_std(noise_std)})
 
-    @staticmethod
     def compute_l2_residuals_per_individual_per_feature(
             self, data: Dataset, prediction: torch.FloatTensor
     ) -> torch.FloatTensor:
@@ -230,11 +225,10 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
     def compute_attachment(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         noise_var = self.distribution_parameters['scale'] ** 2
         noise_var = noise_var.expand((1, data.dimension))
-        attachment = (0.5 / noise_var) @ self.compute_l2_residuals_per_individual_per_feature.t()
+        attachment = (0.5 / noise_var) @ self.compute_l2_residuals_per_individual_per_feature(data, prediction).t()
         attachment += 0.5 * torch.log(TWO_PI * noise_var) @ data.n_observations_per_ind_per_ft.float().t()
         return attachment.reshape((data.n_individuals,))
 
-    @staticmethod
     def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.FloatTensor:
         # FIXME
         return -1 * self.compute_rmse(data, prediction)
@@ -243,7 +237,6 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
     def compute_rmse(self, data: Dataset, predictions: torch.FloatTensor) -> torch.Tensor:
         raise NotImplementedError
 
-    @staticmethod
     def get_sufficient_statistics(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
         prediction *= data.mask.float()
         statistics = super().get_sufficient_statistics(data, prediction)
@@ -255,7 +248,6 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
         )
         return statistics
 
-    @staticmethod
     def check_sufficient_statistics(self, sufficient_statistics: dict) -> None:
         for stat in ("obs_x_reconstruction", "reconstruction_x_reconstruction"):
             if stat not in sufficient_statistics:
@@ -264,7 +256,6 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
                     f"sufficient statistics: {sufficient_statistics}."
                 )
 
-    @staticmethod
     def get_updated_parameters_from_sufficient_statistics(
             self,
             data: Dataset,
@@ -277,7 +268,6 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
         parameters["noise_std"] = compute_std_from_variance(noise_var, varname='noise_std')
         return parameters
 
-    @staticmethod
     @abc.abstractmethod
     def compute_noise_variance_from_sufficient_statistics(
             self,
@@ -286,7 +276,6 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
     ) -> torch.FloatTensor:
         raise NotImplementedError
 
-    @staticmethod
     def get_parameters(self, data: Dataset, prediction: torch.FloatTensor) -> dict:
         parameters = super().get_parameters(data, prediction)
         parameters["noise_std"] = self.compute_rmse(data, prediction)
@@ -315,7 +304,6 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
             ).sum(dim=1).sum(dim=0) / data.n_observations
         )
 
-    @staticmethod
     def compute_noise_variance_from_sufficient_statistics(
             self,
             data: Dataset,
@@ -340,7 +328,6 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
             data.n_observations_per_ft.float()
         )
 
-    @staticmethod
     def compute_noise_variance_from_sufficient_statistics(
             self,
             data: Dataset,
@@ -371,7 +358,6 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
         super().__init__(**kwargs)
         self._distribution = MultinomialDistribution.from_pdf
 
-    @staticmethod
     def compute_log_likelihood(self, data: Dataset, prediction: torch.FloatTensor) -> torch.Tensor:
         pdf = data.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
 
@@ -384,7 +370,6 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
         super().__init__(**kwargs)
         self._distribution = MultinomialDistribution
 
-    @staticmethod
     def compute_log_likelihood(self, data: Dataset, prediction) -> torch.Tensor:
         sf = data.get_one_hot_encoding(sf=True, ordinal_infos=self.ordinal_infos)
         cdf = (1. - sf) * self.ordinal_infos['mask']
@@ -393,7 +378,7 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
 
 
 NOISE_MODELS = {
-    "bernouilli": BernouilliNoiseModel,
+    "bernoulli": BernoulliNoiseModel,
     "gaussian-scalar": GaussianScalarNoiseModel,
     "gaussian-diagonal": GaussianDiagonalNoiseModel,
     "ordinal": OrdinalNoiseModel,
@@ -424,6 +409,7 @@ def noise_model_factory(noise_model: Union[str, BaseNoiseModel]) -> BaseNoiseMod
     if isinstance(noise_model, BaseNoiseModel):
         return noise_model
     noise_model = noise_model.lower()
+    noise_model = noise_model.replace("_", "-")
     try:
         return NOISE_MODELS[noise_model]
     except KeyError:

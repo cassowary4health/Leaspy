@@ -104,7 +104,6 @@ class MultivariateModel(AbstractMultivariateModel):
         return model # (n_individuals, n_timepoints, n_features)
 
     def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
-
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
         g_plus_1 = 1. + g
@@ -143,7 +142,8 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # For ordinal loss, compute pdf instead of survival function
         if isinstance(self.noise_model, AbstractOrdinalNoiseModel):
-            model = self.compute_ordinal_pdf_from_ordinal_sf(model)
+            from leaspy.models.utils.ordinal import compute_ordinal_pdf_from_ordinal_sf
+            return compute_ordinal_pdf_from_ordinal_sf(model)
 
         return model # (n_individuals, n_timepoints, n_features [, extra_dim_ordinal_models])
 

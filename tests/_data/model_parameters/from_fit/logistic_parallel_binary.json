@@ -9,7 +9,7 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
-  "noise_model": "bernoulli",
+  "noise_model": "BernoulliNoiseModel",
   "parameters": {
     "g": [
       2.563664197921753

@@ -1,6 +1,6 @@
 import warnings
 from operator import itemgetter
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import torch
 from scipy import stats
@@ -11,14 +11,13 @@ import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
 from leaspy.models.noise_models import (
     AbstractGaussianNoiseModel,
-    BernoulliNoiseModel,
     GaussianScalarNoiseModel,
 )
 
-xi_std = .5
-tau_std = 5.
-noise_std = .1
-sources_std = 1.
+XI_STD = .5
+TAU_STD = 5.
+NOISE_STD = .1
+SOURCES_STD = 1.
 
 
 def _torch_round(t: torch.FloatTensor, *, tol: float = 1 << 16) -> torch.FloatTensor:
@@ -251,14 +250,14 @@ def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
     if multiv: # including logistic_parallel
         params['betas'] = torch.zeros((model.dimension - 1, model.source_dimension))
         params['sources_mean'] = torch.tensor(0.)
-        params['sources_std'] = torch.tensor(sources_std)
+        params['sources_std'] = torch.tensor(SOURCES_STD)
 
     return params
 
 
-def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
+def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters: dict) -> None:
     """
-    Find an initial value the deltas for an ordinal model and initializes ordinal_infos attribute.
+    Updates in-place initial values for the ordinal deltas parameters and initializes ordinal noise_model attributes.
 
     Parameters
     ----------
@@ -293,20 +292,17 @@ def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters):
 
     # Changes the meaning of v0 # How do we initialize this ?
     #parameters['v0'] = torch.zeros_like(parameters['v0'])
-    max_level = max([feat["max_level"] for feat in model.noise_model.features])
+    model.noise_model.max_level = max([feat["max_level"] for feat in model.noise_model.features])
     if model.noise_model.batch_deltas:
         # we set the undefined deltas to be infinity to extend validity of formulas for them as well (and to avoid computations)
-        deltas_ = float('inf') * torch.ones((len(deltas), max_level - 1))
+        deltas_ = float('inf') * torch.ones((len(deltas), model.noise_model.max_level - 1))
         for i, name in enumerate(deltas):
             deltas_[i, :len(deltas[name])] = deltas[name]
         parameters["deltas"] = deltas_
     else:
         for col in model.features:
             parameters["deltas_" + col] = deltas[col]
-    model.noise_model.max_level = max_level
     model.noise_model.build_mask()
-
-    return parameters
 
 
 def linregress_against_time(s: pd.Series) -> Dict[str, float]:
@@ -387,21 +383,33 @@ def initialize_logistic(model, df: pd.DataFrame, method):
         "v0": v0_array,
         "betas": betas,
         "tau_mean": t0,
-        "tau_std": torch.tensor(tau_std),
+        "tau_std": torch.tensor(TAU_STD),
         "xi_mean": torch.tensor(0.),
-        "xi_std": torch.tensor(xi_std),
+        "xi_std": torch.tensor(XI_STD),
         "sources_mean": torch.tensor(0.),
-        "sources_std": torch.tensor(sources_std),
+        "sources_std": torch.tensor(SOURCES_STD),
     }
 
-    if model.is_ordinal:
-        parameters = initialize_deltas_ordinal(model, df, parameters)
-
-    if not (model.is_ordinal or isinstance(model.noise_model, BernoulliNoiseModel)):
-        # do not initialize `noise_std` unless needed
-        parameters['noise_std'] = torch.tensor(noise_std) if 'univariate' in model.name else torch.tensor([noise_std])
+    _init_noise_model_parameters(model, df, parameters, noise_std=NOISE_STD)
 
     return parameters
+
+
+def _init_noise_model_parameters(model, df: pd.DataFrame, parameters: dict, *, noise_std: Union[float, torch.Tensor]) -> None:
+    """Updates in-place the noise-model related parameters to be used as initialization point."""
+
+    if model.is_ordinal:
+        initialize_deltas_ordinal(model, df, parameters)
+
+    if isinstance(model.noise_model, AbstractGaussianNoiseModel):
+        # do not initialize `noise_std` unless needed (i.e. residual Gaussian noise)
+        if not isinstance(noise_std, torch.Tensor):
+            noise_std = torch.tensor(noise_std)
+        # for now the provided initialization `noise_std` is scalar, even if asking a multivariate noise
+        if noise_std.ndim == 0 and not isinstance(model.noise_model, GaussianScalarNoiseModel):
+            noise_std = noise_std.unsqueeze(-1)
+
+        parameters['noise_std'] = noise_std
 
 
 def initialize_logistic_parallel(model, df, method):
@@ -460,18 +468,21 @@ def initialize_logistic_parallel(model, df, method):
     g = torch.log(1. / values - 1.).mean() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
     #g = torch.log(1. / values.mean() - 1.) # mean before transfo
 
-    return {
+    parameters = {
         'g': g,
         'deltas': torch.zeros((model.dimension - 1,)),
         'betas': betas,
         'tau_mean': t0,
-        'tau_std': torch.tensor(tau_std),
+        'tau_std': torch.tensor(TAU_STD),
         'xi_mean': v0,
-        'xi_std': torch.tensor(xi_std),
+        'xi_std': torch.tensor(XI_STD),
         'sources_mean': torch.tensor(0.),
-        'sources_std': torch.tensor(sources_std),
-        'noise_std': torch.tensor([noise_std]),
+        'sources_std': torch.tensor(SOURCES_STD),
     }
+
+    _init_noise_model_parameters(model, df, parameters, noise_std=NOISE_STD)
+
+    return parameters
 
 
 def initialize_linear(model, df: pd.DataFrame, method):
@@ -507,18 +518,21 @@ def initialize_linear(model, df: pd.DataFrame, method):
     # always take the log (even in non univariate model!)
     velocities = get_log_velocities(velocities, model.features)
 
-    return {
+    parameters = {
         "g": positions,
         "v0": velocities,
         "betas": torch.zeros((model.dimension - 1, model.source_dimension)),
         "tau_mean": torch.tensor(t0),
-        "tau_std": torch.tensor(tau_std),
+        "tau_std": torch.tensor(TAU_STD),
         "xi_mean": torch.tensor(0.),
-        "xi_std": torch.tensor(xi_std),
+        "xi_std": torch.tensor(XI_STD),
         "sources_mean": torch.tensor(0.),
-        "sources_std": torch.tensor(sources_std),
-        "noise_std": torch.tensor([noise_std]),
+        "sources_std": torch.tensor(SOURCES_STD),
     }
+
+    _init_noise_model_parameters(model, df, parameters, noise_std=NOISE_STD)
+
+    return parameters
 
 
 def compute_linregress_subjects(df: pd.DataFrame, *, max_inds: int = None) -> Dict[str, pd.DataFrame]:

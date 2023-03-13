@@ -1,8 +1,6 @@
 import torch
-from typing import Optional, Union
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from leaspy.models.noise_models import BaseNoiseModel
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
 from leaspy.utils.typing import DictParamsTorch
 from leaspy.utils.docs import doc_with_super
@@ -20,22 +18,11 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     **kwargs
         Hyperparameters of the model
     """
-    def __init__(self, name: str, noise_model: Optional[Union[str, BaseNoiseModel]] = None, **kwargs):
-        super().__init__(name, noise_model, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None
-
-    def load_parameters(self, parameters):
-        # TODO? Move this method in higher level class AbstractMultivariateModel? (<!> Attributes class)
-        self.parameters = {}
-        for k in parameters.keys():
-            if k in ['mixing_matrix']:
-                continue
-            self.parameters[k] = torch.tensor(parameters[k])
-
-        # derive the model attributes from model parameters upon reloading of model
-        self.attributes = LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
-        self.attributes.update({'all'}, self.parameters)
 
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
 

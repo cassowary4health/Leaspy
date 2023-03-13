@@ -32,6 +32,8 @@ class AbstractModel(BaseModel):
     ----------
     name : str
         The name of the model
+    noise_model : str or BaseNoiseModel
+        The noise model for observations (keyword-only parameter).
     **kwargs
         Hyperparameters for the model
 
@@ -52,18 +54,13 @@ class AbstractModel(BaseModel):
         (Not used anymore)
     """
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, *, noise_model: Union[str, BaseNoiseModel], **kwargs):
         super().__init__(name, **kwargs)
         self.parameters: KwargsType = None
-        self._noise_model: Optional[BaseNoiseModel] = None
-
-        ## TODO? shouldn't it belong to each random variable specs?
-        # We do not use this anymore as many initializations of the distribution will considerably slow down software
-        # (it is especially true when personalizing with `scipy_minimize` since there are many regularity computations - per individual)
-        #self.regularization_distribution_factory = torch.distributions.normal.Normal
+        self._noise_model: BaseNoiseModel = None
 
         # load hyperparameters
-        # <!> in children classes with new hyperparameter you should do it manually at end of __init__ to overwrite default values
+        self.noise_model = noise_model
         self.load_hyperparameters(kwargs)
 
     @property
@@ -74,32 +71,20 @@ class AbstractModel(BaseModel):
     def noise_model(self, model: Union[str, BaseNoiseModel]):
         from leaspy.models.noise_models import noise_model_factory
 
-        noise_model = noise_model_factory(model)()
+        noise_model = noise_model_factory(model)
         self.check_noise_model_compatibility(noise_model)
         self._noise_model = noise_model
 
-    @abstractmethod
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
         """Raise a ValueError is the provided noise model isn't compatible
         with the model instance.
         This needs to be implemented in subclasses.
         """
-        raise NotImplementedError
-
-    @abstractmethod
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
-        """
-        Initialize the model given a dataset and an initialization method.
-
-        After calling this method :attr:`is_initialized` should be True and model should be ready for use.
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            The dataset we want to initialize from.
-        method : str
-            A custom method to initialize the model
-        """
+        if not isinstance(model, BaseNoiseModel):
+            raise LeaspyModelInputError(
+                "Expected a subclass of BaselNoiseModel, but received "
+                f"a {model.__class__.__name__} instead."
+            )
 
     def load_parameters(self, parameters: KwargsType) -> None:
         """
@@ -137,51 +122,6 @@ class AbstractModel(BaseModel):
             raise LeaspyModelInputError(
                     f"Only {known_hps} are valid hyperparameters for {cls.__qualname__}. "
                     f"Unknown hyperparameters provided: {unexpected_hyperparameters}.")
-
-    def compute_sum_squared_per_ft_tensorized(self, dataset: Dataset, param_ind: DictParamsTorch, *,
-                                              attribute_type=None) -> torch.FloatTensor:
-        """
-        Compute the square of the residuals per subject per feature
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        param_ind : dict
-            Contain the individual parameters
-        attribute_type : Any (default None)
-            Flag to ask for MCMC attributes instead of model's attributes.
-
-        Returns
-        -------
-        :class:`torch.Tensor` of shape (n_individuals,dimension)
-            Contains L2 residual for each subject and each feature
-        """
-        res = self.compute_individual_tensorized(dataset.timepoints, param_ind, attribute_type=attribute_type)
-        r1 = dataset.mask.float() * (res - dataset.values) # ijk tensor (i=individuals, j=visits, k=features)
-        return (r1 * r1).sum(dim=1)  # sum on visits
-
-    def compute_sum_squared_tensorized(self, dataset: Dataset, param_ind: DictParamsTorch, *,
-                                       attribute_type=None) -> torch.FloatTensor:
-        """
-        Compute the square of the residuals per subject
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            Contains the data of the subjects, in particular the subjects' time-points and the mask (?)
-        param_ind : dict
-            Contain the individual parameters
-        attribute_type : Any (default None)
-            Flag to ask for MCMC attributes instead of model's attributes.
-
-        Returns
-        -------
-        :class:`torch.Tensor` of shape (n_individuals,)
-            Contains L2 residual for each subject
-        """
-        L2_res_per_ind_per_ft = self.compute_sum_squared_per_ft_tensorized(dataset, param_ind, attribute_type=attribute_type)
-        return L2_res_per_ind_per_ft.sum(dim=1)  # sum on features
 
     def _audit_individual_parameters(self, ips: DictParams) -> KwargsType:
         """
@@ -509,8 +449,6 @@ class AbstractModel(BaseModel):
         :exc:`.LeaspyModelInputError`
             If invalid `noise_model` for model
         """
-        if self.noise_model is None:
-            raise LeaspyModelInputError('`noise_model` was not set correctly set.')
         predictions = self.compute_individual_tensorized(
             data.timepoints, param_ind, attribute_type=attribute_type,
         )

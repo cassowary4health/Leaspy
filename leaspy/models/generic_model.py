@@ -1,21 +1,16 @@
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
 from abc import abstractmethod
 import itertools
 import json
-import warnings
 
 import torch
 import numpy as np
 
 from leaspy import __version__
 from leaspy.exceptions import LeaspyModelInputError
-from leaspy.utils.typing import KwargsType, FeatureType, Optional, List, Tuple
+from leaspy.utils.typing import KwargsType, Tuple
 from leaspy.models.base import BaseModel
-
-if TYPE_CHECKING:
-    from leaspy.io.data.dataset import Dataset
 
 
 class GenericModel(BaseModel):
@@ -72,31 +67,6 @@ class GenericModel(BaseModel):
             setattr(self, hp_name, None)
             self.__annotations__[hp_name] = hp_type_hint #Optional[hp_type_hint]
     """
-
-    def initialize(self, dataset: Dataset, method: str = None):
-        """
-        Initialize the model given a dataset and an initialization method.
-
-        After calling this method :attr:`is_initialized` should be True and model should be ready for use.
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            The dataset we want to initialize from.
-        method : str, optional (default None)
-            A custom method to initialize the model
-        """
-        if self.is_initialized and self.features is not None:
-            # we also test that self.features is not None, since for `ConstantModel`:
-            # `is_initialized`` is True but as a mock for being personalization-ready, without really being initialized!
-            warn_msg = '<!> Re-initializing an already initialized model.'
-            if dataset.headers != self.features:
-                warn_msg += f' Overwritting previous model features ({self.features}) with new ones ({dataset.headers}).'
-            warnings.warn(warn_msg)
-
-        self.features = dataset.headers
-        self.validate_compatibility_of_dataset(dataset)
-        self.is_initialized = True
 
     def get_hyperparameters(self, *, with_features = True, with_properties = True, default = None) -> KwargsType:
         """

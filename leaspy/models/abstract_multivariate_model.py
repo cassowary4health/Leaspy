@@ -2,7 +2,6 @@ from abc import abstractmethod
 import json
 import math
 import warnings
-from typing import Union
 
 import torch
 
@@ -12,7 +11,6 @@ from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.attributes.abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
-from leaspy.models.noise_models import BaseNoiseModel
 from leaspy.models.utils.ordinal import OrdinalModelMixin
 
 from leaspy.utils.typing import KwargsType, Set, Optional
@@ -30,29 +28,16 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     name : str
         Name of the model
     **kwargs
-        Hyperparameters for the model
+        Hyperparameters for the model (including `noise_model`)
 
     Raises
     ------
     :exc:`.LeaspyModelInputError`
         if inconsistent hyperparameters
     """
-    def __init__(self, name: str, noise_model: Optional[Union[str, BaseNoiseModel]] = None, **kwargs):
-
-        super().__init__(name)
+    def __init__(self, name: str, **kwargs):
 
         self.source_dimension: int = None
-        noise_model = noise_model or "gaussian-diagonal"
-        self.noise_model = noise_model
-
-        self.parameters = {
-            "g": None,
-            "betas": None,
-            "tau_mean": None, "tau_std": None,
-            "xi_mean": None, "xi_std": None,
-            "sources_mean": None, "sources_std": None,
-            "noise_std": None
-        }
         self.bayesian_priors = None
         self.attributes: AbstractManifoldModelAttributes = None
 
@@ -67,28 +52,22 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             }
         }
 
-        # Load hyperparameters at end to overwrite default for new hyperparameters
-        self.load_hyperparameters(kwargs)
+        if kwargs.get('noise_model', None) is None:
+            kwargs['noise_model'] = "gaussian-diagonal"
 
-    def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
-        if not isinstance(model, BaseNoiseModel):
-            raise ValueError(
-                "Expected a subclass of BaselNoiseModel, but received "
-                f"a {model.__class__.__name__} instead."
-            )
+        super().__init__(name, **kwargs)
+
+        self.parameters = {
+            "g": None,
+            "betas": None,
+            "tau_mean": None, "tau_std": None,
+            "xi_mean": None, "xi_std": None,
+            "sources_mean": None, "sources_std": None,
+        }
 
     def initialize(self, dataset, method: str = 'default'):
-        if self.is_initialized and self.features is not None:
-            warn_msg = '<!> Re-initializing an already initialized model.'
-            if dataset.headers != self.features:
-                warn_msg += (
-                    f" Overwritting previous model features ({self.features}) "
-                    f"with new ones ({dataset.headers})."
-                )
-            warnings.warn(warn_msg)
-        self.features = dataset.headers
-        self.validate_compatibility_of_dataset(dataset)
-        self.dimension = dataset.dimension
+        """Overloads base initialization of model (base method takes care of features consistency checks)."""
+        super().initialize(dataset, method=method)
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
@@ -99,15 +78,17 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             raise LeaspyModelInputError(f"Sources dimension should be an integer in [0, dimension - 1[ "
                                         f"but you provided `source_dimension` = {self.source_dimension} whereas `dimension` = {self.dimension}")
 
-        self.parameters = initialize_parameters(self, dataset, method)
+        self.parameters = initialize_parameters(self, dataset, method=method)
 
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
-                                                       **self._attributes_factory_ordinal_kws)
+        self.attributes = AttributesFactory.attributes(
+            self.name,
+            dimension=self.dimension,
+            source_dimension=self.source_dimension,
+            **self._attributes_factory_ordinal_kws
+        )
 
         # Postpone the computation of attributes when really needed!
         #self.attributes.update({'all'}, self.parameters)
-
-        self.is_initialized = True
 
     @abstractmethod
     def initialize_MCMC_toolbox(self) -> None:
@@ -129,6 +110,29 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             All the realizations to update MCMC toolbox with
         """
         # TODO to move in a "MCMC-model interface"
+
+    def load_parameters(self, parameters):
+        """Updates all model parameters (including noise-model parameters) from the provided parameters."""
+        self.parameters = {}
+        for k, v in parameters.items():
+            if k in ('mixing_matrix',):
+                # The mixing matrix will always be recomputed from `betas` and the other needed model parameters (g, v0)
+                continue
+            if not isinstance(v, torch.Tensor):
+                v = torch.tensor(v)
+            self.parameters[k] = v
+
+        self.noise_model.configure_from_parameters(self.parameters, features=self.features)
+
+        # derive the model attributes from model parameters upon reloading of model
+        self.attributes = AttributesFactory.attributes(
+            self.name,
+            dimension=self.dimension,
+            source_dimension=self.source_dimension,
+            **self._attributes_factory_ordinal_kws
+        )
+        self.attributes.update({'all'}, self.parameters)
+
 
     def load_hyperparameters(self, hyperparameters: KwargsType):
 
@@ -156,10 +160,6 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                     f"not {hyperparameters['source_dimension']}"
                 )
             self.source_dimension = hyperparameters['source_dimension']
-
-        if 'noise_model' in hyperparameters:
-            expected_hyperparameters += ("noise_model", "loss")
-            self.noise_model = hyperparameters["noise_model"]
 
         # special hyperparameter(s) for ordinal model
         expected_hyperparameters += self._handle_ordinal_hyperparameters(hyperparameters)

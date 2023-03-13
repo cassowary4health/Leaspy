@@ -1,5 +1,4 @@
 import torch
-from typing import Optional, Union
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.noise_models import (
@@ -28,7 +27,7 @@ class MultivariateModel(AbstractMultivariateModel):
     name : str
         Name of the model
     **kwargs
-        Hyperparameters of the model
+        Hyperparameters of the model (including `noise_model`)
 
     Raises
     ------
@@ -43,8 +42,9 @@ class MultivariateModel(AbstractMultivariateModel):
         'mixed_linear-logistic': '_mixed',
     }
 
-    def __init__(self, name: str, noise_model: Optional[Union[str, BaseNoiseModel]] = None, **kwargs):
-        super().__init__(name, noise_model, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+
         self.parameters["v0"] = None
         self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
 
@@ -61,22 +61,6 @@ class MultivariateModel(AbstractMultivariateModel):
             )
 
         return self.SUBTYPES_SUFFIXES[self.name]
-
-    def load_parameters(self, parameters):
-        # TODO? Move this method in higher level class AbstractMultivariateModel? (<!> Attributes class)
-        self.parameters = {}
-        for k in parameters.keys():
-            if k in ('mixing_matrix',):
-                # The mixing matrix will always be recomputed from `betas` and the other needed model parameters (g, v0)
-                continue
-            self.parameters[k] = torch.tensor(parameters[k])
-
-        self.noise_model.configure_from_parameters(self.parameters, features=self.features)
-
-        # derive the model attributes from model parameters upon reloading of model
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
-                                                       **self._attributes_factory_ordinal_kws)
-        self.attributes.update({'all'}, self.parameters)
 
     @suffixed_method
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):

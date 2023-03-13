@@ -24,22 +24,15 @@ class BaseNoiseModel(abc.ABC):
 
     Attributes
     ----------
-    is_ordinal : bool
-        Whether the noise model is ordinal or not.
-
     distribution : torch.distributions.Distribution
         The distribution the noise model samples from.
     """
     _valid_distribution_parameters = ()
 
     def __init__(self, **kwargs):
-        self._is_ordinal = None
         self._distribution = None
         self._distribution_parameters = {}
 
-    @property
-    def is_ordinal(self):
-        return self._is_ordinal
 
     @property
     def distribution(self):

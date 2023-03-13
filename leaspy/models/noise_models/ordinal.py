@@ -8,13 +8,13 @@ from typing import Optional
 from leaspy.io.data.dataset import Dataset
 from .base import BaseNoiseModel
 from .distributions import MultinomialDistribution
+from leaspy.exceptions import LeaspyModelInputError
 
 
 class AbstractOrdinalNoiseModel(BaseNoiseModel, abc.ABC):
     """Base class for Ordinal noise models."""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._is_ordinal: bool = True
         self.batch_deltas: bool = False
         self.max_level: Optional[int] = None
         self.features: list = []
@@ -43,7 +43,7 @@ class AbstractOrdinalNoiseModel(BaseNoiseModel, abc.ABC):
         deltas_p = {k: v for k, v in parameters.items() if k.startswith('deltas')}
         expected = {'deltas'} if self.batch_deltas else {f'deltas_{ft}' for ft in model_features}
         if deltas_p.keys() != expected:
-            raise ValueError(
+            raise LeaspyModelInputError(
                 f"Unexpected delta parameters. Expected {expected} but got {deltas_p.keys()}"
             )
         return deltas_p

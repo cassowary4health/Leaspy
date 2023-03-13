@@ -1,10 +1,7 @@
 import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from leaspy.models.noise_models import (
-    BaseNoiseModel,
-    AbstractOrdinalNoiseModel,
-)
+from leaspy.models.noise_models import OrdinalNoiseModel
 from leaspy.models.utils.attributes import AttributesFactory
 
 from leaspy.utils.docs import doc_with_super, doc_with_
@@ -123,8 +120,8 @@ class MultivariateModel(AbstractMultivariateModel):
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
 
-        # For ordinal loss, compute pdf instead of survival function
-        if isinstance(self.noise_model, AbstractOrdinalNoiseModel):
+        # For ordinal loss, compute pdf instead of survival function (unlike for ordinal-ranking)
+        if isinstance(self.noise_model, OrdinalNoiseModel):
             from leaspy.models.utils.ordinal import compute_ordinal_pdf_from_ordinal_sf
             return compute_ordinal_pdf_from_ordinal_sf(model)
 
@@ -315,7 +312,7 @@ class MultivariateModel(AbstractMultivariateModel):
             derivatives[param] = c.unsqueeze(-1) * derivatives[param]
 
         # Compute derivative of the pdf and not of the sf
-        if isinstance(self.noise_model, AbstractOrdinalNoiseModel):
+        if isinstance(self.noise_model, OrdinalNoiseModel):
             for param in derivatives:
                 derivatives[param] = self.compute_ordinal_pdf_from_ordinal_sf(derivatives[param])
 

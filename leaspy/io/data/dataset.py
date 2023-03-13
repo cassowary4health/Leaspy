@@ -6,6 +6,7 @@ import pandas as pd
 import torch
 import warnings
 
+from leaspy.models.noise_models import OrdinalRankingNoiseModel
 from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.typing import KwargsType, List, Dict
 
@@ -183,8 +184,10 @@ class Dataset:
         # customization when ordinal model
         if adapt_for_model is not None and getattr(adapt_for_model, 'is_ordinal', False):
             # we directly fetch the one-hot encoded values (pdf or sf depending on precise `noise_model`)
-            values_to_pick_from = self.get_one_hot_encoding(sf=adapt_for_model.noise_model == 'ordinal_ranking',
-                                                            ordinal_infos=adapt_for_model.ordinal_infos).float()
+            values_to_pick_from = self.get_one_hot_encoding(
+                sf=isinstance(adapt_for_model.noise_model, OrdinalRankingNoiseModel),
+                ordinal_infos=adapt_for_model.ordinal_infos
+            ).float()
 
         # we restrict to the right individual and mask the irrelevant data
         values_with_nans = values_to_pick_from[i, :self.n_visits_per_individual[i], ...].clone().detach()

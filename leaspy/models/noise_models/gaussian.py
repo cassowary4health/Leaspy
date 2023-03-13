@@ -24,7 +24,6 @@ class AbstractGaussianNoiseModel(BaseNoiseModel, abc.ABC):
 
     def __init__(self, noise_std: torch.Tensor, **kwargs):
         super().__init__(**kwargs)
-        self._is_ordinal = False
         self._distribution = torch.distributions.normal.Normal
         self.set_noise_std(noise_std)
 

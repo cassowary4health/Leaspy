@@ -1,10 +1,14 @@
-from typing import Dict, Hashable, Union
+from typing import Dict, Hashable, Union, Optional
 
 import numpy as np
 import torch
 
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
-from leaspy.models.noise_models import OrdinalRankingNoiseModel
+from leaspy.models.noise_models import (
+    BaseNoiseModel,
+    AbstractOrdinalNoiseModel,
+    OrdinalRankingNoiseModel,
+)
 
 
 class OrdinalModelMixin:
@@ -17,7 +21,22 @@ class OrdinalModelMixin:
         """Property to check if the model is of ordinal sub-type."""
         if self.noise_model is None:
             return False
-        return self.noise_model.is_ordinal
+        return isinstance(self.noise_model, AbstractOrdinalNoiseModel)
+
+    @property
+    def ordinal_infos(self) -> Optional[dict]:
+        if not self.is_ordinal:
+            return None
+        return self.noise_model.ordinal_infos
+
+    def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
+        super().check_noise_model_compatibility(self, model)
+
+        if isinstance(model, AbstractOrdinalNoiseModel) and self.name not in {'logistic', 'univariate_logistic'}:
+            raise LeaspyModelInputError(
+                "Noise model 'ordinal' is only compatible with 'logistic' and "
+                f"'univariate_logistic' models, not {self.name}"
+            )
 
     def postprocess_model_estimation(
             self,
@@ -94,7 +113,7 @@ class OrdinalModelMixin:
     @property
     def _attributes_factory_ordinal_kws(self) -> dict:
         # we put this here to remain more generic in the models
-        return dict(ordinal_infos=getattr(self.noise_model, 'ordinal_infos',  None))
+        return dict(ordinal_infos=self.ordinal_infos)
 
     def _export_extra_ordinal_settings(self, model_settings) -> None:
         if self.is_ordinal:
@@ -105,11 +124,6 @@ class OrdinalModelMixin:
         if not self.is_ordinal:
             return tuple()  # no extra hyperparameters recognized
 
-        if self.name not in {'logistic', 'univariate_logistic'}:
-            raise LeaspyModelInputError(
-                "Noise model 'ordinal' is only compatible with 'logistic' and "
-                f"'univariate_logistic' models, not {self.name}"
-            )
         self.noise_model.batch_deltas = hyperparameters.get('batch_deltas_ordinal', False)
 
         return ('batch_deltas_ordinal',)
@@ -156,7 +170,7 @@ class OrdinalModelMixin:
             for feat in self.noise_model.features
         }
 
-    def _get_deltas(self, attribute_type: str) -> torch.Tensor:
+    def _get_deltas(self, attribute_type: Optional[str]) -> torch.Tensor:
         """
         Get the deltas attribute for ordinal models.
 
@@ -197,7 +211,7 @@ class OrdinalModelMixin:
                 variables_infos['deltas_' + feat["name"]] = deltas_info
 
         # Finally: change the v0 scale since it has not the same meaning
-        if 'v0' in variables_infos:  # not in univariate case!
+        if 'v0' in variables_infos:
             variables_infos['v0']['scale'] = 0.1
 
 

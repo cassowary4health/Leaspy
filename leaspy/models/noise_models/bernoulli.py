@@ -11,7 +11,6 @@ class BernoulliNoiseModel(BaseNoiseModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._distribution = torch.distributions.bernoulli.Bernoulli
-        self._is_ordinal = False
 
     def compute_log_likelihood_from_dataset(
             self,

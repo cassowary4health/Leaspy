@@ -66,11 +66,11 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
         # Compute the noise with the estimated individual parameters (per feature or not, depending on model noise)
         _, individual_parameters = individual_parameters.to_pytorch()
-        prediction = model.compute_individual_tensorized(
-            dataset.timepoints, individual_parameters, attribute_type=None
-        )
         if isinstance(model.noise_model, AbstractGaussianNoiseModel):
-            loss = model.noise_model.compute_rmse(dataset, prediction)
+            predictions = model.compute_individual_tensorized(
+                dataset.timepoints, individual_parameters, attribute_type=None
+            )
+            loss = model.noise_model.compute_rmse(dataset, predictions)
         else:
             loss = model.compute_individual_attachment_tensorized(
                 dataset, individual_parameters, attribute_type=None

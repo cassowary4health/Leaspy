@@ -9,7 +9,9 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
-  "noise_model": "BernoulliNoiseModel",
+  "noise_model": {
+    "name": "bernoulli"
+  },
   "parameters": {
     "g": [
       2.563664197921753
@@ -39,12 +41,6 @@
     "xi_std": 0.9190122485160828,
     "sources_mean": 0.0,
     "sources_std": 1.0,
-    "noise_std": [
-      0.40276846289634705,
-      0.11950908601284027,
-      0.1553524285554886,
-      0.32098984718322754
-    ],
     "log-likelihood": 160.73797607421875,
     "mixing_matrix": [
       [

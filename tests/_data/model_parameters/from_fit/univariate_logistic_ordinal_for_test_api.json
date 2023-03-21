@@ -6,7 +6,12 @@
   ],
   "dimension": 1,
   "source_dimension": 0,
-  "noise_model": "ordinal",
+  "noise_model": {
+    "name": "ordinal",
+    "max_levels": {
+      "Y0": 3
+    }
+  },
   "parameters": {
     "g": [
       -4.81337833404541

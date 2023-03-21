@@ -60,10 +60,10 @@ class LogisticOrdinalAttributes(LogisticAttributes):
             self.deltas = None
             self.update_possibilities.add('deltas')
         else:
-            self.deltas = {"deltas_" + feat["name"]: None for feat in ordinal_infos["features"]}
+            self.deltas = {"deltas_" + ft: None for ft in ordinal_infos["max_levels"]}
             self.max_level = ordinal_infos["max_level"]
-            for feat in ordinal_infos["features"]:
-                self.update_possibilities.add("deltas_" + feat["name"])
+            for ft in ordinal_infos["max_levels"]:
+                self.update_possibilities.add("deltas_" + ft)
 
     def get_deltas(self):
         '''

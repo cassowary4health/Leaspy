@@ -103,7 +103,10 @@ class LeaspyTestCase(TestCase):
     @classmethod
     def get_hardcoded_model(cls, model_name: str):
         """Load the Leaspy test model with provided name (models hardcoded)."""
-        return Leaspy.load(cls.hardcoded_model_path(model_name))
+        lsp = Leaspy.load(cls.hardcoded_model_path(model_name))
+        # TMP until proper metrics registration in models
+        lsp.model.parameters.pop("log-likelihood", None)
+        return lsp
 
     # models generated from fit functional tests, bad for most tests as it may change due to slights changes in fit
     from_fit_models_folder = os.path.join(_test_data_dir, "model_parameters", "from_fit")
@@ -116,7 +119,10 @@ class LeaspyTestCase(TestCase):
     @classmethod
     def get_from_fit_model(cls, model_name: str):
         """Load the Leaspy test model with provided name (models from test fit)."""
-        return Leaspy.load(cls.from_fit_model_path(model_name))
+        lsp = Leaspy.load(cls.from_fit_model_path(model_name))
+        # TMP until proper metrics registration in models
+        lsp.model.parameters.pop("log-likelihood", None)
+        return lsp
 
     # hardcoded individual parameters: good for unit tests & functional tests independent from personalize behavior
     hardcoded_ips_folder = os.path.join(_test_data_dir, "individual_parameters", "hardcoded")
@@ -345,7 +351,7 @@ class LeaspyTestCase(TestCase):
             * equal_nan: bool = False
         allclose_custom : dict[str, dict[str, Any]] (optional, default None)
             Custom keywords arguments to overwrite default ones, for a particular key (<!> last-level key only)
-            e.g. {'noise_std': dict(atol=1e-3), ...}
+            e.g. {'tau_mean': dict(atol=1e-3), ...}
             TODO? also nest keys in `allclose_custom`?
 
         Returns

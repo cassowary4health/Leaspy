@@ -1,7 +1,6 @@
 import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from leaspy.models.noise_models import OrdinalNoiseModel
 from leaspy.models.utils.attributes import AttributesFactory
 
 from leaspy.utils.docs import doc_with_super, doc_with_
@@ -120,10 +119,8 @@ class MultivariateModel(AbstractMultivariateModel):
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
 
-        # For ordinal loss, compute pdf instead of survival function (unlike for ordinal-ranking)
-        if isinstance(self.noise_model, OrdinalNoiseModel):
-            from leaspy.models.utils.ordinal import compute_ordinal_pdf_from_ordinal_sf
-            return compute_ordinal_pdf_from_ordinal_sf(model)
+        # For ordinal models, compute pdf instead of survival function if needed
+        model = self.compute_appropriate_ordinal_model(model)
 
         return model # (n_individuals, n_timepoints, n_features [, extra_dim_ordinal_models])
 
@@ -308,13 +305,9 @@ class MultivariateModel(AbstractMultivariateModel):
             for param in derivatives:
                 derivatives[param] = derivatives[param].unsqueeze(-2).repeat(1, 1, 1, ordinal_lvls_shape, 1)
 
+        # Multiply by common constant, and post-process derivative for ordinal models if needed
         for param in derivatives:
-            derivatives[param] = c.unsqueeze(-1) * derivatives[param]
-
-        # Compute derivative of the pdf and not of the sf
-        if isinstance(self.noise_model, OrdinalNoiseModel):
-            for param in derivatives:
-                derivatives[param] = self.compute_ordinal_pdf_from_ordinal_sf(derivatives[param])
+            derivatives[param] = self.compute_appropriate_ordinal_model(c.unsqueeze(-1) * derivatives[param])
 
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts [, extra_dim_ordinal_models], n_dims_param)]
         return derivatives
@@ -357,7 +350,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
-    def _center_xi_realizations(self, realizations):
+    def _center_xi_realizations(self, realizations) -> None:
         # This operation does not change the orthonormal basis
         # (since the resulting v0 is collinear to the previous one)
         # Nor all model computations (only v0 * exp(xi_i) matters),
@@ -369,12 +362,10 @@ class MultivariateModel(AbstractMultivariateModel):
 
         self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
-        return realizations
-
-    def compute_sufficient_statistics(self, data, realizations):
+    def compute_model_sufficient_statistics(self, data, realizations):
 
         # modify realizations in-place
-        realizations = self._center_xi_realizations(realizations)
+        self._center_xi_realizations(realizations)
 
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
@@ -387,38 +378,23 @@ class MultivariateModel(AbstractMultivariateModel):
         for param in ("tau", "xi"):
             sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor_realizations, 2)
 
-        sufficient_statistics.update(self.get_ordinal_tensor_realizations(realizations))
-
-        individual_parameters = self.get_param_from_real(realizations)
-
-        prediction = self.compute_individual_tensorized(
-            data.timepoints, individual_parameters, attribute_type='MCMC'
-        )
         sufficient_statistics.update(
-            self.noise_model.get_sufficient_statistics(data, prediction)
+            self.compute_ordinal_model_sufficient_statistics(realizations)
         )
 
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, realizations):
+    def update_model_parameters_burn_in(self, data, sufficient_statistics: DictParamsTorch):
         # During the burn-in phase, we only need to store the following parameters (cf. !66 and #60)
         # - noise_std
         # - *_mean/std for regularization of individual variables
         # - others population parameters for regularization of population variables
         # We don't need to update the model "attributes" (never used during burn-in!)
 
-        # TODO: refactorize?
-
-        # modify realizations in-place!
-        realizations = self._center_xi_realizations(realizations)
-
-        # unlink model parameters from updates in realizations!
-        realizations = realizations.clone_realizations()
-
         # Memoryless part of the algorithm
-        self.parameters['g'] = realizations['g'].tensor_realizations
+        self.parameters['g'] = sufficient_statistics['g']
 
-        v0_emp = realizations['v0'].tensor_realizations
+        v0_emp = sufficient_statistics['v0']
         if self.MCMC_toolbox['priors'].get('v0_mean', None) is not None:
             v0_mean = self.MCMC_toolbox['priors']['v0_mean']
             s_v0 = self.MCMC_toolbox['priors']['s_v0']
@@ -430,27 +406,21 @@ class MultivariateModel(AbstractMultivariateModel):
             self.parameters['v0'] = v0_emp
 
         if self.source_dimension != 0:
-            self.parameters['betas'] = realizations['betas'].tensor_realizations
+            self.parameters['betas'] = sufficient_statistics['betas']
 
-        self.parameters.update(self.get_ordinal_tensor_realizations(realizations))
+        self.parameters['xi_std'] = torch.std(sufficient_statistics['xi'])
+        self.parameters['tau_mean'] = torch.mean(sufficient_statistics['tau'])
+        self.parameters['tau_std'] = torch.std(sufficient_statistics['tau'])
 
-        self.parameters['xi_std'] = torch.std(realizations['xi'].tensor_realizations)
-        tau = realizations['tau'].tensor_realizations
-        self.parameters['tau_mean'] = torch.mean(tau)
-        self.parameters['tau_std'] = torch.std(tau)
-
-        individual_parameters = self.get_param_from_real(realizations)
-
-        prediction = self.compute_individual_tensorized(
-            data.timepoints, individual_parameters, attribute_type='MCMC'
-        )
         self.parameters.update(
-            self.noise_model.get_parameters(data, prediction)
+            self.get_ordinal_parameters_updates_from_sufficient_statistics(sufficient_statistics)
         )
 
     def update_model_parameters_normal(self, data, sufficient_statistics: DictParamsTorch) -> None:
         """
         Stochastic sufficient statistics used to update the parameters of the model.
+
+        TODO? factorize `update_model_parameters_***` methods?
 
         TODOs:
             - add a true, configurable, validation for all parameters?
@@ -472,27 +442,20 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             self.parameters['betas'] = sufficient_statistics['betas']
 
-        self.parameters.update(
-            self.get_ordinal_sufficient_statistics(sufficient_statistics)
-        )
-
         for param in ("tau", "xi"):
-            param_mean = self.parameters[f"{param}_mean"]
+            param_old_mean = self.parameters[f"{param}_mean"]
+            param_cur_mean = torch.mean(sufficient_statistics[param])
             param_variance_update = (
                 torch.mean(sufficient_statistics[f"{param}_sqrd"]) -
-                2. * param_mean * torch.mean(sufficient_statistics[param])
+                2. * param_old_mean * param_cur_mean
             )
-            param_variance = param_variance_update + param_mean ** 2
+            param_variance = param_variance_update + param_old_mean ** 2
             self.parameters[f"{param}_std"] = compute_std_from_variance(
                 param_variance, varname=f"{param}_std"
             )
-        self.parameters["tau_mean"] = torch.mean(sufficient_statistics["tau"])
-
-        self.parameters.update(
-            self.noise_model.get_updated_parameters_from_sufficient_statistics(
-                data, sufficient_statistics
-            )
-        )
+            if param != 'xi':
+                # xi-mean is fixed to 0 by design
+                self.parameters[f"{param}_mean"] = param_cur_mean
 
     def random_variable_informations(self):
         # --- Population variables

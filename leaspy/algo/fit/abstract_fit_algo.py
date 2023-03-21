@@ -1,13 +1,17 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from abc import abstractmethod
 
 from leaspy.algo.abstract_algo import AbstractAlgo
-from leaspy.io.data.dataset import Dataset
-from leaspy.models.abstract_model import AbstractModel
-from leaspy.io.realizations.collection_realization import CollectionRealization
 from leaspy.algo.utils.algo_with_device import AlgoWithDeviceMixin
 
 from leaspy.utils.typing import DictParamsTorch
 from leaspy.exceptions import LeaspyAlgoInputError
+
+if TYPE_CHECKING:
+    from leaspy.io.data.dataset import Dataset
+    from leaspy.models.abstract_model import AbstractModel
+    from leaspy.io.realizations.collection_realization import CollectionRealization
 
 
 class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
@@ -112,7 +116,12 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
             # Finally we compute model attributes once converged
             model.attributes.update({'all'}, model.parameters)
 
-        loss = model.parameters['log-likelihood'] if model.noise_model in ['bernoulli', 'ordinal', 'ordinal_ranking'] else model.parameters['noise_std']
+        # If noise-model is a 1-parameter distribution family final loss is the value of this parameter
+        # Otherwise we use the negative log-likelihood as measure of goodness-of-fit
+        if len(model.noise_model.free_parameters) == 1:
+            loss = next(iter(model.noise_model.parameters.values()))
+        else:
+            loss = self.sufficient_statistics.get("neg_ll", -1.)
 
         return realizations, loss
 
@@ -154,12 +163,12 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         model : :class:`.AbstractModel`
         realizations : :class:`.CollectionRealization`
         """
+        sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
+
         if self._is_burn_in():
             # the maximization step is memoryless
-            model.update_model_parameters_burn_in(dataset, realizations)
+            model.update_parameters_burn_in(dataset, sufficient_statistics)
         else:
-            sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
-
             burn_in_step = self.current_iteration - self.algo_parameters['n_burn_in_iter'] # min = 1, max = n_iter - n_burn_in_iter
             burn_in_step **= -self.algo_parameters['burn_in_step_power']
 
@@ -168,10 +177,12 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                 self.sufficient_statistics = sufficient_statistics
             else:
                 # this new formulation (instead of v + burn_in_step*(sufficient_statistics[k] - v)) enables to keep `inf` deltas
-                self.sufficient_statistics = {k: v * (1. - burn_in_step) + burn_in_step * sufficient_statistics[k]
-                                              for k, v in self.sufficient_statistics.items()}
+                self.sufficient_statistics = {
+                    k: v * (1. - burn_in_step) + burn_in_step * sufficient_statistics[k]
+                    for k, v in self.sufficient_statistics.items()
+                }
 
-            model.update_model_parameters_normal(dataset, self.sufficient_statistics)
+            model.update_parameters_normal(dataset, self.sufficient_statistics)
 
         # No need to update model attributes (derived from model parameters)
         # since all model computations are done with the MCMC toolbox during calibration

@@ -1,4 +1,5 @@
 from glob import glob
+from unittest import skip
 
 import pandas as pd
 import torch
@@ -64,10 +65,11 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
     def test_load_hyperparameters(self):
 
         leaspy = self.get_hardcoded_model('logistic_diag_noise')
-        leaspy.model.load_hyperparameters({'source_dimension': 3, 'noise_model': 'bernoulli'})
+        leaspy.model.load_hyperparameters({'source_dimension': 3})
+        leaspy.model.noise_model = 'bernoulli'
 
         self.assertEqual(leaspy.model.source_dimension, 3)
-        self.assertEqual(leaspy.model.noise_model, 'bernoulli')
+        self.assertIsInstance(leaspy.model.noise_model, NOISE_MODELS['bernoulli'])
 
     def test_load_logistic_scalar_noise(self):
         """
@@ -96,10 +98,10 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             "xi_std": 0.2,
             "sources_mean": 0.0,
             "sources_std": 1.0,
-            "noise_std": 0.2
         }
 
         self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
+        self.assertDictAlmostEqual(leaspy.model.noise_model.parameters, {"scale": 0.2})
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -136,12 +138,12 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             "xi_std": 1.0,
             "sources_mean": 0.0,
             "sources_std": 1.0,
-            "noise_std": 0.1,
             "deltas": [-3, -2.5, -1.0],
             "betas": [[0.1, -0.1], [0.5, -0.3], [0.3, 0.4]],
         }
 
         self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
+        self.assertDictAlmostEqual(leaspy.model.noise_model.parameters, {"scale": 0.1})
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -180,10 +182,10 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             "xi_std": 0.3,
             "sources_mean": 0.0,
             "sources_std": 1.0,
-            "noise_std": 0.1,
         }
 
         self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
+        self.assertDictAlmostEqual(leaspy.model.noise_model.parameters, {"scale": 0.1})
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -217,7 +219,6 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             "tau_std": 2.5,
             "xi_mean": 0.0,
             "xi_std": 0.01,
-            "noise_std": 0.2,
             # never used parameters
             "betas": [],
             "sources_mean": 0,
@@ -225,6 +226,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         }
 
         self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
+        self.assertDictAlmostEqual(leaspy.model.noise_model.parameters, {"scale": 0.2})
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -255,7 +257,6 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             "tau_std": 5.0,
             "xi_mean": 0.0,
             "xi_std": 0.5,
-            "noise_std": 0.15,
             # never used parameters
             "betas": [],
             "sources_mean": 0,
@@ -263,6 +264,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
         }
 
         self.assertDictAlmostEqual(leaspy.model.parameters, parameters)
+        self.assertDictAlmostEqual(leaspy.model.noise_model.parameters, {"scale": 0.15})
 
         # Test the initialization
         self.assertEqual(leaspy.model.is_initialized, True)
@@ -286,6 +288,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
             with self.subTest(model_path=model_path):
                 self.check_model_consistency(Leaspy.load(model_path), model_path, atol=atol)
 
+    @skip("Backward compatibility with version <= 1.2.0 is not ensured anymore.")
     def test_api_backward_compat_models_saved_before_120_release(self):
 
         data_full = Data.from_csv_file(self.example_data_path)

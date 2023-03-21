@@ -1,13 +1,16 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING, Tuple, Optional
 from abc import ABC, abstractmethod
 
 import torch
 
 from leaspy.exceptions import LeaspyModelInputError
-from leaspy.utils.typing import KwargsType, Tuple, Optional
+from leaspy.utils.typing import KwargsType
 
-from leaspy.io.data.dataset import Dataset
-from leaspy.models.abstract_model import AbstractModel
-from leaspy.io.realizations.collection_realization import CollectionRealization
+if TYPE_CHECKING:
+    from leaspy.io.data.dataset import Dataset
+    from leaspy.models.abstract_model import AbstractModel
+    from leaspy.io.realizations.collection_realization import CollectionRealization
 
 
 class AbstractSampler(ABC):
@@ -45,7 +48,7 @@ class AbstractSampler(ABC):
     acceptation_history : :class:`torch.Tensor`
         History of binary acceptations to compute mean acceptation rate for the sampler in MCMC-SAEM algorithm.
         It keeps the history of the last `acceptation_history_length` steps.
-    mask : Union[None, torch.FloatTensor]
+    mask : Optional[torch.FloatTensor]
         If not None, mask should be 0/1 tensor indicating the sampling variable to adapt variance from
         1 indices are kept for sampling while 0 are excluded.
         <!> Only supported for population variables.

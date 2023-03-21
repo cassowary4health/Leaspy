@@ -175,9 +175,9 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTest_Mixin):
 
                 leaspy = self.get_hardcoded_model(hardcoded_model)
                 levels = {
-                    feat["name"]: {
-                        id_: [list(range(1, feat["max_level"]))] for id_ in ("idx1", "idx2")
-                    } for feat in leaspy.model.noise_model.features
+                    ft: {
+                        id_: [list(range(1, ft_max_level))] for id_ in ("idx1", "idx2")
+                    } for ft, ft_max_level in leaspy.model.noise_model.max_levels.items()
                 }
 
                 # checks with no feature argument

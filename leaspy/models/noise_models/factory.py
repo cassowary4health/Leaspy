@@ -1,32 +1,68 @@
 """Defines the noise model factory."""
 
-from typing import Union
+from typing import Union, Tuple, Optional, Type
 
-from .base import BaseNoiseModel
-from .bernoulli import BernoulliNoiseModel
-from .gaussian import GaussianScalarNoiseModel, GaussianDiagonalNoiseModel
-from .ordinal import OrdinalNoiseModel, OrdinalRankingNoiseModel
-
+from leaspy.models.noise_models import NOISE_MODELS, BaseNoiseModel
 from leaspy.exceptions import LeaspyModelInputError
+from leaspy.utils.typing import KwargsType
 
-NOISE_MODELS = {
-    "bernoulli": BernoulliNoiseModel,
-    "gaussian-scalar": GaussianScalarNoiseModel,
-    "gaussian-diagonal": GaussianDiagonalNoiseModel,
-    "ordinal": OrdinalNoiseModel,
-    "ordinal-ranking": OrdinalRankingNoiseModel,
-}
+NoiseModelFactoryInput = Union[str, BaseNoiseModel, KwargsType]
 
 
-def noise_model_factory(noise_model: Union[str, BaseNoiseModel], **kws) -> BaseNoiseModel:
+def _noise_model_class(name: str) -> Type[BaseNoiseModel]:
+    """Get noise-model class from its code name."""
+    name = name.lower().replace("_", "-")
+    kls = NOISE_MODELS.get(name, None)
+    if kls is None:
+        raise LeaspyModelInputError(
+            f"Noise model '{name}' is not supported. "
+            f"Supported noise models are {set(NOISE_MODELS)}"
+        )
+    return kls
+
+
+def _noise_model_name(kls: Type[BaseNoiseModel]) -> str:
+    """Get code name of a noise-model class."""
+    name = {v: k for k, v in NOISE_MODELS.items()}.get(kls, None)
+    if name is None:
+        raise NotImplementedError(
+            f"Your noise model ({kls}) is not registered in `NOISE_MODELS`."
+        )
+    return name
+
+
+def _noise_model_kwargs_to_params_hyperparams(
+    kls: Type[BaseNoiseModel], kws: Optional[KwargsType]
+) -> Tuple[Optional[KwargsType], KwargsType]:
+    """We split the input keyword arguments as a tuple (parameters: dict | None, hyperparameters: dict)."""
+
+    if kws is None:
+        return None, {}
+
+    params = {k: v for k, v in kws.items() if k in kls.free_parameters}
+    hyperparams = {k: v for k, v in kws.items() if k not in kls.free_parameters}
+
+    return params or None, hyperparams
+
+
+def noise_model_export(noise_model: BaseNoiseModel) -> KwargsType:
+    """Serialization of a BaseNoiseModel that can then be used as input in `noise_model_factory`."""
+    return dict(
+        name=_noise_model_name(noise_model.__class__),
+        **noise_model.to_dict(),
+    )
+
+
+def noise_model_factory(noise_model: NoiseModelFactoryInput, **kws) -> BaseNoiseModel:
     """
     Factory for noise models.
 
     Parameters
     ----------
-    noise_model : str or BaseNoiseModel
+    noise_model : str or BaseNoiseModel or dict[str, ...]
         If an instance of a subclass of BaseNoiseModel, returns the instance.
         If a string, then returns a new instance of the appropriate class (with optional parameters `kws`).
+        If a dictionary, it must contain the 'name' key and other initialization parameters.
     **kws
         Optional parameters for initializing the requested noise-model when a string.
 
@@ -42,16 +78,21 @@ def noise_model_factory(noise_model: Union[str, BaseNoiseModel], **kws) -> BaseN
     """
     if isinstance(noise_model, BaseNoiseModel):
         return noise_model
-    if not isinstance(noise_model, str):
+
+    if isinstance(noise_model, str):
+        kls = _noise_model_class(noise_model)
+        kws = kws or None
+
+    elif isinstance(noise_model, dict) and "name" in noise_model:
+        kls = _noise_model_class(noise_model.pop("name"))
+        # the optional keyword-arguments will overwrite the stored noise_model parameters and hyperparams.
+        kws = {**noise_model, **kws} or None
+
+    else:
         raise LeaspyModelInputError(
-            "The provided `noise_model` should be a valid instance of `BaseNoiseModel`, "
-            f"or a string among {set(NOISE_MODELS.keys())}"
+            "The provided `noise_model` should be a valid instance of `BaseNoiseModel`, a string "
+            f"among {set(NOISE_MODELS)}, or a dictionary with 'name' being one of the previous options."
         )
-    noise_model = noise_model.lower()
-    noise_model = noise_model.replace("_", "-")
-    if noise_model not in NOISE_MODELS:
-        raise LeaspyModelInputError(
-            f"Noise model {noise_model} is not supported."
-            f"Supported noise models are {set(NOISE_MODELS.keys())}"
-        )
-    return NOISE_MODELS[noise_model](**kws)
+
+    params, hyperparams = _noise_model_kwargs_to_params_hyperparams(kls, kws)
+    return kls(params, **hyperparams)

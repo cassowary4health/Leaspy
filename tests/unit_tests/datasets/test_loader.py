@@ -1,6 +1,5 @@
-from torch import tensor, allclose
-
 from leaspy.datasets.loader import Loader
+from leaspy.models.noise_models import GaussianScalarNoiseModel
 
 from tests import LeaspyTestCase
 
@@ -41,7 +40,8 @@ class LoaderTest(LeaspyTestCase):
 
         leaspy_instance = Loader.load_leaspy_instance('parkinson-putamen-train')
         self.assertEqual(leaspy_instance.model.features, ['PUTAMEN'])
-        self.assertEqual(leaspy_instance.model.noise_model, 'gaussian_scalar')
+        self.assertIsInstance(leaspy_instance.model.noise_model, GaussianScalarNoiseModel)
+        self.assertDictAlmostEqual(leaspy_instance.model.noise_model.parameters, {"scale": 0.02122}, atol=1e-4)
 
         parameters = {
             "g": [-1.1861],
@@ -50,7 +50,6 @@ class LoaderTest(LeaspyTestCase):
             "tau_std": 10.0294,
             "xi_mean": 0.0,
             "xi_std": 0.5542,
-            "noise_std": 0.02121,
             "sources_mean": 0.0,
             "sources_std": 1.0,
             "betas": [],

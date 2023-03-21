@@ -9,7 +9,15 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
-  "noise_model": "GaussianDiagonalNoiseModel",
+  "noise_model": {
+    "name": "gaussian-diagonal",
+    "scale": [
+      0.07618862390518188,
+      0.03789350390434265,
+      0.07263588905334473,
+      0.15429577231407166
+    ]
+  },
   "parameters": {
     "g": [
       0.12175798416137695,
@@ -44,12 +52,6 @@
     "sources_mean": 0.0,
     "sources_std": 1.0,
     "log-likelihood": -0.3359699249267578,
-    "noise_std": [
-      0.07618862390518188,
-      0.03789350390434265,
-      0.07263588905334473,
-      0.15429577231407166
-    ],
     "mixing_matrix": [
       [
         0.08185141533613205,

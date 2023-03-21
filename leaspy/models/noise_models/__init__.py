@@ -1,4 +1,8 @@
-from .base import BaseNoiseModel
+from .base import (
+    DistributionFamily,
+    NO_NOISE,
+    BaseNoiseModel,
+)
 from .bernoulli import BernoulliNoiseModel
 from .gaussian import (
     AbstractGaussianNoiseModel,
@@ -10,19 +14,32 @@ from .ordinal import (
     OrdinalNoiseModel,
     OrdinalRankingNoiseModel,
 )
-from .distributions import MultinomialDistribution
-from .factory import NOISE_MODELS, noise_model_factory
+
+
+NOISE_MODELS = {
+    "bernoulli": BernoulliNoiseModel,
+    "gaussian-scalar": GaussianScalarNoiseModel,
+    "gaussian-diagonal": GaussianDiagonalNoiseModel,
+    "ordinal": OrdinalNoiseModel,
+    "ordinal-ranking": OrdinalRankingNoiseModel,
+}
+
+from .factory import NoiseModelFactoryInput, noise_model_factory, noise_model_export
+
 
 __all__ = [
+    "DistributionFamily",
+    "NO_NOISE",
     "NOISE_MODELS",
+    "NoiseModelFactoryInput",
     "noise_model_factory",
+    "noise_model_export",
     "AbstractGaussianNoiseModel",
     "AbstractOrdinalNoiseModel",
     "BaseNoiseModel",
     "BernoulliNoiseModel",
     "GaussianDiagonalNoiseModel",
     "GaussianScalarNoiseModel",
-    "MultinomialDistribution",
     "OrdinalNoiseModel",
     "OrdinalRankingNoiseModel",
 ]

@@ -5,14 +5,22 @@ import re
 import math
 from abc import abstractmethod
 import copy
+import json
 
 import torch
 from torch._tensor_str import PRINT_OPTS as torch_print_opts
 
-from leaspy.io.realizations.collection_realization import CollectionRealization
-from leaspy.io.realizations.realization import Realization
+from leaspy import __version__
 from leaspy.models.base import BaseModel
-from leaspy.models.noise_models import BaseNoiseModel
+from leaspy.models.noise_models import (
+    BaseNoiseModel,
+    NoiseModelFactoryInput,
+    noise_model_factory,
+    noise_model_export,
+)
+from leaspy.models.utilities import tensor_to_list
+from leaspy.io.realizations.realization import Realization
+from leaspy.io.realizations.collection_realization import CollectionRealization
 
 from leaspy.exceptions import LeaspyIndividualParamsInputError, LeaspyModelInputError
 from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Iterable, Optional
@@ -54,7 +62,7 @@ class AbstractModel(BaseModel):
         (Not used anymore)
     """
 
-    def __init__(self, name: str, *, noise_model: Union[str, BaseNoiseModel], **kwargs):
+    def __init__(self, name: str, *, noise_model: NoiseModelFactoryInput, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters: KwargsType = None
         self._noise_model: BaseNoiseModel = None
@@ -68,9 +76,7 @@ class AbstractModel(BaseModel):
         return self._noise_model
 
     @noise_model.setter
-    def noise_model(self, model: Union[str, BaseNoiseModel]):
-        from leaspy.models.noise_models import noise_model_factory
-
+    def noise_model(self, model: NoiseModelFactoryInput):
         noise_model = noise_model_factory(model)
         self.check_noise_model_compatibility(noise_model)
         self._noise_model = noise_model
@@ -85,6 +91,46 @@ class AbstractModel(BaseModel):
                 "Expected a subclass of BaselNoiseModel, but received "
                 f"a {model.__class__.__name__} instead."
             )
+
+    @abstractmethod
+    def to_dict(self) -> KwargsType:
+        """Export model as a dictionary ready for export."""
+        return {
+            'leaspy_version': __version__,
+            'name': self.name,
+            'features': self.features,
+            'dimension': self.dimension,
+            'noise_model': noise_model_export(self.noise_model),
+            'parameters': {
+                k: tensor_to_list(v)
+                for k, v in (self.parameters or {}).items()
+            }
+        }
+
+    def save(self, path: str, **kwargs):
+        """
+        Save Leaspy object as json model parameter file.
+
+        TODO move logic upstream?
+
+        Parameters
+        ----------
+        path : str
+            Path to store the model's parameters.
+        **kwargs
+            Keyword arguments for `to_dict` child method and `json.dump` function (default to indent=2).
+        """
+        from inspect import signature
+
+        export_kws = {k: kwargs.pop(k) for k in signature(self.to_dict).parameters if k in kwargs}
+        model_settings = self.to_dict(**export_kws)
+
+        # Default json.dump kwargs:
+        kwargs = {'indent': 2, **kwargs}
+
+        with open(path, 'w') as fp:
+            json.dump(model_settings, fp, **kwargs)
+
 
     def load_parameters(self, parameters: KwargsType) -> None:
         """
@@ -397,7 +443,7 @@ class AbstractModel(BaseModel):
 
     @abstractmethod
     def compute_jacobian_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
-                                    attribute_type=None) -> torch.FloatTensor:
+                                    attribute_type=None) -> DictParamsTorch:
         """
         Compute the jacobian of the model w.r.t. each individual parameter.
 
@@ -422,7 +468,7 @@ class AbstractModel(BaseModel):
         """
 
     def compute_individual_attachment_tensorized(
-            self, data: Dataset, param_ind: DictParamsTorch, *, attribute_type,
+        self, data: Dataset, param_ind: DictParamsTorch, *, attribute_type = None,
     ) -> torch.FloatTensor:
         """
         Compute attachment term (per subject)
@@ -436,47 +482,48 @@ class AbstractModel(BaseModel):
         param_ind : dict
             Contain the individual parameters
 
-        attribute_type : Any
+        attribute_type : str or None
             Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
         -------
         attachment : :class:`torch.Tensor`
             Negative Log-likelihood, shape = (n_subjects,)
-
-        Raises
-        ------
-        :exc:`.LeaspyModelInputError`
-            If invalid `noise_model` for model
         """
         predictions = self.compute_individual_tensorized(
             data.timepoints, param_ind, attribute_type=attribute_type,
         )
-        return self.noise_model.compute_attachment(data, predictions)
+        nll = self.noise_model.compute_nll(data, predictions)
+        return nll.sum(dim=tuple(range(1, nll.ndim)))
 
-    @abstractmethod
-    def update_model_parameters_burn_in(self, data: Dataset, realizations: CollectionRealization) -> None:
+    def compute_canonical_loss_tensorized(
+        self, data: Dataset, param_ind: DictParamsTorch, *, attribute_type = None
+    ) -> torch.FloatTensor:
         """
-        Update model parameters (burn-in phase)
+        Compute canonical loss, which depends on noise-model.
 
         Parameters
         ----------
         data : :class:`.Dataset`
-        realizations : :class:`.CollectionRealization`
-        """
+            Contains the data of the subjects, in particular the subjects'
+            time-points and the mask for nan values & padded visits
 
-    @abstractmethod
-    def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
-        """
-        Update model parameters (after burn-in phase)
+        param_ind : dict
+            Contain the individual parameters
 
-        Parameters
-        ----------
-        data : :class:`.Dataset`
-        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
-        """
+        attribute_type : str or None (default)
+            Flag to ask for MCMC attributes instead of model's attributes.
 
-    @abstractmethod
+        Returns
+        -------
+        loss : :class:`torch.Tensor`
+            shape = (n_subjects, *)
+        """
+        predictions = self.compute_individual_tensorized(
+            data.timepoints, param_ind, attribute_type=attribute_type,
+        )
+        return self.noise_model.compute_canonical_loss(data, predictions)
+
     def compute_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> DictParamsTorch:
         """
         Compute sufficient statistics from realizations
@@ -489,6 +536,80 @@ class AbstractModel(BaseModel):
         Returns
         -------
         dict[suff_stat: str, :class:`torch.Tensor`]
+        """
+        suff_stats = self.compute_model_sufficient_statistics(data, realizations)
+
+        individual_parameters = self.get_param_from_real(realizations)
+        predictions = self.compute_individual_tensorized(
+            data.timepoints, individual_parameters, attribute_type='MCMC'
+        )
+        # TODO: do something with metrics
+        noise_suff_stats, metrics = self.noise_model.compute_sufficient_statistics_and_metrics(
+            data, realizations, predictions
+        )
+
+        # enforce no conflicting name in sufficient statistics
+        return dict(suff_stats, **noise_suff_stats)
+
+    @abstractmethod
+    def compute_model_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> DictParamsTorch:
+        """
+        Compute sufficient statistics from realizations
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        realizations : :class:`.CollectionRealization`
+
+        Returns
+        -------
+        dict[suff_stat: str, :class:`torch.Tensor`]
+        """
+
+    def update_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+        """
+        Update model parameters (burn-in phase)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
+        """
+        self.update_model_parameters_burn_in(data, sufficient_statistics)
+        self.noise_model.update_parameters_from_sufficient_statistics(data, sufficient_statistics)
+
+    @abstractmethod
+    def update_model_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+        """
+        Update model parameters (burn-in phase)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
+        """
+
+    def update_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+        """
+        Update model parameters (after burn-in phase)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
+        """
+        self.update_model_parameters_normal(data, sufficient_statistics)
+        self.noise_model.update_parameters_from_sufficient_statistics(data, sufficient_statistics)
+
+    @abstractmethod
+    def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+        """
+        Update model parameters (after burn-in phase)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
         """
 
     def get_population_realization_names(self) -> List[str]:
@@ -532,7 +653,10 @@ class AbstractModel(BaseModel):
                 spaces = " "*len(f"{p} : [")
                 v_repr = re.sub(r'\n[ ]+\[', f'\n{spaces}[', v_repr)
 
-            output += f"\n{p} : {v_repr}"
+            output += f"\n{p} : {v_repr}\n"
+
+        output += f"noise-model : {str(self.noise_model)}"
+
         return output
 
     def compute_regularity_realization(self, realization: Realization):
@@ -562,9 +686,9 @@ class AbstractModel(BaseModel):
         return self.compute_regularity_variable(realization.tensor_realizations, mean, std, include_constant=False)
 
     def compute_regularity_variable(self, value: torch.FloatTensor, mean: torch.FloatTensor, std: torch.FloatTensor,
-                                    *, include_constant: bool = True) -> torch.FloatTensor:
+                                    *, include_constant: bool = True, with_gradient: bool = False) -> torch.FloatTensor:
         """
-        Compute regularity term (Gaussian distribution), low-level.
+        Compute regularity term (Gaussian distribution) and optionally its gradient wrt value.
 
         TODO: should be encapsulated in a RandomVariableSpecification class together with other specs of RV.
 
@@ -573,6 +697,8 @@ class AbstractModel(BaseModel):
         value, mean, std : :class:`torch.Tensor` of same shapes
         include_constant : bool (default True)
             Whether we include or not additional terms constant with respect to `value`.
+        with_gradient : bool (default False)
+            Whether we also return the gradient of regularity term with respect to `value`.
 
         Returns
         -------
@@ -585,8 +711,10 @@ class AbstractModel(BaseModel):
         neg_loglike = 0.5*y*y
         if include_constant:
             neg_loglike += 0.5*torch.log(TWO_PI * std**2)
-
-        return neg_loglike
+        if not with_gradient:
+            return neg_loglike
+        nll_grad = y / std
+        return neg_loglike, nll_grad
 
     def initialize_realizations_for_model(self, n_individuals: int, **init_kws) -> CollectionRealization:
         """
@@ -725,8 +853,4 @@ class AbstractModel(BaseModel):
             if MCMC_toolbox_attributes is not None:
                 MCMC_toolbox_attributes.move_to_device(device)
 
-        # ordinal models
-        if hasattr(self, "ordinal_infos"):
-            ordinal_mask = self.ordinal_infos.get("mask", None)
-            if ordinal_mask is not None:
-                self.ordinal_infos["mask"] = ordinal_mask.to(device)
+        self.noise_model.move_to_device(device)

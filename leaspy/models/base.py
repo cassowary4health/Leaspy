@@ -46,11 +46,16 @@ class BaseModel(ABC):
         return self._features
 
     @features.setter
-    def features(self, features: List[FeatureType]):
+    def features(self, features: Optional[List[FeatureType]]):
         """
         Features setter.
         Ensure coherence between dimension and features attributes.
         """
+        if features is None:
+            # used to reset features
+            self._features = None
+            return
+
         if self.dimension is not None and len(features) != self.dimension:
             raise LeaspyModelInputError(
                 f"Cannot set the model's features to {features}, because "
@@ -79,11 +84,10 @@ class BaseModel(ABC):
         """
         if self.features is None:
             self._dimension = dimension
-        else:
-            if len(self.features) != dimension:
-                raise LeaspyModelInputError(
-                    f"Model has {len(self.features)} features. Cannot set the dimension to {dimension}."
-                )
+        elif len(self.features) != dimension:
+            raise LeaspyModelInputError(
+                f"Model has {len(self.features)} features. Cannot set the dimension to {dimension}."
+            )
 
     def validate_compatibility_of_dataset(self, dataset) -> None:
         """

@@ -113,7 +113,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
-    def compute_sufficient_statistics(self, data, realizations):
+    def compute_model_sufficient_statistics(self, data, realizations):
 
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
@@ -126,40 +126,21 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         for param in ("tau", "xi"):
             sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor_realizations, 2)
 
-        individual_parameters = self.get_param_from_real(realizations)
-
-        prediction = self.compute_individual_tensorized(
-            data.timepoints, individual_parameters, attribute_type='MCMC'
-        )
-        sufficient_statistics.update(
-            self.noise_model.get_sufficient_statistics(data, prediction)
-        )
-
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, realizations):
-
-        # unlink model parameters from updates in realizations!
-        realizations = realizations.clone_realizations()
+    def update_model_parameters_burn_in(self, data, sufficient_statistics):
 
         for param in ("g", "deltas"):
-            self.parameters[param] = realizations[param].tensor_realizations
+            self.parameters[param] = sufficient_statistics[param]
         if self.source_dimension != 0:
-            self.parameters['betas'] = realizations['betas'].tensor_realizations
+            self.parameters['betas'] = sufficient_statistics['betas']
         for param in ("xi", "tau"):
-            param_realization = realizations[param].tensor_realizations
-            self.parameters[f"{param}_mean"] = torch.mean(param_realization)
-            self.parameters[f"{param}_std"] = torch.std(param_realization)
-
-        individual_parameters = self.get_param_from_real(realizations)
-        prediction = self.compute_individual_tensorized(
-            data.timepoints, individual_parameters, attribute_type='MCMC'
-        )
-        self.parameters.update(
-            self.noise_model.get_parameters(data, prediction)
-        )
+            param_realizations = sufficient_statistics[param]
+            self.parameters[f"{param}_mean"] = torch.mean(param_realizations)
+            self.parameters[f"{param}_std"] = torch.std(param_realizations)
 
     def update_model_parameters_normal(self, data, sufficient_statistics: DictParamsTorch) -> None:
+        # TODO? factorize `update_model_parameters_***` methods?
         from .utilities import compute_std_from_variance
 
         for param in ("g", "deltas"):
@@ -168,21 +149,15 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             self.parameters['betas'] = sufficient_statistics['betas']
 
         for param in ("tau", "xi"):
-            param_mean = self.parameters[f"{param}_mean"]
+            param_old_mean = self.parameters[f"{param}_mean"]
+            param_cur_mean = torch.mean(sufficient_statistics[param])
             param_variance_update = (
                 torch.mean(sufficient_statistics[f"{param}_sqrd"]) -
-                2. * param_mean * torch.mean(sufficient_statistics[param])
+                2. * param_old_mean * param_cur_mean
             )
-            param_variance = param_variance_update + param_mean ** 2
-            self.parameters[f"{param}_std"] = compute_std_from_variance(param_variance, varname='tau_std')
-            self.parameters["{param}_mean"] = torch.mean(sufficient_statistics[param])
-
-        # TODO: same as MultivariateModel, should we factorize code?
-        self.parameters.update(
-            self.noise_model.get_updated_parameters_from_sufficient_statistics(
-                data, sufficient_statistics
-            )
-        )
+            param_variance = param_variance_update + param_old_mean ** 2
+            self.parameters[f"{param}_std"] = compute_std_from_variance(param_variance, varname=f"{param}_std")
+            self.parameters[f"{param}_mean"] = param_cur_mean
 
     ###################################
     ### Random Variable Information ###

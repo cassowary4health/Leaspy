@@ -34,7 +34,7 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
         algo_settings = cls.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
 
         # return results of personalization
-        ips, noise = leaspy.personalize(data, settings=algo_settings, return_noise=True)
+        ips, noise = leaspy.personalize(data, settings=algo_settings, return_loss=True)
 
         return ips, noise, leaspy # data?
 
@@ -261,14 +261,14 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 # same individuals
                 self.assertEqual(indices_sparse, indices_merged, msg=subtest)
 
-                # same noise as expected
-                self.assertAllClose(noise_merged, expected_noise_std, atol=atol, what='noise', msg=subtest)
                 # same noise between both cases
                 self.assertAllClose(noise_sparse, noise_merged, left_desc='sparse', right_desc='merged', what='noise',
                                     atol=atol, msg=subtest)
                 # same individual parameters (up to rounding errors)
                 self.assertDictAlmostEqual(ips_sparse_torch, ips_merged_torch, left_desc='sparse', right_desc='merged',
                                            rtol=rtol, atol=atol, msg=subtest)
+                # same noise as expected
+                self.assertAllClose(noise_merged, expected_noise_std, atol=atol, what='noise', msg=subtest)
 
     def test_personalize_full_nan(self, *, general_tol=1e-3):
         # test result of personalization with no data at all

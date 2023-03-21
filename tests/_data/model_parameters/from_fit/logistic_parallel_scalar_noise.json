@@ -9,7 +9,10 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
-  "noise_model": "GaussianScalarNoiseModel",
+  "noise_model": {
+    "name": "gaussian-scalar",
+    "scale": 0.10305943340063095
+  },
   "parameters": {
     "g": [
       1.82001793384552
@@ -39,7 +42,6 @@
     "xi_std": 1.012770652770996,
     "sources_mean": 0.0,
     "sources_std": 1.0,
-    "noise_std": 0.10305943340063095,
     "log-likelihood": -0.09772877395153046,
     "mixing_matrix": [
       [

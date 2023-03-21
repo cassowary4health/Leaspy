@@ -3,7 +3,7 @@ from typing import List, Tuple
 import unittest
 import torch
 
-from leaspy.models.noise_models import MultinomialDistribution
+from leaspy.utils.distributions import MultinomialDistribution
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 
@@ -24,16 +24,16 @@ class FakeModel:
     MOCK_NOISE_STD_DIAG = torch.tensor([.03, .07, .02, .081293])
 
     def __init__(self, features: List[str], noise_model: str, noise_std = None):
-        self.noise_model = noise_model
-        self.features = features
-        self.dimension = len(features)
-        self.parameters = {}
         if noise_std is not None:
             if not isinstance(noise_std, torch.Tensor):
                 noise_std = torch.tensor(noise_std)
-            self.parameters = {
-                'noise_std': noise_std.view(-1)
+            noise_model = {
+                "name": noise_model,
+                "scale": noise_std,
             }
+        self.noise_model = noise_model
+        self.features = features
+        self.parameters = {}
 
     def _kws(self, kw_scale: str, mode: str = 'model'):
         # helper to ease tests
@@ -65,7 +65,6 @@ class FakeModel:
         return s
 
 
-@unittest.skip('Refactoring in progress...')
 class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
 
     def assertEqual(self, a, b):
@@ -277,15 +276,11 @@ class TestNoiseModelAndNoiseStruct(LeaspyTestCase):
     def test_inherit_mode(self):
 
         # inherit noise_model from model but need to pass values when needed
-        for kw in ['inherit_struct', 'default']:
+        for kw in ['inherit_struct']:
             for mod in self.models.values():
 
                 nm_factory = lambda: NoiseModel.from_model(mod, kw, **mod._kws('scale', mode='mock'))
-                if kw == 'default':
-                    with self.assertWarns(FutureWarning):
-                        nm = nm_factory()
-                else:
-                    nm = nm_factory()
+                nm = nm_factory()
 
                 # self.assertEqual(nm.name, mod.noise_model)
                 self.assertIsNotNone(nm.struct.distribution_factory)

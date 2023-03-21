@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 import torch
 
 from leaspy.exceptions import LeaspyModelInputError
-from leaspy.utils.typing import ParamType, Tuple
+from leaspy.utils.typing import ParamType
 
 if TYPE_CHECKING:
     from leaspy.models.abstract_model import AbstractModel

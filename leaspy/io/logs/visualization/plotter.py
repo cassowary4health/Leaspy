@@ -469,22 +469,22 @@ class Plotter:
             yscale_kw = dict(nonpositive='clip')
 
         # Goodness-of-fit monitoring
-        ## TODO: improve this, we could want to monitor both noise-std and log-likelihood in practice...
-        goodness_of_fit_path = os.path.join(path, 'noise_std.csv')
-        if os.path.exists(goodness_of_fit_path):
-            goodness_of_fit_title = 'noise_std'
-        else:
-            # LL for other models
-            goodness_of_fit_path = os.path.join(path, 'log-likelihood.csv')
-            goodness_of_fit_title = 'log-likelihood'
-
-        df_convergence = pd.read_csv(goodness_of_fit_path, index_col=0, header=None)
-        df_convergence.index.rename("iter", inplace=True)
         y_position = 0
-        df_convergence.plot(ax=ax[y_position], legend=False)
-        ax[y_position].set_title(goodness_of_fit_title)
-        ax[y_position].set_yscale("log", **yscale_kw)
-        plt.grid(True)
+
+        ## TODO: improve this, we could want to monitor both noise-std and log-likelihood in practice...
+        #goodness_of_fit_path = os.path.join(path, 'noise_std.csv')
+        #if os.path.exists(goodness_of_fit_path):
+        #    goodness_of_fit_title = 'noise_std'
+        #else:
+        #    # LL for other models
+        #    goodness_of_fit_path = os.path.join(path, 'log-likelihood.csv')
+        #    goodness_of_fit_title = 'log-likelihood'
+        #
+        #df_convergence = pd.read_csv(goodness_of_fit_path, index_col=0, header=None)
+        #df_convergence.index.rename("iter", inplace=True)
+        #df_convergence.plot(ax=ax[y_position], legend=False)
+        #ax[y_position].set_title(goodness_of_fit_title)
+        #ax[y_position].set_yscale("log", **yscale_kw)
 
         for i, key in enumerate(reals_pop_name):
             y_position += 1
@@ -537,6 +537,7 @@ class Plotter:
                                         color='b', alpha=0.2)
             ax[y_position].set_title(key)
 
+        plt.grid(True)
         plt.tight_layout()
         plt.savefig(path_saveplot_2)
         plt.close()

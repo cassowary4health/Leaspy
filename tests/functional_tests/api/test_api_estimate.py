@@ -166,8 +166,8 @@ class LeaspyEstimateTest(LeaspyEstimateTest_Mixin):
         self.assertIsInstance(df_ests, pd.DataFrame)
         self.assertTrue(df_ests.index.equals(timepoints))
         self.assertEqual(df_ests.columns.nlevels, 2)  # 2D columns
-        expected_cols = [(d_ft['name'], lvl) for d_ft in lsp.model.noise_model.features
-                         for lvl in range(0, d_ft['max_level'] + 1)]
+        expected_cols = [(ft, lvl) for ft, ft_max_level in lsp.model.noise_model.max_levels.items()
+                         for lvl in range(0, ft_max_level + 1)]
         self.assertEqual(df_ests.columns.tolist(), expected_cols)
         self.assertTrue(((0 <= df_ests) & (df_ests <= 1)).all(axis=None))
 

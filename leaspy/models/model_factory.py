@@ -1,4 +1,4 @@
-from leaspy.models import AbstractModel, all_models
+from leaspy.models import ALL_MODELS, AbstractModel
 
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -36,14 +36,13 @@ class ModelFactory:
         --------
         :class:`~leaspy.api.Leaspy`
         """
-        if isinstance(name, str):
-            name = name.lower()
-        else:
+        if not isinstance(name, str):
             raise LeaspyModelInputError("The `name` argument must be a string!")
 
-        if name not in all_models:
+        name = name.lower()
+        if name not in ALL_MODELS:
             raise LeaspyModelInputError("The name of the model you are trying to create does not exist! "
-                                       f"It should be in {{{repr(tuple(all_models.keys()))[1:-1]}}}")
+                                       f"It should be in {{{repr(tuple(ALL_MODELS.keys()))[1:-1]}}}")
 
         # instantiate model with optional keyword arguments
-        return all_models[name](name, **kwargs)
+        return ALL_MODELS[name](name, **kwargs)

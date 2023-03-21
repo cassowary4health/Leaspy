@@ -2,6 +2,12 @@ import torch
 from leaspy.exceptions import LeaspyConvergenceError
 
 
+def tensor_to_list(x):
+    if isinstance(x, torch.Tensor):
+        return x.tolist()
+    return x
+
+
 def compute_std_from_variance(
     variance: torch.FloatTensor,
     varname: str,

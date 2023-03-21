@@ -1,11 +1,8 @@
 from abc import abstractmethod
-import json
 import math
 import warnings
 
 import torch
-
-from leaspy import __version__
 
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
@@ -78,7 +75,9 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             raise LeaspyModelInputError(f"Sources dimension should be an integer in [0, dimension - 1[ "
                                         f"but you provided `source_dimension` = {self.source_dimension} whereas `dimension` = {self.dimension}")
 
-        self.parameters = initialize_parameters(self, dataset, method=method)
+        self.parameters, noise_model_parameters = initialize_parameters(self, dataset, method=method)
+        if noise_model_parameters is not None:
+            self.noise_model.update_parameters(validate=True, **noise_model_parameters)
 
         self.attributes = AttributesFactory.attributes(
             self.name,
@@ -89,6 +88,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
         # Postpone the computation of attributes when really needed!
         #self.attributes.update({'all'}, self.parameters)
+
 
     @abstractmethod
     def initialize_MCMC_toolbox(self) -> None:
@@ -112,7 +112,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         # TODO to move in a "MCMC-model interface"
 
     def load_parameters(self, parameters):
-        """Updates all model parameters (including noise-model parameters) from the provided parameters."""
+        """Updates all model parameters from the provided parameters."""
         self.parameters = {}
         for k, v in parameters.items():
             if k in ('mixing_matrix',):
@@ -122,7 +122,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                 v = torch.tensor(v)
             self.parameters[k] = v
 
-        self.noise_model.configure_from_parameters(self.parameters, features=self.features)
+        self._check_ordinal_parameters_consistency()
 
         # derive the model attributes from model parameters upon reloading of model
         self.attributes = AttributesFactory.attributes(
@@ -132,7 +132,6 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             **self._attributes_factory_ordinal_kws
         )
         self.attributes.update({'all'}, self.parameters)
-
 
     def load_hyperparameters(self, hyperparameters: KwargsType):
 
@@ -166,14 +165,12 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
         self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
-    def save(self, path: str, with_mixing_matrix: bool = True, **kwargs):
+    def to_dict(self, *, with_mixing_matrix: bool = True) -> KwargsType:
         """
-        Save Leaspy object as json model parameter file.
+        Export Leaspy object as dictionary ready for JSON saving.
 
         Parameters
         ----------
-        path : str
-            Path to store the model's parameters.
         with_mixing_matrix : bool (default True)
             Save the mixing matrix in the exported file in its 'parameters' section.
             <!> It is not a real parameter and its value will be overwritten at model loading
@@ -184,32 +181,15 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             Keyword arguments for json.dump method.
             Default to: dict(indent=2)
         """
-        model_parameters_save = self.parameters.copy()
+        model_settings = super().to_dict()
+        model_settings['source_dimension'] = self.source_dimension
 
         if with_mixing_matrix:
-            model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
-
-        for key, value in model_parameters_save.items():
-            if isinstance(value, torch.Tensor):
-                model_parameters_save[key] = value.tolist()
-
-        model_settings = {
-            'leaspy_version': __version__,
-            'name': self.name,
-            'features': self.features,
-            'dimension': self.dimension,
-            'source_dimension': self.source_dimension,
-            'noise_model': self.noise_model.__class__.__name__,
-            'parameters': model_parameters_save
-        }
+            model_settings['parameters']['mixing_matrix'] = self.attributes.mixing_matrix.tolist()
 
         self._export_extra_ordinal_settings(model_settings)
 
-        # Default json.dump kwargs:
-        kwargs = {'indent': 2, **kwargs}
-
-        with open(path, 'w') as fp:
-            json.dump(model_settings, fp, **kwargs)
+        return model_settings
 
     @abstractmethod
     def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None) -> torch.FloatTensor:

@@ -1,5 +1,6 @@
-from leaspy.models import all_models, UnivariateModel
+from leaspy.models import ALL_MODELS, UnivariateModel
 from leaspy.models.model_factory import ModelFactory
+from leaspy.models.noise_models import NOISE_MODELS
 
 from tests import LeaspyTestCase
 
@@ -15,13 +16,13 @@ class ModelFactoryTest_Mixin(LeaspyTestCase):
             Name of the model
         """
         # valid name (preconditon)
-        self.assertIn(model.name, all_models)
-        self.assertEqual(type(model), all_models[model.name])
+        self.assertIn(model.name, ALL_MODELS)
+        self.assertEqual(type(model), ALL_MODELS[model.name])
 
 class ModelFactoryTest(ModelFactoryTest_Mixin):
 
     def test_model_factory_constructor(self):
-        for name in all_models.keys():
+        for name in ALL_MODELS.keys():
             with self.subTest(model_name=name):
                 self.check_model_factory_constructor(model=ModelFactory.model(name))
 
@@ -55,7 +56,7 @@ class ModelFactoryTest(ModelFactoryTest_Mixin):
                     features=['t1'],
                 )
                 self.assertEqual(model.features, ['t1'])
-                self.assertEqual(model.noise_model, 'gaussian_scalar')
+                self.assertIsInstance(model.noise_model, NOISE_MODELS['gaussian-scalar'])
                 self.assertEqual(model.dimension, 1)
                 self.assertEqual(model.source_dimension, 0)
                 # inconsistent features for a univariate model (dimension=1)
@@ -73,7 +74,7 @@ class ModelFactoryTest(ModelFactoryTest_Mixin):
                     dimension=3,
                 )
                 self.assertEqual(model.features, ['t1','t2','t3'])
-                self.assertEqual(model.noise_model, 'gaussian_diagonal')
+                self.assertIsInstance(model.noise_model, NOISE_MODELS['gaussian-diagonal'])
                 self.assertEqual(model.dimension, 3) # TODO: automatic from length of features?
                 self.assertEqual(model.source_dimension, 2)
                 with self.assertRaisesRegex(ValueError, r"(?i)\bhyperparameters\b.+\bblabla\b"):
@@ -81,13 +82,9 @@ class ModelFactoryTest(ModelFactoryTest_Mixin):
 
     def test_bad_noise_model_or_old_loss(self):
         # raise if invalid loss
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             ModelFactory.model('logistic', noise_model='bad_noise_model')
 
-        # warns about old loss
-        with self.assertWarns(FutureWarning):
+        # NO MORE BACKWARD COMPAT -> raises about old loss kw
+        with self.assertRaises(ValueError):
             ModelFactory.model('logistic', loss='MSE_diag_noise')
-
-        # raise if bad old loss
-        with self.assertRaises(Exception):
-            ModelFactory.model('logistic', loss='bad_old_loss')

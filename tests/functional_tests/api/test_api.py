@@ -36,7 +36,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
 
         # Personalize
         algo_personalize_settings = self.get_algo_settings(name=perso_algo, **perso_algo_params)
-        individual_parameters, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_noise=True)
+        individual_parameters, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_loss=True)
         # Temporary fix for noise for ordinal and binary models
 #        if leaspy.model.noise_model in ['bernoulli', 'ordinal']:
 #            noise_std = torch.tensor(expected_noise_std)

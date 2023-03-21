@@ -1,14 +1,14 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List, Dict
 
 import numpy as np
 import pandas as pd
 import torch
 import warnings
 
-from leaspy.models.noise_models import OrdinalRankingNoiseModel
 from leaspy.exceptions import LeaspyInputError
-from leaspy.utils.typing import KwargsType, List, Dict
+from leaspy.utils.distributions import discrete_sf_from_pdf
+from leaspy.utils.typing import KwargsType
 
 if TYPE_CHECKING:
     from leaspy.io.data.data import Data
@@ -87,7 +87,7 @@ class Dataset:
         self.n_visits_per_individual: Optional[List[int]] = None
         self.n_visits_max: Optional[int] = None
 
-        # internally used by ordinal models only
+        # internally used by ordinal models only (cache)
         self._one_hot_encoding: Optional[Dict[bool, torch.LongTensor]] = None
 
         self.L2_norm_per_ft: Optional[torch.FloatTensor] = None
@@ -185,7 +185,7 @@ class Dataset:
         if adapt_for_model is not None and getattr(adapt_for_model, 'is_ordinal', False):
             # we directly fetch the one-hot encoded values (pdf or sf depending on precise `noise_model`)
             values_to_pick_from = self.get_one_hot_encoding(
-                sf=isinstance(adapt_for_model.noise_model, OrdinalRankingNoiseModel),
+                sf=adapt_for_model.is_ordinal_ranking,
                 ordinal_infos=adapt_for_model.ordinal_infos
             ).float()
 
@@ -197,30 +197,19 @@ class Dataset:
 
     def to_pandas(self) -> pd.DataFrame:
         """
-        Convert dataset to a `DataFrame`.
+        Convert dataset to a `DataFrame` with ['ID', 'TIME'] index.
 
         Returns
         -------
         :class:`pandas.DataFrame`
         """
-
-        # TODO : @Raphael : On est oblige de garder une dependance pandas ? Je crois que c'est utilise juste pour l'initialisation
-        # TODO : Si fait comme ca, il faut preallouer la memoire du dataframe a l'avance!
-        # du modele multivarie. On peut peut-etre s'en passer?
-        df = pd.DataFrame()
-
+        to_concat = {}
         for i, idx in enumerate(self.indices):
             times = self.get_times_patient(i).cpu().numpy()
             x = self.get_values_patient(i).cpu().numpy()
-            df_patient = pd.DataFrame(data=x, index=times.reshape(-1), columns=self.headers)
-            df_patient.index.name = 'TIME'
-            df_patient['ID'] = idx
-            df = pd.concat([df, df_patient])
+            to_concat[idx] = pd.DataFrame(data=x, index=times.reshape(-1), columns=self.headers)
 
-        # df.columns = ['ID', 'TIME'] + self.headers
-        df.reset_index(inplace=True)
-
-        return df
+        return pd.concat(to_concat, names=['ID', 'TIME'])
 
     def move_to_device(self, device: torch.device) -> None:
         """
@@ -260,56 +249,54 @@ class Dataset:
         -------
         One-hot encoding of data values.
         """
-        from leaspy.models.utils.ordinal import compute_ordinal_sf_from_ordinal_pdf
+        if self._one_hot_encoding is not None:
+            return self._one_hot_encoding[sf]
 
-        if self._one_hot_encoding is None:
-            ## Check the data & construct the one-hot encodings once for all for fast look-up afterwards
+        ## Check the data & construct the one-hot encodings once for all for fast look-up afterwards
 
-            # Check for values different than integers
-            if (self.values != self.values.round()).any():
-                raise LeaspyInputError("Please make sure your data contains only integers when using ordinal noise modelling.")
+        # Check for values different than integers
+        if (self.values != self.values.round()).any():
+            raise LeaspyInputError("Please make sure your data contains only integers when using ordinal noise modelling.")
 
-            # First of all check consistency of features given in ordinal_infos compared to the ones in the dataset (names & order!)
-            ordinal_feat_names = [d['name'] for d in ordinal_infos['features']]
-            if ordinal_feat_names != self.headers:
-                raise LeaspyInputError(f"Features stored in ordinal model ({ordinal_feat_names}) are not consistent with features in data ({self.headers})")
+        # First of all check consistency of features given in ordinal_infos compared to the ones in the dataset (names & order!)
+        ordinal_feat_names = list(ordinal_infos['max_levels'])
+        if ordinal_feat_names != self.headers:
+            raise LeaspyInputError(f"Features stored in ordinal model ({ordinal_feat_names}) are not consistent with features in data ({self.headers})")
 
-            # Now check that integers are within the expected range, per feature [0, max_level_ft]
-            vals = self.values.long()
-            vals_issues = {
-                'unexpected': [],
-                'missing': [],
-            }
-            for ft_i, d_ordinal_ft in enumerate(ordinal_infos['features']):
-                ft = d_ordinal_ft['name']
-                max_level_ft = d_ordinal_ft['max_level']  # included
-                expected_codes = set(range(0, max_level_ft + 1))
+        # Now check that integers are within the expected range, per feature [0, max_level_ft]
+        vals = self.values.long()
+        vals_issues = {
+            'unexpected': [],
+            'missing': [],
+        }
+        for ft_i, (ft, max_level_ft) in enumerate(ordinal_infos['max_levels'].items()):
+            expected_codes = set(range(0, max_level_ft + 1)) # max level is included
 
-                vals_ft = vals[:, :, ft_i]
-                actual_codes = set(vals_ft.unique().tolist())
-                unexpected_codes = sorted(actual_codes.difference(expected_codes))
-                missing_codes = sorted(expected_codes.difference(actual_codes))
-                if len(unexpected_codes) > 0:
-                    vals_issues['unexpected'].append(f"- {ft} [[0..{max_level_ft}]]: {unexpected_codes} were unexpected")
-                if len(missing_codes) > 0:
-                    # nota: nans are encoded with 0 in values so if the level 0 is missing but they are nans we'll never catch it... TODO fix?
-                    vals_issues['missing'].append(f"- {ft} [[0..{max_level_ft}]]: {missing_codes} are missing")
+            vals_ft = vals[:, :, ft_i]
+            actual_codes = set(vals_ft.unique().tolist())
+            unexpected_codes = sorted(actual_codes.difference(expected_codes))
+            missing_codes = sorted(expected_codes.difference(actual_codes))
+            if len(unexpected_codes) > 0:
+                vals_issues['unexpected'].append(f"- {ft} [[0..{max_level_ft}]]: {unexpected_codes} were unexpected")
+            if len(missing_codes) > 0:
+                # nota: nans are encoded with 0 in values so if the level 0 is missing but they are nans we'll never catch it... TODO fix?
+                vals_issues['missing'].append(f"- {ft} [[0..{max_level_ft}]]: {missing_codes} are missing")
 
-                # clip the values (per feature)
-                vals[:, :, ft_i] = vals_ft.clamp(0, max_level_ft)
+            # clip the values (per feature)
+            vals[:, :, ft_i] = vals_ft.clamp(0, max_level_ft)
 
-            if len(vals_issues['unexpected']):
-                warnings.warn(f"Some features have unexpected codes (they were clipped to the maximum known level):\n"
-                              + '\n'.join(vals_issues['unexpected']))
-            if len(vals_issues['missing']):
-                warnings.warn(f"Some features have missing codes:\n"
-                              + '\n'.join(vals_issues['missing']))
+        if len(vals_issues['unexpected']):
+            warnings.warn(f"Some features have unexpected codes (they were clipped to the maximum known level):\n"
+                          + '\n'.join(vals_issues['unexpected']))
+        if len(vals_issues['missing']):
+            warnings.warn(f"Some features have missing codes:\n"
+                          + '\n'.join(vals_issues['missing']))
 
-            # one-hot encode all the values after the checks & clipping
-            vals_pdf = torch.nn.functional.one_hot(vals, num_classes=ordinal_infos['max_level'] + 1)
-            # build the survival function by simple (1 - cumsum) and remove the useless P(X >= 0) = 1
-            vals_sf = compute_ordinal_sf_from_ordinal_pdf(vals_pdf)
-            # cache the values to retrive them fast afterwards
-            self._one_hot_encoding = {False: vals_pdf, True: vals_sf}
+        # one-hot encode all the values after the checks & clipping
+        vals_pdf = torch.nn.functional.one_hot(vals, num_classes=ordinal_infos['max_level'] + 1)
+        # build the survival function by simple (1 - cumsum) and remove the useless P(X >= 0) = 1
+        vals_sf = discrete_sf_from_pdf(vals_pdf)
+        # cache the values to retrieve them fast afterwards
+        self._one_hot_encoding = {False: vals_pdf, True: vals_sf}
 
         return self._one_hot_encoding[sf]

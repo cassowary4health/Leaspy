@@ -40,7 +40,6 @@ class LMEModelTest(LeaspyTestCase):
         mock_dataset = MockDataset(['ft_1'])
         model.initialize(mock_dataset)
 
-        print(model.get_hyperparameters())
         self.assertTrue(model.hyperparameters_ok())
 
         mock_dataset_new = MockDataset(['ft_other'])

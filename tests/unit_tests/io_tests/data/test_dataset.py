@@ -311,13 +311,49 @@ class DatasetTest(LeaspyTestCase):
         with self.assertRaisesRegex(ValueError, err_rx):
             dataset.get_one_hot_encoding(sf=False, ordinal_infos=ordinal_infos)
 
+    def test_get_one_hot_encoding_errors_not_int(self):
+        df = pd.DataFrame({
+            'ID':     ['S1', 'S1', 'S1', 'S1', 'S2', 'S2'],
+            'TIME':   [ 50.,  51.,  53.,  59., 35.3, 43.9],
+            'X':      [ 1,    0,    5,    1,   6,    1   ],
+            'Y':      [ 1,    1,  nan,    4, nan,    4.01   ],  # 1 float -> expected error
+        })
+        dataset = Dataset(Data.from_dataframe(df))
+        ordinal_infos = {
+            'max_levels': {
+                'X': 10,
+                'Y': 6,
+            },
+            'max_level': 10,
+        }
+        with self.assertRaisesRegex(ValueError, "integer"):
+            dataset.get_one_hot_encoding(sf=False, ordinal_infos=ordinal_infos)
+
+    def test_get_one_hot_encoding_errors_not_positive(self):
+        df = pd.DataFrame({
+            'ID':     ['S1', 'S1', 'S1', 'S1', 'S2', 'S2'],
+            'TIME':   [ 50.,  51.,  53.,  59., 35.3, 43.9],
+            'X':      [ 1,    0,    5,    1,   6,    1   ],
+            'Y':      [ 1,    -1,  nan,    4, nan,    4   ],  # negative int
+        })
+        dataset = Dataset(Data.from_dataframe(df))
+        ordinal_infos = {
+            'max_levels': {
+                'X': 10,
+                'Y': 6,
+            },
+            'max_level': 10,
+        }
+        with self.assertRaisesRegex(ValueError, ">= 0"):
+            dataset.get_one_hot_encoding(sf=False, ordinal_infos=ordinal_infos)
+
     def test_get_one_hot_encoding_many_warnings(self):
 
         df = pd.DataFrame({
             'ID':     ['S1', 'S1', 'S1', 'S1', 'S2', 'S2'],
             'TIME':   [ 50.,  51.,  53.,  59., 35.3, 43.9],
             'X':      [ 1,    0,    5,    1,   6,    1   ],
-            'Y':      [ 1,    -1,  nan,    4, nan,    -4   ],
+            'Y':      [ 1,    1,  nan,    4, nan,    4   ],
         })
         # create the dataset
         dataset = Dataset(Data.from_dataframe(df))
@@ -339,9 +375,9 @@ class DatasetTest(LeaspyTestCase):
         self.assertEqual(ws, [
             "Some features have unexpected codes (they were clipped to the maximum known level):"
             "\n- X [[0..3]]: [5, 6] were unexpected"
-            "\n- Y [[0..2]]: [-4, -1, 4] were unexpected",
+            "\n- Y [[0..2]]: [4] were unexpected",
 
             "Some features have missing codes:"
             "\n- X [[0..3]]: [2, 3] are missing"
-            "\n- Y [[0..2]]: [2] are missing" # the day where the missing check discard nans we'll have missing 0 as well
+            "\n- Y [[0..2]]: [0, 2] are missing"
         ])

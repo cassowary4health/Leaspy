@@ -382,7 +382,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # to avoid duplicating code in noise model especially
         data = Data.from_dataframe(dataset.to_pandas(), drop_full_nan=False, warn_empty_column=False)
         datasets = {
-            idx: Dataset(data[[idx]])
+            idx: Dataset(data[[idx]], no_warning=True)
             for idx in dataset.indices
         }
 

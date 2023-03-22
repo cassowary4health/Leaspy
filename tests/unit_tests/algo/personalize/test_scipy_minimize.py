@@ -123,7 +123,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
         model.compute_jacobian_tensorized = not_implemented_compute_jacobian_tensorized
 
-        mini_dataset = Dataset(self.get_suited_test_data_for_model('logistic_scalar_noise'))
+        mini_dataset = Dataset(self.get_suited_test_data_for_model('logistic_scalar_noise'), no_warning=True)
 
         settings = AlgorithmSettings('scipy_minimize') #, use_jacobian=True) # default
         algo = ScipyMinimize(settings)
@@ -203,7 +203,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
             'TIME': times,
             **{ft: values[:, i] for i, ft in enumerate(model.features)}
         })
-        return Dataset(Data.from_dataframe(df))
+        return Dataset(Data.from_dataframe(df), no_warning=True)
 
     def test_obj(self):
 
@@ -391,7 +391,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
             # gaussian noise for those models
             self.assertIsInstance(noise_model, NOISE_MODELS['gaussian-scalar'])
             self.assertIsInstance(res, torch.Tensor)
-            self.assertTrue(torch.equal(res == 0, nan_positions))
+            self.assertTrue(torch.equal(res.squeeze(0) == 0, nan_positions))
             expected_res = torch.tensor(expected_dict['err'])
             self.assertAlmostEqual(torch.sum((res - expected_res)**2).item(), 0, delta=tol**2)
             # scalar noise with nans
@@ -502,7 +502,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
             # we compute residuals anyway even if not really relevant (only for the test)
             res = NOISE_MODELS['gaussian-scalar'].get_residuals(*dataset_and_preds)
-            self.assertTrue(torch.equal(res == 0, nan_positions))
+            self.assertTrue(torch.equal(res.squeeze(0) == 0, nan_positions))
             self.assertAlmostEqual(torch.sum((res - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
 
 
@@ -601,5 +601,5 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
             ## we compute residuals anyway even if not really relevant (only for the test)
             #res = NOISE_MODELS['gaussian-scalar'].get_residuals(*dataset_and_preds)
-            #self.assertTrue(torch.equal(res == 0, nan_positions))
+            #self.assertTrue(torch.equal(res.squeeze(0) == 0, nan_positions))
             #self.assertAlmostEqual(torch.sum((res - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)

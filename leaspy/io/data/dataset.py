@@ -62,13 +62,18 @@ class Dataset:
         Values of patients for each visit for each feature, but tensorized into a one-hot encoding (pdf or sf)
         Shapes of tensors are (n_individuals, n_visits_max, dimension, max_ordinal_level [-1 when `sf=True`])
 
+    no_warning : bool (default False)
+        Whether to deactivate warnings that are emitted by methods of this dataset instance.
+        We may want to deactivate them because we rebuild a dataset per individual in scipy minimize.
+        Indeed, all relevant warnings certainly occurred for the overall dataset.
+
     Raises
     ------
     :exc:`.LeaspyInputError`
         if data, model or algo are not compatible together.
     """
 
-    def __init__(self, data: Data):
+    def __init__(self, data: Data, *, no_warning: bool = False):
 
         self.headers = data.headers
         self.dimension = data.dimension
@@ -96,6 +101,8 @@ class Dataset:
         self._construct_values(data)
         self._construct_timepoints(data)
         self._compute_L2_norm()
+
+        self.no_warning = no_warning
 
     def _construct_values(self, data: Data):
 
@@ -254,9 +261,9 @@ class Dataset:
 
         ## Check the data & construct the one-hot encodings once for all for fast look-up afterwards
 
-        # Check for values different than integers
-        if (self.values != self.values.round()).any():
-            raise LeaspyInputError("Please make sure your data contains only integers when using ordinal noise modelling.")
+        # Check for values different than non-negative integers
+        if (self.values != self.values.round()).any() or (self.values < 0).any():
+            raise LeaspyInputError("Please make sure your data contains only integers >= 0 when using ordinal noise modelling.")
 
         # First of all check consistency of features given in ordinal_infos compared to the ones in the dataset (names & order!)
         ordinal_feat_names = list(ordinal_infos['max_levels'])
@@ -264,6 +271,7 @@ class Dataset:
             raise LeaspyInputError(f"Features stored in ordinal model ({ordinal_feat_names}) are not consistent with features in data ({self.headers})")
 
         # Now check that integers are within the expected range, per feature [0, max_level_ft]
+        # (masked values are encoded by 0 at this point)
         vals = self.values.long()
         vals_issues = {
             'unexpected': [],
@@ -273,22 +281,26 @@ class Dataset:
             expected_codes = set(range(0, max_level_ft + 1)) # max level is included
 
             vals_ft = vals[:, :, ft_i]
-            actual_codes = set(vals_ft.unique().tolist())
-            unexpected_codes = sorted(actual_codes.difference(expected_codes))
-            missing_codes = sorted(expected_codes.difference(actual_codes))
-            if len(unexpected_codes) > 0:
-                vals_issues['unexpected'].append(f"- {ft} [[0..{max_level_ft}]]: {unexpected_codes} were unexpected")
-            if len(missing_codes) > 0:
-                # nota: nans are encoded with 0 in values so if the level 0 is missing but they are nans we'll never catch it... TODO fix?
-                vals_issues['missing'].append(f"- {ft} [[0..{max_level_ft}]]: {missing_codes} are missing")
+
+            if not self.no_warning:
+                # replacing masked values by -1 (which was guaranteed not to be part of input from first check, all >= 0)
+                actual_vals_ft = vals_ft.where(self.mask[:, :, ft_i].bool(), torch.tensor(-1))
+                actual_codes = set(actual_vals_ft.unique().tolist()).difference({-1})
+                unexpected_codes = sorted(actual_codes.difference(expected_codes))
+                missing_codes = sorted(expected_codes.difference(actual_codes))
+                if len(unexpected_codes):
+                    vals_issues['unexpected'].append(f"- {ft} [[0..{max_level_ft}]]: {unexpected_codes} were unexpected")
+                if len(missing_codes):
+                    vals_issues['missing'].append(f"- {ft} [[0..{max_level_ft}]]: {missing_codes} are missing")
 
             # clip the values (per feature)
+            # we must keep this even if no_warning enabled
             vals[:, :, ft_i] = vals_ft.clamp(0, max_level_ft)
 
-        if len(vals_issues['unexpected']):
+        if not self.no_warning and len(vals_issues['unexpected']):
             warnings.warn(f"Some features have unexpected codes (they were clipped to the maximum known level):\n"
                           + '\n'.join(vals_issues['unexpected']))
-        if len(vals_issues['missing']):
+        if not self.no_warning and len(vals_issues['missing']):
             warnings.warn(f"Some features have missing codes:\n"
                           + '\n'.join(vals_issues['missing']))
 

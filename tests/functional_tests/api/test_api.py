@@ -7,12 +7,12 @@ from .test_api_simulate import LeaspySimulateTest_Mixin
 class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimulateTest_Mixin):
 
     def generic_usecase(self, model_name: str, model_codename: str, *,
-                        expected_noise_std, # in perso
+                        expected_loss_perso,
                         perso_algo: str, fit_algo='mcmc_saem', simulate_algo='simulation',
                         fit_check_kws = dict(atol=1e-3),
                         fit_algo_params=dict(seed=0), perso_algo_params=dict(seed=0),
                         simulate_algo_params=dict(seed=0), simulate_tol=1e-4,
-                        tol_noise=1e-2,
+                        tol_loss=1e-2,
                         **model_hyperparams):
         """
         Functional test of a basic analysis using leaspy package
@@ -26,6 +26,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
         """
         filename_expected_model = model_codename + '_for_test_api'
 
+        # no loss returned for fit for now
         leaspy, data = self.generic_fit(model_name, filename_expected_model, **model_hyperparams,
                                         algo_name=fit_algo, algo_params=fit_algo_params,
                                         check_model=True, check_kws=fit_check_kws)
@@ -36,13 +37,10 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
 
         # Personalize
         algo_personalize_settings = self.get_algo_settings(name=perso_algo, **perso_algo_params)
-        individual_parameters, noise_std = leaspy.personalize(data, settings=algo_personalize_settings, return_loss=True)
-        # Temporary fix for noise for ordinal and binary models
-#        if leaspy.model.noise_model in ['bernoulli', 'ordinal']:
-#            noise_std = torch.tensor(expected_noise_std)
+        individual_parameters, loss = leaspy.personalize(data, settings=algo_personalize_settings, return_loss=True)
         self.check_consistency_of_personalization_outputs(
-                individual_parameters, noise_std,
-                expected_noise_std=expected_noise_std, tol_noise=tol_noise)
+                individual_parameters, loss,
+                expected_loss=expected_loss_perso, tol_loss=tol_loss)
 
         # Simulate
         simulation_settings = self.get_algo_settings(name=simulate_algo, **simulate_algo_params)
@@ -63,7 +61,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mode_real',
             perso_algo_params=dict(n_iter=200, seed=0),
-            expected_noise_std=0.0857, # in perso
+            expected_loss_perso=0.0857, # scalar RMSE
             simulate_algo_params=simul_params,
         )
 
@@ -78,7 +76,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='gaussian_diagonal', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='scipy_minimize',
-            expected_noise_std=[0.064, 0.037, 0.066, 0.142],  # in perso
+            expected_loss_perso=[0.064, 0.037, 0.066, 0.142],  # per-ft RMSE
             simulate_algo_params=simul_params, simulate_tol=2e-3, # Not fully reproducible on Linux below this tol...
         )
 
@@ -94,7 +92,7 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='bernoulli', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=105.18,  # logLL, not noise_std
+            expected_loss_perso=105.18,  # logLL, not noise_std
             simulate_algo_params=simul_params,
         )
 
@@ -110,8 +108,8 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=1029.1,  # logLL, not noise_std
-            tol_noise=0.1,
+            expected_loss_perso=1029.1,  # logLL, not noise_std
+            tol_loss=0.1,
             simulate_algo_params=simul_params,
         )
 
@@ -130,8 +128,8 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             fit_algo_params=dict(n_iter=200, seed=0),
             fit_check_kws=dict(atol=0.005),
             perso_algo='mean_real',
-            expected_noise_std=1132.6,  # logLL, not noise_std
-            tol_noise=0.1,
+            expected_loss_perso=1132.6,  # logLL, not noise_std
+            tol_loss=0.1,
             simulate_algo_params=simul_params,
             simulate_tol=5e-2,
             batch_deltas_ordinal=True,
@@ -149,8 +147,8 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal',
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=169.8,  # logLL, not noise_std
-            tol_noise=0.1,
+            expected_loss_perso=169.8,  # logLL, not noise_std
+            tol_loss=0.1,
             simulate_algo_params=simul_params,
         )
 
@@ -166,8 +164,8 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal_ranking', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mean_real',
-            expected_noise_std=974.15,  # logLL, not noise_std
-            tol_noise=0.1,
+            expected_loss_perso=974.15,  # logLL, not noise_std
+            tol_loss=0.1,
             simulate_algo_params=simul_params,
         )
 
@@ -183,8 +181,8 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
             noise_model='ordinal_ranking', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
             perso_algo='mode_real',
-            expected_noise_std=971.95,  # logLL, not noise_std
-            tol_noise=0.1,
+            expected_loss_perso=971.95,  # logLL, not noise_std
+            tol_loss=0.1,
             simulate_algo_params=simul_params,
             batch_deltas_ordinal=True,
         )

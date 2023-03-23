@@ -1,4 +1,5 @@
 import math
+import warnings
 
 import torch
 from numpy import nan
@@ -34,23 +35,23 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
         algo_settings = cls.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
 
         # return results of personalization
-        ips, noise = leaspy.personalize(data, settings=algo_settings, return_loss=True)
+        ips, loss = leaspy.personalize(data, settings=algo_settings, return_loss=True)
 
-        return ips, noise, leaspy # data?
+        return ips, loss, leaspy # data?
 
-    def check_consistency_of_personalization_outputs(self, ips, noise_std, expected_noise_std, *,
-                                                     tol_noise = 5e-3, msg = None):
+    def check_consistency_of_personalization_outputs(self, ips, loss, expected_loss, *,
+                                                     tol_loss = 5e-3, msg = None):
 
         self.assertIsInstance(ips, IndividualParameters)
-        self.assertIsInstance(noise_std, torch.Tensor)
+        self.assertIsInstance(loss, torch.Tensor)
 
-        if isinstance(expected_noise_std, float):
-            self.assertEqual(noise_std.numel(), 1, msg=msg) # scalar noise
-            self.assertAlmostEqual(noise_std.item(), expected_noise_std, delta=tol_noise, msg=msg)
+        if isinstance(expected_loss, float):
+            self.assertEqual(loss.numel(), 1, msg=msg) # scalar noise or neg-ll
+            self.assertAlmostEqual(loss.item(), expected_loss, delta=tol_loss, msg=msg)
         else:
-            # vector of noises (for diag_noise)
-            self.assertEqual(noise_std.numel(), len(expected_noise_std), msg=msg) # diagonal noise
-            self.assertAllClose(noise_std, expected_noise_std, atol=tol_noise, what='noise', msg=msg)
+            # vector of noises (for Gaussian diagonal noise)
+            self.assertEqual(loss.numel(), len(expected_loss), msg=msg) # diagonal noise
+            self.assertAllClose(loss, expected_loss, atol=tol_loss, what='noise', msg=msg)
 
 class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 
@@ -66,7 +67,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         with self.assertWarnsRegex(UserWarning, r'[Aa]nnealing'):
             ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.102, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_loss=0.102, tol_loss=tol_noise)
 
     def test_personalize_mode_real_logistic_old(self, tol_noise=1e-3):
         """
@@ -77,7 +78,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         with self.assertWarnsRegex(UserWarning, r'[Aa]nnealing'):
             ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=0.117, tol_noise=tol_noise)
+        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_loss=0.117, tol_loss=tol_noise)
 
     def test_personalize_comprehensive(self, tol_noise=5e-4):
         """Tests different personalization algos for many hardcoded models."""
@@ -85,9 +86,9 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         mode_real_kws = dict()
         mean_real_kws = dict()
 
-        for model_name, perso_name, perso_kws, expected_noise_std in [
+        for model_name, perso_name, perso_kws, expected_loss in [
 
-            # multivariate logistic models
+            # multivariate logistic models (gaussian noise -> loss is noise scale)
             ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),          0.1189),
             ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),           0.1188),
             ('logistic_scalar_noise', 'mode_real', mode_real_kws,                          0.1191),
@@ -142,7 +143,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('linear_diag_noise', 'mode_real', mode_real_kws,                             [0.1007, 0.1292, 0.1250, 0.1489]),
             ('linear_diag_noise', 'mean_real', mean_real_kws,                             [0.1000, 0.1265, 0.1242, 0.1485]),
 
-            # multivariate binary model
+            # multivariate binary model (loss is neg-ll)
             ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),                103.7),
             ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                 103.67),
             ('logistic_binary', 'mode_real', mode_real_kws,                                103.96),
@@ -154,9 +155,9 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('logistic_parallel_binary', 'mode_real', mode_real_kws,                       111.96),
             ('logistic_parallel_binary', 'mean_real', mean_real_kws,                       120.06),
 
-            # multivariate ordinal model
+            # multivariate ordinal model (loss is neg-ll)
             ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=False),               700.55),
-            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=True),                638.66),
+            ('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=True),                629.97),
             ('logistic_ordinal', 'mode_real', mode_real_kws,                               619.64),
             ('logistic_ordinal', 'mean_real', mean_real_kws,                               616.94),
 
@@ -171,21 +172,29 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             subtest = dict(model_name=model_name, perso_name=perso_name, perso_kws=perso_kws)
             with self.subTest(**subtest):
 
-                # only look at residual MSE to detect any regression in personalization
-                ips, noise_std, _ = self.generic_personalization(model_name, algo_name=perso_name, seed=0, **perso_kws)
+                with warnings.catch_warnings(record=True) as ws:
+                    warnings.simplefilter('always')
+                    # only look at loss to detect any regression in personalization
+                    ips, loss, _ = self.generic_personalization(model_name, algo_name=perso_name, seed=0, **perso_kws)
 
-                tol_noise_sub = tol_noise
+                ws = [str(w.message) for w in ws]
+                if 'ordinal' in model_name:
+                    self.assertEqual(len(ws), 1, msg=ws)
+                    self.assertIn("Some features have missing codes", ws[0])
+                else:
+                    self.assertEqual(ws, [])
+
+                tol_loss = tol_noise
                 # not noise but NLL (less precise...); some minor exact reproducibility issues MacOS vs. Linux
                 if 'binary' in model_name:
-                    tol_noise_sub = 0.1
+                    tol_loss = 0.1
                 elif 'ordinal_ranking' in model_name:
-                    tol_noise_sub = 0.5
+                    tol_loss = 0.5
                 elif 'ordinal' in model_name:
-                    tol_noise_sub = 3.0  # highest reprod. issues
+                    tol_loss = 0.5  # highest reprod. issues
 
-                self.check_consistency_of_personalization_outputs(ips, noise_std, expected_noise_std=expected_noise_std,
-                                                                  tol_noise=tol_noise_sub,
-                                                                  msg=subtest)
+                self.check_consistency_of_personalization_outputs(ips, loss, expected_loss=expected_loss,
+                                                                  tol_loss=tol_loss, msg=subtest)
 
     def test_robustness_to_data_sparsity(self, rtol=2e-2, atol=5e-3):
         """
@@ -198,9 +207,9 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         mode_real_kws = dict()
         mean_real_kws = dict()
 
-        for model_name, perso_name, perso_kws, expected_noise_std in [
+        for model_name, perso_name, perso_kws, expected_loss in [
 
-            # multivariate logistic models
+            # multivariate logistic models (gaussian noise -> loss is noise scale)
             ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),          0.1161),
             ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),           0.1162),
 
@@ -235,7 +244,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
             ('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=False),             [0.1021, 0.1650, 0.2083, 0.1481]),
             ('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=True),              [0.1023, 0.1630, 0.2081, 0.1480]),
 
-            # binary models (noise_std is reported as diagonal)
+            # binary models (loss is neg-ll)
             ('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),                8.4722),
             ('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                 8.4718),
 
@@ -248,11 +257,11 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
 
                 common_params = dict(algo_name=perso_name, seed=0, **perso_kws)
 
-                ips_sparse, noise_sparse, _ = self.generic_personalization(model_name, **common_params,
+                ips_sparse, loss_sparse, _ = self.generic_personalization(model_name, **common_params,
                                                                            data_path='missing_data/sparse_data.csv',
                                                                            data_kws={'drop_full_nan': False})
 
-                ips_merged, noise_merged, _ = self.generic_personalization(model_name, **common_params,
+                ips_merged, loss_merged, _ = self.generic_personalization(model_name, **common_params,
                                                                            data_path='missing_data/merged_data.csv')
 
                 indices_sparse, ips_sparse_torch = ips_sparse.to_pytorch()
@@ -261,14 +270,15 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 # same individuals
                 self.assertEqual(indices_sparse, indices_merged, msg=subtest)
 
-                # same noise between both cases
-                self.assertAllClose(noise_sparse, noise_merged, left_desc='sparse', right_desc='merged', what='noise',
+                # same loss between both cases
+                loss_desc = 'nll' if any(kw in model_name for kw in {'binary', 'ordinal'}) else 'noise'
+                self.assertAllClose(loss_sparse, loss_merged, left_desc='sparse', right_desc='merged', what=loss_desc,
                                     atol=atol, msg=subtest)
                 # same individual parameters (up to rounding errors)
                 self.assertDictAlmostEqual(ips_sparse_torch, ips_merged_torch, left_desc='sparse', right_desc='merged',
                                            rtol=rtol, atol=atol, msg=subtest)
-                # same noise as expected
-                self.assertAllClose(noise_merged, expected_noise_std, atol=atol, what='noise', msg=subtest)
+                # same loss as expected
+                self.assertAllClose(loss_merged, expected_loss, atol=atol, what=loss_desc, msg=subtest)
 
     def test_personalize_full_nan(self, *, general_tol=1e-3):
         # test result of personalization with no data at all

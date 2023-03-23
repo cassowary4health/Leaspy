@@ -192,11 +192,11 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         """
         sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
 
-        if self._is_burn_in():
-            # the maximization step is memoryless
+        if self._is_burn_in() or self.current_iteration == 1 + self.algo_parameters['n_burn_in_iter']:
+            # the maximization step is memoryless (or first iteration with memory)
             self.sufficient_statistics = sufficient_statistics
         else:
-            burn_in_step = self.current_iteration - self.algo_parameters['n_burn_in_iter'] # min = 1, max = n_iter - n_burn_in_iter
+            burn_in_step = self.current_iteration - self.algo_parameters['n_burn_in_iter'] # min = 2, max = n_iter - n_burn_in_iter
             burn_in_step **= -self.algo_parameters['burn_in_step_power']
 
             # this new formulation (instead of v + burn_in_step*(sufficient_statistics[k] - v)) enables to keep `inf` deltas

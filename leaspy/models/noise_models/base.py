@@ -106,7 +106,10 @@ class DistributionFamily:
         return {k: tensor_to_list(v) for k, v in (self.parameters or {}).items()}
 
     def move_to_device(self, device: torch.device) -> None:
-        """Move all torch tensors stored in this instance to provided device."""
+        """Move all torch tensors stored in this instance to provided device (parameters & hyperparameters)."""
+        for k, v in vars(self).items():
+            if isinstance(v, torch.Tensor):
+                setattr(self, k, v.to(device))
         if self.parameters is None:
             return
         self.parameters = {k: v.to(device) for k, v in self.parameters.items()}

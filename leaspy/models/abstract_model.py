@@ -62,7 +62,7 @@ class AbstractModel(BaseModel):
         (Not used anymore)
     """
 
-    def __init__(self, name: str, *, noise_model: NoiseModelFactoryInput, **kwargs):
+    def __init__(self, name: str, *, noise_model: NoiseModelFactoryInput, fit_metrics: Optional[Dict[str, float]]=None, **kwargs):
         super().__init__(name, **kwargs)
         self.parameters: KwargsType = None
         self._noise_model: BaseNoiseModel = None
@@ -70,6 +70,9 @@ class AbstractModel(BaseModel):
         # load hyperparameters
         self.noise_model = noise_model
         self.load_hyperparameters(kwargs)
+
+        # TODO: dirty hack for now, cf. AbstractFitAlgo
+        self.fit_metrics = fit_metrics
 
     @property
     def noise_model(self):
@@ -100,6 +103,7 @@ class AbstractModel(BaseModel):
             'name': self.name,
             'features': self.features,
             'dimension': self.dimension,
+            'fit_metrics': self.fit_metrics,  # TODO improve
             'noise_model': noise_model_export(self.noise_model),
             'parameters': {
                 k: tensor_to_list(v)
@@ -517,7 +521,7 @@ class AbstractModel(BaseModel):
         Returns
         -------
         loss : :class:`torch.Tensor`
-            shape = (n_subjects, *)
+            shape = * (depending on noise-model, always summed over individuals & visits)
         """
         predictions = self.compute_individual_tensorized(
             data.timepoints, param_ind, attribute_type=attribute_type,
@@ -543,13 +547,20 @@ class AbstractModel(BaseModel):
         predictions = self.compute_individual_tensorized(
             data.timepoints, individual_parameters, attribute_type='MCMC'
         )
-        # TODO: do something with metrics
-        noise_suff_stats, metrics = self.noise_model.compute_sufficient_statistics_and_metrics(
-            data, realizations, predictions
+        noise_suff_stats = self.noise_model.compute_sufficient_statistics(
+            data, predictions
         )
 
-        # enforce no conflicting name in sufficient statistics
-        return dict(suff_stats, **noise_suff_stats)
+        # we add some fake sufficient statistics that are in fact convergence metrics (summed over individuals)
+        # TODO proper handling of metrics
+        d_regul, _ = self.compute_regularity_individual_parameters(individual_parameters, include_constant=True)
+        cvg_metrics = {f'nll_regul_{param}': r.sum() for param, r in d_regul.items()}
+        cvg_metrics['nll_regul_tot'] = sum(cvg_metrics.values(), 0.)
+        cvg_metrics['nll_attach'] = self.noise_model.compute_nll(data, predictions).sum()
+        cvg_metrics['nll_tot'] = cvg_metrics['nll_attach'] + cvg_metrics['nll_regul_tot']
+
+        # using `dict` enforces no conflicting name in sufficient statistics
+        return dict(suff_stats, **noise_suff_stats, **cvg_metrics)
 
     @abstractmethod
     def compute_model_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> DictParamsTorch:
@@ -634,28 +645,47 @@ class AbstractModel(BaseModel):
         return [name for name, value in self.random_variable_informations().items()
                 if value['type'] == 'individual']
 
+    @classmethod
+    def _serialize_tensor(cls, v, *, indent: str = "", sub_indent: str = "") -> str:
+        """Nice serialization of floats, torch tensors (or numpy arrays)."""
+        if isinstance(v, (str, bool, int)):
+            return str(v)
+        if isinstance(v, float) or getattr(v, 'ndim', -1) == 0:
+            # for 0D tensors / arrays the default behavior is to print all digits...
+            # change this!
+            return f'{v:.{1+torch_print_opts.precision}g}'
+        if isinstance(v, (list, frozenset, set, tuple)):
+            try:
+                return cls._serialize_tensor(torch.tensor(list(v)), indent=indent, sub_indent=sub_indent)
+            except Exception:
+                return str(v)
+        if isinstance(v, dict):
+            if not len(v):
+                return ""
+            subs = [
+                f"{p} : " + cls._serialize_tensor(vp, indent="  ", sub_indent=" "*len(f"{p} : ["))
+                for p, vp in v.items()
+            ]
+            lines = [indent + l for l in "\n".join(subs).split("\n")]
+            return "\n" + "\n".join(lines)
+        # torch.tensor, np.array, ...
+        # in particular you may use `torch.set_printoptions` and `np.set_printoptions` globally
+        # to tune the number of decimals when printing tensors / arrays
+        v_repr = str(v)
+        # remove tensor prefix & possible device/size/dtype suffixes
+        v_repr = re.sub(r'^[^\(]+\(', '', v_repr)
+        v_repr = re.sub(r'(?:, device=.+)?(?:, size=.+)?(?:, dtype=.+)?\)$', '', v_repr)
+        # adjust justification
+        return re.sub(r'\n[ ]+([^ ])', rf'\n{sub_indent}\1', v_repr)
+
     def __str__(self):
         output = "=== MODEL ==="
-        for p, v in self.parameters.items():
-            if isinstance(v, float) or (hasattr(v, 'ndim') and v.ndim == 0):
-                # for 0D tensors / arrays the default behavior is to print all digits...
-                # change this!
-                v_repr = f'{v:.{1+torch_print_opts.precision}g}'
-            else:
-                # torch.tensor, np.array, ...
-                # in particular you may use `torch.set_printoptions` and `np.set_printoptions` globally
-                # to tune the number of decimals when printing tensors / arrays
-                v_repr = str(v)
-                # remove tensor prefix & possible dtype suffix
-                v_repr = re.sub(r'^[^\(]+\(', '', v_repr)
-                v_repr = re.sub(r'(?:, dtype=.+)?\)$', '', v_repr)
-                # adjust justification
-                spaces = " "*len(f"{p} : [")
-                v_repr = re.sub(r'\n[ ]+\[', f'\n{spaces}[', v_repr)
+        output += self._serialize_tensor(self.parameters)
 
-            output += f"\n{p} : {v_repr}\n"
-
-        output += f"noise-model : {str(self.noise_model)}"
+        nm_props = noise_model_export(self.noise_model)
+        nm_name = nm_props.pop('name')
+        output += f"\nnoise-model : {nm_name}"
+        output += self._serialize_tensor(nm_props, indent="  ")
 
         return output
 
@@ -684,6 +714,46 @@ class AbstractModel(BaseModel):
 
         # we do not need to include regularity constant (priors are always fixed at a given iteration)
         return self.compute_regularity_variable(realization.tensor_realizations, mean, std, include_constant=False)
+
+    def compute_regularity_individual_parameters(
+        self, individual_parameters: DictParamsTorch, *, include_constant: bool = False
+    ) -> Tuple[DictParamsTorch, DictParamsTorch]:
+        """
+        Compute the regularity terms (and their gradients if requested), per individual variable of the model.
+
+        Parameters
+        ----------
+        individual_parameters : dict[str, :class:`torch.Tensor` [n_ind, n_dims_param]]
+            Individual parameters as a dict of tensors.
+
+        Returns
+        -------
+        regularity : dict[param_name: str, :class:`torch.Tensor` [n_individuals]]
+            Regularity of the patient(s) corresponding to the given individual parameters.
+
+        regularity_grads : dict[param_name: str, :class:`torch.Tensor` [n_individuals, n_dims_param]]
+            Gradient of regularity term with respect to individual parameters.
+        """
+        regularity = {}
+        regularity_grads = {}
+
+        for param_name, param_val in individual_parameters.items():
+            # priors on this parameter
+            priors = dict(
+                mean = self.parameters[param_name+"_mean"],
+                std = self.parameters[param_name+"_std"]
+            )
+
+            # TODO? create a more generic method in model `compute_regularity_variable`?
+            # (at least pass the parameter name to this method to compute regularity term for non-Normal priors)
+            regularity_param, regularity_grads[param_name] = self.compute_regularity_variable(
+                param_val, **priors, include_constant=include_constant, with_gradient=True
+            )
+            # we sum on the dimension of the parameter (always 1D for now), but regularity term is per individual
+            # TODO: shouldn't this summation be done directly in `compute_regularity_variable` (e.g. multivariate normal)
+            regularity[param_name] = regularity_param.sum(dim=1)
+
+        return regularity, regularity_grads
 
     def compute_regularity_variable(self, value: torch.FloatTensor, mean: torch.FloatTensor, std: torch.FloatTensor,
                                     *, include_constant: bool = True, with_gradient: bool = False) -> torch.FloatTensor:

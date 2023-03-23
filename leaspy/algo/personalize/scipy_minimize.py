@@ -179,23 +179,10 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         regularity_grads : dict[param_name: str, :class:`torch.Tensor` [n_individuals, n_dims_param]]
             Gradient of regularity term with respect to individual parameters.
         """
+        d_regularity, d_regularity_grads = model.compute_regularity_individual_parameters(individual_parameters)
+        tot_regularity = sum(d_regularity.values(), 0.)
 
-        regularity = 0.
-        regularity_grads = {}
-
-        for param_name, param_val in individual_parameters.items():
-            # priors on this parameter
-            priors = dict(
-                mean = model.parameters[param_name+"_mean"],
-                std = model.parameters[param_name+"_std"]
-            )
-
-            # TODO? create a more generic method in model `compute_regularity_variable`?
-            # (at least pass the parameter name to this method to compute regularity term for non-Normal priors)
-            regularity_param, regularity_grads[param_name] = model.compute_regularity_variable(param_val, **priors, include_constant=False, with_gradient=True)
-            regularity += regularity_param.sum(dim=1)
-
-        return regularity, regularity_grads
+        return tot_regularity, d_regularity_grads
 
     def obj(self, x: list, model: AbstractModel, dataset: Dataset, with_gradient: bool):
         """

@@ -9,7 +9,6 @@ from typing import (
     Optional,
     Any,
     Iterable,
-    Tuple,
     FrozenSet,
 )
 from dataclasses import dataclass
@@ -154,7 +153,7 @@ class NoNoise(DistributionFamily):
 NO_NOISE = NoNoise()
 
 
-class BaseNoiseModel(DistributionFamily, ABC):
+class BaseNoiseModel(ABC, DistributionFamily):
     """
     Base class for valid noise models that may be used in probabilistic models.
 
@@ -177,7 +176,7 @@ class BaseNoiseModel(DistributionFamily, ABC):
     ) -> torch.FloatTensor:
         """Compute negative log-likelihood of data given model predictions (no summation), and its gradient w.r.t. predictions if requested."""
 
-    canonical_loss_properties: ClassVar = ("(neg) log-likelihood", ".3f")
+    canonical_loss_properties: ClassVar = ("(neg) log-likelihood for attachment", ".3f")
 
     def compute_canonical_loss(
         self,
@@ -187,16 +186,13 @@ class BaseNoiseModel(DistributionFamily, ABC):
         """Compute a human-friendly overall loss (independent from instance parameters), useful as a measure of goodness-of-fit after personalization (nll by default - assuming no free parameters)."""
         return self.compute_nll(data, predictions).sum()
 
-    def compute_sufficient_statistics_and_metrics(
+    def compute_sufficient_statistics(
         self,
         data: Dataset,
-        realizations: torch.FloatTensor,
         predictions: torch.FloatTensor,
-    ) -> Tuple[DictParamsTorch, DictParamsTorch]:
+    ) -> DictParamsTorch:
         """Computes the set of noise-related sufficient statistics and metrics (to be extended in child class)."""
-        return {}, {
-            "neg_ll": self.compute_nll(data, predictions).sum(),
-        }
+        return {}
 
     def update_parameters_from_sufficient_statistics(
         self,

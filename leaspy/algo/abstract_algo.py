@@ -375,9 +375,18 @@ class AbstractAlgo(ABC):
 
         return res
 
+    def _get_progress_str(self) -> Optional[str]:
+        # TODO in a special mixin for sequential algos with nb of iters (MCMC fit, MCMC personalize)
+        if not hasattr(self, 'current_iteration'):
+            return
+        return f"Iteration {self.current_iteration} / {self.algo_parameters['n_iter']}"
+
     def __str__(self):
         out = "=== ALGO ===\n"
         out += f"Instance of {self.name} algo"
         if hasattr(self, 'algorithm_device'):
             out += f" [{self.algorithm_device.upper()}]"
+        progress_str = self._get_progress_str()
+        if progress_str:
+            out += "\n" + progress_str
         return out

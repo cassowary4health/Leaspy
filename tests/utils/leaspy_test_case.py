@@ -104,8 +104,6 @@ class LeaspyTestCase(TestCase):
     def get_hardcoded_model(cls, model_name: str):
         """Load the Leaspy test model with provided name (models hardcoded)."""
         lsp = Leaspy.load(cls.hardcoded_model_path(model_name))
-        # TMP until proper metrics registration in models
-        lsp.model.parameters.pop("log-likelihood", None)
         return lsp
 
     # models generated from fit functional tests, bad for most tests as it may change due to slights changes in fit
@@ -114,14 +112,15 @@ class LeaspyTestCase(TestCase):
     @classmethod
     def from_fit_model_path(cls, model_name: str):
         """<!> `model_name` should have NO extension"""
-        return os.path.join(cls.from_fit_models_folder, model_name + '.json')
+        from_fit_path = cls.from_fit_models_folder
+        if model_name.endswith('_gpu'):
+            from_fit_path += '/gpu'  # not tested in CI so probably out-of-date
+        return os.path.join(from_fit_path, model_name + '.json')
 
     @classmethod
     def get_from_fit_model(cls, model_name: str):
         """Load the Leaspy test model with provided name (models from test fit)."""
         lsp = Leaspy.load(cls.from_fit_model_path(model_name))
-        # TMP until proper metrics registration in models
-        lsp.model.parameters.pop("log-likelihood", None)
         return lsp
 
     # hardcoded individual parameters: good for unit tests & functional tests independent from personalize behavior

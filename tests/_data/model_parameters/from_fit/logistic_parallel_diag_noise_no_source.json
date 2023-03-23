@@ -9,6 +9,13 @@
   ],
   "dimension": 4,
   "source_dimension": 0,
+  "fit_metrics": {
+    "nll_regul_tau": 65.75247192382812,
+    "nll_regul_xi": 16.351545333862305,
+    "nll_regul_tot": 82.10401153564453,
+    "nll_attach": -358.3509826660156,
+    "nll_tot": -276.2469787597656
+  },
   "noise_model": {
     "name": "gaussian-diagonal",
     "scale": [
@@ -38,7 +45,6 @@
     "xi_std": 0.6318942308425903,
     "sources_mean": 0.0,
     "sources_std": 1.0,
-    "log-likelihood": -0.7461017370223999,
     "mixing_matrix": []
   }
 }

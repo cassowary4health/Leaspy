@@ -9,6 +9,14 @@
   ],
   "dimension": 4,
   "source_dimension": 2,
+  "fit_metrics": {
+    "nll_regul_tau": 57.682472229003906,
+    "nll_regul_xi": 22.72775650024414,
+    "nll_regul_sources": 56.59605407714844,
+    "nll_regul_tot": 137.0063018798828,
+    "nll_attach": 160.7379608154297,
+    "nll_tot": 297.7442626953125
+  },
   "noise_model": {
     "name": "bernoulli"
   },
@@ -41,7 +49,6 @@
     "xi_std": 0.9190122485160828,
     "sources_mean": 0.0,
     "sources_std": 1.0,
-    "log-likelihood": 160.73797607421875,
     "mixing_matrix": [
       [
         -0.07859119027853012,

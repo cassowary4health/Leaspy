@@ -457,6 +457,10 @@ class MultivariateModel(AbstractMultivariateModel):
                 # xi-mean is fixed to 0 by design
                 self.parameters[f"{param}_mean"] = param_cur_mean
 
+        self.parameters.update(
+            self.get_ordinal_parameters_updates_from_sufficient_statistics(sufficient_statistics)
+        )
+
     def random_variable_informations(self):
         # --- Population variables
         g_infos = {

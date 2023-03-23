@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Dict
-from abc import abstractmethod
 from dataclasses import dataclass
 
 import torch
@@ -118,6 +117,8 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
         if not with_gradient:
             return nll
         nll_grad = (
-            data.mask[..., None].float() * (predictions - sf) / (predictions * (1.0 - predictions))
+            data.mask[..., None].float()
+            * (predictions - sf)
+            / (predictions * (1.0 - predictions))
         )
         return nll, nll_grad

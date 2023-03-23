@@ -214,14 +214,14 @@ class OrdinalModelMixin:
                     "Mask on deltas is inconsistent with noise model."
                 )
         else:
-            bad_fts = {
+            bad_fts = [
                 ft
                 for ft, ft_max_level in self.noise_model.max_levels.items()
                 if self.parameters[f"deltas_{ft}"].shape != (ft_max_level - 1,)
-            }
+            ]
             if len(bad_fts):
                 raise LeaspyModelInputError(
-                    f"Shape of deltas ({bad_fts}) is inconsistent with noise model."
+                    f"Shape of deltas {bad_fts} is inconsistent with noise model."
                 )
 
     def _initialize_MCMC_toolbox_ordinal_priors(self) -> None:
@@ -267,31 +267,27 @@ class OrdinalModelMixin:
     def _add_ordinal_random_variables(self, variables_infos: dict) -> None:
         if not self.is_ordinal:
             return
-        deltas_info = {"type": "population", "scale": 0.5}
+        common_deltas_info = {"type": "population", "scale": 0.5}
         if self.batch_deltas:
-            deltas_info.update(
-                {
-                    "name": "deltas",
-                    "shape": torch.Size(
-                        [self.dimension, self.noise_model.max_level - 1]
-                    ),
-                    "rv_type": "multigaussian",
-                    "mask": self.noise_model.mask[:, 1:],  # cut the >= zero level
-                }
-            )
-            variables_infos["deltas"] = deltas_info
+            variables_infos["deltas"] = {
+                "name": "deltas",
+                "shape": torch.Size(
+                    [self.dimension, self.noise_model.max_level - 1]
+                ),
+                "rv_type": "multigaussian",
+                "mask": self.noise_model.mask[:, 1:],  # cut the >= zero level
+                **common_deltas_info
+            }
         else:
             for ft, ft_max_level in self.noise_model.max_levels.items():
-                deltas_info.update(
-                    {
-                        "name": "deltas_" + ft,
-                        "shape": torch.Size(
-                            [ft_max_level - 1]
-                        ),  # cut the >= zero level
-                        "rv_type": "gaussian",
-                    }
-                )
-                variables_infos["deltas_" + ft] = deltas_info
+                variables_infos["deltas_" + ft] = {
+                    "name": "deltas_" + ft,
+                    "shape": torch.Size(
+                        [ft_max_level - 1]
+                    ),  # cut the >= zero level
+                    "rv_type": "gaussian",
+                    **common_deltas_info
+                }
 
         # Finally: change the v0 scale since it has not the same meaning
         if "v0" in variables_infos:

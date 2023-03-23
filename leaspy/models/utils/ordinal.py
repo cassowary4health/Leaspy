@@ -207,7 +207,7 @@ class OrdinalModelMixin:
                     "Shape of deltas is inconsistent with noise model."
                 )
             mask_ok = torch.equal(
-                torch.isinf(self.parameters["deltas"]), ~self.noise_model.mask[:, 1:]
+                torch.isinf(self.parameters["deltas"]), ~self.noise_model.mask[:, 1:].bool()
             )
             if not mask_ok:
                 raise LeaspyModelInputError(

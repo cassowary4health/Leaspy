@@ -68,7 +68,8 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
     def _get_noise_var_in_dimension(self, dimension: int) -> torch.FloatTensor:
         self.raise_if_partially_defined()
         noise_var = self.parameters["scale"] ** 2
-        return noise_var.expand((1, dimension))
+        # shape: (n_individuals, n_visits, n_features)
+        return noise_var.expand((1, 1, dimension))
 
     def _compute_nll_from_residuals(
         self,
@@ -78,19 +79,18 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         incl_const: bool = True,
         with_gradient: bool = False,
     ) -> torch.FloatTensor:
-        """Return negative log-likelihood, without constant term), and optionally its jacobian w.r.t prediction."""
-        noise_var = self._get_noise_var_in_dimension(residuals.shape[2])
-        l2_loss_per_individual_per_feature = (residuals * residuals).sum(dim=1)
-        nll = (0.5 / noise_var) @ l2_loss_per_individual_per_feature.t()
+        """Return negative log-likelihood (without summation), and optionally its jacobian w.r.t prediction."""
+        noise_var = self._get_noise_var_in_dimension(data.dimension)
+        nll = 0.5 / noise_var * residuals * residuals
         if incl_const:
             nll += (
                 0.5
                 * torch.log(TWO_PI * noise_var)
-                @ data.n_observations_per_ind_per_ft.float().t()
+                * data.mask.float()
             )
         if not with_gradient:
-            return nll.view(-1)
-        return nll.view(-1), residuals / noise_var
+            return nll
+        return nll, residuals / noise_var
 
     def compute_nll(
         self,
@@ -99,23 +99,21 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         *,
         with_gradient: bool = False,
     ) -> torch.FloatTensor:
-        """Negative log-likelihood (and its gradient w.r.t. predictions if requested)."""
+        """Negative log-likelihood without summation (and its gradient w.r.t. predictions if requested)."""
         residuals = self.get_residuals(data, predictions)
         return self._compute_nll_from_residuals(
             data, residuals, incl_const=True, with_gradient=with_gradient
         )
 
-    def compute_sufficient_statistics_and_metrics(
-        self, data: Dataset, realizations, predictions: torch.FloatTensor
+    def compute_sufficient_statistics(
+        self, data: Dataset, predictions: torch.FloatTensor
     ):
         """Compute the specific sufficient statistics and metrics for this noise-model."""
-        statistics, metrics = super().compute_sufficient_statistics_and_metrics(
-            data, realizations, predictions
-        )
         predictions = data.mask.float() * predictions
-        statistics["obs_x_reconstruction"] = data.values * predictions
-        statistics["reconstruction_x_reconstruction"] = predictions * predictions
-        return statistics, metrics
+        return {
+            "obs_x_reconstruction": data.values * predictions,
+            "reconstruction_x_reconstruction": predictions * predictions,
+        }
 
     def update_parameters_from_sufficient_statistics(
         self,

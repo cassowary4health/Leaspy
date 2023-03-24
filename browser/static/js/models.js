@@ -72,9 +72,25 @@ let compute_ordinal_expectation = (pdf) => {
   return math.sum(cs)
 }
 
+let model_is_ordinal = model => {
+  if (!('noise_model' in model)) {
+    alert('Legacy model without noise model')
+    return false
+  }
+  noise_model = model['noise_model']
+  if (typeof noise_model === 'object') {
+    // new
+    noise_model_name = noise_model['name']
+  } else {
+    // legacy
+    noise_model_name = noise_model
+  }
+  return typeof noise_model_name === 'string' && noise_model_name.startsWith('ordinal')
+}
+
 let compute_logistic = (ages, parameters, individual_parameters, model) => {
   // Specific types of models
-  var is_ordinal = 'noise_model' in model && model['noise_model'].startsWith('ordinal')
+  var is_ordinal = model_is_ordinal(model)
 
   // Model parameters
   var t0 = parameters['tau_mean']

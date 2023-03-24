@@ -18,7 +18,7 @@ def convert_data(data):
     # Ages
     birthday = datetime.strptime(data['birthday'], '%Y-%m-%d')
     dates = [_[0] for _ in data['scores'] if _[0]]
-    dates = [datetime.strptime(_, '%m/%d/%Y') for _ in dates]
+    dates = [datetime.strptime(_, '%d/%m/%Y') for _ in dates]
     ages = [relativedelta(_, birthday) for _ in dates]
     ages = [_.years + _.months/12 + _.days/365 for _ in ages]
     ages = np.array(ages, dtype=np.float32)

@@ -71,10 +71,23 @@ class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimu
         custom_delays_vis = dict(mean=1., min=.2, max=2., std=1.)
         simul_params = dict(seed=0, delay_btw_visits=custom_delays_vis, number_of_subjects=100)  # noise=...
 
+        # some noticeable reproducibility errors btw MacOS and Linux here...
+        allclose_custom = dict(
+            nll_regul_tau=dict(atol=1),
+            nll_regul_xi=dict(atol=5),
+            nll_regul_sources=dict(atol=1),
+            nll_regul_tot=dict(atol=5),
+            nll_attach=dict(atol=6),
+            nll_tot=dict(atol=5),
+            tau_mean=dict(atol=0.3),
+            tau_std=dict(atol=0.3),
+        )
+
         self.generic_usecase(
             'logistic', model_codename='logistic_diag_noise',
             noise_model='gaussian_diagonal', source_dimension=2,
             fit_algo_params=dict(n_iter=200, seed=0),
+            fit_check_kws=dict(atol=0.1, rtol=1e-2, allclose_custom=allclose_custom),
             perso_algo='scipy_minimize',
             expected_loss_perso=[0.064, 0.037, 0.066, 0.142],  # per-ft RMSE
             simulate_algo_params=simul_params, simulate_tol=2e-3, # Not fully reproducible on Linux below this tol...

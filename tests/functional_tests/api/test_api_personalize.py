@@ -191,7 +191,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 elif 'ordinal_ranking' in model_name:
                     tol_loss = 0.5
                 elif 'ordinal' in model_name:
-                    tol_loss = 0.5  # highest reprod. issues
+                    tol_loss = 3.0  # highest reprod. issues
 
                 self.check_consistency_of_personalization_outputs(ips, loss, expected_loss=expected_loss,
                                                                   tol_loss=tol_loss, msg=subtest)

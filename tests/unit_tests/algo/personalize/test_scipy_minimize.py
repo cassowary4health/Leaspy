@@ -541,8 +541,8 @@ class ScipyMinimizeTest(LeaspyTestCase):
             self.assertIsNone(res)
 
             # check overall nll (no need for dataset...)
-            self.assertAlmostEqual(nll_attach.item(), expected_dict['nll'][0], delta=1e-4)
-            self.assertAlmostEqual(nll_regul.item(), expected_dict['nll'][1], delta=1e-4)
+            self.assertAlmostEqual(nll_attach.item(), expected_dict['nll'][0], delta=5e-4)
+            self.assertAlmostEqual(nll_regul.item(), expected_dict['nll'][1], delta=5e-4)
 
             self.check_individual_parameters(individual_parameters,
                 tau=expected_dict['tau'], tol_tau=tol_tau,

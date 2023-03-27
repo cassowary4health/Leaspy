@@ -459,8 +459,8 @@ def initialize_joint_logistic(model, df: pd.DataFrame, method, dataset):
 
 
     parameters_long = initialize_logistic(model, df, method)
-
-    wbf = WeibullFitter().fit(dataset.event_time_min,
+    #raise ValueError(dataset.event_time_min - dataset.timepoints[:, 0])
+    wbf = WeibullFitter().fit(dataset.event_time_min,# - dataset.timepoints[:,0],
                         dataset.mask_event)
 
     parameters_surv = {

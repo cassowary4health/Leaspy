@@ -284,9 +284,10 @@ class JointUnivariateModel(ABC):
 
         # Get Individual parameters
         xi = individual_parameters['xi']
+        tau = individual_parameters['tau']
 
         # Reparametrized survival
-        reparametrized_time_min = torch.exp(xi) * (timepoints)
+        reparametrized_time_min = torch.exp(xi) * torch.clamp(timepoints - tau, min = 0.)
 
         # Survival
         survival = torch.exp(-(reparametrized_time_min.unsqueeze(-1) * nu) ** rho)
@@ -485,10 +486,11 @@ class JointUnivariateModel(ABC):
             #nu = torch.exp(self.parameters["nu"])
             # Get Individual parameters
             xi = param_ind['xi'].reshape(data.event_time_min.shape)
+            tau = param_ind['tau'].reshape(data.event_time_min.shape)
 
             # Reparametrized survival
-            reparametrized_time_min = torch.exp(xi) * (data.event_time_min)
-            reparametrized_time_max = torch.exp(xi) * (data.event_time_max)
+            reparametrized_time_min = torch.exp(xi) * torch.clamp(data.event_time_min-tau, min = 0.)
+            reparametrized_time_max = torch.exp(xi) * torch.clamp(data.event_time_max-tau, min = 0.)
 
             # Survival
             m_log_survival = (reparametrized_time_min * nu) ** rho
@@ -624,9 +626,10 @@ class JointUnivariateModel(ABC):
 
         # Get Individual parameters
         xi = individual_parameters['xi'].reshape(t_min.shape)
+        tau = individual_parameters['tau'].reshape(t_min.shape)
 
         # Reparametrized survival
-        reparametrized_time_min = torch.exp(xi) * (t_min)
+        reparametrized_time_min = torch.exp(xi) * torch.clamp(t_min-tau, min = 0)
 
         # Survival
         attachment_events = (reparametrized_time_min * nu) ** rho
@@ -748,7 +751,7 @@ class JointUnivariateModel(ABC):
         return grads  # 1 individual at a time
 
     def compute_perso_grad_attachment(self, timepoints_in, values, individual_parameters, *, attribute_type=None):
-
+        raise
         timepoints, t_min = timepoints_in
         grad_visit = self.compute_perso_grad_attachment_visits(timepoints, values, individual_parameters,
                                                                attribute_type= attribute_type)

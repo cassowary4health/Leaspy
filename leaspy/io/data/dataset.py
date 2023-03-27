@@ -115,12 +115,12 @@ class Dataset:
 
         if "joint" in model.name or "surv" in model.name:
             # events # To Dotorch.nan_to_num(hazard, nan=1.)
-            self.event_time_start = data.event_time_start
+            #self.event_time_start = data.event_time_start
             if data.event_time_min != None :
                 self.event_time_min = torch.nan_to_num(data.event_time_min, nan=1.)
             else:
-                assert(self.event_time_start != None, "You have to specified start date if you don't know event")
-                self.event_time_min = torch.nan_to_num(self.timepoints.max(axis=1)[0] - self.event_time_start, nan=1.)
+                #assert(self.event_time_start != None, "You have to specified start date if you don't know event")
+                self.event_time_min = torch.nan_to_num(self.timepoints.max(axis=1)[0], nan=1.)
             if data.event_time_max != None:
                 self.mask_event = (~torch.isnan(data.event_time_max)).float()
                 self.event_time_max = torch.nan_to_num(data.event_time_max, nan=1.)

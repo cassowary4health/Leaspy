@@ -371,7 +371,7 @@ class GibbsSampler(AbstractSampler):
                 regularity = model.compute_regularity_realization(realization)
                 regularity = regularity.sum(dim=self.ind_param_dims_but_individual).reshape(data.n_individuals)
 
-                if self.name == "xi":
+                if True: #self.name == "xi":
                     if  model.test_if_event_iteration(iteration) == "event":
                         attachment = att_event
                     elif  model.test_if_event_iteration(iteration) == "visit":

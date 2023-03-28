@@ -1,8 +1,9 @@
 """Module defining gaussian noise models."""
 
 from __future__ import annotations
+
+import abc
 from typing import TYPE_CHECKING, Optional, ClassVar
-from abc import abstractclassmethod
 from dataclasses import dataclass
 import math
 
@@ -20,12 +21,23 @@ TWO_PI = torch.tensor(2 * math.pi)
 
 
 class GaussianFamily(DistributionFamily):
-    """For Gaussian noise models."""
+    """
+    Gaussian distribution family for Gaussian noise models.
+
+    Attributes
+    ----------
+    free_parameters : frozenset
+        The set of free parameters. For GaussianFamily this set
+        is composed of a unique element "scale".
+
+    factory : Pytorch distribution
+        The underlying distribution.
+    """
 
     free_parameters = frozenset({"scale"})
     factory = torch.distributions.Normal
 
-    def validate_scale(self, scale: torch.Tensor) -> torch.FloatTensor:
+    def validate_scale(self, scale: torch.Tensor) -> torch.Tensor:
         """Scale parameter validation (may be extended in children classes)."""
         scale = scale.float()
         if (scale <= 0).any():
@@ -38,11 +50,18 @@ class GaussianFamily(DistributionFamily):
 
 @dataclass
 class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
-    """Base class for Gaussian noise models."""
+    """
+    Base class for Gaussian noise models.
+
+    Attributes
+    ----------
+    scale_dimension : int, optional
+        The scale dimension.
+    """
 
     scale_dimension: Optional[int] = None
 
-    def validate_scale(self, scale: torch.Tensor) -> torch.FloatTensor:
+    def validate_scale(self, scale: torch.Tensor) -> torch.Tensor:
         """Add a size-validation for scale parameter."""
         scale = super().validate_scale(scale)
         if self.scale_dimension is not None and scale.numel() != self.scale_dimension:
@@ -54,18 +73,21 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
 
     @staticmethod
     def get_residuals(
-        data: Dataset, predictions: torch.FloatTensor
-    ) -> torch.FloatTensor:
+        data: Dataset, predictions: torch.Tensor
+    ) -> torch.Tensor:
+        """Compute the residuals of the given predictions."""
         return data.mask.float() * (predictions - data.values)
 
     @classmethod
     def compute_l2_residuals(
-        cls, data: Dataset, predictions: torch.FloatTensor
-    ) -> torch.FloatTensor:
+        cls, data: Dataset, predictions: torch.Tensor
+    ) -> torch.Tensor:
+        """Compute the squared residuals of the given predictions."""
         res = cls.get_residuals(data, predictions)
         return res * res
 
-    def _get_noise_var_in_dimension(self, dimension: int) -> torch.FloatTensor:
+    def _get_noise_var_in_dimension(self, dimension: int) -> torch.Tensor:
+        """Compute the noise variance and expand it to the provided dimension."""
         self.raise_if_partially_defined()
         noise_var = self.parameters["scale"] ** 2
         # shape: (n_individuals, n_visits, n_features)
@@ -74,11 +96,11 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
     def _compute_nll_from_residuals(
         self,
         data: Dataset,
-        residuals: torch.FloatTensor,
+        residuals: torch.Tensor,
         *,
         incl_const: bool = True,
         with_gradient: bool = False,
-    ) -> torch.FloatTensor:
+    ) -> torch.Tensor:
         """Return negative log-likelihood (without summation), and optionally its jacobian w.r.t prediction."""
         noise_var = self._get_noise_var_in_dimension(data.dimension)
         nll = 0.5 / noise_var * residuals * residuals
@@ -95,10 +117,10 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
     def compute_nll(
         self,
         data: Dataset,
-        predictions: torch.FloatTensor,
+        predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.FloatTensor:
+    ) -> torch.Tensor:
         """Negative log-likelihood without summation (and its gradient w.r.t. predictions if requested)."""
         residuals = self.get_residuals(data, predictions)
         return self._compute_nll_from_residuals(
@@ -106,7 +128,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         )
 
     def compute_sufficient_statistics(
-        self, data: Dataset, predictions: torch.FloatTensor
+        self, data: Dataset, predictions: torch.Tensor
     ):
         """Compute the specific sufficient statistics and metrics for this noise-model."""
         predictions = data.mask.float() * predictions
@@ -128,35 +150,39 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
             scale=compute_std_from_variance(noise_var, varname="noise_std")
         )
 
-    @abstractclassmethod
+    @classmethod
+    @abc.abstractmethod
     def _compute_noise_variance_from_sufficient_statistics(
         cls,
         data: Dataset,
         sufficient_statistics: dict,
     ) -> torch.FloatTensor:
+        """Compute the noise variance from the provided sufficient statistics."""
         ...
 
     def update_parameters_from_predictions(
-        self, data: Dataset, predictions: torch.FloatTensor
+        self, data: Dataset, predictions: torch.Tensor
     ) -> None:
         """In-place update of free parameters from provided predictions."""
         self.update_parameters(scale=self.compute_rmse(data, predictions))
 
     @classmethod
     def compute_rmse(
-        cls, data: Dataset, predictions: torch.FloatTensor
-    ) -> torch.FloatTensor:
+        cls, data: Dataset, predictions: torch.Tensor
+    ) -> torch.Tensor:
         """Computes root mean squared error of provided data vs. predictions."""
         l2_res = cls.compute_l2_residuals(data, predictions)
         mse = cls._compute_mse_from_l2_residuals(data, l2_res)
         return torch.sqrt(mse)
 
-    @abstractclassmethod
+    @classmethod
+    @abc.abstractmethod
     def _compute_mse_from_l2_residuals(
         cls,
         data: Dataset,
-        l2_residuals: torch.FloatTensor,
-    ) -> torch.FloatTensor:
+        l2_residuals: torch.Tensor,
+    ) -> torch.Tensor:
+        """Compute the mean squared error from the squared residuals."""
         ...
 
     canonical_loss_properties: ClassVar = ("standard-deviation of the noise", ".2%")
@@ -165,25 +191,33 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
     def compute_canonical_loss(
         cls,
         data: Dataset,
-        predictions: torch.FloatTensor,
-    ) -> torch.FloatTensor:
+        predictions: torch.Tensor,
+    ) -> torch.Tensor:
         """Compute a human-friendly overall loss (RMSE)."""
         return cls.compute_rmse(data, predictions)
 
 
 class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
-    """Class implementing scalar Gaussian noise models."""
+    """
+    Class implementing scalar Gaussian noise models.
+
+    Attributes
+    ----------
+    scale_dimension : int
+        The dimension of the scale.
+    """
 
     scale_dimension: int = 1
 
     def validate_scale(self, scale: torch.Tensor) -> torch.Tensor:
+        """Ensure the scale is valid."""
         return super().validate_scale(scale).view(())
 
     @classmethod
     def _compute_mse_from_l2_residuals(
-        cls, data: Dataset, l2_res: torch.FloatTensor
-    ) -> torch.FloatTensor:
-        """Also sum on features."""
+        cls, data: Dataset, l2_res: torch.Tensor
+    ) -> torch.Tensor:
+        """Compute the mean squared error from squared residuals. Also sum on features."""
         return l2_res.sum() / data.n_observations
 
     @classmethod
@@ -191,24 +225,27 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
         cls,
         data: Dataset,
         sufficient_statistics: dict,
-    ) -> torch.FloatTensor:
-        """Sum on features."""
+    ) -> torch.Tensor:
+        """Compute the noise variance from provided sufficient statistics. Sum on features."""
         s1 = sufficient_statistics["obs_x_reconstruction"].sum()
         s2 = sufficient_statistics["reconstruction_x_reconstruction"].sum()
         return (data.L2_norm - 2.0 * s1 + s2) / data.n_observations
 
 
 class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
-    """Class implementing diagonal Gaussian noise models."""
+    """
+    Class implementing diagonal Gaussian noise models.
+    """
 
     def validate_scale(self, scale: torch.Tensor) -> torch.Tensor:
+        """Ensure the scale is valid."""
         return super().validate_scale(scale).view(-1)
 
     @classmethod
     def _compute_mse_from_l2_residuals(
-        cls, data: Dataset, l2_res: torch.FloatTensor
-    ) -> torch.FloatTensor:
-        """Do not sum on features."""
+        cls, data: Dataset, l2_res: torch.Tensor
+    ) -> torch.Tensor:
+        """Compute the mean squared error from squared residuals. Do not sum on features."""
         return l2_res.sum(dim=(0, 1)) / data.n_observations_per_ft.float()
 
     @classmethod
@@ -216,8 +253,8 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
         cls,
         data: Dataset,
         sufficient_statistics: dict,
-    ) -> torch.FloatTensor:
-        """Do not sum on features."""
+    ) -> torch.Tensor:
+        """Compute the noise variance from provided sufficient statistics. Do not sum on features."""
         s1 = sufficient_statistics["obs_x_reconstruction"].sum(dim=(0, 1))
         s2 = sufficient_statistics["reconstruction_x_reconstruction"].sum(dim=(0, 1))
         return (

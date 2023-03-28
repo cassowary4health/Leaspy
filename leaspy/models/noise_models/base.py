@@ -37,7 +37,10 @@ def constant_return_factory(x: T) -> Callable[[], T]:
 
 
 def value_to_tensor(x: Any) -> torch.Tensor:
-    """Helper to transform values to tensors (not intended to be used on values not castable to tensors, e.g. None)."""
+    """Helper to transform values to tensors.
+
+    Not intended to be used on values not castable to tensors, e.g. None.
+    """
     if isinstance(x, torch.Tensor):
         return x
     return torch.tensor(x)
@@ -115,7 +118,7 @@ class DistributionFamily:
         self.parameters = {k: v.to(device) for k, v in self.parameters.items()}
 
     def update_parameters(
-        self, *, validate: bool = False, **parameters: torch.FloatTensor
+        self, *, validate: bool = False, **parameters: torch.Tensor
     ) -> None:
         """(Partial) update of the free parameters of the distribution family."""
         if validate:
@@ -125,17 +128,17 @@ class DistributionFamily:
         elif len(parameters):
             self.parameters.update(parameters)
 
-    def sample_around(self, loc: torch.FloatTensor) -> torch.FloatTensor:
+    def sample_around(self, loc: torch.Tensor) -> torch.Tensor:
         """Realization around `loc` with respect to partially defined distribution."""
         return self.sampler_around(loc)()
 
-    def sampler_around(self, loc: torch.FloatTensor) -> Callable[[], torch.FloatTensor]:
+    def sampler_around(self, loc: torch.Tensor) -> Callable[[], torch.Tensor]:
         """Return the sampling function around input values."""
         if self.factory is None:
             return constant_return_factory(loc)
         return self.rv_around(loc).sample
 
-    def rv_around(self, loc: torch.FloatTensor) -> torch.distributions.Distribution:
+    def rv_around(self, loc: torch.Tensor) -> torch.distributions.Distribution:
         """Return the torch distribution centred around values (only if noise is not None)."""
         if self.factory is None:
             raise LeaspyInputError(
@@ -147,7 +150,11 @@ class DistributionFamily:
 
 
 class NoNoise(DistributionFamily):
-    """A dummy noise model that only returns the provided values, which may be useful for simulation."""
+    """
+    A dummy noise model that only returns the provided values.
+
+    This model may be useful for simulation.
+    """
 
     factory = None
     free_parameters = frozenset()
@@ -173,30 +180,38 @@ class BaseNoiseModel(ABC, DistributionFamily):
     def compute_nll(
         self,
         data: Dataset,
-        predictions: torch.FloatTensor,
+        predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.FloatTensor:
-        """Compute negative log-likelihood of data given model predictions (no summation), and its gradient w.r.t. predictions if requested."""
+    ) -> torch.Tensor:
+        """
+        Compute negative log-likelihood of data given model predictions
+        (no summation), and its gradient w.r.t. predictions if requested.
+        """
 
     canonical_loss_properties: ClassVar = ("(neg) log-likelihood for attachment", ".3f")
 
     def compute_canonical_loss(
         self,
         data: Dataset,
-        predictions: torch.FloatTensor,
-    ) -> torch.FloatTensor:
-        """Compute a human-friendly overall loss (independent from instance parameters), useful as a measure of goodness-of-fit after personalization (nll by default - assuming no free parameters)."""
+        predictions: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute a human-friendly overall loss (independent from instance parameters),
+        useful as a measure of goodness-of-fit after personalization (nll by default -
+        assuming no free parameters).
+        """
         return self.compute_nll(data, predictions).sum()
 
     def compute_sufficient_statistics(
         self,
         data: Dataset,
-        predictions: torch.FloatTensor,
+        predictions: torch.Tensor,
     ) -> DictParamsTorch:
         """Computes the set of noise-related sufficient statistics and metrics (to be extended in child class)."""
         return {}
 
+    @abstractmethod
     def update_parameters_from_sufficient_statistics(
         self,
         data: Dataset,
@@ -204,9 +219,10 @@ class BaseNoiseModel(ABC, DistributionFamily):
     ) -> None:
         """Updates noise-model parameters in-place (nothing done by default)."""
 
+    @abstractmethod
     def update_parameters_from_predictions(
         self,
         data: Dataset,
-        predictions: torch.FloatTensor,
+        predictions: torch.Tensor,
     ) -> None:
         """Updates noise-model parameters in-place (nothing done by default)."""

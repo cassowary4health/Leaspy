@@ -16,15 +16,19 @@ if TYPE_CHECKING:
 
 @dataclass
 class AbstractOrdinalNoiseModel(BaseNoiseModel):
-    """Base class for Ordinal noise models."""
+    """
+    Base class for Ordinal noise models.
+    """
 
     max_levels: Optional[Dict[FeatureType, int]] = None
 
     def to_dict(self) -> KwargsType:
+        """Serialize instance as dictionary."""
         # we do NOT export hyper-parameters that are derived (error-prone and boring checks when re-creating).
         return {"max_levels": self.max_levels}
 
     def _update_cached_hyperparameters(self) -> None:
+        """Update hyperparameters in cache."""
         if self.max_levels is None:
             self._max_level: Optional[int] = None
             self._mask: Optional[torch.Tensor] = None
@@ -71,7 +75,9 @@ class AbstractOrdinalNoiseModel(BaseNoiseModel):
 
 
 class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
-    """Class implementing ordinal noise models (likelihood is based on PDF)."""
+    """
+    Class implementing ordinal noise models (likelihood is based on PDF).
+    """
 
     factory = MultinomialDistribution.from_pdf
     free_parameters = frozenset()
@@ -79,11 +85,11 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
     def compute_nll(
         self,
         data: Dataset,
-        predictions: torch.FloatTensor,
+        predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.FloatTensor:
-        """Negative log-likelihood and its gradient wrt predictions."""
+    ) -> torch.Tensor:
+        """Compute the negative log-likelihood and its gradient wrt predictions."""
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
         pdf = data.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
         nll = -data.mask.float() * torch.log((pdf * predictions).sum(dim=-1))
@@ -94,7 +100,9 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
 
 
 class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
-    """Class implementing ordinal ranking noise models (likelihood is based on SF)."""
+    """
+    Class implementing ordinal ranking noise models (likelihood is based on SF).
+    """
 
     factory = MultinomialDistribution
     free_parameters = frozenset()
@@ -102,11 +110,11 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
     def compute_nll(
         self,
         data: Dataset,
-        predictions: torch.FloatTensor,
+        predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.FloatTensor:
-        """Negative log-likelihood and its gradient wrt predictions."""
+    ) -> torch.Tensor:
+        """Compute the negative log-likelihood and its gradient wrt predictions."""
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
         sf = data.get_one_hot_encoding(sf=True, ordinal_infos=self.ordinal_infos)
         cdf = (1.0 - sf) * self.mask[None, None, ...]

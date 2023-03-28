@@ -12,23 +12,27 @@ if TYPE_CHECKING:
 
 
 class BernoulliFamily(DistributionFamily):
-    """For Bernoulli noise model."""
+    """
+    Distribution family for Bernoulli noise model.
+    """
 
     factory = torch.distributions.Bernoulli
     free_parameters = frozenset()
 
 
 class BernoulliNoiseModel(BernoulliFamily, BaseNoiseModel):
-    """Class implementing Bernoulli noise models."""
+    """
+    Class implementing Bernoulli noise models.
+    """
 
     def compute_nll(
         self,
         data: Dataset,
-        predictions: torch.FloatTensor,
+        predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.FloatTensor:
-        """Negative log-likelihood and its gradient wrt predictions."""
+    ) -> torch.Tensor:
+        """Compute the negative log-likelihood and its gradient wrt predictions."""
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
         ll = data.values * torch.log(predictions) + (1.0 - data.values) * torch.log(
             1.0 - predictions

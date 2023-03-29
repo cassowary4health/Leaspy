@@ -57,15 +57,14 @@ class Dataset:
         Sum of all non-nan squared values, feature per feature
     L2_norm : scalar :class:`torch.FloatTensor`
         Sum of all non-nan squared values
-
-    _one_hot_encoding : Dict[sf: bool, :class:`torch.LongTensor`]
-        Values of patients for each visit for each feature, but tensorized into a one-hot encoding (pdf or sf)
-        Shapes of tensors are (n_individuals, n_visits_max, dimension, max_ordinal_level [-1 when `sf=True`])
-
     no_warning : bool (default False)
         Whether to deactivate warnings that are emitted by methods of this dataset instance.
         We may want to deactivate them because we rebuild a dataset per individual in scipy minimize.
         Indeed, all relevant warnings certainly occurred for the overall dataset.
+
+    _one_hot_encoding : Dict[sf: bool, :class:`torch.LongTensor`]
+        Values of patients for each visit for each feature, but tensorized into a one-hot encoding (pdf or sf)
+        Shapes of tensors are (n_individuals, n_visits_max, dimension, max_ordinal_level [-1 when `sf=True`])
 
     Raises
     ------

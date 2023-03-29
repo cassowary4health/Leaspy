@@ -9,6 +9,8 @@ from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.attributes.abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.models.utils.ordinal import OrdinalModelMixin
+from leaspy.io.data.dataset import Dataset
+from leaspy.io.realizations.collection_realization import CollectionRealization
 
 from leaspy.utils.typing import KwargsType, Set, Optional
 from leaspy.utils.docs import doc_with_super
@@ -62,8 +64,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             "sources_mean": None, "sources_std": None,
         }
 
-    def initialize(self, dataset, method: str = 'default'):
-        """Overloads base initialization of model (base method takes care of features consistency checks)."""
+    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+        """
+        Overloads base initialization of model (base method takes care of features consistency checks).
+        """
         super().initialize(dataset, method=method)
 
         if self.source_dimension is None:
@@ -89,7 +93,6 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         # Postpone the computation of attributes when really needed!
         #self.attributes.update({'all'}, self.parameters)
 
-
     @abstractmethod
     def initialize_MCMC_toolbox(self) -> None:
         """
@@ -98,7 +101,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         # TODO to move in a "MCMC-model interface"
 
     @abstractmethod
-    def update_MCMC_toolbox(self, vars_to_update: Set[str], realizations) -> None:
+    def update_MCMC_toolbox(self, vars_to_update: Set[str], realizations: CollectionRealization) -> None:
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
 
@@ -111,8 +114,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         """
         # TODO to move in a "MCMC-model interface"
 
-    def load_parameters(self, parameters):
-        """Updates all model parameters from the provided parameters."""
+    def load_parameters(self, parameters: dict) -> None:
+        """
+        Updates all model parameters from the provided parameters.
+        """
         self.parameters = {}
         for k, v in parameters.items():
             if k in ('mixing_matrix',):
@@ -133,8 +138,10 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         )
         self.attributes.update({'all'}, self.parameters)
 
-    def load_hyperparameters(self, hyperparameters: KwargsType):
-
+    def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
+        """
+        Updates all model hyperparameters from the provided hyperparameters.
+        """
         expected_hyperparameters = ('features', 'dimension', 'source_dimension')
 
         if 'features' in hyperparameters:
@@ -192,10 +199,21 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         return model_settings
 
     @abstractmethod
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None) -> torch.FloatTensor:
+    def compute_individual_tensorized(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
         pass
 
-    def compute_mean_traj(self, timepoints, *, attribute_type: Optional[str] = None):
+    def compute_mean_traj(
+        self,
+        timepoints: torch.Tensor,
+        *,
+        attribute_type: Optional[str] = None,
+    ) -> torch.Tensor:
         """
         Compute trajectory of the model with individual parameters being the group-average ones.
 
@@ -217,7 +235,9 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             'sources': torch.zeros(self.source_dimension)
         }
 
-        return self.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
+        return self.compute_individual_tensorized(
+            timepoints, individual_parameters, attribute_type=attribute_type
+        )
 
     def _call_method_from_attributes(self, method_name: str, attribute_type: Optional[str], **call_kws):
         # TODO: mutualize with same function in univariate case...

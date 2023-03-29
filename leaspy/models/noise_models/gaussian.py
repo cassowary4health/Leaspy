@@ -57,6 +57,8 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
     ----------
     scale_dimension : int, optional
         The scale dimension.
+    parameters : dict
+        Contains the parameters relative to the noise model.
     """
 
     scale_dimension: Optional[int] = None
@@ -203,8 +205,10 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
 
     Attributes
     ----------
-    scale_dimension : int
-        The dimension of the scale.
+    scale_dimension : int, optional
+        The scale dimension.
+    parameters : dict
+        Contains the parameters relative to the noise model.
     """
 
     scale_dimension: int = 1
@@ -235,6 +239,13 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
 class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
     """
     Class implementing diagonal Gaussian noise models.
+
+    Attributes
+    ----------
+    scale_dimension : int, optional
+        The scale dimension.
+    parameters : dict
+        Contains the parameters relative to the noise model.
     """
 
     def validate_scale(self, scale: torch.Tensor) -> torch.Tensor:

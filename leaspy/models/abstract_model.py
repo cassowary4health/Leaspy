@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
 import re
 import math
@@ -21,17 +20,29 @@ from leaspy.models.noise_models import (
 from leaspy.models.utilities import tensor_to_list
 from leaspy.io.realizations.realization import Realization
 from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.data.dataset import Dataset
 
 from leaspy.exceptions import LeaspyIndividualParamsInputError, LeaspyModelInputError
-from leaspy.utils.typing import FeatureType, KwargsType, DictParams, DictParamsTorch, Union, List, Dict, Tuple, Iterable, Optional
+from leaspy.utils.typing import (
+    FeatureType,
+    KwargsType,
+    DictParams,
+    DictParamsTorch,
+    Union,
+    List,
+    Dict,
+    Tuple,
+    Iterable,
+    Optional,
+)
 
-if TYPE_CHECKING:
-    from leaspy.io.data.dataset import Dataset
 
 TWO_PI = torch.tensor(2 * math.pi)
 
 
-# TODO? refact so to only contain methods needed for the Leaspy api + add another abstract class (interface) on top of it for MCMC fittable models + one for "manifold models"
+#  TODO? refact so to only contain methods needed for the Leaspy api + add another
+#  abstract class (interface) on top of it for MCMC fittable models + one for "manifold models"
+
 class AbstractModel(BaseModel):
     """
     Contains the common attributes & methods of the different models.
@@ -60,12 +71,21 @@ class AbstractModel(BaseModel):
     regularization_distribution_factory : function dist params -> :class:`torch.distributions.Distribution`
         Factory of torch distribution to compute log-likelihoods for regularization (gaussian by default)
         (Not used anymore)
+    fit_metrics : dict
+        Contains the metrics that are measured during the fit of the model and reported to the user.
     """
 
-    def __init__(self, name: str, *, noise_model: NoiseModelFactoryInput, fit_metrics: Optional[Dict[str, float]]=None, **kwargs):
+    def __init__(
+        self,
+        name: str,
+        *,
+        noise_model: NoiseModelFactoryInput,
+        fit_metrics: Optional[Dict[str, float]] = None,
+        **kwargs
+    ):
         super().__init__(name, **kwargs)
-        self.parameters: KwargsType = None
-        self._noise_model: BaseNoiseModel = None
+        self.parameters: Optional[KwargsType] = None
+        self._noise_model: Optional[BaseNoiseModel] = None
 
         # load hyperparameters
         self.noise_model = noise_model
@@ -85,8 +105,8 @@ class AbstractModel(BaseModel):
         self._noise_model = noise_model
 
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
-        """Raise a ValueError is the provided noise model isn't compatible
-        with the model instance.
+        """
+        Raise a ValueError is the provided noise model isn't compatible with the model instance.
         This needs to be implemented in subclasses.
         """
         if not isinstance(model, BaseNoiseModel):
@@ -97,7 +117,9 @@ class AbstractModel(BaseModel):
 
     @abstractmethod
     def to_dict(self) -> KwargsType:
-        """Export model as a dictionary ready for export."""
+        """
+        Export model as a dictionary ready for export.
+        """
         return {
             'leaspy_version': __version__,
             'name': self.name,
@@ -111,7 +133,7 @@ class AbstractModel(BaseModel):
             }
         }
 
-    def save(self, path: str, **kwargs):
+    def save(self, path: str, **kwargs) -> None:
         """
         Save Leaspy object as json model parameter file.
 
@@ -135,7 +157,6 @@ class AbstractModel(BaseModel):
         with open(path, 'w') as fp:
             json.dump(model_settings, fp, **kwargs)
 
-
     def load_parameters(self, parameters: KwargsType) -> None:
         """
         Instantiate or update the model's parameters.
@@ -150,7 +171,7 @@ class AbstractModel(BaseModel):
     @abstractmethod
     def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
         """
-        Load model's hyperparameters
+        Load model's hyperparameters.
 
         Parameters
         ----------
@@ -165,13 +186,16 @@ class AbstractModel(BaseModel):
 
     @classmethod
     def _raise_if_unknown_hyperparameters(cls, known_hps: Iterable[str], given_hps: KwargsType) -> None:
-        """Helper function raising a :exc:`.LeaspyModelInputError` if any unknown hyperparameter provided for model."""
+        """
+        Raises a :exc:`.LeaspyModelInputError` if any unknown hyperparameter is provided to the model.
+        """
         # TODO: replace with better logic from GenericModel in the future
         unexpected_hyperparameters = set(given_hps.keys()).difference(known_hps)
         if len(unexpected_hyperparameters) > 0:
             raise LeaspyModelInputError(
-                    f"Only {known_hps} are valid hyperparameters for {cls.__qualname__}. "
-                    f"Unknown hyperparameters provided: {unexpected_hyperparameters}.")
+                f"Only {known_hps} are valid hyperparameters for {cls.__qualname__}. "
+                f"Unknown hyperparameters provided: {unexpected_hyperparameters}."
+            )
 
     def _audit_individual_parameters(self, ips: DictParams) -> KwargsType:
         """
@@ -212,13 +236,17 @@ class AbstractModel(BaseModel):
             # abc.Collection is useless here because set, np.array(scalar) or torch.tensor(scalar)
             # are abc.Collection but are not array_like in numpy/torch sense or have no len()
             try:
-                len(v) # exclude np.array(scalar) or torch.tensor(scalar)
-                return hasattr(v, '__getitem__') # exclude set
+                len(v)  # exclude np.array(scalar) or torch.tensor(scalar)
+                return hasattr(v, '__getitem__')  # exclude set
             except Exception:
                 return False
 
         # Model supports and needs sources?
-        has_sources = hasattr(self, 'source_dimension') and isinstance(self.source_dimension, int) and self.source_dimension > 0
+        has_sources = (
+            hasattr(self, 'source_dimension')
+            and isinstance(self.source_dimension, int)
+            and self.source_dimension > 0
+        )
 
         # Check parameters names
         expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'])
@@ -231,19 +259,19 @@ class AbstractModel(BaseModel):
                     f'The expected individual parameters are {expected_parameters}.')
 
         # Check number of individuals present (with low constraints on shapes)
-        ips_is_array_like = {k: is_array_like(v) for k,v in ips.items()}
-        ips_size = {k: len(v) if ips_is_array_like[k] else 1 for k,v in ips.items()}
+        ips_is_array_like = {k: is_array_like(v) for k, v in ips.items()}
+        ips_size = {k: len(v) if ips_is_array_like[k] else 1 for k, v in ips.items()}
 
         if has_sources:
-            s = ips['sources']
-
             if not ips_is_array_like['sources']:
-                raise LeaspyIndividualParamsInputError(f'Sources must be an array_like but {s} was provided.')
+                raise LeaspyIndividualParamsInputError(
+                    f"Sources must be an array_like but {ips['sources']} was provided."
+                )
 
-            tau_xi_scalars = all(ips_size[k] == 1 for k in ['tau','xi'])
+            tau_xi_scalars = all(ips_size[k] == 1 for k in ["tau", "xi"])
             if tau_xi_scalars and (ips_size['sources'] > 1):
                 # is 'sources' not a nested array? (allowed iff tau & xi are scalars)
-                if not is_array_like(s[0]):
+                if not is_array_like(ips['sources'][0]):
                     # then update sources size (1D vector representing only 1 individual)
                     ips_size['sources'] = 1
 
@@ -251,29 +279,32 @@ class AbstractModel(BaseModel):
 
         uniq_sizes = set(ips_size.values())
         if len(uniq_sizes) != 1:
-            raise LeaspyIndividualParamsInputError('Individual parameters sizes are not compatible together. '
-                                                  f'Sizes are {ips_size}.')
+            raise LeaspyIndividualParamsInputError(
+                f"Individual parameters sizes are not compatible together. Sizes are {ips_size}."
+            )
 
         # number of individuals present
         n_inds = uniq_sizes.pop()
 
         # properly choose unsqueezing dimension when tensorizing array_like (useful for sources)
-        unsqueeze_dim = -1 # [1,2] => [[1],[2]] (expected for 2 individuals / 1D sources)
+        unsqueeze_dim = -1  # [1,2] => [[1],[2]] (expected for 2 individuals / 1D sources)
         if n_inds == 1:
-            unsqueeze_dim = 0 # [1,2] => [[1,2]] (expected for 1 individual / 2D sources)
+            unsqueeze_dim = 0  # [1,2] => [[1,2]] (expected for 1 individual / 2D sources)
 
         # tensorized (2D) version of ips
-        t_ips = {k: self._tensorize_2D(v, unsqueeze_dim=unsqueeze_dim) for k,v in ips.items()}
+        t_ips = {k: self._tensorize_2D(v, unsqueeze_dim=unsqueeze_dim) for k, v in ips.items()}
 
         # construct logs
         return {
             'nb_inds': n_inds,
             'tensorized_ips': t_ips,
-            'tensorized_ips_gen': ({k: v[i,:].unsqueeze(0) for k,v in t_ips.items()} for i in range(n_inds))
+            'tensorized_ips_gen': (
+                {k: v[i, :].unsqueeze(0) for k, v in t_ips.items()} for i in range(n_inds)
+            ),
         }
 
     @staticmethod
-    def _tensorize_2D(x, unsqueeze_dim: int, dtype=torch.float32) -> torch.FloatTensor:
+    def _tensorize_2D(x, unsqueeze_dim: int, dtype=torch.float32) -> torch.Tensor:
         """
         Helper to convert a scalar or array_like into an, at least 2D, dtype tensor
 
@@ -294,7 +325,6 @@ class AbstractModel(BaseModel):
         >>> _tensorize_2D([1, 2], 0) == tensor([[1, 2]])
         >>> _tensorize_2D([1, 2], -1) == tensor([[1], [2])
         """
-
         # convert to torch.Tensor if not the case
         if not isinstance(x, torch.Tensor):
             x = torch.tensor(x, dtype=dtype)
@@ -310,8 +340,13 @@ class AbstractModel(BaseModel):
         # postcondition: x.dim() >= 2
         return x
 
-    def _get_tensorized_inputs(self, timepoints, individual_parameters, *,
-                               skip_ips_checks: bool = False) -> Tuple[torch.FloatTensor, DictParamsTorch]:
+    def _get_tensorized_inputs(
+        self,
+        timepoints,
+        individual_parameters,
+        *,
+        skip_ips_checks: bool = False,
+    ) -> Tuple[torch.Tensor, DictParamsTorch]:
         if not skip_ips_checks:
             # Perform checks on ips and gets tensorized version if needed
             ips_info = self._audit_individual_parameters(individual_parameters)
@@ -319,16 +354,22 @@ class AbstractModel(BaseModel):
             individual_parameters = ips_info['tensorized_ips']
 
             if n_inds != 1:
-                raise LeaspyModelInputError('Only one individual computation may be performed at a time. '
-                                           f'{n_inds} was provided.')
+                raise LeaspyModelInputError(
+                    f"Only one individual computation may be performed at a time. {n_inds} was provided."
+                )
 
         # Convert the timepoints (list of numbers, or single number) to a 2D torch tensor
-        timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0) # 1 individual
+        timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0)  # 1 individual
         return timepoints, individual_parameters
 
     # TODO: unit tests? (functional tests covered by api.estimate)
-    def compute_individual_trajectory(self, timepoints, individual_parameters: DictParams, *,
-                                      skip_ips_checks: bool = False):
+    def compute_individual_trajectory(
+        self,
+        timepoints,
+        individual_parameters: DictParams,
+        *,
+        skip_ips_checks: bool = False,
+    ) -> torch.Tensor:
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
 
@@ -356,17 +397,21 @@ class AbstractModel(BaseModel):
         :exc:`.LeaspyIndividualParamsInputError`
             if invalid individual parameters
         """
-
-        timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
-                                                                        skip_ips_checks=skip_ips_checks)
-        # Compute the individual trajectory
+        timepoints, individual_parameters = self._get_tensorized_inputs(
+            timepoints, individual_parameters, skip_ips_checks=skip_ips_checks
+        )
         return self.compute_individual_tensorized(timepoints, individual_parameters)
 
     # TODO: unit tests? (functional tests covered by api.estimate)
-    def compute_individual_ages_from_biomarker_values(self, value: Union[float, List[float]], individual_parameters: DictParams, feature: FeatureType = None):
+    def compute_individual_ages_from_biomarker_values(
+        self,
+        value: Union[float, List[float]],
+        individual_parameters: DictParams,
+        feature: Optional[FeatureType] = None,
+    ) -> torch.Tensor:
         """
-        For one individual, compute age(s) at which the given features values are reached (given the subject's
-        individual parameters).
+        For one individual, compute age(s) at which the given features values
+        are reached (given the subject's individual parameters).
 
         Consistency checks are done in the main API layer.
 
@@ -380,7 +425,8 @@ class AbstractModel(BaseModel):
             Each individual parameter should be a scalar or array_like
 
         feature : str (or None)
-            Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
+            Name of the considered biomarker (optional for univariate models,
+            compulsory for multivariate models).
 
         Returns
         -------
@@ -393,18 +439,23 @@ class AbstractModel(BaseModel):
         :exc:`.LeaspyModelInputError`
             if computation is tried on more than 1 individual
         """
-        value, individual_parameters = self._get_tensorized_inputs(value, individual_parameters,
-                                                                   skip_ips_checks=False)
-        # Compute the individual trajectory
-        return self.compute_individual_ages_from_biomarker_values_tensorized(value, individual_parameters, feature)
+        value, individual_parameters = self._get_tensorized_inputs(
+            value, individual_parameters, skip_ips_checks=False
+        )
+        return self.compute_individual_ages_from_biomarker_values_tensorized(
+            value, individual_parameters, feature
+        )
 
     @abstractmethod
-    def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.FloatTensor,
-                                                                 individual_parameters: DictParamsTorch,
-                                                                 feature: Optional[FeatureType]) -> torch.FloatTensor:
+    def compute_individual_ages_from_biomarker_values_tensorized(
+        self,
+        value: torch.Tensor,
+        individual_parameters: DictParamsTorch,
+        feature: Optional[FeatureType],
+    ) -> torch.Tensor:
         """
-        For one individual, compute age(s) at which the given features values are reached (given the subject's
-        individual parameters), with tensorized inputs
+        For one individual, compute age(s) at which the given features values are
+        reached (given the subject's individual parameters), with tensorized inputs.
 
         Parameters
         ----------
@@ -426,8 +477,13 @@ class AbstractModel(BaseModel):
         """
 
     @abstractmethod
-    def compute_individual_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
-                                      attribute_type=None) -> torch.FloatTensor:
+    def compute_individual_tensorized(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: DictParamsTorch,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
         """
         Compute the individual values at timepoints according to the model.
 
@@ -446,8 +502,13 @@ class AbstractModel(BaseModel):
         """
 
     @abstractmethod
-    def compute_jacobian_tensorized(self, timepoints: torch.FloatTensor, individual_parameters: DictParamsTorch, *,
-                                    attribute_type=None) -> DictParamsTorch:
+    def compute_jacobian_tensorized(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: DictParamsTorch,
+        *,
+        attribute_type=None,
+    ) -> DictParamsTorch:
         """
         Compute the jacobian of the model w.r.t. each individual parameter.
 
@@ -472,8 +533,12 @@ class AbstractModel(BaseModel):
         """
 
     def compute_individual_attachment_tensorized(
-        self, data: Dataset, param_ind: DictParamsTorch, *, attribute_type = None,
-    ) -> torch.FloatTensor:
+        self,
+        data: Dataset,
+        param_ind: DictParamsTorch,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
         """
         Compute attachment term (per subject)
 
@@ -501,8 +566,12 @@ class AbstractModel(BaseModel):
         return nll.sum(dim=tuple(range(1, nll.ndim)))
 
     def compute_canonical_loss_tensorized(
-        self, data: Dataset, param_ind: DictParamsTorch, *, attribute_type = None
-    ) -> torch.FloatTensor:
+        self,
+        data: Dataset,
+        param_ind: DictParamsTorch,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
         """
         Compute canonical loss, which depends on noise-model.
 
@@ -528,9 +597,13 @@ class AbstractModel(BaseModel):
         )
         return self.noise_model.compute_canonical_loss(data, predictions)
 
-    def compute_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> DictParamsTorch:
+    def compute_sufficient_statistics(
+        self,
+        data: Dataset,
+        realizations: CollectionRealization,
+    ) -> DictParamsTorch:
         """
-        Compute sufficient statistics from realizations
+        Compute sufficient statistics from realizations.
 
         Parameters
         ----------
@@ -542,7 +615,6 @@ class AbstractModel(BaseModel):
         dict[suff_stat: str, :class:`torch.Tensor`]
         """
         suff_stats = self.compute_model_sufficient_statistics(data, realizations)
-
         individual_parameters = self.get_param_from_real(realizations)
         predictions = self.compute_individual_tensorized(
             data.timepoints, individual_parameters, attribute_type='MCMC'
@@ -563,7 +635,11 @@ class AbstractModel(BaseModel):
         return dict(suff_stats, **noise_suff_stats, **cvg_metrics)
 
     @abstractmethod
-    def compute_model_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> DictParamsTorch:
+    def compute_model_sufficient_statistics(
+        self,
+        data: Dataset,
+        realizations: CollectionRealization,
+    ) -> DictParamsTorch:
         """
         Compute sufficient statistics from realizations
 
@@ -577,9 +653,13 @@ class AbstractModel(BaseModel):
         dict[suff_stat: str, :class:`torch.Tensor`]
         """
 
-    def update_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+    def update_parameters_burn_in(
+        self,
+        data: Dataset,
+        sufficient_statistics: DictParamsTorch,
+    ) -> None:
         """
-        Update model parameters (burn-in phase)
+        Update model parameters (burn-in phase).
 
         Parameters
         ----------
@@ -590,9 +670,13 @@ class AbstractModel(BaseModel):
         self.noise_model.update_parameters_from_sufficient_statistics(data, sufficient_statistics)
 
     @abstractmethod
-    def update_model_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+    def update_model_parameters_burn_in(
+        self,
+        data: Dataset,
+        sufficient_statistics: DictParamsTorch,
+    ) -> None:
         """
-        Update model parameters (burn-in phase)
+        Update model parameters (burn-in phase).
 
         Parameters
         ----------
@@ -600,9 +684,13 @@ class AbstractModel(BaseModel):
         sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
         """
 
-    def update_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+    def update_parameters_normal(
+        self,
+        data: Dataset,
+        sufficient_statistics: DictParamsTorch,
+    ) -> None:
         """
-        Update model parameters (after burn-in phase)
+        Update model parameters (after burn-in phase).
 
         Parameters
         ----------
@@ -613,9 +701,13 @@ class AbstractModel(BaseModel):
         self.noise_model.update_parameters_from_sufficient_statistics(data, sufficient_statistics)
 
     @abstractmethod
-    def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+    def update_model_parameters_normal(
+        self,
+        data: Dataset,
+        sufficient_statistics: DictParamsTorch,
+    ) -> None:
         """
-        Update model parameters (after burn-in phase)
+        Update model parameters (after burn-in phase).
 
         Parameters
         ----------
@@ -631,8 +723,10 @@ class AbstractModel(BaseModel):
         -------
         list[str]
         """
-        return [name for name, value in self.random_variable_informations().items()
-                if value['type'] == 'population']
+        return [
+            name for name, value in self.random_variable_informations().items()
+            if value['type'] == 'population'
+        ]
 
     def get_individual_realization_names(self) -> List[str]:
         """
@@ -642,8 +736,10 @@ class AbstractModel(BaseModel):
         -------
         list[str]
         """
-        return [name for name, value in self.random_variable_informations().items()
-                if value['type'] == 'individual']
+        return [
+            name for name, value in self.random_variable_informations().items()
+            if value['type'] == 'individual'
+        ]
 
     @classmethod
     def _serialize_tensor(cls, v, *, indent: str = "", sub_indent: str = "") -> str:
@@ -666,7 +762,7 @@ class AbstractModel(BaseModel):
                 f"{p} : " + cls._serialize_tensor(vp, indent="  ", sub_indent=" "*len(f"{p} : ["))
                 for p, vp in v.items()
             ]
-            lines = [indent + l for l in "\n".join(subs).split("\n")]
+            lines = [indent + _ for _ in "\n".join(subs).split("\n")]
             return "\n" + "\n".join(lines)
         # torch.tensor, np.array, ...
         # in particular you may use `torch.set_printoptions` and `np.set_printoptions` globally
@@ -689,7 +785,7 @@ class AbstractModel(BaseModel):
 
         return output
 
-    def compute_regularity_realization(self, realization: Realization):
+    def compute_regularity_realization(self, realization: Realization) -> torch.Tensor:
         """
         Compute regularity term for a :class:`.Realization` instance.
 
@@ -710,13 +806,20 @@ class AbstractModel(BaseModel):
             mean = self.parameters[f"{realization.name}_mean"]
             std = self.parameters[f"{realization.name}_std"]
         else:
-            raise LeaspyModelInputError(f"Variable type '{realization.variable_type}' not known, should be 'population' or 'individual'.")
-
+            raise LeaspyModelInputError(
+                f"Variable type '{realization.variable_type}' not known, "
+                "should be 'population' or 'individual'."
+            )
         # we do not need to include regularity constant (priors are always fixed at a given iteration)
-        return self.compute_regularity_variable(realization.tensor_realizations, mean, std, include_constant=False)
+        return self.compute_regularity_variable(
+            realization.tensor_realizations, mean, std, include_constant=False
+        )
 
     def compute_regularity_individual_parameters(
-        self, individual_parameters: DictParamsTorch, *, include_constant: bool = False
+        self,
+        individual_parameters: DictParamsTorch,
+        *,
+        include_constant: bool = False,
     ) -> Tuple[DictParamsTorch, DictParamsTorch]:
         """
         Compute the regularity terms (and their gradients if requested), per individual variable of the model.
@@ -725,6 +828,9 @@ class AbstractModel(BaseModel):
         ----------
         individual_parameters : dict[str, :class:`torch.Tensor` [n_ind, n_dims_param]]
             Individual parameters as a dict of tensors.
+        include_constant : bool, optional
+            Whether to include a constant term or not.
+            Default=False.
 
         Returns
         -------
@@ -740,8 +846,8 @@ class AbstractModel(BaseModel):
         for param_name, param_val in individual_parameters.items():
             # priors on this parameter
             priors = dict(
-                mean = self.parameters[param_name+"_mean"],
-                std = self.parameters[param_name+"_std"]
+                mean=self.parameters[param_name+"_mean"],
+                std=self.parameters[param_name+"_std"]
             )
 
             # TODO? create a more generic method in model `compute_regularity_variable`?
@@ -750,13 +856,21 @@ class AbstractModel(BaseModel):
                 param_val, **priors, include_constant=include_constant, with_gradient=True
             )
             # we sum on the dimension of the parameter (always 1D for now), but regularity term is per individual
-            # TODO: shouldn't this summation be done directly in `compute_regularity_variable` (e.g. multivariate normal)
+            # TODO: shouldn't this summation be done directly in `compute_regularity_variable`
+            #  (e.g. multivariate normal)
             regularity[param_name] = regularity_param.sum(dim=1)
 
         return regularity, regularity_grads
 
-    def compute_regularity_variable(self, value: torch.FloatTensor, mean: torch.FloatTensor, std: torch.FloatTensor,
-                                    *, include_constant: bool = True, with_gradient: bool = False) -> torch.FloatTensor:
+    def compute_regularity_variable(
+        self,
+        value: torch.Tensor,
+        mean: torch.Tensor,
+        std: torch.Tensor,
+        *,
+        include_constant: bool = True,
+        with_gradient: bool = False,
+    ) -> torch.Tensor:
         """
         Compute regularity term (Gaussian distribution) and optionally its gradient wrt value.
 
@@ -778,9 +892,9 @@ class AbstractModel(BaseModel):
         #return -self.regularization_distribution_factory(mean, std).log_prob(value)
 
         y = (value - mean) / std
-        neg_loglike = 0.5*y*y
+        neg_loglike = 0.5 * y * y
         if include_constant:
-            neg_loglike += 0.5*torch.log(TWO_PI * std**2)
+            neg_loglike += 0.5 * torch.log(TWO_PI * std**2)
         if not with_gradient:
             return neg_loglike
         nll_grad = y / std
@@ -796,7 +910,8 @@ class AbstractModel(BaseModel):
             Number of individuals to track
         **init_kws
             Keyword arguments passed to :meth:`.CollectionRealization.initialize`.
-            (In particular `individual_variable_init_at_mean` to "initialize at mean" or `skip_variable` to filter some variables)
+            (In particular `individual_variable_init_at_mean` to "initialize at mean"
+            or `skip_variable` to filter some variables).
 
         Returns
         -------
@@ -829,7 +944,11 @@ class AbstractModel(BaseModel):
                 cf. :class:`~leaspy.algo.utils.samplers.GibbsSampler`
         """
 
-    def smart_initialization_realizations(self, dataset: Dataset, realizations: CollectionRealization) -> CollectionRealization:
+    def smart_initialization_realizations(
+        self,
+        dataset: Dataset,
+        realizations: CollectionRealization,
+    ) -> CollectionRealization:
         """
         Smart initialization of realizations if needed (input may be modified in-place).
 
@@ -846,18 +965,24 @@ class AbstractModel(BaseModel):
         """
         return realizations
 
-    def _create_dictionary_of_population_realizations(self):
+    def _create_dictionary_of_population_realizations(self) -> dict:
         pop_dictionary: Dict[str, Realization] = {}
         for name_var, info_var in self.random_variable_informations().items():
             if info_var['type'] != "population":
                 continue
-            real = Realization.from_tensor(name_var, info_var['shape'], info_var['type'], self.parameters[name_var])
+            real = Realization.from_tensor(
+                name_var, info_var['shape'], info_var['type'], self.parameters[name_var]
+            )
             pop_dictionary[name_var] = real
 
         return pop_dictionary
 
     @staticmethod
-    def time_reparametrization(timepoints: torch.FloatTensor, xi: torch.FloatTensor, tau: torch.FloatTensor) -> torch.FloatTensor:
+    def time_reparametrization(
+        timepoints: torch.Tensor,
+        xi: torch.Tensor,
+        tau: torch.Tensor,
+    ) -> torch.Tensor:
         """
         Tensorized time reparametrization formula
 

@@ -2,6 +2,8 @@ import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.utils.attributes import AttributesFactory
+from leaspy.io.data.dataset import Dataset
+from leaspy.io.realizations.collection_realization import CollectionRealization
 
 from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
@@ -9,8 +11,11 @@ from leaspy.exceptions import LeaspyModelInputError
 from leaspy.utils.typing import DictParamsTorch
 
 # TODO refact? implement a single function
-# compute_individual_tensorized(..., with_jacobian: bool) -> returning either model values or model values + jacobians wrt individual parameters
-# TODO refact? subclass or other proper code technique to extract model's concrete formulation depending on if linear, logistic, mixed log-lin, ...
+# compute_individual_tensorized(..., with_jacobian: bool) -> returning either
+# model values or model values + jacobians wrt individual parameters
+
+# TODO refact? subclass or other proper code technique to extract model's concrete
+#  formulation depending on if linear, logistic, mixed log-lin, ...
 
 
 @doc_with_super()
@@ -49,7 +54,7 @@ class MultivariateModel(AbstractMultivariateModel):
         # enforce a prior for v0_mean --> legacy / never used in practice
         self._set_v0_prior = False
 
-    def _check_subtype(self):
+    def _check_subtype(self) -> str:
         if self.name not in self.SUBTYPES_SUFFIXES.keys():
             raise LeaspyModelInputError(
                 f"{self.__class__.__name__} name should be among these valid sub-types: "
@@ -59,11 +64,22 @@ class MultivariateModel(AbstractMultivariateModel):
         return self.SUBTYPES_SUFFIXES[self.name]
 
     @suffixed_method
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: dict,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
         pass
 
-    def compute_individual_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
-
+    def compute_individual_tensorized_linear(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: dict,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -80,9 +96,15 @@ class MultivariateModel(AbstractMultivariateModel):
             wi = sources.matmul(mixing_matrix.t())
             model += wi.unsqueeze(-2)
 
-        return model # (n_individuals, n_timepoints, n_features)
+        return model  # (n_individuals, n_timepoints, n_features)
 
-    def compute_individual_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_individual_tensorized_logistic(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: dict,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
         # Population parameters
         g, v0, a_matrix = self._get_attributes(attribute_type)
         g_plus_1 = 1. + g
@@ -93,7 +115,7 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
-        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
+        reparametrized_time = reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, n_features)
 
         if self.is_ordinal:
             # add an extra dimension for the levels of the ordinal item
@@ -110,33 +132,43 @@ class MultivariateModel(AbstractMultivariateModel):
 
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
-            wi = sources.matmul(a_matrix.t()).unsqueeze(-2) # unsqueeze for (n_timepoints)
+            wi = sources.matmul(a_matrix.t()).unsqueeze(-2)  # unsqueeze for (n_timepoints)
             if self.is_ordinal:
                 wi = wi.unsqueeze(-1)
             LL += wi
 
-        # TODO? more efficient & accurate to compute `torch.exp(-t*b + log_g)` since we directly sample & stored log_g
+        # TODO? more efficient & accurate to compute `torch.exp(-t*b + log_g)` since we
+        #  directly sample & stored log_g
         LL = 1. + g * torch.exp(-LL * b)
         model = 1. / LL
 
         # For ordinal models, compute pdf instead of survival function if needed
         model = self.compute_appropriate_ordinal_model(model)
 
-        return model # (n_individuals, n_timepoints, n_features [, extra_dim_ordinal_models])
+        return model  # (n_individuals, n_timepoints, n_features [, extra_dim_ordinal_models])
 
     @suffixed_method
-    def compute_individual_ages_from_biomarker_values_tensorized(self, value: torch.Tensor,
-                                                                 individual_parameters: dict, feature: str):
+    def compute_individual_ages_from_biomarker_values_tensorized(
+        self,
+        value: torch.Tensor,
+        individual_parameters: dict,
+        feature: str,
+    ) -> torch.Tensor:
         pass
 
-    def compute_individual_ages_from_biomarker_values_tensorized_logistic(self, value: torch.Tensor,
-                                                                          individual_parameters: dict, feature: str):
+    def compute_individual_ages_from_biomarker_values_tensorized_logistic(
+        self,
+        value: torch.Tensor,
+        individual_parameters: dict,
+        feature: str,
+    ) -> torch.Tensor:
         if value.dim() != 2:
             raise LeaspyModelInputError(f"The biomarker value should be dim 2, not {value.dim()}!")
 
         if self.is_ordinal:
-            return self._compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(value, individual_parameters, feature)
-
+            return self._compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(
+                value, individual_parameters, feature
+            )
         # avoid division by zero:
         value = value.masked_fill((value == 0) | (value == 1), float('nan'))
 
@@ -162,11 +194,15 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return ages
 
-    def _compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(self, value: torch.Tensor,
-                                                                          individual_parameters: dict, feature: str):
+    def _compute_individual_ages_from_biomarker_values_tensorized_logistic_ordinal(
+        self,
+        value: torch.Tensor,
+        individual_parameters: dict,
+        feature: str,
+    ) -> torch.Tensor:
         """
-        For one individual, compute age(s) breakpoints at which the given features levels are the most likely (given the subject's
-        individual parameters).
+        For one individual, compute age(s) breakpoints at which the given features
+        levels are the most likely (given the subject's individual parameters).
 
         Consistency checks are done in the main API layer.
 
@@ -180,7 +216,8 @@ class MultivariateModel(AbstractMultivariateModel):
             Each individual parameter should be a scalar or array_like
 
         feature : str
-            Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
+            Name of the considered biomarker (optional for univariate models,
+            compulsory for multivariate models).
 
         Returns
         -------
@@ -193,7 +230,6 @@ class MultivariateModel(AbstractMultivariateModel):
         :exc:`.LeaspyModelInputError`
             if computation is tried on more than 1 individual
         """
-
         # 1/ get attributes
         g, v0, a_matrix = self._get_attributes(None)
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -218,15 +254,30 @@ class MultivariateModel(AbstractMultivariateModel):
 
         grid_timepoints = torch.linspace(ages_0.item(), ages_max.item(), 1000)
 
-        return self._ordinal_grid_search_value(grid_timepoints, value,
-                                               individual_parameters=individual_parameters,
-                                               feat_index=feat_ind)
+        return self._ordinal_grid_search_value(
+            grid_timepoints,
+            value,
+            individual_parameters=individual_parameters,
+            feat_index=feat_ind,
+        )
 
     @suffixed_method
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: dict,
+        *,
+        attribute_type=None,
+    ) -> DictParamsTorch:
         pass
 
-    def compute_jacobian_tensorized_linear(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized_linear(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: dict,
+        *,
+        attribute_type=None,
+    ) -> DictParamsTorch:
         # Population parameters
         _, v0, mixing_matrix = self._get_attributes(attribute_type)
 
@@ -235,24 +286,32 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
-        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
+        reparametrized_time = reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, n_features)
 
         alpha = torch.exp(xi).reshape(-1, 1, 1)
         dummy_to_broadcast_n_ind_n_tpts = torch.ones_like(reparametrized_time)
 
         # Jacobian of model expected value w.r.t. individual parameters
         derivatives = {
-            'xi': (v0 * reparametrized_time).unsqueeze(-1), # add a last dimension for len param
-            'tau': (v0 * -alpha * dummy_to_broadcast_n_ind_n_tpts).unsqueeze(-1), # same
+            'xi': (v0 * reparametrized_time).unsqueeze(-1),  # add a last dimension for len param
+            'tau': (v0 * -alpha * dummy_to_broadcast_n_ind_n_tpts).unsqueeze(-1),  # same
         }
 
         if self.source_dimension > 0:
-            derivatives['sources'] = mixing_matrix.expand((1, 1, -1, -1)) * dummy_to_broadcast_n_ind_n_tpts.unsqueeze(-1)
+            derivatives['sources'] = (
+                mixing_matrix.expand((1, 1, -1, -1)) * dummy_to_broadcast_n_ind_n_tpts.unsqueeze(-1)
+            )
 
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts, n_dims_param)]
         return derivatives
 
-    def compute_jacobian_tensorized_logistic(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized_logistic(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: dict,
+        *,
+        attribute_type=None,
+    ) -> DictParamsTorch:
         # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized_logistic`)
 
         # Population parameters
@@ -265,7 +324,7 @@ class MultivariateModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
-        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, n_features)
+        reparametrized_time = reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, n_features)
         alpha = torch.exp(xi).reshape(-1, 1, 1)
 
         if self.is_ordinal:
@@ -283,7 +342,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
         if self.source_dimension != 0:
             sources = individual_parameters['sources']
-            wi = sources.matmul(a_matrix.t()).unsqueeze(-2) # unsqueeze for (n_timepoints)
+            wi = sources.matmul(a_matrix.t()).unsqueeze(-2)  # unsqueeze for (n_timepoints)
             if self.is_ordinal:
                 wi = wi.unsqueeze(-1)
             LL += wi
@@ -307,7 +366,9 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # Multiply by common constant, and post-process derivative for ordinal models if needed
         for param in derivatives:
-            derivatives[param] = self.compute_appropriate_ordinal_model(c.unsqueeze(-1) * derivatives[param])
+            derivatives[param] = self.compute_appropriate_ordinal_model(
+                c.unsqueeze(-1) * derivatives[param]
+            )
 
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts [, extra_dim_ordinal_models], n_dims_param)]
         return derivatives
@@ -316,11 +377,13 @@ class MultivariateModel(AbstractMultivariateModel):
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self):
+    def initialize_MCMC_toolbox(self) -> None:
+        """
+        Initialize the model's MCMC toolbox attribute.
+        """
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01}, # population parameters
+            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},  # population parameters
         }
-
         # Initialize a prior for v0_mean (legacy code / never used in practice)
         if self._set_v0_prior:
             self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
@@ -330,13 +393,18 @@ class MultivariateModel(AbstractMultivariateModel):
         # specific priors for ordinal models
         self._initialize_MCMC_toolbox_ordinal_priors()
 
-        self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
-                                                                       **self._attributes_factory_ordinal_kws)
-        # TODO? why not passing the ready-to-use collection realizations that is initialized at beginning of fit algo and use it here instead?
+        self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(
+            self.name, self.dimension, self.source_dimension, **self._attributes_factory_ordinal_kws
+        )
+        # TODO? why not passing the ready-to-use collection realizations that is initialized
+        #  at beginning of fit algo and use it here instead?
         population_dictionary = self._create_dictionary_of_population_realizations()
         self.update_MCMC_toolbox({"all"}, population_dictionary)
 
-    def update_MCMC_toolbox(self, vars_to_update: set, realizations):
+    def update_MCMC_toolbox(self, vars_to_update: set, realizations: CollectionRealization) -> None:
+        """
+        Update the model's MCMC toolbox attribute with the provided vars_to_update.
+        """
         values = {}
         update_all = 'all' in vars_to_update
         if update_all or 'g' in vars_to_update:
@@ -350,20 +418,26 @@ class MultivariateModel(AbstractMultivariateModel):
 
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
-    def _center_xi_realizations(self, realizations) -> None:
-        # This operation does not change the orthonormal basis
-        # (since the resulting v0 is collinear to the previous one)
-        # Nor all model computations (only v0 * exp(xi_i) matters),
-        # it is only intended for model identifiability / `xi_i` regularization
-        # <!> all operations are performed in "log" space (v0 is log'ed)
+    def _center_xi_realizations(self, realizations: CollectionRealization) -> None:
+        """
+        Center the xi realizations in place.
+        
+        This operation does not change the orthonormal basis
+        (since the resulting v0 is collinear to the previous one)
+        Nor all model computations (only v0 * exp(xi_i) matters),
+        it is only intended for model identifiability / `xi_i` regularization
+        <!> all operations are performed in "log" space (v0 is log'ed)
+        """
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
         realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
 
         self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
-    def compute_model_sufficient_statistics(self, data, realizations):
-
+    def compute_model_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> dict:
+        """
+        Compute the model's sufficient statistics.
+        """
         # modify realizations in-place
         self._center_xi_realizations(realizations)
 
@@ -384,13 +458,16 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, sufficient_statistics: DictParamsTorch):
-        # During the burn-in phase, we only need to store the following parameters (cf. !66 and #60)
-        # - noise_std
-        # - *_mean/std for regularization of individual variables
-        # - others population parameters for regularization of population variables
-        # We don't need to update the model "attributes" (never used during burn-in!)
+    def update_model_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+        """
+        Update the model's parameters during the burn in phase.
 
+        During the burn-in phase, we only need to store the following parameters (cf. !66 and #60)
+            - noise_std
+            - *_mean/std for regularization of individual variables
+            - others population parameters for regularization of population variables
+        We don't need to update the model "attributes" (never used during burn-in!)
+        """
         # Memoryless part of the algorithm
         self.parameters['g'] = sufficient_statistics['g']
 
@@ -413,10 +490,12 @@ class MultivariateModel(AbstractMultivariateModel):
         self.parameters['tau_std'] = torch.std(sufficient_statistics['tau'])
 
         self.parameters.update(
-            self.get_ordinal_parameters_updates_from_sufficient_statistics(sufficient_statistics)
+            self.get_ordinal_parameters_updates_from_sufficient_statistics(
+                sufficient_statistics
+            )
         )
 
-    def update_model_parameters_normal(self, data, sufficient_statistics: DictParamsTorch) -> None:
+    def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
         """
         Stochastic sufficient statistics used to update the parameters of the model.
 
@@ -458,10 +537,12 @@ class MultivariateModel(AbstractMultivariateModel):
                 self.parameters[f"{param}_mean"] = param_cur_mean
 
         self.parameters.update(
-            self.get_ordinal_parameters_updates_from_sufficient_statistics(sufficient_statistics)
+            self.get_ordinal_parameters_updates_from_sufficient_statistics(
+                sufficient_statistics
+            )
         )
 
-    def random_variable_informations(self):
+    def random_variable_informations(self) -> dict:
         # --- Population variables
         g_infos = {
             "name": "g",

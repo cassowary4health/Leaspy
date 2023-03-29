@@ -51,17 +51,14 @@ class DistributionFamily:
     """
     Base class for a distribution family being able to sample "around" user-provided values.
 
-    Class attributes
-    ----------------
+    Attributes
+    ----------
     free_parameters: frozenset(str)
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
         Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
         then it will be used for user-input validation of parameter "xxx".
     factory : None or function(free parameters values) -> torch.distributions.Distribution
         The factory for the distribution family.
-
-    Attributes
-    ----------
     parameters : dict[str, torch.Tensor] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.

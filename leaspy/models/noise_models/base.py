@@ -211,18 +211,18 @@ class BaseNoiseModel(ABC, DistributionFamily):
         """Computes the set of noise-related sufficient statistics and metrics (to be extended in child class)."""
         return {}
 
-    @abstractmethod
     def update_parameters_from_sufficient_statistics(
         self,
         data: Dataset,
         sufficient_statistics: DictParamsTorch,
     ) -> None:
         """Updates noise-model parameters in-place (nothing done by default)."""
+        pass
 
-    @abstractmethod
     def update_parameters_from_predictions(
         self,
         data: Dataset,
         predictions: torch.Tensor,
     ) -> None:
         """Updates noise-model parameters in-place (nothing done by default)."""
+        pass

@@ -12,7 +12,10 @@ from leaspy.models.noise_models import (
 
 
 class OrdinalModelMixin:
-    """Mix-in to add some useful properties & methods for models supporting the ordinal and ranking noise (univariate or multivariate)."""
+    """
+    Mix-in to add some useful properties & methods for models supporting
+    the ordinal and ranking noise (univariate or multivariate).
+    """
 
     ## PUBLIC
 
@@ -28,6 +31,7 @@ class OrdinalModelMixin:
 
     @property
     def ordinal_infos(self) -> Optional[dict]:
+        """Property to return the ordinal info dictionary."""
         if not self.is_ordinal:
             return None
         return dict(
@@ -36,6 +40,7 @@ class OrdinalModelMixin:
         )
 
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
+        """Check compatibility between the model instance and provided noise model."""
         super().check_noise_model_compatibility(model)
 
         if isinstance(model, AbstractOrdinalNoiseModel) and self.name not in {
@@ -108,6 +113,7 @@ class OrdinalModelMixin:
         )
 
     def compute_ordinal_model_sufficient_statistics(self, realizations) -> dict:
+        """Compute the sufficient statistics given realizations."""
         if not self.is_ordinal:
             return {}
         if self.batch_deltas:
@@ -120,6 +126,7 @@ class OrdinalModelMixin:
     def get_ordinal_parameters_updates_from_sufficient_statistics(
         self, sufficient_statistics: dict
     ) -> dict:
+        """Return a dictionary computed from provided sufficient statistics for updating the parameters."""
         if not self.is_ordinal:
             return {}
         if self.batch_deltas:
@@ -184,6 +191,7 @@ class OrdinalModelMixin:
         return ("batch_deltas_ordinal",)
 
     def _check_ordinal_parameters_consistency(self) -> None:
+        """Check consistency of ordinal model parameters."""
         if not self.is_ordinal:
             return
         deltas_p = {k: v for k, v in self.parameters.items() if k.startswith("deltas")}
@@ -225,6 +233,7 @@ class OrdinalModelMixin:
                 )
 
     def _initialize_MCMC_toolbox_ordinal_priors(self) -> None:
+        """Initialize the ordinal model's MCMC toolbox with prior values."""
         if not self.is_ordinal:
             return
         if self.batch_deltas:
@@ -236,6 +245,7 @@ class OrdinalModelMixin:
     def _update_MCMC_toolbox_ordinal(
         self, vars_to_update: set, realizations, values: dict
     ) -> None:
+        """Update the ordinal model's MCMC toolbox."""
         # update `values` dict in-place
         if not self.is_ordinal:
             return
@@ -265,6 +275,7 @@ class OrdinalModelMixin:
         return self._call_method_from_attributes("get_deltas", attribute_type)
 
     def _add_ordinal_random_variables(self, variables_infos: dict) -> None:
+        """Add a random variables to the ordinal model."""
         if not self.is_ordinal:
             return
         common_deltas_info = {"type": "population", "scale": 0.5}

@@ -53,6 +53,7 @@ class UnivariateModel(MultivariateModel):
         super().__init__(name, dimension=1, source_dimension=0, **kwargs)
 
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
+        """Check compatibility between the model instance and provided noise model."""
         super().check_noise_model_compatibility(model)
         if not isinstance(model, (GaussianScalarNoiseModel, BernoulliNoiseModel, AbstractOrdinalNoiseModel)):
             raise LeaspyModelInputError(

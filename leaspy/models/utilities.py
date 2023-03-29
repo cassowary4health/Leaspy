@@ -1,18 +1,22 @@
 import torch
+from typing import Union
 from leaspy.exceptions import LeaspyConvergenceError
 
 
-def tensor_to_list(x):
+def tensor_to_list(x: Union[list, torch.Tensor]) -> list:
+    """
+    Convert input tensor to list.
+    """
     if isinstance(x, torch.Tensor):
         return x.tolist()
     return x
 
 
 def compute_std_from_variance(
-    variance: torch.FloatTensor,
+    variance: torch.Tensor,
     varname: str,
     tol: float = 1e-5,
-) -> torch.FloatTensor:
+) -> torch.Tensor:
     """
     Check that variance is strictly positive and return its square root, otherwise fail with a convergence error.
 
@@ -31,7 +35,7 @@ def compute_std_from_variance(
 
     Returns
     -------
-    torch.FloatTensor
+    torch.Tensor
 
     Raises
     ------

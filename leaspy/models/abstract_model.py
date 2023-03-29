@@ -53,6 +53,9 @@ class AbstractModel(BaseModel):
         The name of the model
     noise_model : str or BaseNoiseModel
         The noise model for observations (keyword-only parameter).
+    fit_metrics : dict
+        Metrics that should be measured during the fit of the model
+        and reported back to the user.
     **kwargs
         Hyperparameters for the model
 

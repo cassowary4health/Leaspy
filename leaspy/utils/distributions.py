@@ -7,21 +7,32 @@ import torch
 from torch.distributions.constraints import unit_interval
 
 
-def discrete_sf_from_pdf(pdf: Union[torch.Tensor, np.ndarray]):
+def discrete_sf_from_pdf(pdf: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
     """
     Compute the discrete survival function values [P(X > l), i.e.
     P(X >= l+1), l=0..L-1] (l=0..L-1) from the discrete probability density
     [P(X = l), l=0..L] (assuming discrete levels are in last dimension).
+
+    Parameters
+    ----------
+    pdf : torch.Tensor or np.ndarray
+        The discrete probability density.
+
+    Returns
+    -------
+    np.ndarray :
+        The discrete survival function values.
     """
     return (1 - pdf.cumsum(-1))[..., :-1]
 
 
 class MultinomialDistribution(torch.distributions.Distribution):
-    """Class for a multinomial distribution with only sample method.
+    """
+    Class for a multinomial distribution with only sample method.
 
     Parameters
     ----------
-    sf : torch.FloatTensor
+    sf : torch.Tensor
         Values of the survival function [P(X > l) for l=0..L-1 where L is max_level]
         from which the distribution samples.
         Ordinal levels are assumed to be in the last dimension.
@@ -29,10 +40,14 @@ class MultinomialDistribution(torch.distributions.Distribution):
 
     Attributes
     ----------
-    cdf : torch.FloatTensor
+    cdf : torch.Tensor
         The cumulative distribution function [P(X <= l) for l=0..L] from which the distribution samples.
         The shape of latest dimension is L+1 where L is max_level.
         We always have P(X <= L) = 1
+    arg_constraints : dict
+        Contains the constraints on the arguments.
+    validate_args : bool
+        Whether to validate the arguments or not.
     """
 
     arg_constraints = {}
@@ -50,13 +65,15 @@ class MultinomialDistribution(torch.distributions.Distribution):
 
     @classmethod
     def from_pdf(cls, pdf: torch.Tensor):
-        """Generate a new MultinomialDistribution from its probability density
+        """
+        Generate a new MultinomialDistribution from its probability density
         function instead of its survival function.
         """
         return cls(discrete_sf_from_pdf(pdf))
 
-    def sample(self):
-        """Multinomial sampling.
+    def sample(self) -> torch.Tensor:
+        """
+        Multinomial sampling.
 
         We sample uniformly on [0, 1( but for the latest dimension corresponding
         to ordinal levels this latest dimension will be broadcast when comparing
@@ -64,10 +81,9 @@ class MultinomialDistribution(torch.distributions.Distribution):
 
         Returns
         -------
-        out : torch.IntTensor
+        torch.Tensor :
             Vector of integer values corresponding to the multinomial sampling.
             Result is in [[0, L]]
         """
         r = torch.rand(self._sample_shape).unsqueeze(-1)
-        out = (r < self.cdf).int().argmax(dim=-1)
-        return out
+        return (r < self.cdf).int().argmax(dim=-1)

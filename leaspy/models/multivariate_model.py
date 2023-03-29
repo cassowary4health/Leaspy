@@ -421,7 +421,7 @@ class MultivariateModel(AbstractMultivariateModel):
     def _center_xi_realizations(self, realizations: CollectionRealization) -> None:
         """
         Center the xi realizations in place.
-        
+
         This operation does not change the orthonormal basis
         (since the resulting v0 is collinear to the previous one)
         Nor all model computations (only v0 * exp(xi_i) matters),

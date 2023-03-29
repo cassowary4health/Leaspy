@@ -187,6 +187,11 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         **kwargs
             Keyword arguments for json.dump method.
             Default to: dict(indent=2)
+
+        Returns
+        -------
+        KwargsType :
+            The object as a dictionary.
         """
         model_settings = super().to_dict()
         model_settings['source_dimension'] = self.source_dimension

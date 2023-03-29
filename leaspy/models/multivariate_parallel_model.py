@@ -4,12 +4,15 @@ from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
 from leaspy.utils.typing import DictParamsTorch
 from leaspy.utils.docs import doc_with_super
+from leaspy.io.data.dataset import Dataset
+from leaspy.io.realizations.collection_realization import CollectionRealization
 
 
 @doc_with_super()
 class MultivariateParallelModel(AbstractMultivariateModel):
     """
-    Logistic model for multiple variables of interest, imposing same average evolution pace for all variables (logistic curves are only time-shifted).
+    Logistic model for multiple variables of interest, imposing same average
+    evolution pace for all variables (logistic curves are only time-shifted).
 
     Parameters
     ----------
@@ -24,8 +27,13 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         self.parameters["deltas"] = None
         self.MCMC_toolbox['priors']['deltas_std'] = None
 
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
-
+    def compute_individual_tensorized(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: dict,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
         # Population parameters
         g, deltas, mixing_matrix = self._get_attributes(attribute_type)
 
@@ -34,7 +42,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
-        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, -> n_features)
+        reparametrized_time = reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, -> n_features)
 
         # Model expected value
         t = reparametrized_time + deltas
@@ -48,7 +56,13 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         return model
 
-    def compute_jacobian_tensorized(self, timepoints, individual_parameters, *, attribute_type=None):
+    def compute_jacobian_tensorized(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: dict,
+        *,
+        attribute_type=None,
+    ) -> DictParamsTorch:
         # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized`)
 
         # Population parameters
@@ -59,7 +73,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
-        reparametrized_time = reparametrized_time.unsqueeze(-1) # (n_individuals, n_timepoints, -> n_features)
+        reparametrized_time = reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, -> n_features)
         alpha = torch.exp(xi).reshape(-1, 1, 1)
 
         # Model expected value
@@ -80,28 +94,38 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             'tau': (c * -alpha).unsqueeze(-1),
         }
         if self.source_dimension > 0:
-            b = b.reshape((1, 1, -1, 1)) # n_features is third
+            b = b.reshape((1, 1, -1, 1))  # n_features is third
             derivatives['sources'] = c.unsqueeze(-1) * b * mixing_matrix.expand((1, 1, -1, -1))
 
         return derivatives
 
-    def compute_individual_ages_from_biomarker_values_tensorized(self, value, individual_parameters, feature):
+    def compute_individual_ages_from_biomarker_values_tensorized(
+        self,
+        value: torch.Tensor,
+        individual_parameters: dict,
+        feature: str,
+    ) -> torch.Tensor:
         raise NotImplementedError("Open an issue on Gitlab if needed.")  # pragma: no cover
 
     ##############################
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self):
+    def initialize_MCMC_toolbox(self) -> None:
         self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'deltas_std': 0.01, 'betas_std': 0.01}, # population parameters
-            'attributes': LogisticParallelAttributes(self.name, self.dimension, self.source_dimension)
+            'priors': {
+                'g_std': 0.01,
+                'deltas_std': 0.01,
+                'betas_std': 0.01,
+            },  # population parameters
+            'attributes': LogisticParallelAttributes(
+                self.name, self.dimension, self.source_dimension
+            ),
         }
-
         population_dictionary = self._create_dictionary_of_population_realizations()
         self.update_MCMC_toolbox({"all"}, population_dictionary)
 
-    def update_MCMC_toolbox(self, vars_to_update: set, realizations):
+    def update_MCMC_toolbox(self, vars_to_update: set, realizations: CollectionRealization) -> None:
         values = {}
         update_all = 'all' in vars_to_update
         if update_all or 'g' in vars_to_update:
@@ -113,8 +137,11 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
-    def compute_model_sufficient_statistics(self, data, realizations):
-
+    def compute_model_sufficient_statistics(
+        self,
+        data: Dataset,
+        realizations: CollectionRealization,
+    ) -> DictParamsTorch:
         # unlink all sufficient statistics from updates in realizations!
         realizations = realizations.clone_realizations()
 
@@ -128,8 +155,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
         return sufficient_statistics
 
-    def update_model_parameters_burn_in(self, data, sufficient_statistics):
-
+    def update_model_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
         for param in ("g", "deltas"):
             self.parameters[param] = sufficient_statistics[param]
         if self.source_dimension != 0:
@@ -139,7 +165,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             self.parameters[f"{param}_mean"] = torch.mean(param_realizations)
             self.parameters[f"{param}_std"] = torch.std(param_realizations)
 
-    def update_model_parameters_normal(self, data, sufficient_statistics: DictParamsTorch) -> None:
+    def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
         # TODO? factorize `update_model_parameters_***` methods?
         from .utilities import compute_std_from_variance
 
@@ -156,15 +182,16 @@ class MultivariateParallelModel(AbstractMultivariateModel):
                 2. * param_old_mean * param_cur_mean
             )
             param_variance = param_variance_update + param_old_mean ** 2
-            self.parameters[f"{param}_std"] = compute_std_from_variance(param_variance, varname=f"{param}_std")
+            self.parameters[f"{param}_std"] = compute_std_from_variance(
+                param_variance, varname=f"{param}_std"
+            )
             self.parameters[f"{param}_mean"] = param_cur_mean
 
     ###################################
     ### Random Variable Information ###
     ###################################
 
-    def random_variable_informations(self):
-
+    def random_variable_informations(self) -> dict:
         ## Population variables
         g_infos = {
             "name": "g",

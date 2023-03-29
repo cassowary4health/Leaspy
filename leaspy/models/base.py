@@ -3,6 +3,7 @@ import warnings
 
 from leaspy.utils.typing import FeatureType, List, Optional
 from leaspy.exceptions import LeaspyModelInputError
+from leaspy.io.data.dataset import Dataset
 
 
 class BaseModel(ABC):
@@ -89,7 +90,7 @@ class BaseModel(ABC):
                 f"Model has {len(self.features)} features. Cannot set the dimension to {dimension}."
             )
 
-    def validate_compatibility_of_dataset(self, dataset) -> None:
+    def validate_compatibility_of_dataset(self, dataset: Dataset) -> None:
         """
         Raise if the given dataset is not compatible with the current model.
 
@@ -114,7 +115,7 @@ class BaseModel(ABC):
                 f"Unmatched features: {self.features} (model) ≠ {dataset.headers} (data)."
             )
 
-    def initialize(self, dataset, method: str = 'default') -> None:
+    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
         """
         Initialize the model given a dataset and an initialization method.
 
@@ -129,13 +130,16 @@ class BaseModel(ABC):
         """
         if self.is_initialized and self.features is not None:
             # we also test that self.features is not None, since for `ConstantModel`:
-            # `is_initialized`` is True but as a mock for being personalization-ready, without really being initialized!
+            # `is_initialized`` is True but as a mock for being personalization-ready,
+            # without really being initialized!
             warn_msg = '<!> Re-initializing an already initialized model.'
             if dataset.headers != self.features:
-                warn_msg += f' Overwritting previous model features ({self.features}) with new ones ({dataset.headers}).'
+                warn_msg += (
+                    f" Overwritting previous model features ({self.features}) "
+                    f"with new ones ({dataset.headers})."
+                )
                 self.features = None  # wait validation of compatibility to store new features
             warnings.warn(warn_msg)
-
         self.validate_compatibility_of_dataset(dataset)
         self.features = dataset.headers
         self.is_initialized = True

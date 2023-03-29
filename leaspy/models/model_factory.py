@@ -41,8 +41,9 @@ class ModelFactory:
 
         name = name.lower()
         if name not in ALL_MODELS:
-            raise LeaspyModelInputError("The name of the model you are trying to create does not exist! "
-                                       f"It should be in {{{repr(tuple(ALL_MODELS.keys()))[1:-1]}}}")
-
+            raise LeaspyModelInputError(
+                "The name of the model you are trying to create does not exist! "
+                f"It should be in {{{repr(tuple(ALL_MODELS.keys()))[1:-1]}}}"
+            )
         # instantiate model with optional keyword arguments
         return ALL_MODELS[name](name, **kwargs)

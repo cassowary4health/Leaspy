@@ -22,6 +22,10 @@ class Dataset:
     ----------
     data : :class:`.Data`
         Create `Dataset` from `Data` object
+    no_warning : bool (default False)
+        Whether to deactivate warnings that are emitted by methods of this dataset instance.
+        We may want to deactivate them because we rebuild a dataset per individual in scipy minimize.
+        Indeed, all relevant warnings certainly occurred for the overall dataset.
 
     Attributes
     ----------

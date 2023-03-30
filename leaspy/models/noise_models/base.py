@@ -75,7 +75,7 @@ class DistributionFamily:
     """
     Base class for a distribution family being able to sample "around" user-provided values.
 
-    Attributes
+    Parameters
     ----------
     free_parameters : frozenset(str)
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
@@ -87,7 +87,7 @@ class DistributionFamily:
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
 
-    Parameters
+    Attributes
     ----------
     free_parameters : frozenset(str)
         Name of all the free parameters (but `loc`) needed to characterize the distribution.

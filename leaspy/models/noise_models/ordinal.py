@@ -1,7 +1,7 @@
 """Module defining ordinal noise models."""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Dict
+from typing import Optional, Dict, Tuple, Union
 from dataclasses import dataclass
 
 import torch
@@ -9,26 +9,34 @@ import torch
 from .base import BaseNoiseModel
 from leaspy.utils.distributions import MultinomialDistribution
 from leaspy.utils.typing import FeatureType, KwargsType
-
-if TYPE_CHECKING:
-    from leaspy.io.data.dataset import Dataset
+from leaspy.io.data.dataset import Dataset
 
 
 @dataclass
 class AbstractOrdinalNoiseModel(BaseNoiseModel):
     """
     Base class for Ordinal noise models.
+
+    Attributes
+    ----------
+    max_levels : dict, optional
+        Maximum levels for ordinal noise.
     """
 
     max_levels: Optional[Dict[FeatureType, int]] = None
 
     def to_dict(self) -> KwargsType:
-        """Serialize instance as dictionary."""
-        # we do NOT export hyper-parameters that are derived (error-prone and boring checks when re-creating).
+        """
+        Serialize instance as dictionary.
+        Do NOT export hyper-parameters that are derived
+        (error-prone and boring checks when re-creating).
+        """
         return {"max_levels": self.max_levels}
 
     def _update_cached_hyperparameters(self) -> None:
-        """Update hyperparameters in cache."""
+        """
+        Update hyperparameters in cache.
+        """
         if self.max_levels is None:
             self._max_level: Optional[int] = None
             self._mask: Optional[torch.Tensor] = None
@@ -77,6 +85,15 @@ class AbstractOrdinalNoiseModel(BaseNoiseModel):
 class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
     """
     Class implementing ordinal noise models (likelihood is based on PDF).
+
+    Attributes
+    ----------
+    free_parameters: frozenset(str)
+        Name of all the free parameters (but `loc`) needed to characterize the distribution.
+        Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
+        then it will be used for user-input validation of parameter "xxx".
+    factory : None or function(free parameters values) -> torch.distributions.Distribution
+        The factory for the distribution family.
     """
 
     factory = MultinomialDistribution.from_pdf
@@ -88,8 +105,10 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
         predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.Tensor:
-        """Compute the negative log-likelihood and its gradient wrt predictions."""
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """
+        Compute the negative log-likelihood and its gradient wrt predictions.
+        """
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
         pdf = data.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
         nll = -data.mask.float() * torch.log((pdf * predictions).sum(dim=-1))
@@ -102,6 +121,15 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
 class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
     """
     Class implementing ordinal ranking noise models (likelihood is based on SF).
+
+    Attributes
+    ----------
+    free_parameters: frozenset(str)
+        Name of all the free parameters (but `loc`) needed to characterize the distribution.
+        Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
+        then it will be used for user-input validation of parameter "xxx".
+    factory : None or function(free parameters values) -> torch.distributions.Distribution
+        The factory for the distribution family.
     """
 
     factory = MultinomialDistribution
@@ -113,8 +141,10 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
         predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.Tensor:
-        """Compute the negative log-likelihood and its gradient wrt predictions."""
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """
+        Compute the negative log-likelihood and its gradient wrt predictions.
+        """
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
         sf = data.get_one_hot_encoding(sf=True, ordinal_infos=self.ordinal_infos)
         cdf = (1.0 - sf) * self.mask[None, None, ...]

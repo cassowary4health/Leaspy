@@ -10,7 +10,24 @@ NoiseModelFactoryInput = Union[str, BaseNoiseModel, KwargsType]
 
 
 def _noise_model_class(name: str) -> Type[BaseNoiseModel]:
-    """Get noise-model class from its code name."""
+    """
+    Get noise-model class from its code name.
+
+    Parameters
+    ----------
+    name : str
+        Code name of the desired noise model.
+
+    Returns
+    -------
+    BaseNoiseModel :
+        The requested noise model class.
+
+    Raises
+    ------
+    LeaspyModelInputError
+        If the noise model name is not supported.
+    """
     name = name.lower().replace("_", "-")
     kls = NOISE_MODELS.get(name, None)
     if kls is None:
@@ -22,7 +39,24 @@ def _noise_model_class(name: str) -> Type[BaseNoiseModel]:
 
 
 def _noise_model_name(kls: Type[BaseNoiseModel]) -> str:
-    """Get code name of a noise-model class."""
+    """
+    Get code name of a noise-model class.
+
+    Parameters
+    ----------
+    kls : BaseNoiseModel
+        The noise model class from which to retrieve the code name.
+
+    Returns
+    ------
+    str :
+        The code name for the provided noise model class.
+
+    Raises
+    ------
+    NotImplementedError
+        If the name does not match any implemented noise model.
+    """
     name = {v: k for k, v in NOISE_MODELS.items()}.get(kls, None)
     if name is None:
         raise NotImplementedError(
@@ -32,13 +66,27 @@ def _noise_model_name(kls: Type[BaseNoiseModel]) -> str:
 
 
 def _noise_model_kwargs_to_params_hyperparams(
-    kls: Type[BaseNoiseModel], kws: Optional[KwargsType]
+    kls: Type[BaseNoiseModel],
+    kws: Optional[KwargsType],
 ) -> Tuple[Optional[KwargsType], KwargsType]:
-    """We split the input keyword arguments as a tuple (parameters: dict | None, hyperparameters: dict)."""
+    """
+    Split the input keyword arguments as a tuple
+    (parameters: dict | None, hyperparameters: dict).
 
+    Parameters
+    ----------
+    kls : BaseNoiseModel
+        The noise model class for which to split the input kwargs.
+    kws : KwargsType, optional
+        The input kwargs to be split.
+
+    Returns
+    -------
+    tuple :
+        The parameters and the hyperparameters as a tuple.
+    """
     if kws is None:
         return None, {}
-
     params = {k: v for k, v in kws.items() if k in kls.free_parameters}
     hyperparams = {k: v for k, v in kws.items() if k not in kls.free_parameters}
 
@@ -46,7 +94,19 @@ def _noise_model_kwargs_to_params_hyperparams(
 
 
 def noise_model_export(noise_model: BaseNoiseModel) -> KwargsType:
-    """Serialization of a BaseNoiseModel that can then be used as input in `noise_model_factory`."""
+    """
+    Serialize a given BaseNoiseModel as a dictionary.
+
+    Parameters
+    ----------
+    noise_model : BaseNoiseModel
+        The noise model to serialize.
+
+    Returns
+    -------
+    KwargsType :
+        The noise model serialized as a dict.
+    """
     return dict(
         name=_noise_model_name(noise_model.__class__),
         **noise_model.to_dict(),

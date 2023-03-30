@@ -1,14 +1,12 @@
 """Module defining the Bernoulli noise model."""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
 import torch
+from typing import Union, Tuple
 
 from .base import DistributionFamily, BaseNoiseModel
-
-if TYPE_CHECKING:
-    from leaspy.io.data.dataset import Dataset
+from leaspy.io.data.dataset import Dataset
 
 
 class BernoulliFamily(DistributionFamily):
@@ -31,8 +29,10 @@ class BernoulliNoiseModel(BernoulliFamily, BaseNoiseModel):
         predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.Tensor:
-        """Compute the negative log-likelihood and its gradient wrt predictions."""
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """
+        Compute the negative log-likelihood and its gradient wrt predictions.
+        """
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
         ll = data.values * torch.log(predictions) + (1.0 - data.values) * torch.log(
             1.0 - predictions

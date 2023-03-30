@@ -108,6 +108,23 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Compute the negative log-likelihood and its gradient wrt predictions.
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The dataset related to the computation of the log likelihood.
+        predictions: :class:`torch.Tensor`
+            The model's predictions from which to compute the log likelihood.
+        with_gradient: bool, optional
+            If True, returns also the gradient of the negative log likelihood
+            wrt the predictions.
+            If False, only returns the negative log likelihood.
+            Default=False.
+
+        Returns
+        -------
+        :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
+            The negative log likelihood (and its jacobian if requested).
         """
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
         pdf = data.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
@@ -144,6 +161,23 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Compute the negative log-likelihood and its gradient wrt predictions.
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The dataset related to the computation of the log likelihood.
+        predictions: :class:`torch.Tensor`
+            The model's predictions from which to compute the log likelihood.
+        with_gradient: bool, optional
+            If True, returns also the gradient of the negative log likelihood
+            wrt the predictions.
+            If False, only returns the negative log likelihood.
+            Default=False.
+
+        Returns
+        -------
+        :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
+            The negative log likelihood (and its jacobian if requested).
         """
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
         sf = data.get_one_hot_encoding(sf=True, ordinal_infos=self.ordinal_infos)

@@ -9,6 +9,8 @@ from typing import (
     Any,
     Iterable,
     FrozenSet,
+    Union,
+    Tuple,
 )
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -27,6 +29,16 @@ T = TypeVar("T")
 def constant_return_factory(x: T) -> Callable[[], T]:
     """
     Return a function returning the input value.
+
+    Parameters
+    ----------
+    x : T
+        The input value.
+
+    Returns
+    -------
+    Callable :
+        The constant return factory.
     """
     def constant_return():
         """
@@ -42,6 +54,16 @@ def value_to_tensor(x: Any) -> torch.Tensor:
     Transform input values to tensors.
 
     Not intended to be used on values not castable to tensors, e.g. None.
+
+    Parameters
+    ----------
+    x : Any
+        The value that should be converted to a tensor.
+
+    Returns
+    -------
+    :class:`torch.Tensor`
+        The value converted to a tensor.
     """
     if isinstance(x, torch.Tensor):
         return x
@@ -171,8 +193,16 @@ class NoNoise(DistributionFamily):
     A dummy noise model that only returns the provided values.
 
     This model may be useful for simulation.
-    """
 
+    Attributes
+    ----------
+    free_parameters: frozenset(str)
+        Name of all the free parameters (but `loc`) needed to characterize the distribution.
+        Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
+        then it will be used for user-input validation of parameter "xxx".
+    factory : None or function(free parameters values) -> torch.distributions.Distribution
+        The factory for the distribution family.
+    """
     factory = None
     free_parameters = frozenset()
 
@@ -204,10 +234,27 @@ class BaseNoiseModel(ABC, DistributionFamily):
         predictions: torch.Tensor,
         *,
         with_gradient: bool = False,
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Compute negative log-likelihood of data given model predictions
         (no summation), and its gradient w.r.t. predictions if requested.
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The dataset related to the computation of the log likelihood.
+        predictions: :class:`torch.Tensor`
+            The model's predictions from which to compute the log likelihood.
+        with_gradient: bool, optional
+            If True, returns also the gradient of the negative log likelihood
+            wrt the predictions.
+            If False, only returns the negative log likelihood.
+            Default=False.
+
+        Returns
+        -------
+        :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
+            The negative log likelihood (and its jacobian if requested).
         """
 
     def compute_canonical_loss(
@@ -219,6 +266,18 @@ class BaseNoiseModel(ABC, DistributionFamily):
         Compute a human-friendly overall loss (independent from instance parameters),
         useful as a measure of goodness-of-fit after personalization (nll by default -
         assuming no free parameters).
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The dataset related to the computation of the log likelihood.
+        predictions: :class:`torch.Tensor`
+            The model's predictions from which to compute the canonical loss.
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            The computed loss.
         """
         return self.compute_nll(data, predictions).sum()
 
@@ -230,6 +289,18 @@ class BaseNoiseModel(ABC, DistributionFamily):
         """
         Computes the set of noise-related sufficient statistics
         and metrics (to be extended in child class).
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The dataset related to the computation of the sufficient statistics.
+        predictions: :class:`torch.Tensor`
+            The model's predictions from which to compute the sufficient statistics.
+
+        Returns
+        -------
+        DictParamsTorch:
+            The sufficient statistics.
         """
         return {}
 
@@ -240,6 +311,13 @@ class BaseNoiseModel(ABC, DistributionFamily):
     ) -> None:
         """
         Updates noise-model parameters in-place (nothing done by default).
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The dataset related to the computation of the log likelihood.
+        sufficient_statistics: DictParamsTorch
+            The sufficient statistics to use for parameter update.
         """
         pass
 
@@ -250,5 +328,12 @@ class BaseNoiseModel(ABC, DistributionFamily):
     ) -> None:
         """
         Updates noise-model parameters in-place (nothing done by default).
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The dataset related to the computation of the log likelihood.
+        predictions: :class:`torch.Tensor`
+            The model's predictions from which to update the parameters.
         """
         pass

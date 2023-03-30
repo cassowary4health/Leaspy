@@ -77,7 +77,7 @@ class DistributionFamily:
 
     Attributes
     ----------
-    free_parameters: frozenset(str)
+    free_parameters : frozenset(str)
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
         Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
         then it will be used for user-input validation of parameter "xxx".
@@ -104,7 +104,7 @@ class DistributionFamily:
 
         Parameters
         ----------
-        params : Any
+        **params : Any
             The parameters to validate.
 
         Returns
@@ -180,7 +180,7 @@ class DistributionFamily:
 
         Parameters
         ----------
-        validate: bool, optional
+        validate : bool, optional
             If True, the provided parameters are validated before being updated.
             Default=False.
 
@@ -205,7 +205,7 @@ class DistributionFamily:
 
         Returns
         -------
-        :class:`torch.Tensor`:
+        :class:`torch.Tensor` :
             The requested sample.
         """
         return self.sampler_around(loc)()
@@ -259,7 +259,7 @@ class NoNoise(DistributionFamily):
 
     Attributes
     ----------
-    free_parameters: frozenset(str)
+    free_parameters : frozenset(str)
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
         Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
         then it will be used for user-input validation of parameter "xxx".
@@ -306,9 +306,9 @@ class BaseNoiseModel(ABC, DistributionFamily):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the log likelihood.
-        with_gradient: bool, optional
+        with_gradient : bool, optional
             If True, returns also the gradient of the negative log likelihood
             wrt the predictions.
             If False, only returns the negative log likelihood.
@@ -334,7 +334,7 @@ class BaseNoiseModel(ABC, DistributionFamily):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the canonical loss.
 
         Returns
@@ -357,12 +357,12 @@ class BaseNoiseModel(ABC, DistributionFamily):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the sufficient statistics.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the sufficient statistics.
 
         Returns
         -------
-        DictParamsTorch:
+        DictParamsTorch :
             The sufficient statistics.
         """
         return {}
@@ -379,7 +379,7 @@ class BaseNoiseModel(ABC, DistributionFamily):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics: DictParamsTorch
+        sufficient_statistics : DictParamsTorch
             The sufficient statistics to use for parameter update.
         """
         pass
@@ -396,7 +396,7 @@ class BaseNoiseModel(ABC, DistributionFamily):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to update the parameters.
         """
         pass

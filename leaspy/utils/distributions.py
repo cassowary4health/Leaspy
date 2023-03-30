@@ -68,6 +68,11 @@ class MultinomialDistribution(torch.distributions.Distribution):
         """
         Generate a new MultinomialDistribution from its probability density
         function instead of its survival function.
+
+        Parameters
+        ----------
+        pdf : :class:`torch.Tensor`
+            The input probability density function.
         """
         return cls(discrete_sf_from_pdf(pdf))
 

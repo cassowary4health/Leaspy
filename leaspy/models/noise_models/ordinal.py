@@ -30,6 +30,11 @@ class AbstractOrdinalNoiseModel(BaseNoiseModel):
         Serialize instance as dictionary.
         Do NOT export hyper-parameters that are derived
         (error-prone and boring checks when re-creating).
+
+        Returns
+        -------
+        KwargsType :
+            The instance serialized as a dictionary.
         """
         return {"max_levels": self.max_levels}
 

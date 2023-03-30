@@ -404,6 +404,13 @@ class MultivariateModel(AbstractMultivariateModel):
     def update_MCMC_toolbox(self, vars_to_update: set, realizations: CollectionRealization) -> None:
         """
         Update the model's MCMC toolbox attribute with the provided vars_to_update.
+
+        Parameters
+        ----------
+        vars_to_update : set
+            The set of variable names to be updated.
+        realizations : CollectionRealization
+            The realizations to use for updating the MCMC toolbox.
         """
         values = {}
         update_all = 'all' in vars_to_update
@@ -413,9 +420,7 @@ class MultivariateModel(AbstractMultivariateModel):
             values['v0'] = realizations['v0'].tensor_realizations
         if self.source_dimension != 0 and (update_all or 'betas' in vars_to_update):
             values['betas'] = realizations['betas'].tensor_realizations
-
         self._update_MCMC_toolbox_ordinal(vars_to_update, realizations, values)
-
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
     def _center_xi_realizations(self, realizations: CollectionRealization) -> None:
@@ -427,16 +432,36 @@ class MultivariateModel(AbstractMultivariateModel):
         Nor all model computations (only v0 * exp(xi_i) matters),
         it is only intended for model identifiability / `xi_i` regularization
         <!> all operations are performed in "log" space (v0 is log'ed)
+
+        Parameters
+        ----------
+        realizations : CollectionRealization
+            The realizations to use for updating the MCMC toolbox.
         """
         mean_xi = torch.mean(realizations['xi'].tensor_realizations)
         realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
         realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
-
         self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
-    def compute_model_sufficient_statistics(self, data: Dataset, realizations: CollectionRealization) -> dict:
+    def compute_model_sufficient_statistics(
+        self,
+        data: Dataset,
+        realizations: CollectionRealization,
+    ) -> DictParamsTorch:
         """
         Compute the model's sufficient statistics.
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The input dataset.
+        realizations : CollectionRealization
+            The realizations from which to compute the model's sufficient statistics.
+
+        Returns
+        -------
+        DictParamsTorch :
+            The computed sufficient statistics.
         """
         # modify realizations in-place
         self._center_xi_realizations(realizations)
@@ -467,6 +492,13 @@ class MultivariateModel(AbstractMultivariateModel):
             - *_mean/std for regularization of individual variables
             - others population parameters for regularization of population variables
         We don't need to update the model "attributes" (never used during burn-in!)
+
+        Parameters
+        ----------
+        data : :class:`.Dataset`
+            The input dataset.
+        sufficient_statistics : DictParamsTorch
+            The sufficient statistics to use for parameter update.
         """
         # Memoryless part of the algorithm
         self.parameters['g'] = sufficient_statistics['g']
@@ -510,8 +542,10 @@ class MultivariateModel(AbstractMultivariateModel):
 
         Parameters
         ----------
-        data
-        sufficient_statistics
+        data : :class:`.Dataset`
+            The input dataset.
+        sufficient_statistics : DictParamsTorch
+            The sufficient statistics to use for parameter update.
         """
         from .utilities import compute_std_from_variance
 

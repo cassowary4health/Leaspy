@@ -12,7 +12,7 @@ from leaspy.models.utils.ordinal import OrdinalModelMixin
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.realizations.collection_realization import CollectionRealization
 
-from leaspy.utils.typing import KwargsType, Set, Optional
+from leaspy.utils.typing import KwargsType, Set, Optional, DictParamsTorch
 from leaspy.utils.docs import doc_with_super
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -67,6 +67,14 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     def initialize(self, dataset: Dataset, method: str = 'default') -> None:
         """
         Overloads base initialization of model (base method takes care of features consistency checks).
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            Input dataset from which to initialize the model.
+        method : str, optional
+            The initialization method to be used.
+            Default='default'.
         """
         super().initialize(dataset, method=method)
 
@@ -96,7 +104,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     @abstractmethod
     def initialize_MCMC_toolbox(self) -> None:
         """
-        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
+        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model.
         """
         # TODO to move in a "MCMC-model interface"
 
@@ -114,14 +122,20 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         """
         # TODO to move in a "MCMC-model interface"
 
-    def load_parameters(self, parameters: dict) -> None:
+    def load_parameters(self, parameters: KwargsType) -> None:
         """
         Updates all model parameters from the provided parameters.
+
+        Parameters
+        ----------
+        parameters : KwargsType
+            The parameters to be loaded.
         """
         self.parameters = {}
         for k, v in parameters.items():
             if k in ('mixing_matrix',):
-                # The mixing matrix will always be recomputed from `betas` and the other needed model parameters (g, v0)
+                # The mixing matrix will always be recomputed from `betas`
+                # and the other needed model parameters (g, v0)
                 continue
             if not isinstance(v, torch.Tensor):
                 v = torch.tensor(v)
@@ -141,6 +155,11 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
         """
         Updates all model hyperparameters from the provided hyperparameters.
+
+        Parameters
+        ----------
+        hyperparameters : KwargsType
+            The hyperparameters to be loaded.
         """
         expected_hyperparameters = ('features', 'dimension', 'source_dimension')
 
@@ -184,9 +203,6 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             (orthonormal basis is recomputed from other "true" parameters and mixing matrix
             is then deduced from this orthonormal basis and the betas)!
             It was integrated historically because it is used for convenience in browser webtool and only there...
-        **kwargs
-            Keyword arguments for json.dump method.
-            Default to: dict(indent=2)
 
         Returns
         -------
@@ -207,10 +223,26 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     def compute_individual_tensorized(
         self,
         timepoints: torch.Tensor,
-        individual_parameters,
+        individual_parameters: DictParamsTorch,
         *,
         attribute_type=None,
     ) -> torch.Tensor:
+        """
+        Compute the individual trajectories.
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor`
+            The time points for which to compute the trajectory.
+        individual_parameters : DictParamsTorch
+            The individual parameters to use.
+        attribute_type : Any, optional
+
+        Returns
+        -------
+        :class:`torch.Tensor` :
+            Individual trajectories.
+        """
         pass
 
     def compute_mean_traj(

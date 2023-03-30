@@ -109,8 +109,13 @@ class AbstractModel(BaseModel):
 
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
         """
-        Raise a ValueError is the provided noise model isn't compatible with the model instance.
+        Raise a LeaspyModelInputError is the provided noise model isn't compatible with the model instance.
         This needs to be implemented in subclasses.
+
+        Parameters
+        ----------
+        model : BaseNoiseModel
+            The noise model with which to check compatibility.
         """
         if not isinstance(model, BaseNoiseModel):
             raise LeaspyModelInputError(
@@ -122,6 +127,11 @@ class AbstractModel(BaseModel):
     def to_dict(self) -> KwargsType:
         """
         Export model as a dictionary ready for export.
+
+        Returns
+        -------
+        KwargsType :
+            The model instance serialized as a dictionary.
         """
         return {
             'leaspy_version': __version__,
@@ -345,8 +355,8 @@ class AbstractModel(BaseModel):
 
     def _get_tensorized_inputs(
         self,
-        timepoints,
-        individual_parameters,
+        timepoints: torch.Tensor,
+        individual_parameters: DictParamsTorch,
         *,
         skip_ips_checks: bool = False,
     ) -> Tuple[torch.Tensor, DictParamsTorch]:
@@ -462,15 +472,16 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        value : torch.Tensor of shape (1, n_values)
+        value : :class:`torch.Tensor` of shape (1, n_values)
             Contains the biomarker value(s) of the subject.
 
-        individual_parameters : dict
+        individual_parameters : DictParamsTorch
             Contains the individual parameters.
             Each individual parameter should be a torch.Tensor
 
         feature : str (or None)
-            Name of the considered biomarker (optional for univariate models, compulsory for multivariate models).
+            Name of the considered biomarker (optional for univariate models,
+            compulsory for multivariate models).
 
         Returns
         -------
@@ -485,7 +496,7 @@ class AbstractModel(BaseModel):
         timepoints: torch.Tensor,
         individual_parameters: DictParamsTorch,
         *,
-        attribute_type=None,
+        attribute_type: Optional[str] = None,
     ) -> torch.Tensor:
         """
         Compute the individual values at timepoints according to the model.
@@ -496,7 +507,7 @@ class AbstractModel(BaseModel):
 
         individual_parameters : dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_dims_param)]
 
-        attribute_type : Any (default None)
+        attribute_type : str or None
             Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
@@ -510,7 +521,7 @@ class AbstractModel(BaseModel):
         timepoints: torch.Tensor,
         individual_parameters: DictParamsTorch,
         *,
-        attribute_type=None,
+        attribute_type: Optional[str] = None,
     ) -> DictParamsTorch:
         """
         Compute the jacobian of the model w.r.t. each individual parameter.
@@ -527,7 +538,7 @@ class AbstractModel(BaseModel):
 
         individual_parameters : dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_dims_param)]
 
-        attribute_type : Any (default None)
+        attribute_type : str or None
             Flag to ask for MCMC attributes instead of model's attributes.
 
         Returns
@@ -540,7 +551,7 @@ class AbstractModel(BaseModel):
         data: Dataset,
         param_ind: DictParamsTorch,
         *,
-        attribute_type=None,
+        attribute_type: Optional[str] = None,
     ) -> torch.Tensor:
         """
         Compute attachment term (per subject)
@@ -551,8 +562,8 @@ class AbstractModel(BaseModel):
             Contains the data of the subjects, in particular the subjects'
             time-points and the mask for nan values & padded visits
 
-        param_ind : dict
-            Contain the individual parameters
+        param_ind : DictParamsTorch
+            Contain the individual parameters.
 
         attribute_type : str or None
             Flag to ask for MCMC attributes instead of model's attributes.
@@ -873,7 +884,7 @@ class AbstractModel(BaseModel):
         *,
         include_constant: bool = True,
         with_gradient: bool = False,
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Compute regularity term (Gaussian distribution) and optionally its gradient wrt value.
 
@@ -905,7 +916,8 @@ class AbstractModel(BaseModel):
 
     def initialize_realizations_for_model(self, n_individuals: int, **init_kws) -> CollectionRealization:
         """
-        Initialize a :class:`.CollectionRealization` used during model fitting or mode/mean realization personalization.
+        Initialize a :class:`.CollectionRealization` used during model fitting
+        or mode/mean realization personalization.
 
         Parameters
         ----------

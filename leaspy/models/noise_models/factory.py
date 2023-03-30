@@ -48,7 +48,7 @@ def _noise_model_name(kls: Type[BaseNoiseModel]) -> str:
         The noise model class from which to retrieve the code name.
 
     Returns
-    ------
+    -------
     str :
         The code name for the provided noise model class.
 

@@ -88,7 +88,7 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
 
     Attributes
     ----------
-    free_parameters: frozenset(str)
+    free_parameters : frozenset(str)
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
         Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
         then it will be used for user-input validation of parameter "xxx".
@@ -113,9 +113,9 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the log likelihood.
-        with_gradient: bool, optional
+        with_gradient : bool, optional
             If True, returns also the gradient of the negative log likelihood
             wrt the predictions.
             If False, only returns the negative log likelihood.
@@ -141,7 +141,7 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
 
     Attributes
     ----------
-    free_parameters: frozenset(str)
+    free_parameters : frozenset(str)
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
         Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
         then it will be used for user-input validation of parameter "xxx".
@@ -166,9 +166,9 @@ class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the log likelihood.
-        with_gradient: bool, optional
+        with_gradient : bool, optional
             If True, returns also the gradient of the negative log likelihood
             wrt the predictions.
             If False, only returns the negative log likelihood.

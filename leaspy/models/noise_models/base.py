@@ -87,7 +87,6 @@ class DistributionFamily:
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
     """
-
     parameters: Optional[DictParamsTorch] = None
 
     free_parameters: ClassVar[FrozenSet[str]]
@@ -102,6 +101,16 @@ class DistributionFamily:
     def validate(self, **params: Any) -> DictParamsTorch:
         """
         Validation function for parameters (based on 'validate_xxx' methods).
+
+        Parameters
+        ----------
+        params : Any
+            The parameters to validate.
+
+        Returns
+        -------
+        DictParamsTorch :
+            The validated parameters.
         """
         self.raise_if_unknown_parameters(params)
         return {
@@ -114,6 +123,11 @@ class DistributionFamily:
     def raise_if_unknown_parameters(cls, params: Optional[Iterable]) -> None:
         """
         Raise an error if the provided parameters are not part of the free parameters.
+
+        Parameters
+        ----------
+        params : Iterable, optional
+            The list of parameters to analyze.
         """
         unknown_params = set(params or ()).difference(cls.free_parameters)
         if len(unknown_params):
@@ -134,6 +148,11 @@ class DistributionFamily:
     def to_dict(self) -> KwargsType:
         """
         Serialize instance as dictionary.
+
+        Returns
+        -------
+        KwargsType :
+            The instance serialized as a dictionary.
         """
         return {k: tensor_to_list(v) for k, v in (self.parameters or {}).items()}
 
@@ -141,6 +160,11 @@ class DistributionFamily:
         """
         Move all torch tensors stored in this instance to
         the provided device (parameters & hyperparameters).
+
+        Parameters
+        ----------
+        device : torch.device
+            Torch device on which to move the tensors.
         """
         for k, v in vars(self).items():
             if isinstance(v, torch.Tensor):
@@ -153,6 +177,15 @@ class DistributionFamily:
     ) -> None:
         """
         (Partial) update of the free parameters of the distribution family.
+
+        Parameters
+        ----------
+        validate: bool, optional
+            If True, the provided parameters are validated before being updated.
+            Default=False.
+
+        parameters : :class:`torch.Tensor`
+            The new parameters.
         """
         if validate:
             parameters = self.validate(**parameters)
@@ -164,12 +197,32 @@ class DistributionFamily:
     def sample_around(self, loc: torch.Tensor) -> torch.Tensor:
         """
         Realization around `loc` with respect to partially defined distribution.
+
+        Parameters
+        ----------
+        loc : :class:`torch.Tensor`
+            The loc around which to sample.
+
+        Returns
+        -------
+        :class:`torch.Tensor`:
+            The requested sample.
         """
         return self.sampler_around(loc)()
 
     def sampler_around(self, loc: torch.Tensor) -> Callable[[], torch.Tensor]:
         """
         Return the sampling function around input values.
+
+        Parameters
+        ----------
+        loc : :class:`torch.Tensor`
+            The loc around which to sample.
+
+        Returns
+        -------
+        Callable :
+            The sampler.
         """
         if self.factory is None:
             return constant_return_factory(loc)
@@ -178,6 +231,16 @@ class DistributionFamily:
     def rv_around(self, loc: torch.Tensor) -> torch.distributions.Distribution:
         """
         Return the torch distribution centred around values (only if noise is not None).
+
+        Parameters
+        ----------
+        loc : :class:`torch.Tensor`
+            The loc around which to sample.
+
+        Returns
+        -------
+        torch.distributions.Distribution :
+            The torch distribution centered around the loc.
         """
         if self.factory is None:
             raise LeaspyInputError(

@@ -40,7 +40,7 @@ class GaussianFamily(DistributionFamily):
 
         Parameters
         ----------
-        scale: :class:`torch.Tensor`
+        scale : :class:`torch.Tensor`
             The scale to validate.
 
         Returns
@@ -81,7 +81,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
 
         Parameters
         ----------
-        scale: :class:`torch.Tensor`
+        scale : :class:`torch.Tensor`
             The scale to validate.
 
         Returns
@@ -108,12 +108,12 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the residuals.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the residuals.
 
         Returns
         -------
-        :class:`torch.Tensor`:
+        :class:`torch.Tensor` :
             The residuals.
         """
         return data.mask.float() * (predictions - data.values)
@@ -129,12 +129,12 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the squared residuals.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the squared residuals.
 
         Returns
         -------
-        :class:`torch.Tensor`:
+        :class:`torch.Tensor` :
             The squared residuals.
         """
         res = cls.get_residuals(data, predictions)
@@ -146,12 +146,12 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
 
         Parameters
         ----------
-        dimension: int
+        dimension : int
             The dimension in which to expand the noise variance.
 
         Returns
         -------
-        :class:`torch.Tensor`:
+        :class:`torch.Tensor` :
             The noise variance expanded in requested dimension.
         """
         self.raise_if_partially_defined()
@@ -175,12 +175,12 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        residuals: :class:`torch.Tensor`
+        residuals : :class:`torch.Tensor`
             The residuals from which to compute the negative log likelihood.
-        incl_const: bool, optional
+        incl_const : bool, optional
             If True, adds a constant term to the negative log likelihood.
             Default=True.
-        with_gradient: bool, optional
+        with_gradient : bool, optional
             If True, returns also the jacobian of the negative log likelihood
             wrt the predictions. If False, only returns the negative log likelihood.
             Default=False.
@@ -217,9 +217,9 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the log likelihood.
-        with_gradient: bool, optional
+        with_gradient : bool, optional
             If True, returns also the gradient of the negative log likelihood
             wrt the predictions.
             If False, only returns the negative log likelihood.
@@ -245,12 +245,12 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the sufficient statistics.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the sufficient statistics.
 
         Returns
         -------
-        DictParamsTorch:
+        DictParamsTorch :
             The sufficient statistics.
         """
         predictions = data.mask.float() * predictions
@@ -271,7 +271,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics: DictParamsTorch
+        sufficient_statistics : DictParamsTorch
             The sufficient statistics to use for parameter update.
         """
         noise_var = self._compute_noise_variance_from_sufficient_statistics(
@@ -295,7 +295,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics: dict
+        sufficient_statistics : dict
             The sufficient statistics to use for variance computation.
         """
         ...
@@ -310,7 +310,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to update the parameters.
         """
         self.update_parameters(scale=self.compute_rmse(data, predictions))
@@ -326,7 +326,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the root mean squared error.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the root mean squared error.
 
         Returns
@@ -352,7 +352,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        l2_residuals: :class:`torch.Tensor`
+        l2_residuals : :class:`torch.Tensor`
             The squared residuals from which to compute the mean squared error.
 
         Returns
@@ -375,7 +375,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        predictions: :class:`torch.Tensor`
+        predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the canonical loss.
 
         Returns
@@ -406,7 +406,7 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
 
         Parameters
         ----------
-        scale: :class:`torch.Tensor`
+        scale : :class:`torch.Tensor`
             The scale to validate.
 
         Returns
@@ -428,7 +428,7 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        l2_res: :class:`torch.Tensor`
+        l2_res : :class:`torch.Tensor`
             The squared residuals.
 
         Returns
@@ -452,12 +452,12 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics: dict
+        sufficient_statistics : dict
             The sufficient statistics from which to compute the noise variance.
 
         Returns
         -------
-        :class:`torch.Tensor`:
+        :class:`torch.Tensor` :
             The computed noise variance.
         """
         s1 = sufficient_statistics["obs_x_reconstruction"].sum()
@@ -483,7 +483,7 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
 
         Parameters
         ----------
-        scale: :class:`torch.Tensor`
+        scale : :class:`torch.Tensor`
             The scale to validate.
 
         Returns
@@ -505,7 +505,7 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        l2_res: :class:`torch.Tensor`
+        l2_res : :class:`torch.Tensor`
             The squared residuals.
 
         Returns
@@ -529,12 +529,12 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics: dict
+        sufficient_statistics : dict
             The sufficient statistics from which to compute the noise variance.
 
         Returns
         -------
-        :class:`torch.Tensor`:
+        :class:`torch.Tensor` :
             The computed noise variance.
         """
         s1 = sufficient_statistics["obs_x_reconstruction"].sum(dim=(0, 1))

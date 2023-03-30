@@ -81,11 +81,6 @@ class DistributionFamily:
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
         Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
         then it will be used for user-input validation of parameter "xxx".
-    factory : None or function(free parameters values) -> torch.distributions.Distribution
-        The factory for the distribution family.
-    parameters : dict[str, torch.Tensor] or None
-        Values for all the free parameters of the distribution family.
-        All of them must have values before using the sampling methods.
 
     Attributes
     ----------

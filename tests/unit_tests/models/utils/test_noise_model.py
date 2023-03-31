@@ -135,7 +135,9 @@ class TestBernoulliNoiseModel(LeaspyTestCase):
 
     def test_sample_around_zero_and_one(self):
         for loc in (torch.tensor([0., 0.]), torch.tensor([[1.]]), torch.tensor([[0.], [1.]])):
-            self.assertEqual(self.model.sample_around(loc), loc)
+            self.assertTrue(
+                torch.equal(self.model.sample_around(loc), loc)
+            )
 
     def test_sample_around_exception_bad_range(self):
         with self.assertRaises(Exception):
@@ -153,6 +155,7 @@ class TestBernoulliNoiseModel(LeaspyTestCase):
 class TestGaussianScalarNoiseModel(LeaspyTestCase):
 
     model = GaussianScalarNoiseModel()
+    scale = torch.tensor([.05])
 
     def test_constructor(self):
         self.assertIsInstance(self.model, BaseNoiseModel)
@@ -176,7 +179,7 @@ class TestGaussianScalarNoiseModel(LeaspyTestCase):
             m = GaussianScalarNoiseModel()
             m.update_parameters(
                 validate=True,
-                scale=torch.tensor([.05]),
+                scale=self.scale,
                 foo=5.0,  # noqa
             )
 
@@ -190,21 +193,61 @@ class TestGaussianScalarNoiseModel(LeaspyTestCase):
         with self.assertRaises(Exception):
             self.model.sample_around('0.5')  # noqa
 
+    def test_non_univariate_error(self):
+        """Test that an error is raise when providing a non-univariate scale."""
+        with self.assertRaises(Exception):
+            self.model.update_parameters(
+                validate=True,
+                scale=torch.tensor([.1, .5]),
+            )
+
 
 class TestGaussianDiagonalNoiseModel(LeaspyTestCase):
+
+    model = GaussianDiagonalNoiseModel()
+    scale = torch.tensor([.03, .07, .02, .081293])
+
     def test_constructor(self):
-        """Test the initialization"""
-        model = GaussianDiagonalNoiseModel()
-        self.assertIsInstance(model, BaseNoiseModel)
-        self.assertIsInstance(model, DistributionFamily)
-        self.assertIs(model.scale_dimension, None)
-        self.assertEqual(model.factory, torch.distributions.Normal)
-        self.assertEqual(len(model.free_parameters), 1)
-        self.assertIs(model.parameters, None)
+        self.assertIsInstance(self.model, BaseNoiseModel)
+        self.assertIsInstance(self.model, DistributionFamily)
+        self.assertIs(self.model.scale_dimension, None)
+        self.assertEqual(self.model.factory, torch.distributions.Normal)
+        self.assertEqual(len(self.model.free_parameters), 1)
+        self.assertIs(self.model.parameters, None)
 
     def test_to_dict(self):
-        model = GaussianDiagonalNoiseModel()
-        self.assertEqual(model.to_dict(), {})
+        self.assertEqual(self.model.to_dict(), {})
+
+    def test_constructor_error_bad_param_name(self):
+        with self.assertRaises(Exception):
+            GaussianDiagonalNoiseModel(Scale=5.)  # noqa
+        with self.assertRaises(Exception):
+            GaussianDiagonalNoiseModel(foo=5.)  # noqa
+
+    def test_constructor_error_bad_extra_param_name(self):
+        with self.assertRaises(Exception):
+            m = GaussianDiagonalNoiseModel()
+            m.update_parameters(
+                validate=True,
+                scale=self.scale,
+                foo=5.0,  # noqa
+            )
+
+    def test_sample_around_errors_in_scale(self):
+        with self.assertRaises(Exception):
+            m = GaussianDiagonalNoiseModel()
+            m.update_parameters(scale=0.)  # noqa
+            m.sample_around(torch.tensor([1.]))
+
+    def test_sample_around_errors_type(self):
+        with self.assertRaises(Exception):
+            self.model.sample_around('0.5')  # noqa
+
+    def test_sample_around_incompatibility_loc_and_shape(self):
+        with self.assertRaises(Exception):
+            self.model.sample_around(torch.zeros((len(self.scale) + 1,)))
+        with self.assertRaises(Exception):
+            self.model.sample_around(torch.zeros((len(self.scale), 42)))
 
 
 class TestOrdinalNoiseModel(LeaspyTestCase):
@@ -224,16 +267,51 @@ class TestOrdinalNoiseModel(LeaspyTestCase):
 
 
 class TestOrdinalRankingNoiseModel(LeaspyTestCase):
+
+    model = OrdinalRankingNoiseModel()
+
     def test_constructor(self):
-        """Test the initialization"""
-        model = OrdinalRankingNoiseModel()
-        self.assertIsInstance(model, BaseNoiseModel)
-        self.assertIsInstance(model, DistributionFamily)
-        self.assertIs(model.max_levels, None)
-        self.assertEqual(model.factory, MultinomialDistribution)
-        self.assertEqual(len(model.free_parameters), 0)
-        self.assertIs(model.parameters, None)
+        self.assertIsInstance(self.model, BaseNoiseModel)
+        self.assertIsInstance(self.model, DistributionFamily)
+        self.assertIs(self.model.max_levels, None)
+        self.assertEqual(self.model.factory, MultinomialDistribution)
+        self.assertEqual(len(self.model.free_parameters), 0)
+        self.assertIs(self.model.parameters, None)
 
     def test_to_dict(self):
-        model = OrdinalRankingNoiseModel()
-        self.assertEqual(model.to_dict(), {'max_levels': None})
+        self.assertEqual(self.model.to_dict(), {'max_levels': None})
+
+    def test_sample_around_shapes(self):
+        """Check that shapes are correct."""
+        for shape in [(1, 2), (2, 3), (5, 4)]:
+            probs = torch.rand(shape)
+            probs = probs / probs.sum(dim=-1, keepdim=True)
+            sf = (1. - probs.cumsum(dim=-1))
+            rv = self.model.rv_around(sf)
+            self.assertIsInstance(rv, MultinomialDistribution)
+            sampler = self.model.sampler_around(sf)
+            self.assertEqual(
+                self.model.sample_around(sf).shape,
+                probs.shape[:-1]
+            )
+            self.assertEqual(sampler().shape, probs.shape[:-1])
+            self.assertEqual(rv.sample().shape, probs.shape[:-1])
+
+    def test_sample_around(self):
+        for loc, expected in zip(
+            [
+                torch.tensor([1., 0.]),
+                torch.tensor([[0., 0., 0.]]),
+                torch.tensor([[1., 1., 0.]]),
+                torch.tensor([[1., 1., 1.], [1., 0., 0.]])
+            ],
+            [
+                torch.tensor(1),
+                torch.tensor([0]),
+                torch.tensor([2]),
+                torch.tensor([3, 1])
+            ],
+        ):
+            self.assertTrue(
+                torch.equal(self.model.sample_around(loc), expected)
+            )

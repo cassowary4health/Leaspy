@@ -263,6 +263,12 @@ class NoNoise(DistributionFamily):
 
     This model may be useful for simulation.
 
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+
     Attributes
     ----------
     free_parameters : frozenset(str)
@@ -284,6 +290,12 @@ class BaseNoiseModel(ABC, DistributionFamily):
     Base class for valid noise models that may be used in probabilistic models.
 
     The negative log-likelihood (nll, to be minimized) always corresponds to attachment term in models.
+
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
 
     Attributes
     ----------

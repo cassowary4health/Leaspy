@@ -17,6 +17,14 @@ class AbstractOrdinalNoiseModel(BaseNoiseModel):
     """
     Base class for Ordinal noise models.
 
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+    max_levels : dict, optional
+        Maximum levels for ordinal noise.
+
     Attributes
     ----------
     max_levels : dict, optional
@@ -91,6 +99,14 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
     """
     Class implementing ordinal noise models (likelihood is based on PDF).
 
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+    max_levels : dict, optional
+        Maximum levels for ordinal noise.
+
     Attributes
     ----------
     free_parameters : frozenset(str)
@@ -143,6 +159,14 @@ class OrdinalNoiseModel(AbstractOrdinalNoiseModel):
 class OrdinalRankingNoiseModel(AbstractOrdinalNoiseModel):
     """
     Class implementing ordinal ranking noise models (likelihood is based on SF).
+
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+    max_levels : dict, optional
+        Maximum levels for ordinal noise.
 
     Attributes
     ----------

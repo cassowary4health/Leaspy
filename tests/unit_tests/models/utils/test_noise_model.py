@@ -251,19 +251,53 @@ class TestGaussianDiagonalNoiseModel(LeaspyTestCase):
 
 
 class TestOrdinalNoiseModel(LeaspyTestCase):
+
+    model = OrdinalNoiseModel()
+
     def test_constructor(self):
-        """Test the initialization"""
-        model = OrdinalNoiseModel()
-        self.assertIsInstance(model, BaseNoiseModel)
-        self.assertIsInstance(model, DistributionFamily)
-        self.assertIs(model.max_levels, None)
-        self.assertEqual(model.factory, MultinomialDistribution.from_pdf)
-        self.assertEqual(len(model.free_parameters), 0)
-        self.assertIs(model.parameters, None)
+        self.assertIsInstance(self.model, BaseNoiseModel)
+        self.assertIsInstance(self.model, DistributionFamily)
+        self.assertIs(self.model.max_levels, None)
+        self.assertEqual(self.model.factory, MultinomialDistribution.from_pdf)
+        self.assertEqual(len(self.model.free_parameters), 0)
+        self.assertIs(self.model.parameters, None)
 
     def test_to_dict(self):
-        model = OrdinalNoiseModel()
-        self.assertEqual(model.to_dict(), {'max_levels': None})
+        self.assertEqual(self.model.to_dict(), {'max_levels': None})
+
+    def test_sample_around_shapes(self):
+        """Check that shapes are correct."""
+        for shape in [(1, 2), (2, 3), (5, 4)]:
+            probs = torch.rand(shape)
+            probs = probs / probs.sum(dim=-1, keepdim=True)
+            rv = self.model.rv_around(probs)
+            self.assertIsInstance(rv, MultinomialDistribution)
+            sampler = self.model.sampler_around(probs)
+            self.assertEqual(
+                self.model.sample_around(probs).shape,
+                probs.shape[:-1]
+            )
+            self.assertEqual(sampler().shape, probs.shape[:-1])
+            self.assertEqual(rv.sample().shape, probs.shape[:-1])
+
+    def test_sample_around(self):
+        for loc, expected in zip(
+            [
+                torch.tensor([0., 1.]),
+                torch.tensor([[1., 0., 0.]]),
+                torch.tensor([[0., 0., 1.]]),
+                torch.tensor([[0., 1., 0.], [1., 0., 0.]]),
+            ],
+            [
+                torch.tensor(1),
+                torch.tensor([0]),
+                torch.tensor([2]),
+                torch.tensor([1, 0]),
+            ]
+        ):
+            self.assertTrue(
+                torch.equal(self.model.sample_around(loc), expected)
+            )
 
 
 class TestOrdinalRankingNoiseModel(LeaspyTestCase):
@@ -286,7 +320,7 @@ class TestOrdinalRankingNoiseModel(LeaspyTestCase):
         for shape in [(1, 2), (2, 3), (5, 4)]:
             probs = torch.rand(shape)
             probs = probs / probs.sum(dim=-1, keepdim=True)
-            sf = (1. - probs.cumsum(dim=-1))
+            sf = (1. - probs.cumsum(dim=-1)).clamp(min=0, max=1)
             rv = self.model.rv_around(sf)
             self.assertIsInstance(rv, MultinomialDistribution)
             sampler = self.model.sampler_around(sf)

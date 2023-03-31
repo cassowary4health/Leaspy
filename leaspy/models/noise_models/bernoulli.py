@@ -13,6 +13,12 @@ class BernoulliFamily(DistributionFamily):
     """
     Distribution family for Bernoulli noise model.
 
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+
     Attributes
     ----------
     free_parameters : frozenset(str)
@@ -29,6 +35,12 @@ class BernoulliFamily(DistributionFamily):
 class BernoulliNoiseModel(BernoulliFamily, BaseNoiseModel):
     """
     Class implementing Bernoulli noise models.
+
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
     """
 
     def compute_nll(

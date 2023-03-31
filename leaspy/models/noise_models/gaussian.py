@@ -22,6 +22,12 @@ class GaussianFamily(DistributionFamily):
     """
     Gaussian distribution family for Gaussian noise models.
 
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+
     Attributes
     ----------
     free_parameters : frozenset
@@ -61,6 +67,14 @@ class GaussianFamily(DistributionFamily):
 class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
     """
     Base class for Gaussian noise models.
+
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+    scale_dimension : int, optional
+        The scale dimension.
 
     Attributes
     ----------
@@ -390,6 +404,14 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
     """
     Class implementing scalar Gaussian noise models.
 
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+    scale_dimension : int, optional
+        The scale dimension.
+
     Attributes
     ----------
     scale_dimension : int, optional
@@ -468,6 +490,14 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
 class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
     """
     Class implementing diagonal Gaussian noise models.
+
+    Parameters
+    ----------
+    parameters : dict[str, torch.Tensor] or None
+        Values for all the free parameters of the distribution family.
+        All of them must have values before using the sampling methods.
+    scale_dimension : int, optional
+        The scale dimension.
 
     Attributes
     ----------

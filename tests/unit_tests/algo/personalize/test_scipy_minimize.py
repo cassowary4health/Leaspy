@@ -146,7 +146,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
         dataset = self._get_individual_dataset_from_times_values(leaspy.model, times, values)
         preds = leaspy.model.compute_individual_tensorized(dataset.timepoints, individual_parameters)
-        res = leaspy.model.noise_model.get_residuals(dataset, preds)
+        res = leaspy.model.noise_model.compute_residuals(dataset, preds)
 
         expected_res = torch.tensor([
             [-0.4705, -0.3278, -0.3103, -0.4477],
@@ -263,7 +263,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
         nll_regul = algo._get_regularity(leaspy.model, pyt_ips)[0]
         preds = leaspy.model.compute_individual_tensorized(dataset.timepoints, pyt_ips)
 
-        residuals_getter = getattr(leaspy.model.noise_model, 'get_residuals', None)
+        residuals_getter = getattr(leaspy.model.noise_model, 'compute_residuals', None)
         res = None
         if residuals_getter:
             res = residuals_getter(dataset, preds)
@@ -444,7 +444,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
             )
 
             # we compute residuals anyway even if not really relevant (only for the test)
-            res = NOISE_MODELS['gaussian-scalar'].get_residuals(*dataset_and_preds)
+            res = NOISE_MODELS['gaussian-scalar'].compute_residuals(*dataset_and_preds)
             self.assertAlmostEqual(torch.sum((res - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
 
 
@@ -501,7 +501,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
             )
 
             # we compute residuals anyway even if not really relevant (only for the test)
-            res = NOISE_MODELS['gaussian-scalar'].get_residuals(*dataset_and_preds)
+            res = NOISE_MODELS['gaussian-scalar'].compute_residuals(*dataset_and_preds)
             self.assertTrue(torch.equal(res.squeeze(0) == 0, nan_positions))
             self.assertAlmostEqual(torch.sum((res - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
 

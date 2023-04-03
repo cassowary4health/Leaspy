@@ -15,7 +15,7 @@ from leaspy.models.noise_models import (
     BaseNoiseModel,
     NoiseModelFactoryInput,
     noise_model_factory,
-    noise_model_export,
+    export_noise_model,
 )
 from leaspy.models.utilities import tensor_to_list
 from leaspy.io.realizations.realization import Realization
@@ -139,7 +139,7 @@ class AbstractModel(BaseModel):
             'features': self.features,
             'dimension': self.dimension,
             'fit_metrics': self.fit_metrics,  # TODO improve
-            'noise_model': noise_model_export(self.noise_model),
+            'noise_model': export_noise_model(self.noise_model),
             'parameters': {
                 k: tensor_to_list(v)
                 for k, v in (self.parameters or {}).items()
@@ -792,7 +792,7 @@ class AbstractModel(BaseModel):
         output = "=== MODEL ==="
         output += self._serialize_tensor(self.parameters)
 
-        nm_props = noise_model_export(self.noise_model)
+        nm_props = export_noise_model(self.noise_model)
         nm_name = nm_props.pop('name')
         output += f"\nnoise-model : {nm_name}"
         output += self._serialize_tensor(nm_props, indent="  ")

@@ -9,7 +9,7 @@ from leaspy.utils.typing import KwargsType
 NoiseModelFactoryInput = Union[str, BaseNoiseModel, KwargsType]
 
 
-def _noise_model_class(name: str) -> Type[BaseNoiseModel]:
+def _get_noise_model_class(name: str) -> Type[BaseNoiseModel]:
     """
     Get noise-model class from its code name.
 
@@ -38,7 +38,7 @@ def _noise_model_class(name: str) -> Type[BaseNoiseModel]:
     return kls
 
 
-def _noise_model_name(kls: Type[BaseNoiseModel]) -> str:
+def _get_noise_model_name(kls: Type[BaseNoiseModel]) -> str:
     """
     Get code name of a noise-model class.
 
@@ -65,7 +65,7 @@ def _noise_model_name(kls: Type[BaseNoiseModel]) -> str:
     return name
 
 
-def _noise_model_kwargs_to_params_hyperparams(
+def _split_noise_model_kwargs_to_params_and_hyperparams(
     kls: Type[BaseNoiseModel],
     kws: Optional[KwargsType],
 ) -> Tuple[Optional[KwargsType], KwargsType]:
@@ -93,7 +93,7 @@ def _noise_model_kwargs_to_params_hyperparams(
     return params or None, hyperparams
 
 
-def noise_model_export(noise_model: BaseNoiseModel) -> KwargsType:
+def export_noise_model(noise_model: BaseNoiseModel) -> KwargsType:
     """
     Serialize a given BaseNoiseModel as a dictionary.
 
@@ -108,7 +108,7 @@ def noise_model_export(noise_model: BaseNoiseModel) -> KwargsType:
         The noise model serialized as a dict.
     """
     return dict(
-        name=_noise_model_name(noise_model.__class__),
+        name=_get_noise_model_name(noise_model.__class__),
         **noise_model.to_dict(),
     )
 
@@ -140,11 +140,11 @@ def noise_model_factory(noise_model: NoiseModelFactoryInput, **kws) -> BaseNoise
         return noise_model
 
     if isinstance(noise_model, str):
-        kls = _noise_model_class(noise_model)
+        kls = _get_noise_model_class(noise_model)
         kws = kws or None
 
     elif isinstance(noise_model, dict) and "name" in noise_model:
-        kls = _noise_model_class(noise_model.pop("name"))
+        kls = _get_noise_model_class(noise_model.pop("name"))
         # the optional keyword-arguments will overwrite the stored noise_model parameters and hyperparams.
         kws = {**noise_model, **kws} or None
 
@@ -154,5 +154,5 @@ def noise_model_factory(noise_model: NoiseModelFactoryInput, **kws) -> BaseNoise
             f"among {set(NOISE_MODELS)}, or a dictionary with 'name' being one of the previous options."
         )
 
-    params, hyperparams = _noise_model_kwargs_to_params_hyperparams(kls, kws)
+    params, hyperparams = _split_noise_model_kwargs_to_params_and_hyperparams(kls, kws)
     return kls(params, **hyperparams)

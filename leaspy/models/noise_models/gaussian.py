@@ -112,7 +112,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         return scale
 
     @staticmethod
-    def get_residuals(
+    def compute_residuals(
         data: Dataset, predictions: torch.Tensor
     ) -> torch.Tensor:
         """
@@ -151,10 +151,10 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         :class:`torch.Tensor` :
             The squared residuals.
         """
-        res = cls.get_residuals(data, predictions)
+        res = cls.compute_residuals(data, predictions)
         return res * res
 
-    def _get_noise_var_in_dimension(self, dimension: int) -> torch.Tensor:
+    def _compute_noise_var_in_dimension(self, dimension: int) -> torch.Tensor:
         """
         Compute the noise variance and expand it to the provided dimension.
 
@@ -204,7 +204,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
             The negative log likelihood (and its jacobian if requested).
         """
-        noise_var = self._get_noise_var_in_dimension(data.dimension)
+        noise_var = self._compute_noise_var_in_dimension(data.dimension)
         nll = 0.5 / noise_var * residuals * residuals
         if incl_const:
             nll += (
@@ -244,7 +244,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
             The negative log likelihood (and its jacobian if requested).
         """
-        residuals = self.get_residuals(data, predictions)
+        residuals = self.compute_residuals(data, predictions)
         return self._compute_nll_from_residuals(
             data, residuals, incl_const=True, with_gradient=with_gradient
         )

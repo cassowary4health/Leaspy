@@ -24,7 +24,7 @@ NOISE_MODELS = {
     "ordinal-ranking": OrdinalRankingNoiseModel,
 }
 
-from .factory import NoiseModelFactoryInput, noise_model_factory, noise_model_export
+from .factory import NoiseModelFactoryInput, noise_model_factory, export_noise_model
 
 
 __all__ = [
@@ -33,7 +33,7 @@ __all__ = [
     "NOISE_MODELS",
     "NoiseModelFactoryInput",
     "noise_model_factory",
-    "noise_model_export",
+    "export_noise_model",
     "AbstractGaussianNoiseModel",
     "AbstractOrdinalNoiseModel",
     "BaseNoiseModel",

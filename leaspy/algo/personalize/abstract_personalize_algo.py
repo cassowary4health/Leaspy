@@ -39,7 +39,7 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
 
     family = 'personalize'
 
-    def run_impl(self, model: AbstractModel, dataset: Dataset) -> Tuple[IndividualParameters, torch.FloatTensor]:
+    def run_impl(self, model: AbstractModel, dataset: Dataset) -> Tuple[IndividualParameters, torch.Tensor]:
         r"""
         Main personalize function, wraps the abstract :meth:`._get_individual_parameters` method.
 

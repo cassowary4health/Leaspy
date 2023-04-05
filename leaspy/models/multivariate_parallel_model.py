@@ -2,10 +2,10 @@ import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
-from leaspy.utils.typing import DictParamsTorch
+from leaspy.utils.typing import DictParamsTorch, DictParams
 from leaspy.utils.docs import doc_with_super
 from leaspy.io.data.dataset import Dataset
-from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.realizations import CollectionRealization, clone_realizations
 
 
 @doc_with_super()
@@ -122,18 +122,17 @@ class MultivariateParallelModel(AbstractMultivariateModel):
                 self.name, self.dimension, self.source_dimension
             ),
         }
-        population_dictionary = self._create_dictionary_of_population_realizations()
-        self.update_MCMC_toolbox({"all"}, population_dictionary)
+        self.update_MCMC_toolbox({"all"}, self._get_population_realizations())
 
     def update_MCMC_toolbox(self, vars_to_update: set, realizations: CollectionRealization) -> None:
         values = {}
-        update_all = 'all' in vars_to_update
-        if update_all or 'g' in vars_to_update:
-            values['g'] = realizations['g'].tensor_realizations
-        if update_all or 'deltas' in vars_to_update:
-            values['deltas'] = realizations['deltas'].tensor_realizations
-        if self.source_dimension != 0 and (update_all or 'betas' in vars_to_update):
-            values['betas'] = realizations['betas'].tensor_realizations
+        update_all = "all" in vars_to_update
+        if update_all or "g" in vars_to_update:
+            values['g'] = realizations.get_tensor_by_name("g")
+        if update_all or "deltas" in vars_to_update:
+            values['deltas'] = realizations.get_tensor_by_name("deltas")
+        if self.source_dimension != 0 and (update_all or "betas" in vars_to_update):
+            values['betas'] = realizations.get_tensor_by_name("betas")
 
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
@@ -143,15 +142,15 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         realizations: CollectionRealization,
     ) -> DictParamsTorch:
         # unlink all sufficient statistics from updates in realizations!
-        realizations = realizations.clone_realizations()
+        realizations = clone_realizations(realizations)
 
-        sufficient_statistics = {
-            param: realizations[param].tensor_realizations for param in ("g", "deltas", "tau", "xi")
-        }
+        sufficient_statistics = realizations.get_tensor_dict(("g", "deltas", "tau", "xi"))
         if self.source_dimension != 0:
-            sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
+            sufficient_statistics['betas'] = realizations.get_tensor_by_name("betas")
         for param in ("tau", "xi"):
-            sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor_realizations, 2)
+            sufficient_statistics[f"{param}_sqrd"] = torch.pow(
+                realizations.get_tensor_by_name(param), 2
+            )
 
         return sufficient_statistics
 
@@ -187,64 +186,60 @@ class MultivariateParallelModel(AbstractMultivariateModel):
             )
             self.parameters[f"{param}_mean"] = param_cur_mean
 
-    ###################################
-    ### Random Variable Information ###
-    ###################################
-
-    def random_variable_informations(self) -> dict:
-        ## Population variables
-        g_infos = {
+    def get_population_random_variable_information(self) -> DictParams:
+        g_info = {
             "name": "g",
             "shape": torch.Size([1]),
             "type": "population",
             "rv_type": "multigaussian"
         }
-        deltas_infos = {
+        deltas_info = {
             "name": "deltas",
             "shape": torch.Size([self.dimension - 1]),
             "type": "population",
             "rv_type": "multigaussian",
             "scale": 1.  # cf. GibbsSampler
         }
-        betas_infos = {
+        betas_info = {
             "name": "betas",
             "shape": torch.Size([self.dimension - 1, self.source_dimension]),
             "type": "population",
             "rv_type": "multigaussian",
             "scale": .5  # cf. GibbsSampler
         }
+        variables_info = {
+            "g": g_info,
+            "deltas": deltas_info,
+        }
+        if self.source_dimension != 0:
+            variables_info['betas'] = betas_info
 
-        ## Individual variables
-        tau_infos = {
+        return variables_info
+
+    def get_individual_random_variable_information(self) -> DictParams:
+        tau_info = {
             "name": "tau",
             "shape": torch.Size([1]),
             "type": "individual",
             "rv_type": "gaussian"
         }
-
-        xi_infos = {
+        xi_info = {
             "name": "xi",
             "shape": torch.Size([1]),
             "type": "individual",
             "rv_type": "gaussian"
         }
-
-        sources_infos = {
+        sources_info = {
             "name": "sources",
             "shape": torch.Size([self.source_dimension]),
             "type": "individual",
             "rv_type": "gaussian"
         }
-
-        variables_infos = {
-            "g": g_infos,
-            "deltas": deltas_infos,
-            "tau": tau_infos,
-            "xi": xi_infos,
+        variables_info = {
+            "tau": tau_info,
+            "xi": xi_info,
         }
-
         if self.source_dimension != 0:
-            variables_infos['sources'] = sources_infos
-            variables_infos['betas'] = betas_infos
+            variables_info['sources'] = sources_info
 
-        return variables_infos
+        return variables_info

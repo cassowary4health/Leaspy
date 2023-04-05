@@ -18,8 +18,12 @@ from leaspy.models.noise_models import (
     export_noise_model,
 )
 from leaspy.models.utilities import tensor_to_list
-from leaspy.io.realizations.realization import Realization
-from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.realizations import (
+    AbstractRealization,
+    PopulationRealization,
+    IndividualRealization,
+    CollectionRealization,
+)
 from leaspy.io.data.dataset import Dataset
 
 from leaspy.exceptions import LeaspyIndividualParamsInputError, LeaspyModelInputError
@@ -629,9 +633,8 @@ class AbstractModel(BaseModel):
         dict[suff_stat: str, :class:`torch.Tensor`]
         """
         suff_stats = self.compute_model_sufficient_statistics(data, realizations)
-        individual_parameters = self.get_param_from_real(realizations)
         predictions = self.compute_individual_tensorized(
-            data.timepoints, individual_parameters, attribute_type='MCMC'
+            data.timepoints, realizations.individual_tensors_dict, attribute_type='MCMC'
         )
         noise_suff_stats = self.noise_model.compute_sufficient_statistics(
             data, predictions
@@ -639,7 +642,9 @@ class AbstractModel(BaseModel):
 
         # we add some fake sufficient statistics that are in fact convergence metrics (summed over individuals)
         # TODO proper handling of metrics
-        d_regul, _ = self.compute_regularity_individual_parameters(individual_parameters, include_constant=True)
+        d_regul, _ = self.compute_regularity_individual_parameters(
+            realizations.individual_tensors_dict, include_constant=True
+        )
         cvg_metrics = {f'nll_regul_{param}': r.sum() for param, r in d_regul.items()}
         cvg_metrics['nll_regul_tot'] = sum(cvg_metrics.values(), 0.)
         cvg_metrics['nll_attach'] = self.noise_model.compute_nll(data, predictions).sum()
@@ -729,31 +734,25 @@ class AbstractModel(BaseModel):
         sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
         """
 
-    def get_population_realization_names(self) -> List[str]:
+    def get_population_variable_names(self) -> List[str]:
         """
-        Get names of population variables of the model.
+        Get the names of the population variables of the model.
 
         Returns
         -------
         list[str]
         """
-        return [
-            name for name, value in self.random_variable_informations().items()
-            if value['type'] == 'population'
-        ]
+        return list(self.get_population_random_variable_information().keys())
 
-    def get_individual_realization_names(self) -> List[str]:
+    def get_individual_variable_names(self) -> List[str]:
         """
-        Get names of individual variables of the model.
+        Get the names of the individual variables of the model.
 
         Returns
         -------
         list[str]
         """
-        return [
-            name for name, value in self.random_variable_informations().items()
-            if value['type'] == 'individual'
-        ]
+        return list(self.get_individual_random_variable_information().keys())
 
     @classmethod
     def _serialize_tensor(cls, v, *, indent: str = "", sub_indent: str = "") -> str:
@@ -799,34 +798,40 @@ class AbstractModel(BaseModel):
 
         return output
 
-    def compute_regularity_realization(self, realization: Realization) -> torch.Tensor:
+    def compute_regularity_realization(self, realization: AbstractRealization) -> torch.Tensor:
         """
         Compute regularity term for a :class:`.Realization` instance.
 
         Parameters
         ----------
-        realization : :class:`.Realization`
+        realization : :class:`.AbtractRealization`
 
         Returns
         -------
         :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
         """
-        if realization.variable_type == 'population':
-            # Regularization of population variables around current model values
-            mean = self.parameters[realization.name]
-            std = self.MCMC_toolbox['priors'][f"{realization.name}_std"]
-        elif realization.variable_type == 'individual':
-            # Regularization of individual parameters around mean / std from model parameters
-            mean = self.parameters[f"{realization.name}_mean"]
-            std = self.parameters[f"{realization.name}_std"]
-        else:
-            raise LeaspyModelInputError(
-                f"Variable type '{realization.variable_type}' not known, "
-                "should be 'population' or 'individual'."
-            )
-        # we do not need to include regularity constant (priors are always fixed at a given iteration)
+        if isinstance(realization, PopulationRealization):
+            return self.compute_regularity_population_realization(realization)
+        if isinstance(realization, IndividualRealization):
+            return self.compute_regularity_individual_realization(realization)
+        raise LeaspyModelInputError(
+            f"Realization {realization} not known, should be 'population' or 'individual'."
+        )
+
+    def compute_regularity_population_realization(self, realization: PopulationRealization) -> torch.Tensor:
         return self.compute_regularity_variable(
-            realization.tensor_realizations, mean, std, include_constant=False
+            realization.tensor_realizations,
+            self.parameters[realization.name],
+            self.MCMC_toolbox['priors'][f"{realization.name}_std"],
+            include_constant=False,
+        )
+
+    def compute_regularity_individual_realization(self, realization: IndividualRealization) -> torch.Tensor:
+        return self.compute_regularity_variable(
+            realization.tensor_realizations,
+            self.parameters[f"{realization.name}_mean"],
+            self.parameters[f"{realization.name}_std"],
+            include_constant=False,
         )
 
     def compute_regularity_individual_parameters(
@@ -914,29 +919,6 @@ class AbstractModel(BaseModel):
         nll_grad = y / std
         return neg_loglike, nll_grad
 
-    def initialize_realizations_for_model(self, n_individuals: int, **init_kws) -> CollectionRealization:
-        """
-        Initialize a :class:`.CollectionRealization` used during model fitting
-        or mode/mean realization personalization.
-
-        Parameters
-        ----------
-        n_individuals : int
-            Number of individuals to track
-        **init_kws
-            Keyword arguments passed to :meth:`.CollectionRealization.initialize`.
-            (In particular `individual_variable_init_at_mean` to "initialize at mean"
-            or `skip_variable` to filter some variables).
-
-        Returns
-        -------
-        :class:`.CollectionRealization`
-        """
-        realizations = CollectionRealization()
-        realizations.initialize(n_individuals, self, **init_kws)
-        return realizations
-
-    @abstractmethod
     def random_variable_informations(self) -> DictParams:
         """
         Information on model's random variables.
@@ -958,39 +940,26 @@ class AbstractModel(BaseModel):
                 When not defined, sampler will rely on scales estimated at model initialization.
                 cf. :class:`~leaspy.algo.utils.samplers.GibbsSampler`
         """
+        return {
+            **self.get_population_random_variable_information(),
+            **self.get_individual_random_variable_information(),
+        }
 
-    def smart_initialization_realizations(
-        self,
-        dataset: Dataset,
-        realizations: CollectionRealization,
-    ) -> CollectionRealization:
-        """
-        Smart initialization of realizations if needed (input may be modified in-place).
+    def get_population_random_variable_information(self) -> DictParams:
+        return {}
 
-        Default behavior to return `realizations` as they are (no smart trick).
+    def get_individual_random_variable_information(self) -> DictParams:
+        return {}
 
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-        realizations : :class:`.CollectionRealization`
-
-        Returns
-        -------
-        :class:`.CollectionRealization`
-        """
-        return realizations
-
-    def _create_dictionary_of_population_realizations(self) -> dict:
-        pop_dictionary: Dict[str, Realization] = {}
-        for name_var, info_var in self.random_variable_informations().items():
-            if info_var['type'] != "population":
-                continue
-            real = Realization.from_tensor(
-                name_var, info_var['shape'], info_var['type'], self.parameters[name_var]
+    def _get_population_realizations(self) -> CollectionRealization:
+        population_collection = CollectionRealization()
+        population_collection.realizations = [
+            PopulationRealization.from_tensor(
+                name_var, info_var['shape'], self.parameters[name_var]
             )
-            pop_dictionary[name_var] = real
-
-        return pop_dictionary
+            for name_var, info_var in self.get_population_random_variable_information().items()
+        ]
+        return population_collection
 
     @staticmethod
     def time_reparametrization(
@@ -1017,27 +986,6 @@ class AbstractModel(BaseModel):
         :class:`torch.Tensor` of same shape as `timepoints`
         """
         return torch.exp(xi) * (timepoints - tau)
-
-    def get_param_from_real(self, realizations: CollectionRealization) -> DictParamsTorch:
-        """
-        Get individual parameters realizations from all model realizations
-
-        <!> The tensors are not cloned and so a link continue to exist between the individual parameters
-            and the underlying tensors of realizations.
-
-        Parameters
-        ----------
-        realizations : :class:`.CollectionRealization`
-
-        Returns
-        -------
-        dict[param_name: str, :class:`torch.Tensor` [n_individuals, dims_param]]
-            Individual parameters
-        """
-        return {
-            variable_ind: realizations[variable_ind].tensor_realizations
-            for variable_ind in self.get_individual_realization_names()
-        }
 
     def move_to_device(self, device: torch.device) -> None:
         """

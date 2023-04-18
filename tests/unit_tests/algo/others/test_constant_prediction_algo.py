@@ -86,7 +86,7 @@ class ConstantPredictionAlgorithmTest(LeaspyTestCase):
             algo = ConstantPredictionAlgorithm(settings)
             model = ConstantModel('constant')
 
-            ip, noise = algo.run(model, self.dataset, return_noise=True)
+            ip, noise = algo.run(model, self.dataset, return_loss=True)
             self.assertEqual(noise, None)
             self.assertListEqual(ip._indices, ['1'])
             self.assertDictEqual(ip._parameters_shape, {'A': (), 'B': ()})

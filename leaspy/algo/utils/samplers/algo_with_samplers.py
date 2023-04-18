@@ -82,12 +82,17 @@ class AlgoWithSamplersMixin:
     # Output
     ###########################
 
+    def _get_progress_str(self) -> str:
+        # The algorithm must define a progress string (thanks to `self.current_iteration`)
+        iter_str = super()._get_progress_str()
+        if self._is_burn_in():
+            iter_str += " (memory-less phase)"
+        else:
+            iter_str += " (with memory)"
+        return iter_str
+
     def __str__(self):
         out = super().__str__()
-        # TODO? separate mixin for algorithms with nb of iterations & burn-in phase?
-        out += f"\nIteration {self.current_iteration} / {self.algo_parameters['n_iter']}"
-        if self._is_burn_in():
-            out += " (memory-less phase)"
         out += "\n= Samplers ="
         for sampler in self.samplers.values():
             out += f"\n    {str(sampler)}"

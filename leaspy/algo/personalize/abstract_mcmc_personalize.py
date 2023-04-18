@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-
 from random import shuffle
 from copy import copy
 from abc import abstractmethod
@@ -15,8 +14,8 @@ from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.utils.typing import DictParamsTorch
 
 if TYPE_CHECKING:
-    from leaspy.models.abstract_model import AbstractModel
     from leaspy.io.data.dataset import Dataset
+    from leaspy.models.abstract_model import AbstractModel
 
 
 class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AlgoWithDeviceMixin, AbstractPersonalizeAlgo):

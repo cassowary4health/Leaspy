@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Callable
 import copy
 
 from leaspy.io.realizations.realization import Realization
 
-from leaspy.utils.typing import ParamType, Dict, List, Callable
+from leaspy.utils.typing import ParamType
 
 if TYPE_CHECKING:
     from leaspy.models.abstract_model import AbstractModel

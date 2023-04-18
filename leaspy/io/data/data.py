@@ -48,17 +48,17 @@ class Data(Iterable):
         if self.headers is None:
             return None
         return len(self.headers)
-    
+
     @property
     def n_individuals(self) -> int:
         """Number of individuals"""
         return len(self.individuals)
-    
+
     @property
     def n_visits(self) -> int:
         """Total number of visits"""
         return sum(len(indiv.timepoints) for indiv in self.individuals.values())
-    
+
     @property
     def cofactors(self) -> List[FeatureType]:
         """Feature names corresponding to cofactors"""
@@ -68,7 +68,7 @@ class Data(Iterable):
         # for all individuals, so they can be retrieved from any one
         indiv = next(x for x in self.individuals.values())
         return list(indiv.cofactors.keys())
-    
+
     def __getitem__(self, key: Union[int, IDType, slice, List[int], List[IDType]]) -> Union[IndividualData, Data]:
         if isinstance(key, int):
             return self.individuals[self.iter_to_idx[key]]
@@ -183,7 +183,7 @@ class Data(Iterable):
         reader = CSVDataReader(path, **kws)
         return Data._from_reader(reader)
 
-    def to_dataframe(self, *, cofactors: Union[List[FeatureType], str, None] = None) -> pd.DataFrame:
+    def to_dataframe(self, *, cofactors: Union[List[FeatureType], str, None] = None, reset_index: bool = True) -> pd.DataFrame:
         """
         Convert the Data object to a :class:`pandas.DataFrame`
 
@@ -193,6 +193,8 @@ class Data(Iterable):
             Cofactors to include in the DataFrame.
             If None (default), no cofactors are included.
             If "all", all the available cofactors are included.
+        reset_index : bool (default True)
+            Whether to reset index levels in output.
 
         Returns
         -------
@@ -226,31 +228,24 @@ class Data(Iterable):
                                        f'your Data: {unknown_cofactors}')
 
         # Build the dataframe, one individual at a time
-        def get_individual_block(individual: IndividualData):
-            individual_product = [[individual.idx], individual.timepoints]
-            individual_index = pd.MultiIndex.from_product(individual_product)
-            individual_values = individual.observations
-            return individual_index, individual_values
+        def get_individual_df(individual_data: IndividualData):
+            ix_tpts = pd.Index(individual_data.timepoints, name='TIME')
+            return pd.DataFrame(individual_data.observations, columns=self.headers, index=ix_tpts)
 
-        index = None
-        values = None
-        for i in self.individuals.values():
-            if index is None:
-                index, values = get_individual_block(i)
-            else:
-                index_i, values_i = get_individual_block(i)
-                index = index.union(index_i, sort=False)
-                values = np.concatenate([values, values_i], axis=0)
-
-        df = pd.DataFrame(data=values, index=index, columns=self.headers)
-        df.index.names = ['ID', 'TIME']
+        df = pd.concat({
+            individual_data.idx: get_individual_df(individual_data)
+            for individual_data in self.individuals.values()
+        }, names=['ID'])
 
         for cofactor in cofactors_list:
             for i in self.individuals.values():
                 indiv_slice = pd.IndexSlice[i.idx, :]
                 df.loc[indiv_slice, cofactor] = i.cofactors[cofactor]
 
-        return df.reset_index()
+        if reset_index:
+            df = df.reset_index()
+
+        return df
 
     @staticmethod
     def from_dataframe(df: pd.DataFrame, **kws) -> Data:

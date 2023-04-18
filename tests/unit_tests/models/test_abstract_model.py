@@ -15,14 +15,14 @@ class AbstractModelTest(LeaspyTestCase):
         """
         Test initialization of abstract model class object.
         """
-        model = AbstractModel("dummy_abstractmodel")
+        model = AbstractModel("dummy_abstractmodel", noise_model='gaussian-scalar')
         self.assertFalse(model.is_initialized)
         self.assertEqual(model.name, "dummy_abstractmodel")
         self.assertEqual(model.parameters, None)
         #self.assertIs(model.regularization_distribution_factory, torch.distributions.normal.Normal)  # removed
 
         # Test the presence of all these essential methods
-        main_methods = ['load_parameters', 'compute_sum_squared_tensorized',
+        main_methods = ['load_parameters',
                         'compute_individual_attachment_tensorized',
                         'update_model_parameters_burn_in', 'update_model_parameters_normal',
                         'get_population_realization_names', 'get_individual_realization_names',
@@ -43,7 +43,7 @@ class AbstractModelTest(LeaspyTestCase):
         """
         leaspy_object = self.get_hardcoded_model('logistic_scalar_noise')
 
-        abstract_model = AbstractModel("dummy_model")
+        abstract_model = AbstractModel("dummy_model", noise_model='gaussian-scalar')
 
         abstract_model.load_parameters(leaspy_object.model.parameters)
 
@@ -57,7 +57,6 @@ class AbstractModelTest(LeaspyTestCase):
             'xi_std': 0.2,
             'sources_mean': 0.0,
             'sources_std': 1.0,
-            'noise_std': 0.2,
         }
 
         self.assertDictAlmostEqual(abstract_model.parameters, expected_parameters)

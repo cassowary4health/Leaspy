@@ -468,27 +468,23 @@ class Plotter:
         else: # >= 3.3
             yscale_kw = dict(nonpositive='clip')
 
-        # Noise std-dev
-        model_with_ll = getattr(model, 'is_ordinal', False) or getattr(model, 'noise_model', None) == 'bernoulli'
-        if not model_with_ll:
-            import_path = os.path.join(path, 'noise_std.csv')
-            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
-            df_convergence.index.rename("iter", inplace=True)
-            y_position = 0
-            df_convergence.plot(ax=ax[y_position], legend=False)
-            ax[y_position].set_title('noise_std')
-            ax[y_position].set_yscale("log", **yscale_kw)
-            plt.grid(True)
-        # LL for other models
-        else:
-            import_path = os.path.join(path, 'log-likelihood.csv')
-            df_convergence = pd.read_csv(import_path, index_col=0, header=None)
-            df_convergence.index.rename("iter", inplace=True)
-            y_position = 0
-            df_convergence.plot(ax=ax[y_position], legend=False)
-            ax[y_position].set_title('log-likelihood')
-            ax[y_position].set_yscale("log", **yscale_kw)
-            plt.grid(True)
+        # Goodness-of-fit monitoring
+        y_position = 0
+
+        ## TODO: improve this, we could want to monitor both noise-std and log-likelihood in practice...
+        #goodness_of_fit_path = os.path.join(path, 'noise_std.csv')
+        #if os.path.exists(goodness_of_fit_path):
+        #    goodness_of_fit_title = 'noise_std'
+        #else:
+        #    # LL for other models
+        #    goodness_of_fit_path = os.path.join(path, 'log-likelihood.csv')
+        #    goodness_of_fit_title = 'log-likelihood'
+        #
+        #df_convergence = pd.read_csv(goodness_of_fit_path, index_col=0, header=None)
+        #df_convergence.index.rename("iter", inplace=True)
+        #df_convergence.plot(ax=ax[y_position], legend=False)
+        #ax[y_position].set_title(goodness_of_fit_title)
+        #ax[y_position].set_yscale("log", **yscale_kw)
 
         for i, key in enumerate(reals_pop_name):
             y_position += 1
@@ -541,6 +537,7 @@ class Plotter:
                                         color='b', alpha=0.2)
             ax[y_position].set_title(key)
 
+        plt.grid(True)
         plt.tight_layout()
         plt.savefig(path_saveplot_2)
         plt.close()

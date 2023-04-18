@@ -1,20 +1,18 @@
 from abc import abstractmethod
-import json
 import math
 import warnings
 
 import torch
 
-from leaspy import __version__
-
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.models.utils.attributes.abstract_manifold_model_attributes import AbstractManifoldModelAttributes
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
-from leaspy.models.utils.noise_model import NoiseModel
 from leaspy.models.utils.ordinal import OrdinalModelMixin
+from leaspy.io.data.dataset import Dataset
+from leaspy.io.realizations.collection_realization import CollectionRealization
 
-from leaspy.utils.typing import KwargsType, Set, Optional
+from leaspy.utils.typing import KwargsType, Set, Optional, DictParamsTorch
 from leaspy.utils.docs import doc_with_super
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -29,7 +27,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     name : str
         Name of the model
     **kwargs
-        Hyperparameters for the model
+        Hyperparameters for the model (including `noise_model`)
 
     Raises
     ------
@@ -38,19 +36,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     """
     def __init__(self, name: str, **kwargs):
 
-        super().__init__(name)
-
         self.source_dimension: int = None
-        self.noise_model = 'gaussian_diagonal'
-
-        self.parameters = {
-            "g": None,
-            "betas": None,
-            "tau_mean": None, "tau_std": None,
-            "xi_mean": None, "xi_std": None,
-            "sources_mean": None, "sources_std": None,
-            "noise_std": None
-        }
         self.bayesian_priors = None
         self.attributes: AbstractManifoldModelAttributes = None
 
@@ -65,30 +51,32 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             }
         }
 
-        # Load hyperparameters at end to overwrite default for new hyperparameters
-        self.load_hyperparameters(kwargs)
+        if kwargs.get('noise_model', None) is None:
+            kwargs['noise_model'] = "gaussian-diagonal"
 
-    """
-    def smart_initialization_realizations(self, data, realizations):
-        # TODO : Qui a fait ça? A quoi ça sert?
-        # means_time = torch.tensor([torch.mean(data.get_times_patient(i)) for
-        # i in range(data.n_individuals)]).reshape(realizations['tau'].tensor_realizations.shape)
-        # realizations['tau'].tensor_realizations = means_time
-        return realizations
-    """
+        super().__init__(name, **kwargs)
 
-    def initialize(self, dataset, method: str = 'default'):
-        if self.is_initialized and self.features is not None:
-            warn_msg = '<!> Re-initializing an already initialized model.'
-            if dataset.headers != self.features:
-                warn_msg += (
-                    f" Overwritting previous model features ({self.features}) "
-                    f"with new ones ({dataset.headers})."
-                )
-            warnings.warn(warn_msg)
-        self.features = dataset.headers
-        self.validate_compatibility_of_dataset(dataset)
-        self.dimension = dataset.dimension
+        self.parameters = {
+            "g": None,
+            "betas": None,
+            "tau_mean": None, "tau_std": None,
+            "xi_mean": None, "xi_std": None,
+            "sources_mean": None, "sources_std": None,
+        }
+
+    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+        """
+        Overloads base initialization of model (base method takes care of features consistency checks).
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            Input dataset from which to initialize the model.
+        method : str, optional
+            The initialization method to be used.
+            Default='default'.
+        """
+        super().initialize(dataset, method=method)
 
         if self.source_dimension is None:
             self.source_dimension = int(math.sqrt(dataset.dimension))
@@ -99,25 +87,29 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             raise LeaspyModelInputError(f"Sources dimension should be an integer in [0, dimension - 1[ "
                                         f"but you provided `source_dimension` = {self.source_dimension} whereas `dimension` = {self.dimension}")
 
-        self.parameters = initialize_parameters(self, dataset, method)
+        self.parameters, noise_model_parameters = initialize_parameters(self, dataset, method=method)
+        if noise_model_parameters is not None:
+            self.noise_model.update_parameters(validate=True, **noise_model_parameters)
 
-        self.attributes = AttributesFactory.attributes(self.name, self.dimension, self.source_dimension,
-                                                       **self._attributes_factory_ordinal_kws)
+        self.attributes = AttributesFactory.attributes(
+            self.name,
+            dimension=self.dimension,
+            source_dimension=self.source_dimension,
+            **self._attributes_factory_ordinal_kws
+        )
 
         # Postpone the computation of attributes when really needed!
         #self.attributes.update({'all'}, self.parameters)
 
-        self.is_initialized = True
-
     @abstractmethod
     def initialize_MCMC_toolbox(self) -> None:
         """
-        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model
+        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model.
         """
         # TODO to move in a "MCMC-model interface"
 
     @abstractmethod
-    def update_MCMC_toolbox(self, vars_to_update: Set[str], realizations) -> None:
+    def update_MCMC_toolbox(self, vars_to_update: Set[str], realizations: CollectionRealization) -> None:
         """
         Update the MCMC toolbox with a collection of realizations of model population parameters.
 
@@ -130,14 +122,51 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         """
         # TODO to move in a "MCMC-model interface"
 
-    def load_hyperparameters(self, hyperparameters: KwargsType):
+    def load_parameters(self, parameters: KwargsType) -> None:
+        """
+        Updates all model parameters from the provided parameters.
 
+        Parameters
+        ----------
+        parameters : KwargsType
+            The parameters to be loaded.
+        """
+        self.parameters = {}
+        for k, v in parameters.items():
+            if k in ('mixing_matrix',):
+                # The mixing matrix will always be recomputed from `betas`
+                # and the other needed model parameters (g, v0)
+                continue
+            if not isinstance(v, torch.Tensor):
+                v = torch.tensor(v)
+            self.parameters[k] = v
+
+        self._check_ordinal_parameters_consistency()
+
+        # derive the model attributes from model parameters upon reloading of model
+        self.attributes = AttributesFactory.attributes(
+            self.name,
+            dimension=self.dimension,
+            source_dimension=self.source_dimension,
+            **self._attributes_factory_ordinal_kws
+        )
+        self.attributes.update({'all'}, self.parameters)
+
+    def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
+        """
+        Updates all model hyperparameters from the provided hyperparameters.
+
+        Parameters
+        ----------
+        hyperparameters : KwargsType
+            The hyperparameters to be loaded.
+        """
         expected_hyperparameters = ('features', 'dimension', 'source_dimension')
 
-        if 'features' in hyperparameters.keys():
+        if 'features' in hyperparameters:
             self.features = hyperparameters['features']
 
-        if 'dimension' in hyperparameters.keys():
+        if 'dimension' in hyperparameters:
             if self.features and hyperparameters['dimension'] != len(self.features):
                 raise LeaspyModelInputError(
                     f"Dimension provided ({hyperparameters['dimension']}) does not match "
@@ -145,7 +174,7 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                 )
             self.dimension = hyperparameters['dimension']
 
-        if 'source_dimension' in hyperparameters.keys():
+        if 'source_dimension' in hyperparameters:
             if not (
                 isinstance(hyperparameters['source_dimension'], int)
                 and (hyperparameters['source_dimension'] >= 0)
@@ -157,64 +186,71 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
                 )
             self.source_dimension = hyperparameters['source_dimension']
 
-        # load new `noise_model` directly in-place & add the recognized hyperparameters to known tuple
-        expected_hyperparameters += NoiseModel.set_noise_model_from_hyperparameters(self, hyperparameters)
-
         # special hyperparameter(s) for ordinal model
         expected_hyperparameters += self._handle_ordinal_hyperparameters(hyperparameters)
 
         self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
 
-    def save(self, path: str, with_mixing_matrix: bool = True, **kwargs):
+    def to_dict(self, *, with_mixing_matrix: bool = True) -> KwargsType:
         """
-        Save Leaspy object as json model parameter file.
+        Export Leaspy object as dictionary ready for JSON saving.
 
         Parameters
         ----------
-        path : str
-            Path to store the model's parameters.
         with_mixing_matrix : bool (default True)
             Save the mixing matrix in the exported file in its 'parameters' section.
             <!> It is not a real parameter and its value will be overwritten at model loading
             (orthonormal basis is recomputed from other "true" parameters and mixing matrix
             is then deduced from this orthonormal basis and the betas)!
             It was integrated historically because it is used for convenience in browser webtool and only there...
-        **kwargs
-            Keyword arguments for json.dump method.
-            Default to: dict(indent=2)
+
+        Returns
+        -------
+        KwargsType :
+            The object as a dictionary.
         """
-        model_parameters_save = self.parameters.copy()
+        model_settings = super().to_dict()
+        model_settings['source_dimension'] = self.source_dimension
 
         if with_mixing_matrix:
-            model_parameters_save['mixing_matrix'] = self.attributes.mixing_matrix
-
-        for key, value in model_parameters_save.items():
-            if isinstance(value, torch.Tensor):
-                model_parameters_save[key] = value.tolist()
-
-        model_settings = {
-            'leaspy_version': __version__,
-            'name': self.name,
-            'features': self.features,
-            'dimension': self.dimension,
-            'source_dimension': self.source_dimension,
-            'noise_model': self.noise_model,
-            'parameters': model_parameters_save
-        }
+            model_settings['parameters']['mixing_matrix'] = self.attributes.mixing_matrix.tolist()
 
         self._export_extra_ordinal_settings(model_settings)
 
-        # Default json.dump kwargs:
-        kwargs = {'indent': 2, **kwargs}
-
-        with open(path, 'w') as fp:
-            json.dump(model_settings, fp, **kwargs)
+        return model_settings
 
     @abstractmethod
-    def compute_individual_tensorized(self, timepoints, individual_parameters, *, attribute_type=None) -> torch.FloatTensor:
+    def compute_individual_tensorized(
+        self,
+        timepoints: torch.Tensor,
+        individual_parameters: DictParamsTorch,
+        *,
+        attribute_type=None,
+    ) -> torch.Tensor:
+        """
+        Compute the individual trajectories.
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor`
+            The time points for which to compute the trajectory.
+        individual_parameters : DictParamsTorch
+            The individual parameters to use.
+        attribute_type : Any, optional
+
+        Returns
+        -------
+        :class:`torch.Tensor` :
+            Individual trajectories.
+        """
         pass
 
-    def compute_mean_traj(self, timepoints, *, attribute_type: Optional[str] = None):
+    def compute_mean_traj(
+        self,
+        timepoints: torch.Tensor,
+        *,
+        attribute_type: Optional[str] = None,
+    ) -> torch.Tensor:
         """
         Compute trajectory of the model with individual parameters being the group-average ones.
 
@@ -236,7 +272,9 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
             'sources': torch.zeros(self.source_dimension)
         }
 
-        return self.compute_individual_tensorized(timepoints, individual_parameters, attribute_type=attribute_type)
+        return self.compute_individual_tensorized(
+            timepoints, individual_parameters, attribute_type=attribute_type
+        )
 
     def _call_method_from_attributes(self, method_name: str, attribute_type: Optional[str], **call_kws):
         # TODO: mutualize with same function in univariate case...

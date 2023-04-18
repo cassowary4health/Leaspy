@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
+import warnings
+
 from leaspy.utils.typing import FeatureType, List, Optional
 from leaspy.exceptions import LeaspyModelInputError
+from leaspy.io.data.dataset import Dataset
 
 
 class BaseModel(ABC):
@@ -44,13 +47,18 @@ class BaseModel(ABC):
         return self._features
 
     @features.setter
-    def features(self, features: List[FeatureType]):
+    def features(self, features: Optional[List[FeatureType]]):
         """
         Features setter.
         Ensure coherence between dimension and features attributes.
         """
+        if features is None:
+            # used to reset features
+            self._features = None
+            return
+
         if self.dimension is not None and len(features) != self.dimension:
-            raise ValueError(
+            raise LeaspyModelInputError(
                 f"Cannot set the model's features to {features}, because "
                 f"the model has been configured with a dimension of {self.dimension}."
             )
@@ -77,13 +85,12 @@ class BaseModel(ABC):
         """
         if self.features is None:
             self._dimension = dimension
-        else:
-            if len(self.features) != dimension:
-                raise ValueError(
-                    f"Model has {len(self.features)} features. Cannot set the dimension to {dimension}."
-                )
+        elif len(self.features) != dimension:
+            raise LeaspyModelInputError(
+                f"Model has {len(self.features)} features. Cannot set the dimension to {dimension}."
+            )
 
-    def validate_compatibility_of_dataset(self, dataset) -> None:
+    def validate_compatibility_of_dataset(self, dataset: Dataset) -> None:
         """
         Raise if the given dataset is not compatible with the current model.
 
@@ -108,8 +115,7 @@ class BaseModel(ABC):
                 f"Unmatched features: {self.features} (model) ≠ {dataset.headers} (data)."
             )
 
-    @abstractmethod
-    def initialize(self, dataset, method: str = 'default') -> None:
+    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
         """
         Initialize the model given a dataset and an initialization method.
 
@@ -122,7 +128,21 @@ class BaseModel(ABC):
         method : str
             A custom method to initialize the model
         """
-        raise NotImplementedError
+        if self.is_initialized and self.features is not None:
+            # we also test that self.features is not None, since for `ConstantModel`:
+            # `is_initialized`` is True but as a mock for being personalization-ready,
+            # without really being initialized!
+            warn_msg = '<!> Re-initializing an already initialized model.'
+            if dataset.headers != self.features:
+                warn_msg += (
+                    f" Overwritting previous model features ({self.features}) "
+                    f"with new ones ({dataset.headers})."
+                )
+                self.features = None  # wait validation of compatibility to store new features
+            warnings.warn(warn_msg)
+        self.validate_compatibility_of_dataset(dataset)
+        self.features = dataset.headers
+        self.is_initialized = True
 
     @abstractmethod
     def save(self, path: str, **kwargs) -> None:

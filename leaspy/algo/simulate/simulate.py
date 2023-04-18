@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple, Optional
 from collections.abc import Sized, Callable
 from dataclasses import dataclass
+import copy
 
 import numpy as np
 import torch
@@ -12,14 +13,22 @@ from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.outputs.result import Result
-from leaspy.io.outputs.individual_parameters import IndividualParameters
-from leaspy.models.utils.noise_model import NoiseModel
-
+from leaspy.models.noise_models import (
+    DistributionFamily,
+    BaseNoiseModel,
+    NO_NOISE,
+    GaussianScalarNoiseModel,
+    GaussianDiagonalNoiseModel,
+    AbstractOrdinalNoiseModel,
+    NOISE_MODELS,
+    noise_model_factory,
+)
 from leaspy.exceptions import LeaspyAlgoInputError
-from leaspy.utils.typing import List, Tuple, Optional, DictParamsTorch
+from leaspy.utils.typing import DictParamsTorch
 
 if TYPE_CHECKING:
     from leaspy.models.abstract_model import AbstractModel
+    from leaspy.io.outputs.individual_parameters import IndividualParameters
 
 
 class SimulationAlgorithm(AbstractAlgo):
@@ -97,16 +106,17 @@ class SimulationAlgorithm(AbstractAlgo):
             * dictionary : {'min': float > 0, 'mean': float >= min, 'std': float > 0 [, 'max': float >= mean]}
             Specify a Gaussian random spacing (truncated between min, and max if given)
             * function : n (int >= 1) => 1D numpy.ndarray[float > 0] of length `n` giving delay between visits (e.g.: 3 => [0.5, 1.5, 1.])
-    noise : str or float or array-like[float], optional
-        Wanted level of gaussian noise in the generated scores:
+    noise : None or str in {'model', 'inherit_struct'} or DistributionFamily or dict or float or array-like[float]
+        Wanted noise-model for the generated observations:
             * Set noise to ``None`` will lead to patients follow the model exactly (no noise added).
-            * Set to ``'inherit_struct'`` (or deprecated ``'default'``), the noise added will follow the model noise structure
+            * Set to ``'inherit_struct'``, the noise added will follow the model noise structure
               and for Gaussian noise it will be computed from reconstruction errors on data & individual parameters provided.
-            * Set noise to ``'model'``, the noise added will follow the model noise structure as well as its values.
-            * Set to ``'bernoulli'``, to simulate Bernoulli realizations.
+            * Set noise to ``'model'``, the noise added will follow the model noise structure as well as its parameters.
+            * Set to a valid input for `noise_model_factory` to get the corresponding noise-model, e.g.
+              set to ``'bernoulli'``, to simulate Bernoulli realizations.
             * Set a float will add for each feature's scores a noise of standard deviation the given float ('gaussian_scalar' noise).
             * Set an array-like[float] (1D of length `n_features`) will add for the feature `j` a noise of standard deviation ``noise[j]`` ('gaussian_diagonal' noise).
-        <!> When you simulate data from an ordinal model, you HAVE to keep the default noise='inherit_struct'
+        <!> When you simulate data from an ordinal model, you HAVE to keep the default noise='inherit_struct' (default)
             (or use 'model', which is the same in this case since there are no scaling parameter for ordinal noise)
     number_of_subjects : int > 0
         Number of subject to simulate.
@@ -514,35 +524,80 @@ class SimulationAlgorithm(AbstractAlgo):
 
         return (bl + yrs_since_bl).tolist()
 
-    def _get_noise_model(self, model: AbstractModel, dataset: Dataset, individual_params: DictParamsTorch) -> NoiseModel:
-
-        # special compatibility check for ordinal model
-        if getattr(model, 'is_ordinal', False) and self.noise not in ('inherit_struct', 'default', 'model'):
-            raise LeaspyAlgoInputError("For an ordinal model, you HAVE to simulate observations with `noise=inherit_struct`"
-                                       "(or `noise=model` which is the same in this case).")
-
+    def _get_noise_distribution(
+            self,
+            model: AbstractModel,
+            dataset: Dataset,
+            individual_parameters: DictParamsTorch,
+    ) -> DistributionFamily:
+        """Get a noise distribution instance for simulation, based on the user-provided `noise` argument."""
         if self.noise is None:
             # no noise at all (will send back raw values upon call)
-            return NoiseModel(None)
+            return NO_NOISE
+        if isinstance(self.noise, DistributionFamily):
+            return self.noise
+        if isinstance(self.noise, dict):
+            return noise_model_factory(self.noise)
+        if isinstance(self.noise, str):
+            return self._get_noise_model_from_string(model, dataset, individual_parameters)
+        return self._get_noise_model_from_numeric(model)
 
-        elif isinstance(self.noise, str):
+    def _check_noise_distribution(self, model: AbstractModel, noise_dist: DistributionFamily) -> None:
 
-            noise_kws = {}
-            if self.noise in ['inherit_struct', 'default'] and 'gaussian' in model.noise_model:
-                # 'inherit_struct' (and deprecated 'default') option: compute from model reconstruction rmse
-                noise_kws['scale'] = NoiseModel.rmse_model(model, dataset, individual_params)
+        model_is_ordinal = getattr(model, "is_ordinal", False)
+        if model_is_ordinal and type(model.noise_model) != type(noise_dist):
+            raise LeaspyAlgoInputError(
+                "For an ordinal model, you HAVE to simulate observations with the "
+                "exact same noise model as the one from your model (e.g. `noise=model`)."
+            )
+        if not model_is_ordinal and isinstance(noise_dist, AbstractOrdinalNoiseModel):
+            raise LeaspyAlgoInputError(
+                "You can not simulate data with ordinal noise if your model does not use the same noise model."
+            )
+        if isinstance(noise_dist, BaseNoiseModel):
+            model.check_noise_model_compatibility(noise_dist)
 
-            return NoiseModel.from_model(model, self.noise, **noise_kws)
+    def _get_noise_model_from_string(
+        self,
+        model: AbstractModel,
+        dataset: Dataset,
+        individual_parameters: DictParamsTorch,
+    ) -> BaseNoiseModel:
 
+        try:
+            new_noise_model = noise_model_factory(self.noise)
+        except ValueError:
+            if self.noise not in {'model', 'inherit_struct'}:
+                raise LeaspyAlgoInputError(
+                    "`noise` should be a valid noise-model or reserved keywords 'model' or 'inherit_struct'."
+                )
+            new_noise_model = copy.deepcopy(model.noise_model)
+
+        if self.noise == 'model' or len(new_noise_model.free_parameters) == 0:
+            return new_noise_model
+
+        # tune free parameters from predictions
+        predictions = model.compute_individual_tensorized(
+            dataset.timepoints, individual_parameters
+        )
+        new_noise_model.update_parameters_from_predictions(
+            dataset, predictions
+        )
+        return new_noise_model
+
+    def _get_noise_model_from_numeric(self, model: AbstractModel) -> BaseNoiseModel:
+        """Gaussian noise by default if numeric data is provided."""
+        try:
+            noise_scale = torch.tensor(self.noise, dtype=torch.float32)
+        except Exception:
+            raise LeaspyAlgoInputError(
+                "The 'noise' parameter should be a float or array-like[float] "
+                "when neither a string nor None."
+            )
+        if noise_scale.numel() == 1:
+            return GaussianScalarNoiseModel({"scale": noise_scale})
         else:
-            # float or array-like[float] --> gaussian noise
-            try:
-                noise_scale = torch.tensor(self.noise, dtype=torch.float32).view(-1)
-            except Exception:
-                raise LeaspyAlgoInputError('The "noise" parameter should be a float or array-like[float] when neither a string nor None.')
-
-            noise_struct = 'gaussian_scalar' if noise_scale.numel() == 1 else 'gaussian_diagonal'
-            return NoiseModel.from_model(model, noise_struct, scale=noise_scale)
+            return GaussianDiagonalNoiseModel({"scale": noise_scale}, scale_dimension=model.dimension)
 
     @staticmethod
     def _get_reparametrized_age(timepoints, tau, xi, tau_mean):
@@ -650,7 +705,7 @@ class SimulationAlgorithm(AbstractAlgo):
         return _SimulatedSubjects(simulated_parameters, timepoints)
 
     @staticmethod
-    def _simulate_subjects_values(subjects: _SimulatedSubjects, model, noise_model: NoiseModel):
+    def _simulate_subjects_values(subjects: _SimulatedSubjects, model, noise_dist: DistributionFamily):
         """
         Compute the simulated scores given the simulated individual parameters, timepoints & noise model.
 
@@ -660,8 +715,8 @@ class SimulationAlgorithm(AbstractAlgo):
             Helper class to store simulated individual parameters and timepoints
         model : :class:`~.models.abstract_model.AbstractModel`
             A subclass object of leaspy `AbstractModel`.
-        noise_model : :class:`.NoiseModel`
-            The noise model that is able to sample realizations around model mean values.
+        noise_dist : DistributionFamily
+            The noise distribution that is able to sample realizations around model mean values.
 
         Returns
         -------
@@ -675,9 +730,9 @@ class SimulationAlgorithm(AbstractAlgo):
             indiv_param = {key: val[[i], :] for key, val in subjects.individual_parameters.items()}
             mean_observations = model.compute_individual_trajectory(subjects.timepoints[i], indiv_param)
             # Sample observations as realizations of the noise model
-            observations = noise_model.sample_around(mean_observations)
+            observations = noise_dist.sample_around(mean_observations)
             # Clip in 0-1 for logistic models (could be out because of noise!), except for ordinal case
-            if 'logistic' in model.name and not getattr(model, 'is_ordinal', False):
+            if 'logistic' in model.name and not model.is_ordinal:
                 observations = observations.clamp(0, 1)
 
             observations = observations.squeeze(0).detach()
@@ -791,8 +846,9 @@ class SimulationAlgorithm(AbstractAlgo):
         dataset = Dataset(data)
         model.validate_compatibility_of_dataset(dataset)
 
-        # validate and get noise model for simulation
-        noise_model = self._get_noise_model(model, dataset, dict_pytorch)
+        # get and validate noise model for simulation
+        noise_dist = self._get_noise_distribution(model, dataset, dict_pytorch)
+        self._check_noise_distribution(model, noise_dist)
 
         if self.cofactor is not None:
             self._check_cofactors(data)
@@ -855,7 +911,7 @@ class SimulationAlgorithm(AbstractAlgo):
         simulated_subjects = self._simulate_individual_parameters(
             model, number_of_simulated_subjects, kernel, ss, df_mean, df_cov, get_sources=get_sources)
 
-        simulated_subjects.values = self._simulate_subjects_values(simulated_subjects, model, noise_model)
+        simulated_subjects.values = self._simulate_subjects_values(simulated_subjects, model, noise_dist)
 
         # --------- If one wants to constrain baseline scores of generated subjects
         if self.features_bounds:
@@ -872,7 +928,8 @@ class SimulationAlgorithm(AbstractAlgo):
                                                      headers=data.headers)
 
         # Output of simulation algorithm
-        noise_std_used = noise_model.scale  # will be not None iff Gaussian noise model
+        # will be not None iff Gaussian noise model
+        noise_std_used = (noise_dist.parameters or {}).get('scale', None)
 
         result_obj = Result(data=simulated_data,
                             individual_parameters=simulated_subjects.individual_parameters,

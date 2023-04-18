@@ -64,7 +64,7 @@ class LeaspySimulateTest_Mixin(LeaspyTestCase):
 
         if getattr(model, 'is_ordinal', False):
             # ordinal models
-            max_level_fts = pd.Series({d_ft['name']: d_ft['max_level'] for d_ft in model.ordinal_infos["features"]})
+            max_level_fts = pd.Series(model.ordinal_infos["max_levels"])
         else:
             # default for all other models
             max_level_fts = 1  # set np.inf for linear models?

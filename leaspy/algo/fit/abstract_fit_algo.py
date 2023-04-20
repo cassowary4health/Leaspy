@@ -85,7 +85,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
 
         with self._device_manager(model, dataset):
             # Initialize the `CollectionRealization` (from the random variables of the model)
-            realizations = model.initialize_realizations_for_model(dataset.n_individuals)
+            realizations = model.initialize_realizations_for_model(dataset)
 
             # Smart init the realizations
             realizations = model.smart_initialization_realizations(dataset, realizations)

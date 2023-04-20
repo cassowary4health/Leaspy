@@ -332,7 +332,8 @@ def get_log_velocities(velocities: torch.Tensor, features: List[str], *, min: fl
     if neg_velocities.any():
         warnings.warn(f"Mean slope of individual linear regressions made at initialization is negative for "
                       f"{[f for f, vel in zip(features, velocities) if vel <= 0]}: not properly handled in model...")
-    return velocities.clamp(min=min).log()
+    return (velocities.clamp(min=min)*4).log()
+
 
 def initialize_logistic(model, df: pd.DataFrame, method):
     """

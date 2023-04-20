@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-
+from scipy import stats
 import torch
 
 from leaspy.exceptions import LeaspyModelInputError
@@ -65,7 +65,7 @@ class Realization:
         realization.tensor_realizations = tensor_realization.clone().detach()
         return realization
 
-    def initialize(self, n_individuals: int, model: AbstractModel, *, individual_variable_init_at_mean: bool = False):
+    def initialize(self,dataset, model: AbstractModel, *, individual_variable_init_at_mean: bool = False):
         """
         Initialize realization from a given model.
 
@@ -85,12 +85,29 @@ class Realization:
         :exc:`.LeaspyModelInputError`
             if unknown variable type
         """
-
+        n_individuals = dataset.n_individuals
         if self.variable_type == "population":
             self._tensor_realizations = model.parameters[self.name].reshape(self.shape) # avoid 0D / 1D tensors mix
         elif self.variable_type == 'individual':
-            if individual_variable_init_at_mean:
-                self._tensor_realizations = model.parameters[f"{self.name}_mean"] * torch.ones((n_individuals, *self.shape))
+            if True:  # individual_variable_init_at_mean:
+                if self.name == 'tau':
+                    time_w_nan = torch.where(dataset.timepoints == 0, torch.tensor(float('nan')), dataset.timepoints)
+                    self._tensor_realizations = time_w_nan.nanmean(1).reshape((n_individuals, *self.shape))
+                    # print(time_w_nan.nanmean(1).shape, self.shape)
+                elif self.name == 'xi':
+                    list_slope = []
+                    # print(dataset.timepoints.shape, dataset.values.shape)
+                    for x, y in zip(dataset.timepoints, dataset.values[:, :, 0]):
+                        slope, intercept, r_value, p_value, std_err = stats.linregress(x[x != 0], y[x != 0])
+                        # print(slope)
+                        list_slope.append((torch.tensor(slope).clamp(min=0.001) * 4).log())
+                    # print(list_slope)
+                    torch_slope = torch.tensor(list_slope).reshape((n_individuals, *self.shape)).float()
+                    torch_slope = torch.where(torch_slope.isnan(), model.parameters[f"{self.name}_mean"], torch_slope)
+                    self._tensor_realizations = torch_slope
+                else:
+                    raise
+
             else:
                 distribution = torch.distributions.normal.Normal(loc=model.parameters[f"{self.name}_mean"],
                                                                 scale=model.parameters[f"{self.name}_std"])

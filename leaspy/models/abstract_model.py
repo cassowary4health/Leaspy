@@ -681,7 +681,7 @@ class AbstractModel(ABC):
 
         return neg_loglike
 
-    def initialize_realizations_for_model(self, n_individuals: int, **init_kws) -> CollectionRealization:
+    def initialize_realizations_for_model(self, dataset, **init_kws) -> CollectionRealization:
         """
         Initialize a :class:`.CollectionRealization` used during model fitting or mode/mean realization personalization.
 
@@ -698,7 +698,7 @@ class AbstractModel(ABC):
         :class:`.CollectionRealization`
         """
         realizations = CollectionRealization()
-        realizations.initialize(n_individuals, self, **init_kws)
+        realizations.initialize(dataset, self, **init_kws)
         return realizations
 
     @abstractmethod

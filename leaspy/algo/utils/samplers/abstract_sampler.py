@@ -10,7 +10,7 @@ from leaspy.utils.typing import KwargsType
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
     from leaspy.models.abstract_model import AbstractModel
-    from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.realizations import CollectionRealization, VariableType
 
 
 class AbstractSampler(ABC):
@@ -66,9 +66,9 @@ class AbstractSampler(ABC):
 
         self.ind_param_dims_but_individual: Optional[Tuple[int, ...]] = None
         self.mask = None
+        self.type = VariableType.from_string(info["type"])
 
-        if info["type"] == "population":
-            self.type = 'pop'
+        if self.type == VariableType.POPULATION:
             # Initialize the acceptation history
             if len(self.shape) not in {1, 2}:
                 # convention: shape of pop variable is 1D or 2D
@@ -76,8 +76,7 @@ class AbstractSampler(ABC):
             else:
                 self.acceptation_history = torch.zeros(self.acceptation_history_length, *self.shape)
 
-        elif info["type"] == "individual":
-            self.type = 'ind'
+        if self.type == VariableType.INDIVIDUAL:
             # Initialize the acceptation history
             if len(self.shape) != 1:
                 raise LeaspyModelInputError("Dimension of individual variable should be 1")
@@ -90,21 +89,26 @@ class AbstractSampler(ABC):
             # will always be the individual dimension.
             self.ind_param_dims_but_individual = tuple(range(1, 1 + len(self.shape)))  # for now it boils down to (1,)
 
-        else:
-            raise LeaspyModelInputError(f"Unknown variable type '{info['type']}': nor 'population' nor 'individual'.")
-
         if info.get("mask", None) is not None:
             self.mask = info["mask"]
-            if info["type"] != "population":
+            if self.type != VariableType.POPULATION:
                 raise LeaspyModelInputError("Mask in sampler is only supported for population variable.")
             if self.mask.shape != self.shape:
                 raise LeaspyModelInputError(
-                    f"Mask for sampler should be of size {self.shape} but is of shape {self.mask.shape}")
+                    f"Mask for sampler should be of size {self.shape} but is of shape {self.mask.shape}"
+                )
 
-
-    def sample(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization, temperature_inv: float, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    def sample(
+        self,
+        dataset: Dataset,
+        model: AbstractModel,
+        realizations: CollectionRealization,
+        temperature_inv: float,
+        **attachment_computation_kws,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Sample new realization (either population or individual) for a given realization state, dataset, model and temperature
+        Sample new realization (either population or individual) for a given
+        realization state, dataset, model and temperature.
 
         <!> Modifies in-place the realizations object,
         <!> as well as the model through its `update_MCMC_toolbox` for population variables.
@@ -131,20 +135,38 @@ class AbstractSampler(ABC):
             The attachment and regularity (only for the current variable) at the end of this sampling step
             (globally or per individual, depending on variable type).
         """
-        if self.type == 'pop':
-            return self._sample_population_realizations(dataset, model, realizations, temperature_inv, **attachment_computation_kws)
-        else:
-            return self._sample_individual_realizations(dataset, model, realizations, temperature_inv, **attachment_computation_kws)
+        if self.type == VariableType.POPULATION:
+            return self._sample_population_realizations(
+                dataset, model, realizations, temperature_inv, **attachment_computation_kws
+            )
+        if self.type == VariableType.INDIVIDUAL:
+            return self._sample_individual_realizations(
+                dataset, model, realizations, temperature_inv, **attachment_computation_kws
+            )
 
     @abstractmethod
-    def _sample_population_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    def _sample_population_realizations(
+        self,
+        data: Dataset,
+        model: AbstractModel,
+        realizations: CollectionRealization,
+        temperature_inv: float,
+        **attachment_computation_kws,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Sample population variables"""
 
     @abstractmethod
-    def _sample_individual_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    def _sample_individual_realizations(
+        self,
+        data: Dataset,
+        model: AbstractModel,
+        realizations: CollectionRealization,
+        temperature_inv: float,
+        **attachment_computation_kws,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Sample individual variables"""
 
-    def _group_metropolis_step(self, alpha: torch.FloatTensor) -> torch.FloatTensor:
+    def _group_metropolis_step(self, alpha: torch.Tensor) -> torch.Tensor:
         """
         Compute the acceptance decision (0. for False & 1. for True).
 
@@ -187,7 +209,7 @@ class AbstractSampler(ABC):
         # <!> Always draw a number even if it seems "useless" (cf. docstring warning)
         return torch.rand(1).item() < alpha
 
-    def _update_acceptation_rate(self, accepted: torch.FloatTensor):
+    def _update_acceptation_rate(self, accepted: torch.Tensor):
         """
         Update history of acceptation rates with latest accepted rates
 
@@ -199,7 +221,6 @@ class AbstractSampler(ABC):
         ------
         :exc:`.LeaspyModelInputError`
         """
-
         # Concatenate the new acceptation result at end of new one (forgetting the oldest acceptation rate)
         old_acceptation_history = self.acceptation_history[1:]
         self.acceptation_history = torch.cat([old_acceptation_history, accepted.unsqueeze(0)])

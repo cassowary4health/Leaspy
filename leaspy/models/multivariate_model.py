@@ -3,12 +3,12 @@ import torch
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.io.data.dataset import Dataset
-from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.realizations import CollectionRealization
 
 from leaspy.utils.docs import doc_with_super, doc_with_
 from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
-from leaspy.utils.typing import DictParamsTorch
+from leaspy.utils.typing import DictParamsTorch, DictParams
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either
@@ -398,8 +398,7 @@ class MultivariateModel(AbstractMultivariateModel):
         )
         # TODO? why not passing the ready-to-use collection realizations that is initialized
         #  at beginning of fit algo and use it here instead?
-        population_dictionary = self._create_dictionary_of_population_realizations()
-        self.update_MCMC_toolbox({"all"}, population_dictionary)
+        self.update_MCMC_toolbox({"all"}, self._get_population_realizations())
 
     def update_MCMC_toolbox(self, vars_to_update: set, realizations: CollectionRealization) -> None:
         """
@@ -413,13 +412,13 @@ class MultivariateModel(AbstractMultivariateModel):
             The realizations to use for updating the MCMC toolbox.
         """
         values = {}
-        update_all = 'all' in vars_to_update
-        if update_all or 'g' in vars_to_update:
-            values['g'] = realizations['g'].tensor_realizations
-        if update_all or len(vars_to_update.intersection({'v0', 'v0_collinear'})):
-            values['v0'] = realizations['v0'].tensor_realizations
-        if self.source_dimension != 0 and (update_all or 'betas' in vars_to_update):
-            values['betas'] = realizations['betas'].tensor_realizations
+        update_all = "all" in vars_to_update
+        if update_all or "g" in vars_to_update:
+            values["g"] = realizations["g"].tensor
+        if update_all or len(vars_to_update.intersection({"v0", "v0_collinear"})):
+            values["v0"] = realizations["v0"].tensor
+        if self.source_dimension != 0 and (update_all or "betas" in vars_to_update):
+            values["betas"] = realizations["betas"].tensor
         self._update_MCMC_toolbox_ordinal(vars_to_update, realizations, values)
         self.MCMC_toolbox['attributes'].update(vars_to_update, values)
 
@@ -438,9 +437,9 @@ class MultivariateModel(AbstractMultivariateModel):
         realizations : CollectionRealization
             The realizations to use for updating the MCMC toolbox.
         """
-        mean_xi = torch.mean(realizations['xi'].tensor_realizations)
-        realizations['xi'].tensor_realizations = realizations['xi'].tensor_realizations - mean_xi
-        realizations['v0'].tensor_realizations = realizations['v0'].tensor_realizations + mean_xi
+        mean_xi = torch.mean(realizations['xi'].tensor)
+        realizations["xi"].tensor = realizations["xi"].tensor - mean_xi
+        realizations["v0"].tensor = realizations["v0"].tensor + mean_xi
         self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
     def compute_model_sufficient_statistics(
@@ -467,15 +466,12 @@ class MultivariateModel(AbstractMultivariateModel):
         self._center_xi_realizations(realizations)
 
         # unlink all sufficient statistics from updates in realizations!
-        realizations = realizations.clone_realizations()
-
-        sufficient_statistics = {
-            param: realizations[param].tensor_realizations for param in ("g", "v0", "tau", "xi")
-        }
+        realizations = realizations.clone()
+        sufficient_statistics = realizations[["g", "v0", "tau", "xi"]].tensors_dict
         if self.source_dimension != 0:
-            sufficient_statistics['betas'] = realizations['betas'].tensor_realizations
+            sufficient_statistics['betas'] = realizations["betas"].tensor
         for param in ("tau", "xi"):
-            sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor_realizations, 2)
+            sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor, 2)
 
         sufficient_statistics.update(
             self.compute_ordinal_model_sufficient_statistics(realizations)
@@ -576,68 +572,93 @@ class MultivariateModel(AbstractMultivariateModel):
             )
         )
 
-    def random_variable_informations(self) -> dict:
-        # --- Population variables
-        g_infos = {
+    def get_population_random_variable_information(self) -> DictParams:
+        """
+        Return the information on population random variables relative to the model.
+
+        Returns
+        -------
+        DictParams :
+            The information on the population random variables.
+        """
+        g_info = {
             "name": "g",
             "shape": torch.Size([self.dimension]),
             "type": "population",
             "rv_type": "multigaussian"
         }
-        v0_infos = {
+        v0_info = {
             "name": "v0",
             "shape": torch.Size([self.dimension]),
             "type": "population",
             "rv_type": "multigaussian"
         }
-        betas_infos = {
+        betas_info = {
             "name": "betas",
             "shape": torch.Size([self.dimension - 1, self.source_dimension]),
             "type": "population",
             "rv_type": "multigaussian",
             "scale": .5  # cf. GibbsSampler
         }
-        # --- Individual variables
-        tau_infos = {
+        variables_info = {
+            "g": g_info,
+            "v0": v0_info,
+        }
+        if self.source_dimension != 0:
+            variables_info['betas'] = betas_info
+
+        variables_info.update(self.get_ordinal_random_variable_information())
+        variables_info = self.update_ordinal_random_variable_information(variables_info)
+
+        return variables_info
+
+    def get_individual_random_variable_information(self) -> DictParams:
+        """
+        Return the information on individual random variables relative to the model.
+
+        Returns
+        -------
+        DictParams :
+            The information on the individual random variables.
+        """
+        tau_info = {
             "name": "tau",
             "shape": torch.Size([1]),
             "type": "individual",
             "rv_type": "gaussian"
         }
-        xi_infos = {
+        xi_info = {
             "name": "xi",
             "shape": torch.Size([1]),
             "type": "individual",
             "rv_type": "gaussian"
         }
-        sources_infos = {
+        sources_info = {
             "name": "sources",
             "shape": torch.Size([self.source_dimension]),
             "type": "individual",
             "rv_type": "gaussian"
         }
-        variables_infos = {
-            "g": g_infos,
-            "v0": v0_infos,
-            "tau": tau_infos,
-            "xi": xi_infos,
+        variables_info = {
+            "tau": tau_info,
+            "xi": xi_info,
         }
         if self.source_dimension != 0:
-            variables_infos['sources'] = sources_infos
-            variables_infos['betas'] = betas_infos
+            variables_info['sources'] = sources_info
 
-        self._add_ordinal_random_variables(variables_infos)
+        return variables_info
 
-        return variables_infos
 
-# document some methods (we cannot decorate them at method creation since they are not yet decorated from `doc_with_super`)
+# document some methods (we cannot decorate them at method creation since they are
+# not yet decorated from `doc_with_super`)
 doc_with_(MultivariateModel.compute_individual_tensorized_linear,
           MultivariateModel.compute_individual_tensorized,
           mapping={'the model': 'the model (linear)'})
 doc_with_(MultivariateModel.compute_individual_tensorized_logistic,
           MultivariateModel.compute_individual_tensorized,
           mapping={'the model': 'the model (logistic)'})
-#doc_with_(MultivariateModel.compute_individual_tensorized_mixed,
+
+# doc_with_(MultivariateModel.compute_individual_tensorized_mixed,
 #          MultivariateModel.compute_individual_tensorized,
 #          mapping={'the model': 'the model (mixed logistic-linear)'})
 
@@ -647,16 +668,16 @@ doc_with_(MultivariateModel.compute_jacobian_tensorized_linear,
 doc_with_(MultivariateModel.compute_jacobian_tensorized_logistic,
           MultivariateModel.compute_jacobian_tensorized,
           mapping={'the model': 'the model (logistic)'})
-#doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed,
+# doc_with_(MultivariateModel.compute_jacobian_tensorized_mixed,
 #          MultivariateModel.compute_jacobian_tensorized,
 #          mapping={'the model': 'the model (mixed logistic-linear)'})
 
-#doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_linear,
+# doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_linear,
 #          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
 #          mapping={'the model': 'the model (linear)'})
 doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_logistic,
           MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
           mapping={'the model': 'the model (logistic)'})
-#doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_mixed,
+# doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_mixed,
 #          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
 #          mapping={'the model': 'the model (mixed logistic-linear)'})

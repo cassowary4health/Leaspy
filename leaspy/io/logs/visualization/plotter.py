@@ -15,6 +15,8 @@ import matplotlib.backends.backend_pdf
 
 from leaspy.io.data.dataset import Dataset
 from leaspy.exceptions import LeaspyInputError
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.utils.typing import DictParamsTorch
 
 
 class Plotter:
@@ -39,9 +41,15 @@ class Plotter:
         self._show = True
 
     @staticmethod
-    def _torch_model_values_to_numpy_postprocessed_values(model_values: torch.Tensor, *, model) -> np.ndarray:
-        """Helper to convert torch model values to numpy & apply them the default postprocessing (useful for ordinal models)."""
-
+    def _torch_model_values_to_numpy_postprocessed_values(
+        model_values: torch.Tensor,
+        *,
+        model: AbstractModel,
+    ) -> np.ndarray:
+        """
+        Convert torch model values to numpy & apply them the default
+        postprocessing (useful for ordinal models).
+        """
         model_values_np = model_values.cpu().detach().numpy()
 
         # post-process the mean trajectory if needed (with default arguments)
@@ -52,17 +60,34 @@ class Plotter:
         return model_values_np
 
     @classmethod
-    def _compute_mean_traj_postprocessed(cls, model, timepoints: torch.Tensor, **kws) -> np.ndarray:
+    def _compute_mean_traj_postprocessed(
+        cls,
+        model: AbstractModel,
+        timepoints: torch.Tensor,
+        **kws,
+    ) -> np.ndarray:
         mean_trajectory = model.compute_mean_traj(timepoints, **kws)
         return cls._torch_model_values_to_numpy_postprocessed_values(mean_trajectory, model=model)
 
     @classmethod
-    def _compute_individual_tensorized_postprocessed(cls, model, timepoints: torch.Tensor, individual_parameters: dict, **kws) -> np.ndarray:
+    def _compute_individual_tensorized_postprocessed(
+        cls,
+        model: AbstractModel,
+        timepoints: torch.Tensor,
+        individual_parameters: DictParamsTorch,
+        **kws,
+    ) -> np.ndarray:
         model_values = model.compute_individual_tensorized(timepoints, individual_parameters, **kws)
         return cls._torch_model_values_to_numpy_postprocessed_values(model_values, model=model)
 
     @classmethod
-    def _compute_individual_trajectory_postprocessed(cls, model, timepoints, individual_parameters, **kws) -> np.ndarray:
+    def _compute_individual_trajectory_postprocessed(
+        cls,
+        model: AbstractModel,
+        timepoints: torch.Tensor,
+        individual_parameters: DictParamsTorch,
+        **kws,
+    ) -> np.ndarray:
         model_values = model.compute_individual_trajectory(timepoints, individual_parameters, **kws)
         return cls._torch_model_values_to_numpy_postprocessed_values(model_values, model=model)
 
@@ -70,12 +95,18 @@ class Plotter:
         if self._show:
             plt.show(block=self._block)
 
-    def plot_mean_trajectory(self, model, *, attribute_type: Optional[str] = None,
-                             n_pts = 100, n_std_left = 3, n_std_right = 6, **kwargs):
-
+    def plot_mean_trajectory(
+        self,
+        model: AbstractModel,
+        *,
+        attribute_type: Optional[str] = None,
+        n_pts: int = 100,
+        n_std_left: int = 3,
+        n_std_right: int = 6,
+        **kwargs,
+    ):
         labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
-
         colors = kwargs.get('color', cycle(cm.get_cmap("tab20").colors))
 
         try:
@@ -142,8 +173,7 @@ class Plotter:
         self.plt_show()
         plt.close()
 
-
-    def plot_mean_validity(self, model, results, **kwargs):
+    def plot_mean_validity(self, model: AbstractModel, results, **kwargs) -> None:
         t0 = model.parameters['tau_mean'].numpy()
         hist = []
 
@@ -163,7 +193,7 @@ class Plotter:
         self.plt_show()
         plt.close()
 
-    def plot_patient_trajectory(self, model, results, indices, **kwargs):
+    def plot_patient_trajectory(self, model: AbstractModel, results, indices, **kwargs) -> None:
 
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
         labels = model.features
@@ -196,7 +226,7 @@ class Plotter:
         if 'title' in kwargs.keys():
             ax.set_title(kwargs['title'])
 
-        custom_lines = [Line2D([0], [0], color=colors[i], lw=4) for i in range((model.dimension))]
+        custom_lines = [Line2D([0], [0], color=colors[i], lw=4) for i in range(model.dimension)]
 
         ax.legend(custom_lines, labels, loc='upper right')
 
@@ -207,13 +237,21 @@ class Plotter:
             self.plt_show()
             plt.close()
 
-    def plot_from_individual_parameters(self, model, indiv_parameters, timepoints, **kwargs):
+    def plot_from_individual_parameters(
+        self,
+        model: AbstractModel,
+        indiv_parameters: DictParamsTorch,
+        timepoints: torch.Tensor,
+        **kwargs,
+    ) -> None:
         # 1 individual at a time...
         colors = kwargs['color'] if 'color' in kwargs.keys() else cm.Dark2(np.linspace(0, 1, model.dimension))
         labels = model.features
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
-        trajectory_np = self._compute_individual_trajectory_postprocessed(model, timepoints, indiv_parameters).squeeze(0)
+        trajectory_np = self._compute_individual_trajectory_postprocessed(
+            model, timepoints, indiv_parameters
+        ).squeeze(0)
         for dim in range(model.dimension):
             ax.plot(timepoints, trajectory_np[:, dim], c=colors[dim], label=labels[dim])
 
@@ -223,7 +261,6 @@ class Plotter:
 
         self.plt_show()
         plt.close()
-
 
     def plot_distribution(self, results, parameter: str, cofactor=None, **kwargs):
         fig, ax = plt.subplots(1, 1, figsize=(11, 6))
@@ -263,16 +300,26 @@ class Plotter:
         self.plt_show()
         plt.close()
 
-    def plot_patients_mapped_on_mean_trajectory(self, model, results, *, n_std_left = 2, n_std_right = 4, n_pts = 100):
+    def plot_patients_mapped_on_mean_trajectory(
+        self,
+        model: AbstractModel,
+        results,
+        *,
+        n_std_left: int = 2,
+        n_std_right: int = 4,
+        n_pts: int = 100,
+    ) -> None:
         dataset = Dataset(results.data)
 
         model_values_np = self._compute_individual_tensorized_postprocessed(
-                                    model, dataset.timepoints, results.individual_parameters)
-        timepoints = np.linspace(model.parameters['tau_mean'] - n_std_left * model.parameters['tau_std'],
-                                 model.parameters['tau_mean'] + n_std_right * model.parameters['tau_std'],
-                                 n_pts)
+            model, dataset.timepoints, results.individual_parameters
+        )
+        timepoints = np.linspace(
+            model.parameters['tau_mean'] - n_std_left * model.parameters['tau_std'],
+            model.parameters['tau_mean'] + n_std_right * model.parameters['tau_std'],
+            n_pts
+        )
         timepoints = torch.tensor(timepoints).unsqueeze(0)
-
         xi = results.individual_parameters['xi']
         tau = results.individual_parameters['tau']
 
@@ -299,7 +346,7 @@ class Plotter:
     ############## TODO : The next functions are related to the plots during the fit. Disentangle them properly
 
     @classmethod
-    def plot_error(cls, path, dataset, model, param_ind, colors=None, labels=None):
+    def plot_error(cls, path, dataset, model: AbstractModel, param_ind, colors=None, labels=None):
         model_values_np = cls._compute_individual_tensorized_postprocessed(model, dataset.timepoints, param_ind)
 
         if colors is None:
@@ -308,8 +355,7 @@ class Plotter:
             labels = np.arange(model_values_np.shape[-1])
             labels = [str(k) for k in labels]
 
-        err = {}
-        err['all'] = []
+        err = {"all": []}
         for i in range(dataset.values.shape[-1]):
             err[i] = []
             for idx in range(model_values_np.shape[0]):
@@ -450,8 +496,8 @@ class Plotter:
 
         # Make the plot 2
 
-        reals_pop_name = model.get_population_realization_names()
-        reals_ind_name = model.get_individual_realization_names()
+        reals_pop_name = model.get_population_variable_names()
+        reals_ind_name = model.get_individual_variable_names()
 
         additional_plots = 1 # for noise_std / log-likelihood depending on noise_model
 

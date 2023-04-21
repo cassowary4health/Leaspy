@@ -10,7 +10,7 @@ from leaspy.models.utils.attributes.abstract_manifold_model_attributes import Ab
 from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 from leaspy.models.utils.ordinal import OrdinalModelMixin
 from leaspy.io.data.dataset import Dataset
-from leaspy.io.realizations.collection_realization import CollectionRealization
+from leaspy.io.realizations import CollectionRealization
 
 from leaspy.utils.typing import KwargsType, Set, Optional, DictParamsTorch
 from leaspy.utils.docs import doc_with_super

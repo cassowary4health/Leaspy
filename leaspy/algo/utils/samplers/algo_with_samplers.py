@@ -1,11 +1,12 @@
-from typing import Dict
+from typing import Dict, Optional
 import warnings
 
 from .abstract_sampler import AbstractSampler
 from .gibbs_sampler import GibbsSampler
-#from .hmc_sampler import HMCSampler  # legacy
 
 from leaspy.exceptions import LeaspyAlgoInputError
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.io.data.dataset import Dataset
 
 
 class AlgoWithSamplersMixin:
@@ -67,7 +68,6 @@ class AlgoWithSamplersMixin:
                           "\nNote that while `n_burn_in_iter` is supported "
                           "it will always have priority over `n_burn_in_iter_frac`.", FutureWarning)
 
-
     def _is_burn_in(self) -> bool:
         """
         Check if current iteration is in burn-in (= memory-less) phase.
@@ -98,7 +98,7 @@ class AlgoWithSamplersMixin:
             out += f"\n    {str(sampler)}"
         return out
 
-    def _initialize_samplers(self, model, dataset):
+    def _initialize_samplers(self, model: AbstractModel, dataset: Dataset) -> None:
         """
         Instantiate samplers as a dictionary samplers {variable_name: sampler}
 
@@ -107,47 +107,74 @@ class AlgoWithSamplersMixin:
         model : :class:`~.models.abstract_model.AbstractModel`
         dataset : :class:`.Dataset`
         """
-        # fetch additional hyperparameters for samplers
-        # TODO: per variable and not just per type of variable?
-        sampler_ind = self.algo_parameters.get('sampler_ind', None)
-        sampler_ind_kws = self.algo_parameters.get('sampler_ind_params', {})
-        sampler_pop = self.algo_parameters.get('sampler_pop', None)
-        sampler_pop_kws = self.algo_parameters.get('sampler_pop_params', {})
-
-        # allow sampler ind or pop to be None when the corresponding variables are not needed
-        # e.g. for personalization algorithms (mode & mean real), we do not need to sample pop variables any more!
-        if sampler_ind not in [None, 'Gibbs']:
-            raise NotImplementedError("Only 'Gibbs' sampler is supported for individual variables for now, "
-                                      "please open an issue on Gitlab if needed.")
-
-        if sampler_pop not in [None, 'Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
-            raise NotImplementedError("Only 'Gibbs', 'FastGibbs' and 'Metropolis-Hastings' sampler is supported for population variables for now, "
-                                      "please open an issue on Gitlab if needed.")
-
         self.samplers = {}
-        for variable, info in model.random_variable_informations().items():
+        self._initialize_individual_samplers(model, dataset)
+        self._initialize_population_samplers(model, dataset)
 
-            if info["type"] == "individual":
+    def _initialize_individual_samplers(self, model: AbstractModel, dataset: Dataset) -> None:
+        # TODO: per variable and not just per type of variable?
+        sampler = self.get_individual_sampler()
+        sampler_kws = self.algo_parameters.get('sampler_ind_params', {})
+        for variable, info in model.get_individual_random_variable_information().items():
+            # To enforce a fixed scale for a given var, one should put it in the random var specs
+            # But note that for individual parameters the model parameters ***_std should always be OK (> 0)
+            if sampler == "Gibbs":
+                self.samplers[variable] = GibbsSampler(
+                    info,
+                    dataset.n_individuals,
+                    scale=info.get('scale', model.parameters[f'{variable}_std']),
+                    sampler_type=sampler,
+                    **sampler_kws,
+                )
 
-                # To enforce a fixed scale for a given var, one should put it in the random var specs
-                # But note that for individual parameters the model parameters ***_std should always be OK (> 0)
-                scale_param = info.get('scale', model.parameters[f'{variable}_std'])
+    def _initialize_population_samplers(self, model: AbstractModel, dataset: Dataset) -> None:
+        sampler = self.get_population_sampler()
+        sampler_kws = self.algo_parameters.get('sampler_pop_params', {})
+        for variable, info in model.get_population_random_variable_information().items():
+            # To enforce a fixed scale for a given var, one should put it in the random var specs
+            # For instance: for betas & deltas, it is a good idea to define them this way
+            # since they'll probably be = 0 just after initialization!
+            # We have priors which should be better than the variable initial value no ?
+            # model.MCMC_toolbox['priors'][f'{variable}_std']
+            if sampler in ("Gibbs", "FastGibbs", "Metropolis-Hastings"):
+                self.samplers[variable] = GibbsSampler(
+                    info,
+                    dataset.n_individuals,
+                    scale=info.get('scale', model.parameters[variable].abs()),
+                    sampler_type=sampler,
+                    **sampler_kws,
+                )
 
-                if sampler_ind in ['Gibbs']:
-                    self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
-                                                           sampler_type=sampler_ind, **sampler_ind_kws)
-                #elif self.algo_parameters['sampler_ind'] == 'HMC':  # legacy
-                    #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
-            else:
+    def get_individual_sampler(self) -> Optional[str]:
+        """
+        Return a valid individual sampler.
 
-                # To enforce a fixed scale for a given var, one should put it in the random var specs
-                # For instance: for betas & deltas, it is a good idea to define them this way
-                # since they'll probably be = 0 just after initialization!
-                # We have priors which should be better than the variable initial value no ? model.MCMC_toolbox['priors'][f'{variable}_std']
-                scale_param = info.get('scale', model.parameters[variable].abs())
+        Allow sampler to be None when the corresponding variables are not needed
+        e.g. for personalization algorithms (mode & mean real), we do not need to
+        sample pop variables any more!
 
-                if sampler_pop in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
-                    self.samplers[variable] = GibbsSampler(info, dataset.n_individuals, scale=scale_param,
-                                                           sampler_type=sampler_pop, **sampler_pop_kws)
-                #elif self.algo_parameters['sampler_pop'] == 'HMC':  # legacy
-                    #self.samplers[variable] = HMCSampler(info, data.n_individuals, self.algo_parameters['eps'])
+        Returns
+        -------
+        sampler : str
+            The name of the individual sampler.
+        """
+        sampler = self.algo_parameters.get('sampler_ind', None)
+        if sampler not in (None, "Gibbs"):
+            raise NotImplementedError(
+                "Only 'Gibbs' sampler is supported for individual variables for now, "
+                "please open an issue on Gitlab if needed."
+            )
+        return sampler
+
+    def get_population_sampler(self) -> Optional[str]:
+        """
+        Return a valid population sampler.
+        """
+        sampler = self.algo_parameters.get('sampler_pop', None)
+        if sampler not in (None, "Gibbs", "FastGibbs", "Metropolis-Hastings"):
+            raise NotImplementedError(
+                "Only 'Gibbs', 'FastGibbs' and 'Metropolis-Hastings' samplers are "
+                "supported for population variables for now, "
+                "please open an issue on Gitlab if needed."
+            )
+        return sampler

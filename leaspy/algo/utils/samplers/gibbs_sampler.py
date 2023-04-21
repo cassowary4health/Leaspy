@@ -9,6 +9,10 @@ from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.docs import doc_with_super
 from leaspy.utils.typing import Union, Tuple
 
+from leaspy.io.realizations import CollectionRealization
+from leaspy.models.abstract_model import AbstractModel
+from leaspy.io.data.dataset import Dataset
+
 
 @doc_with_super()
 class GibbsSampler(AbstractSampler):
@@ -161,7 +165,7 @@ class GibbsSampler(AbstractSampler):
 
         return f"{self.name} rate : {mean_acceptation_rate.item():.1%}, std: {mean_std.item():.1e}"
 
-    def _proposal(self, val):
+    def _proposal(self, val: torch.Tensor) -> torch.Tensor:
         """
         Proposal value around the current value with sampler standard deviation.
 
@@ -170,11 +174,11 @@ class GibbsSampler(AbstractSampler):
 
         Parameters
         ----------
-        val : torch.FloatTensor
+        val : torch.Tensor
 
         Returns
         -------
-        torch.FloatTensor of shape broadcasted_shape(val.shape, self.std.shape)
+        torch.Tensor of shape broadcasted_shape(val.shape, self.std.shape)
             value around `val`
         """
         return val + self._distribution.sample()  # sample_shape=val.shape
@@ -199,7 +203,14 @@ class GibbsSampler(AbstractSampler):
             self.std[idx_toolow] *= (1 - self._adaptive_std_factor)
             self.std[idx_toohigh] *= (1 + self._adaptive_std_factor)
 
-    def _sample_population_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws):
+    def _sample_population_realizations(
+        self,
+        data: Dataset,
+        model: AbstractModel,
+        realizations: CollectionRealization,
+        temperature_inv: float,
+        **attachment_computation_kws,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         For each dimension (1D or 2D) of the population variable, compute current attachment and regularity.
         Propose a new value for the given dimension of the given population variable,
@@ -218,7 +229,8 @@ class GibbsSampler(AbstractSampler):
         Returns
         -------
         attachment, regularity_var : `torch.FloatTensor` 0D (scalars)
-            The attachment and regularity (only for the current variable) at the end of this sampling step (summed on all individuals).
+            The attachment and regularity (only for the current variable) at the end of this
+            sampling step (summed on all individuals).
         """
         realization = realizations[self.name]
         accepted_array = torch.zeros_like(self.std)
@@ -243,7 +255,7 @@ class GibbsSampler(AbstractSampler):
 
         # retrieve the individual parameters from realizations once for all to speed-up computations,
         # since they are fixed during the sampling of this population variable!
-        ind_params = model.get_param_from_real(realizations)
+        ind_params = realizations.individual.tensors_dict
 
         def compute_attachment_regularity():
             # model attributes used are the ones from the MCMC toolbox that we are currently changing!
@@ -264,12 +276,13 @@ class GibbsSampler(AbstractSampler):
                 previous_attachment, previous_regularity = compute_attachment_regularity()
 
             # Keep previous realizations and sample new ones
-            old_val_idx = realization.tensor_realizations[idx].clone()
+            old_val_idx = realization.tensor[idx].clone()
             # the previous version with `_proposal` was not incorrect but computationnally inefficient:
             # because we were sampling on the full shape of `std` whereas we only needed `std[idx]` (smaller)
             change_idx = self.std[idx] * torch.randn(old_val_idx.shape)
             # (we don't need to add the mask when full Gibbs since std=0 on masked elements)
-            # (we don't directly mask the `new_val_idx` since it may be infinite, producing nans when trying to multiply them by 0)
+            # (we don't directly mask the `new_val_idx` since it may be infinite, producing nans
+            # when trying to multiply them by 0)
             if self.mask is not None and self.sampler_type != 'Gibbs':
                 change_idx = change_idx * self.mask[idx]
             realization.set_tensor_realizations_element(old_val_idx + change_idx, idx)
@@ -287,7 +300,6 @@ class GibbsSampler(AbstractSampler):
 
             if accepted:
                 previous_attachment, previous_regularity = new_attachment, new_regularity
-
             else:
                 # Revert modification of realization at idx and its consequences
                 realization.set_tensor_realizations_element(old_val_idx, idx)
@@ -304,7 +316,14 @@ class GibbsSampler(AbstractSampler):
         # Return last attachment and regularity_var
         return previous_attachment, previous_regularity
 
-    def _sample_individual_realizations(self, data, model, realizations, temperature_inv, **attachment_computation_kws):
+    def _sample_individual_realizations(
+        self,
+        data: Dataset,
+        model: AbstractModel,
+        realizations: CollectionRealization,
+        temperature_inv: float,
+        **attachment_computation_kws,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         For each individual variable, compute current patient-batched attachment and regularity.
         Propose a new value for the individual variable,
@@ -328,7 +347,6 @@ class GibbsSampler(AbstractSampler):
         attachment, regularity_var : `torch.FloatTensor` 1D (n_individuals,)
             The attachment and regularity (only for the current variable) at the end of this sampling step, per individual.
         """
-
         # Compute the attachment and regularity for all subjects
         realization = realizations[self.name]
 
@@ -341,10 +359,10 @@ class GibbsSampler(AbstractSampler):
 
         def compute_attachment_regularity():
             # current realizations => individual parameters
-            ind_params = model.get_param_from_real(realizations)
-
             # individual parameters => compare reconstructions vs values (per subject)
-            attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type=attribute_type)
+            attachment = model.compute_individual_attachment_tensorized(
+                data, realizations.individual.tensors_dict, attribute_type=attribute_type
+            )
 
             # compute log-likelihood of just the given parameter (tau or xi or sources)
             # (per subject; all dimensions of the individual parameter are summed together)
@@ -357,9 +375,9 @@ class GibbsSampler(AbstractSampler):
         previous_attachment, previous_regularity = compute_attachment_regularity()
 
         # Keep previous realizations and sample new ones
-        previous_reals = realization.tensor_realizations.clone()
+        previous_reals = realization.tensor.clone()
         # Add perturbations to previous observations
-        realization.tensor_realizations = self._proposal(realization.tensor_realizations)
+        realization.tensor = self._proposal(realization.tensor)
 
         # Compute the attachment and regularity
         new_attachment, new_regularity = compute_attachment_regularity()
@@ -374,11 +392,11 @@ class GibbsSampler(AbstractSampler):
         self._update_std()
 
         # compute attachment & regularity
-        attachment = accepted*new_attachment + (1-accepted)*previous_attachment
-        regularity = accepted*new_regularity + (1-accepted)*previous_regularity
+        attachment = accepted * new_attachment + (1 - accepted) * previous_attachment
+        regularity = accepted * new_regularity + (1 - accepted) * previous_regularity
 
         # we accept together all dimensions of individual parameter
         accepted = accepted.unsqueeze(-1)  # shape = (n_individuals, 1)
-        realization.tensor_realizations = accepted*realization.tensor_realizations + (1-accepted)*previous_reals
+        realization.tensor = accepted * realization.tensor + (1 - accepted) * previous_reals
 
         return attachment, regularity

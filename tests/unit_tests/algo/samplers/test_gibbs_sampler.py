@@ -4,6 +4,7 @@ import torch
 
 from leaspy.io.data.dataset import Dataset
 from leaspy.algo.utils.samplers.gibbs_sampler import GibbsSampler
+from leaspy.io.realizations import CollectionRealization
 
 from tests import LeaspyTestCase
 
@@ -24,9 +25,26 @@ class SamplerTest(LeaspyTestCase):
         cls.scale_pop = 5e-3 / GibbsSampler.STD_SCALE_FACTOR_POP
 
     def test_realization(self):
-        realizations = self.leaspy.model.initialize_realizations_for_model(2)
-        tau_real = realizations['tau']
-        self.assertIsInstance(str(tau_real), str)
+        realizations = CollectionRealization()
+        realizations.initialize(self.leaspy.model, n_individuals=2)
+        self.assertEqual(set(realizations.individual.names), {"tau", "xi", "sources"})
+        tau_real = realizations["tau"].tensor
+        self.assertIsInstance(tau_real, torch.Tensor)
+        self.assertEqual(tau_real.shape, (2, 1))
+
+        # check association between tensors
+        realizations["tau"].set_tensor_realizations_element(torch.tensor(42.), (1, 0))
+        self.assertEqual(tau_real[1, 0].item(), 42.)
+
+        # test cloning
+        r = realizations.clone()
+        self.assertEqual(r.population.names, realizations.population.names)
+        self.assertEqual(r.individual.names, realizations.individual.names)
+
+        # check dissociation between tensors
+        tau_real[1, 0] = 75.
+        self.assertEqual(r[["tau"]].tensors[0][0, 0], tau_real[0, 0])
+        self.assertNotEqual(r[["tau"]].tensors[0][1, 0], tau_real[1, 0])
 
     def test_sample(self):
         """
@@ -36,18 +54,22 @@ class SamplerTest(LeaspyTestCase):
         n_patients = 17
         n_draw = 50
         temperature_inv = 1.0
-
-        realizations = self.leaspy.model.initialize_realizations_for_model(n_patients)
+        realizations = CollectionRealization()
+        realizations.initialize(self.leaspy.model, n_individuals=n_patients)
 
         # Test with taus (individual parameter)
-        var_name = 'tau'
-        for sampler in ['Gibbs']:
-            gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
-                                    scale=self.scale_ind, sampler_type=sampler)
+        var_name = "tau"
+        for sampler in ("Gibbs"):
+            gsampler = GibbsSampler(
+                self.leaspy.model.random_variable_informations()[var_name],
+                n_patients,
+                scale=self.scale_ind,
+                sampler_type=sampler,
+            )
             random_draws = []
             for i in range(n_draw):
                 gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv, attribute_type=None)
-                random_draws.append(realizations[var_name].tensor_realizations.clone())
+                random_draws.append(realizations[var_name].tensor.clone())
 
             stack_random_draws = torch.stack(random_draws)
             stack_random_draws_mean = (stack_random_draws[1:, :, :] - stack_random_draws[:-1, :, :]).mean(dim=0)
@@ -57,16 +79,20 @@ class SamplerTest(LeaspyTestCase):
             self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0861, delta=0.05)
 
         # Test with g (1D population parameter)
-        var_name = 'g'
-        for sampler in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
-            gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
-                                    scale=self.scale_pop, sampler_type=sampler)
+        var_name = "g"
+        for sampler in ("Gibbs", "FastGibbs", "Metropolis-Hastings"):
+            gsampler = GibbsSampler(
+                self.leaspy.model.random_variable_informations()[var_name],
+                n_patients,
+                scale=self.scale_pop,
+                sampler_type=sampler,
+            )
             # a valid model MCMC toolbox is needed for sampling a population variable (update in-place)
             self.leaspy.model.initialize_MCMC_toolbox()
             random_draws = []
             for i in range(n_draw):
                 gsampler.sample(self.dataset, self.leaspy.model, realizations, temperature_inv)  # attribute_type=None would not be used here
-                random_draws.append(realizations[var_name].tensor_realizations.clone())
+                random_draws.append(realizations[var_name].tensor.clone())
 
             stack_random_draws = torch.stack(random_draws)
             stack_random_draws_mean = (stack_random_draws[1:, :] - stack_random_draws[:-1, :]).mean(dim=0)
@@ -76,17 +102,25 @@ class SamplerTest(LeaspyTestCase):
             self.assertAlmostEqual(stack_random_draws_std.mean(), 0.0045, delta=0.05)
 
         # Test with betas (2 dimensional population parameter)
-        var_name = 'betas'
-        for sampler in ['Gibbs', 'FastGibbs', 'Metropolis-Hastings']:
-            gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
-                                    scale=self.scale_pop, sampler_type=sampler)
+        var_name = "betas"
+        for sampler in ("Gibbs", "FastGibbs", "Metropolis-Hastings"):
+            gsampler = GibbsSampler(
+                self.leaspy.model.random_variable_informations()[var_name],
+                n_patients,
+                scale=self.scale_pop,
+                sampler_type=sampler,
+            )
             # a valid model MCMC toolbox is needed for sampling a population variable (update in-place)
             self.leaspy.model.initialize_MCMC_toolbox()
             random_draws = []
             for i in range(n_draw):
-                gsampler.sample(self.dataset, self.leaspy.model, realizations,
-                                temperature_inv)  # attribute_type=None would not be used here
-                random_draws.append(realizations[var_name].tensor_realizations.clone())
+                gsampler.sample(
+                    self.dataset,
+                    self.leaspy.model,
+                    realizations,
+                    temperature_inv,  # attribute_type=None would not be used here
+                )
+                random_draws.append(realizations[var_name].tensor.clone())
 
             stack_random_draws = torch.stack(random_draws)
             stack_random_draws_mean = (stack_random_draws[1:, :] - stack_random_draws[:-1, :]).mean(dim=0)
@@ -100,12 +134,15 @@ class SamplerTest(LeaspyTestCase):
         n_draw = 200
 
         # Test with tau (0D individual variable)
-        var_name = 'tau'
+        var_name = "tau"
         cst_acceptation = torch.tensor([1.0]*10+[0.0]*7)
-        for sampler in ['Gibbs']:
-            gsampler = GibbsSampler(self.leaspy.model.random_variable_informations()[var_name], n_patients,
-                                    scale=self.scale_ind, sampler_type=sampler)
-
+        for sampler in ("Gibbs",):
+            gsampler = GibbsSampler(
+                self.leaspy.model.random_variable_informations()[var_name],
+                n_patients,
+                scale=self.scale_ind,
+                sampler_type=sampler,
+            )
             for i in range(n_draw):
                 gsampler._update_acceptation_rate(cst_acceptation)
 

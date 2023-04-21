@@ -9,6 +9,8 @@ from leaspy.models.noise_models import (
     AbstractOrdinalNoiseModel,
     OrdinalRankingNoiseModel,
 )
+from leaspy.io.realizations import CollectionRealization
+from leaspy.utils.typing import DictParamsTorch, DictParams
 
 
 class OrdinalModelMixin:
@@ -112,20 +114,16 @@ class OrdinalModelMixin:
             f"not {ordinal_method}."
         )
 
-    def compute_ordinal_model_sufficient_statistics(self, realizations) -> dict:
+    def compute_ordinal_model_sufficient_statistics(self, realizations: CollectionRealization) -> DictParamsTorch:
         """Compute the sufficient statistics given realizations."""
         if not self.is_ordinal:
             return {}
-        if self.batch_deltas:
-            return {"deltas": realizations["deltas"].tensor_realizations}
-        return {
-            f"deltas_{ft}": realizations[f"deltas_{ft}"].tensor_realizations
-            for ft in self.features
-        }
+        keys = ["deltas"] if self.batch_deltas else [f"deltas_{ft}" for ft in self.features]
+        return realizations[keys].tensors_dict
 
     def get_ordinal_parameters_updates_from_sufficient_statistics(
-        self, sufficient_statistics: dict
-    ) -> dict:
+        self, sufficient_statistics: DictParamsTorch
+    ) -> DictParamsTorch:
         """Return a dictionary computed from provided sufficient statistics for updating the parameters."""
         if not self.is_ordinal:
             return {}
@@ -151,7 +149,7 @@ class OrdinalModelMixin:
         grid_timepoints: torch.Tensor,
         values: torch.Tensor,
         *,
-        individual_parameters: Dict[str, torch.Tensor],
+        individual_parameters: DictParamsTorch,
         feat_index: int,
     ) -> torch.Tensor:
         """Search first timepoint where ordinal MLE is >= provided values."""
@@ -243,7 +241,7 @@ class OrdinalModelMixin:
                 self.MCMC_toolbox["priors"][f"deltas_{ft}_std"] = 0.1
 
     def _update_MCMC_toolbox_ordinal(
-        self, vars_to_update: set, realizations, values: dict
+        self, vars_to_update: set, realizations: CollectionRealization, values: dict
     ) -> None:
         """Update the ordinal model's MCMC toolbox."""
         # update `values` dict in-place
@@ -252,13 +250,11 @@ class OrdinalModelMixin:
         update_all = "all" in vars_to_update
         if self.batch_deltas:
             if update_all or "deltas" in vars_to_update:
-                values["deltas"] = realizations["deltas"].tensor_realizations
+                values["deltas"] = realizations["deltas"].tensor
         else:
             for ft in self.features:
-                if update_all or "deltas_" + ft in vars_to_update:
-                    values["deltas_" + ft] = realizations[
-                        "deltas_" + ft
-                    ].tensor_realizations
+                if update_all or f"deltas_{ft}" in vars_to_update:
+                    values["deltas_" + ft] = realizations[f"deltas_{ft}"].tensor
 
     def _get_deltas(self, attribute_type: Optional[str]) -> torch.Tensor:
         """
@@ -274,35 +270,53 @@ class OrdinalModelMixin:
         """
         return self._call_method_from_attributes("get_deltas", attribute_type)
 
-    def _add_ordinal_random_variables(self, variables_infos: dict) -> None:
-        """Add a random variables to the ordinal model."""
+    def get_ordinal_random_variable_information(self) -> DictParams:
+        """Return the random variables information relative to the ordinal model."""
         if not self.is_ordinal:
-            return
+            return {}
         common_deltas_info = {"type": "population", "scale": 0.5}
         if self.batch_deltas:
-            variables_infos["deltas"] = {
-                "name": "deltas",
-                "shape": torch.Size(
-                    [self.dimension, self.noise_model.max_level - 1]
-                ),
-                "rv_type": "multigaussian",
-                "mask": self.noise_model.mask[:, 1:],  # cut the >= zero level
-                **common_deltas_info
-            }
-        else:
-            for ft, ft_max_level in self.noise_model.max_levels.items():
-                variables_infos["deltas_" + ft] = {
-                    "name": "deltas_" + ft,
+            return {
+                "deltas": {
+                    "name": "deltas",
                     "shape": torch.Size(
-                        [ft_max_level - 1]
-                    ),  # cut the >= zero level
-                    "rv_type": "gaussian",
+                        [self.dimension, self.noise_model.max_level - 1]
+                    ),
+                    "rv_type": "multigaussian",
+                    "mask": self.noise_model.mask[:, 1:],  # cut the >= zero level
                     **common_deltas_info
                 }
+            }
+        return {
+            f"deltas_{ft}": {
+                "name": "deltas_" + ft,
+                "shape": torch.Size(
+                    [ft_max_level - 1]
+                ),  # cut the >= zero level
+                "rv_type": "gaussian",
+                **common_deltas_info
+            } for ft, ft_max_level in self.noise_model.max_levels.items()
+        }
 
-        # Finally: change the v0 scale since it has not the same meaning
-        if "v0" in variables_infos:
-            variables_infos["v0"]["scale"] = 0.1
+    def update_ordinal_random_variable_information(self, variables_info: DictParams) -> DictParams:
+        """
+        Update the provided variable information dictionary.
+
+        This method mutates its input dictionary.
+
+        Parameters
+        ----------
+        variables_info : DictParams
+            The variables information to be updated with ordinal logic.
+
+        Returns
+        -------
+        DictParams :
+            The updated variables information.
+        """
+        if self.is_ordinal and "v0" in variables_info:
+            variables_info["v0"]["scale"] = 0.1
+        return variables_info
 
     ## HELPERS
 

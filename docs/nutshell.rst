@@ -26,7 +26,7 @@ We first load synthetic data from the `leaspy.datasets` to get of a grasp of lon
             75.973183  0.203874  0.612311  0.320484  0.634809
 
 The data correspond to repeated visits (`TIME` index) of different participants (`ID` index).
-Each visit corresponds to the measurement of 4 different variables : the MMSE, the RAVLT, the FAQ and the FDG PET.
+Each visit corresponds to the measurement of 4 different variables : the :term:`MMSE`, the RAVLT, the FAQ and the FDG PET.
 
 If plotted, the data would look like the following:
 

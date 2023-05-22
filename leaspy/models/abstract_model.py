@@ -19,6 +19,7 @@ from leaspy.models.noise_models import (
 )
 from leaspy.models.utilities import tensor_to_list
 from leaspy.io.realizations import (
+    VariableType,
     AbstractRealization,
     PopulationRealization,
     IndividualRealization,
@@ -942,32 +943,6 @@ class AbstractModel(BaseModel):
             return neg_loglike
         nll_grad = y / std
         return neg_loglike, nll_grad
-
-    def random_variable_informations(self) -> DictParams:
-        """
-        Information on model's random variables.
-
-        Returns
-        -------
-        dict[str, Any]
-            * name: str
-                Name of the random variable
-            * type: 'population' or 'individual'
-                Individual or population random variable?
-            * shape: tuple[int, ...]
-                Shape of the variable (only 1D for individual and 1D or 2D for pop. are supported)
-            * rv_type: str
-                An indication (not used in code) on the probability distribution used for the var
-                (only Gaussian is supported)
-            * scale: optional float
-                The fixed scale to use for initial std-dev in the corresponding sampler.
-                When not defined, sampler will rely on scales estimated at model initialization.
-                cf. :class:`~leaspy.algo.utils.samplers.GibbsSampler`
-        """
-        return {
-            **self.get_population_random_variable_information(),
-            **self.get_individual_random_variable_information(),
-        }
 
     @abstractmethod
     def get_population_random_variable_information(self) -> DictParams:

@@ -345,8 +345,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 # we have no information so high incertitude when stochastic perso algo
                 allclose_custom = {
                     p: dict(atol=math.ceil(coeff_tol_per_param_std * lsp.model.parameters[f'{p}_std'].item() / general_tol) * general_tol)
-                    for p, pi in lsp.model.random_variable_informations().items()
-                    if pi['type'] == 'individual'
+                    for p in lsp.model.get_individual_random_variable_information()
                 }
                 self.assertDictAlmostEqual(dict_1, {
                     'tau': [[lsp.model.parameters['tau_mean']]],

@@ -146,18 +146,29 @@ Reference algorithms to use with reference models (for benchmarks).
     lme_fit.LMEFitAlgorithm
     lme_personalize.LMEPersonalizeAlgorithm
 
-:mod:`leaspy.algo.utils.samplers`: **Samplers**
------------------------------------------------
+:mod:`leaspy.samplers`: **Samplers**
+====================================
 Samplers used by the MCMC algorithms.
 
-.. currentmodule:: leaspy.algo.utils.samplers
+.. currentmodule:: leaspy.samplers
 
 .. autosummary::
     :toctree: generated/
     :template: class.rst
 
-    abstract_sampler.AbstractSampler
-    gibbs_sampler.GibbsSampler
+    AbstractSampler
+    AbstractPopulationSampler
+    AbstractIndividualSampler
+    IndividualGibbsSampler
+    PopulationGibbsSampler
+    PopulationFastGibbsSampler
+    PopulationMetropolisHastingsSampler
+
+.. autosummary::
+    :toctree: generated/
+    :template: function.rst
+
+    sampler_factory
 
 :mod:`leaspy.dataset`: **Datasets**
 ===================================

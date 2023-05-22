@@ -1,0 +1,344 @@
+from __future__ import annotations
+
+from functools import wraps
+from dataclasses import dataclass
+from typing import Optional, Tuple, Union, Callable, TypeVar, Generic
+import operator
+
+import torch
+
+VT = TypeVar("VT")
+
+
+@dataclass(frozen=True)
+class WeightedTensor(Generic[VT]):
+    """
+    A torch.tensor, with optional (non-negative) weights (0 <-> masked).
+
+    Parameters
+    ----------
+    value : torch.Tensor (of type VT)
+        Raw values, without any mask.
+    weight : None (default) or torch.Tensor (of booleans, integers or floats, with same shape as value)
+        If None, weighted tensor boils down to a regular tensor.
+
+    Attributes
+    ----------
+    value : torch.Tensor (of type VT)
+        Raw values, without any mask.
+    weight : None or torch.Tensor (of booleans, integers or floats, with same shape as value)
+        Relative weights for values.
+        If None, weighted tensor boils down to a regular tensor (as if all weights equal 1).
+        If weight is a tensor[bool], it can be seen as a mask (valid value <-> weight is True).
+        More generally, meaningless values <-> indices where weights equal 0.
+    """
+
+    value: torch.Tensor
+    weight: Optional[torch.Tensor] = None
+
+    def __post_init__(self):
+        if not isinstance(self.value, torch.Tensor):
+            assert not isinstance(
+                self.value, WeightedTensor
+            ), "You should NOT init a `WeightedTensor` with another"
+            object.__setattr__(self, "value", torch.tensor(self.value))
+        if self.weight is not None:
+            if not isinstance(self.weight, torch.Tensor):
+                assert not isinstance(
+                    self.weight, WeightedTensor
+                ), "You should NOT use a `WeightedTensor` for weights"
+                object.__setattr__(self, "weight", torch.tensor(self.weight))
+            assert (self.weight >= 0).all(), "Weights must be non-negative"
+            # we forbid implicit broadcasting of weights for safety
+            assert (
+                self.weight.shape == self.value.shape
+            ), f"Bad shapes: {self.weight.shape} != {self.value.shape}"
+            assert (
+                self.weight.device == self.value.device
+            ), f"Bad devices: {self.weight.device} != {self.value.device}"
+
+    def filled(self, fill_value: Optional[VT]) -> torch.Tensor:
+        """Return values filled with `fill_value` (unless None), where `weight` is exactly zero."""
+        if fill_value is None or self.weight is None:
+            return self.value
+        return self.value.masked_fill(self.weight == 0, fill_value)
+
+    def valued(self, value: torch.Tensor) -> WeightedTensor:
+        """Return a new WeightedTensor with same weight as self but with new value provided."""
+        return type(self)(value, self.weight)
+
+    def map(
+        self,
+        func: Callable[[torch.Tensor], torch.Tensor],
+        *args,
+        fill_value: Optional[VT] = None,
+        **kws,
+    ) -> WeightedTensor:
+        """Apply a function that only operates on values, i.e. having no impact on weights (e.g. log-likelihood(value))."""
+        return self.valued(func(self.filled(fill_value), *args, **kws))
+
+    def map_both(
+        self,
+        func: Callable[[torch.Tensor], torch.Tensor],
+        *args,
+        fill_value: Optional[VT] = None,
+        **kws,
+    ) -> WeightedTensor:
+        """Apply a function that operates both on values and weight, the same way (e.g. `expand` sizes)."""
+        return type(self)(
+            func(self.filled(fill_value), *args, **kws),
+            func(self.weight, *args, **kws) if self.weight is not None else None,
+        )
+
+    def index_put(
+        self,
+        indices: Tuple[torch.Tensor, ...],  # of ints
+        values: torch.Tensor,  # of VT
+        *,
+        accumulate: bool = False,
+    ) -> WeightedTensor[VT]:
+        """Out-of-place `torch.index_put` on values (no modification of weights)."""
+        return self.map(
+            torch.index_put, indices=indices, values=values, accumulate=accumulate
+        )
+
+    def wsum(self, *, fill_value: VT = 0, **kws) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get the weighted sum of tensor together with sum of weights.
+
+        <!> The result is NOT a `WeightedTensor` any more since weights are already taken into account.
+        <!> We always fill values with 0 prior to weighting to prevent 0 * nan = nan that would propagate nans in sums.
+
+        Parameters
+        ----------
+        fill_value : VT (default = 0)
+            The value to fill the sum with for aggregates where weights were all zero.
+        **kws
+            Optional keyword-arguments for torch.sum (such as `dim=...` or `keepdim=...`)
+
+        Returns
+        -------
+        weighted_sum : torch.Tensor[VT]
+            Weighted sum, with totally un-weighted aggregates filled with `fill_value`.
+        sum_weights : torch.Tensor (may be of other type than `cls.weight_dtype`)
+            The sum of weights (useful if some average are needed).
+            <!> We do NOT recast `sum_weights` to `cls.weight_dtype` to prevent lossy case: bool -> int -> bool.
+        """
+        weight = self.weight
+        if weight is None:
+            weight = torch.ones_like(self.value, dtype=torch.bool)
+        weighted_values = weight * self.filled(0)
+        weighted_sum = weighted_values.sum(**kws)
+        sum_weights = weight.sum(**kws)
+        return weighted_sum.masked_fill(sum_weights == 0, fill_value), sum_weights
+
+    def sum(self, *, fill_value: VT = 0, **kws) -> torch.Tensor:
+        """Get the weighted sum of tensor (discarding the sum of weights) - refer to `.wsum()`."""
+        if self.weight is None:
+            # more efficient in this case
+            return self.value.sum(**kws)
+        return self.wsum(fill_value=fill_value, **kws)[0]
+
+    def view(self, *shape) -> WeightedTensor[VT]:
+        """View of the tensor with another shape."""
+        return self.map_both(torch.Tensor.view, *shape)
+
+    def expand(self, *shape) -> WeightedTensor[VT]:
+        """Expand the tensor with another shape."""
+        return self.map_both(torch.Tensor.expand, *shape)
+
+    def to(self, *, device: torch.device) -> WeightedTensor[VT]:
+        """Apply the `torch.to` out-of-place function to both values and weights (only to move to device for now)."""
+        return self.map_both(torch.Tensor.to, device=device)
+
+    def __pow__(self, exponent: Union[int, float]) -> WeightedTensor[VT]:
+        return self.valued(self.value**exponent)
+
+    @property
+    def shape(self) -> torch.Size:
+        return self.value.shape
+
+    @property
+    def ndim(self) -> int:
+        return self.value.ndim
+
+    @property
+    def dtype(self) -> torch.dtype:
+        """Type of values."""
+        return self.value.dtype
+
+    @property
+    def device(self) -> torch.device:
+        return self.value.device
+
+    @property
+    def requires_grad(self) -> bool:
+        return self.value.requires_grad
+
+    @staticmethod
+    def get_filled_value_and_weight(
+        t: TensorOrWeightedTensor[VT], *, fill_value: Optional[VT]
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        """Method to get tuple (value, weight) for both regular and weighted tensors."""
+        if isinstance(t, WeightedTensor):
+            return t.filled(fill_value), t.weight
+        else:
+            if not isinstance(t, torch.Tensor):
+                t = torch.tensor(t)
+            return t, None
+
+    @classmethod
+    def _binary_op(
+        cls,
+        op: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        a: TensorOrWeightedTensor[VT],
+        b: TensorOrWeightedTensor[VT],
+        *,
+        same_weights_only: bool,
+        fill_value: Optional[VT],
+        **kws,
+    ) -> WeightedTensor[VT]:
+        """Binary operation between regular or weighted tensors (without shapes modifications)."""
+        a_value, a_weight = cls.get_filled_value_and_weight(a, fill_value=fill_value)
+        b_value, b_weight = cls.get_filled_value_and_weight(b, fill_value=fill_value)
+        if a_weight is None and b_weight is None:
+            result_weight = None
+        elif a_weight is not None and b_weight is not None:
+            if same_weights_only:
+                # <!> Addition (and comparisons) of weighted tensors with unequal weights would be strange
+                # We could allow it by weighting values at this stage but it seems a bit too implicit
+                # and we would lost the sum of weights that could be needed for weighted means...
+
+                # check strict identity of weights for efficiency first
+                if a_weight is not b_weight and (
+                    a_weight.shape != b_weight.shape
+                    or a_weight.dtype != b_weight.dtype
+                    or a_weight.device != b_weight.device
+                    or not torch.equal(a_weight, b_weight)
+                ):
+                    # return NotImplemented (not much debug info in stack trace...)
+                    raise NotImplementedError(
+                        f"Binary operation '{op.__name__}' on two weighted tensors is not implemented "
+                        "when their weights differ"
+                    )
+                result_weight = a_weight  # == b_weight
+            else:
+                # weights are multiplied (including broadcasting if needed)
+                result_weight = a_weight * b_weight
+        else:
+            result_shape = torch.broadcast_shapes(a_value.shape, b_value.shape)
+            if a_weight is not None:
+                result_weight = a_weight.expand(result_shape)
+            else:
+                result_weight = b_weight.expand(result_shape)
+        return WeightedTensor(op(a_value, b_value, **kws), result_weight)
+
+
+# Add unary operators
+def _factory_unary_op(op_name: str, *, fill_value: Optional[VT] = 0):
+    op = getattr(operator, op_name)
+
+    def _unary_op(self: WeightedTensor[VT]) -> WeightedTensor[VT]:
+        return self.map(op, fill_value=fill_value)
+
+    return _unary_op
+
+
+for op_name in {
+    # "pos",
+    "neg",
+    "abs",
+}:
+    setattr(WeightedTensor, f"__{op_name}__", _factory_unary_op(op_name))
+
+
+# Add binary operators
+def _factory_binary_op(
+    op_name: str, *, fill_value: Optional[VT] = 0, rev: bool = False
+):
+    op = getattr(operator, op_name)
+    kws = dict(
+        fill_value=fill_value, same_weights_only=op_name not in {"mul", "truediv"}
+    )
+    if rev:
+
+        def _binary_rop(
+            self: WeightedTensor[VT], other: TensorOrWeightedTensor[VT]
+        ) -> WeightedTensor[VT]:
+            return self._binary_op(op, other, self, **kws)
+
+        return _binary_rop
+    else:
+
+        def _binary_op(
+            self: WeightedTensor[VT], other: TensorOrWeightedTensor[VT]
+        ) -> WeightedTensor[VT]:
+            return self._binary_op(op, self, other, **kws)
+
+        return _binary_op
+
+
+for op_name in {
+    "add",
+    "sub",
+    "mul",
+    "truediv",
+}:
+    setattr(WeightedTensor, f"__{op_name}__", _factory_binary_op(op_name))
+    setattr(WeightedTensor, f"__r{op_name}__", _factory_binary_op(op_name, rev=True))
+
+for cmp_name in {"lt", "le", "eq", "ne", "gt", "ge"}:
+    setattr(
+        WeightedTensor, f"__{cmp_name}__", _factory_binary_op(cmp_name, fill_value=None)
+    )  # float('nan')
+
+# Mixed type definition
+TensorOrWeightedTensor = Union[torch.Tensor, WeightedTensor[VT]]
+
+
+def factory_weighted_tensor_unary_op(
+    f: Callable[[torch.Tensor], torch.Tensor],
+    *,
+    fill_value: Optional[VT] = None,
+) -> Callable[[TensorOrWeightedTensor[VT]], TensorOrWeightedTensor[VT]]:
+    """Factory/decorator to create a weighted-tensor compatible function from the provided unary-tensor function."""
+
+    @wraps(f)
+    def f_compat(
+        x: TensorOrWeightedTensor[VT], *args, **kws
+    ) -> TensorOrWeightedTensor[VT]:
+        if not isinstance(x, WeightedTensor):
+            return f(x, *args, **kws)
+        r = f(x.filled(fill_value), *args, **kws)
+        conv = x.valued
+        if isinstance(r, (tuple, list, set, frozenset)):
+            return type(r)(map(conv, r))
+        else:
+            return conv(r)
+
+    return f_compat
+
+
+# INLINE UNIT TESTS
+if __name__ == "__main__":
+    Z = WeightedTensor([-1.0, 0.0, 1.0])
+    print(Z + 1)
+    print(Z - (-torch.ones(())))
+    print(1 + (-torch.ones(Z.shape)) * (-Z))
+    print(torch.ones(Z.shape) - Z * (-1))
+
+    M1 = WeightedTensor(Z.value, abs(Z).value.to(int))
+    M2 = WeightedTensor(
+        Z.value, M1.weight
+    )  # same weights only by value would not be enough
+    print(M1 - M2)
+
+    old_id1 = id(M1)
+    assert M1 is not M2
+    assert M1.value is M2.value
+    # out-of-place in fact: OK (new object M1)
+    M1 -= M2
+    assert id(M1) != old_id1
+    assert M1.value is not M2.value
+    print(M2 >= M1)
+    print((M2 >= M1).filled(0))

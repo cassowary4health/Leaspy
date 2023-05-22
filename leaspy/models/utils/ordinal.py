@@ -270,53 +270,45 @@ class OrdinalModelMixin:
         """
         return self._call_method_from_attributes("get_deltas", attribute_type)
 
-    def get_ordinal_random_variable_information(self) -> DictParams:
-        """Return the random variables information relative to the ordinal model."""
+    def get_additional_ordinal_population_random_variable_information(self) -> DictParams:
+        """Return the information of additional population random variables for the ordinal model."""
         if not self.is_ordinal:
             return {}
-        common_deltas_info = {"type": "population", "scale": 0.5}
+
+        # Nota for shapes: the >= level-0 is not included (always = 1)
         if self.batch_deltas:
             return {
                 "deltas": {
                     "name": "deltas",
-                    "shape": torch.Size(
-                        [self.dimension, self.noise_model.max_level - 1]
-                    ),
+                    "shape": torch.Size([self.dimension, self.noise_model.max_level - 1]),
                     "rv_type": "multigaussian",
-                    "mask": self.noise_model.mask[:, 1:],  # cut the >= zero level
-                    **common_deltas_info
+                    "mask": self.noise_model.mask[:, 1:],
+                    "scale": 0.5,
                 }
             }
         return {
             f"deltas_{ft}": {
                 "name": "deltas_" + ft,
-                "shape": torch.Size(
-                    [ft_max_level - 1]
-                ),  # cut the >= zero level
+                "shape": torch.Size([ft_max_level - 1]),
                 "rv_type": "gaussian",
-                **common_deltas_info
-            } for ft, ft_max_level in self.noise_model.max_levels.items()
+                "scale": 0.5,
+            }
+            for ft, ft_max_level in self.noise_model.max_levels.items()
         }
 
-    def update_ordinal_random_variable_information(self, variables_info: DictParams) -> DictParams:
+    def update_ordinal_population_random_variable_information(self, variables_info: DictParams) -> None:
         """
-        Update the provided variable information dictionary.
+        Update (in-place) the provided variable information dictionary.
 
-        This method mutates its input dictionary.
+        Nota: this is needed due to different signification of `v0` in ordinal model (common per-level velocity)
 
         Parameters
         ----------
         variables_info : DictParams
             The variables information to be updated with ordinal logic.
-
-        Returns
-        -------
-        DictParams :
-            The updated variables information.
         """
-        if self.is_ordinal and "v0" in variables_info:
+        if self.is_ordinal:
             variables_info["v0"]["scale"] = 0.1
-        return variables_info
 
     ## HELPERS
 

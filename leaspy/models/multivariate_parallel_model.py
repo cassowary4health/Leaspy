@@ -196,20 +196,17 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         g_info = {
             "name": "g",
             "shape": torch.Size([1]),
-            "type": "population",
             "rv_type": "multigaussian"
         }
         deltas_info = {
             "name": "deltas",
             "shape": torch.Size([self.dimension - 1]),
-            "type": "population",
             "rv_type": "multigaussian",
             "scale": 1.  # cf. GibbsSampler
         }
         betas_info = {
             "name": "betas",
             "shape": torch.Size([self.dimension - 1, self.source_dimension]),
-            "type": "population",
             "rv_type": "multigaussian",
             "scale": .5  # cf. GibbsSampler
         }
@@ -234,19 +231,16 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         tau_info = {
             "name": "tau",
             "shape": torch.Size([1]),
-            "type": "individual",
             "rv_type": "gaussian"
         }
         xi_info = {
             "name": "xi",
             "shape": torch.Size([1]),
-            "type": "individual",
             "rv_type": "gaussian"
         }
         sources_info = {
             "name": "sources",
             "shape": torch.Size([self.source_dimension]),
-            "type": "individual",
             "rv_type": "gaussian"
         }
         variables_info = {

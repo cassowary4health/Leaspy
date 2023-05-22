@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 from random import shuffle
 
 from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
-from leaspy.algo.utils.samplers import AlgoWithSamplersMixin
+from leaspy.algo.utils.algo_with_samplers import AlgoWithSamplersMixin
 from leaspy.algo.utils.algo_with_annealing import AlgoWithAnnealingMixin
 
 from leaspy.io.realizations import CollectionRealization

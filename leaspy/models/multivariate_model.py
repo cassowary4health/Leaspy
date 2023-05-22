@@ -584,19 +584,16 @@ class MultivariateModel(AbstractMultivariateModel):
         g_info = {
             "name": "g",
             "shape": torch.Size([self.dimension]),
-            "type": "population",
             "rv_type": "multigaussian"
         }
         v0_info = {
             "name": "v0",
             "shape": torch.Size([self.dimension]),
-            "type": "population",
             "rv_type": "multigaussian"
         }
         betas_info = {
             "name": "betas",
             "shape": torch.Size([self.dimension - 1, self.source_dimension]),
-            "type": "population",
             "rv_type": "multigaussian",
             "scale": .5  # cf. GibbsSampler
         }
@@ -607,8 +604,8 @@ class MultivariateModel(AbstractMultivariateModel):
         if self.source_dimension != 0:
             variables_info['betas'] = betas_info
 
-        variables_info.update(self.get_ordinal_random_variable_information())
-        variables_info = self.update_ordinal_random_variable_information(variables_info)
+        variables_info.update(self.get_additional_ordinal_population_random_variable_information())
+        self.update_ordinal_population_random_variable_information(variables_info)
 
         return variables_info
 
@@ -624,19 +621,16 @@ class MultivariateModel(AbstractMultivariateModel):
         tau_info = {
             "name": "tau",
             "shape": torch.Size([1]),
-            "type": "individual",
             "rv_type": "gaussian"
         }
         xi_info = {
             "name": "xi",
             "shape": torch.Size([1]),
-            "type": "individual",
             "rv_type": "gaussian"
         }
         sources_info = {
             "name": "sources",
             "shape": torch.Size([self.source_dimension]),
-            "type": "individual",
             "rv_type": "gaussian"
         }
         variables_info = {

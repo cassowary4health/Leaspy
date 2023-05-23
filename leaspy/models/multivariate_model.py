@@ -1,14 +1,29 @@
 import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from leaspy.models.utils.attributes import AttributesFactory
 from leaspy.io.data.dataset import Dataset
-from leaspy.io.realizations import CollectionRealization
 
-from leaspy.utils.docs import doc_with_super, doc_with_
-from leaspy.utils.subtypes import suffixed_method
+from leaspy.utils.docs import doc_with_super #, doc_with_
+# from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
-from leaspy.utils.typing import DictParamsTorch, DictParams
+
+from leaspy.variables.state import State
+from leaspy.variables.specs import (
+    NamedVariables,
+    ModelParameter,
+    PopulationLatentVariable,
+    LinkedVariable,
+    Hyperparameter,
+    SuffStatsRW,
+    VariablesValuesRO,
+)
+from leaspy.variables.distributions import Normal
+from leaspy.utils.functional import (
+    Exp,
+    Sqr,
+    OrthoBasis,
+    unsqueeze_right,
+)
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either
@@ -46,23 +61,19 @@ class MultivariateModel(AbstractMultivariateModel):
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
 
-        self.parameters["v0"] = None
-        self.MCMC_toolbox['priors']['v0_std'] = None  # Value, Coef
-
+        # TODO: remove this, use children classes instead (more proper)
         self._subtype_suffix = self._check_subtype()
-
-        # enforce a prior for v0_mean --> legacy / never used in practice
-        self._set_v0_prior = False
 
     def _check_subtype(self) -> str:
         if self.name not in self.SUBTYPES_SUFFIXES.keys():
             raise LeaspyModelInputError(
-                f"{self.__class__.__name__} name should be among these valid sub-types: "
+                f"{type(self).__name__} name should be among these valid sub-types: "
                 f"{list(self.SUBTYPES_SUFFIXES.keys())}."
             )
 
         return self.SUBTYPES_SUFFIXES[self.name]
 
+    """
     @suffixed_method
     def compute_individual_tensorized(
         self,
@@ -83,6 +94,8 @@ class MultivariateModel(AbstractMultivariateModel):
         # Population parameters
         positions, velocities, mixing_matrix = self._get_attributes(attribute_type)
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
+
+        # TODO: use rt instead
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
 
         # Reshaping
@@ -200,7 +213,7 @@ class MultivariateModel(AbstractMultivariateModel):
         individual_parameters: dict,
         feature: str,
     ) -> torch.Tensor:
-        """
+        ""
         For one individual, compute age(s) breakpoints at which the given features
         levels are the most likely (given the subject's individual parameters).
 
@@ -229,7 +242,7 @@ class MultivariateModel(AbstractMultivariateModel):
         ------
         :exc:`.LeaspyModelInputError`
             if computation is tried on more than 1 individual
-        """
+        ""
         # 1/ get attributes
         g, v0, a_matrix = self._get_attributes(None)
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -372,57 +385,14 @@ class MultivariateModel(AbstractMultivariateModel):
 
         # dict[param_name: str, torch.Tensor of shape(n_ind, n_tpts, n_fts [, extra_dim_ordinal_models], n_dims_param)]
         return derivatives
+    """
 
     ##############################
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self) -> None:
-        """
-        Initialize the model's MCMC toolbox attribute.
-        """
-        self.MCMC_toolbox = {
-            'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},  # population parameters
-        }
-        # Initialize a prior for v0_mean (legacy code / never used in practice)
-        if self._set_v0_prior:
-            self.MCMC_toolbox['priors']['v0_mean'] = self.parameters['v0'].clone().detach()
-            self.MCMC_toolbox['priors']['s_v0'] = 0.1
-            # TODO? same on g?
-
-        # specific priors for ordinal models
-        self._initialize_MCMC_toolbox_ordinal_priors()
-
-        self.MCMC_toolbox['attributes'] = AttributesFactory.attributes(
-            self.name, self.dimension, self.source_dimension, **self._attributes_factory_ordinal_kws
-        )
-        # TODO? why not passing the ready-to-use collection realizations that is initialized
-        #  at beginning of fit algo and use it here instead?
-        self.update_MCMC_toolbox({"all"}, self._get_population_realizations())
-
-    def update_MCMC_toolbox(self, vars_to_update: set, realizations: CollectionRealization) -> None:
-        """
-        Update the model's MCMC toolbox attribute with the provided vars_to_update.
-
-        Parameters
-        ----------
-        vars_to_update : set
-            The set of variable names to be updated.
-        realizations : CollectionRealization
-            The realizations to use for updating the MCMC toolbox.
-        """
-        values = {}
-        update_all = "all" in vars_to_update
-        if update_all or "g" in vars_to_update:
-            values["g"] = realizations["g"].tensor
-        if update_all or len(vars_to_update.intersection({"v0", "v0_collinear"})):
-            values["v0"] = realizations["v0"].tensor
-        if self.source_dimension != 0 and (update_all or "betas" in vars_to_update):
-            values["betas"] = realizations["betas"].tensor
-        self._update_MCMC_toolbox_ordinal(vars_to_update, realizations, values)
-        self.MCMC_toolbox['attributes'].update(vars_to_update, values)
-
-    def _center_xi_realizations(self, realizations: CollectionRealization) -> None:
+    @classmethod
+    def _center_xi_realizations(cls, state: State) -> None:
         """
         Center the xi realizations in place.
 
@@ -437,16 +407,18 @@ class MultivariateModel(AbstractMultivariateModel):
         realizations : CollectionRealization
             The realizations to use for updating the MCMC toolbox.
         """
-        mean_xi = torch.mean(realizations['xi'].tensor)
-        realizations["xi"].tensor = realizations["xi"].tensor - mean_xi
-        realizations["v0"].tensor = realizations["v0"].tensor + mean_xi
-        self.update_MCMC_toolbox({'v0_collinear'}, realizations)
+        mean_xi = torch.mean(state['xi'])
+        state["xi"] = state["xi"] - mean_xi
+        state["log_v0"] = state["log_v0"] + mean_xi
 
-    def compute_model_sufficient_statistics(
-        self,
-        data: Dataset,
-        realizations: CollectionRealization,
-    ) -> DictParamsTorch:
+        # TODO: find a way to prevent re-computation of orthonormal basis since it should not have changed (v0_collinear update)
+        #self.update_MCMC_toolbox({'v0_collinear'}, realizations)
+
+    @classmethod
+    def compute_sufficient_statistics(
+        cls,
+        state: State,
+    ) -> SuffStatsRW:
         """
         Compute the model's sufficient statistics.
 
@@ -459,190 +431,79 @@ class MultivariateModel(AbstractMultivariateModel):
 
         Returns
         -------
-        DictParamsTorch :
+        SuffStatsRW :
             The computed sufficient statistics.
         """
-        # modify realizations in-place
-        self._center_xi_realizations(realizations)
 
-        # unlink all sufficient statistics from updates in realizations!
-        realizations = realizations.clone()
-        sufficient_statistics = realizations[["g", "v0", "tau", "xi"]].tensors_dict
-        if self.source_dimension != 0:
-            sufficient_statistics['betas'] = realizations["betas"].tensor
-        for param in ("tau", "xi"):
-            sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor, 2)
+        # <!> modify 'xi' and 'log_v0' realizations in-place
+        # TODO: what theoretical guarantees for this custom operation?
+        cls._center_xi_realizations(state)
 
-        sufficient_statistics.update(
-            self.compute_ordinal_model_sufficient_statistics(realizations)
+        return super().compute_sufficient_statistics(state)
+
+    @classmethod
+    def model_with_sources(cls, *, rt: torch.Tensor, space_shifts, metric, v0, log_g) -> torch.Tensor:
+        # TODO WIP: logistic model only for now
+        # Shape: (Ni, Nt, Nfts)
+        pop_s = (None, None, ...)
+        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
+        model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
+        return torch.sigmoid(model_logit)
+
+    @classmethod
+    def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
+        # a bit dirty?
+        return cls.model_with_sources(rt=rt, metric=metric, v0=v0, log_g=log_g, space_shifts=torch.zeros((1,1)))
+
+    @staticmethod
+    def metric(*, g: torch.Tensor) -> torch.Tensor:
+        return (g + 1) ** 2 / g
+
+    def get_variables_specs(self) -> NamedVariables:
+        """Return the specifications of the variables (latent variables, derived variables, model 'parameters') that are part of the model."""
+        d = super().get_variables_specs()
+
+        assert self._subtype_suffix == '_logistic', "WIP: TODO remove this assert"
+
+        d.update(
+            # PRIORS
+            log_v0_mean=ModelParameter.for_pop_mean("log_v0", shape=(self.dimension,)),
+            log_v0_std=Hyperparameter(0.01),
+            xi_mean=Hyperparameter(0.),
+            # LATENT VARS
+            log_v0=PopulationLatentVariable(Normal("log_v0_mean", "log_v0_std")),
+            # DERIVED VARS
+            v0=LinkedVariable(Exp("log_v0")),
+            metric=LinkedVariable(self.metric),  # for linear model: metric & metric_sqr are fixed = 1.
         )
 
-        return sufficient_statistics
-
-    def update_model_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
-        """
-        Update the model's parameters during the burn in phase.
-
-        During the burn-in phase, we only need to store the following parameters (cf. !66 and #60)
-            - noise_std
-            - *_mean/std for regularization of individual variables
-            - others population parameters for regularization of population variables
-        We don't need to update the model "attributes" (never used during burn-in!)
-
-        Parameters
-        ----------
-        data : :class:`.Dataset`
-            The input dataset.
-        sufficient_statistics : DictParamsTorch
-            The sufficient statistics to use for parameter update.
-        """
-        # Memoryless part of the algorithm
-        self.parameters['g'] = sufficient_statistics['g']
-
-        v0_emp = sufficient_statistics['v0']
-        if self.MCMC_toolbox['priors'].get('v0_mean', None) is not None:
-            v0_mean = self.MCMC_toolbox['priors']['v0_mean']
-            s_v0 = self.MCMC_toolbox['priors']['s_v0']
-            sigma_v0 = self.MCMC_toolbox['priors']['v0_std']
-            self.parameters['v0'] = (1 / (1 / (s_v0 ** 2) + 1 / (sigma_v0 ** 2))) * (
-                        v0_emp / (sigma_v0 ** 2) + v0_mean / (s_v0 ** 2))
+        if self.source_dimension >= 1:
+            d.update(
+                model=LinkedVariable(self.model_with_sources),
+                metric_sqr=LinkedVariable(Sqr("metric")),
+                orthonormal_basis=LinkedVariable(OrthoBasis("v0", "metric_sqr")),
+            )
         else:
-            # new default
-            self.parameters['v0'] = v0_emp
+            d['model'] = LinkedVariable(self.model_no_sources)
 
-        if self.source_dimension != 0:
-            self.parameters['betas'] = sufficient_statistics['betas']
+        # TODO: WIP
+        #variables_info.update(self.get_additional_ordinal_population_random_variable_information())
+        #self.update_ordinal_population_random_variable_information(variables_info)
 
-        self.parameters['xi_std'] = torch.std(sufficient_statistics['xi'])
-        self.parameters['tau_mean'] = torch.mean(sufficient_statistics['tau'])
-        self.parameters['tau_std'] = torch.std(sufficient_statistics['tau'])
+        return d
 
-        self.parameters.update(
-            self.get_ordinal_parameters_updates_from_sufficient_statistics(
-                sufficient_statistics
-            )
-        )
+    def get_initial_model_parameters(self, dataset: Dataset, method: str) -> VariablesValuesRO:
+        """Get initial values for model parameters."""
 
-    def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
-        """
-        Stochastic sufficient statistics used to update the parameters of the model.
+        # TODO - WIP (put back `initialize_parameters` function in this one, with possible utils functions in models.utilities?)
+        from leaspy.models.utils.initialization.model_initialization import initialize_parameters
+        params, obs_model_params = initialize_parameters(self, dataset, method=method)
+        # all parameters in one
+        params.update(obs_model_params)
 
-        TODO? factorize `update_model_parameters_***` methods?
+        return params
 
-        TODOs:
-            - add a true, configurable, validation for all parameters?
-              (e.g.: bounds on tau_var/std but also on tau_mean, ...)
-            - check the SS, especially the issue with mean(xi) and v_k
-            - Learn the mean of xi and v_k
-            - Set the mean of xi to 0 and add it to the mean of V_k
-
-        Parameters
-        ----------
-        data : :class:`.Dataset`
-            The input dataset.
-        sufficient_statistics : DictParamsTorch
-            The sufficient statistics to use for parameter update.
-        """
-        from .utilities import compute_std_from_variance
-
-        for param in ("g", "v0"):
-            self.parameters[param] = sufficient_statistics[param]
-
-        if self.source_dimension != 0:
-            self.parameters['betas'] = sufficient_statistics['betas']
-
-        for param in ("tau", "xi"):
-            param_old_mean = self.parameters[f"{param}_mean"]
-            param_cur_mean = torch.mean(sufficient_statistics[param])
-            param_variance_update = (
-                torch.mean(sufficient_statistics[f"{param}_sqrd"]) -
-                2. * param_old_mean * param_cur_mean
-            )
-            param_variance = param_variance_update + param_old_mean ** 2
-            self.parameters[f"{param}_std"] = compute_std_from_variance(
-                param_variance, varname=f"{param}_std"
-            )
-            if param != 'xi':
-                # xi-mean is fixed to 0 by design
-                self.parameters[f"{param}_mean"] = param_cur_mean
-
-        self.parameters.update(
-            self.get_ordinal_parameters_updates_from_sufficient_statistics(
-                sufficient_statistics
-            )
-        )
-
-    def get_population_random_variable_information(self) -> DictParams:
-        """
-        Return the information on population random variables relative to the model.
-
-        Returns
-        -------
-        DictParams :
-            The information on the population random variables.
-        """
-        g_info = {
-            "name": "g",
-            "shape": torch.Size([self.dimension]),
-            "rv_type": "multigaussian"
-        }
-        v0_info = {
-            "name": "v0",
-            "shape": torch.Size([self.dimension]),
-            "rv_type": "multigaussian"
-        }
-        betas_info = {
-            "name": "betas",
-            "shape": torch.Size([self.dimension - 1, self.source_dimension]),
-            "rv_type": "multigaussian",
-            "scale": .5  # cf. GibbsSampler
-        }
-        variables_info = {
-            "g": g_info,
-            "v0": v0_info,
-        }
-        if self.source_dimension != 0:
-            variables_info['betas'] = betas_info
-
-        variables_info.update(self.get_additional_ordinal_population_random_variable_information())
-        self.update_ordinal_population_random_variable_information(variables_info)
-
-        return variables_info
-
-    def get_individual_random_variable_information(self) -> DictParams:
-        """
-        Return the information on individual random variables relative to the model.
-
-        Returns
-        -------
-        DictParams :
-            The information on the individual random variables.
-        """
-        tau_info = {
-            "name": "tau",
-            "shape": torch.Size([1]),
-            "rv_type": "gaussian"
-        }
-        xi_info = {
-            "name": "xi",
-            "shape": torch.Size([1]),
-            "rv_type": "gaussian"
-        }
-        sources_info = {
-            "name": "sources",
-            "shape": torch.Size([self.source_dimension]),
-            "rv_type": "gaussian"
-        }
-        variables_info = {
-            "tau": tau_info,
-            "xi": xi_info,
-        }
-        if self.source_dimension != 0:
-            variables_info['sources'] = sources_info
-
-        return variables_info
-
-
+"""
 # document some methods (we cannot decorate them at method creation since they are
 # not yet decorated from `doc_with_super`)
 doc_with_(MultivariateModel.compute_individual_tensorized_linear,
@@ -675,3 +536,4 @@ doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensor
 # doc_with_(MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized_mixed,
 #          MultivariateModel.compute_individual_ages_from_biomarker_values_tensorized,
 #          mapping={'the model': 'the model (mixed logistic-linear)'})
+"""

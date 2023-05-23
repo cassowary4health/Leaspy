@@ -437,7 +437,10 @@ class Plotting:
 
             # times to plot if reparametrized ages are wanted
             if reparametrized_ages:
-                timepoints = (model.time_reparametrization(t, ind_ip['xi'], ind_ip['tau']) + model.parameters['tau_mean'].item()).squeeze(0).cpu().numpy()
+                timepoints = (
+                    model.time_reparametrization(t=t, alpha=ind_ip['xi'].exp(), tau=ind_ip['tau'])
+                    + model.parameters['tau_mean'].item()
+                ).squeeze(0).cpu().numpy()
 
             for ft_ix, ft_color in zip(features_ix, colors):
                 ax.plot(timepoints,

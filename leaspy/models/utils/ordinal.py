@@ -9,7 +9,7 @@ from leaspy.models.noise_models import (
     AbstractOrdinalNoiseModel,
     OrdinalRankingNoiseModel,
 )
-from leaspy.io.realizations import CollectionRealization
+from leaspy.variables.state import State
 from leaspy.utils.typing import DictParamsTorch, DictParams
 
 
@@ -114,12 +114,12 @@ class OrdinalModelMixin:
             f"not {ordinal_method}."
         )
 
-    def compute_ordinal_model_sufficient_statistics(self, realizations: CollectionRealization) -> DictParamsTorch:
-        """Compute the sufficient statistics given realizations."""
-        if not self.is_ordinal:
-            return {}
-        keys = ["deltas"] if self.batch_deltas else [f"deltas_{ft}" for ft in self.features]
-        return realizations[keys].tensors_dict
+    # def compute_ordinal_model_sufficient_statistics(self, state: State) -> DictParamsTorch:
+    #     """Compute the sufficient statistics given realizations."""
+    #     if not self.is_ordinal:
+    #         return {}
+    #     keys = ["deltas"] if self.batch_deltas else [f"deltas_{ft}" for ft in self.features]
+    #     return {k: state[k] for k in keys}
 
     def get_ordinal_parameters_updates_from_sufficient_statistics(
         self, sufficient_statistics: DictParamsTorch
@@ -230,45 +230,15 @@ class OrdinalModelMixin:
                     f"Shape of deltas {bad_fts} is inconsistent with noise model."
                 )
 
-    def _initialize_MCMC_toolbox_ordinal_priors(self) -> None:
-        """Initialize the ordinal model's MCMC toolbox with prior values."""
-        if not self.is_ordinal:
-            return
-        if self.batch_deltas:
-            self.MCMC_toolbox["priors"]["deltas_std"] = 0.1
-        else:
-            for ft in self.features:
-                self.MCMC_toolbox["priors"][f"deltas_{ft}_std"] = 0.1
-
-    def _update_MCMC_toolbox_ordinal(
-        self, vars_to_update: set, realizations: CollectionRealization, values: dict
-    ) -> None:
-        """Update the ordinal model's MCMC toolbox."""
-        # update `values` dict in-place
-        if not self.is_ordinal:
-            return
-        update_all = "all" in vars_to_update
-        if self.batch_deltas:
-            if update_all or "deltas" in vars_to_update:
-                values["deltas"] = realizations["deltas"].tensor
-        else:
-            for ft in self.features:
-                if update_all or f"deltas_{ft}" in vars_to_update:
-                    values["deltas_" + ft] = realizations[f"deltas_{ft}"].tensor
-
-    def _get_deltas(self, attribute_type: Optional[str]) -> torch.Tensor:
-        """
-        Get the deltas attribute for ordinal models.
-
-        Parameters
-        ----------
-        attribute_type: None or 'MCMC'
-
-        Returns
-        -------
-        The deltas in the ordinal model
-        """
-        return self._call_method_from_attributes("get_deltas", attribute_type)
+    # def _initialize_MCMC_toolbox_ordinal_priors(self) -> None:
+    #     """Initialize the ordinal model's MCMC toolbox with prior values."""
+    #     if not self.is_ordinal:
+    #         return
+    #     if self.batch_deltas:
+    #         self.MCMC_toolbox["priors"]["deltas_std"] = 0.1
+    #     else:
+    #         for ft in self.features:
+    #             self.MCMC_toolbox["priors"][f"deltas_{ft}_std"] = 0.1
 
     def get_additional_ordinal_population_random_variable_information(self) -> DictParams:
         """Return the information of additional population random variables for the ordinal model."""

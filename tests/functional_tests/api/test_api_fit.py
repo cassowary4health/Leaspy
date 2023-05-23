@@ -5,6 +5,7 @@ import unittest
 import torch
 
 from leaspy import Leaspy
+from leaspy.models.obs_models import FullGaussianObs  # WIP --> keyword-based factory needed
 
 from tests.unit_tests.plots.test_plotter import MatplotlibTestCase
 
@@ -15,7 +16,9 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
     def generic_fit(self, model_name: str, model_codename: str, *,
                     algo_name='mcmc_saem', algo_params: dict = {},
                     # change default parameters for logs so everything is tested despite the very few iterations in tests
-                    logs_kws: dict = dict(console_print_periodicity=50, save_periodicity=20, plot_periodicity=100),
+                    # TODO reactivate plotting once FitOutputManager & Plotter are ready
+                    #logs_kws: dict = dict(console_print_periodicity=50, save_periodicity=20, plot_periodicity=100),
+                    logs_kws: dict = dict(console_print_periodicity=50, save_periodicity=None, plot_periodicity=None),
                     print_model: bool = False,
                     check_model: bool = True, check_kws: dict = {},
                     save_model: bool = False,
@@ -65,6 +68,36 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
         # return leaspy & data objects
         return leaspy, data
 
+    def _tmp_convert_old_to_new(self, old_model_dict, new_model_dict) -> None:
+        # TODO/WIP: on-the-fly conversion old<->new models:
+        # 1. new obs_models supplanting noise_model
+        # 2. modification of some model (hyper-)parameter names & shapes
+        # 3. some new/renamed/deleted fit-metrics
+        old_mod = old_model_dict
+        new_mod = new_model_dict
+        has_src = int(old_mod['source_dimension'] >= 1)
+        old_mod['parameters']['noise_std'] = old_mod['noise_model']['scale']
+        del old_mod['noise_model']
+        old_mod['fit_metrics']['nll_regul_ind_sum'] = old_mod['fit_metrics']['nll_regul_tot']
+        for ip in ("tau", "xi", "tot") + ("sources",)*has_src:
+            del old_mod['fit_metrics'][f'nll_regul_{ip}']
+        for pp_old, pp_new in {"g": "log_g_mean", "v0": "log_v0_mean", "betas": "betas_mean"}.items():
+            old_mod['parameters'][pp_new] = old_mod['parameters'][pp_old]
+            del old_mod['parameters'][pp_old]
+        for p in ("tau_mean", "tau_std", "xi_std") + ("sources_mean",)*has_src:
+            old_mod['parameters'][p] = torch.tensor(old_mod['parameters'][p]).expand(torch.tensor(new_mod['parameters'][p]).shape).tolist()
+        if has_src:
+            old_mod['parameters']['mixing_matrix'] = torch.tensor(old_mod['parameters']['mixing_matrix']).t().tolist()
+        else:
+            for p in ("mixing_matrix", "sources_mean", "sources_std", "betas_mean"):
+                del old_mod['parameters'][p]
+
+        del new_mod['obs_models']
+        del new_mod['fit_metrics']['nll_regul_pop_sum']
+        del new_mod['fit_metrics']['nll_regul_all_sum']
+        for pp in ("log_g_std", "log_v0_std") + ("betas_std",)*has_src:
+            del new_mod['parameters'][pp]
+
     def check_model_consistency(self, leaspy: Leaspy, path_to_backup_model: str, **allclose_kwds):
         # Temporary save parameters and check consistency with previously saved model
 
@@ -75,12 +108,16 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
 
         with open(path_to_backup_model, 'r') as f1:
             expected_model_parameters = json.load(f1)
-            # don't compare leaspy exact version...
-            expected_model_parameters['leaspy_version'] = None
-        with open(path_to_tmp_saved_model) as f2:
+        with open(path_to_tmp_saved_model, 'r') as f2:
             model_parameters_new = json.load(f2)
-            # don't compare leaspy exact version...
-            model_parameters_new['leaspy_version'] = None
+
+        # don't compare leaspy exact version...
+        expected_model_parameters['leaspy_version'] = None
+        model_parameters_new['leaspy_version'] = None
+
+        # TODO/WIP: on-the-fly conversion old<->new models:
+        self._tmp_convert_old_to_new(expected_model_parameters, model_parameters_new)
+        # END WIP
 
         # Remove the temporary file saved (before asserts since they may fail!)
         os.remove(path_to_tmp_saved_model)
@@ -99,7 +136,8 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
     # Test MCMC-SAEM
     def test_fit_logistic_scalar_noise(self):
 
-        leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise', noise_model='gaussian_scalar', source_dimension=2,
+        obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=1)
+        leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise', obs_models=obs_model, source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=True)
 
@@ -108,17 +146,19 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
         # some noticeable reproducibility errors btw MacOS and Linux here...
         allclose_custom = dict(
-            nll_regul_tau=dict(atol=2),
-            nll_regul_xi=dict(atol=2),
-            nll_regul_sources=dict(atol=3),
-            nll_regul_tot=dict(atol=5),
+            #nll_regul_tau=dict(atol=2),
+            #nll_regul_xi=dict(atol=2),
+            #nll_regul_sources=dict(atol=3),
+            nll_regul_ind_sum=dict(atol=5),
             nll_attach=dict(atol=10),
             nll_tot=dict(atol=15),
             tau_mean=dict(atol=0.2),
             tau_std=dict(atol=0.2),
         )
 
-        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise', noise_model='gaussian_diagonal', source_dimension=2,
+        # TODO: dimension should not be needed at this point...
+        obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=4)
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise', obs_models=obs_model, source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0),
                                      check_model=True,
                                      check_kws=dict(atol=0.1, rtol=1e-2, allclose_custom=allclose_custom),
@@ -126,20 +166,26 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
     def test_fit_logistic_diag_noise_fast_gibbs(self):
 
-        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_fast_gibbs', noise_model='gaussian_diagonal', source_dimension=2,
+        # TODO: dimension should not be needed at this point...
+        obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=4)
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_fast_gibbs', obs_models=obs_model, source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0, sampler_pop='FastGibbs'),
                                      check_model=True)
 
     def test_fit_logistic_diag_noise_mh(self):
 
-        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_mh', noise_model='gaussian_diagonal', source_dimension=2,
+        # TODO: dimension should not be needed at this point...
+        obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=4)
+        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_mh', obs_models=obs_model, source_dimension=2,
                                      algo_params=dict(n_iter=100, seed=0, sampler_pop='Metropolis-Hastings'),
                                      check_model=True)
 
     def test_fit_logistic_diag_noise_with_custom_tuning_no_sources(self):
 
+        # TODO: dimension should not be needed at this point...
+        obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=4)
         leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_custom',
-                                     noise_model='gaussian_diagonal', source_dimension=0,
+                                     obs_models=obs_model, source_dimension=0,
                                      algo_params=dict(
                                          n_iter=100,
                                          burn_in_step_power=0.65,

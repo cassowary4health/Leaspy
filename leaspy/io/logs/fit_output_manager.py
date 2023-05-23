@@ -4,7 +4,7 @@ import time
 
 from leaspy.io.logs.visualization.plotter import Plotter
 
-from leaspy.io.data.data import Data
+from leaspy.io.data.dataset import Dataset
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.io.realizations import CollectionRealization
 
@@ -80,10 +80,9 @@ class FitOutputManager:
     def iteration(
         self,
         algo,
-        data: Data,
         model: AbstractModel,
-        realizations: CollectionRealization,
-    ):
+        data: Dataset,  # directly use observations embedded in State?
+    ) -> None:
         """
         Call methods to save state of the running computation, display statistics & plots if the current iteration
         is a multiple of `periodicity_print`, `periodicity_plot` or `periodicity_save`
@@ -92,12 +91,10 @@ class FitOutputManager:
         ----------
         algo : :class:`.AbstractAlgo`
             The running algorithm
-        data : :class:`.Data`
-            The data used by the computation
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-            Current state of the realizations
+        data : :class:`.Dataset`
+            The data used by the computation
         """
 
         # <!> only `current_iteration` defined for AbstractFitAlgorithm... TODO -> generalize where possible?
@@ -125,6 +122,9 @@ class FitOutputManager:
                 # save first iteration
                 self.save_model_parameters_convergence(iteration, model)
                 # model.save(...)
+
+        # TODO: no realizations any more...
+        return
 
         if self.periodicity_plot is not None:
             if iteration % self.periodicity_plot == 0:
@@ -184,6 +184,9 @@ class FitOutputManager:
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
         """
+        # TODO
+        return
+
         model_parameters = model.parameters
 
         # TODO maybe better way ???
@@ -230,6 +233,9 @@ class FitOutputManager:
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
+        # TODO
+        return
+
         # TODO: not generic at all
         for name in ("xi", "tau"):
             value = realizations[name].tensor.squeeze(1).detach().tolist()
@@ -260,6 +266,9 @@ class FitOutputManager:
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
         """
+        # TODO
+        return
+
         self.plotter.plot_convergence_model_parameters(self.path_save_model_parameters_convergence,
                                                        self.path_plot_convergence_model_parameters_1,
                                                        self.path_plot_convergence_model_parameters_2,
@@ -271,7 +280,7 @@ class FitOutputManager:
     def plot_patient_reconstructions(
         self,
         iteration: int,
-        data: Data,
+        data: Dataset,
         model: AbstractModel,
         realizations: CollectionRealization,
     ) -> None:
@@ -283,13 +292,15 @@ class FitOutputManager:
         ----------
         iteration : int
             The current iteration
-        data : :class:`.Data`
+        data : :class:`.Dataset`
             The data used by the computation
         model : :class:`~.models.abstract_model.AbstractModel`
             The model used by the computation
         realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
             Current state of the realizations
         """
+        # TODO
+        return
         path_iteration = os.path.join(self.path_plot_patients, f'plot_patients_{iteration}.pdf')
         self.plotter.plot_patient_reconstructions(
             path_iteration, data, model, realizations.individual.tensors_dict, **self.plot_options

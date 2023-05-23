@@ -8,7 +8,7 @@ from leaspy.algo.utils.algo_with_device import AlgoWithDeviceMixin
 from leaspy.utils.typing import DictParamsTorch
 from leaspy.exceptions import LeaspyAlgoInputError
 
-from leaspy.io.realizations import CollectionRealization
+from leaspy.variables.state import State
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
@@ -89,9 +89,12 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         """
 
         with self._device_manager(model, dataset):
-            realizations = CollectionRealization()
-            realizations.initialize(model, n_individuals=dataset.n_individuals)
-            self._initialize_algo(dataset, model)
+
+            # WIP: Would it be relevant to fit on a dedicated algo state?
+            state = model._state
+            assert state is not None, "State was not properly initialized"
+
+            self._initialize_algo(state, dataset)
 
             if self.algo_parameters['progress_bar']:
                 self._display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
@@ -99,13 +102,13 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
             # Iterate
             for self.current_iteration in range(1, self.algo_parameters['n_iter']+1):
 
-                self.iteration(dataset, model, realizations)
+                self.iteration(model, state)
 
                 if self.output_manager is not None:
                     # print/plot first & last iteration!
-                    # <!> everything that will be printed/saved is AFTER iteration N (including
-                    # temperature when annealing...)
-                    self.output_manager.iteration(self, dataset, model, realizations)
+                    # <!> everything that will be printed/saved is AFTER iteration N
+                    # (including temperature when annealing...)
+                    self.output_manager.iteration(self, model, dataset)
 
                 if self.algo_parameters['progress_bar']:
                     self._display_progress_bar(
@@ -114,25 +117,24 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                         suffix='iterations',
                     )
 
-            # Finally we compute model attributes once converged
-            model.attributes.update({'all'}, model.parameters)
-
         # TODO: finalize metrics handling
         # we store metrics after the fit so they can be exported along with model
         # parameters & hyper-parameters for archive...
         model.fit_metrics = self._get_fit_metrics()
 
-        # TODO: Shouldn't we always return (nll_tot, nll_attach, nll_regul_tot or nll_regul_{ind_param},
-        #  and parameters of noise-model if any)
-        # If noise-model is a 1-parameter distribution family final loss is the value of this parameter
-        # Otherwise we use the negative log-likelihood as measure of goodness-of-fit
-        if len(model.noise_model.free_parameters) == 1:
-            loss = next(iter(model.noise_model.parameters.values()))
-        else:
-            # TODO? rather return nll_tot (unlike previously)
-            loss = self.sufficient_statistics.get("nll_attach", -1.)
+        ## TODO: Shouldn't we always return (nll_tot, nll_attach, nll_regul_tot or nll_regul_{ind_param},
+        ##  and parameters of noise-model if any)
+        ## If noise-model is a 1-parameter distribution family final loss is the value of this parameter
+        ## Otherwise we use the negative log-likelihood as measure of goodness-of-fit
+        #if len(model.noise_model.free_parameters) == 1:
+        #    loss = next(iter(model.noise_model.parameters.values()))
+        #else:
+        #    # TODO? rather return nll_tot (unlike previously)
+        #    loss = self.sufficient_statistics.get("nll_attach", -1.)
+        #
+        #return realizations, loss
 
-        return realizations, loss
+        return model, -1
 
     def _get_fit_metrics(self) -> Optional[Dict[str, float]]:
         # TODO: finalize metrics handling, a bit dirty to place them in sufficient stats, only with a prefix...
@@ -156,32 +158,30 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         return out
 
     @abstractmethod
-    def iteration(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
+    def iteration(self, model: AbstractModel, state: State):
         """
-        Update the parameters (abstract method).
+        Update the model parameters (abstract method).
 
         Parameters
         ----------
-        dataset : :class:`.Dataset`
-            Contains the subjects' observations in torch format to speed-up computation.
         model : :class:`~.models.abstract_model.AbstractModel`
             The used model.
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-            The parameters.
+        state : :class:`.State`
+            During the fit, this state holds all model variables, together with dataset observations.
         """
 
     @abstractmethod
-    def _initialize_algo(self, dataset: Dataset, model: AbstractModel) -> None:
+    def _initialize_algo(self, state: State, dataset: Dataset) -> None:
         """
         Initialize the fit algorithm (abstract method).
 
         Parameters
         ----------
+        state : :class:`.State`
         dataset : :class:`.Dataset`
-        model : :class:`~.models.abstract_model.AbstractModel`
         """
 
-    def _maximization_step(self, dataset: Dataset, model: AbstractModel, realizations: CollectionRealization):
+    def _maximization_step(self, model: AbstractModel, state: State):
         """
         Maximization step as in the EM algorithm. In practice parameters are set to current realizations (burn-in phase),
         or as a barycenter with previous realizations.
@@ -192,7 +192,8 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         model : :class:`.AbstractModel`
         realizations : :class:`.CollectionRealization`
         """
-        sufficient_statistics = model.compute_sufficient_statistics(dataset, realizations)
+        # TODO/WIP: not 100% clear to me whether model methods should take a state param, or always use its internal state...
+        sufficient_statistics = model.compute_sufficient_statistics(state)
 
         if self._is_burn_in() or self.current_iteration == 1 + self.algo_parameters['n_burn_in_iter']:
             # the maximization step is memoryless (or first iteration with memory)
@@ -210,10 +211,4 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
 
         # TODO: use the same method in both cases (<!> very minor differences that might break
         #  exact reproducibility in tests)
-        if self._is_burn_in():
-            model.update_parameters_burn_in(dataset, self.sufficient_statistics)
-        else:
-            model.update_parameters_normal(dataset, self.sufficient_statistics)
-
-        # No need to update model attributes (derived from model parameters)
-        # since all model computations are done with the MCMC toolbox during calibration
+        model.update_parameters(state, self.sufficient_statistics, burn_in=self._is_burn_in())

@@ -1,15 +1,11 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Tuple, Optional
+from typing import Tuple, Optional
 from abc import ABC, abstractmethod
 
 import torch
 
+from leaspy.variables.state import State
 from leaspy.exceptions import LeaspyModelInputError
-
-if TYPE_CHECKING:
-    from leaspy.io.data.dataset import Dataset
-    from leaspy.models.abstract_model import AbstractModel
-from leaspy.io.realizations import CollectionRealization
 
 
 class AbstractSampler(ABC):
@@ -56,6 +52,11 @@ class AbstractSampler(ABC):
         self.acceptation_history = torch.zeros((self.acceptation_history_length, *self.shape_acceptation))
 
     @property
+    def ndim(self) -> int:
+        """Number of dimensions."""
+        return len(self.shape)
+
+    @property
     @abstractmethod
     def shape_acceptation(self) -> Tuple[int, ...]:
         """
@@ -70,47 +71,30 @@ class AbstractSampler(ABC):
     @abstractmethod
     def sample(
         self,
-        dataset: Dataset,
-        model: AbstractModel,
-        realizations: CollectionRealization,
+        state: State,
+        *,
         temperature_inv: float,
-        **attachment_computation_kws,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> None:
         """
-        Sample new realization (either population or individual) for a given
-        :class:`~.io.realizations.collection_realization.CollectionRealization`
-        state, :class:`.Dataset`, :class:`.AbstractModel`, and temperature.
+        Sample new realization of latent variable named `self.name` that is included in model-and-data state.
 
-        <!> Modifies in-place the realizations object,
-        <!> as well as the model through its `update_MCMC_toolbox` for population variables.
+        <!> It will modified in-place the internal state, caching all intermediate values needed to efficient.
 
         Parameters
         ----------
-        dataset : :class:`.Dataset`
-            Dataset class object build with leaspy class object Data, model & algo
-        model : :class:`.AbstractModel`
-            Model for loss computations and updates
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-            Contain the current state & information of all the variables of interest
+        state : :class:`.State`
+            Instance holding values for all model variables (including latent individual variables), as well as:
+            - timepoints : :class:`torch.Tensor` of shape (n_individuals, n_timepoints)
+            - dataset : ...
+                Contains the data of the subjects, in particular the subjects'
+                time-points and the mask for nan values & padded visits
         temperature_inv : :obj:`float` > 0
             Inverse of the temperature used in tempered MCMC-SAEM
-        **attachment_computation_kws
-            Optional keyword arguments for attachment computations.
-            As of now, we only use it for individual variables, and only `attribute_type`.
-            It is used to know whether to compute attachments from the MCMC toolbox (esp. during fit)
-            or to compute it from regular model parameters (esp. during personalization in mean/mode realization)
-
-        Returns
-        -------
-        attachment, regularity_var : :class:`torch.Tensor`
-            The attachment and regularity tensors (only for the current variable)
-            at the end of this sampling step (globally or per individual, depending on variable type).
-            The tensors are 0D for population variables, or 1D for individual variables (with length `n_individuals`).
         """
 
     def _group_metropolis_step(self, alpha: torch.Tensor) -> torch.Tensor:
         """
-        Compute the acceptance decision (0. for False & 1. for True).
+        Compute the boolean acceptance decisions.
 
         Parameters
         ----------
@@ -118,11 +102,11 @@ class AbstractSampler(ABC):
 
         Returns
         -------
-        accepted : :class:`torch.FloatTensor`, same shape as `alpha`
-            Acceptance decision (0. or 1.).
+        accepted : :class:`torch.Tensor[bool]`, same shape as `alpha`
+            Acceptance decision (False or True).
         """
-        accepted = torch.rand(alpha.size()) < alpha
-        return accepted.float()
+        accepted = torch.rand(alpha.shape) < alpha
+        return accepted
 
     def _metropolis_step(self, alpha: float) -> bool:
         """
@@ -149,7 +133,7 @@ class AbstractSampler(ABC):
         # Sample a realization from uniform law
         # Choose to keep iff realization is < alpha (probability alpha)
         # <!> Always draw a number even if it seems "useless" (cf. docstring warning)
-        return torch.rand(1).item() < alpha
+        return torch.rand(()) < alpha
 
     def _update_acceptation_rate(self, accepted: torch.Tensor):
         """
@@ -212,14 +196,8 @@ class AbstractIndividualSampler(AbstractSampler):
         super().__init__(name, shape, acceptation_history_length=acceptation_history_length)
 
         # Initialize the acceptation history
-        if len(self.shape) != 1:
+        if self.ndim != 1:
             raise LeaspyModelInputError("Dimension of individual variable should be 1")
-
-        # The dimension(s) to sum when computing regularity of individual parameters
-        # For now there's only one extra dimension whether it's tau, xi or sources
-        # but in the future it could be extended. We never sum dimension 0 which
-        # will always be the individual dimension.
-        self.ind_param_dims_but_individual = tuple(range(1, 1 + len(self.shape)))  # for now it boils down to (1,)
 
 
 class AbstractPopulationSampler(AbstractSampler):
@@ -265,13 +243,19 @@ class AbstractPopulationSampler(AbstractSampler):
         mask: Optional[torch.Tensor] = None,
     ):
         super().__init__(name, shape, acceptation_history_length=acceptation_history_length)
-        if len(self.shape) not in {1, 2}:
+        if self.ndim not in {1, 2}:
             # convention: shape of pop variable is 1D or 2D
             raise LeaspyModelInputError("Dimension of population variable should be 1 or 2")
+
+        # TODO / WIP
         self.mask = mask
         if self.mask is not None:
+            raise NotImplementedError(
+                "WIP: Masked samplers are not supported yet with new variable interface / new weighted tensors "
+                "--> cf. comments in LatentVariable & StatelessDistributionFamily"
+            )
             if not isinstance(self.mask, torch.Tensor) or self.mask.shape != self.shape:
                 raise LeaspyModelInputError(
-                    f"Mask for sampler should be of size {self.shape} but is of shape {self.mask.shape}"
+                    f"Mask for sampler should be of shape {self.shape} but is of shape {self.mask.shape}"
                 )
-            self.mask = self.mask.to(bool)
+            self.mask = self.mask.to(torch.bool)

@@ -7,7 +7,7 @@ from leaspy.algo.utils.algo_with_samplers import AlgoWithSamplersMixin
 from leaspy.algo.utils.algo_with_annealing import AlgoWithAnnealingMixin
 
 from leaspy.variables.state import State
-from leaspy.variables.specs import PopulationLatentVariable, IndividualLatentVariable
+from leaspy.variables.specs import PopulationLatentVariable, IndividualLatentVariable, LatentVariableInitType
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
@@ -59,6 +59,10 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
         state : :class:`.State`
         dataset : :class:`.Dataset`
         """
+
+        # Initialize latent variables
+        state.initialize_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+        state.initialize_individual_latent_variables(LatentVariableInitType.PRIOR_SAMPLES, n_individuals=dataset.n_individuals)
 
         # Samplers mixin
         self._initialize_samplers(state, dataset)

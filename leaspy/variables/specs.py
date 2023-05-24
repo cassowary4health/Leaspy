@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from enum import Enum, auto
 from dataclasses import dataclass, field
 from typing import (
     ClassVar,
@@ -16,6 +17,7 @@ from collections import UserDict
 
 from leaspy.utils.functional import (
     get_named_parameters,
+    expand_left,
     sum_dim,
     Identity,
     Sum,
@@ -240,6 +242,14 @@ class DataVariable(IndepVariable):
     is_settable: ClassVar = True
 
 
+class LatentVariableInitType(Enum):
+    """Type of initialization for latent variables."""
+
+    PRIOR_MODE = auto()
+    PRIOR_MEAN = auto()
+    PRIOR_SAMPLES = auto()
+
+
 @dataclass(frozen=True)
 class LatentVariable(IndepVariable):
     """Unobserved variable that will be sampled, with symbolic prior distribution [e.g. Normal('xi_mean', 'xi_std')]."""
@@ -265,6 +275,17 @@ class LatentVariable(IndepVariable):
         params_shapes = {n: named_vars[n].shape for n in self.prior.parameters_names}
         return self.prior.shape(**params_shapes)
 
+    def _get_init_func_generic(
+        self, method: LatentVariableInitType, *, sample_shape: Tuple[int, ...]
+    ) -> NamedInputFunction[torch.Tensor]:
+        """Return a `NamedInputFunction`: State -> Tensor, that may be used for initialization."""
+        if method is LatentVariableInitType.PRIOR_SAMPLES:
+            return self.prior.get_func_sample(sample_shape)
+        if method is LatentVariableInitType.PRIOR_MODE:
+            return self.prior.mode.then(expand_left, shape=sample_shape)
+        if method is LatentVariableInitType.PRIOR_MEAN:
+            return self.prior.mean.then(expand_left, shape=sample_shape)
+
     @abstractmethod
     def get_regularity_variables(
         self, value_name: VarName
@@ -287,6 +308,12 @@ class PopulationLatentVariable(LatentVariable):
     # (it requires that parameters of prior distribution all have fixed shapes)
     fixed_shape: ClassVar = True
 
+    def get_init_func(
+        self, method: LatentVariableInitType
+    ) -> NamedInputFunction[torch.Tensor]:
+        """Return a `NamedInputFunction`: State -> Tensor, that may be used for initialization."""
+        return self._get_init_func_generic(method=method, sample_shape=())
+
     def get_regularity_variables(
         self, value_name: VarName
     ) -> Dict[VarName, LinkedVariable]:
@@ -308,6 +335,12 @@ class IndividualLatentVariable(LatentVariable):
     """Individual latent variable."""
 
     fixed_shape: ClassVar = False
+
+    def get_init_func(
+        self, method: LatentVariableInitType, *, n_individuals: int
+    ) -> NamedInputFunction[torch.Tensor]:
+        """Return a `NamedInputFunction`: State -> Tensor, that may be used for initialization."""
+        return self._get_init_func_generic(method=method, sample_shape=(n_individuals,))
 
     def get_regularity_variables(
         self, value_name: VarName

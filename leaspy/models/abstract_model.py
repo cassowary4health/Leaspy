@@ -22,8 +22,6 @@ from leaspy.variables.specs import (
     ModelParameter,
     LinkedVariable,
     DataVariable,
-    PopulationLatentVariable,
-    IndividualLatentVariable,
     NamedVariables,
     SuffStatsRO,
     SuffStatsRW,
@@ -31,7 +29,6 @@ from leaspy.variables.specs import (
 )
 from leaspy.variables.dag import VariablesDAG
 from leaspy.variables.state import State, StateForkType
-from leaspy.utils.functional import expand_left
 from leaspy.utils.weighted_tensor import WeightedTensor
 
 from leaspy.exceptions import LeaspyIndividualParamsInputError, LeaspyModelInputError
@@ -817,10 +814,6 @@ class AbstractModel(BaseModel):
 
             self.initialize_model_parameters(dataset, method=method)
 
-            # Initialize latent variables
-            self.initialize_population_latent_variables(method=method)
-            self.initialize_individual_latent_variables(dataset.n_individuals, method=method)
-
             # Set data variables
             # TODO/WIP: we use a regular tensor with 0 for times so that model is a regular tensor
             # (to avoid having to deal with `StatelessDistributionFamily` having `WeightedTensor` as parameters)
@@ -843,26 +836,6 @@ class AbstractModel(BaseModel):
     @abstractmethod
     def get_initial_model_parameters(self, dataset: Dataset, method: str) -> Dict[VarName, VarValue]:
         """Get initial values for model parameters."""
-
-    def initialize_population_latent_variables(self, method: str):
-        """Initialize population latent variables (in-place, in `_state`)."""
-        for pp, var in self.dag.sorted_variables_by_type[PopulationLatentVariable].items():
-            var: PopulationLatentVariable  # for type-hint only
-            if method == "random":
-                getter = var.prior.get_func_sample()
-            else:
-                getter = var.prior.mode
-            self._state[pp] = getter.call(self._state)
-
-    def initialize_individual_latent_variables(self, n_individuals: int, method: str):
-        """Initialize individual latent variables (in-place, in `_state`)."""
-        for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
-            var: IndividualLatentVariable  # for type-hint only
-            if method == "random":
-                getter = var.prior.get_func_sample(sample_shape=(n_individuals,))
-            else:
-                getter = var.prior.mode.then(expand_left, shape=(n_individuals,))
-            self._state[ip] = getter.call(self._state)
 
     def move_to_device(self, device: torch.device) -> None:
         """

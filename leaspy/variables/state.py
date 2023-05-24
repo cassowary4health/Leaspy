@@ -14,6 +14,9 @@ from leaspy.variables.specs import (
     VariablesLazyValuesRO,
     VariablesLazyValuesRW,
     Hyperparameter,
+    PopulationLatentVariable,
+    IndividualLatentVariable,
+    LatentVariableInitType,
 )
 from leaspy.utils.functional import unsqueeze_right
 from leaspy.variables.dag import VariablesDAG
@@ -271,3 +274,15 @@ class State(MutableMapping):
             for k, v in self._last_fork.items():
                 if v is not None:
                     self._last_fork[k] = v.to(device=device)
+
+    def initialize_population_latent_variables(self, method: LatentVariableInitType) -> None:
+        """Initialize population latent variables in state (in-place)."""
+        for pp, var in self.dag.sorted_variables_by_type[PopulationLatentVariable].items():
+            var: PopulationLatentVariable  # for type-hint only
+            self[pp] = var.get_init_func(method).call(self)
+
+    def initialize_individual_latent_variables(self, method: LatentVariableInitType, *, n_individuals: int) -> None:
+        """Initialize individual latent variables in state (in-place)."""
+        for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
+            var: IndividualLatentVariable  # for type-hint only
+            self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)

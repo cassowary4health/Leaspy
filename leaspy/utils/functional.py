@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from math import prod
 from dataclasses import dataclass
 from inspect import signature
 from typing import (
     Tuple,
+    Iterable,
     Callable,
     Set,
     Optional,
@@ -14,8 +14,7 @@ from typing import (
     Any,
     Mapping as TMapping,
 )
-
-# import operator
+import operator
 
 import torch
 
@@ -29,6 +28,17 @@ from leaspy.utils.typing import KwargsType
 
 RT = TypeVar("RT")
 S = TypeVar("S")
+
+try:
+    # Only introduced in Python 3.8
+    from math import prod
+except ImportError:
+    # Shim for `prod` for Python < 3.8
+    from functools import reduce
+
+    def prod(iterable: Iterable[S], start: int = 1) -> S:
+        """Product of all elements of the provided iterable, starting from `start`."""
+        return reduce(operator.mul, iterable, start)
 
 
 @dataclass(frozen=True)

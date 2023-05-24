@@ -8,6 +8,7 @@ from leaspy.algo.utils.algo_with_device import AlgoWithDeviceMixin
 from leaspy.utils.typing import DictParamsTorch
 from leaspy.exceptions import LeaspyAlgoInputError
 
+from leaspy.variables.specs import IndividualLatentVariable, LatentVariableInitType
 from leaspy.variables.state import State
 
 if TYPE_CHECKING:
@@ -116,6 +117,13 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                         self.algo_parameters['n_iter'],
                         suffix='iterations',
                     )
+
+        # <!> At the end of the MCMC, population and individual latent variables may have diverged from final model parameters
+        # Thus we reset population latent variables to their mode, and we remove individual latent variables
+        with state.auto_fork(None):
+            state.initialize_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+            for ip in state.dag.sorted_variables_by_type[IndividualLatentVariable]:
+                state[ip] = None
 
         # TODO: finalize metrics handling
         # we store metrics after the fit so they can be exported along with model

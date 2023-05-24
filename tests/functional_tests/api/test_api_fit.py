@@ -125,9 +125,9 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
         ## the reloading of model parameters will test consistency of model derived variables (only mixing matrix here)
         # TODO: use `.load(expected_dict_adapted)` instead of `.load(expected_file_not_adapted)` until expected file are regenerated
         # expected_model = Leaspy.load(path_to_backup_model).model
-        expected_model_parameters['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
-        expected_model = Leaspy.load(expected_model_parameters).model
-
+        expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
+        Leaspy.load(expected_model_parameters)
+        Leaspy.load(model_parameters_new)
 
 # some noticeable reproducibility errors btw MacOS and Linux here...
 ALLCLOSE_CUSTOM = dict(

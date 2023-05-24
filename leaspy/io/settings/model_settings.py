@@ -53,6 +53,24 @@ class ModelSettings:
         else:
             # we will be able to add some checks here to check/adapt retro/future compatibility of models
             pass
+            # TMP dirty transpose old parameters
+            assert settings['leaspy_version'] is not None
+            if int(settings['leaspy_version'].split('.')[0]) < 2:
+                import torch
+                settings['obs_models'] = settings['noise_model']['name']
+                if 'gaussian' in settings['obs_models']:
+                    settings['parameters']['noise_std'] = settings['noise_model']['scale']
+                del settings['noise_model']
+                for p_to_delete in ("sources_mean", "sources_std", "xi_mean") + ("betas", "mixing_matrix")*(settings['source_dimension'] == 0):
+                    settings['parameters'].pop(p_to_delete, None)
+                for p_old, p_new in {'g': 'log_g_mean', 'v0': 'log_v0_mean', 'betas': 'betas_mean'}.items():
+                    v = settings['parameters'].pop(p_old, None)
+                    if v is not None:
+                        settings['parameters'][p_new] = v
+                mm = settings['parameters'].get('mixing_matrix', None)
+                if mm is not None:
+                    settings['parameters']['mixing_matrix'] = torch.tensor(mm).t().tolist()
+            # END TMP
 
     def _get_name(self, settings):
         self.name: str = settings['name'].lower()

@@ -49,7 +49,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
         self.source_dimension: int = None
 
-        # TODO / WIP: dirty for now...
+        # TODO / WIP / TMP: dirty for now...
         # Should we:
         # - use factory of observation models instead? dataset -> ObservationModel
         # - or refact a bit `ObservationModel` structure? (lazy init of its variables...)
@@ -57,8 +57,20 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         dimension = kwargs.get('dimension', None)
         if 'features' in kwargs:
             dimension = len(kwargs['features'])
+
+        obs_model = kwargs.get("obs_models", None)
+        if isinstance(obs_model, str):
+            if obs_model == "gaussian-diagonal":
+                assert dimension is not None, "WIP: dimension / features should be provided to init the obs_model = 'gaussian-diagonal'"
+                kwargs["obs_models"] = FullGaussianObs.with_noise_std_as_model_parameter(dimension)
+            elif obs_model == "gaussian-scalar":
+                kwargs["obs_models"] = FullGaussianObs.with_noise_std_as_model_parameter(1)
+            else:
+                raise NotImplementedError("WIP...")
+
         if dimension is not None:
             kwargs.setdefault("obs_models", FullGaussianObs.with_noise_std_as_model_parameter(dimension))
+        # END TMP
 
         super().__init__(name, **kwargs)
 

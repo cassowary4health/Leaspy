@@ -73,28 +73,21 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
         # 1. new obs_models supplanting noise_model
         # 2. modification of some model (hyper-)parameter names & shapes
         # 3. some new/renamed/deleted fit-metrics
-        old_mod = old_model_dict
-        new_mod = new_model_dict
-        has_src = int(old_mod['source_dimension'] >= 1)
-        old_mod['parameters']['noise_std'] = old_mod['noise_model']['scale']
-        del old_mod['noise_model']
-        old_mod['fit_metrics']['nll_regul_ind_sum'] = old_mod['fit_metrics']['nll_regul_tot']
-        for ip in ("tau", "xi", "tot") + ("sources",)*has_src:
-            del old_mod['fit_metrics'][f'nll_regul_{ip}']
-        for pp_old, pp_new in {"g": "log_g_mean", "v0": "log_v0_mean", "betas": "betas_mean"}.items():
-            old_mod['parameters'][pp_new] = old_mod['parameters'][pp_old]
-            del old_mod['parameters'][pp_old]
-        for p in ("tau_mean", "tau_std", "xi_std") + ("sources_mean",)*has_src:
-            old_mod['parameters'][p] = torch.tensor(old_mod['parameters'][p]).expand(torch.tensor(new_mod['parameters'][p]).shape).tolist()
-        if has_src:
-            old_mod['parameters']['mixing_matrix'] = torch.tensor(old_mod['parameters']['mixing_matrix']).t().tolist()
-        else:
-            for p in ("mixing_matrix", "sources_mean", "sources_std", "betas_mean"):
-                del old_mod['parameters'][p]
+        from leaspy.io.settings.model_settings import ModelSettings
+        ModelSettings._check_settings(old_model_dict)
 
-        del new_mod['obs_models']
-        for pp in ("log_g_std", "log_v0_std") + ("betas_std",)*has_src:
-            del new_mod['parameters'][pp]
+        old_model_dict['fit_metrics']['nll_regul_ind_sum'] = old_model_dict['fit_metrics']['nll_regul_tot']
+        for ip in ("tau", "xi", "sources", "tot"):
+            old_model_dict['fit_metrics'].pop(f'nll_regul_{ip}', None)
+        for p in ("tau_mean", "tau_std", "xi_std"):
+            new_shape = torch.tensor(new_model_dict['parameters'][p]).shape
+            old_model_dict['parameters'][p] = torch.tensor(old_model_dict['parameters'][p]).expand(new_shape).tolist()
+
+        for pp in ("log_g_std", "log_v0_std", "betas_std", "sources_mean", "sources_std", "xi_mean"):
+            new_model_dict['parameters'].pop(pp, None)
+
+        del new_model_dict['obs_models']
+        del old_model_dict['obs_models']
 
     def check_model_consistency(self, leaspy: Leaspy, path_to_backup_model: str, **allclose_kwds):
         # Temporary save parameters and check consistency with previously saved model
@@ -109,10 +102,6 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
         with open(path_to_tmp_saved_model, 'r') as f2:
             model_parameters_new = json.load(f2)
 
-        # don't compare leaspy exact version...
-        expected_model_parameters['leaspy_version'] = None
-        model_parameters_new['leaspy_version'] = None
-
         # TODO/WIP: on-the-fly conversion old<->new models:
         self._tmp_convert_old_to_new(expected_model_parameters, model_parameters_new)
         # END WIP
@@ -120,12 +109,17 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
         # Remove the temporary file saved (before asserts since they may fail!)
         os.remove(path_to_tmp_saved_model)
 
+        # don't compare leaspy exact version...
+        expected_model_parameters['leaspy_version'] = None
+        new_model_version, model_parameters_new['leaspy_version'] = model_parameters_new['leaspy_version'], None
+
         self.assertDictAlmostEqual(model_parameters_new, expected_model_parameters, **allclose_kwds)
 
         ## the reloading of model parameters will test consistency of model derived variables (only mixing matrix here)
         # TODO: use `.load(expected_dict_adapted)` instead of `.load(expected_file_not_adapted)` until expected file are regenerated
         # expected_model = Leaspy.load(path_to_backup_model).model
         expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
+        expected_model_parameters['leaspy_version'] = model_parameters_new['leaspy_version'] = new_model_version
         Leaspy.load(expected_model_parameters)
         Leaspy.load(model_parameters_new)
 

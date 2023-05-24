@@ -68,8 +68,22 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Estimate individual parameters
         individual_parameters = self._get_individual_parameters(model, dataset)
 
-        # TODO/WIP
-        loss = -1.
+        # TODO/WIP... (just for functional tests)
+        from leaspy.models.obs_models import FullGaussianObs
+        obs_model = next(iter(model.obs_models))
+        assert isinstance(obs_model, FullGaussianObs), "Not implemented yet... WIP"
+        if obs_model.extra_vars['noise_std'].shape == (1,):
+            f_loss = obs_model.compute_rmse  # gaussian-scalar
+        else:
+            f_loss = obs_model.compute_rmse_per_ft  # gaussian-diagonal
+        state = model._state.clone()
+        with state.auto_fork(None):
+            model.put_data_variables(state, dataset)
+            _, pyt_individual_parameters = individual_parameters.to_pytorch()
+            for ip, ip_vals in pyt_individual_parameters.items():
+                state[ip] = ip_vals
+            loss = f_loss(y=state['y'], model=state['model'])
+
         ## Compute the loss with these estimated individual parameters (RMSE or NLL depending on observation models)
         #_, pyt_individual_params = individual_parameters.to_pytorch()
         #loss = model.compute_canonical_loss_tensorized(dataset, pyt_individual_params)

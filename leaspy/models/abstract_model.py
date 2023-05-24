@@ -658,9 +658,10 @@ class AbstractModel(BaseModel):
 
         # we add some fake sufficient statistics that are in fact convergence metrics (summed over individuals)
         # TODO proper handling of metrics
-        for k in ("nll_attach", "nll_regul_all_sum", "nll_regul_pop_sum", "nll_regul_ind_sum"):
+        # We do not account for regularization of pop. vars since we do NOT have true Bayesian priors on them (for now)
+        for k in ("nll_attach", "nll_regul_ind_sum"):
             suff_stats[k] = state[k]
-        suff_stats["nll_tot"] = suff_stats["nll_attach"] + suff_stats["nll_regul_all_sum"]
+        suff_stats["nll_tot"] = suff_stats["nll_attach"] + suff_stats["nll_regul_ind_sum"]  # "nll_regul_all_sum"
 
         return suff_stats
 

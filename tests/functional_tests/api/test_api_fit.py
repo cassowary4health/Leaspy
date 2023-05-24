@@ -93,8 +93,6 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
                 del old_mod['parameters'][p]
 
         del new_mod['obs_models']
-        del new_mod['fit_metrics']['nll_regul_pop_sum']
-        del new_mod['fit_metrics']['nll_regul_all_sum']
         for pp in ("log_g_std", "log_v0_std") + ("betas_std",)*has_src:
             del new_mod['parameters'][pp]
 

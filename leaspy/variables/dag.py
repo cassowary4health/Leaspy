@@ -10,11 +10,7 @@ from typing import (
     FrozenSet,
     Type,
     Mapping as TMapping,
-    MutableMapping as TMutableMapping,
 )
-
-# from types import MappingProxyType  # not pickable --> could be annoying...
-import copy
 
 import torch
 
@@ -208,12 +204,35 @@ class VariablesDAG(Mapping):
         direct_children: TMapping[VarName, FrozenSet[VarName]],
         direct_ancestors: TMapping[VarName, FrozenSet[VarName]],
     ) -> Tuple[Tuple[VarName, ...], torch.Tensor]:
-        """Modified Kahn's algorithm to produce a topological sorting of DAG (linear time), and the corresponding path matrix as a by-product (boolean triangle superior strict matrix)."""
-        nodes = direct_ancestors.keys()
-        assert nodes == direct_children.keys()
-        direct_ancestors_: TMutableMapping = copy.copy(direct_ancestors)
+        """
+        Modified Kahn's algorithm to produce a topological sorting of DAG, and the corresponding path matrix as a by-product.
+
+        Parameters
+        ----------
+        direct_children : Mapping[VarName, FrozenSet[VarName]]
+        direct_ancestors : Mapping[VarName, FrozenSet[VarName]]
+            The edges out-going (children) and in-going (ancestors) from a given node (at most one edge per node and no self-loop).
+
+        Returns
+        -------
+        sorted_nodes : tuple[VarName, ...]
+            Nodes in a topological order.
+        path_matrix : torch.Tensor[bool]
+            Boolean triangle superior (strict) matrix indicating whether there is a (directed) path between nodes.
+
+        Notes
+        -----
+        Complexity in time of algorithm is linear with number of edges + number of nodes.
+        Input nodes are sorted by name so to have fully reproducible output, independently of the initial order of nodes and edges.
+        (Thus renaming nodes may change the output, due to non-uniqueness of topological order)
+        """
+        nodes = sorted(direct_ancestors.keys())
+        assert set(nodes) == direct_children.keys()
         n_nodes = len(nodes)
         ix_nodes = {n: i for i, n in enumerate(nodes)}
+        # copy of direct_ancestors & direct_children, with fixed order of nodes
+        direct_ancestors_ = {n: direct_ancestors[n] for n in nodes}
+        direct_children_ = {n: sorted(direct_children[n]) for n in nodes}
         # from roots (no ancestors) to leaves (no children)
         sorted_nodes: Tuple[VarName, ...] = ()
         # indices of matrix correspond to `ix_nodes` until topological order is found
@@ -226,15 +245,15 @@ class VariablesDAG(Mapping):
             n = q_roots.get()
             sorted_nodes += (n,)
             i = ix_nodes[n]
-            for m in direct_children[n]:
+            for m in direct_children_[n]:
                 j = ix_nodes[m]
                 path_matrix[:, j] |= path_matrix[:, i]
                 path_matrix[i, j] = True
-                # drop edge (of the local copy of edges; no need to drop in `direct_children` since no cycle)
+                # drop edge (of the local copy of edges); no need to drop in `direct_children_`
                 direct_ancestors_[m] = direct_ancestors_[m].difference({n})
                 if len(direct_ancestors_[m]) == 0:
                     q_roots.put(m)
-        assert set(sorted_nodes) == nodes, "Input graph is not a DAG"
+        assert set(sorted_nodes) == set(nodes), "Input graph is not a DAG"
         # reorder elements of path matrix before returning it
         ix_sorted_nodes = [ix_nodes[n] for n in sorted_nodes]
         path_matrix = path_matrix[ix_sorted_nodes, :][:, ix_sorted_nodes]

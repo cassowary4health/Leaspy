@@ -54,8 +54,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         -------
         individual_parameters : :class:`.IndividualParameters`
             Contains individual parameters.
-        noise_std : float or :class:`torch.FloatTensor`
-            The estimated noise (is a tensor if `model.noise_model` is ``'gaussian_diagonal'``)
+        loss : float or :class:`torch.Tensor[float]`
+            The reconstruction loss
+            (for Gaussian observation model, it corresponds to the RMSE)
 
             .. math:: = \frac{1}{n_{visits} \times n_{dim}} \sqrt{\sum_{i, j \in [1, n_{visits}] \times [1, n_{dim}]} \varepsilon_{i,j}}
 
@@ -67,9 +68,11 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Estimate individual parameters
         individual_parameters = self._get_individual_parameters(model, dataset)
 
-        # Compute the loss with these estimated individual parameters (RMSE or NLL depending on noise models)
-        _, pyt_individual_params = individual_parameters.to_pytorch()
-        loss = model.compute_canonical_loss_tensorized(dataset, pyt_individual_params)
+        # TODO/WIP
+        loss = -1.
+        ## Compute the loss with these estimated individual parameters (RMSE or NLL depending on observation models)
+        #_, pyt_individual_params = individual_parameters.to_pytorch()
+        #loss = model.compute_canonical_loss_tensorized(dataset, pyt_individual_params)
 
         return individual_parameters, loss
 

@@ -52,7 +52,7 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
         dataset: Dataset,
     ) -> None:
         """
-        Initialize the samplers & annealing.
+        Initialize the individual latent variables in state, the algo samplers & the annealing.
 
         Parameters
         ----------

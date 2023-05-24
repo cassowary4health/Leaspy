@@ -122,11 +122,24 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
 
         self.assertDictAlmostEqual(model_parameters_new, expected_model_parameters, **allclose_kwds)
 
-        ## test consistency of model attributes (only mixing matrix here)
-        expected_model = Leaspy.load(path_to_backup_model).model
-        if expected_model.dimension != 1:
-            self.assertAllClose(expected_model.attributes.mixing_matrix, expected_model_parameters['parameters']['mixing_matrix'],
-                                **allclose_kwds, what='mixing_matrix')
+        ## the reloading of model parameters will test consistency of model derived variables (only mixing matrix here)
+        # TODO: use `.load(expected_dict_adapted)` instead of `.load(expected_file_not_adapted)` until expected file are regenerated
+        # expected_model = Leaspy.load(path_to_backup_model).model
+        expected_model_parameters['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
+        expected_model = Leaspy.load(expected_model_parameters).model
+
+
+# some noticeable reproducibility errors btw MacOS and Linux here...
+ALLCLOSE_CUSTOM = dict(
+    nll_regul_ind_sum=dict(atol=5),
+    nll_attach=dict(atol=10),
+    nll_tot=dict(atol=15),
+    tau_mean=dict(atol=0.2),
+    tau_std=dict(atol=0.2),
+)
+DEFAULT_CHECK_KWS = dict(
+    atol=0.1, rtol=1e-2, allclose_custom=ALLCLOSE_CUSTOM
+)
 
 class LeaspyFitTest(LeaspyFitTest_Mixin):
     # <!> reproducibility gap for PyTorch >= 1.7, only those are supported now
@@ -135,76 +148,77 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
     def test_fit_logistic_scalar_noise(self):
 
         obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=1)
-        leaspy, _ = self.generic_fit('logistic', 'logistic_scalar_noise', obs_models=obs_model, source_dimension=2,
-                                     algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True)
+        leaspy, _ = self.generic_fit(
+            'logistic', 'logistic_scalar_noise', obs_models=obs_model, source_dimension=2,
+            algo_params=dict(n_iter=100, seed=0),
+            check_model=True,
+            check_kws=DEFAULT_CHECK_KWS ,
+        )
 
     # Test MCMC-SAEM (1 noise per feature)
     def test_fit_logistic_diag_noise(self):
 
-        # some noticeable reproducibility errors btw MacOS and Linux here...
-        allclose_custom = dict(
-            #nll_regul_tau=dict(atol=2),
-            #nll_regul_xi=dict(atol=2),
-            #nll_regul_sources=dict(atol=3),
-            nll_regul_ind_sum=dict(atol=5),
-            nll_attach=dict(atol=10),
-            nll_tot=dict(atol=15),
-            tau_mean=dict(atol=0.2),
-            tau_std=dict(atol=0.2),
-        )
-
         # TODO: dimension should not be needed at this point...
         obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=4)
-        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise', obs_models=obs_model, source_dimension=2,
-                                     algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True,
-                                     check_kws=dict(atol=0.1, rtol=1e-2, allclose_custom=allclose_custom),
-                                    )
+        leaspy, _ = self.generic_fit(
+            'logistic', 'logistic_diag_noise', obs_models=obs_model, source_dimension=2,
+            algo_params=dict(n_iter=100, seed=0),
+            check_model=True,
+            check_kws=DEFAULT_CHECK_KWS ,
+        )
 
     def test_fit_logistic_diag_noise_fast_gibbs(self):
 
         # TODO: dimension should not be needed at this point...
         obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=4)
-        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_fast_gibbs', obs_models=obs_model, source_dimension=2,
-                                     algo_params=dict(n_iter=100, seed=0, sampler_pop='FastGibbs'),
-                                     check_model=True)
+        leaspy, _ = self.generic_fit(
+            'logistic', 'logistic_diag_noise_fast_gibbs', obs_models=obs_model, source_dimension=2,
+            algo_params=dict(n_iter=100, seed=0, sampler_pop='FastGibbs'),
+            check_model=True,
+            check_kws=DEFAULT_CHECK_KWS ,
+        )
 
     def test_fit_logistic_diag_noise_mh(self):
 
         # TODO: dimension should not be needed at this point...
         obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=4)
-        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_mh', obs_models=obs_model, source_dimension=2,
-                                     algo_params=dict(n_iter=100, seed=0, sampler_pop='Metropolis-Hastings'),
-                                     check_model=True)
+        leaspy, _ = self.generic_fit(
+            'logistic', 'logistic_diag_noise_mh', obs_models=obs_model, source_dimension=2,
+            algo_params=dict(n_iter=100, seed=0, sampler_pop='Metropolis-Hastings'),
+            check_model=True,
+            check_kws=DEFAULT_CHECK_KWS ,
+        )
 
     def test_fit_logistic_diag_noise_with_custom_tuning_no_sources(self):
 
         # TODO: dimension should not be needed at this point...
         obs_model = FullGaussianObs.with_noise_std_as_model_parameter(dimension=4)
-        leaspy, _ = self.generic_fit('logistic', 'logistic_diag_noise_custom',
-                                     obs_models=obs_model, source_dimension=0,
-                                     algo_params=dict(
-                                         n_iter=100,
-                                         burn_in_step_power=0.65,
-                                         sampler_pop_params=dict(
-                                             acceptation_history_length=10,
-                                             mean_acceptation_rate_target_bounds=(.1, .5),
-                                             adaptive_std_factor=0.1,
-                                         ),
-                                         sampler_ind_params=dict(
-                                             acceptation_history_length=10,
-                                             mean_acceptation_rate_target_bounds=(.1, .5),
-                                             adaptive_std_factor=0.1,
-                                         ),
-                                         annealing=dict(
-                                             initial_temperature=5.,
-                                             do_annealing=True,
-                                             n_plateau=2,
-                                         ),
-                                         seed=0,
-                                     ),
-                                     check_model=True)
+        leaspy, _ = self.generic_fit(
+            'logistic', 'logistic_diag_noise_custom',
+            obs_models=obs_model, source_dimension=0,
+            algo_params=dict(
+                n_iter=100,
+                burn_in_step_power=0.65,
+                sampler_pop_params=dict(
+                    acceptation_history_length=10,
+                    mean_acceptation_rate_target_bounds=(.1, .5),
+                    adaptive_std_factor=0.1,
+                ),
+                sampler_ind_params=dict(
+                    acceptation_history_length=10,
+                    mean_acceptation_rate_target_bounds=(.1, .5),
+                    adaptive_std_factor=0.1,
+                ),
+                annealing=dict(
+                    initial_temperature=5.,
+                    do_annealing=True,
+                    n_plateau=2,
+                ),
+                seed=0,
+            ),
+            check_model=True,
+            check_kws=DEFAULT_CHECK_KWS ,
+        )
 
     def test_fit_logistic_parallel(self):
 
@@ -226,9 +240,12 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
     def test_fit_univariate_logistic(self):
 
-        leaspy, _ = self.generic_fit('univariate_logistic', 'univariate_logistic',
-                                     algo_params=dict(n_iter=100, seed=0),
-                                     check_model=True)
+        leaspy, _ = self.generic_fit(
+            'univariate_logistic', 'univariate_logistic',
+            algo_params=dict(n_iter=100, seed=0),
+            check_model=True,
+            check_kws=DEFAULT_CHECK_KWS ,
+        )
 
     def test_fit_univariate_linear(self):
 

@@ -424,10 +424,8 @@ class MultivariateModel(AbstractMultivariateModel):
 
         Parameters
         ----------
-        data : :class:`.Dataset`
-            The input dataset.
-        realizations : CollectionRealization
-            The realizations from which to compute the model's sufficient statistics.
+        state : :class:`.State`
+            The state to pick values from.
 
         Returns
         -------

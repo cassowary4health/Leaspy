@@ -13,6 +13,7 @@ Using:
 
 import re
 import sys
+from enum import Enum
 from inspect import signature
 import pkgutil
 import inspect
@@ -48,7 +49,6 @@ CLASS_METHODS_TO_IGNORE = {
     # TODO: remove these 2 lines when the proper inheritance will be fixed (cf. TODO there)
     'leaspy.algo.abstract_algo.AbstractAlgo.run',
     'leaspy.algo.abstract_algo.AbstractAlgo.run_impl',
-    'leaspy.io.realizations.factory.VariableType',
 }
 FUNCTIONS_TO_IGNORE = set()
 # the only magic methods with a variable number of arguments
@@ -211,6 +211,9 @@ def get_all_methods(klasses: Iterable[Tuple[str, object]]):
     """Get all public methods defined in all classes."""
     for _, klass in klasses:
         methods: List[Optional[str]] = [None]  # for main class docstring
+        if issubclass(klass, Enum):
+            # the init method of Enum always have many internal parameters that are pointless to document
+            methods = []
         for name in dir(klass):
             method_obj = getattr(klass, name)
             if getattr(method_obj, "__module__", None) != klass.__module__:

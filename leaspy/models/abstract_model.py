@@ -824,7 +824,17 @@ class AbstractModel(BaseModel):
         )
 
     def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+        """
+        Overloads base model initialization (in particular to handle internal model State).
 
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            Input dataset from which to initialize the model.
+        method : str, optional
+            The initialization method to be used.
+            Default='default'.
+        """
         super().initialize(dataset, method=method)
 
         if self._state is not None:

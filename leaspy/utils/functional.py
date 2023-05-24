@@ -244,6 +244,10 @@ def arguments_checker(
         Mandatory keyword-arguments for the function.
     possible_kws : None or set[str]
         Set of ALL possible keyword-arguments for the function.
+
+    Returns
+    -------
+    function (args: tuple[str, ...], kws: dict[str, Any]) -> None
     """
     assert n is None or (isinstance(n, int) and n >= 0), n
     n_err_msg = None

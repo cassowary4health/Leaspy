@@ -71,8 +71,8 @@ class VariablesDAG(Mapping):
     ----------
     https://en.wikipedia.org/wiki/Directed_acyclic_graph#Computational_problems
 
-    Example
-    -------
+    Examples
+    --------
     >>> d_vars = {
         "x": IndepVariable(),
         "y": LinkedVariable(lambda *, x: -x),

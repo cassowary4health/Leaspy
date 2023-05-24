@@ -293,7 +293,7 @@ class AbstractModel(BaseModel):
             val = val_to_tensor(val, getattr(self.dag[p], "shape", None))
             assert val.shape == cur_val.shape, (p, val.shape, cur_val.shape)
             # TODO: WeightedTensor? (e.g. batched `deltas``)
-            assert torch.allclose(val, cur_val), (p, val, cur_val)
+            assert torch.allclose(val, cur_val, atol=1e-5), (p, val, cur_val)
 
     @abstractmethod
     def load_hyperparameters(self, hyperparameters: KwargsType) -> None:

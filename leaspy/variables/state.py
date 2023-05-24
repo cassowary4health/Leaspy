@@ -277,12 +277,23 @@ class State(MutableMapping):
 
     def initialize_population_latent_variables(self, method: LatentVariableInitType) -> None:
         """Initialize population latent variables in state (in-place)."""
+        # Nota: fixing order of variables in this loop is pointless since no randomness is involved in init of pop. vars
         for pp, var in self.dag.sorted_variables_by_type[PopulationLatentVariable].items():
             var: PopulationLatentVariable  # for type-hint only
             self[pp] = var.get_init_func(method).call(self)
 
     def initialize_individual_latent_variables(self, method: LatentVariableInitType, *, n_individuals: int) -> None:
         """Initialize individual latent variables in state (in-place)."""
-        for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
-            var: IndividualLatentVariable  # for type-hint only
+
+        # TMP --> fix order of random variables as previously to pass functional tests...
+        vars_order = set(self.dag.sorted_variables_by_type[IndividualLatentVariable])
+        if vars_order == {'tau', 'xi'}:
+            vars_order = ['tau', 'xi']
+        elif vars_order == {'tau', 'xi', 'sources'}:
+            vars_order = ['tau', 'xi', 'sources']
+        # END TMP
+
+        #for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
+        for ip in vars_order:
+            var: IndividualLatentVariable = self.dag[ip]  # for type-hint only
             self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)

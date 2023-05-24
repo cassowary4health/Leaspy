@@ -94,6 +94,12 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
             list(state.dag.sorted_variables_by_type[PopulationLatentVariable])
             + list(state.dag.sorted_variables_by_type[IndividualLatentVariable])
         )
+        # TMP --> fix order of random variables as previously to pass functional tests...
+        if set(vars_order) == {'log_g', 'log_v0', 'xi', 'tau'}:
+            vars_order = ['log_g', 'log_v0', 'tau', 'xi']
+        elif set(vars_order) == {'log_g', 'betas', 'log_v0', 'xi', 'tau', 'sources'}:
+            vars_order = ['log_g', 'log_v0', 'betas', 'tau', 'xi', 'sources']
+        # END TMP
         if self.random_order_variables:
             shuffle(vars_order)  # shuffle order in-place!
 

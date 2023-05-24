@@ -57,9 +57,9 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
 
     def _initialize_algo(
         self,
-        state: State,
+        model: AbstractModel,
         dataset: Dataset,
-    ) -> None:
+    ) -> State:
         """
         Initialize the individual latent variables in state, the algo samplers & the annealing.
 
@@ -67,12 +67,24 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
 
         Parameters
         ----------
-        state : :class:`.State`
+        model : :class:`.AbstractModel`
         dataset : :class:`.Dataset`
+
+        Returns
+        -------
+        state : :class:`.State`
         """
 
-        # Initialize individual latent variables at their mode (population ones should be initialized before)
-        state.initialize_individual_latent_variables(LatentVariableInitType.PRIOR_MODE, n_individuals=dataset.n_individuals)
+        # WIP: Would it be relevant to fit on a dedicated algo state?
+        state = model._state
+        assert state is not None, "State was not properly initialized"
+
+        with state.auto_fork(None):
+            # Set data variables
+            model.put_data_variables(state, dataset)
+
+            # Initialize individual latent variables at their mode (population ones should be initialized before)
+            state.put_individual_latent_variables(LatentVariableInitType.PRIOR_MODE, n_individuals=dataset.n_individuals)
 
         # Samplers mixin
         self._initialize_samplers(state, dataset)
@@ -80,6 +92,16 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
         # Annealing mixin
         self._initialize_annealing()
 
+        return state
+
+    def _terminate_algo(self, model: AbstractModel, state: State) -> None:
+        """Clean-up of state at end of algorithm."""
+        # WIP: cf. interrogation about internal state in model or not...
+        model_state = state.clone()
+        with model_state.auto_fork(None):
+            model.reset_data_variables(model_state)
+            model_state.put_individual_latent_variables(None)
+        model._state = model_state
 
     def _get_individual_parameters(self, model: AbstractModel, dataset: Dataset):
 
@@ -99,11 +121,7 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
 
         with self._device_manager(model, dataset):
 
-            # WIP: Would it be relevant to fit on a dedicated algo state?
-            state = model._state
-            assert state is not None, "State was not properly initialized"
-
-            self._initialize_algo(state, dataset)
+            state = self._initialize_algo(model, dataset)
 
             n_iter = self.algo_parameters['n_iter']
             if self.algo_parameters.get('progress_bar', True):
@@ -150,5 +168,8 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
                 torch_realizations, torch_attachments, torch_tot_regularities
             )
 
-            # Create the IndividualParameters object
-            return IndividualParameters.from_pytorch(dataset.indices, individual_parameters_torch)
+        # Clean-up model state & so on
+        self._terminate_algo(model, state)
+
+        # Create the IndividualParameters object
+        return IndividualParameters.from_pytorch(dataset.indices, individual_parameters_torch)

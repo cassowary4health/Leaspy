@@ -48,26 +48,24 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
 
     def _initialize_algo(
         self,
-        state: State,
+        model: AbstractModel,
         dataset: Dataset,
-    ) -> None:
-        """
-        Initialize the individual latent variables in state, the algo samplers & the annealing.
+    ) -> State:
 
-        Parameters
-        ----------
-        state : :class:`.State`
-        dataset : :class:`.Dataset`
-        """
+        # TODO? mutualize with perso mcmc algo?
+        state = super()._initialize_algo(model, dataset)
 
         # Initialize individual latent variables (population ones should be initialized before)
-        state.initialize_individual_latent_variables(LatentVariableInitType.PRIOR_SAMPLES, n_individuals=dataset.n_individuals)
+        with state.auto_fork(None):
+            state.put_individual_latent_variables(LatentVariableInitType.PRIOR_SAMPLES, n_individuals=dataset.n_individuals)
 
         # Samplers mixin
         self._initialize_samplers(state, dataset)
 
         # Annealing mixin
         self._initialize_annealing()
+
+        return state
 
     ###########################
     ## Core

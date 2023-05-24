@@ -275,15 +275,20 @@ class State(MutableMapping):
                 if v is not None:
                     self._last_fork[k] = v.to(device=device)
 
-    def initialize_population_latent_variables(self, method: LatentVariableInitType) -> None:
-        """Initialize population latent variables in state (in-place)."""
+    def put_population_latent_variables(self, method: Optional[LatentVariableInitType]) -> None:
+        """Put some predefined values in state for all population latent variables (in-place)."""
         # Nota: fixing order of variables in this loop is pointless since no randomness is involved in init of pop. vars
         for pp, var in self.dag.sorted_variables_by_type[PopulationLatentVariable].items():
             var: PopulationLatentVariable  # for type-hint only
-            self[pp] = var.get_init_func(method).call(self)
+            if method is None:
+                self[pp] = None
+            else:
+                self[pp] = var.get_init_func(method).call(self)
 
-    def initialize_individual_latent_variables(self, method: LatentVariableInitType, *, n_individuals: int) -> None:
-        """Initialize individual latent variables in state (in-place)."""
+    def put_individual_latent_variables(self, method: Optional[LatentVariableInitType], *, n_individuals: Optional[int] = None) -> None:
+        """Put some predefined values in state for all individual latent variables (in-place)."""
+        if method is not None and n_individuals is None:
+            raise LeaspyInputError("`n_individuals` should not be None when `method` is not None.")
 
         # TMP --> fix order of random variables as previously to pass functional tests...
         vars_order = set(self.dag.sorted_variables_by_type[IndividualLatentVariable])
@@ -296,4 +301,7 @@ class State(MutableMapping):
         #for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
         for ip in vars_order:
             var: IndividualLatentVariable = self.dag[ip]  # for type-hint only
-            self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
+            if method is None:
+                self[ip] = None
+            else:
+                self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)

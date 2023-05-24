@@ -276,7 +276,7 @@ class AbstractModel(BaseModel):
 
         # derive the population latent variables from model parameters
         # e.g. to check value of `mixing_matrix` we need `v0` and `betas` (not just `log_v0` and `betas_mean`)
-        self._state.initialize_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+        self._state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
 
         # check equality of other values (hyperparameters or linked variables)
         for p, val in parameters.items():
@@ -827,6 +827,8 @@ class AbstractModel(BaseModel):
         """
         Overloads base model initialization (in particular to handle internal model State).
 
+        <!> We do not put data variables in internal model state at this stage (done in algorithm)
+
         Parameters
         ----------
         dataset : :class:`.Dataset`
@@ -844,19 +846,26 @@ class AbstractModel(BaseModel):
         # WIP: design of this may be better somehow?
         with self._state.auto_fork(None):
 
-            # Set data variables
-            # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
-            # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
-            # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
-            self._state["t"] = dataset.timepoints.masked_fill((~dataset.mask.to(torch.bool)).all(dim=LVL_FT), 0.)
-            for obs_model in self.obs_models:
-                self._state[obs_model.name] = obs_model.getter(dataset)
-
             # Set model parameters
             self.initialize_model_parameters(dataset, method=method)
 
             # Initialize population latent variables to their mode
-            self._state.initialize_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+            self._state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+
+    def put_data_variables(self, state: State, dataset: Dataset) -> None:
+        """Put all the needed data variables inside the provided state (in-place)."""
+        # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
+        # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
+        # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
+        state["t"] = dataset.timepoints.masked_fill((~dataset.mask.to(torch.bool)).all(dim=LVL_FT), 0.)
+        for obs_model in self.obs_models:
+            state[obs_model.name] = obs_model.getter(dataset)
+
+    def reset_data_variables(self, state: State) -> None:
+        """Reset all data variables inside the provided state (in-place)."""
+        state["t"] = None
+        for obs_model in self.obs_models:
+            state[obs_model.name] = None
 
     def initialize_model_parameters(self, dataset: Dataset, method: str):
         """Initialize model parameters (in-place, in `_state`)."""

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Any
 from abc import abstractmethod
 
 from leaspy.algo.abstract_algo import AbstractAlgo
@@ -8,7 +8,7 @@ from leaspy.algo.utils.algo_with_device import AlgoWithDeviceMixin
 from leaspy.utils.typing import DictParamsTorch
 from leaspy.exceptions import LeaspyAlgoInputError
 
-from leaspy.variables.specs import IndividualLatentVariable, LatentVariableInitType
+from leaspy.variables.specs import LatentVariableInitType
 from leaspy.variables.state import State
 
 if TYPE_CHECKING:
@@ -84,18 +84,13 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         Returns
         -------
         2-tuple:
-            * realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-                The optimized parameters.
-            * None : placeholder for noise-std
+            * state : :class:`.State`
+            * loss : Any
         """
 
         with self._device_manager(model, dataset):
 
-            # WIP: Would it be relevant to fit on a dedicated algo state?
-            state = model._state
-            assert state is not None, "State was not properly initialized"
-
-            self._initialize_algo(state, dataset)
+            state = self._initialize_algo(model, dataset)
 
             if self.algo_parameters['progress_bar']:
                 self._display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
@@ -118,31 +113,8 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                         suffix='iterations',
                     )
 
-        # <!> At the end of the MCMC, population and individual latent variables may have diverged from final model parameters
-        # Thus we reset population latent variables to their mode, and we remove individual latent variables
-        with state.auto_fork(None):
-            state.initialize_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
-            for ip in state.dag.sorted_variables_by_type[IndividualLatentVariable]:
-                state[ip] = None
-
-        # TODO: finalize metrics handling
-        # we store metrics after the fit so they can be exported along with model
-        # parameters & hyper-parameters for archive...
-        model.fit_metrics = self._get_fit_metrics()
-
-        ## TODO: Shouldn't we always return (nll_tot, nll_attach, nll_regul_tot or nll_regul_{ind_param},
-        ##  and parameters of noise-model if any)
-        ## If noise-model is a 1-parameter distribution family final loss is the value of this parameter
-        ## Otherwise we use the negative log-likelihood as measure of goodness-of-fit
-        #if len(model.noise_model.free_parameters) == 1:
-        #    loss = next(iter(model.noise_model.parameters.values()))
-        #else:
-        #    # TODO? rather return nll_tot (unlike previously)
-        #    loss = self.sufficient_statistics.get("nll_attach", -1.)
-        #
-        #return realizations, loss
-
-        return model, -1
+        loss = self._terminate_algo(model, state)
+        return state, loss
 
     def _get_fit_metrics(self) -> Optional[Dict[str, float]]:
         # TODO: finalize metrics handling, a bit dirty to place them in sufficient stats, only with a prefix...
@@ -178,16 +150,73 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
             During the fit, this state holds all model variables, together with dataset observations.
         """
 
-    @abstractmethod
-    def _initialize_algo(self, state: State, dataset: Dataset) -> None:
+    def _initialize_algo(self, model: AbstractModel, dataset: Dataset) -> State:
         """
-        Initialize the fit algorithm (abstract method).
+        Initialize the fit algorithm (abstract method) and return the state to work on.
 
         Parameters
         ----------
-        state : :class:`.State`
+        model : :class:`.AbstractModel`
         dataset : :class:`.Dataset`
+
+        Returns
+        -------
+        state : :class:`.State`
         """
+
+        # WIP: Would it be relevant to fit on a dedicated algo state?
+        state = model._state
+        assert state is not None, "State was not properly initialized"
+
+        with state.auto_fork(None):
+            # Set data variables
+            model.put_data_variables(state, dataset)
+
+        return state
+
+    def _terminate_algo(self, model: AbstractModel, state: State) -> Any:  # torch.Tensor?
+        """
+        Perform the last steps upon terminaison of algorithm (cleaning stuff, ...).
+
+        Parameters
+        ----------
+        model : :class:`.AbstractModel`
+        state : :class:`.State`
+
+        Returns
+        -------
+        loss : Any
+        """
+
+        # TODO: finalize metrics handling
+        # we store metrics after the fit so they can be exported along with model
+        # parameters & hyper-parameters for archive...
+        model.fit_metrics = self._get_fit_metrics()
+
+        ## TODO: Shouldn't we always return (nll_tot, nll_attach, nll_regul_tot or nll_regul_{ind_param},
+        ##  and parameters of noise-model if any)
+        ## If noise-model is a 1-parameter distribution family final loss is the value of this parameter
+        ## Otherwise we use the negative log-likelihood as measure of goodness-of-fit
+        #if len(model.noise_model.free_parameters) == 1:
+        #    loss = next(iter(model.noise_model.parameters.values()))
+        #else:
+        #    # TODO? rather return nll_tot (unlike previously)
+        #    loss = self.sufficient_statistics.get("nll_attach", -1.)
+        #
+        loss = -1.
+
+        # WIP: cf. interrogation about internal state in model or not...
+        model_state = state.clone()
+        with model_state.auto_fork(None):
+            model.reset_data_variables(model_state)
+            # <!> At the end of the MCMC, population and individual latent variables may have diverged from final model parameters
+            # Thus we reset population latent variables to their mode, and we remove individual latent variables
+            model_state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+            model_state.put_individual_latent_variables(None)
+        model._state = model_state
+
+        return loss
+
 
     def _maximization_step(self, model: AbstractModel, state: State):
         """

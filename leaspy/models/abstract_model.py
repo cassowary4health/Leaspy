@@ -22,6 +22,7 @@ from leaspy.variables.specs import (
     ModelParameter,
     LinkedVariable,
     DataVariable,
+    LatentVariableInitType,
     NamedVariables,
     SuffStatsRO,
     SuffStatsRW,
@@ -112,6 +113,8 @@ class AbstractModel(BaseModel):
         self._state: Optional[State] = None  # = state
 
         # load hyperparameters
+        # <!> some may still be missing at this point (e.g. `dimension`, `source_dimension`, ...)
+        # (thus we sh/could NOT instantiate the DAG right now!)
         self.load_hyperparameters(kwargs)
 
         # TODO: dirty hack for now, cf. AbstractFitAlgo
@@ -230,11 +233,16 @@ class AbstractModel(BaseModel):
         """
         Instantiate or update the model's parameters.
 
+        It assumes that all model hyperparameters are defined.
+
         Parameters
         ----------
         parameters : dict[str, Any]
             Contains the model's parameters
         """
+        if self._state is None:
+            self.initialize_state()
+
         # TODO: a bit dirty due to hyperparams / params mix (cf. `.parameters` property note)
 
         params_names = self.parameters_names
@@ -266,6 +274,10 @@ class AbstractModel(BaseModel):
             # TODO: WeightedTensor? (e.g. batched `deltas`)
             self._state[p] = val
 
+        # derive the population latent variables from model parameters
+        # e.g. to check value of `mixing_matrix` we need `v0` and `betas` (not just `log_v0` and `betas_mean`)
+        self._state.initialize_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+
         # check equality of other values (hyperparameters or linked variables)
         for p, val in parameters.items():
             if p in provided_params:
@@ -281,7 +293,7 @@ class AbstractModel(BaseModel):
             val = val_to_tensor(val, getattr(self.dag[p], "shape", None))
             assert val.shape == cur_val.shape, (p, val.shape, cur_val.shape)
             # TODO: WeightedTensor? (e.g. batched `deltas``)
-            assert torch.equal(val, cur_val), (p, val, cur_val)
+            assert torch.allclose(val, cur_val), (p, val, cur_val)
 
     @abstractmethod
     def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
@@ -732,7 +744,7 @@ class AbstractModel(BaseModel):
         output = "=== MODEL ==="
         output += self._serialize_tensor(self.parameters)
 
-        # TODO obs models...
+        # TODO/WIP obs models...
         # nm_props = export_noise_model(self.noise_model)
         # nm_name = nm_props.pop('name')
         # output += f"\nnoise-model : {nm_name}"
@@ -791,7 +803,7 @@ class AbstractModel(BaseModel):
         if not single_obs_model:
             assert False, "WIP: Only 1 noise model supported for now, but to be extended"
             d.update(
-                nll_attach_full=LinkedVariable(Sum(...)),
+                #nll_attach_full=LinkedVariable(Sum(...)),
                 nll_attach_ind=LinkedVariable(Sum(...)),
                 nll_attach=LinkedVariable(Sum(...)),
                 # TODO Same for nll_attach_ind jacobian, w.r.t each observation var???
@@ -799,29 +811,42 @@ class AbstractModel(BaseModel):
 
         return d
 
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+    def initialize_state(self) -> None:
+        """
+        Initialize the internal state of model, as well as the underlying DAG.
 
-        super().initialize(dataset, method=method)
-
-        # After the definition of all missing hyperparameters (dimension, source_dimension, ...)
-        # we can define the DAG and init a State attached to it
+        Note that all model hyperparameters (dimension, source_dimension, ...) should be defined
+        in order to be able to do so.
+        """
         self._state = State(
             VariablesDAG.from_dict(self.get_variables_specs()),
             auto_fork_type=StateForkType.REF
         )
 
+    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+
+        super().initialize(dataset, method=method)
+
+        if self._state is not None:
+            raise LeaspyModelInputError("Trying to initialize model again")
+        self.initialize_state()
+
         # WIP: design of this may be better somehow?
         with self._state.auto_fork(None):
 
-            self.initialize_model_parameters(dataset, method=method)
-
             # Set data variables
-            # TODO/WIP: we use a regular tensor with 0 for times so that model is a regular tensor
-            # (to avoid having to deal with `StatelessDistributionFamily` having `WeightedTensor` as parameters)
-            # (but we might need it at some point, for `batched_deltas` of ordinal model for instance)
+            # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
+            # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
+            # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
             self._state["t"] = dataset.timepoints.masked_fill((~dataset.mask.to(torch.bool)).all(dim=LVL_FT), 0.)
             for obs_model in self.obs_models:
                 self._state[obs_model.name] = obs_model.getter(dataset)
+
+            # Set model parameters
+            self.initialize_model_parameters(dataset, method=method)
+
+            # Initialize population latent variables to their mode
+            self._state.initialize_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
 
     def initialize_model_parameters(self, dataset: Dataset, method: str):
         """Initialize model parameters (in-place, in `_state`)."""

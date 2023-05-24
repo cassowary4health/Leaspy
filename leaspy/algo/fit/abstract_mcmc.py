@@ -60,8 +60,7 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
         dataset : :class:`.Dataset`
         """
 
-        # Initialize latent variables
-        state.initialize_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+        # Initialize individual latent variables (population ones should be initialized before)
         state.initialize_individual_latent_variables(LatentVariableInitType.PRIOR_SAMPLES, n_individuals=dataset.n_individuals)
 
         # Samplers mixin

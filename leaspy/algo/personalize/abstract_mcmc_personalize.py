@@ -76,9 +76,7 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
         """
 
         # WIP: Would it be relevant to fit on a dedicated algo state?
-        state = model._state
-        assert state is not None, "State was not properly initialized"
-
+        state = model.state
         with state.auto_fork(None):
             # Set data variables
             model.put_data_variables(state, dataset)
@@ -101,7 +99,7 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
         with model_state.auto_fork(None):
             model.reset_data_variables(model_state)
             model_state.put_individual_latent_variables(None)
-        model._state = model_state
+        model.state = model_state
 
     def _get_individual_parameters(self, model: AbstractModel, dataset: Dataset):
 

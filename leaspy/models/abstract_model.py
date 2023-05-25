@@ -22,6 +22,8 @@ from leaspy.variables.specs import (
     ModelParameter,
     LinkedVariable,
     DataVariable,
+    PopulationLatentVariable,
+    IndividualLatentVariable,
     LatentVariableInitType,
     NamedVariables,
     SuffStatsRO,
@@ -30,7 +32,7 @@ from leaspy.variables.specs import (
 )
 from leaspy.variables.dag import VariablesDAG
 from leaspy.variables.state import State, StateForkType
-from leaspy.utils.weighted_tensor import WeightedTensor
+from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
 
 from leaspy.exceptions import LeaspyIndividualParamsInputError, LeaspyModelInputError
 from leaspy.utils.typing import (
@@ -149,9 +151,22 @@ class AbstractModel(BaseModel):
     #        )
 
     @property
+    def state(self) -> State:
+        if self._state is None:
+            raise LeaspyModelInputError("Model state is not initialized yet")
+        return self._state
+
+    @state.setter
+    def state(self, s: State) -> None:
+        assert isinstance(s, State), "Provided state should be a valid State instance"
+        if self._state is not None and s.dag is not self._state.dag:
+            raise LeaspyModelInputError("DAG of new state does not match with previous one")
+        # TODO? perform some clean-up steps for provided state (cf. `_terminate_algo` of MCMC algo)
+        self._state = s
+
+    @property
     def dag(self) -> VariablesDAG:
-        assert self._state is not None, "Model state is not initialized yet."
-        return self._state.dag
+        return self.state.dag
 
     @property
     def hyperparameters_names(self) -> Tuple[VarName, ...]:
@@ -161,14 +176,13 @@ class AbstractModel(BaseModel):
     def parameters_names(self) -> Tuple[VarName, ...]:
         return tuple(self.dag.sorted_variables_by_type[ModelParameter])
 
-    # Useless as of now...
-    # @property
-    # def population_variables_names(self) -> Tuple[VarName, ...]:
-    #     return tuple(self.dag.sorted_variables_by_type[PopulationLatentVariable])
-    #
-    # @property
-    # def individual_variables_names(self) -> Tuple[VarName, ...]:
-    #     return tuple(self.dag.sorted_variables_by_type[IndividualLatentVariable])
+    @property
+    def population_variables_names(self) -> Tuple[VarName, ...]:
+        return tuple(self.dag.sorted_variables_by_type[PopulationLatentVariable])
+
+    @property
+    def individual_variables_names(self) -> Tuple[VarName, ...]:
+        return tuple(self.dag.sorted_variables_by_type[IndividualLatentVariable])
 
     @property
     def parameters(self) -> DictParamsTorch:
@@ -489,6 +503,19 @@ class AbstractModel(BaseModel):
         timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0)  # 1 individual
         return timepoints, individual_parameters
 
+    def check_individual_parameters_provided(self, individual_parameters_keys: Iterable[str]) -> None:
+        """Check consistency of individual parameters keys provided."""
+        ind_vars = set(self.individual_variables_names)
+        unknown_ips = set(individual_parameters_keys).difference(ind_vars)
+        missing_ips = ind_vars.difference(individual_parameters_keys)
+        errs = []
+        if len(unknown_ips):
+            errs.append(f"Unknown individual latent variables: {unknown_ips}")
+        if len(missing_ips):
+            errs.append(f"Missing individual latent variables: {missing_ips}")
+        if len(errs):
+            raise LeaspyIndividualParamsInputError(". ".join(errs))
+
     # TODO: unit tests? (functional tests covered by api.estimate)
     def compute_individual_trajectory(
         self,
@@ -496,7 +523,7 @@ class AbstractModel(BaseModel):
         individual_parameters: DictParams,
         *,
         skip_ips_checks: bool = False,
-    ) -> torch.Tensor:
+    ) -> TensorOrWeightedTensor[float]:
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
 
@@ -526,24 +553,63 @@ class AbstractModel(BaseModel):
         :exc:`.LeaspyIndividualParamsInputError`
             if invalid individual parameters
         """
-        raise NotImplementedError("WIP")
-
-
+        self.check_individual_parameters_provided(individual_parameters.keys())
         timepoints, individual_parameters = self._get_tensorized_inputs(
             timepoints, individual_parameters, skip_ips_checks=skip_ips_checks
         )
 
-        # TODO? ability to fork after several assignments?
-        # or clone the state for this op?
-        # otherwise if called during a fit [typically to produce plots to monitor convergence]
-        # we just manually re-assign modified vars to their initial state
-        # (indeed `t` is fixed during the fit, and the evolving ind. latent vars were likely not the same as those provided!)
-        with self._state.auto_fork(None) as XXX:
-            self._state["t"] = timepoints
-            for ip, ip_v in individual_parameters.items():
-                self._state[ip] = ip_v
-        val = self._state["model"]
-        self._state.revert(XXX) # or a similar syntax? (to tell that we want to go back to ... point)
+        # TODO? ability to revert back after **several** assignments?
+        # instead of cloning the state for this op?
+        local_state = self.state.clone(disable_auto_fork=True)
+        self._put_data_timepoints(local_state, timepoints)
+        for ip, ip_v in individual_parameters.items():
+            local_state[ip] = ip_v
+
+        return local_state["model"]
+
+    def compute_prior_trajectory(
+        self,
+        timepoints: torch.Tensor,
+        prior_type: LatentVariableInitType,
+        *,
+        n_individuals: Optional[int] = None,
+    ) -> TensorOrWeightedTensor[float]:
+        """
+        Compute trajectory of the model for prior mode or mean of individual parameters.
+
+        Parameters
+        ----------
+        timepoints : :class:`torch.Tensor` [1, n_timepoints]
+
+        Returns
+        -------
+        :class:`torch.Tensor` [1, n_timepoints, dimension]
+            The group-average values at given timepoints
+        """
+        exc_n_ind_iff_prior_samples = LeaspyModelInputError(
+            "You should provide n_individuals (int >= 1) if, and only if, prior_type is `PRIOR_SAMPLES`"
+        )
+        if n_individuals is None:
+            if prior_type is LatentVariableInitType.PRIOR_SAMPLES:
+                raise exc_n_ind_iff_prior_samples
+            n_individuals = 1
+        elif prior_type is not LatentVariableInitType.PRIOR_SAMPLES or not (isinstance(n_individuals, int) and n_individuals >= 1):
+            raise exc_n_ind_iff_prior_samples
+
+        local_state = self.state.clone(disable_auto_fork=True)
+        self._put_data_timepoints(local_state, timepoints)
+        local_state.put_individual_latent_variables(prior_type, n_individuals=n_individuals)
+
+        return local_state["model"]
+
+    def compute_mean_traj(self, timepoints: torch.Tensor):
+        """Trajectory for average of individual parameters (not really meaningful for non-linear models)."""
+        # TODO/WIP: keep this in BaseModel interface? or only provide `compute_prior_trajectory`, or `compute_mode|typical_traj` instead?
+        return self.compute_prior_trajectory(timepoints, LatentVariableInitType.PRIOR_MEAN)
+
+    def compute_mode_traj(self, timepoints: torch.Tensor):
+        """Most typical individual trajectory."""
+        return self.compute_prior_trajectory(timepoints, LatentVariableInitType.PRIOR_MODE)
 
     # TODO: unit tests? (functional tests covered by api.estimate)
     def compute_individual_ages_from_biomarker_values(
@@ -818,7 +884,7 @@ class AbstractModel(BaseModel):
         Note that all model hyperparameters (dimension, source_dimension, ...) should be defined
         in order to be able to do so.
         """
-        self._state = State(
+        self.state = State(
             VariablesDAG.from_dict(self.get_variables_specs()),
             auto_fork_type=StateForkType.REF
         )
@@ -852,12 +918,19 @@ class AbstractModel(BaseModel):
             # Initialize population latent variables to their mode
             self._state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
 
-    def put_data_variables(self, state: State, dataset: Dataset) -> None:
-        """Put all the needed data variables inside the provided state (in-place)."""
+    def _put_data_timepoints(self, state: State, timepoints: TensorOrWeightedTensor[float]) -> None:
+        """Put the timepoints variables inside the provided state (in-place)."""
         # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
         # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
         # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
-        state["t"] = dataset.timepoints.masked_fill((~dataset.mask.to(torch.bool)).all(dim=LVL_FT), 0.)
+        state["t"], _ = WeightedTensor.get_filled_value_and_weight(timepoints, fill_value=0.)
+
+    def put_data_variables(self, state: State, dataset: Dataset) -> None:
+        """Put all the needed data variables inside the provided state (in-place)."""
+        self._put_data_timepoints(
+            state,
+            WeightedTensor(dataset.timepoints, dataset.mask.to(torch.bool).any(dim=LVL_FT))
+        )
         for obs_model in self.obs_models:
             state[obs_model.name] = obs_model.getter(dataset)
 

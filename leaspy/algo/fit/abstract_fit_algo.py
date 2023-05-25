@@ -165,9 +165,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         """
 
         # WIP: Would it be relevant to fit on a dedicated algo state?
-        state = model._state
-        assert state is not None, "State was not properly initialized"
-
+        state = model.state
         with state.auto_fork(None):
             # Set data variables
             model.put_data_variables(state, dataset)
@@ -207,13 +205,14 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
 
         # WIP: cf. interrogation about internal state in model or not...
         model_state = state.clone()
+        # TODO? Should those cleaning steps be performed here, or in the model.state setter instead?
         with model_state.auto_fork(None):
             model.reset_data_variables(model_state)
             # <!> At the end of the MCMC, population and individual latent variables may have diverged from final model parameters
             # Thus we reset population latent variables to their mode, and we remove individual latent variables
             model_state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
             model_state.put_individual_latent_variables(None)
-        model._state = model_state
+        model.state = model_state
 
         return loss
 

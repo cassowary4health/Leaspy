@@ -76,13 +76,12 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
             f_loss = obs_model.compute_rmse  # gaussian-scalar
         else:
             f_loss = obs_model.compute_rmse_per_ft  # gaussian-diagonal
-        state = model._state.clone()
-        with state.auto_fork(None):
-            model.put_data_variables(state, dataset)
-            _, pyt_individual_parameters = individual_parameters.to_pytorch()
-            for ip, ip_vals in pyt_individual_parameters.items():
-                state[ip] = ip_vals
-            loss = f_loss(y=state['y'], model=state['model'])
+        local_state = model.state.clone(disable_auto_fork=True)
+        model.put_data_variables(local_state, dataset)
+        _, pyt_individual_parameters = individual_parameters.to_pytorch()
+        for ip, ip_vals in pyt_individual_parameters.items():
+            local_state[ip] = ip_vals
+        loss = f_loss(y=local_state['y'], model=local_state['model'])
 
         ## Compute the loss with these estimated individual parameters (RMSE or NLL depending on observation models)
         #_, pyt_individual_params = individual_parameters.to_pytorch()

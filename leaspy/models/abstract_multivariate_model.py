@@ -16,7 +16,6 @@ from leaspy.variables.specs import (
     IndividualLatentVariable,
     LinkedVariable,
 )
-from leaspy.variables.state import State
 from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import (
     Exp,
@@ -231,39 +230,8 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
         if with_mixing_matrix and self.source_dimension >= 1:
             # transposed compared to previous version
-            model_settings['parameters']['mixing_matrix'] = self._state['mixing_matrix'].tolist()
+            model_settings['parameters']['mixing_matrix'] = self.state['mixing_matrix'].tolist()
 
         # self._export_extra_ordinal_settings(model_settings)
 
         return model_settings
-
-    def compute_mean_traj(
-        self,
-        timepoints: torch.Tensor,
-        state: State,
-    ) -> torch.Tensor:
-        """
-        Compute trajectory of the model with individual parameters being the group-average ones.
-
-        TODO check dimensions of io?
-
-        Parameters
-        ----------
-        timepoints : :class:`torch.Tensor` [1, n_timepoints]
-        state : :class:`.State`
-
-        Returns
-        -------
-        :class:`torch.Tensor` [1, n_timepoints, dimension]
-            The group-average values at given timepoints
-        """
-        raise NotImplementedError("TODO -> cloning state? (to temporary mutate timepoints & individual params)")
-        individual_parameters = {
-            'xi': torch.tensor([self.parameters['xi_mean']]),
-            'tau': torch.tensor([self.parameters['tau_mean']]),
-            'sources': torch.zeros(self.source_dimension)
-        }
-
-        return self.compute_individual_tensorized(
-            timepoints, individual_parameters, attribute_type=attribute_type
-        )

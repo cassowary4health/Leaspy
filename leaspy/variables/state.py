@@ -91,11 +91,12 @@ class State(MutableMapping):
         }
         self._last_fork: Optional[VariablesLazyValuesRO] = None
 
-    def clone(self) -> State:
+    def clone(self, *, disable_auto_fork: bool = False, keep_last_fork: bool = False) -> State:
         """Clone current state (no copy of DAG)."""
-        cloned = State(self.dag, auto_fork_type=self.auto_fork_type)
+        cloned = State(self.dag, auto_fork_type=None if disable_auto_fork else self.auto_fork_type)
         cloned._values = copy.deepcopy(self._values)
-        cloned._last_fork = copy.deepcopy(self._last_fork)
+        if keep_last_fork:
+            cloned._last_fork = copy.deepcopy(self._last_fork)
         return cloned
 
     @contextmanager

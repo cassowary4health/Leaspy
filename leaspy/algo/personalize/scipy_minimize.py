@@ -437,18 +437,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         }
 
         # Fetch model internal state (latent pop. vars should be OK)
-        state = model._state
-        assert state is not None, "State was not properly initialized"
+        state = model.state
         # Fixed scalings for individual parameters
         ips_scalings = _AffineScalings1D.from_state(state, var_type=IndividualLatentVariable)
 
         # Clone model states (1 per individual with the appropriate dataset loaded into each of them)
         states = {}
         for idx in dataset.indices:
-            state_pat = state.clone()
-            state_pat.auto_fork_type = None
-            model.put_data_variables(state_pat, datasets[idx])
-            states[idx] = state_pat
+            states[idx] = state.clone(disable_auto_fork=True)
+            model.put_data_variables(states[idx], datasets[idx])
 
         if self.algo_parameters.get('progress_bar', True):
             self._display_progress_bar(-1, dataset.n_individuals, suffix='subjects')

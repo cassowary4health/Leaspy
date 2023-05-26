@@ -6,7 +6,8 @@ from leaspy.algo.fit.abstract_fit_algo import AbstractFitAlgo
 from leaspy.algo.utils.algo_with_samplers import AlgoWithSamplersMixin
 from leaspy.algo.utils.algo_with_annealing import AlgoWithAnnealingMixin
 
-from leaspy.io.realizations import CollectionRealization
+from leaspy.variables.state import State
+from leaspy.variables.specs import PopulationLatentVariable, IndividualLatentVariable, LatentVariableInitType
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
@@ -47,28 +48,24 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
 
     def _initialize_algo(
         self,
-        dataset: Dataset,
         model: AbstractModel,
-    ) -> None:
-        """
-        Initialize the samplers, annealing, MCMC toolbox and sufficient statistics.
+        dataset: Dataset,
+    ) -> State:
 
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-        model : :class:`~.models.abstract_model.AbstractModel`
-        """
-        # MCMC toolbox (cache variables for speed-ups + tricks)
-        # TODO? why not using just initialized `realizations` here in MCMC toolbox initialization?
-        # TODO? we should NOT store the MCMC_toolbox in the model even if convenient, since actually
-        #  it ONLY belongs to the algorithm!
-        model.initialize_MCMC_toolbox()
+        # TODO? mutualize with perso mcmc algo?
+        state = super()._initialize_algo(model, dataset)
+
+        # Initialize individual latent variables (population ones should be initialized before)
+        with state.auto_fork(None):
+            state.put_individual_latent_variables(LatentVariableInitType.PRIOR_SAMPLES, n_individuals=dataset.n_individuals)
 
         # Samplers mixin
-        self._initialize_samplers(model, dataset)
+        self._initialize_samplers(state, dataset)
 
         # Annealing mixin
         self._initialize_annealing()
+
+        return state
 
     ###########################
     ## Core
@@ -76,9 +73,8 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
 
     def iteration(
         self,
-        dataset: Dataset,
         model: AbstractModel,
-        realizations: CollectionRealization,
+        state: State,
     ) -> None:
         """
         MCMC-SAEM iteration.
@@ -88,22 +84,27 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
 
         Parameters
         ----------
-        dataset : :class:`.Dataset`
         model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        state : :class:`.State`
         """
-        vars_order = realizations.population.names + realizations.individual.names
+        vars_order = (
+            list(state.dag.sorted_variables_by_type[PopulationLatentVariable])
+            + list(state.dag.sorted_variables_by_type[IndividualLatentVariable])
+        )
+        # TMP --> fix order of random variables as previously to pass functional tests...
+        if set(vars_order) == {'log_g', 'log_v0', 'xi', 'tau'}:
+            vars_order = ['log_g', 'log_v0', 'tau', 'xi']
+        elif set(vars_order) == {'log_g', 'betas', 'log_v0', 'xi', 'tau', 'sources'}:
+            vars_order = ['log_g', 'log_v0', 'betas', 'tau', 'xi', 'sources']
+        # END TMP
         if self.random_order_variables:
             shuffle(vars_order)  # shuffle order in-place!
 
         for key in vars_order:
-            self.samplers[key].sample(dataset, model, realizations, self.temperature_inv)
+            self.samplers[key].sample(state, temperature_inv=self.temperature_inv)
 
         # Maximization step
-        self._maximization_step(dataset, model, realizations)
-
-        # We already updated MCMC toolbox for all population parameters during pop sampling.
-        # So there is no need to update it as it once used to be.
+        self._maximization_step(model, state)
 
         # Annealing mixin
         self._update_temperature()

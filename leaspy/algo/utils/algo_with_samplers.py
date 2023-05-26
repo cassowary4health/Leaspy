@@ -1,12 +1,13 @@
-from typing import Dict
+from typing import Dict, Optional
 import warnings
 
 from leaspy.samplers.base import AbstractSampler
 from leaspy.samplers.factory import sampler_factory
 from leaspy.exceptions import LeaspyAlgoInputError
-from leaspy.models.abstract_model import AbstractModel
 from leaspy.io.data.dataset import Dataset
-from leaspy.io.realizations import VariableType
+from leaspy.io.realizations import VariableType  # TODO: remove all `leaspy.io.realizations` sub-package?
+from leaspy.variables.specs import PopulationLatentVariable, IndividualLatentVariable
+from leaspy.variables.state import State
 
 
 class AlgoWithSamplersMixin:
@@ -44,11 +45,11 @@ class AlgoWithSamplersMixin:
         super().__init__(settings)
 
         self.samplers: Dict[str, AbstractSampler] = None
-        self.random_order_variables = self.algo_parameters.get('random_order_variables', True)
+        self.random_order_variables: bool = self.algo_parameters.get('random_order_variables', True)
         self.current_iteration: int = 0
 
         # Dynamic number of iterations for burn-in phase
-        n_burn_in_iter_frac = self.algo_parameters['n_burn_in_iter_frac']
+        n_burn_in_iter_frac: Optional[float] = self.algo_parameters['n_burn_in_iter_frac']
 
         if self.algo_parameters.get('n_burn_in_iter', None) is None:
             if n_burn_in_iter_frac is None:
@@ -94,52 +95,56 @@ class AlgoWithSamplersMixin:
             out += f"\n    {str(sampler)}"
         return out
 
-    def _initialize_samplers(self, model: AbstractModel, dataset: Dataset) -> None:
+    def _initialize_samplers(self, state: State, dataset: Dataset) -> None:
         """
         Instantiate samplers as a dictionary samplers {variable_name: sampler}
 
         Parameters
         ----------
-        model : :class:`~.models.abstract_model.AbstractModel`
+        state : :class:`.State`
         dataset : :class:`.Dataset`
         """
         self.samplers = {}
-        self._initialize_population_samplers(model)
-        self._initialize_individual_samplers(model, dataset.n_individuals)
+        self._initialize_population_samplers(state)
+        self._initialize_individual_samplers(state, dataset.n_individuals)
 
-    def _initialize_individual_samplers(self, model: AbstractModel, n_individuals: int) -> None:
+    def _initialize_individual_samplers(self, state: State, n_individuals: int) -> None:
         sampler = self.algo_parameters.get("sampler_ind", None)
         if sampler is None:
             return
 
         # TODO: per variable and not just per type of variable?
         sampler_kws = self.algo_parameters.get("sampler_ind_params", {})
-        for var_name, var_kws in model.get_individual_random_variable_information().items():
-            # To enforce a fixed scale for a given var, one should put it in the random var specs
-            # But note that for individual parameters the model parameters ***_std should always be OK (> 0)
-
+        for var_name, var in state.dag.sorted_variables_by_type[IndividualLatentVariable].items():
+            var: IndividualLatentVariable  # for type-hint only
             # remove all properties that are not currently handled by samplers and set default values
-            var_kws.pop("rv_type")
-            var_kws.setdefault("scale", model.parameters[f"{var_name}_std"])
+            var_kws = dict(var.sampling_kws or {}, name=var_name, shape=var.get_prior_shape(state.dag))
+
+            # To enforce a fixed scale for a given var, one should put it in the random var specs
+            # But note that for individual variables the model parameters ***_std should always be OK (> 0)
+            var_kws.setdefault("scale", var.prior.stddev.call(state))
 
             self.samplers[var_name] = sampler_factory(sampler, VariableType.INDIVIDUAL, n_patients=n_individuals, **var_kws, **sampler_kws)
 
-    def _initialize_population_samplers(self, model: AbstractModel) -> None:
+    def _initialize_population_samplers(self, state: State) -> None:
         sampler = self.algo_parameters.get("sampler_pop", None)
         if sampler is None:
             return
 
         # TODO: per variable and not just per type of variable?
         sampler_kws = self.algo_parameters.get("sampler_pop_params", {})
-        for var_name, var_kws in model.get_population_random_variable_information().items():
+        for var_name, var in state.dag.sorted_variables_by_type[PopulationLatentVariable].items():
+            var: PopulationLatentVariable  # for type-hint only
+            # remove all properties that are not currently handled by samplers and set default values
+            var_kws = dict(var.sampling_kws or {}, name=var_name, shape=var.get_prior_shape(state.dag))
+
             # To enforce a fixed scale for a given var, one should put it in the random var specs
             # For instance: for betas & deltas, it is a good idea to define them this way
             # since they'll probably be = 0 just after initialization!
-            # We have priors which should be better than the variable initial value no ?
-            # model.MCMC_toolbox['priors'][f'{variable}_std']
+            var_kws.setdefault("scale", state[var_name].abs())
+            # TODO: after functional test passed we could change the previous line with the following one (more consistent)
+            # var_kws.setdefault("scale", var.prior.stddev.call(state))
 
-            # remove all properties that are not currently handled by samplers and set default values
-            var_kws.pop("rv_type")
-            var_kws.setdefault("scale", model.parameters[var_name].abs())
+            # TODO: mask logic?
 
             self.samplers[var_name] = sampler_factory(sampler, VariableType.POPULATION, **var_kws, **sampler_kws)

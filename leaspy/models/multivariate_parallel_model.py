@@ -1,14 +1,13 @@
 import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from leaspy.models.utils.attributes.logistic_parallel_attributes import LogisticParallelAttributes
 from leaspy.utils.typing import DictParamsTorch, DictParams
 from leaspy.utils.docs import doc_with_super
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.realizations import CollectionRealization
 
 
-@doc_with_super()
+#@doc_with_super()
 class MultivariateParallelModel(AbstractMultivariateModel):
     """
     Logistic model for multiple variables of interest, imposing same average
@@ -36,6 +35,9 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     ) -> torch.Tensor:
         # Population parameters
         g, deltas, mixing_matrix = self._get_attributes(attribute_type)
+
+
+        # TODO: use rt instead
 
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
@@ -111,78 +113,52 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     ### MCMC-related functions ###
     ##############################
 
-    def initialize_MCMC_toolbox(self) -> None:
-        self.MCMC_toolbox = {
-            'priors': {
-                'g_std': 0.01,
-                'deltas_std': 0.01,
-                'betas_std': 0.01,
-            },  # population parameters
-            'attributes': LogisticParallelAttributes(
-                self.name, self.dimension, self.source_dimension
-            ),
-        }
-        self.update_MCMC_toolbox({"all"}, self._get_population_realizations())
+    #def compute_model_sufficient_statistics(
+    #    self,
+    #    state #: State,
+    #) -> DictParamsTorch:
+    #    # unlink all sufficient statistics from updates in realizations!
+    #    realizations = realizations.clone()
+    #
+    #    sufficient_statistics = realizations[["g", "deltas", "tau", "xi"]].tensors_dict
+    #    if self.source_dimension != 0:
+    #        sufficient_statistics['betas'] = realizations["betas"].tensor
+    #    for param in ("tau", "xi"):
+    #        sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor, 2)
+    #
+    #    return sufficient_statistics
 
-    def update_MCMC_toolbox(self, vars_to_update: set, realizations: CollectionRealization) -> None:
-        values = {}
-        update_all = "all" in vars_to_update
-        if update_all or "g" in vars_to_update:
-            values['g'] = realizations["g"].tensor
-        if update_all or "deltas" in vars_to_update:
-            values['deltas'] = realizations["deltas"].tensor
-        if self.source_dimension != 0 and (update_all or "betas" in vars_to_update):
-            values['betas'] = realizations["betas"].tensor
+    # def update_model_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+    #     for param in ("g", "deltas"):
+    #         self.parameters[param] = sufficient_statistics[param]
+    #     if self.source_dimension != 0:
+    #         self.parameters['betas'] = sufficient_statistics['betas']
+    #     for param in ("xi", "tau"):
+    #         param_realizations = sufficient_statistics[param]
+    #         self.parameters[f"{param}_mean"] = torch.mean(param_realizations)
+    #         self.parameters[f"{param}_std"] = torch.std(param_realizations)
 
-        self.MCMC_toolbox['attributes'].update(vars_to_update, values)
-
-    def compute_model_sufficient_statistics(
-        self,
-        data: Dataset,
-        realizations: CollectionRealization,
-    ) -> DictParamsTorch:
-        # unlink all sufficient statistics from updates in realizations!
-        realizations = realizations.clone()
-
-        sufficient_statistics = realizations[["g", "deltas", "tau", "xi"]].tensors_dict
-        if self.source_dimension != 0:
-            sufficient_statistics['betas'] = realizations["betas"].tensor
-        for param in ("tau", "xi"):
-            sufficient_statistics[f"{param}_sqrd"] = torch.pow(realizations[param].tensor, 2)
-
-        return sufficient_statistics
-
-    def update_model_parameters_burn_in(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
-        for param in ("g", "deltas"):
-            self.parameters[param] = sufficient_statistics[param]
-        if self.source_dimension != 0:
-            self.parameters['betas'] = sufficient_statistics['betas']
-        for param in ("xi", "tau"):
-            param_realizations = sufficient_statistics[param]
-            self.parameters[f"{param}_mean"] = torch.mean(param_realizations)
-            self.parameters[f"{param}_std"] = torch.std(param_realizations)
-
-    def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
-        # TODO? factorize `update_model_parameters_***` methods?
-        from .utilities import compute_std_from_variance
-
-        for param in ("g", "deltas"):
-            self.parameters[param] = sufficient_statistics[param]
-        if self.source_dimension != 0:
-            self.parameters['betas'] = sufficient_statistics['betas']
-
-        for param in ("tau", "xi"):
-            param_old_mean = self.parameters[f"{param}_mean"]
-            param_cur_mean = torch.mean(sufficient_statistics[param])
-            param_variance_update = (
-                torch.mean(sufficient_statistics[f"{param}_sqrd"]) -
-                2. * param_old_mean * param_cur_mean
-            )
-            param_variance = param_variance_update + param_old_mean ** 2
-            self.parameters[f"{param}_std"] = compute_std_from_variance(
-                param_variance, varname=f"{param}_std"
-            )
-            self.parameters[f"{param}_mean"] = param_cur_mean
+    #def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
+    #    # TODO? factorize `update_model_parameters_***` methods?
+    #    from .utilities import compute_std_from_variance
+    #
+    #    for param in ("g", "deltas"):
+    #        self.parameters[param] = sufficient_statistics[param]
+    #    if self.source_dimension != 0:
+    #        self.parameters['betas'] = sufficient_statistics['betas']
+    #
+    #    for param in ("tau", "xi"):
+    #        param_old_mean = self.parameters[f"{param}_mean"]
+    #        param_cur_mean = torch.mean(sufficient_statistics[param])
+    #        param_variance_update = (
+    #            torch.mean(sufficient_statistics[f"{param}_sqrd"]) -
+    #            2. * param_old_mean * param_cur_mean
+    #        )
+    #        param_variance = param_variance_update + param_old_mean ** 2
+    #        self.parameters[f"{param}_std"] = compute_std_from_variance(
+    #            param_variance, varname=f"{param}_std"
+    #        )
+    #        self.parameters[f"{param}_mean"] = param_cur_mean
 
     def get_population_random_variable_information(self) -> DictParams:
         """

@@ -1,0 +1,85 @@
+"""`ObservationModel` defines the common interface for observation models in Leaspy."""
+
+from __future__ import annotations
+
+from typing import (
+    Dict,
+    Callable,
+    Optional,
+    Any,
+    Mapping as TMapping,
+)
+from dataclasses import dataclass
+
+
+from leaspy.variables.distributions import SymbolicDistribution
+from leaspy.utils.weighted_tensor import WeightedTensor
+from leaspy.utils.functional import (
+    sum_dim,
+    SumDim,
+)
+from leaspy.variables.specs import (
+    VarName,
+    VariableInterface,
+    DataVariable,
+    LinkedVariable,
+    LVL_IND,
+)
+from leaspy.io.data.dataset import Dataset
+
+
+@dataclass(frozen=True)
+class ObservationModel:
+    """
+    Base class for valid observation models that may be used in probabilistic models (stateless).
+
+    In particular, it provides data & linked variables regarding observations and their attachement to the model
+    (the negative log-likelihood - nll - to be minimized).
+
+    Parameters
+    ----------
+    name : str
+        The name of observed variable (to name the data variable & attachement term related to this observation).
+    getter : function Dataset -> WeightedTensor
+        The way to retrieve the observed values from the dataset (as a weighted tensor):
+        e.g. all values, subset of values - only x, y, z features, one-hot encoded features, ...
+    dist : SymbolicDistribution
+        The symbolic distribution, parametrized by model variables, for observed values (so to compute attachement).
+    extra_vars : None (default) or Mapping[VarName, VariableInterface]
+        Some new variables that are needed to fully define the symbolic distribution or the sufficient statistics.
+        (e.g. "noise_std", and "y_L2_per_ft" for instance for a Gaussian model)
+    """
+
+    name: VarName
+    getter: Callable[[Dataset], WeightedTensor]
+    dist: SymbolicDistribution
+    extra_vars: Optional[TMapping[VarName, VariableInterface]] = None
+
+    def get_variables_specs(
+        self, named_attach_vars: bool = True
+    ) -> Dict[VarName, VariableInterface]:
+        """Automatic specifications of variables for this observation model."""
+        # TODO change? a bit dirty? possibility of having aliases for variables?
+        if named_attach_vars:
+            nll_attach_var = f"nll_attach_{self.name}"
+        else:
+            nll_attach_var = f"nll_attach"
+        return {
+            self.name: DataVariable(),
+            # Dependent vars
+            **(self.extra_vars or {}),
+            # Attachement variables
+            # not really memory efficient nor useful...
+            # f"{nll_attach_var}_full": LinkedVariable(self.dist.get_func_nll(self.name)),
+            f"{nll_attach_var}_ind": LinkedVariable(
+                # SumDim(f"{nll_attach_var}_full", but_dim=LVL_IND)
+                self.dist.get_func_nll(self.name).then(sum_dim, but_dim=LVL_IND)
+            ),
+            nll_attach_var: LinkedVariable(SumDim(f"{nll_attach_var}_ind")),
+            # TODO jacobian of {nll_attach_var}_ind_jacobian_{self.name} wrt "y" as well? (for scipy minimize)
+        }
+
+    def serialized(self) -> Any:
+        """Nice representation of instance without its name (should be JSON exportable)."""
+        # TODO: dirty for now to go fast
+        return repr(self.dist)

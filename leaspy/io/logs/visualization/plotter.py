@@ -323,8 +323,11 @@ class Plotter:
         xi = results.individual_parameters['xi']
         tau = results.individual_parameters['tau']
 
-        reparametrized_time = model.time_reparametrization(dataset.timepoints, xi, tau) / torch.exp(
-            model.parameters['xi_mean']) + model.parameters['tau_mean']
+        reparametrized_time = (
+            model.time_reparametrization(t=dataset.timepoints, alpha=torch.exp(xi), tau=tau)
+            / torch.exp(model.parameters['xi_mean'])
+            + model.parameters['tau_mean']
+        )
 
         for i in range(dataset.values.shape[-1]):
             fig, ax = plt.subplots(1, 1)

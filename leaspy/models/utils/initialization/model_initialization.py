@@ -9,10 +9,7 @@ import pandas as pd
 # <!> circular imports
 import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
-from leaspy.models.noise_models import (
-    AbstractGaussianNoiseModel,
-    GaussianScalarNoiseModel,
-)
+from leaspy.models.obs_models import FullGaussianObs
 
 XI_STD = .5
 TAU_STD = 5.
@@ -87,11 +84,15 @@ def initialize_parameters(model, dataset, method="default") -> tuple:
         for p, v in parameters.items()
     }
 
-    # for noise model
+    # for gaussian obs model
     noise_model_params = None
-    if isinstance(model.noise_model, AbstractGaussianNoiseModel):
-        #noise_scale = NOISE_STD if isinstance(model.noise_model, GaussianScalarNoiseModel) else [NOISE_STD]*model.dimension
-        noise_model_params = {"scale": NOISE_STD}
+    obs_model = next(iter(model.obs_models))  # WIP: multiple obs models...
+    if isinstance(obs_model, FullGaussianObs):
+        noise_model_params = {
+            "noise_std": torch.tensor(NOISE_STD).expand(obs_model.extra_vars['noise_std'].shape)
+        }
+    else:
+        raise NotImplementedError("WIP")
 
     return rounded_parameters, noise_model_params
 
@@ -173,6 +174,8 @@ def lme_init(model, df: pd.DataFrame, fact_std=1., **kwargs):
     :exc:`.LeaspyInputError`
         If model is not supported for this initialization
     """
+    raise NotImplementedError("OLD")
+
     name = model.name
     noise_model = model.noise_model # has to be set directly at model init and not in algo settings step to be available here
 
@@ -334,7 +337,7 @@ def get_log_velocities(velocities: torch.Tensor, features: List[str], *, min: fl
     return velocities.clamp(min=min).log()
 
 
-def initialize_logistic(model, df: pd.DataFrame, method):
+def initialize_logistic(model, df: pd.DataFrame, method: str) -> Dict[str, torch.Tensor]:
     """
     Initialize the logistic model's group parameters.
 
@@ -390,19 +393,19 @@ def initialize_logistic(model, df: pd.DataFrame, method):
 
     # Create smart initialization dictionary
     parameters = {
-        "g": g_array,
-        "v0": v0_array,
-        "betas": betas,
+        "log_g_mean": g_array,
+        "log_v0_mean": v0_array,
         "tau_mean": t0,
-        "tau_std": torch.tensor(TAU_STD),
-        "xi_mean": torch.tensor(0.),
-        "xi_std": torch.tensor(XI_STD),
-        "sources_mean": torch.tensor(0.),
-        "sources_std": torch.tensor(SOURCES_STD),
+        "tau_std": torch.tensor([TAU_STD]),
+        "xi_std": torch.tensor([XI_STD]),
     }
 
-    if model.is_ordinal:
-        initialize_deltas_ordinal(model, df, parameters)
+    if model.source_dimension >= 1:
+        parameters["betas_mean"] = betas
+
+    # TODO
+    #if model.is_ordinal:
+    #    initialize_deltas_ordinal(model, df, parameters)
 
     return parameters
 
@@ -433,6 +436,7 @@ def initialize_logistic_parallel(model, df, method):
     :exc:`.LeaspyInputError`
         If method is not handled
     """
+    raise NotImplementedError("WIP")
 
     # Get the slopes / values / times mu and sigma
     slopes_mu, slopes_sigma = compute_patient_slopes_distribution(df)
@@ -497,6 +501,8 @@ def initialize_linear(model, df: pd.DataFrame, method):
         Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
         'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std'.
     """
+    raise NotImplementedError("WIP")
+
     times = df.index.get_level_values('TIME').values
     t0 = times.mean()
 
@@ -617,4 +623,4 @@ def compute_patient_time_distribution(df: pd.DataFrame):
     sigma : :class:`torch.Tensor` scalar
     """
     times = df.index.get_level_values('TIME').values
-    return torch.tensor(times.mean()), torch.tensor(times.std())
+    return torch.tensor([times.mean()]), torch.tensor([times.std()])

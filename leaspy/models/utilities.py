@@ -1,5 +1,8 @@
+from typing import Union, Dict
+
 import torch
-from typing import Union
+
+from leaspy.utils.weighted_tensor import WeightedTensor
 from leaspy.exceptions import LeaspyConvergenceError
 
 
@@ -9,6 +12,8 @@ def tensor_to_list(x: Union[list, torch.Tensor]) -> list:
     """
     if isinstance(x, torch.Tensor):
         return x.tolist()
+    if isinstance(x, WeightedTensor):
+        raise NotImplementedError("TODO")
     return x
 
 
@@ -47,8 +52,25 @@ def compute_std_from_variance(
             "Start by investigating what happened in the logs of your calibration and try to double check:"
             "\n- your training dataset (not enough subjects and/or visits? too much missing data?)"
             "\n- the hyperparameters of your Leaspy model (`source_dimension` too low or too high? "
-            "`noise_model` not suited to your data?)"
+            "observation model not suited to your data?)"
             "\n- the hyperparameters of your calibration algorithm"
         )
 
     return variance.sqrt()
+
+
+def compute_ind_param_std_from_suff_stats(
+    state: Dict[str, torch.Tensor],
+    ip_values: torch.Tensor,
+    ip_sqr_values: torch.Tensor,
+    *,
+    ip_name: str,
+    dim: int,
+    **kws,
+):
+    """Maximization rule, from the sufficient statistics, of the standard-deviation of Gaussian prior for individual latent variables."""
+    ip_old_mean = state[f"{ip_name}_mean"]
+    ip_cur_mean = torch.mean(ip_values, dim=dim)
+    ip_var_update = torch.mean(ip_sqr_values, dim=dim) - 2 * ip_old_mean * ip_cur_mean
+    ip_var = ip_var_update + ip_old_mean**2
+    return compute_std_from_variance(ip_var, varname=f"{ip_name}_std", **kws)

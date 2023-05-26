@@ -1,20 +1,94 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Dict, Tuple, Type
 from pprint import pformat
 import warnings
+from dataclasses import dataclass, field
 
 import torch
 from joblib import Parallel, delayed
+import numpy as np
 from scipy.optimize import minimize
+
 
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.outputs.individual_parameters import IndividualParameters
 from leaspy.algo.personalize.abstract_personalize_algo import AbstractPersonalizeAlgo
+from leaspy.variables.specs import VarName, LatentVariable, IndividualLatentVariable
+from leaspy.variables.state import State
 from leaspy.utils.typing import DictParamsTorch
 
 if TYPE_CHECKING:
     from leaspy.models.abstract_model import AbstractModel
+
+
+@dataclass(frozen=True)
+class _AffineScaling:
+    """Affine scaling used for individual latent variables, so that gradients are of the same order of magnitude in scipy minimize."""
+    loc: torch.Tensor
+    scale: torch.Tensor
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        shape = self.loc.shape
+        assert self.scale.shape == shape
+        return shape
+
+    @property
+    def ndim(self) -> int:
+        return len(self.shape)
+
+    @classmethod
+    def from_latent_variable(cls, var: LatentVariable, state: State) -> _AffineScaling:
+        """Natural scaling for latent variable: (mode, stddev)."""
+        return cls(
+            var.prior.mode.call(state),
+            var.prior.stddev.call(state),
+        )
+
+
+@dataclass
+class _AffineScalings1D:
+    """Util class to deal with scaled 1D tensors, that are concatenated together in a single 1D tensor (in order)."""
+    scalings: Dict[VarName, _AffineScaling]
+    slices: Dict[VarName, slice] = field(init=False, repr=False, compare=False)
+    length: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self):
+        assert all(scl.ndim == 1 for scl in self.scalings.values()), "Individual latent variables should all be 1D vectors"
+        dims = {n: scl.shape[0] for n, scl in self.scalings.items()}
+        import operator
+        from itertools import accumulate
+        cumdims = (0,) + tuple(accumulate(dims.values(), operator.add))
+        slices = {
+            n: slice(cumdims[i], cumdims[i+1])
+            for i, n in enumerate(dims)
+        }
+        object.__setattr__(self, "slices", slices)
+        object.__setattr__(self, "length", cumdims[-1])
+
+    def __len__(self) -> int:
+        return self.length
+
+    def zeros(self, *, dtype=np.float32, **kws) -> np.ndarray:
+        """New concatenated numpy array of scaled values (with good length)."""
+        return np.zeros(len(self), dtype=dtype, **kws)
+
+    def pull(self, x: np.ndarray) -> Dict[VarName, torch.Tensor]:
+        """Pull dictionary of values (in their natural scale) from the concatenated 1D tensor of scaled values provided."""
+        return {
+            # unsqueeze 1 dimension at left
+            n: scl.loc + scl.scale * torch.tensor(x[None, self.slices[n]]).float()
+            for n, scl in self.scalings.items()
+        }
+
+    @classmethod
+    def from_state(cls, state: State, var_type: Type[LatentVariable]) -> _AffineScalings1D:
+        """Get the affine scalings of latent variables so their gradients have the same order of magnitude during optimization."""
+        return cls({
+            var_name: _AffineScaling.from_latent_variable(var, state)
+            for var_name, var in state.dag.sorted_variables_by_type[var_type].items()
+        })
 
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
@@ -72,6 +146,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
     }
     DEFAULT_FORMAT_CONVERGENCE_ISSUES = "<!> {patient_id}:\n{optimization_result_pformat}"
 
+    regularity_factor: float = 1.
+
     def __init__(self, settings):
 
         super().__init__(settings)
@@ -99,49 +175,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if not self.scipy_minimize_params.get('method', 'BFGS').upper() == 'BFGS':
             print('\n' + msg + '\n')
 
-    def _initialize_parameters(self, model: AbstractModel) -> List[torch.FloatTensor]:
-        """
-        Initialize individual parameters of one patient with group average parameter.
-
-        ``x = [xi_mean/xi_std, tau_mean/tau_std] (+ [0.] * n_sources if multivariate model)``
-
-        Parameters
-        ----------
-        model : :class:`.AbstractModel`
-
-        Returns
-        -------
-        list [float]
-            The individual **standardized** parameters to start with.
-        """
-        # rescale parameters to their natural scale so they are comparable (as well as their gradient)
-        x = [model.parameters["xi_mean"] / model.parameters["xi_std"],
-             model.parameters["tau_mean"] / model.parameters["tau_std"]
-            ]
-        if model.name != "univariate":
-            x += [torch.tensor(0., dtype=torch.float32)
-                  for _ in range(model.source_dimension)]
-        return x
-
-    def _pull_individual_parameters(self, x: list, model: AbstractModel) -> DictParamsTorch:
-        """
-        Get individual parameters as a dict[param_name: str, :class:`torch.Tensor` [1,n_dims_param]]
-        from a condensed array-like version of it
-
-        (based on the conventional order defined in :meth:`._initialize_parameters`)
-        """
-        tensorized_params = torch.tensor(x, dtype=torch.float32).view((1,-1)) # 1 individual
-
-        # <!> order + rescaling of parameters
-        individual_parameters = {
-            'xi': tensorized_params[:,[0]] * model.parameters['xi_std'],
-            'tau': tensorized_params[:,[1]] * model.parameters['tau_std'],
-        }
-        if 'univariate' not in model.name and model.source_dimension > 0:
-            individual_parameters['sources'] = tensorized_params[:, 2:] * model.parameters['sources_std']
-
-        return individual_parameters
-
     def _get_normalized_grad_tensor_from_grad_dict(self, dict_grad_tensors: DictParamsTorch, model: AbstractModel):
         """
         From a dict of gradient tensors per param (without normalization),
@@ -149,6 +182,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             * concatenated with conventional order of x0
             * normalized because we derive w.r.t. "standardized" parameter (adimensional gradient)
         """
+        raise NotImplementedError("TODO...")
         to_cat = [
             dict_grad_tensors['xi'] * model.parameters['xi_std'],
             dict_grad_tensors['tau'] * model.parameters['tau_std']
@@ -184,39 +218,55 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return tot_regularity, d_regularity_grads
 
-    def obj(self, x: list, model: AbstractModel, dataset: Dataset, with_gradient: bool):
+    def obj_no_jac(self, x: np.ndarray, state: State, scaling: _AffineScalings1D) -> float:
         """
         Objective loss function to minimize in order to get patient's individual parameters
 
         Parameters
         ----------
-        x : list[torch.tensors]
+        x : numpy.ndarray
             Individual **standardized** parameters
-            At initialization ``x = [xi_mean/xi_std, tau_mean/tau_std] (+ [0.] * n_sources if multivariate model)``
-
-        model : :class:`.AbstractModel`
-            Model used to compute the group average parameters.
-        dataset : :class:`.Dataset`
-            A dataset instance for the single patient being optimized.
-        with_gradient : bool
-            If True: return (objective, gradient_objective)
-            Else: simply return objective
+            At initialization x is full of zeros (mode of priors, scaled by std-dev)
+        state : :class:`.State`
+            The cloned model state that is dedicated to the current individual.
+            In particular, individual data variables for the current individual are already loaded into it.
+        scaling : _AffineScalings1D
+            The scaling to be used for individual latent variables.
 
         Returns
         -------
         objective : float
             Value of the loss function (negative log-likelihood).
-
-        if `with_gradient` is True:
-            2-tuple (as expected by :func:`scipy.optimize.minimize` when ``jac=True``)
-                * objective : float
-                * gradient : array-like[float] of length n_dims_params
-
-        Raises
-        ------
-        :exc:`.LeaspyAlgoInputError`
-            if noise model is not currently supported by algorithm.
         """
+        ips = scaling.pull(x)
+        for ip, ip_val in ips.items():
+            state[ip] = ip_val
+
+        loss = state["nll_attach"] + self.regularity_factor * state["nll_regul_ind_sum"]
+        return loss.item()
+
+    def obj_with_jac(self, x: np.ndarray, state: State, scaling: _AffineScalings1D) -> Tuple[float, torch.Tensor]:
+        """
+        Objective loss function to minimize in order to get patient's individual parameters, together with its jacobian w.r.t to each of `x` dimension.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            Individual **standardized** parameters
+            At initialization x is full of zeros (mode of priors, scaled by std-dev)
+        state : :class:`.State`
+            The cloned model state that is dedicated to the current individual.
+            In particular, individual data variables for the current individual are already loaded into it.
+        scaling : _AffineScalings1D
+            The scaling to be used for individual latent variables.
+
+        Returns
+        -------
+        2-tuple (as expected by :func:`scipy.optimize.minimize` when ``jac=True``)
+            * objective : float
+            * gradient : array-like[float] with same length as `x` (= all dimensions of individual latent variables, concatenated)
+        """
+        raise NotImplementedError("TODO...")
 
         individual_parameters = self._pull_individual_parameters(x, model)
         predictions = model.compute_individual_tensorized(dataset.timepoints, individual_parameters)
@@ -246,39 +296,44 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return nll.item(), nll_grads
 
-    def _get_individual_parameters_patient(self, model: AbstractModel, patient_dataset: Dataset, *, with_jac: bool, patient_id: str = None):
+    def _get_individual_parameters_patient(self, state: State, *, scaling: _AffineScalings1D, with_jac: bool, patient_id: str):
         """
         Compute the individual parameter by minimizing the objective loss function with scipy solver.
 
         Parameters
         ----------
-        model : :class:`.AbstractModel`
-            Model used to compute the group average parameters.
-        patient_dataset : :class:`.Dataset`
-            Contains the individual ages and true scores.
+        state : :class:`.State`
+            The cloned model state that is dedicated to the current individual.
+            In particular, data variables for the current individual are already loaded into it.
+        scaling : _AffineScalings1D
+            The scaling to be used for individual latent variables.
         with_jac : bool
             Should we speed-up the minimization by sending exact gradient of optimized function?
-        patient_id : str (or None)
+        patient_id : str
             ID of patient (essentially here for logging purposes when no convergence)
 
         Returns
         -------
-        individual parameters : dict[str, :class:`torch.Tensor` [1,n_dims_param]]
+        pyt_individual_params : dict[str, :class:`torch.Tensor` [1,n_dims_param]]
             Individual parameters as a dict of tensors.
-        reconstruction loss : :class:`torch.Tensor`
+        reconstruction_loss : :class:`torch.Tensor`
             Model canonical loss (content & shape depend on noise model).
+            TODO
         """
 
-        initial_value = self._initialize_parameters(model)
-        res = minimize(self.obj,
-                       jac=with_jac,
-                       x0=initial_value,
-                       args=(model, patient_dataset, with_jac),
-                       **self.scipy_minimize_params
-                       )
+        obj = self.obj_with_jac if with_jac else self.obj_no_jac
+        res = minimize(
+            obj,
+            jac=with_jac,
+            x0=scaling.zeros(),
+            args=(state, scaling),
+            **self.scipy_minimize_params
+        )
 
-        pyt_individual_params = self._pull_individual_parameters(res.x, model)
-        loss = model.compute_canonical_loss_tensorized(patient_dataset, pyt_individual_params)
+        pyt_individual_params = scaling.pull(res.x)
+        # TODO/WIP: we may want to return residuals MAE or RMSE instead (since nll is not very interpretable...)
+        #loss = model.compute_canonical_loss_tensorized(patient_dataset, pyt_individual_params)
+        loss = self.obj_no_jac(res.x, state, scaling)
 
         if not res.success and self.logger:
             # log full results if optimization failed
@@ -297,25 +352,28 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
     def _get_individual_parameters_patient_master(
         self,
-        model: AbstractModel,
-        patient_dataset: Dataset,
+        state: State,
         *,
-        progress: tuple,
+        scaling: _AffineScalings1D,
+        progress: Tuple[int, int],
         with_jac: bool,
-        patient_id: str = None
+        patient_id: str,
     ):
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
         Parameters
         ----------
-        model : :class:`.AbstractModel`
-            Model used to compute the group average parameters.
-        patient_dataset : :class:`.Dataset`
-            Contains the individual times and scores.
+        state : :class:`.State`
+            The cloned model state that is dedicated to the current individual.
+            In particular, individual data variables for the current individual are already loaded into it.
+        scaling : _AffineScalings1D
+            The scaling to be used for individual latent variables.
+        progress : tuple[int >= 0, int > 0]
+            Current progress in loop (n, out-of-N).
         with_jac : bool
             Should we speed-up the minimization by sending exact gradient of optimized function?
-        patient_id : str (or None)
+        patient_id : str
             ID of patient (essentially here for logging purposes when no convergence)
 
         Returns
@@ -324,29 +382,32 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual parameters of all patients.
         """
         individual_params_tensorized, _ = self._get_individual_parameters_patient(
-            model, patient_dataset, with_jac=with_jac, patient_id=patient_id
+            state, scaling=scaling, with_jac=with_jac, patient_id=patient_id
         )
 
         if self.algo_parameters.get('progress_bar', True):
             self._display_progress_bar(*progress, suffix='subjects')
 
-        # transformation is needed because of IndividualParameters expectations...
+        # TODO/WIP: change this really dirty stuff (hardcoded...)
+        # transformation is needed because of current `IndividualParameters` expectations... --> change them
         return {
             k: v.item() if k != 'sources' else v.detach().squeeze(0).tolist()
-            for k,v in individual_params_tensorized.items()
+            for k, v in individual_params_tensorized.items()
         }
 
     def is_jacobian_implemented(self, model: AbstractModel) -> bool:
         """Check that the jacobian of model is implemented."""
-        default_individual_params = self._pull_individual_parameters(self._initialize_parameters(model), model)
-        empty_tpts = torch.tensor([[]], dtype=torch.float32)
-        try:
-            model.compute_jacobian_tensorized(empty_tpts, default_individual_params)
-            return True
-        except NotImplementedError:
-            return False
+        # TODO/WIP: quick hack for now
+        return any("jacobian" in var_name for var_name in model.dag)
+        #default_individual_params = self._pull_individual_parameters(self._initialize_parameters(model), model)
+        #empty_tpts = torch.tensor([[]], dtype=torch.float32)
+        #try:
+        #    model.compute_jacobian_tensorized(empty_tpts, default_individual_params)
+        #    return True
+        #except NotImplementedError:
+        #    return False
 
-    def _get_individual_parameters(self, model, dataset: Dataset):
+    def _get_individual_parameters(self, model: AbstractModel, dataset: Dataset):
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
@@ -363,15 +424,28 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Contains the individual parameters of all patients.
         """
 
-        individual_parameters = IndividualParameters()
-
         # Easier to pass a Dataset with 1 individual rather than individual times, values
         # to avoid duplicating code in noise model especially
-        data = Data.from_dataframe(dataset.to_pandas(), drop_full_nan=False, warn_empty_column=False)
+        df = dataset.to_pandas()
+        import pandas as pd
+        assert pd.api.types.is_string_dtype(df.index.dtypes["ID"]), "Individuals ID should be strings"
+
+        data = Data.from_dataframe(df, drop_full_nan=False, warn_empty_column=False)
         datasets = {
             idx: Dataset(data[[idx]], no_warning=True)
             for idx in dataset.indices
         }
+
+        # Fetch model internal state (latent pop. vars should be OK)
+        state = model.state
+        # Fixed scalings for individual parameters
+        ips_scalings = _AffineScalings1D.from_state(state, var_type=IndividualLatentVariable)
+
+        # Clone model states (1 per individual with the appropriate dataset loaded into each of them)
+        states = {}
+        for idx in dataset.indices:
+            states[idx] = state.clone(disable_auto_fork=True)
+            model.put_data_variables(states[idx], datasets[idx])
 
         if self.algo_parameters.get('progress_bar', True):
             self._display_progress_bar(-1, dataset.n_individuals, suffix='subjects')
@@ -389,16 +463,17 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
             delayed(self._get_individual_parameters_patient_master)(
-                model,
-                dataset_pat,
+                state_pat,
+                scaling=ips_scalings,
                 progress=(it_pat, dataset.n_individuals),
                 with_jac=with_jac,
-                patient_id=id_pat
+                patient_id=id_pat,
             )
             # TODO use Parallel + tqdm instead of custom progress bar...
-            for it_pat, (id_pat, dataset_pat) in enumerate(datasets.items())
+            for it_pat, (id_pat, state_pat) in enumerate(states.items())
         )
 
+        individual_parameters = IndividualParameters()
         for id_pat, ind_params_pat in zip(dataset.indices, ind_p_all):
             individual_parameters.add_individual_parameters(str(id_pat), ind_params_pat)
 

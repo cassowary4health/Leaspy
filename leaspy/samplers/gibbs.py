@@ -9,9 +9,7 @@ from numpy import ndindex
 from .base import AbstractPopulationSampler, AbstractIndividualSampler
 from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.typing import Union, Tuple, List
-from leaspy.io.realizations import CollectionRealization
-from leaspy.models.abstract_model import AbstractModel
-from leaspy.io.data.dataset import Dataset
+from leaspy.variables.state import State
 
 
 IteratorIndicesType = List[Tuple[int, ...]]
@@ -248,72 +246,46 @@ class AbstractPopulationGibbsSampler(GibbsSamplerMixin, AbstractPopulationSample
 
     def sample(
         self,
-        data: Dataset,
-        model: AbstractModel,
-        realizations: CollectionRealization,
+        state: State,
+        *,
         temperature_inv: float,
-        **attachment_computation_kws,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> None:
         """
         For each dimension (1D or 2D) of the population variable, compute current attachment and regularity.
 
         Propose a new value for the given dimension of the given population variable,
-        and compute new attachment and regularity.
+        and compute new attachment and regularity thanks to State.
 
         Do a MH step, keeping if better, or if worse with a probability.
 
         Parameters
         ----------
-        data : :class:`.Dataset`
-            Dataset used for sampling.
-        model : :class:`~.models.abstract_model.AbstractModel`
-            Model for which to sample a random variable.
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
-            Realization state.
+        state : :class:`.State`
+            Instance holding values for all model variables (including latent variables), as well as:
+            - timepoints : :class:`torch.Tensor` of shape (n_individuals, n_timepoints)
+            - dataset : ...
+                Contains the data of the subjects, in particular the subjects'
+                time-points and the mask for nan values & padded visits
         temperature_inv : :obj:`float` > 0
             The temperature to use.
-        **attachment_computation_kws
-            Currently not used for population parameters.
-
-        Returns
-        -------
-        attachment, regularity_var : :class:`torch.Tensor` 0D (scalars)
-            The attachment and regularity (only for the current variable) at the end of this
-            sampling step (summed on all individuals).
         """
-        realization = realizations[self.name]
         accepted_array = torch.zeros_like(self.std)
 
-        # retrieve the individual parameters from realizations once for all to speed-up computations,
-        # since they are fixed during the sampling of this population variable!
-        ind_params = realizations.individual.tensors_dict
-
         def compute_attachment_regularity():
-            # model attributes used are the ones from the MCMC toolbox that we are currently changing!
-            attachment = model.compute_individual_attachment_tensorized(
-                data, ind_params, attribute_type='MCMC'
-            ).sum()
-            # regularity is always computed with model.parameters (not "temporary MCMC parameters")
-            regularity = model.compute_regularity_realization(realization)
-            # mask regularity of masked terms (needed for nan/inf terms such as inf deltas when batched)
-            if self.mask is not None:
-                regularity[~self.mask] = 0
-
-            return attachment, regularity.sum()
-
-        previous_attachment = previous_regularity = None
+            # Mask for regularity is handled directly by `WeightedTensor` logic
+            return state["nll_attach"], state[f"nll_regul_{self.name}"]
 
         for idx in self._get_shuffled_iterator_indices():
-            # Compute the attachment and regularity
-            if previous_attachment is None:
-                previous_attachment, previous_regularity = compute_attachment_regularity()
-            # Keep previous realizations and sample new ones
-            old_val_idx = realization.tensor[idx].clone()
-            realization.set_tensor_realizations_element(
-                old_val_idx + self._get_change_idx(idx, old_val_idx.shape), idx
+            previous_attachment, previous_regularity = compute_attachment_regularity()
+            # with state.auto_fork():  # not needed since state already have auto_fork on
+            state.put(
+                self.name,
+                self._proposed_change_idx(idx),
+                indices=idx,
+                accumulate=True,  # out-of-place addition
             )
-            # Update derived model attributes if necessary (orthonormal basis, ...)
-            model.update_MCMC_toolbox({self.name}, realizations)
+
+            # Update (and caching) of derived model attributes (orthonormal basis, ...) is done in state
             new_attachment, new_regularity = compute_attachment_regularity()
             alpha = torch.exp(
                 -1 * (
@@ -324,23 +296,11 @@ class AbstractPopulationGibbsSampler(GibbsSamplerMixin, AbstractPopulationSample
             accepted = self._metropolis_step(alpha)
             accepted_array[idx] = accepted
 
-            if accepted:
-                previous_attachment, previous_regularity = new_attachment, new_regularity
-            else:
-                # Revert modification of realization at idx and its consequences
-                realization.set_tensor_realizations_element(old_val_idx, idx)
-                # Update (back) derived model attributes if necessary
-                # TODO: Shouldn't we backup the old MCMC toolbox instead to avoid heavy computations?
-                # (e.g. orthonormal basis re-computation just for a single change)
-                model.update_MCMC_toolbox({self.name}, realizations)
-                # force re-compute on next iteration:
-                # not performed since it is useless, since we rolled back to the starting state!
-                # self._previous_attachment = self._previous_regularity = None
+            if not accepted:
+                state.revert()
+
         self._update_acceptation_rate(accepted_array)
         self._update_std()
-
-        # Return last attachment and regularity_var
-        return previous_attachment, previous_regularity
 
     def _get_shuffled_iterator_indices(self) -> IteratorIndicesType:
         indices = self._get_iterator_indices()
@@ -371,7 +331,7 @@ class AbstractPopulationGibbsSampler(GibbsSamplerMixin, AbstractPopulationSample
     def _should_mask_changes(self) -> bool:
         return self.mask is not None
 
-    def _get_change_idx(self, idx: Tuple[int, ...], shape_old_val: Tuple[int, ...]) -> torch.Tensor:
+    def _proposed_change_idx(self, idx: Tuple[int, ...]) -> torch.Tensor:
         """
         The previous version with `_proposal` was not incorrect but computationally inefficient:
         because we were sampling on the full shape of `std` whereas we only needed `std[idx]` (smaller)
@@ -382,9 +342,10 @@ class AbstractPopulationGibbsSampler(GibbsSamplerMixin, AbstractPopulationSample
         Returns
         -------
         :class:`torch.Tensor` :
-            The change for the given index.
+            The proposed change for the given index.
         """
-        change_idx = self.std[idx] * torch.randn(shape_old_val)
+        shape_idx = self.shape[slice(len(idx), self.ndim)]
+        change_idx = self.std[idx] * torch.randn(shape_idx)
         if self._should_mask_changes:
             change_idx = change_idx * self.mask[idx].float()
         return change_idx
@@ -624,18 +585,23 @@ class IndividualGibbsSampler(GibbsSamplerMixin, AbstractIndividualSampler):
             **base_sampler_kws
         )
 
+    def validate_scale(self, scale: Union[float, torch.Tensor]) -> torch.Tensor:
+        scale = super().validate_scale(scale)
+        # <!> scale should always be a scalar tensor for individual sampler
+        return scale.mean()
+
     @property
     def shape_adapted_std(self) -> tuple:
         # <!> We do not take into account the dimensionality of
         # individual parameter for acceptation / adaptation
         return (self.n_patients,)
 
-    def _proposal(self, val: torch.Tensor) -> torch.Tensor:
+    def _proposed_change(self) -> torch.Tensor:
         """
-        Proposal value around the current value with sampler standard deviation.
+        Proposal change around the current value with sampler standard deviation.
 
         .. warning::
-            Not to be used for scalar sampling (in `_sample_population_realizations`)
+            Not to be used for scalar sampling (in population samplers)
             since it would be inefficient!
 
         Parameters
@@ -645,19 +611,17 @@ class IndividualGibbsSampler(GibbsSamplerMixin, AbstractIndividualSampler):
         Returns
         -------
         :class:`torch.Tensor` :
-            Tensor of shape broadcasted_shape(val.shape, self.std.shape) value around `val`.
+            Tensor of shape (self.n_patients, *self.shape).
         """
-        std_broadcasting = (slice(None),) + (None,) * len(self.shape)
-        return val + self.std[std_broadcasting] * torch.randn((self.n_patients, *self.shape))
+        std_broadcasting = (slice(None),) + (None,) * self.ndim
+        return self.std[std_broadcasting] * torch.randn((self.n_patients, *self.shape))
 
     def sample(
         self,
-        data: Dataset,
-        model: AbstractModel,
-        realizations: CollectionRealization,
+        state: State,
+        *,
         temperature_inv: float,
-        **attachment_computation_kws,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> None:
         """
         For each individual variable, compute current patient-batched attachment and regularity.
 
@@ -666,79 +630,52 @@ class IndividualGibbsSampler(GibbsSamplerMixin, AbstractIndividualSampler):
 
         Do a MH step, keeping if better, or if worse with a probability.
 
+        Notes
+        -----
+        The population variables are fixed during this sampling step (since we update an individual parameter), but:
+        - if we are in a calibration: we may have updated them just before and have NOT yet propagated these changes
+          into the master model parameters, so we SHOULD use the MCMC state for model computations (default)
+        - if we are in a personalization (mode/mean real): we are not updating the population parameters any more
+          so we should NOT use a MCMC state any more (not defined, only the "fitted model" state is defined)
+
         Parameters
         ----------
-        data : :class:`.Dataset`
-        model : :class:`~.models.abstract_model.AbstractModel`
-        realizations : :class:`~.io.realizations.collection_realization.CollectionRealization`
+        state : :class:`.State`
+            Instance holding values for all model variables (including latent variables), as well as:
+            - timepoints : :class:`torch.Tensor` of shape (n_individuals, n_timepoints)
+            - dataset : ...
+                Contains the data of the subjects, in particular the subjects'
+                time-points and the mask for nan values & padded visits
         temperature_inv : :obj:`float` > 0
-        **attachment_computation_kws
-            Optional keyword arguments for attachment computations.
-            As of now, we only use it for individual variables, and only `attribute_type`.
-            It is used to know whether to compute attachments from the MCMC toolbox (esp. during fit)
-            or to compute it from regular model parameters (esp. during personalization in mean/mode realization)
-
-        Returns
-        -------
-        attachment, regularity_var : :class:`torch.Tensor` 1D (n_individuals,)
-            The attachment and regularity (only for the current variable) at the end of
-            this sampling step, per individual.
+            The temperature to use.
         """
-        # Compute the attachment and regularity for all subjects
-        realization = realizations[self.name]
-
-        # the population variables are fixed during this sampling step (since we update an individual parameter), but:
-        # - if we are in a calibration: we may have updated them just before and have NOT yet propagated these changes
-        #   into the master model parameters, so we SHOULD use the MCMC toolbox for model computations (default)
-        # - if we are in a personalization (mode/mean real): we are not updating the population parameters any more
-        #   so we should NOT use a MCMC_toolbox (not proper)
-        attribute_type = attachment_computation_kws.get('attribute_type', 'MCMC')
 
         def compute_attachment_regularity():
-            # current realizations => individual parameters
-            # individual parameters => compare reconstructions vs values (per subject)
-            attachment = model.compute_individual_attachment_tensorized(
-                data, realizations.individual.tensors_dict, attribute_type=attribute_type
-            )
-
-            # compute log-likelihood of just the given parameter (tau or xi or sources)
+            # compute neg log-likelihood of just the given variable (tau, xi or sources)
             # (per subject; all dimensions of the individual parameter are summed together)
-            # regularity is always computed with model.parameters (not "temporary MCMC parameters")
-            regularity = model.compute_regularity_realization(realization)
-            regularity = regularity.sum(dim=self.ind_param_dims_but_individual).reshape(data.n_individuals)
-
-            return attachment, regularity
+            return state["nll_attach_ind"], state[f"nll_regul_{self.name}_ind"]
 
         previous_attachment, previous_regularity = compute_attachment_regularity()
+        # with state.auto_fork():
+        state.put(
+            self.name,
+            self._proposed_change(),
+            accumulate=True,  # out-of-place addition
+        )
 
-        # Keep previous realizations and sample new ones
-        previous_reals = realization.tensor.clone()
-        # Add perturbations to previous observations
-        realization.tensor = self._proposal(realization.tensor)
-
-        # Compute the attachment and regularity
-        new_attachment, new_regularity = compute_attachment_regularity()
-
-        # alpha is per patient and > 0, shape = (n_individuals,)
+        # alpha is per individual and > 0, shape = (n_individuals,)
         # if new is "better" than previous, then alpha > 1 so it will always be accepted in `_group_metropolis_step`
+        new_attachment, new_regularity = compute_attachment_regularity()
         alpha = torch.exp(
             -1 * (
                 (new_regularity - previous_regularity) * temperature_inv +
                 (new_attachment - previous_attachment)
             )
         )
-
         accepted = self._group_metropolis_step(alpha)
-        self._update_acceptation_rate(accepted)
+
+        # Partial reversion where proposals were not accepted
+        state.revert(~accepted)
+
+        self._update_acceptation_rate(accepted.float())
         self._update_std()
-
-        # compute attachment & regularity
-        attachment = accepted * new_attachment + (1 - accepted) * previous_attachment
-        regularity = accepted * new_regularity + (1 - accepted) * previous_regularity
-
-        # we accept together all dimensions of individual parameter
-        accepted = accepted.unsqueeze(-1)  # shape = (n_individuals, 1)
-        realization.tensor = accepted * realization.tensor + (1 - accepted) * previous_reals
-
-        return attachment, regularity
-

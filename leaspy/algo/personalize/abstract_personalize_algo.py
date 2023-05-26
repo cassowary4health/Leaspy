@@ -54,8 +54,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         -------
         individual_parameters : :class:`.IndividualParameters`
             Contains individual parameters.
-        noise_std : float or :class:`torch.FloatTensor`
-            The estimated noise (is a tensor if `model.noise_model` is ``'gaussian_diagonal'``)
+        loss : float or :class:`torch.Tensor[float]`
+            The reconstruction loss
+            (for Gaussian observation model, it corresponds to the RMSE)
 
             .. math:: = \frac{1}{n_{visits} \times n_{dim}} \sqrt{\sum_{i, j \in [1, n_{visits}] \times [1, n_{dim}]} \varepsilon_{i,j}}
 
@@ -67,9 +68,24 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Estimate individual parameters
         individual_parameters = self._get_individual_parameters(model, dataset)
 
-        # Compute the loss with these estimated individual parameters (RMSE or NLL depending on noise models)
-        _, pyt_individual_params = individual_parameters.to_pytorch()
-        loss = model.compute_canonical_loss_tensorized(dataset, pyt_individual_params)
+        # TODO/WIP... (just for functional tests)
+        from leaspy.models.obs_models import FullGaussianObs
+        obs_model = next(iter(model.obs_models))
+        assert isinstance(obs_model, FullGaussianObs), "Not implemented yet... WIP"
+        if obs_model.extra_vars['noise_std'].shape == (1,):
+            f_loss = obs_model.compute_rmse  # gaussian-scalar
+        else:
+            f_loss = obs_model.compute_rmse_per_ft  # gaussian-diagonal
+        local_state = model.state.clone(disable_auto_fork=True)
+        model.put_data_variables(local_state, dataset)
+        _, pyt_individual_parameters = individual_parameters.to_pytorch()
+        for ip, ip_vals in pyt_individual_parameters.items():
+            local_state[ip] = ip_vals
+        loss = f_loss(y=local_state['y'], model=local_state['model'])
+
+        ## Compute the loss with these estimated individual parameters (RMSE or NLL depending on observation models)
+        #_, pyt_individual_params = individual_parameters.to_pytorch()
+        #loss = model.compute_canonical_loss_tensorized(dataset, pyt_individual_params)
 
         return individual_parameters, loss
 

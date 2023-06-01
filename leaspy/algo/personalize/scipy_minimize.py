@@ -198,7 +198,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # computation for 1 individual (level dropped after computation)
 
         if "joint" in model.name:
-            predicted = model.compute_individual_tensorized(times, individual_parameters)
+            predicted = model.compute_individual_tensorized(times[0], individual_parameters)
             res = predicted - torch.cat((values, torch.ones(values.shape)), -1)
         else:
             predicted = model.compute_individual_tensorized(times.unsqueeze(0), individual_parameters).squeeze(0)

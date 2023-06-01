@@ -190,7 +190,7 @@ class Dataset:
             return self.timepoints[i, :self.n_visits_per_individual[i]]
         elif 'joint' in adapt_for_model.name:
             return (
-                self.timepoints[i, :self.n_visits_per_individual[i]], self.event_time_min[i])
+                self.timepoints[i, :self.n_visits_per_individual[i]], self.event_time_min[i], self.event_time_max[i], self.mask_event[i])
         else:
             return self.timepoints[i, :self.n_visits_per_individual[i]]
 

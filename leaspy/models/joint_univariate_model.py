@@ -361,12 +361,12 @@ class JointUnivariateModel(ABC):
         :exc:`.LeaspyIndividualParamsInputError`
             if invalid individual parameters
         """
-        timepoints, t_start = timepoints_in
+        timepoints = timepoints_in
         timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
                                                                         skip_ips_checks=skip_ips_checks)
 
         longitudinal = self.compute_individual_tensorized_logistic(timepoints, individual_parameters)
-        survival = self.compute_individual_tensorized_survival(timepoints - t_start, individual_parameters)
+        survival = self.compute_individual_tensorized_survival(timepoints, individual_parameters)
 
         # Compute the individual trajectory
         return torch.cat((longitudinal, survival), -1)
@@ -591,7 +591,7 @@ class JointUnivariateModel(ABC):
 
         return attachment_visit
 
-    def compute_perso_attachment_events(self, t_min, values, individual_parameters: DictParams, *,
+    def compute_perso_attachment_events(self, t_min, t_max, mask_event, values, individual_parameters: DictParams, *,
                                       skip_ips_checks: bool = False):
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
@@ -629,12 +629,25 @@ class JointUnivariateModel(ABC):
         tau = individual_parameters['tau'].reshape(t_min.shape)
 
         # Reparametrized survival
-        reparametrized_time_min = torch.exp(xi) * torch.clamp(t_min-tau, min = 0)
+        reparametrized_time_min = torch.exp(xi) * torch.clamp(t_min - tau, min=0.)
+        #reparametrized_time_max = torch.exp(xi) * torch.clamp(t_max - tau, min=0.)
 
         # Survival
-        attachment_events = (reparametrized_time_min * nu) ** rho
+        m_log_survival = (reparametrized_time_min * nu) ** rho
+        attachment_events = m_log_survival
 
-        return attachment_events
+        if mask_event != 0:
+            # Hazard only for patient with event not censored
+            hazard = (rho * nu * torch.exp(xi)) * ((reparametrized_time_min * nu) ** (rho - 1.))
+            hazard = (mask_event * hazard).double()
+            hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
+            # hazard = torch.where(hazard > 1., torch.tensor(1., dtype=torch.double), hazard)
+            # hazard = torch.where(hazard == torch.inf, torch.tensor(1000., dtype=torch.double),
+            #                             hazard)
+
+            attachment_events += - torch.log(hazard)
+
+        return attachment_events.double()
 
     def compute_perso_attachment(self, timepoints_in, values, individual_parameters: DictParams, *,
                                       skip_ips_checks: bool = False):
@@ -666,14 +679,14 @@ class JointUnivariateModel(ABC):
             if invalid individual parameters
         """
 
-        timepoints, t_min = timepoints_in
+        timepoints, t_min, t_max, mask_event = timepoints_in
         nans = torch.isnan(values)
         timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
                                                                         skip_ips_checks=skip_ips_checks)
 
         attachment_visit = self.compute_perso_attachment_visits(timepoints, values,
                                                            individual_parameters,skip_ips_checks = skip_ips_checks)
-        attachment_events = self.compute_perso_attachment_events(t_min, values,
+        attachment_events = self.compute_perso_attachment_events(t_min, t_max, mask_event, values,
                                                             individual_parameters,skip_ips_checks = skip_ips_checks)
 
         return (attachment_visit, attachment_events)
@@ -729,33 +742,35 @@ class JointUnivariateModel(ABC):
         grads = torch.sum((diff / noise_var).unsqueeze(-1) * grads, dim=(0, 1))
         return   grads# 1 individual at a time
 
-    def compute_perso_grad_attachment_events(self, t_min, values, individual_parameters, *, attribute_type=None):
+    def compute_perso_grad_attachment_events(self, t_min, t_max, mask_event, values, individual_parameters, *, attribute_type=None):
         # Population parameters
         g, v0, rho, nu = self._get_attributes(None)
 
         # Get Individual parameters
         xi = individual_parameters['xi'].reshape(t_min.shape)
+        tau = individual_parameters['tau'].reshape(t_min.shape)
 
         # Reparametrized survival
         reparametrized_time_min = torch.exp(xi) * (t_min)
 
         # Survival
-        grad_xi = (reparametrized_time_min * nu) ** rho
+        grad_xi = mask_event*rho + rho*(reparametrized_time_min * nu) ** rho
+        grad_tau = - mask_event*(rho -1)/(t_min - tau) -(rho * nu * torch.exp(xi)) * ((reparametrized_time_min * nu) ** (rho - 1.))
 
         # Normalise as compute on normalised variables
         to_cat = [
             grad_xi * self.parameters['xi_std'],
-            0.
+            grad_tau * self.parameters['tau_std'],
         ]
         grads = torch.cat(to_cat, dim=-1).squeeze(0)
         return grads  # 1 individual at a time
 
     def compute_perso_grad_attachment(self, timepoints_in, values, individual_parameters, *, attribute_type=None):
-        raise
-        timepoints, t_min = timepoints_in
+
+        timepoints, t_min, t_max, mask_event = timepoints_in
         grad_visit = self.compute_perso_grad_attachment_visits(timepoints, values, individual_parameters,
                                                                attribute_type= attribute_type)
-        grad_events = self.compute_perso_grad_attachment_visits(t_min, values, individual_parameters,
+        grad_events = self.compute_perso_grad_attachment_events(t_min, t_max, mask_event, values, individual_parameters,
                                                                attribute_type = attribute_type)
         return (grad_visit,grad_events)
 
@@ -789,7 +804,7 @@ class JointUnivariateModel(ABC):
             if invalid individual parameters
         """
 
-        timepoints, t_min = timepoints_in
+        timepoints, t_min, t_max, mask_event = timepoints_in
         nans = torch.isnan(values)
         timepoints, individual_parameters = self._get_tensorized_inputs(timepoints, individual_parameters,
                                                                         skip_ips_checks=skip_ips_checks)

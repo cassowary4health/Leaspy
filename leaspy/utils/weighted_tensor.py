@@ -57,8 +57,11 @@ class WeightedTensor(Generic[VT]):
                 self.weight.device == self.value.device
             ), f"Bad devices: {self.weight.device} != {self.value.device}"
 
-    def filled(self, fill_value: Optional[VT]) -> torch.Tensor:
-        """Return values filled with `fill_value` (unless None), where `weight` is exactly zero."""
+    def filled(self, fill_value: Optional[VT] = None) -> torch.Tensor:
+        """Return the values tensor filled with `fill_value` where the `weight` is exactly zero.
+
+        If `fill_value` is None or `weight` is None, return the value as is.
+        """
         if fill_value is None or self.weight is None:
             return self.value
         return self.value.masked_fill(self.weight == 0, fill_value)
@@ -74,7 +77,10 @@ class WeightedTensor(Generic[VT]):
         fill_value: Optional[VT] = None,
         **kws,
     ) -> WeightedTensor:
-        """Apply a function that only operates on values, i.e. having no impact on weights (e.g. log-likelihood(value))."""
+        """Apply a function that only operates on values.
+
+        This has no impact on weights (e.g. log-likelihood(value)).
+        """
         return self.valued(func(self.filled(fill_value), *args, **kws))
 
     def map_both(
@@ -177,7 +183,7 @@ class WeightedTensor(Generic[VT]):
 
     @staticmethod
     def get_filled_value_and_weight(
-        t: TensorOrWeightedTensor[VT], *, fill_value: Optional[VT]
+        t: TensorOrWeightedTensor[VT], *, fill_value: Optional[VT] = None
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """Method to get tuple (value, weight) for both regular and weighted tensors."""
         if isinstance(t, WeightedTensor):
@@ -317,28 +323,3 @@ def factory_weighted_tensor_unary_op(
             return conv(r)
 
     return f_compat
-
-
-# INLINE UNIT TESTS
-if __name__ == "__main__":
-    Z = WeightedTensor([-1.0, 0.0, 1.0])
-    print(Z + 1)
-    print(Z - (-torch.ones(())))
-    print(1 + (-torch.ones(Z.shape)) * (-Z))
-    print(torch.ones(Z.shape) - Z * (-1))
-
-    M1 = WeightedTensor(Z.value, abs(Z).value.to(int))
-    M2 = WeightedTensor(
-        Z.value, M1.weight
-    )  # same weights only by value would not be enough
-    print(M1 - M2)
-
-    old_id1 = id(M1)
-    assert M1 is not M2
-    assert M1.value is M2.value
-    # out-of-place in fact: OK (new object M1)
-    M1 -= M2
-    assert id(M1) != old_id1
-    assert M1.value is not M2.value
-    print(M2 >= M1)
-    print((M2 >= M1).filled(0))

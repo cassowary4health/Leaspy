@@ -1,4 +1,4 @@
-from leaspy.models.multivariate_model import MultivariateModel
+from leaspy.models.multivariate import MultivariateModel
 from leaspy.models.noise_models import (
     BaseNoiseModel,
     BernoulliNoiseModel,
@@ -22,10 +22,10 @@ class UnivariateModel(MultivariateModel):
 
     Parameters
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        The name of the model.
     **kwargs
-        Hyperparameters of the model
+        Hyperparameters of the model.
 
     Raises
     ------

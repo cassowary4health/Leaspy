@@ -1,4 +1,4 @@
-from leaspy.models import ALL_MODELS, AbstractModel
+from leaspy.models import ALL_MODELS, BaseModel
 
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -9,28 +9,29 @@ class ModelFactory:
     """
 
     @staticmethod
-    def model(name: str, **kwargs) -> AbstractModel:
+    def model(name: str, **kwargs) -> BaseModel:
         """
-        Return the model object corresponding to 'name' arg with possible `kwargs`
+        Return the model object corresponding to ``name`` arg with possible ``kwargs``.
 
         Check name type and value.
 
         Parameters
         ----------
-        name : str
+        name : :obj:`str`
             The model's name.
         **kwargs
-            Contains model's hyper-parameters. Raise an error if the keyword is inappropriate for the given model's name.
+            Contains model's hyper-parameters.
+            Raise an error if the keyword is inappropriate for the given model's name.
 
         Returns
         -------
-        :class:`.AbstractModel`
-            A child class object of :class:`.models.AbstractModel` class object determined by 'name'.
+        :class:`.BaseModel`
+            A child class object of :class:`.models.BaseModel` class object determined by ``name``.
 
         Raises
         ------
         :exc:`.LeaspyModelInputError`
-            if incorrect model requested.
+            If an incorrect model is requested.
 
         See Also
         --------

@@ -54,11 +54,11 @@ class AbstractModel(BaseModel):
 
     Parameters
     ----------
-    name : str
-        The name of the model
-    noise_model : str or BaseNoiseModel
+    name : :obj:`str`
+        The name of the model.
+    noise_model : :obj:`str` or :class:`.BaseNoiseModel`
         The noise model for observations (keyword-only parameter).
-    fit_metrics : dict
+    fit_metrics : :obj:`dict`
         Metrics that should be measured during the fit of the model
         and reported back to the user.
     **kwargs
@@ -66,20 +66,20 @@ class AbstractModel(BaseModel):
 
     Attributes
     ----------
-    is_initialized : bool
-        Indicates if the model is initialized
-    name : str
-        The model's name
-    features : list[str]
-        Names of the model features
-    parameters : dict
+    is_initialized : :obj:`bool`
+        Indicates if the model is initialized.
+    name : :obj:`str`
+        The model's name.
+    features : :obj:`list` of :obj:`str`
+        Names of the model features.
+    parameters : :obj:`dict`
         Contains the model's parameters
-    noise_model : BaseNoiseModel
+    noise_model : :class:`.BaseNoiseModel`
         The noise model associated to the model.
     regularization_distribution_factory : function dist params -> :class:`torch.distributions.Distribution`
-        Factory of torch distribution to compute log-likelihoods for regularization (gaussian by default)
+        Factory of torch distribution to compute log-likelihoods for :term:`regularization` (gaussian by default)
         (Not used anymore)
-    fit_metrics : dict
+    fit_metrics : :obj:`dict`
         Contains the metrics that are measured during the fit of the model and reported to the user.
     """
 
@@ -114,12 +114,14 @@ class AbstractModel(BaseModel):
 
     def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
         """
-        Raise a LeaspyModelInputError is the provided noise model isn't compatible with the model instance.
+        Raise a :exc:`.LeaspyModelInputError` is the provided noise model
+        isn't compatible with the model instance.
+        
         This needs to be implemented in subclasses.
 
         Parameters
         ----------
-        model : BaseNoiseModel
+        model : :class:`.BaseNoiseModel`
             The noise model with which to check compatibility.
         """
         if not isinstance(model, BaseNoiseModel):
@@ -153,16 +155,17 @@ class AbstractModel(BaseModel):
 
     def save(self, path: str, **kwargs) -> None:
         """
-        Save Leaspy object as json model parameter file.
+        Save ``Leaspy`` object as json model parameter file.
 
         TODO move logic upstream?
 
         Parameters
         ----------
-        path : str
+        path : :obj:`str`
             Path to store the model's parameters.
         **kwargs
-            Keyword arguments for `to_dict` child method and `json.dump` function (default to indent=2).
+            Keyword arguments for :meth:`.AbstractModel.to_dict` child method
+            and ``json.dump`` function (default to indent=2).
         """
         from inspect import signature
 
@@ -181,8 +184,8 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        parameters : dict[str, Any]
-            Contains the model's parameters
+        parameters : :obj:`dict` [ :obj:`str`, Any ]
+            Contains the model's parameters.
         """
         self.parameters = copy.deepcopy(parameters)
 
@@ -193,8 +196,8 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        hyperparameters : dict[str, Any]
-            Contains the model's hyperparameters
+        hyperparameters : :obj:`dict` [ :obj:`str`, Any ]
+            Contains the model's hyperparameters.
 
         Raises
         ------
@@ -224,7 +227,7 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        ips : dict[param: str, Any]
+        ips : :obj:`dict` [param: str, Any]
             Contains some un-trusted individual parameters.
             If representing only one individual (in a multivariate model) it could be:
                 * {'tau':0.1, 'xi':-0.3, 'sources':[0.1,...]}
@@ -236,18 +239,19 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        ips_info : dict
-            * ``'nb_inds'`` : int >= 0
-                number of individuals present
-            * ``'tensorized_ips'`` : dict[param:str, `torch.Tensor`]
-                tensorized version of individual parameters
+        ips_info : :obj:`dict`
+            * ``'nb_inds'`` : :obj:`int` >= 0
+                Number of individuals present.
+            * ``'tensorized_ips'`` : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ]
+                Tensorized version of individual parameters.
             * ``'tensorized_ips_gen'`` : generator
-                generator providing tensorized individual parameters for all individuals present (ordered as is)
+                Generator providing tensorized individual parameters for
+                all individuals present (ordered as is).
 
         Raises
         ------
         :exc:`.LeaspyIndividualParamsInputError`
-            if any of the consistency/compatibility checks fail
+            If any of the consistency/compatibility checks fail.
         """
 
         def is_array_like(v):
@@ -324,15 +328,16 @@ class AbstractModel(BaseModel):
     @staticmethod
     def _tensorize_2D(x, unsqueeze_dim: int, dtype=torch.float32) -> torch.Tensor:
         """
-        Helper to convert a scalar or array_like into an, at least 2D, dtype tensor
+        Helper to convert a scalar or array_like into an, at least 2D, dtype tensor.
 
         Parameters
         ----------
         x : scalar or array_like
-            element to be tensorized
-        unsqueeze_dim : 0 or -1
-            dimension to be unsqueezed; meaningful for 1D array-like only
-            (for scalar or vector of length 1 it has no matter)
+            Element to be tensorized.
+        unsqueeze_dim : :obj:`int`
+            Dimension to be unsqueezed (0 or -1).
+            Meaningful for 1D array-like only (for scalar or vector
+            of length 1 it has no matter).
 
         Returns
         -------
@@ -393,27 +398,27 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
+        timepoints : scalar or array_like[scalar] (:obj:`list`, :obj:`tuple`, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
-        individual_parameters : dict
+        individual_parameters : :obj:`dict`
             Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
-        skip_ips_checks : bool (default: False)
+            Each individual parameter should be a scalar or array_like.
+        skip_ips_checks : :obj:`bool` (default: ``False``)
             Flag to skip consistency/compatibility checks and tensorization
-            of individual_parameters when it was done earlier (speed-up)
+            of ``individual_parameters`` when it was done earlier (speed-up).
 
         Returns
         -------
         :class:`torch.Tensor`
             Contains the subject's scores computed at the given age(s)
-            Shape of tensor is (1, n_tpts, n_features)
+            Shape of tensor is ``(1, n_tpts, n_features)``.
 
         Raises
         ------
         :exc:`.LeaspyModelInputError`
-            if computation is tried on more than 1 individual
+            If computation is tried on more than 1 individual.
         :exc:`.LeaspyIndividualParamsInputError`
-            if invalid individual parameters
+            if invalid individual parameters.
         """
         timepoints, individual_parameters = self._get_tensorized_inputs(
             timepoints, individual_parameters, skip_ips_checks=skip_ips_checks
@@ -431,31 +436,34 @@ class AbstractModel(BaseModel):
         For one individual, compute age(s) at which the given features values
         are reached (given the subject's individual parameters).
 
-        Consistency checks are done in the main API layer.
+        Consistency checks are done in the main :term:`API` layer.
 
         Parameters
         ----------
-        value : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
-            Contains the biomarker value(s) of the subject.
+        value : scalar or array_like[scalar] (:obj:`list`, :obj:`tuple`, :class:`numpy.ndarray`)
+            Contains the :term:`biomarker` value(s) of the subject.
 
-        individual_parameters : dict
+        individual_parameters : :obj:`dict`
             Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
+            Each individual parameter should be a scalar or array_like.
 
-        feature : str (or None)
-            Name of the considered biomarker (optional for univariate models,
-            compulsory for multivariate models).
+        feature : :obj:`str` (or None)
+            Name of the considered :term:`biomarker`.
+
+            .. note::
+                Optional for :class:`.UnivariateModel`, compulsory
+                for :class:`.MultivariateModel`.
 
         Returns
         -------
         :class:`torch.Tensor`
-            Contains the subject's ages computed at the given values(s)
-            Shape of tensor is (1, n_values)
+            Contains the subject's ages computed at the given values(s).
+            Shape of tensor is ``(1, n_values)``.
 
         Raises
         ------
         :exc:`.LeaspyModelInputError`
-            if computation is tried on more than 1 individual
+            If computation is tried on more than 1 individual.
         """
         value, individual_parameters = self._get_tensorized_inputs(
             value, individual_parameters, skip_ips_checks=False
@@ -477,22 +485,25 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        value : :class:`torch.Tensor` of shape (1, n_values)
-            Contains the biomarker value(s) of the subject.
+        value : :class:`torch.Tensor` of shape ``(1, n_values)``
+            Contains the :term:`biomarker` value(s) of the subject.
 
         individual_parameters : DictParamsTorch
             Contains the individual parameters.
-            Each individual parameter should be a torch.Tensor
+            Each individual parameter should be a :class:`torch.Tensor`.
 
-        feature : str (or None)
-            Name of the considered biomarker (optional for univariate models,
-            compulsory for multivariate models).
+        feature : :obj:`str` (or None)
+            Name of the considered :term:`biomarker`.
+
+            .. note::
+                Optional for :class:`.UnivariateModel`, compulsory
+                for :class:`.MultivariateModel`.
 
         Returns
         -------
         :class:`torch.Tensor`
-            Contains the subject's ages computed at the given values(s)
-            Shape of tensor is (n_values, 1)
+            Contains the subject's ages computed at the given values(s).
+            Shape of tensor is ``(n_values, 1)``.
         """
 
     @abstractmethod
@@ -508,16 +519,18 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        timepoints : :class:`torch.Tensor` of shape (n_individuals, n_timepoints)
+        timepoints : :class:`torch.Tensor`
+            Timepoints tensor of shape ``(n_individuals, n_timepoints)``.
 
-        individual_parameters : dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_dims_param)]
+        individual_parameters : :obj:`dict` [ param_name: :obj:`str`, :class:`torch.Tensor` ]
+            The tensors are of shape ``(n_individuals, n_dims_param)``.
 
-        attribute_type : str or None
-            Flag to ask for MCMC attributes instead of model's attributes.
+        attribute_type : :obj:`str` or None
+            Flag to ask for :term:`MCMC` attributes instead of model's attributes.
 
         Returns
         -------
-        :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features)
+        :class:`torch.Tensor` of shape ``(n_individuals, n_timepoints, n_features)``
         """
 
     @abstractmethod
@@ -533,22 +546,25 @@ class AbstractModel(BaseModel):
 
         This function aims to be used in :class:`.ScipyMinimize` to speed up optimization.
 
-        TODO: as most of numerical operations are repeated when computing model & jacobian,
-              we should create a single method that is able to compute model & jacobian "together" (= efficiently)
-              when requested with a flag for instance.
+        .. note::
+            As most of numerical operations are repeated when computing model & jacobian,
+            we should create a single method that is able to compute model & jacobian
+            "together" (= efficiently) when requested with a flag for instance.
 
         Parameters
         ----------
-        timepoints : :class:`torch.Tensor` of shape (n_individuals, n_timepoints)
+        timepoints : :class:`torch.Tensor` of shape ``(n_individuals, n_timepoints)``
 
-        individual_parameters : dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_dims_param)]
+        individual_parameters : :obj:`dict` [ param_name: :obj:`str`, :class:`torch.Tensor` ]
+            Tensors are of shape ``(n_individuals, n_dims_param)``.
 
-        attribute_type : str or None
-            Flag to ask for MCMC attributes instead of model's attributes.
+        attribute_type : :obj:`str` or None
+            Flag to ask for :term:`MCMC` attributes instead of model's attributes.
 
         Returns
         -------
-        dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
+        :obj:`dict` [ param_name: :obj:`str`, :class:`torch.Tensor` ] :
+            Tensors are of shape ``(n_individuals, n_timepoints, n_features, n_dims_param)``.
         """
 
     def compute_individual_attachment_tensorized(
@@ -559,24 +575,24 @@ class AbstractModel(BaseModel):
         attribute_type: Optional[str] = None,
     ) -> torch.Tensor:
         """
-        Compute attachment term (per subject)
+        Compute :term:`attachment` term (per subject).
 
         Parameters
         ----------
         data : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects'
-            time-points and the mask for nan values & padded visits
+            time-points and the mask for nan values & padded visits.
 
         param_ind : DictParamsTorch
             Contain the individual parameters.
 
-        attribute_type : str or None
-            Flag to ask for MCMC attributes instead of model's attributes.
+        attribute_type : :obj:`str` or None
+            Flag to ask for :term:`MCMC` attributes instead of model's attributes.
 
         Returns
         -------
         attachment : :class:`torch.Tensor`
-            Negative Log-likelihood, shape = (n_subjects,)
+            Negative Log-likelihood, shape = ``(n_subjects,)``.
         """
         predictions = self.compute_individual_tensorized(
             data.timepoints, param_ind, attribute_type=attribute_type,
@@ -592,19 +608,19 @@ class AbstractModel(BaseModel):
         attribute_type=None,
     ) -> torch.Tensor:
         """
-        Compute canonical loss, which depends on noise-model.
+        Compute canonical loss, which depends on the noise model.
 
         Parameters
         ----------
         data : :class:`.Dataset`
             Contains the data of the subjects, in particular the subjects'
-            time-points and the mask for nan values & padded visits
+            time-points and the mask for nan values & padded visits.
 
-        param_ind : dict
-            Contain the individual parameters
+        param_ind : :obj:`dict`
+            Contain the individual parameters.
 
-        attribute_type : str or None (default)
-            Flag to ask for MCMC attributes instead of model's attributes.
+        attribute_type : :obj:`str` or None (default)
+            Flag to ask for :term:`MCMC` attributes instead of model's attributes.
 
         Returns
         -------
@@ -631,7 +647,7 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        dict[suff_stat: str, :class:`torch.Tensor`]
+        :obj:`dict` [ suff_stat: :obj:`str`, :class:`torch.Tensor`]
         """
         suff_stats = self.compute_model_sufficient_statistics(data, realizations)
         predictions = self.compute_individual_tensorized(
@@ -661,7 +677,7 @@ class AbstractModel(BaseModel):
         realizations: CollectionRealization,
     ) -> DictParamsTorch:
         """
-        Compute sufficient statistics from realizations
+        Compute sufficient statistics from a :class:`.CollectionRealization`.
 
         Parameters
         ----------
@@ -670,7 +686,7 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        dict[suff_stat: str, :class:`torch.Tensor`]
+        :obj:`dict` [ suff_stat: :obj:`str`, :class:`torch.Tensor` ]
         """
 
     def update_parameters_burn_in(
@@ -684,7 +700,7 @@ class AbstractModel(BaseModel):
         Parameters
         ----------
         data : :class:`.Dataset`
-        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
+        sufficient_statistics : :obj:`dict` [ suff_stat: :obj:`str`, :class:`torch.Tensor` ]
         """
         self.update_model_parameters_burn_in(data, sufficient_statistics)
         self.noise_model.update_parameters_from_sufficient_statistics(data, sufficient_statistics)
@@ -701,7 +717,7 @@ class AbstractModel(BaseModel):
         Parameters
         ----------
         data : :class:`.Dataset`
-        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
+        sufficient_statistics : :obj:`dict` [ suff_stat: :obj:`str`, :class:`torch.Tensor` ]
         """
 
     def update_parameters_normal(
@@ -715,7 +731,7 @@ class AbstractModel(BaseModel):
         Parameters
         ----------
         data : :class:`.Dataset`
-        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
+        sufficient_statistics : :obj:`dict` [ suff_stat: :obj:`str`, :class:`torch.Tensor` ]
         """
         self.update_model_parameters_normal(data, sufficient_statistics)
         self.noise_model.update_parameters_from_sufficient_statistics(data, sufficient_statistics)
@@ -732,7 +748,7 @@ class AbstractModel(BaseModel):
         Parameters
         ----------
         data : :class:`.Dataset`
-        sufficient_statistics : dict[suff_stat: str, :class:`torch.Tensor`]
+        sufficient_statistics : :obj:`dict` [ suff_stat: :obj:`str`, :class:`torch.Tensor` ]
         """
 
     def get_population_variable_names(self) -> List[str]:
@@ -741,7 +757,7 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        list[str]
+        :obj:`list` of :obj:`str`
         """
         return list(self.get_population_random_variable_information().keys())
 
@@ -751,7 +767,7 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        list[str]
+        :obj:`list` of :obj:`str`
         """
         return list(self.get_individual_random_variable_information().keys())
 
@@ -801,7 +817,7 @@ class AbstractModel(BaseModel):
 
     def compute_regularity_realization(self, realization: AbstractRealization) -> torch.Tensor:
         """
-        Compute regularity term for a :class:`.Realization` instance.
+        Compute regularity term for a :class:`.AbstractRealization` instance.
 
         Parameters
         ----------
@@ -809,7 +825,7 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
+        :class:`torch.Tensor` of the same shape as :attr:`.AbstractRealization.tensor`
         """
         # we do not need to include regularity constant
         # (priors are always fixed at a given iteration)
@@ -823,7 +839,7 @@ class AbstractModel(BaseModel):
 
     def compute_regularity_population_realization(self, realization: PopulationRealization) -> torch.Tensor:
         """
-        Compute regularity term for population realizations.
+        Compute regularity term for :class:`.PopulationRealization`.
 
         Parameters
         ----------
@@ -831,7 +847,7 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
+        :class:`torch.Tensor` of the same shape as :attr:`.PopulationRealization.tensor`
         """
         return self.compute_regularity_variable(
             realization.tensor,
@@ -842,7 +858,7 @@ class AbstractModel(BaseModel):
 
     def compute_regularity_individual_realization(self, realization: IndividualRealization) -> torch.Tensor:
         """
-        Compute regularity term for individual realizations.
+        Compute regularity term for :class:`.IndividualRealization`.
 
         Parameters
         ----------
@@ -850,7 +866,7 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        :class:`torch.Tensor` of the same shape as `realization.tensor_realizations`
+        :class:`torch.Tensor` of the same shape as :attr:`.IndividualRealization.tensor`
         """
         return self.compute_regularity_variable(
             realization.tensor,
@@ -870,19 +886,21 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        individual_parameters : dict[str, :class:`torch.Tensor` [n_ind, n_dims_param]]
-            Individual parameters as a dict of tensors.
-        include_constant : bool, optional
+        individual_parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ]
+            Individual parameters as a dict of tensors of shape ``(n_ind, n_dims_param)``.
+        include_constant : :obj:`bool`, optional
             Whether to include a constant term or not.
             Default=False.
 
         Returns
         -------
-        regularity : dict[param_name: str, :class:`torch.Tensor` [n_individuals]]
+        regularity : :obj:`dict` [ param_name: :obj:`str`, :class:`torch.Tensor` ]
             Regularity of the patient(s) corresponding to the given individual parameters.
+            Tensors have shape ``(n_individuals)``.
 
-        regularity_grads : dict[param_name: str, :class:`torch.Tensor` [n_individuals, n_dims_param]]
+        regularity_grads : :obj:`dict` [ param_name: :obj:`str`, :class:`torch.Tensor` ]
             Gradient of regularity term with respect to individual parameters.
+            Tensors have shape ``(n_individuals, n_dims_param)``.
         """
         regularity = {}
         regularity_grads = {}
@@ -918,15 +936,17 @@ class AbstractModel(BaseModel):
         """
         Compute regularity term (Gaussian distribution) and optionally its gradient wrt value.
 
-        TODO: should be encapsulated in a RandomVariableSpecification class together with other specs of RV.
+        .. note::
+            TODO: should be encapsulated in a ``RandomVariableSpecification`` class
+            together with other specs of RV.
 
         Parameters
         ----------
         value, mean, std : :class:`torch.Tensor` of same shapes
-        include_constant : bool (default True)
+        include_constant : :obj:`bool` (default ``True``)
             Whether we include or not additional terms constant with respect to `value`.
-        with_gradient : bool (default False)
-            Whether we also return the gradient of regularity term with respect to `value`.
+        with_gradient : :obj:`bool` (default ``False``)
+            Whether we also return the gradient of :term:`regularity` term with respect to `value`.
 
         Returns
         -------
@@ -978,18 +998,19 @@ class AbstractModel(BaseModel):
         tau: torch.Tensor,
     ) -> torch.Tensor:
         """
-        Tensorized time reparametrization formula
+        Tensorized time reparametrization formula.
 
-        <!> Shapes of tensors must be compatible between them.
+        .. warning::
+            Shapes of tensors must be compatible between them.
 
         Parameters
         ----------
         timepoints : :class:`torch.Tensor`
-            Timepoints to reparametrize
+            Timepoints to reparametrize.
         xi : :class:`torch.Tensor`
-            Log-acceleration of individual(s)
+            Log-acceleration of individual(s).
         tau : :class:`torch.Tensor`
-            Time-shift(s)
+            Time-shift(s).
 
         Returns
         -------
@@ -999,11 +1020,11 @@ class AbstractModel(BaseModel):
 
     def move_to_device(self, device: torch.device) -> None:
         """
-        Move a model and its relevant attributes to the specified device.
+        Move a model and its relevant attributes to the specified :class:`torch.device`.
 
         Parameters
         ----------
-        device : torch.device
+        device : :class:`torch.device`
         """
 
         # Note that in a model, the only tensors that need offloading to a

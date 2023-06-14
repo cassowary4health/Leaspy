@@ -6,7 +6,7 @@ import numpy as np
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
-from leaspy.models.constant_model import ConstantModel
+from leaspy.models.constant import ConstantModel
 from leaspy.algo.others.constant_prediction_algo import ConstantPredictionAlgorithm
 
 from tests import LeaspyTestCase

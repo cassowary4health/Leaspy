@@ -24,16 +24,16 @@ class GaussianFamily(DistributionFamily):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
 
     Attributes
     ----------
-    free_parameters : frozenset
+    free_parameters : :obj:`frozenset`
         The set of free parameters. For GaussianFamily this set
         is composed of a unique element "scale".
-    factory : Pytorch distribution
+    factory : :class:`torch.distributions.distribution.Distribution`
         The underlying distribution.
     """
 
@@ -70,19 +70,19 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
-    scale_dimension : int, optional
+    scale_dimension : :obj:`int`, optional
         The scale dimension.
 
     Attributes
     ----------
-    scale_dimension : int, optional
+    scale_dimension : :obj:`int`, optional
         The scale dimension.
-    parameters : dict
+    parameters : :obj:`dict`
         Contains the parameters relative to the noise model.
-    canonical_loss_properties : tuple
+    canonical_loss_properties : :obj:`tuple`
         The properties for the canonical loss.
     """
 
@@ -160,7 +160,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
 
         Parameters
         ----------
-        dimension : int
+        dimension : :obj:`int`
             The dimension in which to expand the noise variance.
 
         Returns
@@ -191,17 +191,17 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
             The dataset related to the computation of the log likelihood.
         residuals : :class:`torch.Tensor`
             The residuals from which to compute the negative log likelihood.
-        incl_const : bool, optional
+        incl_const : :obj:`bool`, optional
             If True, adds a constant term to the negative log likelihood.
             Default=True.
-        with_gradient : bool, optional
+        with_gradient : :obj:`bool`, optional
             If True, returns also the jacobian of the negative log likelihood
             wrt the predictions. If False, only returns the negative log likelihood.
             Default=False.
 
         Returns
         -------
-        :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
+        :class:`torch.Tensor` or :obj:`tuple` of :class:`torch.Tensor`
             The negative log likelihood (and its jacobian if requested).
         """
         noise_var = self._compute_noise_var_in_dimension(data.dimension)
@@ -233,7 +233,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
             The dataset related to the computation of the log likelihood.
         predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the log likelihood.
-        with_gradient : bool, optional
+        with_gradient : :obj:`bool`, optional
             If True, returns also the gradient of the negative log likelihood
             wrt the predictions.
             If False, only returns the negative log likelihood.
@@ -241,7 +241,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
 
         Returns
         -------
-        :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
+        :class:`torch.Tensor` or :obj:`tuple` of :class:`torch.Tensor`
             The negative log likelihood (and its jacobian if requested).
         """
         residuals = self.compute_residuals(data, predictions)
@@ -309,7 +309,7 @@ class AbstractGaussianNoiseModel(GaussianFamily, BaseNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics : dict
+        sufficient_statistics : :obj:`dict`
             The sufficient statistics to use for variance computation.
         """
         ...
@@ -406,17 +406,17 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
-    scale_dimension : int, optional
+    scale_dimension : :obj:`int`, optional
         The scale dimension.
 
     Attributes
     ----------
-    scale_dimension : int, optional
+    scale_dimension : :obj:`int`, optional
         The scale dimension.
-    parameters : dict
+    parameters : :obj:`dict`
         Contains the parameters relative to the noise model.
     """
 
@@ -474,7 +474,7 @@ class GaussianScalarNoiseModel(AbstractGaussianNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics : dict
+        sufficient_statistics : :obj:`dict`
             The sufficient statistics from which to compute the noise variance.
 
         Returns
@@ -493,17 +493,17 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
-    scale_dimension : int, optional
+    scale_dimension : :obj:`int`, optional
         The scale dimension.
 
     Attributes
     ----------
-    scale_dimension : int, optional
+    scale_dimension : :obj:`int`, optional
         The scale dimension.
-    parameters : dict
+    parameters : :obj:`dict`
         Contains the parameters relative to the noise model.
     """
 
@@ -559,7 +559,7 @@ class GaussianDiagonalNoiseModel(AbstractGaussianNoiseModel):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics : dict
+        sufficient_statistics : :obj:`dict`
             The sufficient statistics from which to compute the noise variance.
 
         Returns

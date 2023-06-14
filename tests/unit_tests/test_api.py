@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 
 from leaspy.api import Leaspy
-from leaspy.models.model_factory import ModelFactory
+from leaspy.models.factory import ModelFactory
 from leaspy.models.noise_models import (
     NOISE_MODELS,
     GaussianScalarNoiseModel,

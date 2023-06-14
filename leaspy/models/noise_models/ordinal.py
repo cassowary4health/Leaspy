@@ -18,17 +18,21 @@ class OrdinalFamily(DistributionFamily):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
 
     Attributes
     ----------
-    free_parameters : frozenset(str)
+    free_parameters : :obj:`frozenset` of :obj:`str`
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
-        Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
-        then it will be used for user-input validation of parameter "xxx".
-    factory : None or function(free parameters values) -> torch.distributions.Distribution
+
+        .. note::
+            For each parameter, if a method named
+            `validate_xxx(torch.Tensor -> torch.Tensor)` exists,
+            then it will be used for user-input validation of parameter "xxx".
+
+    factory : None or function(free parameters values) -> :class:`torch.distributions.distribution.Distribution`
         The factory for the distribution family.
     """
     factory = MultinomialDistribution.from_pdf
@@ -42,15 +46,15 @@ class AbstractOrdinalNoiseModel(BaseNoiseModel):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
-    max_levels : dict, optional
+    max_levels : :obj:`dict`, optional
         Maximum levels for ordinal noise.
 
     Attributes
     ----------
-    max_levels : dict, optional
+    max_levels : :obj:`dict`, optional
         Maximum levels for ordinal noise.
     """
 
@@ -59,8 +63,10 @@ class AbstractOrdinalNoiseModel(BaseNoiseModel):
     def to_dict(self) -> KwargsType:
         """
         Serialize instance as dictionary.
-        Do NOT export hyper-parameters that are derived
-        (error-prone and boring checks when re-creating).
+
+        .. warning::
+            Do NOT export hyper-parameters that are derived
+            (error-prone and boring checks when re-creating).
 
         Returns
         -------
@@ -124,10 +130,10 @@ class OrdinalNoiseModel(OrdinalFamily, AbstractOrdinalNoiseModel):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
-    max_levels : dict, optional
+    max_levels : :obj:`dict`, optional
         Maximum levels for ordinal noise.
     """
 
@@ -147,7 +153,7 @@ class OrdinalNoiseModel(OrdinalFamily, AbstractOrdinalNoiseModel):
             The dataset related to the computation of the log likelihood.
         predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the log likelihood.
-        with_gradient : bool, optional
+        with_gradient : :obj:`bool`, optional
             If True, returns also the gradient of the negative log likelihood
             wrt the predictions.
             If False, only returns the negative log likelihood.
@@ -155,7 +161,7 @@ class OrdinalNoiseModel(OrdinalFamily, AbstractOrdinalNoiseModel):
 
         Returns
         -------
-        :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
+        :class:`torch.Tensor` or :obj:`tuple` of :class:`torch.Tensor`
             The negative log likelihood (and its jacobian if requested).
         """
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)
@@ -169,21 +175,25 @@ class OrdinalNoiseModel(OrdinalFamily, AbstractOrdinalNoiseModel):
 
 class OrdinalRankingFamily(DistributionFamily):
     """
-    Distribution family for OrdinalRanking noise model.
+    Distribution family for :class:`.OrdinalRankingNoiseModel`.
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
 
     Attributes
     ----------
-    free_parameters : frozenset(str)
+    free_parameters : :obj:`frozenset` of :obj:`str`
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
-        Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
-        then it will be used for user-input validation of parameter "xxx".
-    factory : None or function(free parameters values) -> torch.distributions.Distribution
+
+        .. note::
+            For each parameter, if a method named
+            `validate_xxx(torch.Tensor -> torch.Tensor)` exists,
+            then it will be used for user-input validation of parameter "xxx".
+
+    factory : None or function(free parameters values) -> :class:`torch.distributions.distribution.Distribution`
         The factory for the distribution family.
     """
     factory = MultinomialDistribution
@@ -192,14 +202,14 @@ class OrdinalRankingFamily(DistributionFamily):
 
 class OrdinalRankingNoiseModel(OrdinalRankingFamily, AbstractOrdinalNoiseModel):
     """
-    Class implementing ordinal ranking noise models (likelihood is based on SF).
+    Class implementing :class:`OrdinalRankingNoiseModel` (likelihood is based on SF).
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
-    max_levels : dict, optional
+    max_levels : :obj:`dict`, optional
         Maximum levels for ordinal noise.
     """
 
@@ -219,7 +229,7 @@ class OrdinalRankingNoiseModel(OrdinalRankingFamily, AbstractOrdinalNoiseModel):
             The dataset related to the computation of the log likelihood.
         predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the log likelihood.
-        with_gradient : bool, optional
+        with_gradient : :obj:`bool`, optional
             If True, returns also the gradient of the negative log likelihood
             wrt the predictions.
             If False, only returns the negative log likelihood.
@@ -227,7 +237,7 @@ class OrdinalRankingNoiseModel(OrdinalRankingFamily, AbstractOrdinalNoiseModel):
 
         Returns
         -------
-        :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
+        :class:`torch.Tensor` or :obj:`tuple` of :class:`torch.Tensor`
             The negative log likelihood (and its jacobian if requested).
         """
         predictions = torch.clamp(predictions, 1e-7, 1.0 - 1e-7)

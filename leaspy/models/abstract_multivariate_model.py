@@ -24,15 +24,15 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
     Parameters
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        Name of the model.
     **kwargs
-        Hyperparameters for the model (including `noise_model`)
+        Hyperparameters for the model (including `noise_model`).
 
     Raises
     ------
     :exc:`.LeaspyModelInputError`
-        if inconsistent hyperparameters
+        If inconsistent hyperparameters.
     """
     def __init__(self, name: str, **kwargs):
 
@@ -71,8 +71,8 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
         Parameters
         ----------
         dataset : :class:`.Dataset`
-            Input dataset from which to initialize the model.
-        method : str, optional
+            Input :class:`.Dataset` from which to initialize the model.
+        method : :obj:`str`, optional
             The initialization method to be used.
             Default='default'.
         """
@@ -104,21 +104,21 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
     @abstractmethod
     def initialize_MCMC_toolbox(self) -> None:
         """
-        Initialize Monte-Carlo Markov-Chain toolbox for calibration of model.
+        Initialize :term:`MCMC` toolbox for calibration of model.
         """
         # TODO to move in a "MCMC-model interface"
 
     @abstractmethod
     def update_MCMC_toolbox(self, vars_to_update: Set[str], realizations: CollectionRealization) -> None:
         """
-        Update the MCMC toolbox with a collection of realizations of model population parameters.
+        Update the :term:`MCMC` toolbox with a :class:`.CollectionRealization` of model population parameters.
 
         Parameters
         ----------
-        vars_to_update : set[str]
-            Names of the population parameters to update in MCMC toolbox
+        vars_to_update : :obj:`set` of :obj:`str`
+            Names of the population parameters to update in :term:`MCMC` toolbox.
         realizations : :class:`.CollectionRealization`
-            All the realizations to update MCMC toolbox with
+            All the realizations to update :term:`MCMC` toolbox with.
         """
         # TODO to move in a "MCMC-model interface"
 
@@ -193,16 +193,19 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
     def to_dict(self, *, with_mixing_matrix: bool = True) -> KwargsType:
         """
-        Export Leaspy object as dictionary ready for JSON saving.
+        Export ``Leaspy`` object as dictionary ready for :term:`JSON` saving.
 
         Parameters
         ----------
-        with_mixing_matrix : bool (default True)
-            Save the mixing matrix in the exported file in its 'parameters' section.
-            <!> It is not a real parameter and its value will be overwritten at model loading
-            (orthonormal basis is recomputed from other "true" parameters and mixing matrix
-            is then deduced from this orthonormal basis and the betas)!
-            It was integrated historically because it is used for convenience in browser webtool and only there...
+        with_mixing_matrix : :obj:`bool` (default ``True``)
+            Save the :term:`mixing matrix` in the exported file in its 'parameters' section.
+
+            .. warning::
+                It is not a real parameter and its value will be overwritten at model loading
+                (orthonormal basis is recomputed from other "true" parameters and mixing matrix
+                is then deduced from this orthonormal basis and the betas)!
+                It was integrated historically because it is used for convenience in
+                browser webtool and only there...
 
         Returns
         -------
@@ -258,13 +261,14 @@ class AbstractMultivariateModel(OrdinalModelMixin, AbstractModel):
 
         Parameters
         ----------
-        timepoints : :class:`torch.Tensor` [1, n_timepoints]
-        attribute_type : 'MCMC' or None
+        timepoints : :class:`torch.Tensor` of shape ``(1, n_timepoints)``
+        attribute_type : :obj:`str` or None
+            If a string, should be "MCMC".
 
         Returns
         -------
-        :class:`torch.Tensor` [1, n_timepoints, dimension]
-            The group-average values at given timepoints
+        :class:`torch.Tensor` of shape ``(1, n_timepoints, dimension)``
+            The group-average values at given timepoints.
         """
         individual_parameters = {
             'xi': torch.tensor([self.parameters['xi_mean']]),

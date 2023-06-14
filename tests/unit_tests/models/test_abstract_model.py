@@ -3,7 +3,7 @@ import torch
 
 from leaspy import AlgorithmSettings, Leaspy
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.model_factory import ModelFactory
+from leaspy.models.factory import ModelFactory
 
 from tests import LeaspyTestCase
 

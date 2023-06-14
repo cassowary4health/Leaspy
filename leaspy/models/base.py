@@ -8,32 +8,32 @@ from leaspy.io.data.dataset import Dataset
 
 class BaseModel(ABC):
     """
-    Base model class from which all Leaspy models should inherit.
+    Base model class from which all ``Leaspy`` models should inherit.
 
     It defines the interface that a model should implement to be
-    compatible with Leaspy.
+    compatible with ``Leaspy``.
 
     Parameters
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        The name of the model.
 
     **kwargs
         Hyperparameters of the model
 
     Attributes
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        The name of the model.
 
-    is_initialized : bool
-        Is the model initialized?
+    is_initialized : :obj:`bool`
+        ``True``if the model is initialized, ``False`` otherwise.
 
-    features : list[str]
-        List of model features (None if not initialization)
+    features : :obj:`list` of :obj:`str`
+        List of model features (``None`` if not initialization).
 
-    dimension : int
-        Number of features
+    dimension : :obj:`int`
+        Number of features.
     """
 
     def __init__(self, name: str, **kwargs):
@@ -92,19 +92,19 @@ class BaseModel(ABC):
 
     def validate_compatibility_of_dataset(self, dataset: Dataset) -> None:
         """
-        Raise if the given dataset is not compatible with the current model.
+        Raise if the given :class:`.Dataset` is not compatible with the current model.
 
         Parameters
         ----------
         dataset : :class:`.Dataset`
-            The dataset we want to model.
+            The :class:`.Dataset` we want to model.
 
         Raises
         ------
-        LeaspyModelInputError :
-            If the dataset has a number of dimensions smaller than 2.
-            If the dataset does not have the same dimensionality as the model.
-            If the dataset's headers do not match the model's.
+        :exc:`.LeaspyModelInputError` :
+            - If the :class:`.Dataset` has a number of dimensions smaller than 2.
+            - If the :class:`.Dataset` does not have the same dimensionality as the model.
+            - If the :class:`.Dataset`'s headers do not match the model's.
         """
         if self.dimension is not None and dataset.dimension != self.dimension:
             raise LeaspyModelInputError(
@@ -117,15 +117,16 @@ class BaseModel(ABC):
 
     def initialize(self, dataset: Dataset, method: str = 'default') -> None:
         """
-        Initialize the model given a dataset and an initialization method.
+        Initialize the model given a :class:`.Dataset` and an initialization method.
 
-        After calling this method :attr:`is_initialized` should be True and model should be ready for use.
+        After calling this method :attr:`is_initialized` should be ``True`` and model
+        should be ready for use.
 
         Parameters
         ----------
         dataset : :class:`.Dataset`
             The dataset we want to initialize from.
-        method : str
+        method : :obj:`str`
             A custom method to initialize the model
         """
         if self.is_initialized and self.features is not None:
@@ -147,11 +148,11 @@ class BaseModel(ABC):
     @abstractmethod
     def save(self, path: str, **kwargs) -> None:
         """
-        Save Leaspy object as json model parameter file.
+        Save ``Leaspy`` object as json model parameter file.
 
         Parameters
         ----------
-        path : str
+        path : :obj:`str`
             Path to store the model's parameters.
 
         **kwargs

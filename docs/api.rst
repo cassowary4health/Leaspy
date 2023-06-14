@@ -38,15 +38,43 @@ Available models in `Leaspy`.
     :toctree: generated/
     :template: class.rst
 
-    model_factory.ModelFactory
-    abstract_model.AbstractModel
-    univariate_model.UnivariateModel
-    abstract_multivariate_model.AbstractMultivariateModel
-    multivariate_model.MultivariateModel
-    multivariate_parallel_model.MultivariateParallelModel
-    .. generic_model.GenericModel
-    lme_model.LMEModel
-    constant_model.ConstantModel
+    AbstractModel
+    AbstractMultivariateModel
+    BaseModel
+    ConstantModel
+    GenericModel
+    LMEModel
+    ModelFactory
+    MultivariateModel
+    MultivariateParallelModel
+    UnivariateModel
+
+:mod:`leaspy.models.noise_models`: **Noise Models**
+---------------------------------------------------
+Available noise models in `Leaspy`.
+
+.. currentmodule:: leaspy.models.noise_models
+
+.. autosummary::
+    :toctree: generated/
+    :template: class.rst
+
+    DistributionFamily
+    AbstractGaussianNoiseModel
+    AbstractOrdinalNoiseModel
+    BaseNoiseModel
+    BernoulliNoiseModel
+    GaussianDiagonalNoiseModel
+    GaussianScalarNoiseModel
+    OrdinalNoiseModel
+    OrdinalRankingNoiseModel
+
+.. autosummary::
+    :toctree: generated/
+    :template: function.rst
+
+    noise_model_factory
+    export_noise_model
 
 :mod:`leaspy.models.utils.attributes`: **Models' attributes**
 -------------------------------------------------------------
@@ -148,7 +176,7 @@ Reference algorithms to use with reference models (for benchmarks).
 
 :mod:`leaspy.samplers`: **Samplers**
 ====================================
-Samplers used by the MCMC algorithms.
+Samplers used by the :term:`MCMC` algorithms.
 
 .. currentmodule:: leaspy.samplers
 
@@ -245,7 +273,7 @@ Containers classes used as input / outputs in the `Leaspy` package.
 
 :mod:`leaspy.io.realizations`: **Realizations classes**
 -------------------------------------------------------
-Internal classes used for random variables in MCMC algorithms.
+Internal classes used for random variables in :term:`MCMC` algorithms.
 
 .. currentmodule:: leaspy.io.realizations
 
@@ -253,8 +281,18 @@ Internal classes used for random variables in MCMC algorithms.
     :toctree: generated/
     :template: class.rst
 
-    realization.Realization
-    collection_realization.CollectionRealization
+    AbstractRealization
+    IndividualRealization
+    PopulationRealization
+    DictRealizations
+    CollectionRealization
+    VariableType
+
+.. autosummary::
+    :toctree: generated/
+    :template: function.rst
+
+    realization_factory
 
 :mod:`leaspy.exceptions`: **Exceptions**
 ========================================

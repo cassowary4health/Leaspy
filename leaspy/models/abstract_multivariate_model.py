@@ -34,15 +34,15 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
     Parameters
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        Name of the model.
     **kwargs
-        Hyperparameters for the model (including `noise_model`)
+        Hyperparameters for the model (including `noise_model`).
 
     Raises
     ------
     :exc:`.LeaspyModelInputError`
-        if inconsistent hyperparameters
+        If inconsistent hyperparameters.
     """
     def __init__(self, name: str, **kwargs):
 
@@ -126,8 +126,8 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         Parameters
         ----------
         dataset : :class:`.Dataset`
-            Input dataset from which to initialize the model.
-        method : str, optional
+            Input :class:`.Dataset` from which to initialize the model.
+        method : :obj:`str`, optional
             The initialization method to be used.
             Default='default'.
         """
@@ -209,16 +209,19 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
     def to_dict(self, *, with_mixing_matrix: bool = True) -> KwargsType:
         """
-        Export Leaspy object as dictionary ready for JSON saving.
+        Export ``Leaspy`` object as dictionary ready for :term:`JSON` saving.
 
         Parameters
         ----------
-        with_mixing_matrix : bool (default True)
-            Save the mixing matrix in the exported file in its 'parameters' section.
-            <!> It is not a real parameter and its value will be overwritten at model loading
-            (orthonormal basis is recomputed from other "true" parameters and mixing matrix
-            is then deduced from this orthonormal basis and the betas)!
-            It was integrated historically because it is used for convenience in browser webtool and only there...
+        with_mixing_matrix : :obj:`bool` (default ``True``)
+            Save the :term:`mixing matrix` in the exported file in its 'parameters' section.
+
+            .. warning::
+                It is not a real parameter and its value will be overwritten at model loading
+                (orthonormal basis is recomputed from other "true" parameters and mixing matrix
+                is then deduced from this orthonormal basis and the betas)!
+                It was integrated historically because it is used for convenience in
+                browser webtool and only there...
 
         Returns
         -------

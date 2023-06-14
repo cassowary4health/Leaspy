@@ -63,11 +63,11 @@ class AbstractModel(BaseModel):
 
     Parameters
     ----------
-    name : str
-        The name of the model
+    name : :obj:`str`
+        The name of the model.
     obs_models : ObservationModel or Iterable[ObservationModel]
         The noise model for observations (keyword-only parameter).
-    fit_metrics : dict
+    fit_metrics : :obj:`dict`
         Metrics that should be measured during the fit of the model
         and reported back to the user.
     **kwargs
@@ -75,17 +75,17 @@ class AbstractModel(BaseModel):
 
     Attributes
     ----------
-    is_initialized : bool
-        Indicates if the model is initialized
-    name : str
-        The model's name
-    features : list[str]
-        Names of the model features
-    parameters : dict
-        Contains the model's parameters (read-only)
+    is_initialized : :obj:`bool`
+        Indicates if the model is initialized.
+    name : :obj:`str`
+        The model's name.
+    features : :obj:`list` of :obj:`str`
+        Names of the model features.
+    parameters : :obj:`dict`
+        Contains the model's parameters
     obs_models : Tuple[ObservationModel, ...]
         The observation model(s) associated to the model.
-    fit_metrics : dict
+    fit_metrics : :obj:`dict`
         Contains the metrics that are measured during the fit of the model and reported to the user.
     _state : State
         Private instance holding all values for model variables and their derived variables.
@@ -223,16 +223,17 @@ class AbstractModel(BaseModel):
 
     def save(self, path: str, **kwargs) -> None:
         """
-        Save Leaspy object as json model parameter file.
+        Save ``Leaspy`` object as json model parameter file.
 
         TODO move logic upstream?
 
         Parameters
         ----------
-        path : str
+        path : :obj:`str`
             Path to store the model's parameters.
         **kwargs
-            Keyword arguments for `to_dict` child method and `json.dump` function (default to indent=2).
+            Keyword arguments for :meth:`.AbstractModel.to_dict` child method
+            and ``json.dump`` function (default to indent=2).
         """
         export_kws = {k: kwargs.pop(k) for k in signature(self.to_dict).parameters if k in kwargs}
         model_settings = self.to_dict(**export_kws)
@@ -251,8 +252,8 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        parameters : dict[str, Any]
-            Contains the model's parameters
+        parameters : :obj:`dict` [ :obj:`str`, Any ]
+            Contains the model's parameters.
         """
         if self._state is None:
             self.initialize_state()
@@ -316,8 +317,8 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        hyperparameters : dict[str, Any]
-            Contains the model's hyperparameters
+        hyperparameters : :obj:`dict` [ :obj:`str`, Any ]
+            Contains the model's hyperparameters.
 
         Raises
         ------
@@ -347,7 +348,7 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        ips : dict[param: str, Any]
+        ips : :obj:`dict` [param: str, Any]
             Contains some un-trusted individual parameters.
             If representing only one individual (in a multivariate model) it could be:
                 * {'tau':0.1, 'xi':-0.3, 'sources':[0.1,...]}
@@ -359,18 +360,19 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        ips_info : dict
-            * ``'nb_inds'`` : int >= 0
-                number of individuals present
-            * ``'tensorized_ips'`` : dict[param:str, `torch.Tensor`]
-                tensorized version of individual parameters
+        ips_info : :obj:`dict`
+            * ``'nb_inds'`` : :obj:`int` >= 0
+                Number of individuals present.
+            * ``'tensorized_ips'`` : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ]
+                Tensorized version of individual parameters.
             * ``'tensorized_ips_gen'`` : generator
-                generator providing tensorized individual parameters for all individuals present (ordered as is)
+                Generator providing tensorized individual parameters for
+                all individuals present (ordered as is).
 
         Raises
         ------
         :exc:`.LeaspyIndividualParamsInputError`
-            if any of the consistency/compatibility checks fail
+            If any of the consistency/compatibility checks fail.
         """
 
         def is_array_like(v):
@@ -447,15 +449,16 @@ class AbstractModel(BaseModel):
     @staticmethod
     def _tensorize_2D(x, unsqueeze_dim: int, dtype=torch.float32) -> torch.Tensor:
         """
-        Helper to convert a scalar or array_like into an, at least 2D, dtype tensor
+        Helper to convert a scalar or array_like into an, at least 2D, dtype tensor.
 
         Parameters
         ----------
         x : scalar or array_like
-            element to be tensorized
-        unsqueeze_dim : 0 or -1
-            dimension to be unsqueezed; meaningful for 1D array-like only
-            (for scalar or vector of length 1 it has no matter)
+            Element to be tensorized.
+        unsqueeze_dim : :obj:`int`
+            Dimension to be unsqueezed (0 or -1).
+            Meaningful for 1D array-like only (for scalar or vector
+            of length 1 it has no matter).
 
         Returns
         -------
@@ -531,27 +534,27 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
+        timepoints : scalar or array_like[scalar] (:obj:`list`, :obj:`tuple`, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
-        individual_parameters : dict
+        individual_parameters : :obj:`dict`
             Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
-        skip_ips_checks : bool (default: False)
+            Each individual parameter should be a scalar or array_like.
+        skip_ips_checks : :obj:`bool` (default: ``False``)
             Flag to skip consistency/compatibility checks and tensorization
-            of individual_parameters when it was done earlier (speed-up)
+            of ``individual_parameters`` when it was done earlier (speed-up).
 
         Returns
         -------
         :class:`torch.Tensor`
             Contains the subject's scores computed at the given age(s)
-            Shape of tensor is (1, n_tpts, n_features)
+            Shape of tensor is ``(1, n_tpts, n_features)``.
 
         Raises
         ------
         :exc:`.LeaspyModelInputError`
-            if computation is tried on more than 1 individual
+            If computation is tried on more than 1 individual.
         :exc:`.LeaspyIndividualParamsInputError`
-            if invalid individual parameters
+            if invalid individual parameters.
         """
         self.check_individual_parameters_provided(individual_parameters.keys())
         timepoints, individual_parameters = self._get_tensorized_inputs(
@@ -622,31 +625,34 @@ class AbstractModel(BaseModel):
         For one individual, compute age(s) at which the given features values
         are reached (given the subject's individual parameters).
 
-        Consistency checks are done in the main API layer.
+        Consistency checks are done in the main :term:`API` layer.
 
         Parameters
         ----------
-        value : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
-            Contains the biomarker value(s) of the subject.
+        value : scalar or array_like[scalar] (:obj:`list`, :obj:`tuple`, :class:`numpy.ndarray`)
+            Contains the :term:`biomarker` value(s) of the subject.
 
-        individual_parameters : dict
+        individual_parameters : :obj:`dict`
             Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
+            Each individual parameter should be a scalar or array_like.
 
-        feature : str (or None)
-            Name of the considered biomarker (optional for univariate models,
-            compulsory for multivariate models).
+        feature : :obj:`str` (or None)
+            Name of the considered :term:`biomarker`.
+
+            .. note::
+                Optional for :class:`.UnivariateModel`, compulsory
+                for :class:`.MultivariateModel`.
 
         Returns
         -------
         :class:`torch.Tensor`
-            Contains the subject's ages computed at the given values(s)
-            Shape of tensor is (1, n_values)
+            Contains the subject's ages computed at the given values(s).
+            Shape of tensor is ``(1, n_values)``.
 
         Raises
         ------
         :exc:`.LeaspyModelInputError`
-            if computation is tried on more than 1 individual
+            If computation is tried on more than 1 individual.
         """
         raise NotImplementedError("TODO")
         value, individual_parameters = self._get_tensorized_inputs(
@@ -669,22 +675,25 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        value : :class:`torch.Tensor` of shape (1, n_values)
-            Contains the biomarker value(s) of the subject.
+        value : :class:`torch.Tensor` of shape ``(1, n_values)``
+            Contains the :term:`biomarker` value(s) of the subject.
 
         individual_parameters : DictParamsTorch
             Contains the individual parameters.
-            Each individual parameter should be a torch.Tensor
+            Each individual parameter should be a :class:`torch.Tensor`.
 
-        feature : str (or None)
-            Name of the considered biomarker (optional for univariate models,
-            compulsory for multivariate models).
+        feature : :obj:`str` (or None)
+            Name of the considered :term:`biomarker`.
+
+            .. note::
+                Optional for :class:`.UnivariateModel`, compulsory
+                for :class:`.MultivariateModel`.
 
         Returns
         -------
         :class:`torch.Tensor`
-            Contains the subject's ages computed at the given values(s)
-            Shape of tensor is (n_values, 1)
+            Contains the subject's ages computed at the given values(s).
+            Shape of tensor is ``(n_values, 1)``.
         """
         raise NotImplementedError("TODO in child classes")
 
@@ -705,7 +714,8 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        dict[param_name: str, :class:`torch.Tensor` of shape (n_individuals, n_timepoints, n_features, n_dims_param)]
+        :obj:`dict` [ param_name: :obj:`str`, :class:`torch.Tensor` ] :
+            Tensors are of shape ``(n_individuals, n_timepoints, n_features, n_dims_param)``.
         """
         raise NotImplementedError("TODO")
         return {
@@ -713,7 +723,6 @@ class AbstractModel(BaseModel):
             for ip in self.get_individual_variable_names()
         }
 
-    @classmethod
     def compute_sufficient_statistics(
         cls,
         state: State,
@@ -727,7 +736,7 @@ class AbstractModel(BaseModel):
 
         Returns
         -------
-        dict[suff_stat: str, :class:`torch.Tensor`]
+        :obj:`dict` [ suff_stat: :obj:`str`, :class:`torch.Tensor`]
         """
         suff_stats = {}
         for mp_var in state.dag.sorted_variables_by_type[ModelParameter].values():
@@ -826,9 +835,10 @@ class AbstractModel(BaseModel):
         tau: torch.Tensor,
     ) -> torch.Tensor:
         """
-        Tensorized time reparametrization formula
+        Tensorized time reparametrization formula.
 
-        <!> Shapes of tensors must be compatible between them.
+        .. warning::
+            Shapes of tensors must be compatible between them.
 
         Parameters
         ----------
@@ -837,7 +847,7 @@ class AbstractModel(BaseModel):
         alpha : :class:`torch.Tensor`
             Acceleration factors of individual(s)
         tau : :class:`torch.Tensor`
-            Time-shift(s)
+            Time-shift(s).
 
         Returns
         -------
@@ -957,11 +967,11 @@ class AbstractModel(BaseModel):
 
     def move_to_device(self, device: torch.device) -> None:
         """
-        Move a model and its relevant attributes to the specified device (in-place).
+        Move a model and its relevant attributes to the specified :class:`torch.device`.
 
         Parameters
         ----------
-        device : torch.device
+        device : :class:`torch.device`
         """
         if self._state is None:
             return

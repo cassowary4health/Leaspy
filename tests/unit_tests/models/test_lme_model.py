@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from leaspy.models.lme_model import LMEModel
+from leaspy.models.lme import LMEModel
 
 from tests import LeaspyTestCase
 

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from leaspy.io.data.dataset import Dataset
-from leaspy.models.model_factory import ModelFactory
+from leaspy.models.factory import ModelFactory
 from leaspy.io.settings.model_settings import ModelSettings
 from leaspy.algo.algo_factory import AlgoFactory
 from leaspy.io.outputs.individual_parameters import IndividualParameters

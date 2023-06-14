@@ -40,8 +40,8 @@ class MultivariateModel(AbstractMultivariateModel):
 
     Parameters
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        The name of the model.
     **kwargs
         Hyperparameters of the model (including `noise_model`)
 
@@ -217,26 +217,29 @@ class MultivariateModel(AbstractMultivariateModel):
         For one individual, compute age(s) breakpoints at which the given features
         levels are the most likely (given the subject's individual parameters).
 
-        Consistency checks are done in the main API layer.
+        Consistency checks are done in the main :term:`API` layer.
 
         Parameters
         ----------
         value : :class:`torch.Tensor`
-            Contains the biomarker level value(s) of the subject.
+            Contains the :term:`biomarker` level value(s) of the subject.
 
-        individual_parameters : dict
+        individual_parameters : :obj:`dict`
             Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
+            Each individual parameter should be a scalar or array_like.
 
-        feature : str
-            Name of the considered biomarker (optional for univariate models,
-            compulsory for multivariate models).
+        feature : :obj:`str`
+            Name of the considered :term:`biomarker`
+
+            .. note::
+                Optional for :class:`.UnivariateModel`, compulsory
+                for :class:`.MultivariateModel`.
 
         Returns
         -------
         :class:`torch.Tensor`
             Contains the subject's ages computed at the given values(s)
-            Shape of tensor is (1, n_values)
+            Shape of tensor is ``(1, n_values)``.
 
         Raises
         ------
@@ -394,18 +397,19 @@ class MultivariateModel(AbstractMultivariateModel):
     @classmethod
     def _center_xi_realizations(cls, state: State) -> None:
         """
-        Center the xi realizations in place.
+        Center the ``xi`` realizations in place.
 
-        This operation does not change the orthonormal basis
-        (since the resulting v0 is collinear to the previous one)
-        Nor all model computations (only v0 * exp(xi_i) matters),
-        it is only intended for model identifiability / `xi_i` regularization
-        <!> all operations are performed in "log" space (v0 is log'ed)
+        .. note::
+            This operation does not change the orthonormal basis
+            (since the resulting ``v0`` is collinear to the previous one)
+            Nor all model computations (only ``v0 * exp(xi_i)`` matters),
+            it is only intended for model identifiability / ``xi_i`` regularization
+            <!> all operations are performed in "log" space (``v0`` is log'ed)
 
         Parameters
         ----------
-        realizations : CollectionRealization
-            The realizations to use for updating the MCMC toolbox.
+        realizations : :class:`.CollectionRealization`
+            The realizations to use for updating the :term:`MCMC` toolbox.
         """
         mean_xi = torch.mean(state['xi'])
         state["xi"] = state["xi"] - mean_xi
@@ -420,7 +424,7 @@ class MultivariateModel(AbstractMultivariateModel):
         state: State,
     ) -> SuffStatsRW:
         """
-        Compute the model's sufficient statistics.
+        Compute the model's :term:`sufficient statistics`.
 
         Parameters
         ----------

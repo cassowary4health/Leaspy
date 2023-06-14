@@ -23,6 +23,7 @@ workflow:
   retry: 1
   script:
     - '[[ "$CI_DEBUG" == "1" ]] && env || true'
+    - source $HOME/miniconda3/etc/profile.d/conda.sh
     - conda update --yes conda
     - '[[ "$CI_DEBUG" == "1" ]] && conda info || true'
 
@@ -57,11 +58,11 @@ check_repo:
   parallel:
     matrix:
       # test on virtual envs with latest versions available complying with requirements
-      - PYTHON_VERSION: ['3.7', '3.8', '3.9'] # 3.10
+      - PYTHON_VERSION: ['3.8', '3.9', '3.10']
         CI_RUNNER_TAG: ['macos', 'linux']
         PKG_REQS_MODE: ['latest']
       # test on virtual envs with oldest versions supported for requirements (>=X.Y.Z --> ==X.Y.Z)
-      - PYTHON_VERSION: ['3.7']
+      - PYTHON_VERSION: ['3.8']
         CI_RUNNER_TAG: ['macos', 'linux']
         PKG_REQS_MODE: ['oldest']
   variables:
@@ -77,6 +78,7 @@ check_repo:
 # TODO? for linux, use Python Docker images instead. (no need for conda...)
 .create_and_activate_conda_env_before:
   before_script:
+    - source $HOME/miniconda3/etc/profile.d/conda.sh
     - conda --version
     # use 'create --yes' to force re-creation of env if it already exists (instead of '|| true' that just continues if env already exists)
     - conda create --yes python=$PYTHON_VERSION --prefix $CONDA_ENV_PATH || true
@@ -95,7 +97,8 @@ check_repo:
 # delete the conda env just after test so that space is not wasted too long for concurrent pipelines
 .remove_conda_env_after:
   after_script:
-    - conda env remove --yes --prefix $CONDA_ENV_PATH
+    - source $HOME/miniconda3/etc/profile.d/conda.sh
+    - conda env remove --yes --name $CONDA_ENV_NAME
 
 # Run the whole test suite and report results
 tests:

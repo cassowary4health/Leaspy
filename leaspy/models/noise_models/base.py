@@ -77,19 +77,19 @@ class DistributionFamily:
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
 
     Attributes
     ----------
-    free_parameters : frozenset(str)
+    free_parameters : :obj:`frozenset` of :obj:`str`
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
         Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
         then it will be used for user-input validation of parameter "xxx".
-    factory : None or function(free parameters values) -> torch.distributions.Distribution
+    factory : None or function(free parameters values) -> :class:`torch.distributions.distribution.Distribution`
         The factory for the distribution family.
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
     """
@@ -115,7 +115,7 @@ class DistributionFamily:
 
         Returns
         -------
-        DictParamsTorch :
+        :class:`.DictParamsTorch` :
             The validated parameters.
         """
         self.raise_if_unknown_parameters(params)
@@ -157,7 +157,7 @@ class DistributionFamily:
 
         Returns
         -------
-        KwargsType :
+        :class:`.KwargsType` :
             The instance serialized as a dictionary.
         """
         return {k: tensor_to_list(v) for k, v in (self.parameters or {}).items()}
@@ -169,7 +169,7 @@ class DistributionFamily:
 
         Parameters
         ----------
-        device : torch.device
+        device : :class:`torch.device`
             Torch device on which to move the tensors.
         """
         for k, v in vars(self).items():
@@ -186,7 +186,7 @@ class DistributionFamily:
 
         Parameters
         ----------
-        validate : bool, optional
+        validate : :obj:`bool`, optional
             If True, the provided parameters are validated before being updated.
             Default=False.
 
@@ -245,7 +245,7 @@ class DistributionFamily:
 
         Returns
         -------
-        torch.distributions.Distribution :
+        :class:`torch.distributions.distribution.Distribution` :
             The torch distribution centered around the loc.
         """
         if self.factory is None:
@@ -265,17 +265,17 @@ class NoNoise(DistributionFamily):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
 
     Attributes
     ----------
-    free_parameters : frozenset(str)
+    free_parameters : :obj:`frozenset` of :obj:`str`
         Name of all the free parameters (but `loc`) needed to characterize the distribution.
         Nota: for each parameter, if a method named "validate_xxx" exists (torch.Tensor -> torch.Tensor),
         then it will be used for user-input validation of parameter "xxx".
-    factory : None or function(free parameters values) -> torch.distributions.Distribution
+    factory : None or function(free parameters values) -> :class:`torch.distributions.distribution.Distribution`
         The factory for the distribution family.
     """
     factory = None
@@ -293,16 +293,16 @@ class BaseNoiseModel(ABC, DistributionFamily):
 
     Parameters
     ----------
-    parameters : dict[str, torch.Tensor] or None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or None
         Values for all the free parameters of the distribution family.
         All of them must have values before using the sampling methods.
 
     Attributes
     ----------
-    parameters : dict[str, torch.Tensor] or  None
+    parameters : :obj:`dict` [ :obj:`str`, :class:`torch.Tensor` ] or  None
         All values for the free parameters of the distribution family.
         None is to be used if and only if there are no `free_parameters` at all.
-    canonical_loss_properties : Tuple[str, str]
+    canonical_loss_properties : :obj:`tuple` [ :obj:`str`, :obj:`str` ]
         Tuple of strings characterizing the canonical loss of the noise model.
     """
 
@@ -326,7 +326,7 @@ class BaseNoiseModel(ABC, DistributionFamily):
             The dataset related to the computation of the log likelihood.
         predictions : :class:`torch.Tensor`
             The model's predictions from which to compute the log likelihood.
-        with_gradient : bool, optional
+        with_gradient : :obj:`bool`, optional
             If True, returns also the gradient of the negative log likelihood
             wrt the predictions.
             If False, only returns the negative log likelihood.
@@ -334,7 +334,7 @@ class BaseNoiseModel(ABC, DistributionFamily):
 
         Returns
         -------
-        :class:`torch.Tensor` or tuple of :class:`torch.Tensor`
+        :class:`torch.Tensor` or :obj:`tuple` of :class:`torch.Tensor`
             The negative log likelihood (and its jacobian if requested).
         """
 
@@ -380,7 +380,7 @@ class BaseNoiseModel(ABC, DistributionFamily):
 
         Returns
         -------
-        DictParamsTorch :
+        :class:`.DictParamsTorch` :
             The sufficient statistics.
         """
         return {}
@@ -397,7 +397,7 @@ class BaseNoiseModel(ABC, DistributionFamily):
         ----------
         data : :class:`.Dataset`
             The dataset related to the computation of the log likelihood.
-        sufficient_statistics : DictParamsTorch
+        sufficient_statistics : :class:`DictParamsTorch`
             The sufficient statistics to use for parameter update.
         """
         pass

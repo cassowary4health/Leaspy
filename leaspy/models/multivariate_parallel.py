@@ -16,10 +16,10 @@ class MultivariateParallelModel(AbstractMultivariateModel):
 
     Parameters
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        The name of the model.
     **kwargs
-        Hyperparameters of the model
+        Hyperparameters of the model.
     """
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)

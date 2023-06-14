@@ -25,8 +25,8 @@ class MultivariateModel(AbstractMultivariateModel):
 
     Parameters
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        The name of the model.
     **kwargs
         Hyperparameters of the model (including `noise_model`)
 
@@ -204,31 +204,34 @@ class MultivariateModel(AbstractMultivariateModel):
         For one individual, compute age(s) breakpoints at which the given features
         levels are the most likely (given the subject's individual parameters).
 
-        Consistency checks are done in the main API layer.
+        Consistency checks are done in the main :term:`API` layer.
 
         Parameters
         ----------
         value : :class:`torch.Tensor`
-            Contains the biomarker level value(s) of the subject.
+            Contains the :term:`biomarker` level value(s) of the subject.
 
-        individual_parameters : dict
+        individual_parameters : :obj:`dict`
             Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
+            Each individual parameter should be a scalar or array_like.
 
-        feature : str
-            Name of the considered biomarker (optional for univariate models,
-            compulsory for multivariate models).
+        feature : :obj:`str`
+            Name of the considered :term:`biomarker`
+
+            .. note::
+                Optional for :class:`.UnivariateModel`, compulsory
+                for :class:`.MultivariateModel`.
 
         Returns
         -------
         :class:`torch.Tensor`
             Contains the subject's ages computed at the given values(s)
-            Shape of tensor is (1, n_values)
+            Shape of tensor is ``(1, n_values)``.
 
         Raises
         ------
         :exc:`.LeaspyModelInputError`
-            if computation is tried on more than 1 individual
+            If computation is tried on more than 1 individual.
         """
         # 1/ get attributes
         g, v0, a_matrix = self._get_attributes(None)
@@ -379,7 +382,7 @@ class MultivariateModel(AbstractMultivariateModel):
 
     def initialize_MCMC_toolbox(self) -> None:
         """
-        Initialize the model's MCMC toolbox attribute.
+        Initialize the model's :term:`MCMC` toolbox attribute.
         """
         self.MCMC_toolbox = {
             'priors': {'g_std': 0.01, 'v0_std': 0.01, 'betas_std': 0.01},  # population parameters
@@ -402,14 +405,14 @@ class MultivariateModel(AbstractMultivariateModel):
 
     def update_MCMC_toolbox(self, vars_to_update: set, realizations: CollectionRealization) -> None:
         """
-        Update the model's MCMC toolbox attribute with the provided vars_to_update.
+        Update the model's :term:`MCMC` toolbox attribute with the provided ``vars_to_update``.
 
         Parameters
         ----------
-        vars_to_update : set
+        vars_to_update : :obj:`set` of :obj:`str`
             The set of variable names to be updated.
-        realizations : CollectionRealization
-            The realizations to use for updating the MCMC toolbox.
+        realizations : :class:`.CollectionRealization`
+            The realizations to use for updating the :term:`MCMC` toolbox.
         """
         values = {}
         update_all = "all" in vars_to_update
@@ -424,18 +427,19 @@ class MultivariateModel(AbstractMultivariateModel):
 
     def _center_xi_realizations(self, realizations: CollectionRealization) -> None:
         """
-        Center the xi realizations in place.
+        Center the ``xi`` realizations in place.
 
-        This operation does not change the orthonormal basis
-        (since the resulting v0 is collinear to the previous one)
-        Nor all model computations (only v0 * exp(xi_i) matters),
-        it is only intended for model identifiability / `xi_i` regularization
-        <!> all operations are performed in "log" space (v0 is log'ed)
+        .. note::
+            This operation does not change the orthonormal basis
+            (since the resulting ``v0`` is collinear to the previous one)
+            Nor all model computations (only ``v0 * exp(xi_i)`` matters),
+            it is only intended for model identifiability / ``xi_i`` regularization
+            <!> all operations are performed in "log" space (``v0`` is log'ed)
 
         Parameters
         ----------
-        realizations : CollectionRealization
-            The realizations to use for updating the MCMC toolbox.
+        realizations : :class:`.CollectionRealization`
+            The realizations to use for updating the :term:`MCMC` toolbox.
         """
         mean_xi = torch.mean(realizations['xi'].tensor)
         realizations["xi"].tensor = realizations["xi"].tensor - mean_xi
@@ -448,19 +452,19 @@ class MultivariateModel(AbstractMultivariateModel):
         realizations: CollectionRealization,
     ) -> DictParamsTorch:
         """
-        Compute the model's sufficient statistics.
+        Compute the model's :term:`sufficient statistics`.
 
         Parameters
         ----------
         data : :class:`.Dataset`
             The input dataset.
-        realizations : CollectionRealization
-            The realizations from which to compute the model's sufficient statistics.
+        realizations : :class:`.CollectionRealization`
+            The realizations from which to compute the model's :term:`sufficient statistics`.
 
         Returns
         -------
         DictParamsTorch :
-            The computed sufficient statistics.
+            The computed :term:`sufficient statistics`.
         """
         # modify realizations in-place
         self._center_xi_realizations(realizations)
@@ -484,17 +488,18 @@ class MultivariateModel(AbstractMultivariateModel):
         Update the model's parameters during the burn in phase.
 
         During the burn-in phase, we only need to store the following parameters (cf. !66 and #60)
-            - noise_std
-            - *_mean/std for regularization of individual variables
-            - others population parameters for regularization of population variables
-        We don't need to update the model "attributes" (never used during burn-in!)
+            - ``noise_std``
+            - *_mean/std for :term:`regularization` of individual variables
+            - others population parameters for :term:`regularization` of population variables
+
+        We don't need to update the model "attributes" (never used during burn-in!).
 
         Parameters
         ----------
         data : :class:`.Dataset`
             The input dataset.
         sufficient_statistics : DictParamsTorch
-            The sufficient statistics to use for parameter update.
+            The :term:`sufficient statistics` to use for parameter update.
         """
         # Memoryless part of the algorithm
         self.parameters['g'] = sufficient_statistics['g']
@@ -525,23 +530,23 @@ class MultivariateModel(AbstractMultivariateModel):
 
     def update_model_parameters_normal(self, data: Dataset, sufficient_statistics: DictParamsTorch) -> None:
         """
-        Stochastic sufficient statistics used to update the parameters of the model.
+        Stochastic :term:`sufficient statistics` used to update the parameters of the model.
 
-        TODO? factorize `update_model_parameters_***` methods?
-
-        TODOs:
-            - add a true, configurable, validation for all parameters?
-              (e.g.: bounds on tau_var/std but also on tau_mean, ...)
-            - check the SS, especially the issue with mean(xi) and v_k
-            - Learn the mean of xi and v_k
-            - Set the mean of xi to 0 and add it to the mean of V_k
+        .. note::
+            TODOs:
+                - factorize ``update_model_parameters_***`` methods?
+                - add a true, configurable, validation for all parameters?
+                  (e.g.: bounds on tau_var/std but also on tau_mean, ...)
+                - check the SS, especially the issue with mean(xi) and v_k
+                - Learn the mean of xi and v_k
+                - Set the mean of xi to 0 and add it to the mean of V_k
 
         Parameters
         ----------
         data : :class:`.Dataset`
             The input dataset.
         sufficient_statistics : DictParamsTorch
-            The sufficient statistics to use for parameter update.
+            The :term:`sufficient statistics` to use for parameter update.
         """
         from .utilities import compute_std_from_variance
 

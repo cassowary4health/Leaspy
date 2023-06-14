@@ -1,6 +1,6 @@
 import torch
 
-from leaspy.models.generic_model import GenericModel
+from leaspy.models.generic import GenericModel
 from leaspy.exceptions import LeaspyModelInputError
 
 from leaspy.utils.docs import doc_with_super
@@ -11,38 +11,47 @@ class ConstantModel(GenericModel):
     r"""
     `ConstantModel` is a benchmark model that predicts constant values (no matter what the patient's ages are).
 
-    These constant values depend on the algorithm setting and the patient's values provided during calibration.
-    It could predict:
-        * `last`: last value seen during calibration (even if NaN),
-        * `last_known`: last non NaN value seen during calibration*§,
-        * `max`: maximum (=worst) value seen during calibration*§,
-        * `mean`: average of values seen during calibration§.
+    These constant values depend on the algorithm setting and the patient's values
+    provided during :term:`calibration`.
 
-    | \\* <!> depending on features, the `last_known` / `max` value may correspond to different visits.
-    | § <!> for a given feature, value will be NaN if and only if all values for this feature were NaN.
+    It could predict:
+        * ``last``: last value seen during calibration (even if ``NaN``).
+        * ``last_known``: last non ``NaN`` value seen during :term:`calibration`.
+        * ``max``: maximum (=worst) value seen during :term:`calibration`.
+        * ``mean``: average of values seen during :term:`calibration`.
+
+    .. warning::
+        Depending on ``features``, the ``last_known`` / ``max`` value
+        may correspond to different visits.
+
+    .. warning::
+        For a given feature, value will be ``NaN`` if and only if all
+        values for this feature were ``NaN``.
 
     Parameters
     ----------
-    name : str
-        The model's name
+    name : :obj:`str`
+        The model's name.
     **kwargs
         Hyperparameters for the model.
         None supported for now.
 
     Attributes
     ----------
-    name : str
-        The model's name
-    is_initialized : bool
-        Always True (no true initialization needed for constant model)
-    features : list[str]
+    name : :obj:`str`
+        The model's name.
+    is_initialized : :obj:`bool`
+        Always ``True`` (no true initialization needed for constant model).
+    features : :obj:`list` of :obj:`str`
         List of the model features.
-        Unlike most models features will be determined at `personalization` only (because it does not needed any `fit`)
-    dimension : int
-        Number of features (read-only)
-    parameters : dict
-        Model has no parameters: empty dictionary.
-        The `prediction_type` parameter should be defined during `personalization`.
+        Unlike most models features will be determined at :term:`personalization`
+        only (because it does not needed any `fit`).
+    dimension : :obj:`int`
+        Number of features (read-only).
+    parameters : :obj:`dict`
+        The model has no parameters: empty dictionary.
+        The ``prediction_type`` parameter should be defined during
+        :term:`personalization`.
         Example:
             >>> AlgorithmSettings('constant_prediction', prediction_type='last_known')
 

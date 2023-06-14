@@ -4,12 +4,12 @@ import numpy as np
 import statsmodels.api as sm
 import torch
 
-from leaspy.models.generic_model import GenericModel
+from leaspy.models.generic import GenericModel
 
 
-class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
+class LMEModel(GenericModel):
     r"""
-    LMEModel is a benchmark model that fits and personalize a linear mixed-effects model
+    LMEModel is a benchmark model that fits and personalize a linear mixed-effects model.
 
     The model specification is the following:
 
@@ -20,49 +20,54 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
         * :math:`age_{ij}`: age of the i-th subject at his j-th visit.
         * :math:`\epsilon_{ij}`: residual Gaussian noise (independent between visits)
 
-    <!> This model must be fitted on one feature only (univariate model).
+    .. warning::
+        This model must be fitted on one feature only (univariate model).
 
+    TODO? should inherit from AbstractModel.
     TODO? add some covariates in this very simple model.
 
     Parameters
     ----------
-    name : str
-        The model's name
+    name : :obj:`str`
+        The model's name.
     **kwargs
         Model hyperparameters:
-            * with_random_slope_age : bool (default True)
+            * with_random_slope_age : :obj:`bool` (default ``True``).
 
     Attributes
     ----------
-    name : str
-        The model's name
-    is_initialized : bool
-        Is the model initialized?
-    with_random_slope_age : bool (default True)
+    name : :obj:`str`
+        The model's name.
+    is_initialized : :obj:`bool`
+        ``True`` if the model is initialized, ``False`` otherwise.
+    with_random_slope_age : :obj:`bool` (default ``True``)
         Has the LME a random slope for subject's age?
-        Otherwise it only has a random intercept per subject
-    features : list[str]
-        List of the model features
-        <!> LME has only one feature.
-    dimension : int
-        Will always be 1 (univariate)
-    parameters : dict
+        Otherwise it only has a random intercept per subject.
+    features : :obj:`list` of :obj:`str`
+        List of the model features.
+
+        .. warning::
+            LME has only one feature.
+
+    dimension : :obj:`int`
+        Will always be 1 (univariate).
+    parameters : :obj:`dict`
         Contains the model parameters. In particular:
-            * ages_mean : float
-                Mean of ages (for normalization)
-            * ages_std : float
-                Std-dev of ages (for normalization)
-            * fe_params : np.ndarray[float]
-                Fixed effects
-            * cov_re : np.ndarray[float, float]
-                Variance-covariance matrix of random-effects
-            * cov_re_unscaled_inv : np.ndarray[float, float]
+            * ``ages_mean`` : :obj:`float`
+                Mean of ages (for normalization).
+            * ``ages_std`` : :obj:`float`
+                Std-dev of ages (for normalization).
+            * ``fe_params`` : :class:`np.ndarray` of :obj:`float`
+                Fixed effects.
+            * ``cov_re`` : :class:`np.ndarray`
+                Variance-covariance matrix of random-effects.
+            * ``cov_re_unscaled_inv`` : :class:`np.ndarray`
                 Inverse of unscaled (= divided by variance of noise) variance-covariance matrix of random-effects.
                 This matrix is used for personalization to new subjects.
-            * noise_std : float
-                Std-dev of Gaussian noise
-            * bse_fe, bse_re : np.ndarray[float]
-                Standard errors on fixed-effects and random-effects respectively (not used in Leaspy).
+            * ``noise_std`` : :obj:`float`
+                Std-dev of Gaussian noise.
+            * ``bse_fe``, ``bse_re`` : :class:`np.ndarray` of :obj:`float`
+                Standard errors on fixed-effects and random-effects respectively (not used in ``Leaspy``).
 
     See Also
     --------
@@ -85,16 +90,18 @@ class LMEModel(GenericModel): # TODO should inherit from AbstractModel?
         Parameters
         ----------
         timepoints : array-like of ages (not normalized)
-            Timepoints to compute individual trajectory at
+            Timepoints to compute individual trajectory at.
 
-        individual_parameters : dict
+        individual_parameters : :obj:`dict`
             Individual parameters:
                 * random_intercept
                 * random_slope_age (if ``with_random_slope_age == True``)
 
         Returns
         -------
-        :class:`torch.Tensor` of float of shape (n_individuals == 1, n_tpts == len(timepoints), n_features == 1)
+        :class:`torch.Tensor` of :obj:`float` :
+            The individual trajectories. The shape of the tensor is
+            ``(n_individuals == 1, n_tpts == len(timepoints), n_features == 1)``.
         """
 
         # normalize ages (np.ndarray of float, 1D)

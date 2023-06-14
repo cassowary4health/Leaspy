@@ -1,5 +1,5 @@
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.univariate_model import UnivariateModel
+from leaspy.models.univariate import UnivariateModel
 from leaspy.models.noise_models import NOISE_MODELS
 
 from tests import LeaspyTestCase

@@ -21,23 +21,23 @@ class GenericModel(BaseModel):
 
     Parameters
     ----------
-    name : str
-        Name of the model
+    name : :obj:`str`
+        The name of the model.
     **kwargs
-        Hyperparameters of the model
+        Hyperparameters of the model.
 
     Attributes
     ----------
-    name : str
-        Name of the model
-    is_initialized : bool
-        Is the model initialized?
-    features : list[str]
-        List of model features (None if not initialization)
-    dimension : int (read-only)
-        Number of features
-    parameters : dict
-        Contains internal parameters of the model
+    name : :obj:`str`
+        The name of the model.
+    is_initialized : :obj:`bool`
+        ``True`` if the model is initialized, ``False`` otherwise.
+    features : :obj:`list` of :obj:`str`
+        List of model features (None if not initialization).
+    dimension : :obj:`int` (read-only)
+        Number of features.
+    parameters : :obj:`dict`
+        Contains internal parameters of the model.
     """
 
     # to be changed in sub-classes so to benefit from automatic methods
@@ -70,19 +70,19 @@ class GenericModel(BaseModel):
 
     def get_hyperparameters(self, *, with_features = True, with_properties = True, default = None) -> KwargsType:
         """
-        Get all model hyperparameters
+        Get all model hyperparameters.
 
         Parameters
         ----------
-        with_features, with_properties : bool (default True)
+        with_features, with_properties : :obj:`bool` (default ``True``)
             Whether to include `features` and respectively all `_properties` (i.e. _dynamic_ hyperparameters)
-            in the returned dictionary
+            in the returned dictionary.
         default : Any
-            Default value is something is an hyperparameter is missing (should not!)
+            Default value is something is an hyperparameter is missing (should not!).
 
         Returns
         -------
-        dict { hyperparam_name : str -> hyperparam_value : Any }
+        :obj:`dict` { hyperparam_name : :obj:`str` -> hyperparam_value : Any }
         """
 
         hps_names_iters = []
@@ -106,11 +106,11 @@ class GenericModel(BaseModel):
 
     def hyperparameters_ok(self) -> bool:
         """
-        Check all model hyperparameters are ok
+        Check all model hyperparameters are ok.
 
         Returns
         -------
-        bool
+        :obj:`bool`
         """
 
         d_ok = {
@@ -140,7 +140,7 @@ class GenericModel(BaseModel):
 
         Parameters
         ----------
-        parameters : dict
+        parameters : :obj:`dict`
             Contains the model's parameters.
         list_converter : callable
             The function to convert list objects.
@@ -164,20 +164,20 @@ class GenericModel(BaseModel):
 
     def load_hyperparameters(self, hyperparameters: KwargsType, *, with_defaults: bool = False) -> None:
         """
-        Load model hyperparameters from a dict
+        Load model hyperparameters from a :obj:`dict`.
 
         Parameters
         ----------
-        hyperparameters : dict[str, Any]
-            Contains the model's hyperparameters
-        with_defaults : bool (default False)
-            If true, it also resets hyperparameters that are part of the model but not included
-            in `hyperparameters` to their default value.
+        hyperparameters : :obj:`dict` [ :obj:`str`, Any]
+            Contains the model's hyperparameters.
+        with_defaults : :obj:`bool` (default ``False``)
+            If ``True``, it also resets hyperparameters that are part of
+            the model but not included in `hyperparameters` to their default value.
 
         Raises
         ------
         :exc:`.LeaspyModelInputError`
-            if inconsistent hyperparameters
+            If inconsistent hyperparameters.
         """
 
         # no total reset of hyperparameters here unlike in load_parameters...
@@ -222,16 +222,16 @@ class GenericModel(BaseModel):
 
     def save(self, path: str, **kwargs) -> None:
         """
-        Save Leaspy object as json model parameter file.
+        Save ``Leaspy`` object as :term:`JSON` model parameter file.
 
         Default save method: it can be overwritten in child class but should be generic...
 
         Parameters
         ----------
-        path : str
+        path : :obj:`str`
             Path to store the model's parameters.
         **kwargs
-            Keyword arguments for json.dump method.
+            Keyword arguments for ``json.dump`` method.
         """
         model_parameters_save = self.parameters.copy() # <!> shallow copy
         for param_name, param_val in model_parameters_save.items():
@@ -258,17 +258,17 @@ class GenericModel(BaseModel):
 
         Parameters
         ----------
-        timepoints : scalar or array_like[scalar] (list, tuple, :class:`numpy.ndarray`)
+        timepoints : scalar or array_like[scalar] (:obj:`list`, :obj:`tuple`, :class:`numpy.ndarray`)
             Contains the age(s) of the subject.
-        individual_parameters : dict[str, Any]
+        individual_parameters : :obj:`dict` [ :obj:`str`, Any]
             Contains the individual parameters.
-            Each individual parameter should be a scalar or array_like
+            Each individual parameter should be a scalar or array_like.
 
         Returns
         -------
         :class:`torch.Tensor`
-            Contains the subject's scores computed at the given age(s)
-            Shape of tensor is (1, n_tpts, n_features)
+            Contains the subject's scores computed at the given age(s).
+            The shape of the tensor is ``(1, n_tpts, n_features)``.
         """
 
     def __str__(self):

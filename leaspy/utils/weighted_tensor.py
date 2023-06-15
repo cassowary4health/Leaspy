@@ -57,8 +57,11 @@ class WeightedTensor(Generic[VT]):
                 self.weight.device == self.value.device
             ), f"Bad devices: {self.weight.device} != {self.value.device}"
 
-    def filled(self, fill_value: Optional[VT]) -> torch.Tensor:
-        """Return values filled with `fill_value` (unless None), where `weight` is exactly zero."""
+    def filled(self, fill_value: Optional[VT] = None) -> torch.Tensor:
+        """Return the values tensor filled with `fill_value` where the `weight` is exactly zero.
+
+        If `fill_value` is None or `weight` is None, return the value as is.
+        """
         if fill_value is None or self.weight is None:
             return self.value
         return self.value.masked_fill(self.weight == 0, fill_value)
@@ -74,7 +77,10 @@ class WeightedTensor(Generic[VT]):
         fill_value: Optional[VT] = None,
         **kws,
     ) -> WeightedTensor:
-        """Apply a function that only operates on values, i.e. having no impact on weights (e.g. log-likelihood(value))."""
+        """Apply a function that only operates on values.
+
+        This has no impact on weights (e.g. log-likelihood(value)).
+        """
         return self.valued(func(self.filled(fill_value), *args, **kws))
 
     def map_both(
@@ -177,7 +183,7 @@ class WeightedTensor(Generic[VT]):
 
     @staticmethod
     def get_filled_value_and_weight(
-        t: TensorOrWeightedTensor[VT], *, fill_value: Optional[VT]
+        t: TensorOrWeightedTensor[VT], *, fill_value: Optional[VT] = None
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """Method to get tuple (value, weight) for both regular and weighted tensors."""
         if isinstance(t, WeightedTensor):
@@ -234,9 +240,12 @@ class WeightedTensor(Generic[VT]):
         return WeightedTensor(op(a_value, b_value, **kws), result_weight)
 
 
+TensorOrWeightedTensor = Union[torch.Tensor, WeightedTensor[VT]]
+
+
 # Add unary operators
-def _factory_unary_op(op_name: str, *, fill_value: Optional[VT] = 0):
-    op = getattr(operator, op_name)
+def _factory_for_unary_operators(name_of_operator: str, *, fill_value: Optional[VT] = 0):
+    op = getattr(operator, name_of_operator)
 
     def _unary_op(self: WeightedTensor[VT]) -> WeightedTensor[VT]:
         return self.map(op, fill_value=fill_value)
@@ -244,24 +253,27 @@ def _factory_unary_op(op_name: str, *, fill_value: Optional[VT] = 0):
     return _unary_op
 
 
-for op_name in {
-    # "pos",
-    "neg",
-    "abs",
-}:
-    setattr(WeightedTensor, f"__{op_name}__", _factory_unary_op(op_name))
+for operator_name in ("neg", "abs"):
+    setattr(
+        WeightedTensor,
+        f"__{operator_name}__",
+        _factory_for_unary_operators(operator_name),
+    )
 
 
 # Add binary operators
-def _factory_binary_op(
-    op_name: str, *, fill_value: Optional[VT] = 0, rev: bool = False
+def _factory_for_binary_operator(
+    name_of_operator: str,
+    *,
+    fill_value: Optional[VT] = 0,
+    rev: bool = False,
 ):
-    op = getattr(operator, op_name)
+    op = getattr(operator, name_of_operator)
     kws = dict(
-        fill_value=fill_value, same_weights_only=op_name not in {"mul", "truediv"}
+        fill_value=fill_value,
+        same_weights_only=name_of_operator not in {"mul", "truediv"},
     )
     if rev:
-
         def _binary_rop(
             self: WeightedTensor[VT], other: TensorOrWeightedTensor[VT]
         ) -> WeightedTensor[VT]:
@@ -269,7 +281,6 @@ def _factory_binary_op(
 
         return _binary_rop
     else:
-
         def _binary_op(
             self: WeightedTensor[VT], other: TensorOrWeightedTensor[VT]
         ) -> WeightedTensor[VT]:
@@ -278,22 +289,24 @@ def _factory_binary_op(
         return _binary_op
 
 
-for op_name in {
-    "add",
-    "sub",
-    "mul",
-    "truediv",
-}:
-    setattr(WeightedTensor, f"__{op_name}__", _factory_binary_op(op_name))
-    setattr(WeightedTensor, f"__r{op_name}__", _factory_binary_op(op_name, rev=True))
-
-for cmp_name in {"lt", "le", "eq", "ne", "gt", "ge"}:
+for operator_name in ("add", "sub", "mul", "truediv"):
     setattr(
-        WeightedTensor, f"__{cmp_name}__", _factory_binary_op(cmp_name, fill_value=None)
-    )  # float('nan')
+        WeightedTensor,
+        f"__{operator_name}__",
+        _factory_for_binary_operator(operator_name),
+    )
+    setattr(
+        WeightedTensor,
+        f"__r{operator_name}__",
+        _factory_for_binary_operator(operator_name, rev=True),
+    )
 
-# Mixed type definition
-TensorOrWeightedTensor = Union[torch.Tensor, WeightedTensor[VT]]
+for cmp_name in ("lt", "le", "eq", "ne", "gt", "ge"):
+    setattr(
+        WeightedTensor,
+        f"__{cmp_name}__",
+        _factory_for_binary_operator(cmp_name, fill_value=None),
+    )  # float('nan')
 
 
 def factory_weighted_tensor_unary_op(
@@ -304,7 +317,7 @@ def factory_weighted_tensor_unary_op(
     """Factory/decorator to create a weighted-tensor compatible function from the provided unary-tensor function."""
 
     @wraps(f)
-    def f_compat(
+    def f_compatible(
         x: TensorOrWeightedTensor[VT], *args, **kws
     ) -> TensorOrWeightedTensor[VT]:
         if not isinstance(x, WeightedTensor):
@@ -313,32 +326,6 @@ def factory_weighted_tensor_unary_op(
         conv = x.valued
         if isinstance(r, (tuple, list, set, frozenset)):
             return type(r)(map(conv, r))
-        else:
-            return conv(r)
+        return conv(r)
 
-    return f_compat
-
-
-# INLINE UNIT TESTS
-if __name__ == "__main__":
-    Z = WeightedTensor([-1.0, 0.0, 1.0])
-    print(Z + 1)
-    print(Z - (-torch.ones(())))
-    print(1 + (-torch.ones(Z.shape)) * (-Z))
-    print(torch.ones(Z.shape) - Z * (-1))
-
-    M1 = WeightedTensor(Z.value, abs(Z).value.to(int))
-    M2 = WeightedTensor(
-        Z.value, M1.weight
-    )  # same weights only by value would not be enough
-    print(M1 - M2)
-
-    old_id1 = id(M1)
-    assert M1 is not M2
-    assert M1.value is M2.value
-    # out-of-place in fact: OK (new object M1)
-    M1 -= M2
-    assert id(M1) != old_id1
-    assert M1.value is not M2.value
-    print(M2 >= M1)
-    print((M2 >= M1).filled(0))
+    return f_compatible

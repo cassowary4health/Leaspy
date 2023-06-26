@@ -198,6 +198,7 @@ class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFami
 
 class BernoulliFamily(StatelessDistributionFamilyFromTorchDistribution):
     """Bernoulli family (stateless)."""
+    parameters: ClassVar = ("loc",)
     dist_factory: ClassVar = torch.distributions.Bernoulli
 
 

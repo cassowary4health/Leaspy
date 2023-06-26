@@ -452,17 +452,23 @@ class MultivariateModel(AbstractMultivariateModel):
     @classmethod
     def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
         # a bit dirty?
-        return cls.model_with_sources(rt=rt, metric=metric, v0=v0, log_g=log_g, space_shifts=torch.zeros((1,1)))
+        return cls.model_with_sources(
+            rt=rt, metric=metric, v0=v0, log_g=log_g, space_shifts=torch.zeros((1, 1))
+        )
 
     @staticmethod
     def metric(*, g: torch.Tensor) -> torch.Tensor:
         return (g + 1) ** 2 / g
 
     def get_variables_specs(self) -> NamedVariables:
-        """Return the specifications of the variables (latent variables, derived variables, model 'parameters') that are part of the model."""
+        """
+        Return the specifications of the variables (latent variables, derived variables,
+        model 'parameters') that are part of the model.
+        """
         d = super().get_variables_specs()
 
-        assert self._subtype_suffix == '_logistic', "WIP: TODO remove this assert"
+        if self._subtype_suffix != "_logistic":
+            raise NotImplementedError("WIP: Only implemented for logistic models.")
 
         d.update(
             # PRIORS

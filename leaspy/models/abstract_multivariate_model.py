@@ -58,6 +58,8 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             dimension = len(kwargs['features'])
 
         obs_model = kwargs.get("obs_models", None)
+        if obs_model is None:
+            obs_model = "gaussian-scalar" if dimension is None else "gaussian-diagonal"
         if isinstance(obs_model, str):
             if obs_model == "gaussian-diagonal":
                 if dimension is None:
@@ -75,11 +77,6 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
                     f"WIP. The requested ObservationModel {obs_model} is not yet implemented."
                     "Please select one of : 'gaussian-diagonal', 'gaussian-scalar', 'bernoulli'."
                 )
-
-        if dimension is not None:
-            kwargs.setdefault("obs_models", FullGaussianObs.with_noise_std_as_model_parameter(dimension))
-        # END TMP
-
         super().__init__(name, **kwargs)
 
     def get_variables_specs(self) -> NamedVariables:
@@ -96,7 +93,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
             tau_mean=ModelParameter.for_ind_mean("tau", shape=(1,)),
             tau_std=ModelParameter.for_ind_std("tau", shape=(1,)),
-            #xi_mean=Hyperparameter(0.),  # depends on model sub-type (parallel or not)
+            # xi_mean=Hyperparameter(0.),  # depends on model sub-type (parallel or not)
             xi_std=ModelParameter.for_ind_std("xi", shape=(1,)),
 
             # LATENT VARS
@@ -142,20 +139,23 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             The initialization method to be used.
             Default='default'.
         """
-
-        # WIP: a bit dirty this way...
         # TODO? split method in two so that it would overwritting of method would be cleaner?
-        if self.source_dimension is None:
-            self.source_dimension = int(dataset.dimension ** .5)
-            warnings.warn('You did not provide `source_dimension` hyperparameter for multivariate model, '
-                          f'setting it to ⌊√dimension⌋ = {self.source_dimension}.')
-
-        elif not (isinstance(self.source_dimension, int) and 0 <= self.source_dimension < dataset.dimension):
-            raise LeaspyModelInputError(f"Sources dimension should be an integer in [0, dimension - 1[ "
-                                        f"but you provided `source_dimension` = {self.source_dimension} whereas `dimension` = {dataset.dimension}")
-
+        self._validate_source_dimension(dataset)
         super().initialize(dataset, method=method)
 
+    def _validate_source_dimension(self, dataset: Dataset):
+        if self.source_dimension is None:
+            self.source_dimension = int(dataset.dimension ** .5)
+            warnings.warn(
+                "You did not provide `source_dimension` hyperparameter for multivariate model, "
+                f"setting it to ⌊√dimension⌋ = {self.source_dimension}."
+            )
+        elif not (isinstance(self.source_dimension, int) and 0 <= self.source_dimension < dataset.dimension):
+            raise LeaspyModelInputError(
+                f"Sources dimension should be an integer in [0, dimension - 1[ "
+                f"but you provided `source_dimension` = {self.source_dimension} "
+                f"whereas `dimension` = {dataset.dimension}."
+            )
 
     #def load_parameters(self, parameters: KwargsType) -> None:
     #    """

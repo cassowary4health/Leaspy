@@ -69,13 +69,18 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         individual_parameters = self._get_individual_parameters(model, dataset)
 
         # TODO/WIP... (just for functional tests)
-        from leaspy.models.obs_models import FullGaussianObs
+        from leaspy.models.obs_models import FullGaussianObs, BernoulliObservationModel
         obs_model = next(iter(model.obs_models))
-        assert isinstance(obs_model, FullGaussianObs), "Not implemented yet... WIP"
-        if obs_model.extra_vars['noise_std'].shape == (1,):
-            f_loss = obs_model.compute_rmse  # gaussian-scalar
+        if isinstance(obs_model, FullGaussianObs):
+            if obs_model.extra_vars['noise_std'].shape == (1,):
+                f_loss = obs_model.compute_rmse  # gaussian-scalar
+            else:
+                f_loss = obs_model.compute_rmse_per_ft  # gaussian-diagonal
+        elif isinstance(obs_model, BernoulliObservationModel):
+            f_loss = obs_model.compute_rmse
         else:
-            f_loss = obs_model.compute_rmse_per_ft  # gaussian-diagonal
+            raise NotImplementedError(f"Observation model {obs_model} is not implemented yet.")
+
         local_state = model.state.clone(disable_auto_fork=True)
         model.put_data_variables(local_state, dataset)
         _, pyt_individual_parameters = individual_parameters.to_pytorch()

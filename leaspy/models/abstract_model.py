@@ -723,10 +723,8 @@ class AbstractModel(BaseModel):
             for ip in self.get_individual_variable_names()
         }
 
-    def compute_sufficient_statistics(
-        cls,
-        state: State,
-    ) -> SuffStatsRW:
+    @classmethod
+    def compute_sufficient_statistics(cls, state: State) -> SuffStatsRW:
         """
         Compute sufficient statistics from state.
 

@@ -41,13 +41,14 @@ class FullGaussianObs(GaussianObs):
     Specialized `GaussianObs` when all data share the same observation model, with default naming.
 
     The default naming is:
-    - 'y' for observations
-    - 'model' for model predictions
-    - 'noise_std' for scale of residuals
+        - 'y' for observations
+        - 'model' for model predictions
+        - 'noise_std' for scale of residuals
 
-    We also provide a convient factory `default` for most common case, which corresponds to `noise_std` directly
-    being a `ModelParameter` (it could also be a `PopulationLatentVariable` with positive support).
-    Whether scale of residuals is scalar or diagonal depends on the `dimension` argument of this method.
+    We also provide a convenient factory `default` for most common case, which corresponds
+    to `noise_std` directly being a `ModelParameter` (it could also be a `PopulationLatentVariable`
+    with positive support). Whether scale of residuals is scalar or diagonal depends on the
+    `dimension` argument of this method.
     """
 
     tol_noise_variance = 1e-5
@@ -85,14 +86,16 @@ class FullGaussianObs(GaussianObs):
         model_x_model: WeightedTensor[float],
     ) -> torch.Tensor:
         """Update rule for scalar `noise_std` (when directly a model parameter), from state & sufficient statistics."""
-        y_L2, n_obs = state["y_L2_and_n_obs"]
+        y_l2, n_obs = state["y_L2_and_n_obs"]
         # TODO? by linearity couldn't we only require `-2*y_x_model + model_x_model` as summary stat?
         # and couldn't we even collect the already summed version of it?
         s1 = sum_dim(y_x_model)
         s2 = sum_dim(model_x_model)
-        noise_var = (y_L2 - 2 * s1 + s2) / n_obs.float()
+        noise_var = (y_l2 - 2 * s1 + s2) / n_obs.float()
         return compute_std_from_variance(
-            noise_var, varname="noise_std", tol=cls.tol_noise_variance
+            noise_var,
+            varname="noise_std",
+            tol=cls.tol_noise_variance,
         )
 
     @classmethod
@@ -103,23 +106,29 @@ class FullGaussianObs(GaussianObs):
         y_x_model: WeightedTensor[float],
         model_x_model: WeightedTensor[float],
     ) -> torch.Tensor:
-        """Update rule for feature-wise `noise_std` (when directly a model parameter), from state & sufficient statistics."""
-        y_L2_per_ft, n_obs_per_ft = state["y_L2_and_n_obs_per_ft"]
+        """
+        Update rule for feature-wise `noise_std` (when directly a model parameter),
+        from state & sufficient statistics.
+        """
+        y_l2_per_ft, n_obs_per_ft = state["y_L2_and_n_obs_per_ft"]
         # TODO: same remark as in `.scalar_noise_std_update()`
         s1 = sum_dim(y_x_model, but_dim=LVL_FT)
         s2 = sum_dim(model_x_model, but_dim=LVL_FT)
-        noise_var = (y_L2_per_ft - 2 * s1 + s2) / n_obs_per_ft.float()
+        noise_var = (y_l2_per_ft - 2 * s1 + s2) / n_obs_per_ft.float()
+
         return compute_std_from_variance(
-            noise_var, varname="noise_std", tol=cls.tol_noise_variance
+            noise_var,
+            varname="noise_std",
+            tol=cls.tol_noise_variance,
         )
 
     @classmethod
     def noise_std_specs(cls, dimension: int) -> ModelParameter:
-        """Default specifications of `noise_std` variable when directly modelled as a parameter (no latent population variable)."""
-        if dimension == 1:
-            update_rule = cls.scalar_noise_std_update
-        else:
-            update_rule = cls.diagonal_noise_std_update
+        """
+        Default specifications of `noise_std` variable when directly
+        modelled as a parameter (no latent population variable).
+        """
+        update_rule = cls.scalar_noise_std_update if dimension == 1 else cls.diagonal_noise_std_update
         return ModelParameter(
             shape=(dimension,),
             suff_stats=Collect(**cls.noise_std_suff_stats()),
@@ -128,8 +137,12 @@ class FullGaussianObs(GaussianObs):
 
     @classmethod
     def with_noise_std_as_model_parameter(cls, dimension: int):
-        """Default instance of `FullGaussianObs` with `noise_std` (scalar or diagonal depending on `dimension`) being a `ModelParameter`."""
-        assert isinstance(dimension, int) and dimension >= 1, dimension
+        """
+        Default instance of `FullGaussianObs` with `noise_std`
+        (scalar or diagonal depending on `dimension`) being a `ModelParameter`.
+        """
+        if not isinstance(dimension, int) or dimension < 1:
+            raise ValueError(f"Dimension should be an integer >= 1. You provided {dimension}.")
         # <!> Value of the following variable will be a `tuple[tensor[float], tensor[int]]`
         # (not suited for partial reversion)
         # TODO? -> split in 2 vars even if less efficient for computations?
@@ -147,7 +160,10 @@ class FullGaussianObs(GaussianObs):
 
     @classmethod
     def compute_rmse(
-        cls, *, y: WeightedTensor[float], model: WeightedTensor[float]
+        cls,
+        *,
+        y: WeightedTensor[float],
+        model: WeightedTensor[float],
     ) -> torch.Tensor:
         """Compute root mean square error."""
         l2: WeightedTensor[float] = (model - y) ** 2
@@ -156,7 +172,10 @@ class FullGaussianObs(GaussianObs):
 
     @classmethod
     def compute_rmse_per_ft(
-        cls, *, y: WeightedTensor[float], model: WeightedTensor[float]
+        cls,
+        *,
+        y: WeightedTensor[float],
+        model: WeightedTensor[float],
     ) -> torch.Tensor:
         """Compute root mean square error, per feature."""
         l2: WeightedTensor[float] = (model - y) ** 2

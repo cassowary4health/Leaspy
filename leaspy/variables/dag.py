@@ -43,7 +43,8 @@ class VariablesDAG(Mapping):
         The iteration order corresponds to this sorting.
     direct_children : Mapping[VarName, FrozenSet[VarName]]
     direct_ancestors : Mapping[VarName, FrozenSet[VarName]]
-        The edges out-going (children) and in-going (ancestors) from a given node (at most one edge per node and no self-loop).
+        The edges out-going (children) and in-going (ancestors) from a given node
+        (at most one edge per node and no self-loop).
     sorted_children : Mapping[VarName, Tuple[VarName, ...]]
         All children of a given node (never includes itself), in topological order (from "closest to furthest bottom").
     sorted_ancestors : Mapping[VarName, Tuple[VarName, ...]]
@@ -54,8 +55,9 @@ class VariablesDAG(Mapping):
     Notes
     -----
     In general this DAG is not a tree (the graph may not be totally connected and have multiple roots),
-    nor a multi-tree (there may be multiple directed paths to between two nodes - e.g. `logistic_model = f[g, b(g), ...]`)
-    but we do assume that no cycle is present in our graph (not checked), which is equivalent to be topologically sortable.
+    nor a multi-tree (there may be multiple directed paths to between two nodes -
+    e.g. `logistic_model = f[g, b(g), ...]`) but we do assume that no cycle is present in our graph
+    (not checked), which is equivalent to be topologically sortable.
 
     We pre-compute node-wise sorted children and ancestors once for all for efficiency,
     in particular in order to:
@@ -105,7 +107,10 @@ class VariablesDAG(Mapping):
 
     @classmethod
     def from_dict(cls, d: TMapping[VarName, VariableInterface]):
-        """Instantiate a new DAG of variables from a dictionary of variables, using linked variables dependencies as direct ancestors."""
+        """
+        Instantiate a new DAG of variables from a dictionary of variables,
+        using linked variables dependencies as direct ancestors.
+        """
         d_ancestors = {var_name: v.get_ancestors_names() for var_name, v in d.items()}
         return cls(d, direct_ancestors=d_ancestors)
 
@@ -152,7 +157,10 @@ class VariablesDAG(Mapping):
         object.__setattr__(self, "sorted_variables_by_type", d_types)
 
     def __iter__(self):
-        """Iterates on keys in topological order (.keys(), .values() and .items() methods are automatically provided by `Mapping`)."""
+        """
+        Iterates on keys in topological order (.keys(), .values() and .items()
+        methods are automatically provided by `Mapping`).
+        """
         return iter(self.sorted_variables_names)
 
     def __len__(self) -> int:
@@ -205,13 +213,15 @@ class VariablesDAG(Mapping):
         direct_ancestors: TMapping[VarName, FrozenSet[VarName]],
     ) -> Tuple[Tuple[VarName, ...], torch.Tensor]:
         """
-        Modified Kahn's algorithm to produce a topological sorting of DAG, and the corresponding path matrix as a by-product.
+        Modified Kahn's algorithm to produce a topological sorting of DAG,
+        and the corresponding path matrix as a by-product.
 
         Parameters
         ----------
         direct_children : Mapping[VarName, FrozenSet[VarName]]
         direct_ancestors : Mapping[VarName, FrozenSet[VarName]]
-            The edges out-going (children) and in-going (ancestors) from a given node (at most one edge per node and no self-loop).
+            The edges out-going (children) and in-going (ancestors) from a given node
+            (at most one edge per node and no self-loop).
 
         Returns
         -------
@@ -223,7 +233,8 @@ class VariablesDAG(Mapping):
         Notes
         -----
         Complexity in time of algorithm is linear with number of edges + number of nodes.
-        Input nodes are sorted by name so to have fully reproducible output, independently of the initial order of nodes and edges.
+        Input nodes are sorted by name so to have fully reproducible output, independently
+        of the initial order of nodes and edges.
         (Thus renaming nodes may change the output, due to non-uniqueness of topological order)
         """
         nodes = sorted(direct_ancestors.keys())
@@ -266,8 +277,11 @@ class VariablesDAG(Mapping):
     def compute_sorted_children_and_ancestors(
         sorted_nodes: Tuple[VarName, ...],
         path_matrix: torch.Tensor,
-    ) -> Tuple[Dict[VarName, Tuple[VarName, ...]], Dict[VarName, Tuple[VarName, ...]],]:
-        """Produce node-wise topologically sorted children and ancestors from provided nodes full order and corresponding path matrix."""
+    ) -> Tuple[Dict[VarName, Tuple[VarName, ...]], Dict[VarName, Tuple[VarName, ...]], ]:
+        """
+        Produce node-wise topologically sorted children and ancestors from provided nodes
+        full order and corresponding path matrix.
+        """
         sorted_children = {
             n: tuple(
                 sorted_nodes[j]

@@ -58,7 +58,10 @@ class VariableInterface:
 
     @abstractmethod
     def compute(self, state: VariablesValuesRO) -> Optional[VarValue]:
-        """Compute variable value from a `state` exposing a dict-like interface: var_name -> values; if not relevant for variable type return None."""
+        """
+        Compute variable value from a `state` exposing a dict-like interface: var_name -> values.
+        If not relevant for variable type return None.
+        """
 
     @abstractmethod
     def get_ancestors_names(self) -> FrozenSet[VarName]:
@@ -66,7 +69,8 @@ class VariableInterface:
 
     # TODO? add a check or validate(value) method? (to be optionally called by State)
     # <!> should some extra context be passed to this method
-    # (e.g. `n_individuals` or `n_timepoints` dimensions are not known during variable definition but their consistency could/should be checked?)
+    # (e.g. `n_individuals` or `n_timepoints` dimensions are not known during variable definition
+    # but their consistency could/should be checked?)
 
 
 class IndepVariable(VariableInterface):
@@ -103,7 +107,10 @@ class Hyperparameter(IndepVariable):
 
 @dataclass(frozen=True, init=False)
 class Collect:
-    """A convenient class to produce a function to collect sufficient stats that are existing or dedicated variables (to be automatically created)."""
+    """
+    A convenient class to produce a function to collect sufficient stats that
+    are existing or dedicated variables (to be automatically created).
+    """
 
     existing_variables: Tuple[VarName, ...] = ()
     dedicated_variables: Optional[TMapping[VarName, LinkedVariable]] = None
@@ -111,7 +118,7 @@ class Collect:
     def __init__(
         self, *existing_variables: VarName, **dedicated_variables: LinkedVariable
     ):
-        # custom init to allow more convient variadic form
+        # custom init to allow more convenient variadic form
         object.__setattr__(self, "existing_variables", existing_variables)
         object.__setattr__(self, "dedicated_variables", dedicated_variables or None)
 
@@ -125,7 +132,10 @@ class Collect:
 
 @dataclass(frozen=True)
 class ModelParameter(IndepVariable):
-    """Variable for model parameters, with a maximization rule (not to be sampled but is not data / nor hyperparameter, nor linked)."""
+    """
+    Variable for model parameters, with a maximization rule (not to be sampled but
+    is not data / nor hyperparameter, nor linked).
+    """
 
     shape: Tuple[int, ...]
     suff_stats: Collect  # Callable[[VariablesValuesRO], SuffStatsRW]
@@ -133,10 +143,11 @@ class ModelParameter(IndepVariable):
     The symbolic update functions will take variadic `suff_stats` values,
     in order to re-use NamedInputFunction logic: e.g. update_rule=Std('xi')
 
-    <!> ISSUE: for `tau_std` and `xi_std` we also need `state` values in addition to `suff_stats` values (only after burn-in)
-    since we can NOT use the variadic form readily for both `state` and `suff_stats` (names would be conflicting!),
-    we sent `state` as a special kw variable (a bit lazy but valid)
-    (and we prevent using this name for a variable as a safety)
+    <!> ISSUE: for `tau_std` and `xi_std` we also need `state` values in addition to
+    `suff_stats` values (only after burn-in) since we can NOT use the variadic form
+    readily for both `state` and `suff_stats` (names would be conflicting!), we sent
+    `state` as a special kw variable (a bit lazy but valid) (and we prevent using this
+    name for a variable as a safety)
     """
 
     update_rule: Callable[..., VarValue]
@@ -200,14 +211,22 @@ class ModelParameter(IndepVariable):
 
     @classmethod
     def for_pop_mean(cls, pop_var_name: VarName, shape: Tuple[int, ...]):
-        """Smart automatic definition of `ModelParameter` when it is the mean of Gaussian prior of a population latent variable."""
+        """
+        Smart automatic definition of `ModelParameter` when it is the mean of Gaussian
+        prior of a population latent variable.
+        """
         return cls(
-            shape, suff_stats=Collect(pop_var_name), update_rule=Identity(pop_var_name)
+            shape,
+            suff_stats=Collect(pop_var_name),
+            update_rule=Identity(pop_var_name),
         )
 
     @classmethod
     def for_ind_mean(cls, ind_var_name: VarName, shape: Tuple[int, ...]):
-        """Smart automatic definition of `ModelParameter` when it is the mean of Gaussian prior of an individual latent variable."""
+        """
+        Smart automatic definition of `ModelParameter` when it is the mean of Gaussian
+        prior of an individual latent variable.
+        """
         return cls(
             shape,
             suff_stats=Collect(ind_var_name),
@@ -216,7 +235,10 @@ class ModelParameter(IndepVariable):
 
     @classmethod
     def for_ind_std(cls, ind_var_name: VarName, shape: Tuple[int, ...], **tol_kw):
-        """Smart automatic definition of `ModelParameter` when it is the std-dev of Gaussian prior of an individual latent variable."""
+        """
+        Smart automatic definition of `ModelParameter` when it is the std-dev of Gaussian
+        prior of an individual latent variable.
+        """
         ind_var_sqr_name = f"{ind_var_name}_sqr"
         update_rule_normal = NamedInputFunction(
             compute_ind_param_std_from_suff_stats,
@@ -363,7 +385,10 @@ class IndividualLatentVariable(LatentVariable):
 
 @dataclass(frozen=True)
 class LinkedVariable(VariableInterface):
-    """Variable which is a deterministic expression of other variables (we directly use variables names instead of boring mappings: kws <-> vars)."""
+    """
+    Variable which is a deterministic expression of other variables (we directly
+    use variables names instead of boring mappings: kws <-> vars).
+    """
 
     f: Callable[..., VarValue]
     parameters: FrozenSet[VarName] = field(init=False)
@@ -379,7 +404,8 @@ class LinkedVariable(VariableInterface):
             inferred_params = get_named_parameters(self.f)
         except ValueError:
             raise LeaspyModelInputError(
-                "Function provided in `LinkedVariable` should be a function with keyword-only parameters (using variables names)."
+                "Function provided in `LinkedVariable` should be a function with "
+                "keyword-only parameters (using variables names)."
             )
         object.__setattr__(self, "parameters", frozenset(inferred_params))
 

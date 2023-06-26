@@ -82,9 +82,11 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
         super().__init__(name, **kwargs)
 
-
     def get_variables_specs(self) -> NamedVariables:
-        """Return the specifications of the variables (latent variables, derived variables, model 'parameters') that are part of the model."""
+        """
+        Return the specifications of the variables (latent variables,
+        derived variables, model 'parameters') that are part of the model.
+        """
         d = super().get_variables_specs()
 
         d.update(

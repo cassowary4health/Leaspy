@@ -864,7 +864,10 @@ class AbstractModel(BaseModel):
     #    pass
 
     def get_variables_specs(self) -> NamedVariables:
-        """Return the specifications of the variables (latent variables, derived variables, model 'parameters') that are part of the model."""
+        """
+        Return the specifications of the variables (latent variables,
+        derived variables, model 'parameters') that are part of the model.
+        """
         d = NamedVariables({
             "t": DataVariable(),
             "rt": LinkedVariable(self.time_reparametrization),
@@ -877,7 +880,9 @@ class AbstractModel(BaseModel):
             d.update(obs_model.get_variables_specs(named_attach_vars=not single_obs_model))
 
         if not single_obs_model:
-            assert False, "WIP: Only 1 noise model supported for now, but to be extended"
+            raise NotImplementedError(
+                "WIP: Only 1 noise model supported for now, but to be extended."
+            )
             d.update(
                 #nll_attach_full=LinkedVariable(Sum(...)),
                 nll_attach_ind=LinkedVariable(Sum(...)),

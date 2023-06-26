@@ -15,11 +15,13 @@ from leaspy.exceptions import LeaspyInputError
 
 class StatelessDistributionFamily(ABC):
     """
-    Interface to represent stateless distribution families (i.e. no distribution parameters are stored in instance).
+    Interface to represent stateless distribution families
+    (i.e. no distribution parameters are stored in instance).
 
     TODO / WIP? allow WeightedTensor for parameters as well?
     (e.g. `batched_deltas = Normal(batched_deltas_mean, ...)` which should be masked at some indices)
-    --> mask at latent pop. variable level (`batched_deltas`) or directly at model parameter level `batched_deltas_mean`?
+    --> mask at latent pop. variable level (`batched_deltas`) or
+        directly at model parameter level `batched_deltas_mean`?
     """
 
     parameters: ClassVar[Tuple[str, ...]]
@@ -27,11 +29,17 @@ class StatelessDistributionFamily(ABC):
     @classmethod
     @abstractmethod
     def validate_parameters(cls, *params: Any) -> Tuple[torch.Tensor, ...]:
-        """Validate consistency of distribution parameters, returning them with out-of-place modifications if needed."""
+        """
+        Validate consistency of distribution parameters,
+        returning them with out-of-place modifications if needed.
+        """
 
     @classmethod
     def shape(cls, *params_shapes: Tuple[int, ...]) -> Tuple[int, ...]:
-        """Shape of distribution samples (without any additional expansion), given shapes of distribution parameters."""
+        """
+        Shape of distribution samples (without any additional expansion),
+        given shapes of distribution parameters.
+        """
         # We provide a default implementation which should fit for most cases
         n_params = len(params_shapes)
         if n_params != len(cls.parameters):
@@ -51,12 +59,18 @@ class StatelessDistributionFamily(ABC):
     def sample(
         cls, *params: torch.Tensor, sample_shape: Tuple[int, ...] = ()
     ) -> torch.Tensor:
-        """Sample values, given distribution parameters (`sample_shape` is prepended to shape of distribution parameters)."""
+        """
+        Sample values, given distribution parameters (`sample_shape` is
+        prepended to shape of distribution parameters).
+        """
 
     @classmethod
     @abstractmethod
     def mode(cls, *params: torch.Tensor) -> torch.Tensor:
-        """Mode of distribution (returning first value if discrete ties), given distribution parameters."""
+        """
+        Mode of distribution (returning first value if discrete ties),
+        given distribution parameters.
+        """
 
     @classmethod
     @abstractmethod
@@ -90,7 +104,9 @@ class StatelessDistributionFamily(ABC):
 
     @staticmethod
     def _get_func_result_for_tensor_or_weighted_tensor(
-        func: Callable, x: TensorOrWeightedTensor[float], *params: torch.Tensor
+        func: Callable,
+        x: TensorOrWeightedTensor[float],
+        *params: torch.Tensor,
     ) -> Any:
         """Automatic compatibility layer for value `x` being a regular or a weighted tensor."""
         if isinstance(x, WeightedTensor):
@@ -101,19 +117,22 @@ class StatelessDistributionFamily(ABC):
             conv = WeightedTensor
         if isinstance(r, tuple):
             return tuple(map(conv, r))
-        else:
-            return conv(r)
+        return conv(r)
 
     @classmethod
     def nll(
-        cls, x: TensorOrWeightedTensor[float], *params: torch.Tensor
+        cls,
+        x: TensorOrWeightedTensor[float],
+        *params: torch.Tensor,
     ) -> WeightedTensor[float]:
         """Negative log-likelihood of value, given distribution parameters."""
         return cls._get_func_result_for_tensor_or_weighted_tensor(cls._nll, x, *params)
 
     @classmethod
     def nll_jacobian(
-        cls, x: TensorOrWeightedTensor[float], *params: torch.Tensor
+        cls,
+        x: TensorOrWeightedTensor[float],
+        *params: torch.Tensor,
     ) -> WeightedTensor[float]:
         """Jacobian w.r.t. value of negative log-likelihood, given distribution parameters."""
         return cls._get_func_result_for_tensor_or_weighted_tensor(
@@ -122,7 +141,9 @@ class StatelessDistributionFamily(ABC):
 
     @classmethod
     def nll_and_jacobian(
-        cls, x: TensorOrWeightedTensor[float], *params: torch.Tensor
+        cls,
+        x: TensorOrWeightedTensor[float],
+        *params: torch.Tensor,
     ) -> Tuple[WeightedTensor[float], WeightedTensor[float]]:
         """Negative log-likelihood of value and its jacobian w.r.t. value, given distribution parameters."""
         return cls._get_func_result_for_tensor_or_weighted_tensor(

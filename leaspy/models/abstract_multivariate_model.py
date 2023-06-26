@@ -3,7 +3,7 @@ import warnings
 import torch
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.obs_models import FullGaussianObs
+from leaspy.models.obs_models import FullGaussianObs, BernoulliObservationModel
 # WIP
 # from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 # from leaspy.models.utils.ordinal import OrdinalModelMixin
@@ -37,7 +37,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
     name : :obj:`str`
         Name of the model.
     **kwargs
-        Hyperparameters for the model (including `noise_model`).
+        Hyperparameters for the model (including `obs_models`).
 
     Raises
     ------
@@ -60,12 +60,21 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         obs_model = kwargs.get("obs_models", None)
         if isinstance(obs_model, str):
             if obs_model == "gaussian-diagonal":
-                assert dimension is not None, "WIP: dimension / features should be provided to init the obs_model = 'gaussian-diagonal'"
+                if dimension is None:
+                    raise NotImplementedError(
+                        "WIP: dimension / features should be provided to "
+                        "init the obs_model = 'gaussian-diagonal'"
+                    )
                 kwargs["obs_models"] = FullGaussianObs.with_noise_std_as_model_parameter(dimension)
             elif obs_model == "gaussian-scalar":
                 kwargs["obs_models"] = FullGaussianObs.with_noise_std_as_model_parameter(1)
+            elif obs_model == "bernoulli":
+                kwargs["obs_models"] = BernoulliObservationModel()
             else:
-                raise NotImplementedError("WIP...")
+                raise NotImplementedError(
+                    f"WIP. The requested ObservationModel {obs_model} is not yet implemented."
+                    "Please select one of : 'gaussian-diagonal', 'gaussian-scalar', 'bernoulli'."
+                )
 
         if dimension is not None:
             kwargs.setdefault("obs_models", FullGaussianObs.with_noise_std_as_model_parameter(dimension))

@@ -175,6 +175,11 @@ class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFami
         return cls._nll_and_jacobian(x, *params)[1]
 
 
+class BernoulliFamily(StatelessDistributionFamilyFromTorchDistribution):
+    """Bernoulli family (stateless)."""
+    dist_factory: ClassVar = torch.distributions.Bernoulli
+
+
 class NormalFamily(StatelessDistributionFamilyFromTorchDistribution):
     """Normal / Gaussian family (stateless)."""
 
@@ -322,6 +327,7 @@ class SymbolicDistribution:
 
 
 Normal = SymbolicDistribution.bound_to(NormalFamily)
+Bernoulli = SymbolicDistribution.bound_to(BernoulliFamily)
 
 
 # INLINE UNIT TESTS

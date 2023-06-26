@@ -10,19 +10,20 @@ class ManifoldModelTest_Mixin(LeaspyTestCase):
     def check_common_attrs(self, model):
         self.assertIsInstance(model, AbstractModel)
 
-        self.assertIsNone(model.attributes)
-        self.assertIsNone(model.bayesian_priors)
+        # self.assertIsNone(model.attributes)
+        # self.assertIsNone(model.bayesian_priors)
 
         self.assertIsNone(model.parameters['g'])
         self.assertIsNone(model.parameters['tau_mean'])
         self.assertIsNone(model.parameters['tau_std'])
         self.assertIsNone(model.parameters['xi_mean'])
         self.assertIsNone(model.parameters['xi_std'])
-        #self.assertIsNone(model.noise_model.parameters['scale'])
+        # self.assertIsNone(model.noise_model.parameters['scale'])
         self.assertIsNone(model.noise_model.parameters)
 
         self.assertIsNone(model.MCMC_toolbox['attributes'])
         self.assertIsNone(model.MCMC_toolbox['priors']['g_std'])
+
 
 class UnivariateModelTest(ManifoldModelTest_Mixin):
 

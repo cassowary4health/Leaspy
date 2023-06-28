@@ -5,7 +5,7 @@ import torch
 from numpy import nan
 import pandas as pd
 from typing import Optional, Union, List
-from unittest import skip, skipIf
+from unittest import skipIf
 
 from leaspy import Data, Dataset, IndividualParameters
 
@@ -886,7 +886,7 @@ class LeaspyPersonalizeRobustnessDataSparsityTest(LeaspyPersonalizeTestMixin):
         )
 
     @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
-    def test_linear_scipy_minimize_with_jacobian(self):
+    def test_linear_diagonal_scipy_minimize_with_jacobian(self):
         self._robustness_to_data_sparsity(
             "linear_diag_noise",
             "scipy_minimize",
@@ -950,7 +950,7 @@ class LeaspyPersonalizeWithNansTest(LeaspyPersonalizeTestMixin):
         for perso_algo, perso_kws, coeff_tol_per_param_std in [
 
             ('scipy_minimize', dict(use_jacobian=False), general_tol),
-            #('scipy_minimize', dict(use_jacobian=True), general_tol),
+            # ('scipy_minimize', dict(use_jacobian=True), general_tol),
 
             # the LL landscape is quite flat so tolerance is high here...
             # we may deviate from tau_mean / xi_mean / sources_mean when no data at all
@@ -1030,7 +1030,7 @@ class LeaspyPersonalizeWithNansTest(LeaspyPersonalizeTestMixin):
         for perso_algo, perso_kws, tol in [
 
             ('scipy_minimize', dict(use_jacobian=False), 1e-3),
-            #('scipy_minimize', dict(use_jacobian=True), 1e-3),
+            # ('scipy_minimize', dict(use_jacobian=True), 1e-3),
             ('mode_real', {}, 1e-3),
             ('mean_real', {}, 1e-3),
         ]:

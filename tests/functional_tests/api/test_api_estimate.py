@@ -2,6 +2,7 @@ import pandas as pd
 
 from tests import LeaspyTestCase
 
+
 class LeaspyEstimateTest_Mixin(LeaspyTestCase):
 
     def check_almost_equal_for_all_ind_tpts(self, a, b, *, tol=1e-5):

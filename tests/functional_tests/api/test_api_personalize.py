@@ -4,25 +4,56 @@ import warnings
 import torch
 from numpy import nan
 import pandas as pd
+from typing import Optional, Union, List
+from unittest import skip, skipIf
 
 from leaspy import Data, Dataset, IndividualParameters
 
 from tests import LeaspyTestCase
 
+# Logistic parallel models are currently broken in Leaspy v2.
+# Flip to True to test with them.
+TEST_LOGISTIC_PARALLEL_MODELS = False
+SKIP_LOGISTIC_PARALLEL_MODELS = "Logistic parallel models are currently broken."
 
-class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
-    """Mixin holding generic personalization methods that may be safely reused in other tests (no actual test here)."""
+TEST_LOGISTIC_MODELS_WITH_JACOBIAN = False
+SKIP_LOGISTIC_MODELS_WITH_JACOBIAN = "Jacobian not implemented for logistic model."
+
+TEST_LOGISTIC_BINARY_MODELS = False
+SKIP_LOGISTIC_BINARY_MODELS = "Logistic binary models are currently broken."
+
+# Linear models are currently broken in Leaspy v2.
+# Flip to True to test with them.
+TEST_LINEAR_MODELS = False
+SKIP_LINEAR_MODELS = "Linear models are currently broken."
+
+# Ordinal observation models are not yet implemented in Leaspy v2.
+# Flip to True to test with them.
+TEST_ORDINAL_MODELS = False
+SKIP_ORDINAL_MODELS = "Ordinal observation models are not implemented yet."
+
+
+class LeaspyPersonalizeTestMixin(LeaspyTestCase):
+    """
+    Mixin holding generic personalization methods that may be safely
+    reused in other tests (no actual test here).
+    """
 
     @classmethod
-    def generic_personalization(cls, hardcoded_model_name: str, *,
-                                data_path: str = None, data_kws: dict = {},
-                                algo_path: str = None, algo_name: str = None, **algo_params):
+    def generic_personalization(
+        cls,
+        hardcoded_model_name: str,
+        *,
+        data_path: Optional[str] = None,
+        data_kws: Optional[dict] = None,
+        algo_path: Optional[str] = None,
+        algo_name: Optional[str] = None,
+        **algo_params,
+    ):
         """Helper for a generic personalization in following tests."""
-
-        # load saved model (hardcoded values)
+        data_kws = data_kws or {}
         leaspy = cls.get_hardcoded_model(hardcoded_model_name)
 
-        # load the right data
         if data_path is None:
             # automatic (main test data)
             data = cls.get_suited_test_data_for_model(hardcoded_model_name)
@@ -31,29 +62,33 @@ class LeaspyPersonalizeTest_Mixin(LeaspyTestCase):
             data_full_path = cls.get_test_data_path('data_mock', data_path)
             data = Data.from_csv_file(data_full_path, **data_kws)
 
-        # create the personalize algo settings (from path or name + params)
         algo_settings = cls.get_algo_settings(path=algo_path, name=algo_name, **algo_params)
-
-        # return results of personalization
         ips, loss = leaspy.personalize(data, settings=algo_settings, return_loss=True)
 
-        return ips, loss, leaspy # data?
+        return ips, loss, leaspy  # data?
 
-    def check_consistency_of_personalization_outputs(self, ips, loss, expected_loss, *,
-                                                     tol_loss = 5e-3, msg = None):
-
+    def check_consistency_of_personalization_outputs(
+        self,
+        ips: IndividualParameters,
+        loss: torch.Tensor,
+        expected_loss: Union[float, list[float]],
+        *,
+        tol_loss: Optional[float] = 5e-3,
+        msg=None,
+    ):
         self.assertIsInstance(ips, IndividualParameters)
         self.assertIsInstance(loss, torch.Tensor)
 
         if isinstance(expected_loss, float):
-            self.assertEqual(loss.numel(), 1, msg=msg) # scalar noise or neg-ll
+            self.assertEqual(loss.numel(), 1, msg=msg)  # scalar noise or neg-ll
             self.assertAlmostEqual(loss.item(), expected_loss, delta=tol_loss, msg=msg)
         else:
             # vector of noises (for Gaussian diagonal noise)
-            self.assertEqual(loss.numel(), len(expected_loss), msg=msg) # diagonal noise
+            self.assertEqual(loss.numel(), len(expected_loss), msg=msg)  # diagonal noise
             self.assertAllClose(loss, expected_loss, atol=tol_loss, what='noise', msg=msg)
 
-class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
+
+class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
 
     def test_personalize_mean_real_logistic_old(self, tol_noise=1e-3):
         """
@@ -63,235 +98,854 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
         # no real annealing is implemented for those perso algos. As a consequence regularity term
         # was not equally weighted during all the sampling of individual variables.
         # We test this old "buggy" behavior to check past consistency (but we raise a warning now)
-        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mean_real_old_with_annealing.json')
+        path_settings = self.get_test_data_path(
+            "settings", "algo", "settings_mean_real_old_with_annealing.json"
+        )
         with self.assertWarnsRegex(UserWarning, r'[Aa]nnealing'):
-            ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
-
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_loss=0.102, tol_loss=tol_noise)
+            ips, noise_std, _ = self.generic_personalization(
+                "logistic_scalar_noise", algo_path=path_settings
+            )
+        self.check_consistency_of_personalization_outputs(
+            ips,
+            noise_std,
+            expected_loss=0.102,
+            tol_loss=tol_noise,
+        )
 
     def test_personalize_mode_real_logistic_old(self, tol_noise=1e-3):
         """
         Load logistic model from file, and personalize it to data from ...
         """
         # cf. mean_real notice
-        path_settings = self.get_test_data_path('settings', 'algo', 'settings_mode_real_old_with_annealing.json')
+        path_settings = self.get_test_data_path(
+            "settings", "algo", "settings_mode_real_old_with_annealing.json"
+        )
         with self.assertWarnsRegex(UserWarning, r'[Aa]nnealing'):
-            ips, noise_std, _ = self.generic_personalization('logistic_scalar_noise', algo_path=path_settings)
+            ips, noise_std, _ = self.generic_personalization(
+                "logistic_scalar_noise", algo_path=path_settings
+            )
+        self.check_consistency_of_personalization_outputs(
+            ips,
+            noise_std,
+            expected_loss=0.117,
+            tol_loss=tol_noise,
+        )
 
-        self.check_consistency_of_personalization_outputs(ips, noise_std, expected_loss=0.117, tol_loss=tol_noise)
+    def _personalize_generic(
+        self,
+        model_name: str,
+        algo_name: str,
+        expected_loss: Union[float, List[float]],
+        algo_kws: Optional[dict] = None,
+        tol_noise: Optional[float] = 5e-4,
+    ):
+        algo_kws = algo_kws or {}
+        with warnings.catch_warnings(record=True) as ws:
+            warnings.simplefilter('always')
+            # only look at loss to detect any regression in personalization
+            ips, loss, _ = self.generic_personalization(model_name, algo_name=algo_name, seed=0, **algo_kws)
 
-    def test_personalize_comprehensive(self, tol_noise=5e-4):
-        """Tests different personalization algos for many hardcoded models."""
+        ws = [str(w.message) for w in ws]
+        if 'ordinal' in model_name:
+            self.assertEqual(len(ws), 1, msg=ws)
+            self.assertIn("Some features have missing codes", ws[0])
+        else:
+            self.assertEqual(ws, [])
 
-        mode_real_kws = dict()
-        mean_real_kws = dict()
+        tol_loss = tol_noise
+        # not noise but NLL (less precise...); some minor exact reproducibility issues MacOS vs. Linux
+        if 'binary' in model_name:
+            tol_loss = 0.1
+        elif 'ordinal_ranking' in model_name:
+            tol_loss = 0.5
+        elif 'ordinal' in model_name:
+            tol_loss = 3.0  # highest reprod. issues
 
-        for model_name, perso_name, perso_kws, expected_loss in [
+        self.check_consistency_of_personalization_outputs(
+            ips,
+            loss,
+            expected_loss=expected_loss,
+            tol_loss=tol_loss,
+            msg={
+                "model_name": model_name,
+                "perso_name": algo_name,
+                "perso_kws": algo_kws,
+            },
+        )
 
-            # multivariate logistic models (gaussian noise -> loss is noise scale)
-            ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),          0.1189),
-            #('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),           0.1188),
-            ('logistic_scalar_noise', 'mode_real', mode_real_kws,                          0.1191),
-            ('logistic_scalar_noise', 'mean_real', mean_real_kws,                          0.1200),
+    def test_multivariate_logistic_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_scalar_noise",
+            "scipy_minimize",
+            0.1189,
+            {"use_jacobian": False},
+        )
 
-            ('logistic_diag_noise_id', 'scipy_minimize', dict(use_jacobian=False),        [0.1414, 0.0806, 0.0812, 0.1531]),
-            #('logistic_diag_noise_id', 'scipy_minimize', dict(use_jacobian=True),         [0.1414, 0.0804, 0.0811, 0.1529]),
-            ('logistic_diag_noise_id', 'mode_real', mode_real_kws,                        [0.1415, 0.0814, 0.0810, 0.1532]),
-            ('logistic_diag_noise_id', 'mean_real', mean_real_kws,                        [0.1430, 0.0789, 0.0775, 0.1578]),
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_logistic_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_scalar_noise",
+            "scipy_minimize",
+            0.1188,
+            {"use_jacobian": True},
+        )
 
-            ('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=False),           [0.1543, 0.0597, 0.0827, 0.1509]),
-            #('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=True),            [0.1543, 0.0597, 0.0827, 0.1509]),
-            ('logistic_diag_noise', 'mode_real', mode_real_kws,                           [0.1596, 0.0598, 0.0824, 0.1507]),
-            ('logistic_diag_noise', 'mean_real', mean_real_kws,                           [0.1565, 0.0587, 0.0833, 0.1511]),
+    def test_multivariate_logistic_mode_real(self):
+        self._personalize_generic("logistic_scalar_noise", "mode_real", 0.1191)
 
-            # without source
-            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=False), [0.1053, 0.0404, 0.0699, 0.1992]),
-            #('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=True),  [0.1053, 0.0404, 0.0699, 0.1991]),
-            ('logistic_diag_noise_no_source', 'mode_real', mode_real_kws,                 [0.1053, 0.0404, 0.0700, 0.1990]),
-            ('logistic_diag_noise_no_source', 'mean_real', mean_real_kws,                 [0.1067, 0.0406, 0.0691, 0.1987]),
+    def test_multivariate_logistic_mean_real(self):
+        self._personalize_generic("logistic_scalar_noise", "mean_real", 0.1200)
 
-            ## multivariate logistic parallel models
-            #('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=False), 0.0960),
-            #('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),  0.0956),
-            #('logistic_parallel_scalar_noise', 'mode_real', mode_real_kws,                 0.0959),
-            #('logistic_parallel_scalar_noise', 'mean_real', mean_real_kws,                 0.0964),
-            #
-            #('logistic_parallel_diag_noise', 'scipy_minimize', dict(use_jacobian=False),  [0.0670, 0.0538, 0.1043, 0.1494]),
-            #('logistic_parallel_diag_noise', 'scipy_minimize', dict(use_jacobian=True),   [0.0669, 0.0538, 0.1043, 0.1494]),
-            #('logistic_parallel_diag_noise', 'mode_real', mode_real_kws,                  [0.0675, 0.0531, 0.1046, 0.1505]),
-            #('logistic_parallel_diag_noise', 'mean_real', mean_real_kws,                  [0.0671, 0.0553, 0.1040, 0.1509]),
+    def test_multivariate_logistic_diagonal_id_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_diag_noise_id",
+            "scipy_minimize",
+            [0.1414, 0.0806, 0.0812, 0.1531],
+            {"use_jacobian": False},
+        )
 
-            # univariate models
-            ('univariate_logistic', 'scipy_minimize', dict(use_jacobian=False),            0.1341),
-            #('univariate_logistic', 'scipy_minimize', dict(use_jacobian=True),             0.1341),
-            ('univariate_logistic', 'mode_real', mode_real_kws,                            0.1346),
-            ('univariate_logistic', 'mean_real', mean_real_kws,                            0.1351),
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_logistic_diagonal_id_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_diag_noise_id",
+            "scipy_minimize",
+            [0.1414, 0.0804, 0.0811, 0.1529],
+            {"use_jacobian": True},
+        )
 
-            #('univariate_linear', 'scipy_minimize', dict(use_jacobian=False),              0.0812),
-            #('univariate_linear', 'scipy_minimize', dict(use_jacobian=True),               0.0812),
-            #('univariate_linear', 'mode_real', mode_real_kws,                              0.0817),
-            #('univariate_linear', 'mean_real', mean_real_kws,                              0.0898),
+    def test_multivariate_logistic_diagonal_id_mode_real(self):
+        self._personalize_generic(
+            "logistic_diag_noise_id",
+            "mode_real",
+            [0.1415, 0.0814, 0.0810, 0.1532],
+        )
 
-            ## multivariate linear models
-            #('linear_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),            0.1241),
-            #('linear_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),             0.1241),
-            #('linear_scalar_noise', 'mode_real', mode_real_kws,                            0.1241),
-            #('linear_scalar_noise', 'mean_real', mean_real_kws,                            0.1237),
-            #
-            #('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=False),             [0.1003, 0.1274, 0.1249, 0.1486]),
-            #('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=True),              [0.1002, 0.1276, 0.1249, 0.1486]),
-            #('linear_diag_noise', 'mode_real', mode_real_kws,                             [0.1007, 0.1292, 0.1250, 0.1489]),
-            #('linear_diag_noise', 'mean_real', mean_real_kws,                             [0.1000, 0.1265, 0.1242, 0.1485]),
+    def test_multivariate_logistic_diagonal_id_mean_real(self):
+        self._personalize_generic(
+            "logistic_diag_noise_id",
+            "mean_real",
+            [0.1430, 0.0789, 0.0775, 0.1578],
+        )
 
-            ## multivariate binary model (loss is neg-ll)
-            #('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),                103.7),
-            #('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                 103.67),
-            #('logistic_binary', 'mode_real', mode_real_kws,                                103.96),
-            #('logistic_binary', 'mean_real', mean_real_kws,                                101.95),
+    def test_multivariate_logistic_diagonal_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_diag_noise",
+            "scipy_minimize",
+            [0.1543, 0.0597, 0.0827, 0.1509],
+            {"use_jacobian": False},
+        )
 
-            ## multivariate parallel binary model
-            #('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),       112.66),
-            #('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),        112.63),
-            #('logistic_parallel_binary', 'mode_real', mode_real_kws,                       111.96),
-            #('logistic_parallel_binary', 'mean_real', mean_real_kws,                       120.06),
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_logistic_diagonal_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_diag_noise",
+            "scipy_minimize",
+            [0.1543, 0.0597, 0.0827, 0.1509],
+            {"use_jacobian": True},
+        )
 
-            ## multivariate ordinal model (loss is neg-ll)
-            #('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=False),               700.55),
-            #('logistic_ordinal', 'scipy_minimize', dict(use_jacobian=True),                629.97),
-            #('logistic_ordinal', 'mode_real', mode_real_kws,                               619.64),
-            #('logistic_ordinal', 'mean_real', mean_real_kws,                               616.94),
+    def test_multivariate_logistic_diagonal_mode_real(self):
+        self._personalize_generic(
+            "logistic_diag_noise",
+            "mode_real",
+            [0.1596, 0.0598, 0.0824, 0.1507],
+        )
 
-            ## multivariate ordinal ranking model
-            #('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=False),       1014.2),
-            #('logistic_ordinal_ranking', 'scipy_minimize', dict(use_jacobian=True),        1014.1),
-            #('logistic_ordinal_ranking', 'mode_real', mode_real_kws,                       1014.9),
-            #('logistic_ordinal_ranking', 'mean_real', mean_real_kws,                       1015.0),
+    def test_multivariate_logistic_diagonal_mean_real(self):
+        self._personalize_generic(
+            "logistic_diag_noise",
+            "mean_real",
+            [0.1565, 0.0587, 0.0833, 0.1511],
+        )
 
-        ]:
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_logistic_diagonal_no_source_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_diag_noise_no_source",
+            "scipy_minimize",
+            [0.1053, 0.0404, 0.0699, 0.1991],
+            {"use_jacobian": True},
+        )
 
-            subtest = dict(model_name=model_name, perso_name=perso_name, perso_kws=perso_kws)
-            with self.subTest(**subtest):
+    def test_multivariate_logistic_diagonal_no_source_mode_real(self):
+        self._personalize_generic(
+            "logistic_diag_noise_no_source",
+            "mode_real",
+            [0.1053, 0.0404, 0.0700, 0.1990],
+        )
 
-                with warnings.catch_warnings(record=True) as ws:
-                    warnings.simplefilter('always')
-                    # only look at loss to detect any regression in personalization
-                    ips, loss, _ = self.generic_personalization(model_name, algo_name=perso_name, seed=0, **perso_kws)
+    def test_multivariate_logistic_diagonal_no_source_mean_real(self):
+        self._personalize_generic(
+            "logistic_diag_noise_no_source",
+            "mean_real",
+            [0.1067, 0.0406, 0.0691, 0.1987],
+        )
 
-                ws = [str(w.message) for w in ws]
-                if 'ordinal' in model_name:
-                    self.assertEqual(len(ws), 1, msg=ws)
-                    self.assertIn("Some features have missing codes", ws[0])
-                else:
-                    self.assertEqual(ws, [])
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_parallel_scalar_noise",
+            "scipy_minimize",
+            0.0960,
+            {"use_jacobian": False},
+        )
 
-                tol_loss = tol_noise
-                # not noise but NLL (less precise...); some minor exact reproducibility issues MacOS vs. Linux
-                if 'binary' in model_name:
-                    tol_loss = 0.1
-                elif 'ordinal_ranking' in model_name:
-                    tol_loss = 0.5
-                elif 'ordinal' in model_name:
-                    tol_loss = 3.0  # highest reprod. issues
+    @skipIf(
+        not TEST_LOGISTIC_PARALLEL_MODELS or not TEST_LOGISTIC_MODELS_WITH_JACOBIAN,
+        SKIP_LOGISTIC_PARALLEL_MODELS if TEST_LOGISTIC_MODELS_WITH_JACOBIAN else SKIP_LOGISTIC_MODELS_WITH_JACOBIAN
+    )
+    def test_multivariate_logistic_parallel_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_parallel_scalar_noise",
+            "scipy_minimize",
+            0.0956,
+            {"use_jacobian": True},
+        )
 
-                self.check_consistency_of_personalization_outputs(ips, loss, expected_loss=expected_loss,
-                                                                  tol_loss=tol_loss, msg=subtest)
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_mode_real(self):
+        self._personalize_generic(
+            "logistic_parallel_scalar_noise",
+            "mode_real",
+            0.0959,
+        )
 
-    def test_robustness_to_data_sparsity(self, rtol=2e-2, atol=5e-3):
-        """
-        In this test, we check that estimated individual parameters are almost same no matter if data is sparse
-        (i.e. multiple really close visits with many missing values) or data is 'merged' in a rounded visit.
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_mean_real(self):
+        self._personalize_generic(
+            "logistic_parallel_scalar_noise",
+            "mean_real",
+            0.0964,
+        )
 
-        TODO? we could build a mock dataset to also check same property for calibration :)
-        """
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_diagonal_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_parallel_diag_noise",
+            "scipy_minimize",
+            [0.0670, 0.0538, 0.1043, 0.1494],
+            {"use_jacobian": False},
+        )
 
-        mode_real_kws = dict()
-        mean_real_kws = dict()
+    @skipIf(
+        not TEST_LOGISTIC_PARALLEL_MODELS or not TEST_LOGISTIC_MODELS_WITH_JACOBIAN,
+        SKIP_LOGISTIC_PARALLEL_MODELS if TEST_LOGISTIC_MODELS_WITH_JACOBIAN else SKIP_LOGISTIC_MODELS_WITH_JACOBIAN
+    )
+    def test_multivariate_logistic_parallel_diagonal_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_parallel_diag_noise",
+            "scipy_minimize",
+            [0.0669, 0.0538, 0.1043, 0.1494],
+            {"use_jacobian": True},
+        )
 
-        for model_name, perso_name, perso_kws, expected_loss in [
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_diagonal_mode_real(self):
+        self._personalize_generic(
+            "logistic_parallel_diag_noise",
+            "mode_real",
+            [0.0675, 0.0531, 0.1046, 0.1505],
+        )
 
-            # multivariate logistic models (gaussian noise -> loss is noise scale)
-            ('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),          0.1161),
-            #('logistic_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),           0.1162),
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_diagonal_mean_real(self):
+        self._personalize_generic(
+            "logistic_parallel_diag_noise",
+            "mean_real",
+            [0.0671, 0.0553, 0.1040, 0.1509],
+        )
 
-            ('logistic_diag_noise_id', 'scipy_minimize', dict(use_jacobian=False),        [0.0865, 0.0358, 0.0564, 0.2049]),
-            #('logistic_diag_noise_id', 'scipy_minimize', dict(use_jacobian=True),         [0.0865, 0.0359, 0.0564, 0.2050]),
+    def test_univariate_logistic_scipy_minimize(self):
+        self._personalize_generic(
+            "univariate_logistic",
+            "scipy_minimize",
+            0.1341,
+            {"use_jacobian": False},
+        )
 
-            ('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=False),           [0.0824, 0.0089, 0.0551, 0.1819]),
-            #('logistic_diag_noise', 'scipy_minimize', dict(use_jacobian=True),            [0.0824, 0.0089, 0.0552, 0.1819]),
-            ('logistic_diag_noise', 'mode_real', mode_real_kws,                           [0.0937, 0.0126, 0.0587, 0.1831]),
-            ('logistic_diag_noise', 'mean_real', mean_real_kws,                           [0.0908, 0.0072, 0.0595, 0.1817]),
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_univariate_logistic_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "univariate_logistic",
+            "scipy_minimize",
+            0.1341,
+            {"use_jacobian": True},
+        )
 
-            # without source
-            ('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=False), [0.1349, 0.0336, 0.0760, 0.1777]),
-            #('logistic_diag_noise_no_source', 'scipy_minimize', dict(use_jacobian=True),  [0.1349, 0.0336, 0.0761, 0.1777]),
-            ('logistic_diag_noise_no_source', 'mode_real', mode_real_kws,                 [0.1339, 0.0356, 0.0754, 0.1761]),
-            ('logistic_diag_noise_no_source', 'mean_real', mean_real_kws,                 [0.1387, 0.0277, 0.0708, 0.1807]),
+    def test_univariate_logistic_mode_real(self):
+        self._personalize_generic(
+            "univariate_logistic",
+            "mode_real",
+            0.1346,
+        )
 
-            ## multivariate logistic parallel models
-            #('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=False), 0.1525),
-            #('logistic_parallel_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),  0.1872),
-            #('logistic_parallel_scalar_noise', 'mode_real', mode_real_kws,                 0.1517),
-            #('logistic_parallel_scalar_noise', 'mean_real', mean_real_kws,                 0.2079),
-            #
-            #('logistic_parallel_diag_noise', 'scipy_minimize', dict(use_jacobian=False),  [0.0178, 0.0120, 0.0509, 0.0939]),
-            #('logistic_parallel_diag_noise', 'scipy_minimize', dict(use_jacobian=True),   [0.0178, 0.0120, 0.0508, 0.0940]),
-            #('logistic_parallel_diag_noise', 'mode_real', mode_real_kws,                  [0.0193, 0.0179, 0.0443, 0.0971]),
-            #('logistic_parallel_diag_noise', 'mean_real', mean_real_kws,                  [0.0385, 0.0153, 0.0433, 0.3016]),
-            #
-            #('linear_scalar_noise', 'scipy_minimize', dict(use_jacobian=False),            0.1699),
-            #('linear_scalar_noise', 'scipy_minimize', dict(use_jacobian=True),             0.1699),
-            #
-            #('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=False),             [0.1021, 0.1650, 0.2083, 0.1481]),
-            #('linear_diag_noise', 'scipy_minimize', dict(use_jacobian=True),              [0.1023, 0.1630, 0.2081, 0.1480]),
-            #
-            ## binary models (loss is neg-ll)
-            #('logistic_binary', 'scipy_minimize', dict(use_jacobian=False),                8.4722),
-            #('logistic_binary', 'scipy_minimize', dict(use_jacobian=True),                 8.4718),
-            #
-            #('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=False),       8.8422),
-            #('logistic_parallel_binary', 'scipy_minimize', dict(use_jacobian=True),        8.8408),
-        ]:
+    def test_univariate_logistic_mean_real(self):
+        self._personalize_generic(
+            "univariate_logistic",
+            "mean_real",
+            0.1351,
+        )
 
-            subtest = dict(model_name=model_name, perso_name=perso_name, perso_kws=perso_kws)
-            with self.subTest(**subtest):
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_univariate_linear_scipy_minimize(self):
+        self._personalize_generic(
+            "univariate_linear",
+            "scipy_minimize",
+            0.0812,
+            {"use_jacobian": False},
+        )
 
-                common_params = dict(algo_name=perso_name, seed=0, **perso_kws)
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_univariate_linear_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "univariate_linear",
+            "scipy_minimize",
+            0.0812,
+            {"use_jacobian": True},
+        )
 
-                ips_sparse, loss_sparse, _ = self.generic_personalization(model_name, **common_params,
-                                                                           data_path='missing_data/sparse_data.csv',
-                                                                           data_kws={'drop_full_nan': False})
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_univariate_linear_mode_real(self):
+        self._personalize_generic(
+            "univariate_linear",
+            "mode_real",
+            0.0817,
+        )
 
-                ips_merged, loss_merged, _ = self.generic_personalization(model_name, **common_params,
-                                                                           data_path='missing_data/merged_data.csv')
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_univariate_linear_mean_real(self):
+        self._personalize_generic(
+            "univariate_linear",
+            "mean_real",
+            0.0898,
+        )
 
-                indices_sparse, ips_sparse_torch = ips_sparse.to_pytorch()
-                indices_merged, ips_merged_torch = ips_merged.to_pytorch()
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_multivariate_linear_scipy_minimize(self):
+        self._personalize_generic(
+            "linear_scalar_noise",
+            "scipy_minimize",
+            0.1241,
+            {"use_jacobian": False},
+        )
 
-                # same individuals
-                self.assertEqual(indices_sparse, indices_merged, msg=subtest)
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_multivariate_linear_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "linear_scalar_noise",
+            "scipy_minimize",
+            0.1241,
+            {"use_jacobian": True},
+        )
 
-                # same loss between both cases
-                loss_desc = 'nll' if any(kw in model_name for kw in {'binary', 'ordinal'}) else 'noise'
-                self.assertAllClose(loss_sparse, loss_merged, left_desc='sparse', right_desc='merged', what=loss_desc,
-                                    atol=atol, msg=subtest)
-                # same individual parameters (up to rounding errors)
-                self.assertDictAlmostEqual(ips_sparse_torch, ips_merged_torch, left_desc='sparse', right_desc='merged',
-                                           rtol=rtol, atol=atol, msg=subtest)
-                # same loss as expected
-                self.assertAllClose(loss_merged, expected_loss, atol=atol, what=loss_desc, msg=subtest)
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_multivariate_linear_mode_real(self):
+        self._personalize_generic(
+            "linear_scalar_noise",
+            "mode_real",
+            0.1241,
+        )
 
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_multivariate_linear_mean_real(self):
+        self._personalize_generic(
+            "linear_scalar_noise",
+            "mean_real",
+            0.1237,
+        )
+
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_multivariate_linear_diagonal_scipy_minimize(self):
+        self._personalize_generic(
+            "linear_diag_noise",
+            "scipy_minimize",
+            [0.1003, 0.1274, 0.1249, 0.1486],
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_multivariate_linear_diagonal_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "linear_diag_noise",
+            "scipy_minimize",
+            [0.1002, 0.1276, 0.1249, 0.1486],
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_multivariate_linear_diagonal_mode_real(self):
+        self._personalize_generic(
+            "linear_diag_noise",
+            "mode_real",
+            [0.1007, 0.1292, 0.1250, 0.1489],
+        )
+
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_multivariate_linear_diagonal_mean_real(self):
+        self._personalize_generic(
+            "linear_diag_noise",
+            "mean_real",
+            [0.1000, 0.1265, 0.1242, 0.1485],
+        )
+
+    @skipIf(not TEST_LOGISTIC_BINARY_MODELS, SKIP_LOGISTIC_BINARY_MODELS)
+    def test_multivariate_binary_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_binary",
+            "scipy_minimize",
+            103.7,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_binary_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_binary",
+            "scipy_minimize",
+            103.67,
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_LOGISTIC_BINARY_MODELS, SKIP_LOGISTIC_BINARY_MODELS)
+    def test_multivariate_binary_mode_real(self):
+        self._personalize_generic(
+            "logistic_binary",
+            "mode_real",
+            103.96,
+        )
+
+    @skipIf(not TEST_LOGISTIC_BINARY_MODELS, SKIP_LOGISTIC_BINARY_MODELS)
+    def test_multivariate_binary_mean_real(self):
+        self._personalize_generic(
+            "logistic_binary",
+            "mean_real",
+            101.95,
+        )
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_parallel_binary_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_parallel_binary",
+            "scipy_minimize",
+            112.66,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(
+        not TEST_LOGISTIC_PARALLEL_MODELS or not TEST_LOGISTIC_MODELS_WITH_JACOBIAN,
+        SKIP_LOGISTIC_PARALLEL_MODELS if TEST_LOGISTIC_MODELS_WITH_JACOBIAN else SKIP_LOGISTIC_MODELS_WITH_JACOBIAN
+    )
+    def test_multivariate_parallel_binary_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_parallel_binary",
+            "scipy_minimize",
+            112.63,
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_parallel_binary_mode_real(self):
+        self._personalize_generic(
+            "logistic_parallel_binary",
+            "mode_real",
+            111.96,
+        )
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_parallel_binary_mean_real(self):
+        self._personalize_generic(
+            "logistic_parallel_binary",
+            "mean_real",
+            120.06,
+        )
+
+    @skipIf(not TEST_ORDINAL_MODELS, SKIP_ORDINAL_MODELS)
+    def test_multivariate_ordinal_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_ordinal",
+            "scipy_minimize",
+            700.55,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_ORDINAL_MODELS, SKIP_ORDINAL_MODELS)
+    def test_multivariate_ordinal_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_ordinal",
+            "scipy_minimize",
+            629.97,
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_ORDINAL_MODELS, SKIP_ORDINAL_MODELS)
+    def test_multivariate_ordinal_mode_real(self):
+        self._personalize_generic(
+            "logistic_ordinal",
+            "mode_real",
+            619.64,
+        )
+
+    @skipIf(not TEST_ORDINAL_MODELS, SKIP_ORDINAL_MODELS)
+    def test_multivariate_ordinal_mean_real(self):
+        self._personalize_generic(
+            "logistic_ordinal",
+            "mean_real",
+            616.94,
+        )
+
+    @skipIf(not TEST_ORDINAL_MODELS, SKIP_ORDINAL_MODELS)
+    def test_multivariate_ordinal_ranking_scipy_minimize(self):
+        self._personalize_generic(
+            "logistic_ordinal_ranking",
+            "scipy_minimize",
+            1014.2,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_ORDINAL_MODELS, SKIP_ORDINAL_MODELS)
+    def test_multivariate_ordinal_ranking_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "logistic_ordinal_ranking",
+            "scipy_minimize",
+            1014.1,
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_ORDINAL_MODELS, SKIP_ORDINAL_MODELS)
+    def test_multivariate_ordinal_ranking_mode_real(self):
+        self._personalize_generic(
+            "logistic_ordinal_ranking",
+            "mode_real",
+            1014.9,
+        )
+
+    @skipIf(not TEST_ORDINAL_MODELS, SKIP_ORDINAL_MODELS)
+    def test_multivariate_ordinal_ranking_mean_real(self):
+        self._personalize_generic(
+            "logistic_ordinal_ranking",
+            "mean_real",
+            1015.0,
+        )
+
+
+class LeaspyPersonalizeRobustnessDataSparsityTest(LeaspyPersonalizeTestMixin):
+    """
+    In this test, we check that estimated individual parameters are almost the same
+    no matter if data is sparse (i.e. multiple really close visits with many missing
+    values) or data is 'merged' in a rounded visit.
+
+    TODO? we could build a mock dataset to also check same property for calibration :)
+    """
+    def _robustness_to_data_sparsity(
+        self,
+        model_name: str,
+        algo_name: str,
+        expected_loss: Union[float, list[float]],
+        algo_kws: Optional[dict] = None,
+        rtol: float = 2e-2,
+        atol: float = 5e-3,
+    ) -> None:
+        algo_kws = algo_kws or {}
+        subtest = {
+            "model_name": model_name,
+            "perso_name": algo_name,
+            "perso_kws": algo_kws,
+        }
+        common_params = dict(algo_name=algo_name, seed=0, **algo_kws)
+
+        ips_sparse, loss_sparse, _ = self.generic_personalization(
+            model_name,
+            **common_params,
+            data_path="missing_data/sparse_data.csv",
+            data_kws={'drop_full_nan': False},
+        )
+        ips_merged, loss_merged, _ = self.generic_personalization(
+            model_name,
+            **common_params,
+            data_path="missing_data/merged_data.csv",
+        )
+        indices_sparse, ips_sparse_torch = ips_sparse.to_pytorch()
+        indices_merged, ips_merged_torch = ips_merged.to_pytorch()
+
+        # same individuals
+        self.assertEqual(indices_sparse, indices_merged, msg=subtest)
+
+        # same loss between both cases
+        loss_desc = "nll" if any(kw in model_name for kw in {"binary", "ordinal"}) else "noise"
+        self.assertAllClose(
+            loss_sparse,
+            loss_merged,
+            left_desc="sparse",
+            right_desc="merged",
+            what=loss_desc,
+            atol=atol,
+            msg=subtest,
+        )
+
+        # same individual parameters (up to rounding errors)
+        self.assertDictAlmostEqual(
+            ips_sparse_torch,
+            ips_merged_torch,
+            left_desc="sparse",
+            right_desc="merged",
+            rtol=rtol,
+            atol=atol,
+            msg=subtest,
+        )
+
+        # same loss as expected
+        self.assertAllClose(loss_merged, expected_loss, atol=atol, what=loss_desc, msg=subtest)
+
+    def test_multivariate_logistic_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "logistic_scalar_noise",
+            "scipy_minimize",
+            0.1161,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_logistic_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "logistic_scalar_noise",
+            "scipy_minimize",
+            0.1162,
+            {"use_jacobian": True},
+        )
+
+    def test_multivariate_logistic_diagonal_id_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise_id",
+            "scipy_minimize",
+            [0.0865, 0.0358, 0.0564, 0.2049],
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_logistic_diagonal_id_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise_id",
+            "scipy_minimize",
+            [0.0865, 0.0359, 0.0564, 0.2050],
+            {"use_jacobian": True},
+        )
+
+    def test_multivariate_logistic_diagonal_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise",
+            "scipy_minimize",
+            [0.0824, 0.0089, 0.0551, 0.1819],
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_logistic_diagonal_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise",
+            "scipy_minimize",
+            [0.0824, 0.0089, 0.0552, 0.1819],
+            {"use_jacobian": True},
+        )
+
+    def test_multivariate_logistic_diagonal_mode_real(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise",
+            "mode_real",
+            [0.0937, 0.0126, 0.0587, 0.1831],
+        )
+
+    def test_multivariate_logistic_diagonal_mean_real(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise",
+            "mean_real",
+            [0.0908, 0.0072, 0.0595, 0.1817],
+        )
+
+    def test_multivariate_logistic_diagonal_no_source_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise_no_source",
+            "scipy_minimize",
+            [0.1349, 0.0336, 0.0760, 0.1777],
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_multivariate_logistic_diagonal_no_source_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise_no_source",
+            "scipy_minimize",
+            [0.1349, 0.0336, 0.0761, 0.1777],
+            {"use_jacobian": True},
+        )
+
+    def test_multivariate_logistic_diagonal_no_source_mode_real(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise_no_source",
+            "mode_real",
+            [0.1339, 0.0356, 0.0754, 0.1761],
+        )
+
+    def test_multivariate_logistic_diagonal_no_source_mean_real(self):
+        self._robustness_to_data_sparsity(
+            "logistic_diag_noise_no_source",
+            "mean_real",
+            [0.1387, 0.0277, 0.0708, 0.1807],
+        )
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "logistic_parallel_scalar_noise",
+            "scipy_minimize",
+            0.1525,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(
+        not TEST_LOGISTIC_PARALLEL_MODELS or not TEST_LOGISTIC_MODELS_WITH_JACOBIAN,
+        SKIP_LOGISTIC_PARALLEL_MODELS if TEST_LOGISTIC_MODELS_WITH_JACOBIAN else SKIP_LOGISTIC_MODELS_WITH_JACOBIAN
+    )
+    def test_multivariate_logistic_parallel_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "logistic_parallel_scalar_noise",
+            "scipy_minimize",
+            0.1872,
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_mode_real(self):
+        self._robustness_to_data_sparsity("logistic_parallel_scalar_noise", "mode_real", 0.1517)
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_mean_real(self):
+        self._robustness_to_data_sparsity("logistic_parallel_scalar_noise", "mean_real", 0.2079)
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_diagonal_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "logistic_parallel_diag_noise",
+            "scipy_minimize",
+            [0.0178, 0.0120, 0.0509, 0.0939],
+            {"use_jacobian": False},
+        )
+
+    @skipIf(
+        not TEST_LOGISTIC_PARALLEL_MODELS or not TEST_LOGISTIC_MODELS_WITH_JACOBIAN,
+        SKIP_LOGISTIC_PARALLEL_MODELS if TEST_LOGISTIC_MODELS_WITH_JACOBIAN else SKIP_LOGISTIC_MODELS_WITH_JACOBIAN
+    )
+    def test_multivariate_logistic_parallel_diagonal_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "logistic_parallel_diag_noise",
+            "scipy_minimize",
+            [0.0178, 0.0120, 0.0508, 0.0940],
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_diagonal_mode_real(self):
+        self._robustness_to_data_sparsity(
+            "logistic_parallel_diag_noise",
+            "mode_real",
+            [0.0193, 0.0179, 0.0443, 0.0971],
+        )
+
+    @skipIf(not TEST_LOGISTIC_PARALLEL_MODELS, SKIP_LOGISTIC_PARALLEL_MODELS)
+    def test_multivariate_logistic_parallel_diagonal_mean_real(self):
+        self._robustness_to_data_sparsity(
+            "logistic_parallel_diag_noise",
+            "mean_real",
+            [0.0385, 0.0153, 0.0433, 0.3016],
+        )
+
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_linear_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "linear_scalar_noise",
+            "scipy_minimize",
+            0.1699,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_linear_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "linear_scalar_noise",
+            "scipy_minimize",
+            0.1699,
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_linear_diagonal_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "linear_diag_noise",
+            "scipy_minimize",
+            [0.1021, 0.1650, 0.2083, 0.1481],
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    def test_linear_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "linear_diag_noise",
+            "scipy_minimize",
+            [0.1023, 0.1630, 0.2081, 0.1480],
+            {"use_jacobian": True},
+        )
+
+    @skipIf(not TEST_LOGISTIC_BINARY_MODELS, SKIP_LOGISTIC_BINARY_MODELS)
+    def test_logistic_binary_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "logistic_binary",
+            "scipy_minimize",
+            8.4722,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_BINARY_MODELS, SKIP_LOGISTIC_BINARY_MODELS)
+    def test_logistic_binary_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "logistic_binary",
+            "scipy_minimize",
+            8.4718,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_BINARY_MODELS, SKIP_LOGISTIC_BINARY_MODELS)
+    def test_logistic_parallel_binary_scipy_minimize(self):
+        self._robustness_to_data_sparsity(
+            "logistic_parallel_binary",
+            "scipy_minimize",
+            8.8422,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_BINARY_MODELS, SKIP_LOGISTIC_BINARY_MODELS)
+    def test_logistic_parallel_binary_scipy_minimize_with_jacobian(self):
+        self._robustness_to_data_sparsity(
+            "logistic_parallel_binary",
+            "scipy_minimize",
+            8.8408,
+            {"use_jacobian": False},
+        )
+
+
+class LeaspyPersonalizeWithNansTest(LeaspyPersonalizeTestMixin):
     def test_personalize_full_nan(self, *, general_tol=1e-3):
         # test result of personalization with no data at all
-        df = pd.DataFrame({
-            'ID': ['SUBJ1', 'SUBJ1'],
-            'TIME': [75.12, 78.9],
-            'Y0': [nan]*2,
-            'Y1': [nan]*2,
-            'Y2': [nan]*2,
-            'Y3': [nan]*2,
-        }).set_index(['ID', 'TIME'])
+        df = pd.DataFrame(
+            {
+                "ID": ["SUBJ1", "SUBJ1"],
+                "TIME": [75.12, 78.9],
+                "Y0": [nan] * 2,
+                "Y1": [nan] * 2,
+                "Y2": [nan] * 2,
+                "Y3": [nan] * 2,
+            }
+        ).set_index(["ID", "TIME"])
 
-        lsp = self.get_hardcoded_model('logistic_diag_noise')
+        lsp = self.get_hardcoded_model("logistic_diag_noise")
 
         for perso_algo, perso_kws, coeff_tol_per_param_std in [
 
@@ -345,7 +999,13 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTest_Mixin):
                 # we have no information so high incertitude when stochastic perso algo
                 from leaspy.variables.specs import IndividualLatentVariable
                 allclose_custom = {
-                    p: dict(atol=math.ceil(coeff_tol_per_param_std * lsp.model.parameters[f'{p}_std'].item() / general_tol) * general_tol)
+                    p: dict(
+                        atol=(
+                            math.ceil(
+                                coeff_tol_per_param_std * lsp.model.parameters[f'{p}_std'].item() / general_tol
+                            ) * general_tol
+                        )
+                    )
                     for p in lsp.model.dag.sorted_variables_by_type[IndividualLatentVariable]
                 }
                 self.assertDictAlmostEqual(dict_1, {

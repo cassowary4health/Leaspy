@@ -3,7 +3,7 @@ from unittest import skip
 from typing import Optional, Union, List
 
 from .test_api_fit import LeaspyFitTest_Mixin
-from .test_api_personalize import LeaspyPersonalizeTest_Mixin
+from .test_api_personalize import LeaspyPersonalizeTestMixin
 from .test_api_simulate import LeaspySimulateTest_Mixin
 
 # Simulation algos are broken for now due to new observation models
@@ -11,7 +11,7 @@ from .test_api_simulate import LeaspySimulateTest_Mixin
 RUN_SIMULATION_TESTS = False
 
 
-class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTest_Mixin, LeaspySimulateTest_Mixin):
+class LeaspyAPITest(LeaspyFitTest_Mixin, LeaspyPersonalizeTestMixin, LeaspySimulateTest_Mixin):
 
     def generic_usecase(
         self,

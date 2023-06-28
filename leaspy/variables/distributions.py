@@ -11,6 +11,7 @@ from torch.autograd import grad
 from leaspy.utils.functional import NamedInputFunction
 from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
 from leaspy.exceptions import LeaspyInputError
+from leaspy.utils.distributions import MultinomialDistribution
 
 
 class StatelessDistributionFamily(ABC):
@@ -202,6 +203,12 @@ class BernoulliFamily(StatelessDistributionFamilyFromTorchDistribution):
     dist_factory: ClassVar = torch.distributions.Bernoulli
 
 
+class OrdinalFamily(StatelessDistributionFamilyFromTorchDistribution):
+    """Ordinal family (stateless)."""
+    parameters: ClassVar = ()
+    dist_factory: ClassVar = MultinomialDistribution.from_pdf
+
+
 class NormalFamily(StatelessDistributionFamilyFromTorchDistribution):
     """Normal / Gaussian family (stateless)."""
 
@@ -350,6 +357,7 @@ class SymbolicDistribution:
 
 Normal = SymbolicDistribution.bound_to(NormalFamily)
 Bernoulli = SymbolicDistribution.bound_to(BernoulliFamily)
+Ordinal = SymbolicDistribution.bound_to(OrdinalFamily)
 
 
 # INLINE UNIT TESTS

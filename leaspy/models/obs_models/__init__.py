@@ -1,6 +1,7 @@
 from .base import ObservationModel
 from .gaussian import GaussianObs, FullGaussianObs
 from .bernoulli import BernoulliObservationModel
+from.ordinal import OrdinalObservationModel
 
 
 __all__ = [
@@ -8,4 +9,5 @@ __all__ = [
     "FullGaussianObs",
     "GaussianObs",
     "ObservationModel",
+    "OrdinalObservationModel",
 ]

@@ -294,6 +294,61 @@ Internal classes used for random variables in :term:`MCMC` algorithms.
 
     realization_factory
 
+:mod:`leaspy.utils`: **Utilities**
+==================================
+
+Leaspy module for utilities.
+
+:mod:`leaspy.utils.functional`: **Functional**
+----------------------------------------------
+
+.. currentmodule:: leaspy.utils.functional
+
+.. autosummary::
+    :toctree: generated/
+    :template: class.rst
+
+    Exp
+    Identity
+    MatMul
+    Mean
+    NamedInputFunction
+    OrthoBasis
+    Prod
+    Sqr
+    Std
+    Sum
+    SumDim
+
+.. autosummary::
+    :toctree: generated/
+    :template: function.rst
+
+    get_named_parameters
+
+:mod:`leaspy.utils.weighted_tensor`: **Weighted Tensors**
+---------------------------------------------------------
+
+.. currentmodule:: leaspy.utils.weighted_tensor
+
+.. autosummary::
+    :toctree: generated/
+    :template: class.rst
+
+    WeightedTensor
+
+.. autosummary::
+    :toctree: generated/
+    :template: function.rst
+
+    expand_left
+    expand_right
+    factory_weighted_tensor_unary_operator
+    sum_dim
+    unsqueeze_right
+    wsum_dim
+
+
 :mod:`leaspy.exceptions`: **Exceptions**
 ========================================
 

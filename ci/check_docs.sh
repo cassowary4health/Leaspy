@@ -3,7 +3,7 @@
 
 # Check no missing *.rst file in docs/
 rst_files=$(find docs -name "leaspy*.rst" | sed -E 's@^docs/@@g' | sed -E 's@.rst$@@g' | sort)
-py_modules=$(find leaspy -name "*.py" -not -path "*/_legacy/*" | sed -E 's@(/__init__)?\.py@@g' | sed -E 's@/@.@g' | sort)
+py_modules=$(find leaspy -name "*.py" -not -path "*/_legacy/*" -not -name "_[a-zA-Z]*" | sed -E 's@(/__init__)?\.py@@g' | sed -E 's@/@.@g' | sort)
 
 if [[ $rst_files != $py_modules ]]; then
 

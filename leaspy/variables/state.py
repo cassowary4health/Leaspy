@@ -18,7 +18,7 @@ from leaspy.variables.specs import (
     IndividualLatentVariable,
     LatentVariableInitType,
 )
-from leaspy.utils.functional import unsqueeze_right
+from leaspy.utils.weighted_tensor import unsqueeze_right
 from leaspy.variables.dag import VariablesDAG
 from leaspy.exceptions import LeaspyInputError
 

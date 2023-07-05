@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import wraps
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union, Callable, TypeVar, Generic
 import operator
@@ -307,25 +306,3 @@ for cmp_name in ("lt", "le", "eq", "ne", "gt", "ge"):
         f"__{cmp_name}__",
         _factory_for_binary_operator(cmp_name, fill_value=None),
     )  # float('nan')
-
-
-def factory_weighted_tensor_unary_op(
-    f: Callable[[torch.Tensor], torch.Tensor],
-    *,
-    fill_value: Optional[VT] = None,
-) -> Callable[[TensorOrWeightedTensor[VT]], TensorOrWeightedTensor[VT]]:
-    """Factory/decorator to create a weighted-tensor compatible function from the provided unary-tensor function."""
-
-    @wraps(f)
-    def f_compatible(
-        x: TensorOrWeightedTensor[VT], *args, **kws
-    ) -> TensorOrWeightedTensor[VT]:
-        if not isinstance(x, WeightedTensor):
-            return f(x, *args, **kws)
-        r = f(x.filled(fill_value), *args, **kws)
-        conv = x.valued
-        if isinstance(r, (tuple, list, set, frozenset)):
-            return type(r)(map(conv, r))
-        return conv(r)
-
-    return f_compatible

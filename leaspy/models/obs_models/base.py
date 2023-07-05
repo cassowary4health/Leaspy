@@ -13,11 +13,8 @@ from dataclasses import dataclass
 
 
 from leaspy.variables.distributions import SymbolicDistribution
-from leaspy.utils.weighted_tensor import WeightedTensor
-from leaspy.utils.functional import (
-    sum_dim,
-    SumDim,
-)
+from leaspy.utils.weighted_tensor import WeightedTensor, sum_dim
+from leaspy.utils.functional import SumDim
 from leaspy.variables.specs import (
     VarName,
     VariableInterface,

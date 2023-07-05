@@ -8,13 +8,8 @@ import torch
 
 from leaspy.models.utilities import compute_std_from_variance
 from leaspy.variables.distributions import Normal
-from leaspy.utils.weighted_tensor import WeightedTensor
-from leaspy.utils.functional import (
-    sum_dim,
-    wsum_dim,
-    Sqr,
-    Prod,
-)
+from leaspy.utils.weighted_tensor import WeightedTensor, sum_dim, wsum_dim
+from leaspy.utils.functional import Sqr, Prod
 from leaspy.variables.specs import (
     VarName,
     VariableInterface,

@@ -3,7 +3,7 @@ import torch
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.io.data.dataset import Dataset
 
-from leaspy.utils.docs import doc_with_super #, doc_with_
+from leaspy.utils.docs import doc_with_super  # doc_with_
 # from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
 
@@ -18,12 +18,9 @@ from leaspy.variables.specs import (
     VariablesValuesRO,
 )
 from leaspy.variables.distributions import Normal
-from leaspy.utils.functional import (
-    Exp,
-    Sqr,
-    OrthoBasis,
-    unsqueeze_right,
-)
+from leaspy.utils.functional import Exp, Sqr, OrthoBasis
+from leaspy.utils.weighted_tensor import unsqueeze_right
+
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either

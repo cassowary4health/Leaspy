@@ -10,6 +10,8 @@ Submodules
    leaspy.utils.docs
    leaspy.utils.subtypes
    leaspy.utils.typing
+   leaspy.utils.functional
+   leaspy.utils.weighted_tensor
 
 Module contents
 ---------------

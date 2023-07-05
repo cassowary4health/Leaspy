@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import torch
 from abc import abstractmethod
 from enum import Enum, auto
 from dataclasses import dataclass, field
@@ -17,8 +18,6 @@ from collections import UserDict
 
 from leaspy.utils.functional import (
     get_named_parameters,
-    expand_left,
-    sum_dim,
     Identity,
     Sum,
     SumDim,
@@ -28,7 +27,7 @@ from leaspy.utils.functional import (
     NamedInputFunction,
 )
 from leaspy.models.utilities import compute_ind_param_std_from_suff_stats
-from leaspy.utils.weighted_tensor import torch, TensorOrWeightedTensor, WeightedTensor
+from leaspy.utils.weighted_tensor import TensorOrWeightedTensor, WeightedTensor, sum_dim, expand_left
 from leaspy.variables.distributions import SymbolicDistribution
 from leaspy.utils.typing import KwargsType
 from leaspy.exceptions import LeaspyModelInputError

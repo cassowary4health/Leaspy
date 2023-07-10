@@ -7,6 +7,7 @@ from leaspy.io.data.dataset import Dataset
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 from leaspy.models.noise_models import NOISE_MODELS
+from leaspy.models import BaseModel
 
 from tests import LeaspyTestCase
 
@@ -67,32 +68,31 @@ class ScipyMinimizeTest(LeaspyTestCase):
         self.assertEqual(algo.format_convergence_issues, ScipyMinimize.DEFAULT_FORMAT_CONVERGENCE_ISSUES)
         self.assertEqual(algo.logger, algo._default_logger)
 
-
     def test_custom_constructor(self):
-
         def custom_logger(msg: str):
             pass
 
-        custom_format_convergence_issues="{patient_id}: {optimization_result_pformat}..."
-        custom_scipy_minimize_params={
-                                      'method': 'BFGS',
-                                      'options': {'gtol': 5e-2, 'maxiter': 100}
-                                     }
-
-        settings = AlgorithmSettings('scipy_minimize',
-                                     seed=24,
-                                     custom_format_convergence_issues=custom_format_convergence_issues,
-                                     custom_scipy_minimize_params=custom_scipy_minimize_params)
+        custom_format_convergence_issues = "{patient_id}: {optimization_result_pformat}..."
+        custom_scipy_minimize_params = {
+            "method": "BFGS",
+            "options": {
+                "gtol": 5e-2,
+                "maxiter": 100,
+            },
+        }
+        settings = AlgorithmSettings(
+            "scipy_minimize",
+            seed=24,
+            custom_format_convergence_issues=custom_format_convergence_issues,
+            custom_scipy_minimize_params=custom_scipy_minimize_params,
+        )
         settings.logger = custom_logger
-
         algo = ScipyMinimize(settings)
         self.assertEqual(algo.name, 'scipy_minimize')
         self.assertEqual(algo.seed, 24)
-
         self.assertEqual(algo.format_convergence_issues, custom_format_convergence_issues)
         self.assertEqual(algo.scipy_minimize_params, custom_scipy_minimize_params)
         self.assertIs(algo.logger, custom_logger)
-
 
     #def test_get_model_name(self):
     #    settings = AlgorithmSettings('scipy_minimize')
@@ -112,7 +112,15 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
         multivariate_model = self.get_hardcoded_model('logistic_scalar_noise')
         param = algo._initialize_parameters(multivariate_model.model)
-        self.assertEqual(param, [torch.tensor([0.0]), torch.tensor([75.2/7.1]), torch.tensor([0.]), torch.tensor([0.])])
+        self.assertEqual(
+            param,
+            [
+                torch.tensor([0.0]),
+                torch.tensor([75.2/7.1]),
+                torch.tensor([0.]),
+                torch.tensor([0.]),
+            ]
+        )
 
     def test_fallback_without_jacobian(self):
         model = self.get_hardcoded_model('logistic_scalar_noise').model
@@ -170,8 +178,11 @@ class ScipyMinimizeTest(LeaspyTestCase):
             z0 = [0.0, 75.2/7.1, 0., 0.]  # for all individual parameters we set `mean/std`
             individual_parameters = algo._pull_individual_parameters(z0, leaspy.model)
             expected_reg = torch.tensor([0.])
-            expected_reg_grads = {'tau': torch.tensor([[0.]]), 'xi': torch.tensor([[0.]]), 'sources': torch.tensor([[0., 0.]])}
-
+            expected_reg_grads = {
+                "tau": torch.tensor([[0.]]),
+                "xi": torch.tensor([[0.]]),
+                "sources": torch.tensor([[0., 0.]]),
+            }
             reg, reg_grads = algo._get_regularity(leaspy.model, individual_parameters)
             self.assertTrue(torch.is_tensor(reg))
             self.assertEqual(reg.shape, expected_reg.shape)
@@ -195,18 +206,19 @@ class ScipyMinimizeTest(LeaspyTestCase):
             reg, _ = algo._get_regularity(leaspy.model, individual_parameters)
             self.assertAllClose(reg, [expected_reg])
 
-    def _get_individual_dataset_from_times_values(self, model, times, values):
+    def _get_individual_dataset_from_times_values(self, model: BaseModel, times, values) -> Dataset:
         times = np.array(times)
         values = np.array(values)
-        df = pd.DataFrame({
-            'ID': ['ID1']*len(times),
-            'TIME': times,
-            **{ft: values[:, i] for i, ft in enumerate(model.features)}
-        })
+        df = pd.DataFrame(
+            {
+                "ID": ["ID1"] * len(times),
+                "TIME": times,
+                **{feature: values[:, i] for i, feature in enumerate(model.features)}
+            }
+        )
         return Dataset(Data.from_dataframe(df), no_warning=True)
 
     def test_obj(self):
-
         settings = AlgorithmSettings('scipy_minimize')
         algo = ScipyMinimize(settings)
 
@@ -241,17 +253,24 @@ class ScipyMinimizeTest(LeaspyTestCase):
             self.assertAlmostEqual(obj, expected_obj, delta=1e-4)
 
             self.assertIsInstance(obj_grads, torch.Tensor)
-            self.assertEqual(obj_grads.shape, (2+leaspy.model.source_dimension,))
+            self.assertEqual(obj_grads.shape, (2 + leaspy.model.source_dimension,))
             self.assertAllClose(obj_grads, expected_obj_grads, atol=1e-4)
 
-
-    def get_individual_parameters_patient(self, model_name, times, values, *, noise_model = None, **algo_kwargs):
+    def get_individual_parameters_patient(
+        self,
+        model_name: str,
+        times,
+        values,
+        *,
+        noise_model = None,
+        **algo_kwargs,
+    ):
         # already a functional test in fact...
         leaspy = self.get_hardcoded_model(model_name)
         if noise_model is not None:
             leaspy.model.noise_model = noise_model
 
-        settings = AlgorithmSettings('scipy_minimize', seed=0, **algo_kwargs)
+        settings = AlgorithmSettings("scipy_minimize", seed=0, **algo_kwargs)
         algo = ScipyMinimize(settings)
 
         # manually initialize seed since it's not done by algo itself (no call to run afterwards)
@@ -259,7 +278,11 @@ class ScipyMinimizeTest(LeaspyTestCase):
         self.assertEqual(algo.seed, np.random.get_state()[1][0])
 
         dataset = self._get_individual_dataset_from_times_values(leaspy.model, times, values)
-        pyt_ips, loss = algo._get_individual_parameters_patient(leaspy.model, dataset, with_jac=algo_kwargs['use_jacobian'])
+        pyt_ips, loss = algo._get_individual_parameters_patient(
+            leaspy.model,
+            dataset,
+            with_jac=algo_kwargs["use_jacobian"],
+        )
         nll_regul = algo._get_regularity(leaspy.model, pyt_ips)[0]
         preds = leaspy.model.compute_individual_tensorized(dataset.timepoints, pyt_ips)
 

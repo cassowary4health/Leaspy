@@ -7,7 +7,7 @@ from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.models.noise_models import NOISE_MODELS
 
 # <!> NEVER import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
-from tests.unit_tests.models.test_univariate_model import ManifoldModelTest_Mixin
+from tests.unit_tests.models.test_univariate_model import ManifoldModelTestMixin
 
 
 @dataclass
@@ -18,8 +18,8 @@ class MockDataset:
         self.dimension = len(self.headers)
 
 
-@ManifoldModelTest_Mixin.allow_abstract_class_init(AbstractMultivariateModel)
-class AbstractMultivariateModelTest(ManifoldModelTest_Mixin):
+@ManifoldModelTestMixin.allow_abstract_class_init(AbstractMultivariateModel)
+class AbstractMultivariateModelTest(ManifoldModelTestMixin):
 
     def test_constructor_abstract_multivariate(self):
         """

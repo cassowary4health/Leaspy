@@ -18,10 +18,10 @@ from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
 # <!> NEVER import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
 from tests.functional_tests.api.test_api_fit import LeaspyFitTest_Mixin
-from tests.unit_tests.models.test_model_factory import ModelFactoryTest_Mixin
+from tests.unit_tests.models.test_model_factory import ModelFactoryTestMixin
 
 
-class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTest_Mixin):
+class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
     model_names = (
         "univariate_logistic",
         # "univariate_linear",

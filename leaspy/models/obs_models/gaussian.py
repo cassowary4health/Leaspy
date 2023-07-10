@@ -20,6 +20,7 @@ from leaspy.variables.specs import (
 )
 from leaspy.io.data.dataset import Dataset
 from .base import ObservationModel
+from leaspy.variables.state import State
 
 
 class GaussianObs(ObservationModel):
@@ -81,7 +82,7 @@ class FullGaussianObs(GaussianObs):
     def scalar_noise_std_update(
         cls,
         *,
-        state,
+        state: State,
         y_x_model: WeightedTensor[float],
         model_x_model: WeightedTensor[float],
     ) -> torch.Tensor:
@@ -102,7 +103,7 @@ class FullGaussianObs(GaussianObs):
     def diagonal_noise_std_update(
         cls,
         *,
-        state,
+        state: State,
         y_x_model: WeightedTensor[float],
         model_x_model: WeightedTensor[float],
     ) -> torch.Tensor:

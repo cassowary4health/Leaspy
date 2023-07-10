@@ -24,7 +24,10 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class _AffineScaling:
-    """Affine scaling used for individual latent variables, so that gradients are of the same order of magnitude in scipy minimize."""
+    """
+    Affine scaling used for individual latent variables, so that gradients
+    are of the same order of magnitude in scipy minimize.
+    """
     loc: torch.Tensor
     scale: torch.Tensor
 
@@ -49,7 +52,10 @@ class _AffineScaling:
 
 @dataclass
 class _AffineScalings1D:
-    """Util class to deal with scaled 1D tensors, that are concatenated together in a single 1D tensor (in order)."""
+    """
+    Util class to deal with scaled 1D tensors, that are concatenated
+    together in a single 1D tensor (in order).
+    """
     scalings: Dict[VarName, _AffineScaling]
     slices: Dict[VarName, slice] = field(init=False, repr=False, compare=False)
     length: int = field(init=False, repr=False, compare=False)
@@ -75,7 +81,10 @@ class _AffineScalings1D:
         return np.zeros(len(self), dtype=dtype, **kws)
 
     def pull(self, x: np.ndarray) -> Dict[VarName, torch.Tensor]:
-        """Pull dictionary of values (in their natural scale) from the concatenated 1D tensor of scaled values provided."""
+        """
+        Pull dictionary of values (in their natural scale) from the concatenated
+        1D tensor of scaled values provided.
+        """
         return {
             # unsqueeze 1 dimension at left
             n: scl.loc + scl.scale * torch.tensor(x[None, self.slices[n]]).float()
@@ -84,7 +93,10 @@ class _AffineScalings1D:
 
     @classmethod
     def from_state(cls, state: State, var_type: Type[LatentVariable]) -> _AffineScalings1D:
-        """Get the affine scalings of latent variables so their gradients have the same order of magnitude during optimization."""
+        """
+        Get the affine scalings of latent variables so their gradients have the same
+        order of magnitude during optimization.
+        """
         return cls({
             var_name: _AffineScaling.from_latent_variable(var, state)
             for var_name, var in state.dag.sorted_variables_by_type[var_type].items()
@@ -175,7 +187,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         if not self.scipy_minimize_params.get('method', 'BFGS').upper() == 'BFGS':
             print('\n' + msg + '\n')
 
-    def _get_normalized_grad_tensor_from_grad_dict(self, dict_grad_tensors: DictParamsTorch, model: AbstractModel):
+    def _get_normalized_grad_tensor_from_grad_dict(
+        self,
+        dict_grad_tensors: DictParamsTorch,
+        model: AbstractModel,
+    ):
         """
         From a dict of gradient tensors per param (without normalization),
         returns the full tensor of gradients (= for all params, consecutively):
@@ -192,7 +208,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return torch.cat(to_cat, dim=-1) # 1 individual at a time
 
-    def _get_regularity(self, model: AbstractModel, individual_parameters: DictParamsTorch):
+    def _get_regularity(
+        self,
+        model: AbstractModel,
+        individual_parameters: DictParamsTorch,
+    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
         Compute the regularity term (and its gradient) of a patient given his individual parameters for a given model.
 
@@ -220,7 +240,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
     def obj_no_jac(self, x: np.ndarray, state: State, scaling: _AffineScalings1D) -> float:
         """
-        Objective loss function to minimize in order to get patient's individual parameters
+        Objective loss function to minimize in order to get patient's individual parameters.
 
         Parameters
         ----------
@@ -241,13 +261,13 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ips = scaling.pull(x)
         for ip, ip_val in ips.items():
             state[ip] = ip_val
-
         loss = state["nll_attach"] + self.regularity_factor * state["nll_regul_ind_sum"]
         return loss.item()
 
     def obj_with_jac(self, x: np.ndarray, state: State, scaling: _AffineScalings1D) -> Tuple[float, torch.Tensor]:
         """
-        Objective loss function to minimize in order to get patient's individual parameters, together with its jacobian w.r.t to each of `x` dimension.
+        Objective loss function to minimize in order to get patient's individual parameters,
+        together with its jacobian w.r.t to each of `x` dimension.
 
         Parameters
         ----------
@@ -296,7 +316,14 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         return nll.item(), nll_grads
 
-    def _get_individual_parameters_patient(self, state: State, *, scaling: _AffineScalings1D, with_jac: bool, patient_id: str):
+    def _get_individual_parameters_patient(
+        self,
+        state: State,
+        *,
+        scaling: _AffineScalings1D,
+        with_jac: bool,
+        patient_id: str,
+    ) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
         """
         Compute the individual parameter by minimizing the objective loss function with scipy solver.
 
@@ -320,7 +347,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             Model canonical loss (content & shape depend on noise model).
             TODO
         """
-
         obj = self.obj_with_jac if with_jac else self.obj_no_jac
         res = minimize(
             obj,
@@ -329,15 +355,15 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             args=(state, scaling),
             **self.scipy_minimize_params
         )
-
         pyt_individual_params = scaling.pull(res.x)
         # TODO/WIP: we may want to return residuals MAE or RMSE instead (since nll is not very interpretable...)
-        #loss = model.compute_canonical_loss_tensorized(patient_dataset, pyt_individual_params)
+        # loss = model.compute_canonical_loss_tensorized(patient_dataset, pyt_individual_params)
         loss = self.obj_no_jac(res.x, state, scaling)
 
         if not res.success and self.logger:
             # log full results if optimization failed
-            # including mean of reconstruction loss for this subject on all his personalization visits, but per feature
+            # including mean of reconstruction loss for this subject on all his
+            # personalization visits, but per feature
             res['reconstruction_loss'] = loss
             res['individual_parameters'] = pyt_individual_params
 
@@ -407,7 +433,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         #except NotImplementedError:
         #    return False
 
-    def _get_individual_parameters(self, model: AbstractModel, dataset: Dataset):
+    def _get_individual_parameters(self, model: AbstractModel, dataset: Dataset) -> IndividualParameters:
         """
         Compute individual parameters of all patients given a leaspy model & a leaspy dataset.
 
@@ -423,7 +449,6 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         :class:`.IndividualParameters`
             Contains the individual parameters of all patients.
         """
-
         # Easier to pass a Dataset with 1 individual rather than individual times, values
         # to avoid duplicating code in noise model especially
         df = dataset.to_pandas()
@@ -453,8 +478,11 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         # optimize by sending exact gradient of optimized function?
         with_jac = self.algo_parameters['use_jacobian']
         if with_jac and not self.is_jacobian_implemented(model):
-            warnings.warn('In `scipy_minimize` you requested `use_jacobian=True` but it is not implemented in your model'
-                          f'"{model.name}". Falling back to `use_jacobian=False`...')
+            warnings.warn(
+                "In `scipy_minimize` you requested `use_jacobian=True` but it "
+                f"is not implemented in your model {model.name}. "
+                "Falling back to `use_jacobian=False`..."
+            )
             with_jac = False
             if self.algo_parameters.get("custom_scipy_minimize_params", None) is None:
                 # reset default `scipy_minimize_params`

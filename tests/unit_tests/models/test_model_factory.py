@@ -2,7 +2,7 @@ from unittest import skipIf
 
 from leaspy.models import ALL_MODELS, UnivariateModel
 from leaspy.models.factory import ModelFactory
-from leaspy.models.obs_models import FullGaussianObs
+from leaspy.models.obs_models import FullGaussianObservationModel
 
 from tests import LeaspyTestCase
 
@@ -57,7 +57,7 @@ class ModelFactoryTest(ModelFactoryTestMixin):
     def _generic_univariate_hyperparameters_checker(self, model_name: str) -> None:
         model = ModelFactory.model(model_name, features=["t1"])
         self.assertEqual(model.features, ["t1"])
-        self.assertIsInstance(model.obs_models[0], FullGaussianObs)
+        self.assertIsInstance(model.obs_models[0], FullGaussianObservationModel)
         self.assertEqual(model.dimension, 1)
         self.assertEqual(model.source_dimension, 0)
         # inconsistent features for a univariate model (dimension=1)
@@ -79,7 +79,7 @@ class ModelFactoryTest(ModelFactoryTestMixin):
             dimension=3,
         )
         self.assertEqual(model.features, ["t1", "t2", "t3"])
-        self.assertIsInstance(model.obs_models[0], FullGaussianObs)
+        self.assertIsInstance(model.obs_models[0], FullGaussianObservationModel)
         self.assertEqual(model.dimension, 3)  # TODO: automatic from length of features?
         self.assertEqual(model.source_dimension, 2)
         with self.assertRaisesRegex(ValueError, r"(?i)\bhyperparameters\b.+\bblabla\b"):

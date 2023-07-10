@@ -81,3 +81,7 @@ class ObservationModel:
         """Nice representation of instance without its name (should be JSON exportable)."""
         # TODO: dirty for now to go fast
         return repr(self.dist)
+
+    def to_dict(self) -> dict:
+        """To be implemented..."""
+        return {}

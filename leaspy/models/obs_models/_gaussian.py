@@ -19,11 +19,12 @@ from leaspy.variables.specs import (
     LVL_FT,
 )
 from leaspy.io.data.dataset import Dataset
-from .base import ObservationModel
 from leaspy.variables.state import State
 
+from ._base import ObservationModel
 
-class GaussianObs(ObservationModel):
+
+class GaussianObservationModel(ObservationModel):
     """Specialized `ObservationModel` for noisy observations with Gaussian residuals assumption."""
 
     def __init__(
@@ -37,9 +38,9 @@ class GaussianObs(ObservationModel):
         super().__init__(name, getter, Normal(loc, scale), extra_vars=extra_vars)
 
 
-class FullGaussianObs(GaussianObs):
+class FullGaussianObservationModel(GaussianObservationModel):
     """
-    Specialized `GaussianObs` when all data share the same observation model, with default naming.
+    Specialized `GaussianObservationModel` when all data share the same observation model, with default naming.
 
     The default naming is:
         - 'y' for observations
@@ -139,7 +140,7 @@ class FullGaussianObs(GaussianObs):
     @classmethod
     def with_noise_std_as_model_parameter(cls, dimension: int):
         """
-        Default instance of `FullGaussianObs` with `noise_std`
+        Default instance of `FullGaussianObservationModel` with `noise_std`
         (scalar or diagonal depending on `dimension`) being a `ModelParameter`.
         """
         if not isinstance(dimension, int) or dimension < 1:

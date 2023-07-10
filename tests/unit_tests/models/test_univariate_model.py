@@ -2,7 +2,7 @@ from unittest import skip
 
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.univariate import UnivariateModel
-from leaspy.models.obs_models import FullGaussianObs
+from leaspy.models.obs_models import FullGaussianObservationModel
 
 from tests import LeaspyTestCase
 
@@ -24,7 +24,7 @@ class UnivariateModelTest(ManifoldModelTestMixin):
         self.assertEqual(model.name, model_name)
         self.assertEqual(model.dimension, 1)
         self.assertEqual(model.source_dimension, 0)
-        self.assertIsInstance(model.obs_models[0], FullGaussianObs)
+        self.assertIsInstance(model.obs_models[0], FullGaussianObservationModel)
 
         model.initialize_state()
         self.check_common_attrs(model)

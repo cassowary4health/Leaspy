@@ -1,71 +1,102 @@
 import numpy as np
 import pandas as pd
 import torch
+from typing import Optional
 
 from leaspy.io.data.data import Data
 from leaspy.io.data.dataset import Dataset
 from leaspy.algo.personalize.scipy_minimize import ScipyMinimize
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
-from leaspy.models.noise_models import NOISE_MODELS
+from leaspy.models.obs_models import (
+    FullGaussianObservationModel,
+    BernoulliObservationModel,
+    OrdinalObservationModel,
+)
 from leaspy.models import BaseModel
 
 from tests import LeaspyTestCase
 
-# test tolerance, lack of precision btw different machines... (no exact reproducibility in scipy.optimize.minimize?)
-tol = 3e-3
-tol_tau = 1e-2
+# test tolerance, lack of precision btw different machines...
+# (no exact reproducibility in scipy.optimize.minimize?)
+tol: float = 3e-3
+tol_tau: float = 1e-2
 
 
 class ScipyMinimizeTest(LeaspyTestCase):
 
-    def check_individual_parameters(self, ips, *, tau, xi, tol_tau, tol_xi, sources=None, tol_sources=None):
-
-        self.assertAlmostEqual(ips['tau'].item(), tau, delta=tol_tau)
-        self.assertAlmostEqual(ips['xi'].item(), xi, delta=tol_xi)
-
+    def check_individual_parameters(
+        self,
+        ips,
+        *,
+        tau,
+        xi,
+        tol_tau: float,
+        tol_xi: float,
+        sources=None,
+        tol_sources: Optional[float] = None,
+    ) -> None:
+        self.assertAlmostEqual(ips["tau"].item(), tau, delta=tol_tau)
+        self.assertAlmostEqual(ips["xi"].item(), xi, delta=tol_xi)
         if sources is not None:
-            n_sources = len(sources)
-            res_sources = ips['sources'].squeeze().tolist()
-            self.assertEqual( len(res_sources), n_sources )
+            res_sources = ips["sources"].squeeze().tolist()
+            self.assertEqual(len(res_sources), len(sources))
             for s, s_expected in zip(res_sources, sources):
                 self.assertAlmostEqual(s, s_expected, delta=tol_sources)
 
     def test_default_constructor(self):
-        settings = AlgorithmSettings('scipy_minimize')
+        settings = AlgorithmSettings("scipy_minimize")
 
-        self.assertEqual(settings.parameters, {
-            'use_jacobian': True,
-            'n_jobs': 1,
-            'progress_bar': True,
-            'custom_scipy_minimize_params': None,
-            'custom_format_convergence_issues': None,
-        })
+        self.assertEqual(
+            settings.parameters,
+            {
+                "use_jacobian": True,
+                "n_jobs": 1,
+                "progress_bar": True,
+                "custom_scipy_minimize_params": None,
+                "custom_format_convergence_issues": None,
+            }
+        )
 
         algo = ScipyMinimize(settings)
-        self.assertEqual(algo.name, 'scipy_minimize')
-        self.assertEqual(algo.seed, None)
 
-        self.assertEqual(algo.scipy_minimize_params, ScipyMinimize.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITH_JACOBIAN)
-        self.assertEqual(algo.format_convergence_issues, ScipyMinimize.DEFAULT_FORMAT_CONVERGENCE_ISSUES)
+        self.assertEqual(algo.name, "scipy_minimize")
+        self.assertEqual(algo.seed, None)
+        self.assertEqual(
+            algo.scipy_minimize_params,
+            ScipyMinimize.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITH_JACOBIAN,
+        )
+        self.assertEqual(
+            algo.format_convergence_issues,
+            ScipyMinimize.DEFAULT_FORMAT_CONVERGENCE_ISSUES,
+        )
         self.assertEqual(algo.logger, algo._default_logger)
 
     def test_default_constructor_no_jacobian(self):
-        settings = AlgorithmSettings('scipy_minimize', use_jacobian=False)
+        settings = AlgorithmSettings("scipy_minimize", use_jacobian=False)
 
-        self.assertEqual(settings.parameters, {
-            'use_jacobian': False,
-            'n_jobs': 1,
-            'progress_bar': True,
-            'custom_scipy_minimize_params': None,
-            'custom_format_convergence_issues': None,
-        })
+        self.assertEqual(
+            settings.parameters,
+            {
+                "use_jacobian": False,
+                "n_jobs": 1,
+                "progress_bar": True,
+                "custom_scipy_minimize_params": None,
+                "custom_format_convergence_issues": None,
+            }
+        )
 
         algo = ScipyMinimize(settings)
-        self.assertEqual(algo.name, 'scipy_minimize')
-        self.assertEqual(algo.seed, None)
 
-        self.assertEqual(algo.scipy_minimize_params, ScipyMinimize.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITHOUT_JACOBIAN)
-        self.assertEqual(algo.format_convergence_issues, ScipyMinimize.DEFAULT_FORMAT_CONVERGENCE_ISSUES)
+        self.assertEqual(algo.name, "scipy_minimize")
+        self.assertEqual(algo.seed, None)
+        self.assertEqual(
+            algo.scipy_minimize_params,
+            ScipyMinimize.DEFAULT_SCIPY_MINIMIZE_PARAMS_WITHOUT_JACOBIAN,
+        )
+        self.assertEqual(
+            algo.format_convergence_issues,
+            ScipyMinimize.DEFAULT_FORMAT_CONVERGENCE_ISSUES,
+        )
         self.assertEqual(algo.logger, algo._default_logger)
 
     def test_custom_constructor(self):
@@ -88,10 +119,16 @@ class ScipyMinimizeTest(LeaspyTestCase):
         )
         settings.logger = custom_logger
         algo = ScipyMinimize(settings)
-        self.assertEqual(algo.name, 'scipy_minimize')
+        self.assertEqual(algo.name, "scipy_minimize")
         self.assertEqual(algo.seed, 24)
-        self.assertEqual(algo.format_convergence_issues, custom_format_convergence_issues)
-        self.assertEqual(algo.scipy_minimize_params, custom_scipy_minimize_params)
+        self.assertEqual(
+            algo.format_convergence_issues,
+            custom_format_convergence_issues,
+        )
+        self.assertEqual(
+            algo.scipy_minimize_params,
+            custom_scipy_minimize_params,
+        )
         self.assertIs(algo.logger, custom_logger)
 
     #def test_get_model_name(self):
@@ -102,16 +139,22 @@ class ScipyMinimizeTest(LeaspyTestCase):
     #    self.assertEqual(algo.model_name, 'name')
 
     def test_initialize_parameters(self):
-        settings = AlgorithmSettings('scipy_minimize')
+        settings = AlgorithmSettings("scipy_minimize")
         algo = ScipyMinimize(settings)
 
-        univariate_model = self.get_hardcoded_model('univariate_logistic')
+        univariate_model = self.get_hardcoded_model("univariate_logistic")
         param = algo._initialize_parameters(univariate_model.model)
 
-        self.assertEqual(param, [torch.tensor([0.0/0.01]), torch.tensor([70.0/2.5])])
-
-        multivariate_model = self.get_hardcoded_model('logistic_scalar_noise')
+        self.assertEqual(
+            param,
+            [
+                torch.tensor([0.0/0.01]),
+                torch.tensor([70.0/2.5]),
+            ]
+        )
+        multivariate_model = self.get_hardcoded_model("logistic_scalar_noise")
         param = algo._initialize_parameters(multivariate_model.model)
+
         self.assertEqual(
             param,
             [
@@ -123,17 +166,18 @@ class ScipyMinimizeTest(LeaspyTestCase):
         )
 
     def test_fallback_without_jacobian(self):
-        model = self.get_hardcoded_model('logistic_scalar_noise').model
+        model = self.get_hardcoded_model("logistic_scalar_noise").model
 
         # pretend as if compute_jacobian_tensorized was not implemented
         def not_implemented_compute_jacobian_tensorized(tpts, ips, **kws):
             raise NotImplementedError
 
         model.compute_jacobian_tensorized = not_implemented_compute_jacobian_tensorized
-
-        mini_dataset = Dataset(self.get_suited_test_data_for_model('logistic_scalar_noise'), no_warning=True)
-
-        settings = AlgorithmSettings('scipy_minimize') #, use_jacobian=True) # default
+        mini_dataset = Dataset(
+            self.get_suited_test_data_for_model("logistic_scalar_noise"),
+            no_warning=True,
+        )
+        settings = AlgorithmSettings("scipy_minimize") #, use_jacobian=True) # default
         algo = ScipyMinimize(settings)
 
         with self.assertWarnsRegex(UserWarning, r'`use_jacobian\s?=\s?False`'):
@@ -141,38 +185,49 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
     def test_get_reconstruction_error(self):
         """This method is not part of scipy minimize anymore but is a Gaussian noise-model class method."""
-        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
+        leaspy = self.get_hardcoded_model("logistic_scalar_noise")
 
-        settings = AlgorithmSettings('scipy_minimize')
+        settings = AlgorithmSettings("scipy_minimize")
         algo = ScipyMinimize(settings)
 
         times = torch.tensor([70, 80])
-        values = torch.tensor([[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]])
-
-        z = [0.0, 75.2/7.1, 0., 0.]
-        individual_parameters = algo._pull_individual_parameters(z, leaspy.model)
-
+        values = torch.tensor(
+            [
+                [0.5, 0.4, 0.4, 0.45],
+                [0.3, 0.3, 0.2, 0.4],
+            ]
+        )
+        individual_parameters = algo._pull_individual_parameters(
+            [0.0, 75.2/7.1, 0., 0.],
+            leaspy.model,
+        )
         dataset = self._get_individual_dataset_from_times_values(leaspy.model, times, values)
         preds = leaspy.model.compute_individual_tensorized(dataset.timepoints, individual_parameters)
         res = leaspy.model.noise_model.compute_residuals(dataset, preds)
 
-        expected_res = torch.tensor([
-            [-0.4705, -0.3278, -0.3103, -0.4477],
-            [0.6059,  0.0709,  0.3537,  0.4523]])
+        expected_res = torch.tensor(
+            [
+                [-0.4705, -0.3278, -0.3103, -0.4477],
+                [0.6059,  0.0709,  0.3537,  0.4523],
+            ]
+        )
         self.assertIsInstance(res, torch.Tensor)
-        self.assertAlmostEqual(torch.sum((res - expected_res)**2).item(), 0, delta=1e-8)
+        self.assertAlmostEqual(
+            torch.sum((res - expected_res)**2).item(),
+            0,
+            delta=1e-8,
+        )
 
     def test_get_regularity(self):
-
-        settings = AlgorithmSettings('scipy_minimize')
+        settings = AlgorithmSettings("scipy_minimize")
         algo = ScipyMinimize(settings)
 
-        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
+        leaspy = self.get_hardcoded_model("logistic_scalar_noise")
 
-        for noise_model in (None, 'bernoulli', ): # 'ordinal'
+        for obs_model in (None, "bernoulli", ): # 'ordinal'
 
-            if noise_model is not None:
-                leaspy.model.noise_model = noise_model
+            if obs_model is not None:
+                leaspy.model.obs_models = (obs_model,)
 
             # regularity constant is not added anymore (useless)
             z0 = [0.0, 75.2/7.1, 0., 0.]  # for all individual parameters we set `mean/std`
@@ -219,39 +274,38 @@ class ScipyMinimizeTest(LeaspyTestCase):
         return Dataset(Data.from_dataframe(df), no_warning=True)
 
     def test_obj(self):
-        settings = AlgorithmSettings('scipy_minimize')
+        settings = AlgorithmSettings("scipy_minimize")
         algo = ScipyMinimize(settings)
 
-        leaspy = self.get_hardcoded_model('logistic_scalar_noise')
+        leaspy = self.get_hardcoded_model("logistic_scalar_noise")
 
         z0 = [0.0, 75.2/7.1, 0., 0.]  # for all individual parameters we set `mean/std`
         times = [70, 80]
 
         # previously we did not add the "constant" in NLL for Gaussian noise
         from leaspy.models.noise_models.gaussian import TWO_PI
-        normal_cst = 0.5 * torch.log(TWO_PI * leaspy.model.noise_model.parameters['scale']**2).item() * 8
-
-        for noise_model, (values, expected_obj, expected_obj_grads) in {
+        normal_cst = 0.5 * torch.log(
+            TWO_PI * leaspy.model.noise_model.parameters['scale']**2
+        ).item() * 8
+        for obs_model, (values, expected_obj, expected_obj_grads) in {
             None: (
                 [[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]],
                 16.590890884399414 + normal_cst, [2.8990, -14.2579,  -0.8748,   0.2912],
             ),
-            'bernoulli': (
+            "bernoulli": (
                 [[0, 1, 0, 1], [0, 1, 1, 1]],
                 12.92530632019043, [1.1245,   5.4126,  -2.6562, -10.9062],
             ),
             #'ordinal': (0., []),
         }.items():
-
-            if noise_model is not None:
-                leaspy.model.noise_model = noise_model
+            if obs_model is not None:
+                leaspy.model.obs_models = (obs_model,)
 
             dataset = self._get_individual_dataset_from_times_values(leaspy.model, times, values)
             obj, obj_grads = algo.obj(z0, leaspy.model, dataset, with_gradient=True)
 
             self.assertIsInstance(obj, float)
             self.assertAlmostEqual(obj, expected_obj, delta=1e-4)
-
             self.assertIsInstance(obj_grads, torch.Tensor)
             self.assertEqual(obj_grads.shape, (2 + leaspy.model.source_dimension,))
             self.assertAllClose(obj_grads, expected_obj_grads, atol=1e-4)
@@ -262,13 +316,13 @@ class ScipyMinimizeTest(LeaspyTestCase):
         times,
         values,
         *,
-        noise_model = None,
+        obs_model: Optional[str] = None,
         **algo_kwargs,
     ):
         # already a functional test in fact...
         leaspy = self.get_hardcoded_model(model_name)
-        if noise_model is not None:
-            leaspy.model.noise_model = noise_model
+        if obs_model is not None:
+            leaspy.model.obs_model = (obs_model,)
 
         settings = AlgorithmSettings("scipy_minimize", seed=0, **algo_kwargs)
         algo = ScipyMinimize(settings)
@@ -279,45 +333,50 @@ class ScipyMinimizeTest(LeaspyTestCase):
 
         dataset = self._get_individual_dataset_from_times_values(leaspy.model, times, values)
         pyt_ips, loss = algo._get_individual_parameters_patient(
-            leaspy.model,
-            dataset,
+            leaspy.model.state,
             with_jac=algo_kwargs["use_jacobian"],
         )
         nll_regul = algo._get_regularity(leaspy.model, pyt_ips)[0]
         preds = leaspy.model.compute_individual_tensorized(dataset.timepoints, pyt_ips)
 
-        residuals_getter = getattr(leaspy.model.noise_model, 'compute_residuals', None)
+        # residuals_getter = getattr(leaspy.model.noise_model, 'compute_residuals', None)
         res = None
-        if residuals_getter:
-            res = residuals_getter(dataset, preds)
+        # if residuals_getter:
+        #    res = residuals_getter(dataset, preds)
 
         return leaspy.model.noise_model, pyt_ips, (dataset, preds), (loss, nll_regul), res
 
     def test_get_individual_parameters_patient_univariate_models(self, tol=tol, tol_tau=tol_tau):
-
         times = [70, 80]
-        values = [[0.5], [0.4]] # no test with nans (done in multivariate models)
+        values = [[0.5], [0.4]]  # no test with nans (done in multivariate models)
 
         for (model_name, use_jacobian), expected_dict in {
-
             ('univariate_logistic', False): {'tau': 69.2868, 'xi': -.0002, 'err': [[-0.1765], [0.5498]]},
             ('univariate_logistic', True ): {'tau': 69.2868, 'xi': -.0002, 'err': [[-0.1765], [0.5498]]},
             ('univariate_linear',   False): {'tau': 78.1131, 'xi': -.2035, 'err': [[-0.1212], [0.1282]]},
             ('univariate_linear',   True ): {'tau': 78.0821, 'xi': -.2035, 'err': [[-0.1210], [0.1287]]},
-
         }.items():
-
-            noise_model, individual_parameters, _, (rmse, nll_regul), res = self.get_individual_parameters_patient(
-                model_name, times, values, use_jacobian=use_jacobian,
+            (
+                obs_model,
+                individual_parameters,
+                _,
+                (rmse, nll_regul),
+                res,
+            ) = self.get_individual_parameters_patient(
+                model_name,
+                times,
+                values,
+                use_jacobian=use_jacobian,
             )
-
-            self.check_individual_parameters(individual_parameters,
-                tau=expected_dict['tau'], tol_tau=tol_tau,
-                xi=expected_dict['xi'], tol_xi=tol
+            self.check_individual_parameters(
+                individual_parameters,
+                tau=expected_dict['tau'],
+                tol_tau=tol_tau,
+                xi=expected_dict['xi'],
+                tol_xi=tol,
             )
-
             # gaussian noise for those models
-            self.assertIsInstance(noise_model, NOISE_MODELS['gaussian-scalar'])
+            self.assertIsInstance(obs_model, FullGaussianObservationModel)
             self.assertIsInstance(res, torch.Tensor)
             expected_res = torch.tensor(expected_dict['err'])
             self.assertAlmostEqual(torch.sum((res - expected_res)**2).item(), 0, delta=tol**2)
@@ -326,12 +385,12 @@ class ScipyMinimizeTest(LeaspyTestCase):
             self.assertAlmostEqual(rmse.item(), expected_rmse.item(), delta=1e-4)
 
     def test_get_individual_parameters_patient_multivariate_models(self, tol=tol, tol_tau=tol_tau):
-
         times = [70, 80]
-        values = [[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]] # no nans (separate test)
-
+        values = [
+            [0.5, 0.4, 0.4, 0.45],
+            [0.3, 0.3, 0.2, 0.4],
+        ]
         for (model_name, use_jacobian), expected_dict in {
-
             ('logistic_scalar_noise', False): {
                 'tau': 78.5750,
                 'xi': -0.0919,
@@ -350,19 +409,30 @@ class ScipyMinimizeTest(LeaspyTestCase):
             # TODO? linear, logistic_parallel
 
         }.items():
-
-            noise_model, individual_parameters, _, (rmse, nll_regul), res = self.get_individual_parameters_patient(
-                model_name, times, values, use_jacobian=use_jacobian,
+            (
+                obs_model,
+                individual_parameters,
+                _,
+                (rmse, nll_regul),
+                res,
+            ) = self.get_individual_parameters_patient(
+                model_name,
+                times,
+                values,
+                use_jacobian=use_jacobian,
             )
-
-            self.check_individual_parameters(individual_parameters,
-                tau=expected_dict['tau'], tol_tau=tol_tau,
-                xi=expected_dict['xi'], tol_xi=tol,
-                sources=expected_dict['sources'], tol_sources=tol,
+            self.check_individual_parameters(
+                individual_parameters,
+                tau=expected_dict['tau'],
+                tol_tau=tol_tau,
+                xi=expected_dict['xi'],
+                tol_xi=tol,
+                sources=expected_dict['sources'],
+                tol_sources=tol,
             )
 
             # gaussian noise for those models
-            self.assertIsInstance(noise_model, NOISE_MODELS['gaussian-scalar'])
+            self.assertIsInstance(obs_model, FullGaussianObservationModel)
             self.assertIsInstance(res, torch.Tensor)
             expected_res = torch.tensor(expected_dict['err'])
             self.assertAlmostEqual(torch.sum((res - expected_res)**2).item(), 0, delta=tol**2)
@@ -371,17 +441,17 @@ class ScipyMinimizeTest(LeaspyTestCase):
             self.assertAlmostEqual(rmse.item(), expected_rmse.item(), delta=1e-4)
 
     def test_get_individual_parameters_patient_multivariate_models_with_nans(self, tol=tol, tol_tau=tol_tau):
-
         times = [70, 80]
-        values = [[0.5, 0.4, 0.4, np.nan], [0.3, np.nan, np.nan, 0.4]]
-
+        values = [
+            [0.5, 0.4, 0.4, np.nan],
+            [0.3, np.nan, np.nan, 0.4],
+        ]
         nan_positions = torch.tensor([
             [False, False, False, True],
             [False, True, True, False]
         ])
 
         for (model_name, use_jacobian), expected_dict in {
-
             ('logistic_scalar_noise', False): {
                 'tau': 77.5558,
                 'xi': -0.0989,
@@ -400,19 +470,30 @@ class ScipyMinimizeTest(LeaspyTestCase):
             # TODO? linear, logistic_parallel
 
         }.items():
-
-            noise_model, individual_parameters, _, (rmse, nll_regul), res = self.get_individual_parameters_patient(
-                model_name, times, values, use_jacobian=use_jacobian,
+            (
+                obs_model,
+                individual_parameters,
+                _,
+                (rmse, nll_regul),
+                res,
+            ) = self.get_individual_parameters_patient(
+                model_name,
+                times,
+                values,
+                use_jacobian=use_jacobian,
             )
-
-            self.check_individual_parameters(individual_parameters,
-                tau=expected_dict['tau'], tol_tau=tol_tau,
-                xi=expected_dict['xi'], tol_xi=tol,
-                sources=expected_dict['sources'], tol_sources=tol,
+            self.check_individual_parameters(
+                individual_parameters,
+                tau=expected_dict['tau'],
+                tol_tau=tol_tau,
+                xi=expected_dict['xi'],
+                tol_xi=tol,
+                sources=expected_dict['sources'],
+                tol_sources=tol,
             )
 
             # gaussian noise for those models
-            self.assertIsInstance(noise_model, NOISE_MODELS['gaussian-scalar'])
+            self.assertIsInstance(obs_model, FullGaussianObservationModel)
             self.assertIsInstance(res, torch.Tensor)
             self.assertTrue(torch.equal(res.squeeze(0) == 0, nan_positions))
             expected_res = torch.tensor(expected_dict['err'])
@@ -421,13 +502,15 @@ class ScipyMinimizeTest(LeaspyTestCase):
             expected_rmse = ((expected_res**2).sum() / (~nan_positions).sum()) ** .5
             self.assertAlmostEqual(rmse.item(), expected_rmse.item(), delta=1e-4)
 
-    def test_get_individual_parameters_patient_multivariate_models_crossentropy(self, tol=tol, tol_tau=tol_tau):
-
+    def test_get_individual_parameters_patient_multivariate_models_crossentropy(
+        self, tol=tol, tol_tau=tol_tau,
+    ):
         times = [70, 80]
-        values = [[0, 1, 0, 1], [0, 1, 1, 1]] # no nans (separate test)
-
+        values = [
+            [0, 1, 0, 1],
+            [0, 1, 1, 1],
+        ]
         for (model_name, use_jacobian), expected_dict in {
-
             ('logistic_scalar_noise', False): {
                 'tau': 70.6041,
                 'xi': -0.0458,
@@ -446,43 +529,58 @@ class ScipyMinimizeTest(LeaspyTestCase):
             },
 
         }.items():
-
-            noise_model, individual_parameters, dataset_and_preds, (nll_attach, nll_regul), res = self.get_individual_parameters_patient(
-                model_name, times, values, use_jacobian=use_jacobian,
-                noise_model='bernoulli',
+            (
+                obs_model,
+                individual_parameters,
+                dataset_and_preds,
+                (nll_attach, nll_regul),
+                res,
+            ) = self.get_individual_parameters_patient(
+                model_name,
+                times,
+                values,
+                use_jacobian=use_jacobian,
+                obs_model="bernoulli",
             )
-
             # Bernoulli noise for those models
-            self.assertIsInstance(noise_model, NOISE_MODELS['bernoulli'])
+            self.assertIsInstance(obs_model, BernoulliObservationModel)
             self.assertIsNone(res)
 
             # check overall nll (no need for dataset...)
             self.assertAlmostEqual(nll_attach.item(), expected_dict['nll'][0], delta=1e-4)
             self.assertAlmostEqual(nll_regul.item(), expected_dict['nll'][1], delta=1e-4)
 
-            self.check_individual_parameters(individual_parameters,
-                tau=expected_dict['tau'], tol_tau=tol_tau,
-                xi=expected_dict['xi'], tol_xi=tol,
-                sources=expected_dict['sources'], tol_sources=tol,
+            self.check_individual_parameters(
+                individual_parameters,
+                tau=expected_dict['tau'],
+                tol_tau=tol_tau,
+                xi=expected_dict['xi'],
+                tol_xi=tol,
+                sources=expected_dict['sources'],
+                tol_sources=tol,
             )
 
             # we compute residuals anyway even if not really relevant (only for the test)
-            res = NOISE_MODELS['gaussian-scalar'].compute_residuals(*dataset_and_preds)
-            self.assertAlmostEqual(torch.sum((res - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
+            res = FullGaussianObservationModel().compute_residuals(*dataset_and_preds)
+            self.assertAlmostEqual(
+                torch.sum((res - torch.tensor(expected_dict['err']))**2).item(),
+                0,
+                delta=tol**2,
+            )
 
-
-    def test_get_individual_parameters_patient_multivariate_models_with_nans_crossentropy(self, tol=tol, tol_tau=tol_tau):
-
+    def test_get_individual_parameters_patient_multivariate_models_with_nans_crossentropy(
+        self, tol=tol, tol_tau=tol_tau
+    ):
         times = [70, 80]
-        values = [[0, 1, 0, np.nan], [0, np.nan, np.nan, 1]]
-
+        values = [
+            [0, 1, 0, np.nan],
+            [0, np.nan, np.nan, 1],
+        ]
         nan_positions = torch.tensor([
             [False, False, False, True],
             [False, True, True, False]
         ])
-
         for (model_name, use_jacobian), expected_dict in {
-
             ('logistic_scalar_noise', False): {
                 'tau': 75.7494,
                 'xi': -0.0043,
@@ -499,43 +597,53 @@ class ScipyMinimizeTest(LeaspyTestCase):
                         [ 0.079207,         0.,         0., -0.036614]],
                 'nll': (0.7424823045730591, 0.6050525903701782),
             },
-
             # TODO? linear, logistic_parallel
-
         }.items():
-
-            noise_model, individual_parameters, dataset_and_preds, (nll_attach, nll_regul), res = self.get_individual_parameters_patient(
-                model_name, times, values, use_jacobian=use_jacobian,
-                noise_model='bernoulli',
+            (
+                obs_model,
+                individual_parameters,
+                dataset_and_preds,
+                (nll_attach, nll_regul),
+                res,
+            ) = self.get_individual_parameters_patient(
+                model_name,
+                times,
+                values,
+                use_jacobian=use_jacobian,
+                obs_model="bernoulli",
             )
-
             # Bernoulli noise for those models
-            self.assertIsInstance(noise_model, NOISE_MODELS['bernoulli'])
+            self.assertIsInstance(obs_model, BernoulliObservationModel)
             self.assertIsNone(res)
 
             # check overall nll (no need for dataset...)
             self.assertAlmostEqual(nll_attach.item(), expected_dict['nll'][0], delta=1e-4)
             self.assertAlmostEqual(nll_regul.item(), expected_dict['nll'][1], delta=1e-4)
 
-            self.check_individual_parameters(individual_parameters,
-                tau=expected_dict['tau'], tol_tau=tol_tau,
-                xi=expected_dict['xi'], tol_xi=tol,
-                sources=expected_dict['sources'], tol_sources=tol,
+            self.check_individual_parameters(
+                individual_parameters,
+                tau=expected_dict['tau'],
+                tol_tau=tol_tau,
+                xi=expected_dict['xi'],
+                tol_xi=tol,
+                sources=expected_dict['sources'],
+                tol_sources=tol,
             )
 
             # we compute residuals anyway even if not really relevant (only for the test)
-            res = NOISE_MODELS['gaussian-scalar'].compute_residuals(*dataset_and_preds)
+            res = FullGaussianObservationModel().compute_residuals(*dataset_and_preds)
             self.assertTrue(torch.equal(res.squeeze(0) == 0, nan_positions))
-            self.assertAlmostEqual(torch.sum((res - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
-
+            self.assertAlmostEqual(
+                torch.sum((res - torch.tensor(expected_dict['err']))**2).item(),
+                0,
+                delta=tol**2,
+            )
 
     def test_get_individual_parameters_patient_multivariate_models_ordinal(self, tol=tol, tol_tau=tol_tau):
-
         times = [70, 80]
-        values = [[0, 1, 0, 2], [1, 2, 2, 4]] # no nans (separate test)
+        values = [[0, 1, 0, 2], [1, 2, 2, 4]]  # no nans (separate test)
 
         for (model_name, use_jacobian), expected_dict in {
-
             ('logistic_ordinal', False): {
                 'tau': 74.0180,
                 'xi': -1.7808,
@@ -552,39 +660,48 @@ class ScipyMinimizeTest(LeaspyTestCase):
                 #        [ 0., -2., -1., 0.]]
                 'nll': (7.402340412139893, 1.1103485822677612),
             },
-
         }.items():
-
-            noise_model, individual_parameters, _, (nll_attach, nll_regul), res = self.get_individual_parameters_patient(
-                model_name, times, values, use_jacobian=use_jacobian,
+            (
+                obs_model,
+                individual_parameters,
+                _,
+                (nll_attach, nll_regul),
+                res,
+            ) = self.get_individual_parameters_patient(
+                model_name,
+                times,
+                values,
+                use_jacobian=use_jacobian,
             )
-
             # Ordinal noise for those models
-            self.assertIsInstance(noise_model, NOISE_MODELS['ordinal'])
+            self.assertIsInstance(obs_model, OrdinalObservationModel)
             self.assertIsNone(res)
 
             # check overall nll (no need for dataset...)
             self.assertAlmostEqual(nll_attach.item(), expected_dict['nll'][0], delta=5e-4)
             self.assertAlmostEqual(nll_regul.item(), expected_dict['nll'][1], delta=5e-4)
 
-            self.check_individual_parameters(individual_parameters,
-                tau=expected_dict['tau'], tol_tau=tol_tau,
-                xi=expected_dict['xi'], tol_xi=tol,
-                sources=expected_dict['sources'], tol_sources=tol,
+            self.check_individual_parameters(
+                individual_parameters,
+                tau=expected_dict['tau'],
+                tol_tau=tol_tau,
+                xi=expected_dict['xi'],
+                tol_xi=tol,
+                sources=expected_dict['sources'],
+                tol_sources=tol,
             )
 
-            ## we compute residuals anyway even if not really relevant (only for the test)
-            #res = NOISE_MODELS['gaussian-scalar'].get_residuals(*dataset_and_preds)
-            #self.assertAlmostEqual(torch.sum((res - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)
-
-    def test_get_individual_parameters_patient_multivariate_models_with_nans_ordinal(self, tol=tol, tol_tau=tol_tau):
-
+    def test_get_individual_parameters_patient_multivariate_models_with_nans_ordinal(
+        self, tol=tol, tol_tau=tol_tau,
+    ):
         times = [70, 80]
-        values = torch.tensor([[0, 1, 2, np.nan], [1, np.nan, 2, 4]])
-        #nan_positions = torch.isnan(values)
-
+        values = torch.tensor(
+            [
+                [0, 1, 2, np.nan],
+                [1, np.nan, 2, 4],
+            ]
+        )
         for (model_name, use_jacobian), expected_dict in {
-
             ('logistic_ordinal', False): {
                 'tau': 74.2849,
                 'xi': -1.7475,
@@ -601,28 +718,33 @@ class ScipyMinimizeTest(LeaspyTestCase):
                 #        [0., 0., -1., 0.]]
                 'nll': (5.825297832489014, 1.2041646242141724),
             },
-
         }.items():
-
-            noise_model, individual_parameters, _, (nll_attach, nll_regul), res = self.get_individual_parameters_patient(
-                model_name, times, values, use_jacobian=use_jacobian,
+            (
+                obs_model,
+                individual_parameters,
+                _,
+                (nll_attach, nll_regul),
+                res,
+            ) = self.get_individual_parameters_patient(
+                model_name,
+                times,
+                values,
+                use_jacobian=use_jacobian,
             )
-
             # Ordinal noise for those models
-            self.assertIsInstance(noise_model, NOISE_MODELS['ordinal'])
+            self.assertIsInstance(obs_model, OrdinalObservationModel)
             self.assertIsNone(res)
 
             # check overall nll (no need for dataset...)
             self.assertAlmostEqual(nll_attach.item(), expected_dict['nll'][0], delta=1e-4)
             self.assertAlmostEqual(nll_regul.item(), expected_dict['nll'][1], delta=1e-4)
 
-            self.check_individual_parameters(individual_parameters,
-                tau=expected_dict['tau'], tol_tau=tol_tau,
-                xi=expected_dict['xi'], tol_xi=tol,
-                sources=expected_dict['sources'], tol_sources=tol,
+            self.check_individual_parameters(
+                individual_parameters,
+                tau=expected_dict['tau'],
+                tol_tau=tol_tau,
+                xi=expected_dict['xi'],
+                tol_xi=tol,
+                sources=expected_dict['sources'],
+                tol_sources=tol,
             )
-
-            ## we compute residuals anyway even if not really relevant (only for the test)
-            #res = NOISE_MODELS['gaussian-scalar'].get_residuals(*dataset_and_preds)
-            #self.assertTrue(torch.equal(res.squeeze(0) == 0, nan_positions))
-            #self.assertAlmostEqual(torch.sum((res - torch.tensor(expected_dict['err']))**2).item(), 0, delta=tol**2)

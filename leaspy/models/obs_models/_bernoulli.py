@@ -1,11 +1,12 @@
 import torch
 
-from .base import ObservationModel
 from leaspy.variables.distributions import Bernoulli
 from leaspy.variables.specs import VarName, VariableInterface
 from leaspy.utils.weighted_tensor import WeightedTensor
 from leaspy.io.data.dataset import Dataset
 from leaspy.utils.weighted_tensor import wsum_dim
+
+from ._base import ObservationModel
 
 
 class BernoulliObservationModel(ObservationModel):

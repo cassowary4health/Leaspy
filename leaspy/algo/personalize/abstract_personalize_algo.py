@@ -86,10 +86,8 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
                 y=local_state['y'],
                 model=local_state['model'],
             )
-        elif isinstance(obs_model, BernoulliObservationModel):
-            loss = obs_model.dist.nll(local_state["y"]).sum()
         else:
-            raise NotImplementedError(f"Observation model {obs_model} is not implemented yet.")
+            loss = obs_model.dist.nll(local_state["y"]).sum()
 
         ## Compute the loss with these estimated individual parameters (RMSE or NLL depending on observation models)
         #_, pyt_individual_params = individual_parameters.to_pytorch()

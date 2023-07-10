@@ -205,7 +205,7 @@ class BernoulliFamily(StatelessDistributionFamilyFromTorchDistribution):
 
 class OrdinalFamily(StatelessDistributionFamilyFromTorchDistribution):
     """Ordinal family (stateless)."""
-    parameters: ClassVar = ()
+    parameters: ClassVar = ("pdf",)
     dist_factory: ClassVar = MultinomialDistribution.from_pdf
 
 

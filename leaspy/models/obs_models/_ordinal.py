@@ -1,9 +1,11 @@
 import torch
+
 from leaspy.io.data.dataset import Dataset
 from leaspy.utils.weighted_tensor import WeightedTensor
 from leaspy.variables.specs import VariableInterface
 from leaspy.variables.distributions import Ordinal
-from .base import ObservationModel
+
+from ._base import ObservationModel
 
 
 class OrdinalObservationModel(ObservationModel):

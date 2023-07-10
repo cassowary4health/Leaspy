@@ -4,7 +4,6 @@ import torch
 from leaspy import AlgorithmSettings, Leaspy
 from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.factory import ModelFactory
-from leaspy.models.obs_models import FullGaussianObs
 
 from tests import LeaspyTestCase
 

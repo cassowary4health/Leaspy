@@ -3,7 +3,8 @@ import warnings
 import torch
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.obs_models import FullGaussianObs, BernoulliObservationModel
+from leaspy.models.obs_models import observation_model_factory
+
 # WIP
 # from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 # from leaspy.models.utils.ordinal import OrdinalModelMixin
@@ -56,27 +57,10 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         dimension = kwargs.get('dimension', None)
         if 'features' in kwargs:
             dimension = len(kwargs['features'])
-
         obs_model = kwargs.get("obs_models", None)
         if obs_model is None:
             obs_model = "gaussian-scalar" if dimension is None else "gaussian-diagonal"
-        if isinstance(obs_model, str):
-            if obs_model == "gaussian-diagonal":
-                if dimension is None:
-                    raise NotImplementedError(
-                        "WIP: dimension / features should be provided to "
-                        "init the obs_model = 'gaussian-diagonal'"
-                    )
-                kwargs["obs_models"] = FullGaussianObs.with_noise_std_as_model_parameter(dimension)
-            elif obs_model == "gaussian-scalar":
-                kwargs["obs_models"] = FullGaussianObs.with_noise_std_as_model_parameter(1)
-            elif obs_model == "bernoulli":
-                kwargs["obs_models"] = BernoulliObservationModel()
-            else:
-                raise NotImplementedError(
-                    f"WIP. The requested ObservationModel {obs_model} is not yet implemented."
-                    "Please select one of : 'gaussian-diagonal', 'gaussian-scalar', 'bernoulli'."
-                )
+        kwargs["obs_models"] = observation_model_factory(obs_model, dimension=dimension)
         super().__init__(name, **kwargs)
 
     def get_variables_specs(self) -> NamedVariables:

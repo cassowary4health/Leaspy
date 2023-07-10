@@ -6,12 +6,12 @@ import torch
 from typing import Optional
 
 from leaspy import Leaspy
-from leaspy.models.obs_models import FullGaussianObs  # WIP --> keyword-based factory needed
+from leaspy.models.obs_models import observation_model_factory
 
 from tests.unit_tests.plots.test_plotter import MatplotlibTestCase
 
 
-class LeaspyFitTest_Mixin(MatplotlibTestCase):
+class LeaspyFitTestMixin(MatplotlibTestCase):
     """Mixin holding generic fit methods that may be safely reused in other tests (no actual test here)."""
 
     def generic_fit(
@@ -92,8 +92,8 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
             else:
                 self.check_model_consistency(leaspy, expected_model_path, **check_kws)
 
-        ## set `save_model=True` to re-generate example model
-        ## <!> use carefully (only when needed following breaking changes in model / calibration)
+        # set `save_model=True` to re-generate example model
+        # <!> use carefully (only when needed following breaking changes in model / calibration)
         if save_model or inexistant_model:
             leaspy.save(expected_model_path)
             if save_model:
@@ -148,8 +148,10 @@ class LeaspyFitTest_Mixin(MatplotlibTestCase):
 
         self.assertDictAlmostEqual(model_parameters_new, expected_model_parameters, **allclose_kwds)
 
-        ## the reloading of model parameters will test consistency of model derived variables (only mixing matrix here)
-        # TODO: use `.load(expected_dict_adapted)` instead of `.load(expected_file_not_adapted)` until expected file are regenerated
+        # the reloading of model parameters will test consistency of model derived variables
+        # (only mixing matrix here)
+        # TODO: use `.load(expected_dict_adapted)` instead of `.load(expected_file_not_adapted)`
+        #  until expected file are regenerated
         # expected_model = Leaspy.load(path_to_backup_model).model
         expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
         expected_model_parameters['leaspy_version'] = model_parameters_new['leaspy_version'] = new_model_version
@@ -170,7 +172,7 @@ DEFAULT_CHECK_KWS = dict(
 )
 
 
-class LeaspyFitTest(LeaspyFitTest_Mixin):
+class LeaspyFitTest(LeaspyFitTestMixin):
     # <!> reproducibility gap for PyTorch >= 1.7, only those are supported now
 
     def test_fit_logistic_scalar_noise(self):
@@ -178,7 +180,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic",
             "logistic_scalar_noise",
-            obs_models=FullGaussianObs.with_noise_std_as_model_parameter(dimension=1),
+            obs_models=observation_model_factory("gaussian-scalar"),
             source_dimension=2,
             check_kws=DEFAULT_CHECK_KWS,
         )
@@ -189,7 +191,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic",
             "logistic_diag_noise",
-            obs_models=FullGaussianObs.with_noise_std_as_model_parameter(dimension=4),
+            obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=2,
             check_kws=DEFAULT_CHECK_KWS,
         )
@@ -199,7 +201,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic",
             "logistic_diag_noise_fast_gibbs",
-            obs_models=FullGaussianObs.with_noise_std_as_model_parameter(dimension=4),
+            obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "sampler_pop": "FastGibbs"},
             check_kws=DEFAULT_CHECK_KWS,
@@ -210,7 +212,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic",
             "logistic_diag_noise_mh",
-            obs_models=FullGaussianObs.with_noise_std_as_model_parameter(dimension=4),
+            obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "sampler_pop": "Metropolis-Hastings"},
             check_kws=DEFAULT_CHECK_KWS,
@@ -221,7 +223,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic",
             "logistic_diag_noise_custom",
-            obs_models=FullGaussianObs.with_noise_std_as_model_parameter(dimension=4),
+            obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=0,
             algo_params={
                 "n_iter": 100,
@@ -251,7 +253,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic_parallel",
             "logistic_parallel_scalar_noise",
-            obs_models="gaussian-scalar",
+            obs_models=observation_model_factory("gaussian-scalar"),
             source_dimension=2,
         )
 
@@ -260,7 +262,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic_parallel",
             "logistic_parallel_diag_noise",
-            obs_models="gaussian-diagonal",
+            obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=2,
         )
 
@@ -269,7 +271,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic_parallel",
             "logistic_parallel_diag_noise_no_source",
-            obs_models="gaussian-diagonal",
+            obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=0,
         )
 
@@ -286,43 +288,73 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
     @skip("Linear models are currently broken.")
     def test_fit_linear(self):
-        self.generic_fit("linear", "linear_scalar_noise", obs_models='gaussian-scalar', source_dimension=2)
+        self.generic_fit(
+            "linear",
+            "linear_scalar_noise",
+            obs_models=observation_model_factory("gaussian-scalar"),
+            source_dimension=2,
+        )
 
     @skip("Linear models are currently broken.")
     def test_fit_linear_diagonal_noise(self):
-        self.generic_fit("linear", "linear_diag_noise", obs_models="gaussian-diagonal", source_dimension=2)
+        self.generic_fit(
+            "linear",
+            "linear_diag_noise",
+            obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
+            source_dimension=2,
+        )
 
     def test_fit_logistic_binary(self):
-        self.generic_fit("logistic", "logistic_binary", obs_models="bernoulli", source_dimension=2)
+        self.generic_fit(
+            "logistic",
+            "logistic_binary",
+            obs_models=observation_model_factory("bernoulli"),
+            source_dimension=2,
+        )
 
     @skip("Logistic parallel models are currently broken.")
     def test_fit_logistic_parallel_binary(self):
-        self.generic_fit("logistic_parallel", "logistic_parallel_binary", obs_models="bernoulli", source_dimension=2)
+        self.generic_fit(
+            "logistic_parallel",
+            "logistic_parallel_binary",
+            obs_models=observation_model_factory("bernoulli"),
+            source_dimension=2,
+        )
 
     @skip("Ordinal observation models are not implemented yet.")
     def test_fit_logistic_ordinal(self):
-        self.generic_fit("logistic", "logistic_ordinal", obs_models="ordinal", source_dimension=2)
+        self.generic_fit(
+            "logistic",
+            "logistic_ordinal",
+            obs_models=observation_model_factory("ordinal"),
+            source_dimension=2,
+        )
 
     @skip("Ordinal observation models are not implemented yet.")
     def test_fit_logistic_ordinal_batched(self):
         self.generic_fit(
             "logistic",
             "logistic_ordinal_b",
-            obs_models="ordinal",
+            obs_models=observation_model_factory("ordinal"),
             source_dimension=2,
             batch_deltas_ordinal=True,  # test if batch sampling of deltas works
         )
 
     @skip("Ordinal observation models are not implemented yet.")
     def test_fit_logistic_ordinal_ranking(self):
-        self.generic_fit("logistic", "logistic_ordinal_ranking", obs_models="ordinal_ranking", source_dimension=2)
+        self.generic_fit(
+            "logistic",
+            "logistic_ordinal_ranking",
+            obs_models=observation_model_factory("ordinal_ranking"),
+            source_dimension=2,
+        )
 
     @skip("Ordinal observation models are not implemented yet.")
     def test_fit_logistic_ordinal_ranking_batched_mh(self):
         self.generic_fit(
             "logistic",
             "logistic_ordinal_ranking_mh",
-            obs_models="ordinal_ranking",
+            obs_models=observation_model_factory("ordinal_ranking"),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "sampler_pop": "Metropolis-Hastings"},
             batch_deltas_ordinal=True,  # test if batch sampling of deltas works
@@ -333,7 +365,7 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic",
             "logistic_ordinal_ranking_fg",
-            obs_models="ordinal-ranking",
+            obs_models=observation_model_factory("ordinal-ranking"),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "sampler_pop": "FastGibbs"},
             batch_deltas_ordinal=True,  # test if batch sampling of deltas works
@@ -341,14 +373,14 @@ class LeaspyFitTest(LeaspyFitTest_Mixin):
 
 
 @skipIf(not torch.cuda.is_available(), "GPU calibration tests need an available CUDA environment")
-class LeaspyFitGPUTest(LeaspyFitTest_Mixin):
+class LeaspyFitGPUTest(LeaspyFitTestMixin):
 
     def test_fit_logistic_scalar_noise(self):
         """Test MCMC-SAEM."""
         self.generic_fit(
             "logistic",
             "logistic_scalar_noise_gpu",
-            obs_models="gaussian-scalar",
+            obs_models=observation_model_factory("gaussian-scalar"),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "device": "cuda"},
         )
@@ -358,7 +390,7 @@ class LeaspyFitGPUTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic",
             "logistic_diag_noise_gpu",
-            obs_models="gaussian-diagonal",
+            obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "device": "cuda"},
         )
@@ -367,7 +399,7 @@ class LeaspyFitGPUTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic_parallel",
             "logistic_parallel_scalar_noise_gpu",
-            obs_models="gaussian-scalar",
+            obs_models=observation_model_factory("gaussian-scalar"),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "device": "cuda"},
         )
@@ -376,7 +408,7 @@ class LeaspyFitGPUTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "logistic_parallel",
             "logistic_parallel_diag_noise_gpu",
-            obs_models="gaussian-diagonal",
+            obs_models=observation_model_factory("gaussian-diagonal"),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "device": "cuda"},
         )
@@ -399,7 +431,7 @@ class LeaspyFitGPUTest(LeaspyFitTest_Mixin):
         self.generic_fit(
             "linear",
             "linear_scalar_noise_gpu",
-            obs_models="gaussian-scalar",
+            obs_models=observation_model_factory("gaussian-scalar"),
             source_dimension=2,
             algo_params={"n_iter": 100, "seed": 0, "device": "cuda"},
         )

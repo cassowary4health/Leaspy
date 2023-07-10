@@ -10,18 +10,21 @@ from leaspy.models.noise_models import (
     GaussianScalarNoiseModel,
     GaussianDiagonalNoiseModel,
 )
-from leaspy.models.obs_models import FullGaussianObs, BernoulliObservationModel
+from leaspy.models.obs_models import (
+    FullGaussianObservationModel,
+    OBSERVATION_MODELS,
+)
 
 # backward-compat test
 from leaspy.io.data.data import Data
 from leaspy.io.settings.algorithm_settings import AlgorithmSettings
 
 # <!> NEVER import real tests classes at top-level (otherwise their tests will be duplicated...), only MIXINS!!
-from tests.functional_tests.api.test_api_fit import LeaspyFitTest_Mixin
+from tests.functional_tests.api.test_api_fit import LeaspyFitTestMixin
 from tests.unit_tests.models.test_model_factory import ModelFactoryTestMixin
 
 
-class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
+class LeaspyTest(LeaspyFitTestMixin, ModelFactoryTestMixin):
     model_names = (
         "univariate_logistic",
         # "univariate_linear",
@@ -41,22 +44,20 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
 
             leaspy = Leaspy(name)
             self.assertEqual(leaspy.type, name)
-            self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObs)
+            self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObservationModel)
             self.assertEqual(type(leaspy.model), type(ModelFactory.model(name)))
             self.check_model_factory_constructor(leaspy.model)
 
             with self.assertRaisesRegex(ValueError, 'not been initialized'):
                 leaspy.check_if_initialized()
 
-        OBSERVATION_MODELS = {
-            "gaussian-scalar": FullGaussianObs,
-            "gaussian-diagonal": FullGaussianObs,
-            "bernoulli": BernoulliObservationModel,
-        }
         for observation_model_name, observation_model in OBSERVATION_MODELS.items():
-            leaspy = Leaspy('logistic', obs_models=observation_model_name, dimension=1)
-            self.assertEqual(leaspy.type, 'logistic')
-            self.assertIsInstance(leaspy.model.obs_models[0], observation_model)
+            leaspy = Leaspy("logistic", obs_models=observation_model_name, dimension=1)
+            self.assertEqual(leaspy.type, "logistic")
+            self.assertIsInstance(
+                leaspy.model.obs_models[0],
+                observation_model,
+            )
 
         for name in (
             # "linear",
@@ -81,14 +82,14 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
                 Leaspy(f"univariate_{name}", source_dimension=1)
 
         with self.assertRaises(ValueError):
-            Leaspy('univariate') # old name
+            Leaspy('univariate')  # old name
 
     def test_load_hyperparameters(self):
         leaspy = self.get_hardcoded_model('logistic_diag_noise')
         leaspy.model.load_hyperparameters({'source_dimension': 3})
 
         self.assertEqual(leaspy.model.source_dimension, 3)
-        self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObs)
+        self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObservationModel)
 
     def test_load_logistic_scalar_noise(self):
         """
@@ -104,7 +105,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
         self.assertEqual(leaspy.model.dimension, 4)
         self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
-        self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObs)
+        self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObservationModel)
 
         # Test the parameters
         parameters = {
@@ -197,7 +198,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
         self.assertEqual(leaspy.model.dimension, 4)
         self.assertEqual(leaspy.model.features, ['Y0', 'Y1', 'Y2', 'Y3'])
         self.assertEqual(leaspy.model.source_dimension, 2)
-        self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObs)
+        self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObservationModel)
 
         # Test the parameters
         parameters = {
@@ -237,7 +238,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
 
         # Test the hyperparameters
         self.assertEqual(leaspy.model.features, ['Y0'])
-        self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObs)
+        self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObservationModel)
 
         # Test the parameters
         parameters = {
@@ -333,7 +334,7 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
     def test_api_backward_compat_models_saved_before_120_release(self):
 
         data_full = Data.from_csv_file(self.example_data_path)
-        data_bin = Data.from_dataframe(round(pd.read_csv(self.example_data_path, index_col=[0,1])))
+        data_bin = Data.from_dataframe(round(pd.read_csv(self.example_data_path, index_col=[0, 1])))
 
         for model_name, (new_noise_model_kwd, data) in {
             'logistic_scal_noise': (GaussianScalarNoiseModel, data_full),
@@ -358,8 +359,9 @@ class LeaspyTest(LeaspyFitTest_Mixin, ModelFactoryTestMixin):
                 perso_settings = AlgorithmSettings('scipy_minimize', seed=0)
                 ips = lsp.personalize(data, perso_settings)
 
-                simulate_settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=100)  # noise='inherit_struct'
-                r = lsp.simulate(ips, data, simulate_settings)
+                # noise='inherit_struct'
+                simulate_settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=100)
+                lsp.simulate(ips, data, simulate_settings)
 
                 simulate_settings = AlgorithmSettings('simulation', seed=0, number_of_subjects=100, noise='model')
-                r = lsp.simulate(ips, data, simulate_settings)
+                lsp.simulate(ips, data, simulate_settings)

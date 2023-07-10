@@ -5,7 +5,7 @@ from leaspy.variables.distributions import Bernoulli
 from leaspy.variables.specs import VarName, VariableInterface
 from leaspy.utils.weighted_tensor import WeightedTensor
 from leaspy.io.data.dataset import Dataset
-from leaspy.utils.functional import wsum_dim
+from leaspy.utils.weighted_tensor import wsum_dim
 
 
 class BernoulliObservationModel(ObservationModel):

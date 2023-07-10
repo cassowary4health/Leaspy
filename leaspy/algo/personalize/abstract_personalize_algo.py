@@ -68,6 +68,12 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Estimate individual parameters
         individual_parameters = self._get_individual_parameters(model, dataset)
 
+        local_state = model.state.clone(disable_auto_fork=True)
+        model.put_data_variables(local_state, dataset)
+        _, pyt_individual_parameters = individual_parameters.to_pytorch()
+        for ip, ip_vals in pyt_individual_parameters.items():
+            local_state[ip] = ip_vals
+
         # TODO/WIP... (just for functional tests)
         from leaspy.models.obs_models import FullGaussianObs, BernoulliObservationModel
         obs_model = next(iter(model.obs_models))
@@ -76,17 +82,14 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
                 f_loss = obs_model.compute_rmse  # gaussian-scalar
             else:
                 f_loss = obs_model.compute_rmse_per_ft  # gaussian-diagonal
+            loss = f_loss(
+                y=local_state['y'],
+                model=local_state['model'],
+            )
         elif isinstance(obs_model, BernoulliObservationModel):
-            f_loss = obs_model.compute_rmse
+            loss = obs_model.dist.nll(local_state["y"]).sum()
         else:
             raise NotImplementedError(f"Observation model {obs_model} is not implemented yet.")
-
-        local_state = model.state.clone(disable_auto_fork=True)
-        model.put_data_variables(local_state, dataset)
-        _, pyt_individual_parameters = individual_parameters.to_pytorch()
-        for ip, ip_vals in pyt_individual_parameters.items():
-            local_state[ip] = ip_vals
-        loss = f_loss(y=local_state['y'], model=local_state['model'])
 
         ## Compute the loss with these estimated individual parameters (RMSE or NLL depending on observation models)
         #_, pyt_individual_params = individual_parameters.to_pytorch()

@@ -76,6 +76,30 @@ Available noise models in `Leaspy`.
     noise_model_factory
     export_noise_model
 
+:mod:`leaspy.models.obs_models`: **Observation Models**
+-------------------------------------------------------
+Available observation models in `Leaspy`.
+
+.. currentmodule:: leaspy.models.obs_models
+
+.. autosummary::
+    :toctree: generated/
+    :template: class.rst
+
+    BernoulliObservationModel
+    FullGaussianObservationModel
+    GaussianObservationModel
+    ObservationModel
+    ObservationModelFactoryInput
+    ObservationModelNames
+    OrdinalObservationModel
+
+.. autosummary::
+    :toctree: generated/
+    :template: function.rst
+
+    observation_model_factory
+
 :mod:`leaspy.models.utils.attributes`: **Models' attributes**
 -------------------------------------------------------------
 Attributes used by the models.

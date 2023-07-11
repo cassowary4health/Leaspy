@@ -62,13 +62,13 @@ def observation_model_factory(model: ObservationModelFactoryInput, **kwargs) -> 
     :exc:`.LeaspyModelInputError` :
         If `model` is not supported.
     """
+    dimension = kwargs.pop("dimension", None)
     if isinstance(model, ObservationModel):
         return model
     if isinstance(model, str):
         model = ObservationModelNames.from_string(model)
     if isinstance(model, ObservationModelNames):
         if model == ObservationModelNames.GAUSSIAN_DIAGONAL:
-            dimension = kwargs.get("dimension", None)
             if dimension is None:
                 raise NotImplementedError(
                     "WIP: dimension / features should be provided to "

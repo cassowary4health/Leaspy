@@ -57,10 +57,16 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         dimension = kwargs.get('dimension', None)
         if 'features' in kwargs:
             dimension = len(kwargs['features'])
-        obs_model = kwargs.get("obs_models", None)
-        if obs_model is None:
-            obs_model = "gaussian-scalar" if dimension is None else "gaussian-diagonal"
-        kwargs["obs_models"] = observation_model_factory(obs_model, dimension=dimension)
+        observation_models = kwargs.get("obs_models", None)
+        if observation_models is None:
+            observation_models = "gaussian-scalar" if dimension is None else "gaussian-diagonal"
+        if isinstance(observation_models, (list, tuple)):
+            kwargs["obs_models"] = tuple(
+                [observation_model_factory(obs_model, dimension=dimension)
+                 for obs_model in observation_models]
+            )
+        else:
+            kwargs["obs_models"] = (observation_model_factory(observation_models, dimension=dimension),)
         super().__init__(name, **kwargs)
 
     def get_variables_specs(self) -> NamedVariables:

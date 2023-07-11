@@ -11,6 +11,7 @@ from leaspy.models.obs_models import (
     FullGaussianObservationModel,
     BernoulliObservationModel,
     OrdinalObservationModel,
+    observation_model_factory,
 )
 from leaspy.models import BaseModel
 
@@ -261,9 +262,12 @@ class ScipyMinimizeTest(LeaspyTestCase):
             reg, _ = algo._get_regularity(leaspy.model, individual_parameters)
             self.assertAllClose(reg, [expected_reg])
 
-    def _get_individual_dataset_from_times_values(self, model: BaseModel, times, values) -> Dataset:
-        times = np.array(times)
-        values = np.array(values)
+    def _get_individual_dataset_from_times_values(
+        self,
+        model: BaseModel,
+        times: np.ndarray,
+        values: np.ndarray,
+    ) -> Dataset:
         df = pd.DataFrame(
             {
                 "ID": ["ID1"] * len(times),
@@ -280,7 +284,7 @@ class ScipyMinimizeTest(LeaspyTestCase):
         leaspy = self.get_hardcoded_model("logistic_scalar_noise")
 
         z0 = [0.0, 75.2/7.1, 0., 0.]  # for all individual parameters we set `mean/std`
-        times = [70, 80]
+        times = np.array([70, 80])
 
         # previously we did not add the "constant" in NLL for Gaussian noise
         from leaspy.models.noise_models.gaussian import TWO_PI
@@ -289,17 +293,29 @@ class ScipyMinimizeTest(LeaspyTestCase):
         ).item() * 8
         for obs_model, (values, expected_obj, expected_obj_grads) in {
             None: (
-                [[0.5, 0.4, 0.4, 0.45], [0.3, 0.3, 0.2, 0.4]],
-                16.590890884399414 + normal_cst, [2.8990, -14.2579,  -0.8748,   0.2912],
+                np.array(
+                    [
+                        [0.5, 0.4, 0.4, 0.45],
+                        [0.3, 0.3, 0.2, 0.4],
+                    ]
+                ),
+                16.590890884399414 + normal_cst,
+                [2.8990, -14.2579,  -0.8748,   0.2912],
             ),
             "bernoulli": (
-                [[0, 1, 0, 1], [0, 1, 1, 1]],
-                12.92530632019043, [1.1245,   5.4126,  -2.6562, -10.9062],
+                np.array(
+                    [
+                        [0, 1, 0, 1],
+                        [0, 1, 1, 1],
+                    ]
+                ),
+                12.92530632019043,
+                [1.1245,   5.4126,  -2.6562, -10.9062],
             ),
             #'ordinal': (0., []),
         }.items():
             if obs_model is not None:
-                leaspy.model.obs_models = (obs_model,)
+                leaspy.model.obs_models = (observation_model_factory(obs_model),)
 
             dataset = self._get_individual_dataset_from_times_values(leaspy.model, times, values)
             obj, obj_grads = algo.obj(z0, leaspy.model, dataset, with_gradient=True)
@@ -313,16 +329,15 @@ class ScipyMinimizeTest(LeaspyTestCase):
     def get_individual_parameters_patient(
         self,
         model_name: str,
-        times,
-        values,
+        times: np.ndarray,
+        values: np.ndarray,
         *,
         obs_model: Optional[str] = None,
         **algo_kwargs,
     ):
-        # already a functional test in fact...
         leaspy = self.get_hardcoded_model(model_name)
         if obs_model is not None:
-            leaspy.model.obs_model = (obs_model,)
+            leaspy.model.obs_model = (observation_model_factory(obs_model),)
 
         settings = AlgorithmSettings("scipy_minimize", seed=0, **algo_kwargs)
         algo = ScipyMinimize(settings)
@@ -332,23 +347,29 @@ class ScipyMinimizeTest(LeaspyTestCase):
         self.assertEqual(algo.seed, np.random.get_state()[1][0])
 
         dataset = self._get_individual_dataset_from_times_values(leaspy.model, times, values)
-        pyt_ips, loss = algo._get_individual_parameters_patient(
-            leaspy.model.state,
-            with_jac=algo_kwargs["use_jacobian"],
+        pyt_ips = algo._get_individual_parameters(
+            leaspy.model,
+            dataset,
+            #with_jac=algo_kwargs["use_jacobian"],
         )
         nll_regul = algo._get_regularity(leaspy.model, pyt_ips)[0]
-        preds = leaspy.model.compute_individual_tensorized(dataset.timepoints, pyt_ips)
+        predictions = leaspy.model.compute_individual_tensorized(dataset.timepoints, pyt_ips)
 
+        loss = None
         # residuals_getter = getattr(leaspy.model.noise_model, 'compute_residuals', None)
-        res = None
+        residuals = None
         # if residuals_getter:
         #    res = residuals_getter(dataset, preds)
 
-        return leaspy.model.noise_model, pyt_ips, (dataset, preds), (loss, nll_regul), res
+        return leaspy.model.obs_models[0], pyt_ips, (dataset, predictions), (loss, nll_regul), residuals
 
-    def test_get_individual_parameters_patient_univariate_models(self, tol=tol, tol_tau=tol_tau):
-        times = [70, 80]
-        values = [[0.5], [0.4]]  # no test with nans (done in multivariate models)
+    def test_get_individual_parameters_patient_univariate_models(
+        self,
+        tol: float = tol,
+        tol_tau: float = tol_tau,
+    ):
+        times = np.array([70, 80])
+        values = np.array([[0.5], [0.4]])  # no test with nans (done in multivariate models)
 
         for (model_name, use_jacobian), expected_dict in {
             ('univariate_logistic', False): {'tau': 69.2868, 'xi': -.0002, 'err': [[-0.1765], [0.5498]]},
@@ -384,12 +405,18 @@ class ScipyMinimizeTest(LeaspyTestCase):
             expected_rmse = (expected_res**2).mean() ** .5
             self.assertAlmostEqual(rmse.item(), expected_rmse.item(), delta=1e-4)
 
-    def test_get_individual_parameters_patient_multivariate_models(self, tol=tol, tol_tau=tol_tau):
-        times = [70, 80]
-        values = [
-            [0.5, 0.4, 0.4, 0.45],
-            [0.3, 0.3, 0.2, 0.4],
-        ]
+    def test_get_individual_parameters_patient_multivariate_models(
+        self,
+        tol: float = tol,
+        tol_tau: float = tol_tau,
+    ):
+        times = np.array([70, 80])
+        values = np.array(
+            [
+                [0.5, 0.4, 0.4, 0.45],
+                [0.3, 0.3, 0.2, 0.4],
+            ]
+        )
         for (model_name, use_jacobian), expected_dict in {
             ('logistic_scalar_noise', False): {
                 'tau': 78.5750,
@@ -440,12 +467,18 @@ class ScipyMinimizeTest(LeaspyTestCase):
             expected_rmse = (expected_res**2).mean() ** .5
             self.assertAlmostEqual(rmse.item(), expected_rmse.item(), delta=1e-4)
 
-    def test_get_individual_parameters_patient_multivariate_models_with_nans(self, tol=tol, tol_tau=tol_tau):
-        times = [70, 80]
-        values = [
-            [0.5, 0.4, 0.4, np.nan],
-            [0.3, np.nan, np.nan, 0.4],
-        ]
+    def test_get_individual_parameters_patient_multivariate_models_with_nans(
+        self,
+        tol: float = tol,
+        tol_tau: float = tol_tau,
+    ):
+        times = np.array([70, 80])
+        values = np.array(
+            [
+                [0.5, 0.4, 0.4, np.nan],
+                [0.3, np.nan, np.nan, 0.4],
+            ]
+        )
         nan_positions = torch.tensor([
             [False, False, False, True],
             [False, True, True, False]
@@ -503,28 +536,32 @@ class ScipyMinimizeTest(LeaspyTestCase):
             self.assertAlmostEqual(rmse.item(), expected_rmse.item(), delta=1e-4)
 
     def test_get_individual_parameters_patient_multivariate_models_crossentropy(
-        self, tol=tol, tol_tau=tol_tau,
+        self,
+        tol: float = tol,
+        tol_tau: float = tol_tau,
     ):
-        times = [70, 80]
-        values = [
-            [0, 1, 0, 1],
-            [0, 1, 1, 1],
-        ]
+        times = np.array([70, 80])
+        values = np.array(
+            [
+                [0, 1, 0, 1],
+                [0, 1, 1, 1],
+            ]
+        )
         for (model_name, use_jacobian), expected_dict in {
             ('logistic_scalar_noise', False): {
                 'tau': 70.6041,
                 'xi': -0.0458,
                 'sources': [0.9961, 1.2044],
-                'err': [[ 1.2993e-03, -6.2189e-02,  4.8657e-01, -4.1219e-01],
-                        [ 2.4171e-01, -9.4945e-03, -8.5862e-02, -4.0013e-04]],
+                'err': [[1.2993e-03, -6.2189e-02,  4.8657e-01, -4.1219e-01],
+                        [2.4171e-01, -9.4945e-03, -8.5862e-02, -4.0013e-04]],
                 'nll': (1.6396453380584717, 1.457330584526062),
             },
             ('logistic_scalar_noise', True): {
                 'tau': 70.5971,
                 'xi': -0.0471,
                 'sources': [0.9984, 1.2037],
-                'err': [[ 1.3049e-03, -6.2177e-02,  4.8639e-01, -4.1050e-01],
-                        [ 2.4118e-01, -9.5164e-03, -8.6166e-02, -4.0120e-04]],
+                'err': [[1.3049e-03, -6.2177e-02,  4.8639e-01, -4.1050e-01],
+                        [2.4118e-01, -9.5164e-03, -8.6166e-02, -4.0120e-04]],
                 'nll': (1.6363288164138794, 1.460662841796875),
             },
 
@@ -569,13 +606,17 @@ class ScipyMinimizeTest(LeaspyTestCase):
             )
 
     def test_get_individual_parameters_patient_multivariate_models_with_nans_crossentropy(
-        self, tol=tol, tol_tau=tol_tau
+        self,
+        tol: float = tol,
+        tol_tau: float = tol_tau,
     ):
-        times = [70, 80]
-        values = [
-            [0, 1, 0, np.nan],
-            [0, np.nan, np.nan, 1],
-        ]
+        times = np.array([70, 80])
+        values = np.array(
+            [
+                [0, 1, 0, np.nan],
+                [0, np.nan, np.nan, 1],
+            ]
+        )
         nan_positions = torch.tensor([
             [False, False, False, True],
             [False, True, True, False]
@@ -585,16 +626,16 @@ class ScipyMinimizeTest(LeaspyTestCase):
                 'tau': 75.7494,
                 'xi': -0.0043,
                 'sources': [0.4151, 1.0180],
-                'err': [[ 2.7332e-04, -0.30629,  0.22526,        0.],
-                        [ 0.077974,         0.,       0., -0.036894]],
+                'err': [[2.7332e-04, -0.30629,  0.22526,        0.],
+                        [0.077974,         0.,       0., -0.036894]],
                 'nll': (0.7398623824119568, 0.6076518297195435),
             },
             ('logistic_scalar_noise', True): {
                 'tau': 75.7363,
                 'xi': -0.0038,
                 'sources': [0.4146, 1.0160],
-                'err': [[ 2.7735e-04, -0.30730,  0.22526,         0.],
-                        [ 0.079207,         0.,         0., -0.036614]],
+                'err': [[2.7735e-04, -0.30730,  0.22526,         0.],
+                        [0.079207,         0.,         0., -0.036614]],
                 'nll': (0.7424823045730591, 0.6050525903701782),
             },
             # TODO? linear, logistic_parallel
@@ -639,10 +680,18 @@ class ScipyMinimizeTest(LeaspyTestCase):
                 delta=tol**2,
             )
 
-    def test_get_individual_parameters_patient_multivariate_models_ordinal(self, tol=tol, tol_tau=tol_tau):
-        times = [70, 80]
-        values = [[0, 1, 0, 2], [1, 2, 2, 4]]  # no nans (separate test)
-
+    def test_get_individual_parameters_patient_multivariate_models_ordinal(
+        self,
+        tol: float = tol,
+        tol_tau: float = tol_tau,
+    ):
+        times = np.array([70, 80])
+        values = np.array(
+            [
+                [0, 1, 0, 2],
+                [1, 2, 2, 4],
+            ]
+        )
         for (model_name, use_jacobian), expected_dict in {
             ('logistic_ordinal', False): {
                 'tau': 74.0180,
@@ -692,9 +741,11 @@ class ScipyMinimizeTest(LeaspyTestCase):
             )
 
     def test_get_individual_parameters_patient_multivariate_models_with_nans_ordinal(
-        self, tol=tol, tol_tau=tol_tau,
+        self,
+        tol: float = tol,
+        tol_tau: float = tol_tau,
     ):
-        times = [70, 80]
+        times = np.array([70, 80])
         values = torch.tensor(
             [
                 [0, 1, 2, np.nan],

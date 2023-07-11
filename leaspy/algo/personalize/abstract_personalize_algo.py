@@ -75,9 +75,9 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
             local_state[ip] = ip_vals
 
         # TODO/WIP... (just for functional tests)
-        from leaspy.models.obs_models import FullGaussianObs, BernoulliObservationModel
+        from leaspy.models.obs_models import FullGaussianObservationModel
         obs_model = next(iter(model.obs_models))
-        if isinstance(obs_model, FullGaussianObs):
+        if isinstance(obs_model, FullGaussianObservationModel):
             if obs_model.extra_vars['noise_std'].shape == (1,):
                 f_loss = obs_model.compute_rmse  # gaussian-scalar
             else:

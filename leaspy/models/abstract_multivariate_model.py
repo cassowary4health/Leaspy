@@ -73,6 +73,11 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         """
         Return the specifications of the variables (latent variables,
         derived variables, model 'parameters') that are part of the model.
+
+        Returns
+        -------
+        NamedVariables :
+            The specifications of the model's variables.
         """
         d = super().get_variables_specs()
 
@@ -80,17 +85,21 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             # PRIORS
             log_g_mean=ModelParameter.for_pop_mean("log_g", shape=(self.dimension,)),
             log_g_std=Hyperparameter(0.01),
-
             tau_mean=ModelParameter.for_ind_mean("tau", shape=(1,)),
             tau_std=ModelParameter.for_ind_std("tau", shape=(1,)),
             # xi_mean=Hyperparameter(0.),  # depends on model sub-type (parallel or not)
             xi_std=ModelParameter.for_ind_std("xi", shape=(1,)),
 
             # LATENT VARS
-            log_g=PopulationLatentVariable(Normal("log_g_mean", "log_g_std")),
-            xi=IndividualLatentVariable(Normal("xi_mean", "xi_std")),
-            tau=IndividualLatentVariable(Normal("tau_mean", "tau_std")),
-
+            log_g=PopulationLatentVariable(
+                Normal("log_g_mean", "log_g_std")
+            ),
+            xi=IndividualLatentVariable(
+                Normal("xi_mean", "xi_std")
+            ),
+            tau=IndividualLatentVariable(
+                Normal("tau_mean", "tau_std")
+            ),
             # DERIVED VARS
             g=LinkedVariable(Exp("log_g")),
             alpha=LinkedVariable(Exp("xi")),
@@ -100,19 +109,30 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         if self.source_dimension >= 1:
             d.update(
                 # PRIORS
-                betas_mean=ModelParameter.for_pop_mean("betas", shape=(self.dimension - 1, self.source_dimension)),
+                betas_mean=ModelParameter.for_pop_mean(
+                    "betas",
+                    shape=(self.dimension - 1, self.source_dimension),
+                ),
                 betas_std=Hyperparameter(0.01),
-                sources_mean=Hyperparameter(torch.zeros((self.source_dimension,))),
+                sources_mean=Hyperparameter(
+                    torch.zeros((self.source_dimension,))
+                ),
                 sources_std=Hyperparameter(1.),
                 # LATENT VARS
                 betas=PopulationLatentVariable(
                     Normal("betas_mean", "betas_std"),
                     sampling_kws={"scale": .5},   # cf. GibbsSampler (for retro-compat)
                 ),
-                sources=IndividualLatentVariable(Normal("sources_mean", "sources_std")),
+                sources=IndividualLatentVariable(
+                    Normal("sources_mean", "sources_std")
+                ),
                 # DERIVED VARS
-                mixing_matrix=LinkedVariable(MatMul("orthonormal_basis", "betas").then(torch.t)),  # shape: (Ns, Nfts)
-                space_shifts=LinkedVariable(MatMul("sources", "mixing_matrix")),                   # shape: (Ni, Nfts)
+                mixing_matrix=LinkedVariable(
+                    MatMul("orthonormal_basis", "betas").then(torch.t)
+                ),  # shape: (Ns, Nfts)
+                space_shifts=LinkedVariable(
+                    MatMul("sources", "mixing_matrix")
+                ),  # shape: (Ni, Nfts)
             )
 
         return d

@@ -865,6 +865,11 @@ class AbstractModel(BaseModel):
         """
         Return the specifications of the variables (latent variables,
         derived variables, model 'parameters') that are part of the model.
+
+        Returns
+        -------
+        NamedVariables :
+            The specifications of the model's variables.
         """
         d = NamedVariables({
             "t": DataVariable(),

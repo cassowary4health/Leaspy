@@ -103,17 +103,16 @@ class AbstractModelTest(LeaspyTestCase):
 
                 leaspy = Leaspy(model_name, obs_models="bernoulli", **extra_kws)
                 settings = AlgorithmSettings('mcmc_saem', n_iter=200, seed=0)
-
                 data = self.get_suited_test_data_for_model(model_name + '_binary')
 
                 leaspy.fit(data, settings)
 
                 for method in ['scipy_minimize']:
-                    extra_kws = dict() # not for all algos
+                    extra_kws = dict()  # not for all algos
                     if '_real' in method:
                         extra_kws = dict(n_iter=100)
                     settings = AlgorithmSettings(method, seed=0, **extra_kws)
-                    result = leaspy.personalize(data, settings)
+                    leaspy.personalize(data, settings)
 
     def test_tensorize_2D(self):
 

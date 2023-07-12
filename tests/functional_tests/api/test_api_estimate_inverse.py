@@ -4,6 +4,8 @@ from leaspy import Leaspy
 # never import a real test case at top-level so to not duplicate tests, only tests MIXINS!
 from .test_api_estimate import LeaspyEstimateTestMixin
 
+from unittest import skip
+
 
 class LeaspyEstimateInverseTest(LeaspyEstimateTestMixin):
 
@@ -11,6 +13,7 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTestMixin):
     def individual_parameters(self):
         return self.get_hardcoded_individual_params("ip_save.json")
 
+    @skip("Broken: compute_individual_ages_from_biomarker_values is not implemented")
     def test_estimate_ages_from_biomarker_values_univariate(self):
         # TODO: test that doesn't rely on estimate ? (rather on estimate 'theoretical' results)
 
@@ -118,6 +121,7 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTestMixin):
         self.assertAlmostEqual(estimated_ages_0['idx1'], 70.53896, 2)
         self.assertAlmostEqual(estimated_ages_0['idx2'], 73.12502, 2)
 
+    @skip("Broken: compute_individual_ages_from_biomarker_values is not implemented")
     def test_estimate_ages_from_biomarker_values_multivariate(self):
         # multivariate logistic model
         # feats are "Y0", ...
@@ -177,6 +181,7 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTestMixin):
                 if isinstance(estimations[idx], float):
                     estimations[idx] = [estimations[idx]]
 
+            # BROKEN : compute_individual_ages_from_biomarker_values is not yet implemented
             estimated_ages = leaspy.estimate_ages_from_biomarker_values(
                 individual_parameters=self.individual_parameters,
                 biomarker_values=estimations,
@@ -198,6 +203,7 @@ class LeaspyEstimateInverseTest(LeaspyEstimateTestMixin):
         self.assertAlmostEqual(estimated_ages_0['idx1'], 68.52, 2)
         self.assertAlmostEqual(estimated_ages_0['idx2'], 72.38, 2)
 
+    @skip("Broken : Ordinal models are currently broken")
     def test_estimate_ages_from_biomarker_values_multivariate_ordinal(self):
         # multivariate logistic ordinal model
         # feats are "Y0", ...

@@ -5,6 +5,7 @@ from abc import abstractmethod
 import torch
 
 from leaspy.algo.abstract_algo import AbstractAlgo
+from leaspy.utils.weighted_tensor import wsum_dim
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
@@ -87,11 +88,11 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
                 model=local_state['model'],
             )
         else:
-            loss = obs_model.dist.nll(local_state["y"]).sum()
-
-        ## Compute the loss with these estimated individual parameters (RMSE or NLL depending on observation models)
-        #_, pyt_individual_params = individual_parameters.to_pytorch()
-        #loss = model.compute_canonical_loss_tensorized(dataset, pyt_individual_params)
+            # Better way ??
+            loss = obs_model.dist.get_func_nll("y").then(wsum_dim)(
+                y=local_state["y"],
+                model=local_state["model"],
+            )[0]
 
         return individual_parameters, loss
 

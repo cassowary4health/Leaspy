@@ -61,11 +61,28 @@ class VariableInterface:
         """
         Compute variable value from a `state` exposing a dict-like interface: var_name -> values.
         If not relevant for variable type return None.
+
+        Parameters
+        ----------
+        state : VariablesValuesRO
+            The state to use in order to perform computations.
+
+        Returns
+        -------
+        VarValue :
+            The variable value computed from the state.
         """
 
     @abstractmethod
     def get_ancestors_names(self) -> FrozenSet[VarName]:
-        """Get the names of the variables that the current variable directly depends on."""
+        """
+        Get the names of the variables that the current variable directly depends on.
+
+        Returns
+        -------
+        FrozenSet[VarName] :
+            The set of ancestors variable names.
+        """
 
     # TODO? add a check or validate(value) method? (to be optionally called by State)
     # <!> should some extra context be passed to this method
@@ -77,9 +94,31 @@ class IndepVariable(VariableInterface):
     """Base class for variable that is not dependent on any other variable."""
 
     def get_ancestors_names(self) -> FrozenSet[VarName]:
+        """
+        Get the names of the variables that the current variable directly depends on.
+
+        Returns
+        -------
+        FrozenSet[VarName] :
+            The set of ancestors variable names.
+        """
         return frozenset()
 
     def compute(self, state: VariablesValuesRO) -> None:
+        """
+        Compute variable value from a `state` exposing a dict-like interface: var_name -> values.
+        If not relevant for variable type return None.
+
+        Parameters
+        ----------
+        state : VariablesValuesRO
+            The state to use in order to perform computations.
+
+        Returns
+        -------
+        VarValue :
+            The variable value computed from the state.
+        """
         return None
 
 
@@ -97,7 +136,14 @@ class Hyperparameter(IndepVariable):
             object.__setattr__(self, "value", torch.tensor(self.value))
 
     def to_device(self, device: torch.device) -> None:
-        """Move the value to specified device (other variables never hold values so need for this method)."""
+        """
+        Move the value to specified device (other variables never hold values so need for this method).
+
+        Parameters
+        ----------
+        device : torch.device
+            The device on which to move the variable value.
+        """
         return object.__setattr__(self, "value", self.value.to(device=device))
 
     @property
@@ -191,9 +237,29 @@ class ModelParameter(IndepVariable):
         )
 
     def compute_update(
-        self, *, state: VariablesValuesRO, suff_stats: SuffStatsRO, burn_in: bool
+        self,
+        *,
+        state: VariablesValuesRO,
+        suff_stats: SuffStatsRO,
+        burn_in: bool,
     ) -> VarValue:
-        """Update rule (maximization step) for the model parameter."""
+        """
+        Update rule (maximization step) for the model parameter.
+
+        Parameters
+        ----------
+        state : VariablesValuesRO
+            The state to use for computations.
+        suff_stats : SuffStatsRO
+            The sufficient statistics to use.
+        burn_in : bool
+            If True, use the update rule in burning phase.
+
+        Returns
+        -------
+        VarValue :
+            The computed variable value.
+        """
         update_rule, update_rule_params = self.update_rule, self._update_rule_parameters
         if burn_in and self.update_rule_burn_in is not None:
             update_rule, update_rule_params = (
@@ -297,7 +363,10 @@ class LatentVariable(IndepVariable):
         return self.prior.shape(**params_shapes)
 
     def _get_init_func_generic(
-        self, method: LatentVariableInitType, *, sample_shape: Tuple[int, ...]
+        self,
+        method: LatentVariableInitType,
+        *,
+        sample_shape: Tuple[int, ...],
     ) -> NamedInputFunction[torch.Tensor]:
         """Return a `NamedInputFunction`: State -> Tensor, that may be used for initialization."""
         if method is LatentVariableInitType.PRIOR_SAMPLES:
@@ -330,21 +399,49 @@ class PopulationLatentVariable(LatentVariable):
     fixed_shape: ClassVar = True
 
     def get_init_func(
-        self, method: LatentVariableInitType
+        self,
+        method: LatentVariableInitType,
     ) -> NamedInputFunction[torch.Tensor]:
-        """Return a `NamedInputFunction`: State -> Tensor, that may be used for initialization."""
+        """
+        Return a `NamedInputFunction`: State -> Tensor, that may be used for initialization.
+
+        Parameters
+        ----------
+        method : LatentVariableInitType
+            The method to be used.
+
+        Returns
+        -------
+        NamedInputFunction :
+            The initialization function.
+        """
         return self._get_init_func_generic(method=method, sample_shape=())
 
     def get_regularity_variables(
-        self, value_name: VarName
+        self,
+        variable_name: VarName,
     ) -> Dict[VarName, LinkedVariable]:
+        """
+        Return the negative log likelihood regularity for the
+        provided variable name.
+
+        Parameters
+        ----------
+        variable_name : VarName
+            The name of the variable for which to retrieve regularity.
+
+        Returns
+        -------
+        Dict[VarName, LinkedVariable] :
+            The dictionary holding the LinkedVariable for the regularity.
+        """
         # d = super().get_regularity_variables(value_name)
         d = {}
         d.update(
             {
-                f"nll_regul_{value_name}": LinkedVariable(
+                f"nll_regul_{variable_name}": LinkedVariable(
                     # SumDim(f"nll_regul_{value_name}_full")
-                    self.prior.get_func_nll(value_name).then(sum_dim)
+                    self.prior.get_func_nll(variable_name).then(sum_dim)
                 ),
                 # TODO: jacobian as well...
             }
@@ -358,24 +455,56 @@ class IndividualLatentVariable(LatentVariable):
     fixed_shape: ClassVar = False
 
     def get_init_func(
-        self, method: LatentVariableInitType, *, n_individuals: int
+        self,
+        method: LatentVariableInitType,
+        *,
+        n_individuals: int,
     ) -> NamedInputFunction[torch.Tensor]:
-        """Return a `NamedInputFunction`: State -> Tensor, that may be used for initialization."""
+        """Return a `NamedInputFunction`: State -> Tensor, that may be used for initialization.
+
+        Parameters
+        ----------
+        method : LatentVariableInitType
+            The method to be used.
+
+        n_individuals : int
+            The number of individuals, used to define the shape.
+
+        Returns
+        -------
+        NamedInputFunction :
+            The initialization function.
+        """
         return self._get_init_func_generic(method=method, sample_shape=(n_individuals,))
 
     def get_regularity_variables(
-        self, value_name: VarName
+        self,
+        variable_name: VarName,
     ) -> Dict[VarName, LinkedVariable]:
+        """
+        Return the negative log likelihood regularity for the
+        provided variable name.
+
+        Parameters
+        ----------
+        variable_name : VarName
+            The name of the variable for which to retrieve regularity.
+
+        Returns
+        -------
+        Dict[VarName, LinkedVariable] :
+            The dictionary holding the LinkedVariable for the regularity.
+        """
         # d = super().get_regularity_variables(value_name)
         d = {}
         d.update(
             {
-                f"nll_regul_{value_name}_ind": LinkedVariable(
+                f"nll_regul_{variable_name}_ind": LinkedVariable(
                     # SumDim(f"nll_regul_{value_name}_full", but_dim=LVL_IND)
-                    self.prior.get_func_nll(value_name).then(sum_dim, but_dim=LVL_IND)
+                    self.prior.get_func_nll(variable_name).then(sum_dim, but_dim=LVL_IND)
                 ),
-                f"nll_regul_{value_name}": LinkedVariable(
-                    SumDim(f"nll_regul_{value_name}_ind")
+                f"nll_regul_{variable_name}": LinkedVariable(
+                    SumDim(f"nll_regul_{variable_name}_ind")
                 ),
                 # TODO: jacobian as well...
             }
@@ -413,6 +542,19 @@ class LinkedVariable(VariableInterface):
         return self.parameters
 
     def compute(self, state: VariablesValuesRO) -> VarValue:
+        """
+        Compute the variable value from a given State.
+
+        Parameters
+        ----------
+        state : VariablesValuesRO
+            The state to use for computations.
+
+        Returns
+        -------
+        VarValue :
+            The value of the variable.
+        """
         return self.f(**{k: state[k] for k in self.parameters})
 
 
@@ -421,12 +563,12 @@ class NamedVariables(UserDict):
     Convenient dictionary for named variables specifications.
 
     In particular, it:
-    1. forbids the collisions in variable names when assigning/updating the collection
-    2. forbids the usage of some reserved names like 'state' or 'suff_stats'
-    3. automatically adds implicit variables when variables of certain kind are added
-    (e.g. dedicated vars for sufficient stats of ModelParameter)
-    4. automatically adds summary variables depending on all contained variables
-    (e.g. `nll_regul_ind_sum` that depends on all individual latent variables contained)
+        1. forbids the collisions in variable names when assigning/updating the collection
+        2. forbids the usage of some reserved names like 'state' or 'suff_stats'
+        3. automatically adds implicit variables when variables of certain kind are added
+           (e.g. dedicated vars for sufficient stats of ModelParameter)
+        4. automatically adds summary variables depending on all contained variables
+           (e.g. `nll_regul_ind_sum` that depends on all individual latent variables contained)
 
     <!> For now, you should NOT update a `NamedVariables` with another one, only update with a regular mapping.
     """

@@ -8,10 +8,10 @@ from typing import Tuple, Any, ClassVar, Callable, Type
 import torch
 from torch.autograd import grad
 
-from leaspy.utils.functional import NamedInputFunction
-from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
+from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor, sum_dim
 from leaspy.exceptions import LeaspyInputError
 from leaspy.utils.distributions import MultinomialDistribution
+from leaspy.utils.functional import NamedInputFunction
 
 
 class StatelessDistributionFamily(ABC):
@@ -58,7 +58,9 @@ class StatelessDistributionFamily(ABC):
     @classmethod
     @abstractmethod
     def sample(
-        cls, *params: torch.Tensor, sample_shape: Tuple[int, ...] = ()
+        cls,
+        *params: torch.Tensor,
+        sample_shape: Tuple[int, ...] = (),
     ) -> torch.Tensor:
         """
         Sample values, given distribution parameters (`sample_shape` is
@@ -95,7 +97,9 @@ class StatelessDistributionFamily(ABC):
 
     @classmethod
     def _nll_and_jacobian(
-        cls, x: torch.Tensor, *params: torch.Tensor
+        cls,
+        x: torch.Tensor,
+        *params: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Negative log-likelihood of value and its jacobian w.r.t. value, given distribution parameters."""
         # not efficient implementation by default
@@ -159,25 +163,81 @@ class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFami
 
     @classmethod
     def validate_parameters(cls, *params: Any) -> Tuple[torch.Tensor, ...]:
-        d = cls.dist_factory(*params, validate_args=True)
-        return tuple(getattr(d, p) for p in cls.parameters)
+        """
+        Validate consistency of distribution parameters,
+        returning them with out-of-place modifications if needed.
+
+        Parameters
+        ----------
+        params : Any
+            The parameters to pass to the distribution factory.
+
+        Returns
+        -------
+        Tuple[torch.Tensor, ...] :
+            The validated parameters.
+        """
+        distribution = cls.dist_factory(*params, validate_args=True)
+        return tuple(getattr(distribution, parameter) for parameter in cls.parameters)
 
     @classmethod
     def sample(
-        cls, *params: torch.Tensor, sample_shape: Tuple[int, ...] = ()
+        cls,
+        *params: torch.Tensor,
+        sample_shape: Tuple[int, ...] = (),
     ) -> torch.Tensor:
         return cls.dist_factory(*params).sample(sample_shape)
 
     @classmethod
     def mode(cls, *params: torch.Tensor) -> torch.Tensor:
+        """
+        Mode of distribution (returning first value if discrete ties),
+        given distribution parameters.
+
+        Parameters
+        ----------
+        params : torch.Tensor
+            The distribution parameters.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's mode.
+        """
         raise NotImplementedError("Not provided in torch.Distribution interface")
 
     @classmethod
     def mean(cls, *params: torch.Tensor) -> torch.Tensor:
+        """
+        Mean of distribution (if defined), given distribution parameters.
+
+        Parameters
+        ----------
+        params : torch.Tensor
+            The distribution parameters.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's mean.
+        """
         return cls.dist_factory(*params).mean
 
     @classmethod
     def stddev(cls, *params: torch.Tensor) -> torch.Tensor:
+        """
+        Return the standard-deviation of the distribution, given distribution parameters.
+
+        Parameters
+        ----------
+        params : torch.Tensor
+            The distribution parameters.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's standard deviation.
+        """
         return cls.dist_factory(*params).stddev
 
     @classmethod
@@ -186,7 +246,9 @@ class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFami
 
     @classmethod
     def _nll_and_jacobian(
-        cls, x: torch.Tensor, *params: torch.Tensor
+        cls,
+        x: torch.Tensor,
+        *params: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         nll = cls._nll(x, *params)
         (nll_grad_value,) = grad(nll, (x,), create_graph=x.requires_grad)
@@ -217,24 +279,70 @@ class NormalFamily(StatelessDistributionFamilyFromTorchDistribution):
     nll_constant_standard: ClassVar = 0.5 * torch.log(2 * torch.tensor(math.pi))
 
     @classmethod
-    def mode(cls, loc, scale):
+    def mode(cls, loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        """
+        Return the mode of the distribution given the distribution's loc and scale parameters.
+
+        Parameters
+        ----------
+        loc : torch.Tensor
+            The distribution loc.
+
+        scale : torch.Tensor
+            The distribution scale.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's mode.
+        """
         # `loc`, but with possible broadcasting of shape
         return torch.broadcast_tensors(loc, scale)[0]
 
     @classmethod
-    def mean(cls, loc, scale):
+    def mean(cls, loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        """
+        Return the mean of the distribution, given the distribution loc and scale parameters.
+
+        Parameters
+        ----------
+        loc : torch.Tensor
+            The distribution loc parameters.
+        scale : torch.Tensor
+            The distribution scale parameters.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's mean.
+        """
         # Hardcode method for efficiency
         # `loc`, but with possible broadcasting of shape
         return torch.broadcast_tensors(loc, scale)[0]
 
     @classmethod
-    def stddev(cls, loc, scale):
+    def stddev(cls, loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        """
+        Return the standard-deviation of the distribution, given loc and scale of the distribution.
+
+        Parameters
+        ----------
+        loc : torch.Tensor
+            The distribution loc parameter.
+        scale : torch.Tensor
+            The distribution scale parameter.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's standard deviation.
+        """
         # Hardcode method for efficiency
         # `scale`, but with possible broadcasting of shape
         return torch.broadcast_tensors(loc, scale)[1]
 
     @classmethod
-    def _nll(cls, x: torch.Tensor, loc, scale):
+    def _nll(cls, x: torch.Tensor, loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
         # Hardcode method for efficiency
         return (
             0.5 * ((x - loc) / scale) ** 2
@@ -243,12 +351,17 @@ class NormalFamily(StatelessDistributionFamilyFromTorchDistribution):
         )
 
     @classmethod
-    def _nll_jacobian(cls, x: torch.Tensor, loc, scale):
+    def _nll_jacobian(cls, x: torch.Tensor, loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
         # Hardcode method for efficiency
-        return (x - loc) / scale**2
+        return (x - loc) / scale ** 2
 
     @classmethod
-    def _nll_and_jacobian(cls, x: torch.Tensor, loc, scale):
+    def _nll_and_jacobian(
+        cls,
+        x: torch.Tensor,
+        loc: torch.Tensor,
+        scale: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Hardcode method for efficiency
         z = (x - loc) / scale
         nll = 0.5 * z**2 + torch.log(scale) + cls.nll_constant_standard
@@ -304,32 +417,93 @@ class SymbolicDistribution:
     def get_func_sample(
         self, sample_shape: Tuple[int, ...] = ()
     ) -> NamedInputFunction[torch.Tensor]:
-        """Factory of symbolic sampling function."""
+        """
+        Factory of symbolic sampling function.
+
+        Parameters
+        ----------
+        sample_shape : tuple of int, optional
+            The shape of the sample.
+            Default=().
+
+        Returns
+        -------
+        NamedInputFunction :
+            The sample function.
+        """
         return self._get_func("sample", sample_shape=sample_shape)
 
     def get_func_nll(
         self, value_name: str
     ) -> NamedInputFunction[WeightedTensor[float]]:
-        """Factory of symbolic function: state -> negative log-likelihood of value."""
+        """
+        Factory of symbolic function: state -> negative log-likelihood of value.
+
+        Parameters
+        ----------
+        value_name : str
+
+        Returns
+        -------
+        NamedInputFunction :
+            The named input function to use to compute negative log likelihood.
+        """
         return self._get_func("nll", value_name)
 
     def get_func_nll_jacobian(
         self, value_name: str
     ) -> NamedInputFunction[WeightedTensor[float]]:
-        """Factory of symbolic function: state -> jacobian w.r.t. value of negative log-likelihood."""
+        """
+        Factory of symbolic function: state -> jacobian w.r.t. value of negative log-likelihood.
+
+        Parameters
+        ----------
+        value_name : str
+
+        Returns
+        -------
+        NamedInputFunction :
+            The named input function to use to compute negative log likelihood jacobian.
+        """
         return self._get_func("nll_jacobian", value_name)
 
     def get_func_nll_and_jacobian(
         self, value_name: str
     ) -> NamedInputFunction[Tuple[WeightedTensor[float], WeightedTensor[float]]]:
-        """Factory of symbolic function: state -> (negative log-likelihood, its jacobian w.r.t. value)."""
+        """
+        Factory of symbolic function: state -> (negative log-likelihood, its jacobian w.r.t. value).
+
+        Parameters
+        ----------
+        value_name : str
+
+        Returns
+        -------
+        Tuple[NamedInputFunction, NamedInputFunction] :
+            The named input functions to use to compute negative log likelihood and its jacobian.
+        """
         return self._get_func("nll_and_jacobian", value_name)
 
     @classmethod
-    def bound_to(cls, dist_family: Type[StatelessDistributionFamily]):
-        """Return a factory to create `SymbolicDistribution` bound to the provided distribution family."""
+    def bound_to(
+        cls,
+        dist_family: Type[StatelessDistributionFamily],
+    ) -> Callable[..., SymbolicDistribution]:
+        """
+        Return a factory to create `SymbolicDistribution` bound to the provided distribution family.
 
-        def factory(*parameters_names: str):
+        Parameters
+        ----------
+        dist_family : StatelessDistributionFamily
+            The distribution family to use to create a SymbolicDistribution.
+
+        Returns
+        -------
+        factory : Callable[..., SymbolicDistribution]
+            The factory.
+        """
+
+        def factory(*parameters_names: str) -> SymbolicDistribution:
             """
             Factory of a `SymbolicDistribution`, bounded to the provided distribution family.
 
@@ -337,6 +511,11 @@ class SymbolicDistribution:
             ----------
             *parameters : str
                 Names, in order, for distribution parameters.
+
+            Returns
+            -------
+            SymbolicDistribution :
+                The symbolic distribution resulting from the factory.
             """
             return SymbolicDistribution(parameters_names, dist_family)
 
@@ -362,8 +541,6 @@ Ordinal = SymbolicDistribution.bound_to(OrdinalFamily)
 
 # INLINE UNIT TESTS
 if __name__ == "__main__":
-    from leaspy.utils.functional import NamedInputFunction, sum_dim
-
     print(Normal)
     print(Normal("mean", "std").validate_parameters(mean=0.0, std=1.0))
 

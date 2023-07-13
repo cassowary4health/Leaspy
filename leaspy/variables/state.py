@@ -179,8 +179,8 @@ class State(MutableMapping):
 
     def put(
         self,
-        k: VarName,
-        v: torch.Tensor,
+        variable_name: VarName,
+        variable_value: torch.Tensor,
         *,
         indices: Tuple[int, ...] = (),
         accumulate: bool = False,
@@ -188,18 +188,34 @@ class State(MutableMapping):
         """
         Smart and protected assignment of a variable value, but potentially on a subset of indices,
         adding (accumulating) values and OUT-OF-PLACE.
+
+        Parameters
+        ----------
+        variable_name : VarName
+            The name of the variable.
+        variable_value : torch.Tensor
+            The new value to put in the variable name.
+        indices : Tuple of int, optional
+            If set, the operation will happen on a subset of indices.
+            Default=()
+        accumulate : bool, optional
+            If set to True, the new variable value will be added
+            to the old value. Otherwise, it will be assigned.
+            Default=False
         """
         if indices == ():
             # `torch.index_put` is not working in this case.
             if not accumulate:
-                self[k] = v
+                self[variable_name] = variable_value
             else:
-                self[k] = self[k] + v
+                self[variable_name] = self[variable_name] + variable_value
             return
         # For now: no optimization for partial indices operations
         torch_indices = tuple(map(torch.tensor, indices))
-        self[k] = self[k].index_put(
-            indices=torch_indices, values=v, accumulate=accumulate
+        self[variable_name] = self[variable_name].index_put(
+            indices=torch_indices,
+            values=variable_value,
+            accumulate=accumulate,
         )
 
     def __delitem__(self, k: VarName) -> None:

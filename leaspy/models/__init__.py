@@ -3,6 +3,7 @@ from .abstract_model import AbstractModel
 from .univariate_model import UnivariateModel
 from .multivariate_model import MultivariateModel
 from .multivariate_parallel_model import MultivariateParallelModel
+from .multivariate_ip_mixture_model import MultivariateIndividualParametersMixtureModel
 from .constant_model import ConstantModel
 from .lme_model import LMEModel
 
@@ -17,6 +18,10 @@ ALL_MODELS = {
     'linear': MultivariateModel,
     'mixed_linear-logistic': MultivariateModel,
     'logistic_parallel': MultivariateParallelModel,
+
+    # mixture models
+    'mixture_logistic': MultivariateIndividualParametersMixtureModel,
+    'mixture_linear': MultivariateIndividualParametersMixtureModel,
 
     # naive models (for benchmarks)
     'lme': LMEModel,

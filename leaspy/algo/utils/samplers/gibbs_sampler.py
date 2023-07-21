@@ -124,6 +124,10 @@ class GibbsSampler(AbstractSampler):
             # Proposition variance is adapted independently on each patient ('Gibbs' sampler only)
             shape_adapted_std = (n_patients, *self.shape)
             self.std = self.STD_SCALE_FACTOR_IND * scale * torch.ones(shape_adapted_std)
+            # Quick fix for multi-sampling of tau and xi
+            if self.name == 'tau_xi':
+                self.std = torch.tensor([[0.5, 0.1] for k in range(n_patients)],
+                                        dtype=torch.float32).reshape(n_patients, int(self.shape[0]))
         else:
             raise LeaspyInputError(f"Unknown variable type '{info['type']}'.")
 

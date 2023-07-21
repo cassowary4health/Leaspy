@@ -798,13 +798,14 @@ class AbstractModel(BaseModel):
 
         return output
 
-    def compute_regularity_realization(self, realization: AbstractRealization) -> torch.Tensor:
+    def compute_regularity_realization(self, realizations: CollectionRealization, name: str) -> torch.Tensor:
         """
         Compute regularity term for a :class:`.Realization` instance.
 
         Parameters
         ----------
-        realization : :class:`.AbstractRealization`
+        realizations : :class:`.CollectionRealization`
+        name : str
 
         Returns
         -------
@@ -812,6 +813,7 @@ class AbstractModel(BaseModel):
         """
         # we do not need to include regularity constant
         # (priors are always fixed at a given iteration)
+        realization = realizations[name]
         if isinstance(realization, PopulationRealization):
             return self.compute_regularity_population_realization(realization)
         if isinstance(realization, IndividualRealization):

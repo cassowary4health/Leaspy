@@ -261,7 +261,7 @@ class GibbsSampler(AbstractSampler):
             # model attributes used are the ones from the MCMC toolbox that we are currently changing!
             attachment = model.compute_individual_attachment_tensorized(data, ind_params, attribute_type='MCMC').sum()
             # regularity is always computed with model.parameters (not "temporary MCMC parameters")
-            regularity = model.compute_regularity_realization(realization)
+            regularity = model.compute_regularity_realization(realizations, self.name)
             # mask regularity of masked terms (needed for nan/inf terms such as inf deltas when batched)
             if self.mask is not None:
                 regularity[~(self.mask.to(bool))] = 0
@@ -367,7 +367,7 @@ class GibbsSampler(AbstractSampler):
             # compute log-likelihood of just the given parameter (tau or xi or sources)
             # (per subject; all dimensions of the individual parameter are summed together)
             # regularity is always computed with model.parameters (not "temporary MCMC parameters")
-            regularity = model.compute_regularity_realization(realization)
+            regularity = model.compute_regularity_realization(realizations, self.name)
             regularity = regularity.sum(dim=self.ind_param_dims_but_individual).reshape(data.n_individuals)
 
             return attachment, regularity

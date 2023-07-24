@@ -754,8 +754,8 @@ class JointUnivariateModel(ABC):
         reparametrized_time_min = torch.exp(xi) * (t_min)
 
         # Survival
-        grad_xi = mask_event*rho + rho*(reparametrized_time_min * nu) ** rho
-        grad_tau = - mask_event*(rho -1)/(t_min - tau) -(rho * nu * torch.exp(xi)) * ((reparametrized_time_min * nu) ** (rho - 1.))
+        grad_xi = rho*(reparametrized_time_min * nu) ** rho - mask_event*rho
+        grad_tau =  (rho * nu * torch.exp(xi)) * ((reparametrized_time_min * nu) ** (rho - 1.)) + mask_event*(rho -1)/(t_min - tau)
 
         # Normalise as compute on normalised variables
         to_cat = [

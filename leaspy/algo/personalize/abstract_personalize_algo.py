@@ -5,6 +5,7 @@ from abc import abstractmethod
 import torch
 
 from leaspy.algo.abstract_algo import AbstractAlgo
+from leaspy.utils.weighted_tensor import wsum_dim
 
 if TYPE_CHECKING:
     from leaspy.io.data.dataset import Dataset
@@ -68,24 +69,30 @@ class AbstractPersonalizeAlgo(AbstractAlgo):
         # Estimate individual parameters
         individual_parameters = self._get_individual_parameters(model, dataset)
 
-        # TODO/WIP... (just for functional tests)
-        from leaspy.models.obs_models import FullGaussianObs
-        obs_model = next(iter(model.obs_models))
-        assert isinstance(obs_model, FullGaussianObs), "Not implemented yet... WIP"
-        if obs_model.extra_vars['noise_std'].shape == (1,):
-            f_loss = obs_model.compute_rmse  # gaussian-scalar
-        else:
-            f_loss = obs_model.compute_rmse_per_ft  # gaussian-diagonal
         local_state = model.state.clone(disable_auto_fork=True)
         model.put_data_variables(local_state, dataset)
         _, pyt_individual_parameters = individual_parameters.to_pytorch()
         for ip, ip_vals in pyt_individual_parameters.items():
             local_state[ip] = ip_vals
-        loss = f_loss(y=local_state['y'], model=local_state['model'])
 
-        ## Compute the loss with these estimated individual parameters (RMSE or NLL depending on observation models)
-        #_, pyt_individual_params = individual_parameters.to_pytorch()
-        #loss = model.compute_canonical_loss_tensorized(dataset, pyt_individual_params)
+        # TODO/WIP... (just for functional tests)
+        from leaspy.models.obs_models import FullGaussianObservationModel
+        obs_model = next(iter(model.obs_models))
+        if isinstance(obs_model, FullGaussianObservationModel):
+            if obs_model.extra_vars['noise_std'].shape == (1,):
+                f_loss = obs_model.compute_rmse  # gaussian-scalar
+            else:
+                f_loss = obs_model.compute_rmse_per_ft  # gaussian-diagonal
+            loss = f_loss(
+                y=local_state['y'],
+                model=local_state['model'],
+            )
+        else:
+            # Better way ??
+            loss = obs_model.dist.get_func_nll("y").then(wsum_dim)(
+                y=local_state["y"],
+                model=local_state["model"],
+            )[0]
 
         return individual_parameters, loss
 

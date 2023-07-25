@@ -8,7 +8,15 @@ VT = TypeVar("VT")
 
 @dataclass(frozen=True)
 class FilteredMappingProxy(Mapping, Generic[KT, VT]):
-    """Efficient filtered (with order) proxy (= no direct assignment) of a referenced mapping."""
+    """
+    Efficient filtered (with order) proxy (= no direct assignment) of a referenced mapping.
+
+    Attributes
+    ----------
+    mapping : TMapping[KT, VT]
+    subset : Tuple[KT, ...]
+    check_keys : bool
+    """
 
     mapping: TMapping[KT, VT]
     subset: Tuple[KT, ...]

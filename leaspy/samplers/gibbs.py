@@ -586,6 +586,19 @@ class IndividualGibbsSampler(GibbsSamplerMixin, AbstractIndividualSampler):
         )
 
     def validate_scale(self, scale: Union[float, torch.Tensor]) -> torch.Tensor:
+        """
+        Validate the provided scale.
+
+        Parameters
+        ----------
+        scale : float or torch.Tensor
+            The scale to be validated.
+
+        Returns
+        -------
+        torch.Tensor :
+            The validated scale.
+        """
         scale = super().validate_scale(scale)
         # <!> scale should always be a scalar tensor for individual sampler
         return scale.mean()
@@ -630,14 +643,6 @@ class IndividualGibbsSampler(GibbsSamplerMixin, AbstractIndividualSampler):
 
         Do a MH step, keeping if better, or if worse with a probability.
 
-        Notes
-        -----
-        The population variables are fixed during this sampling step (since we update an individual parameter), but:
-        - if we are in a calibration: we may have updated them just before and have NOT yet propagated these changes
-          into the master model parameters, so we SHOULD use the MCMC state for model computations (default)
-        - if we are in a personalization (mode/mean real): we are not updating the population parameters any more
-          so we should NOT use a MCMC state any more (not defined, only the "fitted model" state is defined)
-
         Parameters
         ----------
         state : :class:`.State`
@@ -648,6 +653,14 @@ class IndividualGibbsSampler(GibbsSamplerMixin, AbstractIndividualSampler):
                 time-points and the mask for nan values & padded visits
         temperature_inv : :obj:`float` > 0
             The temperature to use.
+
+        Notes
+        -----
+        The population variables are fixed during this sampling step (since we update an individual parameter), but:
+        - if we are in a calibration: we may have updated them just before and have NOT yet propagated these changes
+          into the master model parameters, so we SHOULD use the MCMC state for model computations (default)
+        - if we are in a personalization (mode/mean real): we are not updating the population parameters any more
+          so we should NOT use a MCMC state any more (not defined, only the "fitted model" state is defined)
         """
 
         def compute_attachment_regularity():

@@ -22,7 +22,8 @@ from leaspy.exceptions import LeaspyInputError
 @dataclass(frozen=True)
 class VariablesDAG(Mapping):
     """
-    Directed acyclic graph of symbolic variables used in a model (efficient topologically sorted bidirectional access).
+    Directed acyclic graph of symbolic variables used in a model
+    (efficient topologically sorted bidirectional access).
 
     Parameters
     ----------
@@ -36,26 +37,31 @@ class VariablesDAG(Mapping):
     ----------
     variables : Mapping[VarName, VariableInterface]
         The specifications of DAG nodes.
-        Note: the user should rather access them using the convenient `Mapping` interface provided by class.
-        (in addition the class loop order corresponds to `sorted_variables_names` unlike the one of `.variables`)
+        Note: the user should rather access them using the convenient `Mapping`
+        interface provided by class. (in addition the class loop order corresponds to
+        `sorted_variables_names` unlike the one of `.variables`)
     sorted_variables_names : Tuple[VarName, ...]
-        A topological sorting of variables (non-unique), from roots (no ancestors) to leaves (no children).
-        The iteration order corresponds to this sorting.
+        A topological sorting of variables (non-unique), from roots (no ancestors) to
+        leaves (no children). The iteration order corresponds to this sorting.
     direct_children : Mapping[VarName, FrozenSet[VarName]]
     direct_ancestors : Mapping[VarName, FrozenSet[VarName]]
-        The edges out-going (children) and in-going (ancestors) from a given node (at most one edge per node and no self-loop).
+        The edges out-going (children) and in-going (ancestors) from a given node
+        (at most one edge per node and no self-loop).
     sorted_children : Mapping[VarName, Tuple[VarName, ...]]
-        All children of a given node (never includes itself), in topological order (from "closest to furthest bottom").
+        All children of a given node (never includes itself), in topological
+        order (from "closest to furthest bottom").
     sorted_ancestors : Mapping[VarName, Tuple[VarName, ...]]
-        All ancestors of a given node (never includes itself), in topological order (from "furthest top to closest").
+        All ancestors of a given node (never includes itself), in topological
+        order (from "furthest top to closest").
     sorted_variables_by_type : Mapping[Type[VariableInterface], Mapping[VarName, VariableInterface]]
         The sorted variables, but stratified per variable type, to easily access them.
 
     Notes
     -----
     In general this DAG is not a tree (the graph may not be totally connected and have multiple roots),
-    nor a multi-tree (there may be multiple directed paths to between two nodes - e.g. `logistic_model = f[g, b(g), ...]`)
-    but we do assume that no cycle is present in our graph (not checked), which is equivalent to be topologically sortable.
+    nor a multi-tree (there may be multiple directed paths to between two nodes -
+    e.g. `logistic_model = f[g, b(g), ...]`) but we do assume that no cycle is present in our graph
+    (not checked), which is equivalent to be topologically sortable.
 
     We pre-compute node-wise sorted children and ancestors once for all for efficiency,
     in particular in order to:
@@ -104,64 +110,102 @@ class VariablesDAG(Mapping):
     ] = field(init=False, repr=False, compare=False)
 
     @classmethod
-    def from_dict(cls, d: TMapping[VarName, VariableInterface]):
-        """Instantiate a new DAG of variables from a dictionary of variables, using linked variables dependencies as direct ancestors."""
-        d_ancestors = {var_name: v.get_ancestors_names() for var_name, v in d.items()}
-        return cls(d, direct_ancestors=d_ancestors)
+    def from_dict(cls, input_dictionary: TMapping[VarName, VariableInterface]):
+        """
+        Instantiate a new DAG of variables from a dictionary of variables,
+        using linked variables dependencies as direct ancestors.
+
+        Parameters
+        ----------
+        input_dictionary : TMapping[VarName, VariableInterface]
+            The dictionary to use to create the DAG.
+        """
+        direct_ancestors = {
+            variable_name: variable.get_ancestors_names()
+            for variable_name, variable in input_dictionary.items()
+        }
+        return cls(input_dictionary, direct_ancestors=direct_ancestors)
 
     def __post_init__(self):
-        # Check consistency of nodes
-        s_nodes = frozenset(self.variables.keys())
-        assert (
-            s_nodes == self.direct_ancestors.keys()
-        ), "Inconsistent nodes in dictionary of ancestors edges"
-        self._raise_if_bad_nodes_in_edges(
-            self.direct_ancestors, s_nodes, what="ancestors"
-        )
-        # Compute children for efficient bidirectional access
-        d_children = defaultdict(set)
-        for child_name, set_ancestors in self.direct_ancestors.items():
-            for a in set_ancestors:
-                d_children[a].add(child_name)
-        d_children = {var_name: frozenset(d_children[var_name]) for var_name in s_nodes}
-        self._raise_if_left_alone_nodes(d_children, self.direct_ancestors)
-        # Compute topological orders
+        nodes = self._check_consistency_of_nodes()
+        children = self._compute_direct_children(nodes)
         (
             sorted_variables_names,
-            path_matrix,
-        ) = self.compute_topological_order_and_path_matrix(
-            d_children, self.direct_ancestors
-        )
-        sorted_children, sorted_ancestors = self.compute_sorted_children_and_ancestors(
-            sorted_variables_names, path_matrix
-        )
-        # Stratification of variables, per variable type
-        d_types = defaultdict(list)
-        for var_name in sorted_variables_names:
-            d_types[type(self.variables[var_name])].append(var_name)
-        d_types = {
-            var_type: FilteredMappingProxy(self.variables, subset=tuple(l_vars_type))
-            for var_type, l_vars_type in d_types.items()
-        }
+            sorted_children,
+            sorted_ancestors,
+        ) = self._compute_topological_orders(children)
+        d_types = self._stratify_variables(sorted_variables_names)
         # Cache all those pre-computations values while keeping a "frozen" dataclass
-        object.__setattr__(self, "direct_children", d_children)
+        object.__setattr__(self, "direct_children", children)
         object.__setattr__(self, "sorted_variables_names", sorted_variables_names)
         # object.__setattr__(self, "path_matrix", path_matrix)
         object.__setattr__(self, "sorted_children", sorted_children)
         object.__setattr__(self, "sorted_ancestors", sorted_ancestors)
         object.__setattr__(self, "sorted_variables_by_type", d_types)
 
+    def _check_consistency_of_nodes(self) -> FrozenSet[VarName]:
+        nodes = frozenset(self.variables.keys())
+        if nodes != self.direct_ancestors.keys():
+            raise ValueError(
+                "Inconsistent nodes in dictionary of ancestors edges"
+            )
+        self._raise_if_bad_nodes_in_edges(
+            self.direct_ancestors, nodes, what="ancestors"
+        )
+        return nodes
+
+    def _compute_direct_children(self, nodes: FrozenSet[VarName]) -> TMapping[VarName, FrozenSet[VarName]]:
+        """Compute children for efficient bidirectional access."""
+        children = defaultdict(set)
+        for child_name, set_ancestors in self.direct_ancestors.items():
+            for ancestor in set_ancestors:
+                children[ancestor].add(child_name)
+        children = {var_name: frozenset(children[var_name]) for var_name in nodes}
+        self._raise_if_left_alone_nodes(children, self.direct_ancestors)
+        return children
+
+    def _compute_topological_orders(
+        self,
+        children: TMapping[VarName, FrozenSet[VarName]],
+    ) -> Tuple[Tuple[VarName, ...], TMapping[VarName, Tuple[VarName, ...]], TMapping[VarName, Tuple[VarName, ...]]]:
+        (
+            sorted_variables_names,
+            path_matrix,
+        ) = self.compute_topological_order_and_path_matrix(
+            children, self.direct_ancestors
+        )
+        sorted_children, sorted_ancestors = self.compute_sorted_children_and_ancestors(
+            sorted_variables_names, path_matrix
+        )
+        return sorted_variables_names, sorted_children, sorted_ancestors
+
+    def _stratify_variables(
+        self,
+        sorted_variables_names: Tuple[VarName, ...],
+    ) -> TMapping[Type[VariableInterface], TMapping[VarName, VariableInterface]]:
+        """Stratification of variables, per variable type."""
+        d_types = defaultdict(list)
+        for var_name in sorted_variables_names:
+            d_types[type(self.variables[var_name])].append(var_name)
+        return {
+            var_type: FilteredMappingProxy(self.variables, subset=tuple(l_vars_type))
+            for var_type, l_vars_type in d_types.items()
+        }
+
     def __iter__(self):
-        """Iterates on keys in topological order (.keys(), .values() and .items() methods are automatically provided by `Mapping`)."""
+        """
+        Iterates on keys in topological order (.keys(), .values() and .items()
+        methods are automatically provided by `Mapping`).
+        """
         return iter(self.sorted_variables_names)
 
     def __len__(self) -> int:
         """Get number of nodes."""
         return len(self.variables)
 
-    def __getitem__(self, k: VarName) -> VariableInterface:
+    def __getitem__(self, variable_name: VarName) -> VariableInterface:
         """Get the variable specifications."""
-        return self.variables[k]
+        return self.variables[variable_name]
 
     @staticmethod
     def _raise_if_bad_nodes_in_edges(
@@ -205,29 +249,37 @@ class VariablesDAG(Mapping):
         direct_ancestors: TMapping[VarName, FrozenSet[VarName]],
     ) -> Tuple[Tuple[VarName, ...], torch.Tensor]:
         """
-        Modified Kahn's algorithm to produce a topological sorting of DAG, and the corresponding path matrix as a by-product.
+        Modified Kahn's algorithm to produce a topological sorting of DAG,
+        and the corresponding path matrix as a by-product.
 
         Parameters
         ----------
         direct_children : Mapping[VarName, FrozenSet[VarName]]
         direct_ancestors : Mapping[VarName, FrozenSet[VarName]]
-            The edges out-going (children) and in-going (ancestors) from a given node (at most one edge per node and no self-loop).
+            The edges out-going (children) and in-going (ancestors) from a given node
+            (at most one edge per node and no self-loop).
 
         Returns
         -------
         sorted_nodes : tuple[VarName, ...]
             Nodes in a topological order.
         path_matrix : torch.Tensor[bool]
-            Boolean triangle superior (strict) matrix indicating whether there is a (directed) path between nodes.
+            Boolean triangle superior (strict) matrix indicating whether
+            there is a (directed) path between nodes.
 
         Notes
         -----
         Complexity in time of algorithm is linear with number of edges + number of nodes.
-        Input nodes are sorted by name so to have fully reproducible output, independently of the initial order of nodes and edges.
+        Input nodes are sorted by name so to have fully reproducible output, independently
+        of the initial order of nodes and edges.
         (Thus renaming nodes may change the output, due to non-uniqueness of topological order)
         """
         nodes = sorted(direct_ancestors.keys())
-        assert set(nodes) == direct_children.keys()
+        if set(nodes) != direct_children.keys():
+            raise ValueError(
+                "The nodes in provided 'direct_ancestors' do not match "
+                "the nodes in provided 'direct_children'."
+            )
         n_nodes = len(nodes)
         ix_nodes = {n: i for i, n in enumerate(nodes)}
         # copy of direct_ancestors & direct_children, with fixed order of nodes
@@ -253,33 +305,51 @@ class VariablesDAG(Mapping):
                 direct_ancestors_[m] = direct_ancestors_[m].difference({n})
                 if len(direct_ancestors_[m]) == 0:
                     q_roots.put(m)
-        assert set(sorted_nodes) == set(nodes), "Input graph is not a DAG"
+        if set(sorted_nodes) != set(nodes):
+            raise ValueError("Input graph is not a DAG")
         # reorder elements of path matrix before returning it
         ix_sorted_nodes = [ix_nodes[n] for n in sorted_nodes]
         path_matrix = path_matrix[ix_sorted_nodes, :][:, ix_sorted_nodes]
-        assert torch.equal(
-            path_matrix, path_matrix.triu(1)
-        ), f"Input graph is not a DAG: sorted path matrix = {path_matrix}"
+        if not torch.equal(path_matrix, path_matrix.triu(1)):
+            raise ValueError(
+                f"Input graph is not a DAG: sorted path matrix = {path_matrix}"
+            )
         return sorted_nodes, path_matrix
 
     @staticmethod
     def compute_sorted_children_and_ancestors(
         sorted_nodes: Tuple[VarName, ...],
         path_matrix: torch.Tensor,
-    ) -> Tuple[Dict[VarName, Tuple[VarName, ...]], Dict[VarName, Tuple[VarName, ...]],]:
-        """Produce node-wise topologically sorted children and ancestors from provided nodes full order and corresponding path matrix."""
+    ) -> Tuple[Dict[VarName, Tuple[VarName, ...]], Dict[VarName, Tuple[VarName, ...]], ]:
+        """
+        Produce node-wise topologically sorted children and ancestors from provided nodes
+        full order and corresponding path matrix.
+
+        Parameters
+        ----------
+        sorted_nodes : tuple or str
+            The sorted nodes.
+        path_matrix : torch.Tensor
+
+        Returns
+        -------
+        sorted_children : Dict[VarName, Tuple[VarName, ...]]
+            The sorted children.
+        sorted_ancestors : Dict[VarName, Tuple[VarName, ...]]
+            The sorted ancestors.
+        """
         sorted_children = {
-            n: tuple(
+            node: tuple(
                 sorted_nodes[j]
-                for j in path_matrix[i, :].nonzero(as_tuple=False).squeeze(dim=1)
+                for j in path_matrix[idx_node, :].nonzero(as_tuple=False).squeeze(dim=1)
             )
-            for i, n in enumerate(sorted_nodes)
+            for idx_node, node in enumerate(sorted_nodes)
         }
         sorted_ancestors = {
-            n: tuple(
+            node: tuple(
                 sorted_nodes[i]
-                for i in path_matrix[:, j].nonzero(as_tuple=False).squeeze(dim=1)
+                for i in path_matrix[:, idx_node].nonzero(as_tuple=False).squeeze(dim=1)
             )
-            for j, n in enumerate(sorted_nodes)
+            for idx_node, node in enumerate(sorted_nodes)
         }
         return sorted_children, sorted_ancestors

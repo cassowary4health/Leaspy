@@ -583,22 +583,28 @@ class AbstractModel(BaseModel):
         Parameters
         ----------
         timepoints : :class:`torch.Tensor` [1, n_timepoints]
+        prior_type : LatentVariableInitType
+        n_individuals : int, optional
+            The number of individuals.
 
         Returns
         -------
         :class:`torch.Tensor` [1, n_timepoints, dimension]
-            The group-average values at given timepoints
+            The group-average values at given timepoints.
         """
         exc_n_ind_iff_prior_samples = LeaspyModelInputError(
-            "You should provide n_individuals (int >= 1) if, and only if, prior_type is `PRIOR_SAMPLES`"
+            "You should provide n_individuals (int >= 1) if, "
+            "and only if, prior_type is `PRIOR_SAMPLES`"
         )
         if n_individuals is None:
             if prior_type is LatentVariableInitType.PRIOR_SAMPLES:
                 raise exc_n_ind_iff_prior_samples
             n_individuals = 1
-        elif prior_type is not LatentVariableInitType.PRIOR_SAMPLES or not (isinstance(n_individuals, int) and n_individuals >= 1):
+        elif (
+            prior_type is not LatentVariableInitType.PRIOR_SAMPLES
+            or not (isinstance(n_individuals, int) and n_individuals >= 1)
+        ):
             raise exc_n_ind_iff_prior_samples
-
         local_state = self.state.clone(disable_auto_fork=True)
         self._put_data_timepoints(local_state, timepoints)
         local_state.put_individual_latent_variables(prior_type, n_individuals=n_individuals)
@@ -723,10 +729,8 @@ class AbstractModel(BaseModel):
             for ip in self.get_individual_variable_names()
         }
 
-    def compute_sufficient_statistics(
-        cls,
-        state: State,
-    ) -> SuffStatsRW:
+    @classmethod
+    def compute_sufficient_statistics(cls, state: State) -> SuffStatsRW:
         """
         Compute sufficient statistics from state.
 
@@ -864,7 +868,15 @@ class AbstractModel(BaseModel):
     #    pass
 
     def get_variables_specs(self) -> NamedVariables:
-        """Return the specifications of the variables (latent variables, derived variables, model 'parameters') that are part of the model."""
+        """
+        Return the specifications of the variables (latent variables,
+        derived variables, model 'parameters') that are part of the model.
+
+        Returns
+        -------
+        NamedVariables :
+            The specifications of the model's variables.
+        """
         d = NamedVariables({
             "t": DataVariable(),
             "rt": LinkedVariable(self.time_reparametrization),
@@ -877,7 +889,9 @@ class AbstractModel(BaseModel):
             d.update(obs_model.get_variables_specs(named_attach_vars=not single_obs_model))
 
         if not single_obs_model:
-            assert False, "WIP: Only 1 noise model supported for now, but to be extended"
+            raise NotImplementedError(
+                "WIP: Only 1 noise model supported for now, but to be extended."
+            )
             d.update(
                 #nll_attach_full=LinkedVariable(Sum(...)),
                 nll_attach_ind=LinkedVariable(Sum(...)),
@@ -893,6 +907,10 @@ class AbstractModel(BaseModel):
 
         Note that all model hyperparameters (dimension, source_dimension, ...) should be defined
         in order to be able to do so.
+
+        Returns
+        -------
+        None
         """
         self.state = State(
             VariablesDAG.from_dict(self.get_variables_specs()),

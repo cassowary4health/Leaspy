@@ -132,7 +132,7 @@ class LeaspyTestCase(TestCase):
         return os.path.join(cls.hardcoded_ips_folder, ip_file)
 
     @classmethod
-    def get_hardcoded_individual_params(cls, ip_file: str):
+    def get_hardcoded_individual_params(cls, ip_file: str) -> IndividualParameters:
         """
         Load the IndividualParameters from provided filename (parameters hardcoded)
         <!> `ip_file` should have its extension (since it can be json or csv)

@@ -30,7 +30,7 @@ class Plotter:
         If None, default to current working directory.
     """
 
-    def __init__(self, output_path=None):
+    def __init__(self, output_path: Optional[str] = None):
         # TODO : Do all the check up if the path exists, and if yes, if removing or not
         if output_path is None:
             output_path = os.getcwd()
@@ -51,7 +51,6 @@ class Plotter:
         postprocessing (useful for ordinal models).
         """
         model_values_np = model_values.cpu().detach().numpy()
-
         # post-process the mean trajectory if needed (with default arguments)
         estimation_postprocessor = getattr(model, 'postprocess_model_estimation', None)
         if estimation_postprocessor is not None:
@@ -64,9 +63,8 @@ class Plotter:
         cls,
         model: AbstractModel,
         timepoints: torch.Tensor,
-        **kws,
     ) -> np.ndarray:
-        mean_trajectory = model.compute_mean_traj(timepoints, **kws)
+        mean_trajectory = model.compute_mean_traj(timepoints)
         return cls._torch_model_values_to_numpy_postprocessed_values(mean_trajectory, model=model)
 
     @classmethod
@@ -99,7 +97,6 @@ class Plotter:
         self,
         model: AbstractModel,
         *,
-        attribute_type: Optional[str] = None,
         n_pts: int = 100,
         n_std_left: int = 3,
         n_std_right: int = 6,
@@ -125,18 +122,25 @@ class Plotter:
 
             mean_time = model.parameters['tau_mean']
             std_time = max(model.parameters['tau_std'], 4)
-            timepoints_np = np.linspace(mean_time - n_std_left * std_time, mean_time + n_std_right * std_time, n_pts)
-
-            mean_trajectory = self._compute_mean_traj_postprocessed(model, torch.tensor(timepoints_np).unsqueeze(0),
-                                        attribute_type=attribute_type)
-
+            timepoints_np = np.linspace(
+                mean_time - n_std_left * std_time,
+                mean_time + n_std_right * std_time,
+                n_pts,
+            )
+            mean_trajectory = self._compute_mean_traj_postprocessed(
+                model, torch.tensor(timepoints_np).unsqueeze(0),
+            )
             for i, color_ft in zip(range(mean_trajectory.shape[-1]), colors):
-                ax.plot(timepoints_np, mean_trajectory[0, :, i], label=labels[i],
-                        linewidth=4, alpha=0.9, c=color_ft)
+                ax.plot(
+                    timepoints_np,
+                    mean_trajectory.squeeze()[:, i],
+                    label=labels[i],
+                    linewidth=4,
+                    alpha=0.9,
+                    c=color_ft,
+                )
             plt.legend()
-
         else:
-
             # Break if model is not initialized
             if not model[0].is_initialized:
                 raise LeaspyInputError("Please initialize the model before plotting")
@@ -149,17 +153,24 @@ class Plotter:
 
             mean_time = model[0].parameters['tau_mean']
             std_time = max(model[0].parameters['tau_std'], 4)
-            timepoints_np = np.linspace(mean_time - n_std_left * std_time, mean_time + n_std_right * std_time, n_pts)
-
+            timepoints_np = np.linspace(
+                mean_time - n_std_left * std_time,
+                mean_time + n_std_right * std_time,
+                n_pts,
+            )
             for j, model_j in enumerate(model):
                 mean_trajectory_np = self._compute_mean_traj_postprocessed(
-                                        model_j, torch.tensor(timepoints_np).unsqueeze(0),
-                                        attribute_type=attribute_type)
-
+                    model_j, torch.tensor(timepoints_np).unsqueeze(0),
+                )
                 for i, color_ft in zip(range(mean_trajectory_np.shape[-1]), colors):
-                    ax.plot(timepoints_np, mean_trajectory_np[0, :, i], label=labels[i],
-                            linewidth=4, alpha=0.5, c=color_ft)
-
+                    ax.plot(
+                        timepoints_np,
+                        mean_trajectory_np[0, :, i],
+                        label=labels[i],
+                        linewidth=4,
+                        alpha=0.5,
+                        c=color_ft,
+                    )
                 if j == 0:
                     ax.legend()
 
@@ -383,8 +394,16 @@ class Plotter:
         pdf.close()
 
     @classmethod
-    def plot_patient_reconstructions(cls, path, dataset, model, param_ind, *, max_patient_number=5, attribute_type=None):
-
+    def plot_patient_reconstructions(
+        cls,
+        path: str,
+        dataset: Dataset,
+        model: AbstractModel,
+        param_ind: DictParamsTorch,
+        *,
+        max_patient_number: int = 5,
+        attribute_type=None,
+    ):
         if isinstance(max_patient_number, int):
             max_patient_number = min(max_patient_number, dataset.n_individuals)
             patients_list = range(max_patient_number)
@@ -395,13 +414,12 @@ class Plotter:
             n_pats = len(patients_list)
 
         colors = cm.Dark2(np.linspace(0, 1, n_pats + 2))
-
         fig, ax = plt.subplots(1, 1)
 
         model_values_np = cls._compute_individual_tensorized_postprocessed(
-                                model, dataset.timepoints, param_ind,
-                                attribute_type=attribute_type)
-
+            model, dataset.timepoints, param_ind,
+            attribute_type=attribute_type,
+        )
         for i in patients_list:
             times_pat = dataset.get_times_patient(i).cpu().detach().numpy()
             true_values_pat = dataset.get_values_patient(i).cpu().detach().numpy()
@@ -413,16 +431,22 @@ class Plotter:
         # Plot the mean also
         # min_time, max_time = torch.min(dataset.timepoints[dataset.timepoints>0.0]), torch.max(dataset.timepoints)
 
-        min_time, max_time = np.percentile(dataset.timepoints[dataset.timepoints > 0.0].cpu().detach().numpy(), [10, 90])
-
+        min_time, max_time = np.percentile(
+            dataset.timepoints[dataset.timepoints > 0.0].cpu().detach().numpy(),
+            [10, 90],
+        )
         timepoints_np = np.linspace(min_time, max_time, 100)
         model_values_np = cls._compute_mean_traj_postprocessed(
-                                model, torch.tensor(timepoints_np).unsqueeze(0),
-                                attribute_type=attribute_type)
-
+            model, torch.tensor(timepoints_np).unsqueeze(0)
+        )
         for ft_k in range(model.dimension):
-            ax.plot(timepoints_np, model_values_np[0, :, ft_k], c="black", linewidth=3, alpha=0.3)
-
+            ax.plot(
+                timepoints_np,
+                model_values_np[0, :, ft_k],
+                c="black",
+                linewidth=3,
+                alpha=0.3,
+            )
         plt.savefig(path)
         plt.close()
 
@@ -544,7 +568,7 @@ class Plotter:
                     df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                     df_convergence.index.rename("iter", inplace=True)
                     df_convergence.plot(ax=ax[y_position], legend=False)
-            elif key not in ['betas']:
+            elif key != 'betas':
                 import_path = os.path.join(path, key + ".csv")
                 df_convergence = pd.read_csv(import_path, index_col=0, header=None)
                 df_convergence.index.rename("iter", inplace=True)
@@ -581,9 +605,13 @@ class Plotter:
             df_convergence.plot(use_index=True, y=f"{key}_mean", ax=ax[y_position], legend=False)
 
             mu, sd = df_convergence[f"{key}_mean"], df_convergence[f"{key}_std"]
-            ax[y_position].fill_between(df_convergence.index,
-                                        mu - quartiles_factor*sd, mu + quartiles_factor*sd,
-                                        color='b', alpha=0.2)
+            ax[y_position].fill_between(
+                df_convergence.index,
+                mu - quartiles_factor * sd,
+                mu + quartiles_factor * sd,
+                color="b",
+                alpha=0.2,
+            )
             ax[y_position].set_title(key)
 
         plt.grid(True)

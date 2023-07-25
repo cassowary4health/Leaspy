@@ -9,7 +9,11 @@ import pandas as pd
 # <!> circular imports
 import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
-from leaspy.models.obs_models import FullGaussianObs
+from leaspy.models.obs_models import (
+    FullGaussianObservationModel,
+    BernoulliObservationModel,
+    OrdinalObservationModel,
+)
 
 XI_STD = .5
 TAU_STD = 5.
@@ -87,12 +91,18 @@ def initialize_parameters(model, dataset, method="default") -> tuple:
     # for gaussian obs model
     noise_model_params = None
     obs_model = next(iter(model.obs_models))  # WIP: multiple obs models...
-    if isinstance(obs_model, FullGaussianObs):
+    if isinstance(obs_model, FullGaussianObservationModel):
         noise_model_params = {
             "noise_std": torch.tensor(NOISE_STD).expand(obs_model.extra_vars['noise_std'].shape)
         }
+    elif isinstance(obs_model, BernoulliObservationModel):
+        noise_model_params = {}
+    elif isinstance(obs_model, OrdinalObservationModel):
+        noise_model_params = {}
     else:
-        raise NotImplementedError("WIP")
+        raise NotImplementedError(
+            f"The observation model {obs_model} is not supported."
+        )
 
     return rounded_parameters, noise_model_params
 

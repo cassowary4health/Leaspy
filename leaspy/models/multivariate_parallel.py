@@ -2,9 +2,6 @@ import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.utils.typing import DictParamsTorch, DictParams
-from leaspy.utils.docs import doc_with_super
-from leaspy.io.data.dataset import Dataset
-from leaspy.io.realizations import CollectionRealization
 
 
 #@doc_with_super()
@@ -31,14 +28,25 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         timepoints: torch.Tensor,
         individual_parameters: dict,
         *,
-        attribute_type=None,
+        attribute_type: str = None,
     ) -> torch.Tensor:
+        """
+        Compute individual trajectories.
+
+        Parameters
+        ----------
+        timepoints : torch.Tensor
+        individual_parameters : dict
+        attribute_type : str, optional
+
+        Returns
+        -------
+        torch.Tensor
+        """
         # Population parameters
         g, deltas, mixing_matrix = self._get_attributes(attribute_type)
 
-
         # TODO: use rt instead
-
         # Individual parameters
         xi, tau = individual_parameters['xi'], individual_parameters['tau']
         reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
@@ -65,6 +73,19 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         *,
         attribute_type=None,
     ) -> DictParamsTorch:
+        """
+        Compute jacobian.
+
+        Parameters
+        ----------
+        timepoints : torch.Tensor
+        individual_parameters : dict
+        attribute_type : str, optional
+
+        Returns
+        -------
+        DictParamsTorch
+        """
         # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized`)
 
         # Population parameters
@@ -107,6 +128,19 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         individual_parameters: dict,
         feature: str,
     ) -> torch.Tensor:
+        """
+        Compute individual ages.
+
+        Parameters
+        ----------
+        value : torch.Tensor
+        individual_parameters : dict
+        feature : str
+
+        Returns
+        -------
+        torch.Tensor
+        """
         raise NotImplementedError("Open an issue on Gitlab if needed.")  # pragma: no cover
 
     ##############################

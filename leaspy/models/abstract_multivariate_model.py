@@ -3,7 +3,8 @@ import warnings
 import torch
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.obs_models import FullGaussianObs
+from leaspy.models.obs_models import observation_model_factory
+
 # WIP
 # from leaspy.models.utils.initialization.model_initialization import initialize_parameters
 # from leaspy.models.utils.ordinal import OrdinalModelMixin
@@ -37,7 +38,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
     name : :obj:`str`
         Name of the model.
     **kwargs
-        Hyperparameters for the model (including `noise_model`).
+        Hyperparameters for the model (including `obs_models`).
 
     Raises
     ------
@@ -56,43 +57,49 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         dimension = kwargs.get('dimension', None)
         if 'features' in kwargs:
             dimension = len(kwargs['features'])
-
-        obs_model = kwargs.get("obs_models", None)
-        if isinstance(obs_model, str):
-            if obs_model == "gaussian-diagonal":
-                assert dimension is not None, "WIP: dimension / features should be provided to init the obs_model = 'gaussian-diagonal'"
-                kwargs["obs_models"] = FullGaussianObs.with_noise_std_as_model_parameter(dimension)
-            elif obs_model == "gaussian-scalar":
-                kwargs["obs_models"] = FullGaussianObs.with_noise_std_as_model_parameter(1)
-            else:
-                raise NotImplementedError("WIP...")
-
-        if dimension is not None:
-            kwargs.setdefault("obs_models", FullGaussianObs.with_noise_std_as_model_parameter(dimension))
-        # END TMP
-
+        observation_models = kwargs.get("obs_models", None)
+        if observation_models is None:
+            observation_models = "gaussian-scalar" if dimension is None else "gaussian-diagonal"
+        if isinstance(observation_models, (list, tuple)):
+            kwargs["obs_models"] = tuple(
+                [observation_model_factory(obs_model, dimension=dimension)
+                 for obs_model in observation_models]
+            )
+        else:
+            kwargs["obs_models"] = (observation_model_factory(observation_models, dimension=dimension),)
         super().__init__(name, **kwargs)
 
-
     def get_variables_specs(self) -> NamedVariables:
-        """Return the specifications of the variables (latent variables, derived variables, model 'parameters') that are part of the model."""
+        """
+        Return the specifications of the variables (latent variables,
+        derived variables, model 'parameters') that are part of the model.
+
+        Returns
+        -------
+        NamedVariables :
+            The specifications of the model's variables.
+        """
         d = super().get_variables_specs()
 
         d.update(
             # PRIORS
             log_g_mean=ModelParameter.for_pop_mean("log_g", shape=(self.dimension,)),
             log_g_std=Hyperparameter(0.01),
-
             tau_mean=ModelParameter.for_ind_mean("tau", shape=(1,)),
             tau_std=ModelParameter.for_ind_std("tau", shape=(1,)),
-            #xi_mean=Hyperparameter(0.),  # depends on model sub-type (parallel or not)
+            # xi_mean=Hyperparameter(0.),  # depends on model sub-type (parallel or not)
             xi_std=ModelParameter.for_ind_std("xi", shape=(1,)),
 
             # LATENT VARS
-            log_g=PopulationLatentVariable(Normal("log_g_mean", "log_g_std")),
-            xi=IndividualLatentVariable(Normal("xi_mean", "xi_std")),
-            tau=IndividualLatentVariable(Normal("tau_mean", "tau_std")),
-
+            log_g=PopulationLatentVariable(
+                Normal("log_g_mean", "log_g_std")
+            ),
+            xi=IndividualLatentVariable(
+                Normal("xi_mean", "xi_std")
+            ),
+            tau=IndividualLatentVariable(
+                Normal("tau_mean", "tau_std")
+            ),
             # DERIVED VARS
             g=LinkedVariable(Exp("log_g")),
             alpha=LinkedVariable(Exp("xi")),
@@ -102,19 +109,30 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         if self.source_dimension >= 1:
             d.update(
                 # PRIORS
-                betas_mean=ModelParameter.for_pop_mean("betas", shape=(self.dimension - 1, self.source_dimension)),
+                betas_mean=ModelParameter.for_pop_mean(
+                    "betas",
+                    shape=(self.dimension - 1, self.source_dimension),
+                ),
                 betas_std=Hyperparameter(0.01),
-                sources_mean=Hyperparameter(torch.zeros((self.source_dimension,))),
+                sources_mean=Hyperparameter(
+                    torch.zeros((self.source_dimension,))
+                ),
                 sources_std=Hyperparameter(1.),
                 # LATENT VARS
                 betas=PopulationLatentVariable(
                     Normal("betas_mean", "betas_std"),
                     sampling_kws={"scale": .5},   # cf. GibbsSampler (for retro-compat)
                 ),
-                sources=IndividualLatentVariable(Normal("sources_mean", "sources_std")),
+                sources=IndividualLatentVariable(
+                    Normal("sources_mean", "sources_std")
+                ),
                 # DERIVED VARS
-                mixing_matrix=LinkedVariable(MatMul("orthonormal_basis", "betas").then(torch.t)),  # shape: (Ns, Nfts)
-                space_shifts=LinkedVariable(MatMul("sources", "mixing_matrix")),                   # shape: (Ni, Nfts)
+                mixing_matrix=LinkedVariable(
+                    MatMul("orthonormal_basis", "betas").then(torch.t)
+                ),  # shape: (Ns, Nfts)
+                space_shifts=LinkedVariable(
+                    MatMul("sources", "mixing_matrix")
+                ),  # shape: (Ni, Nfts)
             )
 
         return d
@@ -131,20 +149,23 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             The initialization method to be used.
             Default='default'.
         """
-
-        # WIP: a bit dirty this way...
         # TODO? split method in two so that it would overwritting of method would be cleaner?
-        if self.source_dimension is None:
-            self.source_dimension = int(dataset.dimension ** .5)
-            warnings.warn('You did not provide `source_dimension` hyperparameter for multivariate model, '
-                          f'setting it to ⌊√dimension⌋ = {self.source_dimension}.')
-
-        elif not (isinstance(self.source_dimension, int) and 0 <= self.source_dimension < dataset.dimension):
-            raise LeaspyModelInputError(f"Sources dimension should be an integer in [0, dimension - 1[ "
-                                        f"but you provided `source_dimension` = {self.source_dimension} whereas `dimension` = {dataset.dimension}")
-
+        self._validate_source_dimension(dataset)
         super().initialize(dataset, method=method)
 
+    def _validate_source_dimension(self, dataset: Dataset):
+        if self.source_dimension is None:
+            self.source_dimension = int(dataset.dimension ** .5)
+            warnings.warn(
+                "You did not provide `source_dimension` hyperparameter for multivariate model, "
+                f"setting it to ⌊√dimension⌋ = {self.source_dimension}."
+            )
+        elif not (isinstance(self.source_dimension, int) and 0 <= self.source_dimension < dataset.dimension):
+            raise LeaspyModelInputError(
+                f"Sources dimension should be an integer in [0, dimension - 1[ "
+                f"but you provided `source_dimension` = {self.source_dimension} "
+                f"whereas `dimension` = {dataset.dimension}."
+            )
 
     #def load_parameters(self, parameters: KwargsType) -> None:
     #    """

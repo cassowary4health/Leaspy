@@ -433,7 +433,6 @@ class MultivariateModel(AbstractMultivariateModel):
         SuffStatsRW :
             The computed sufficient statistics.
         """
-
         # <!> modify 'xi' and 'log_v0' realizations in-place
         # TODO: what theoretical guarantees for this custom operation?
         cls._center_xi_realizations(state)
@@ -441,7 +440,8 @@ class MultivariateModel(AbstractMultivariateModel):
         return super().compute_sufficient_statistics(state)
 
     @classmethod
-    def model_with_sources(cls, *, rt: torch.Tensor, space_shifts, metric, v0, log_g) -> torch.Tensor:
+    def model_with_sources(cls, *, rt: torch.Tensor, space_shifts: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
+        """Returns a model with sources."""
         # TODO WIP: logistic model only for now
         # Shape: (Ni, Nt, Nfts)
         pop_s = (None, None, ...)
@@ -451,28 +451,51 @@ class MultivariateModel(AbstractMultivariateModel):
 
     @classmethod
     def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
-        # a bit dirty?
-        return cls.model_with_sources(rt=rt, metric=metric, v0=v0, log_g=log_g, space_shifts=torch.zeros((1,1)))
+        """Returns a model without source. A bit dirty?"""
+        return cls.model_with_sources(
+            rt=rt,
+            metric=metric,
+            v0=v0,
+            log_g=log_g,
+            space_shifts=torch.zeros((1, 1)),
+        )
 
     @staticmethod
     def metric(*, g: torch.Tensor) -> torch.Tensor:
+        """Used to define the corresponding variable."""
         return (g + 1) ** 2 / g
 
     def get_variables_specs(self) -> NamedVariables:
-        """Return the specifications of the variables (latent variables, derived variables, model 'parameters') that are part of the model."""
+        """
+        Return the specifications of the variables (latent variables, derived variables,
+        model 'parameters') that are part of the model.
+
+        Returns
+        -------
+        NamedVariables :
+            The specifications of the model's variables.
+        """
         d = super().get_variables_specs()
 
-        assert self._subtype_suffix == '_logistic', "WIP: TODO remove this assert"
+        if self._subtype_suffix != "_logistic":
+            raise NotImplementedError("WIP: Only implemented for logistic models.")
 
         d.update(
             # PRIORS
-            log_v0_mean=ModelParameter.for_pop_mean("log_v0", shape=(self.dimension,)),
+            log_v0_mean=ModelParameter.for_pop_mean(
+                "log_v0",
+                shape=(self.dimension,),
+            ),
             log_v0_std=Hyperparameter(0.01),
             xi_mean=Hyperparameter(0.),
             # LATENT VARS
-            log_v0=PopulationLatentVariable(Normal("log_v0_mean", "log_v0_std")),
+            log_v0=PopulationLatentVariable(
+                Normal("log_v0_mean", "log_v0_std"),
+            ),
             # DERIVED VARS
-            v0=LinkedVariable(Exp("log_v0")),
+            v0=LinkedVariable(
+                Exp("log_v0"),
+            ),
             metric=LinkedVariable(self.metric),  # for linear model: metric & metric_sqr are fixed = 1.
         )
 

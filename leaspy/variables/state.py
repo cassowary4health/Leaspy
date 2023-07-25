@@ -60,7 +60,7 @@ class State(MutableMapping):
     Attributes
     ----------
     dag : VariablesDAG
-        The stateless DAG which the state instante will hold values for.
+        The stateless DAG which the state instance will hold values for.
     auto_fork_type : :class:`.StateForkType` or None
         If not `StateForkType.NONE` each dictionary assignment will lead to the partial caching
         of previous value and all its children, so they can be reverted without computation.
@@ -128,7 +128,10 @@ class State(MutableMapping):
         force_computation: bool = False,
         why: str = " to proceed",
     ) -> VarValue:
-        """Retrieve cached value (unless `force_computation`) or compute it, assuming node exists and all its ancestors have cached values."""
+        """
+        Retrieve cached value (unless `force_computation`) or compute it,
+        assuming node exists and all its ancestors have cached values.
+        """
         if not force_computation:
             val = self._values[k]
             if val is not None:
@@ -143,7 +146,10 @@ class State(MutableMapping):
         return val
 
     def __getitem__(self, k: VarName) -> VarValue:
-        """Retrieve cached variable value or compute it and cache it (as well as all intermediate computations that were needed)."""
+        """
+        Retrieve cached variable value or compute it and cache it
+        (as well as all intermediate computations that were needed).
+        """
         self._check_key_exists(k)
         val = self._values[k]
         if val is not None:
@@ -163,7 +169,8 @@ class State(MutableMapping):
             self._last_fork = self.auto_fork_type.to_cache(
                 {c: self._values[c] for c in (k,) + sorted_children}
             )
-        # TODO? we do not "validate" / "check" input data for now (it could be a stateless variable method) to remain light
+        # TODO? we do not "validate" / "check" input data for now
+        #  (it could be a stateless variable method) to remain light
         self._values[k] = v
         # we reset values of all children of the node we just assigned a value to
         # (we postpone the evaluation of their new values when they will really be needed)
@@ -172,24 +179,43 @@ class State(MutableMapping):
 
     def put(
         self,
-        k: VarName,
-        v: torch.Tensor,
+        variable_name: VarName,
+        variable_value: torch.Tensor,
         *,
         indices: Tuple[int, ...] = (),
         accumulate: bool = False,
     ) -> None:
-        """Smart and protected assignment of a variable value, but potentially on a subset of indices, adding (accumulating) values and OUT-OF-PLACE."""
+        """
+        Smart and protected assignment of a variable value, but potentially on a subset of indices,
+        adding (accumulating) values and OUT-OF-PLACE.
+
+        Parameters
+        ----------
+        variable_name : VarName
+            The name of the variable.
+        variable_value : torch.Tensor
+            The new value to put in the variable name.
+        indices : Tuple of int, optional
+            If set, the operation will happen on a subset of indices.
+            Default=()
+        accumulate : bool, optional
+            If set to True, the new variable value will be added
+            to the old value. Otherwise, it will be assigned.
+            Default=False
+        """
         if indices == ():
             # `torch.index_put` is not working in this case.
             if not accumulate:
-                self[k] = v
+                self[variable_name] = variable_value
             else:
-                self[k] = self[k] + v
+                self[variable_name] = self[variable_name] + variable_value
             return
         # For now: no optimization for partial indices operations
         torch_indices = tuple(map(torch.tensor, indices))
-        self[k] = self[k].index_put(
-            indices=torch_indices, values=v, accumulate=accumulate
+        self[variable_name] = self[variable_name].index_put(
+            indices=torch_indices,
+            values=variable_value,
+            accumulate=accumulate,
         )
 
     def __delitem__(self, k: VarName) -> None:
@@ -221,8 +247,8 @@ class State(MutableMapping):
             If not None, the reversion is only partial:
             * subset = True <=> revert previous state for those indices
             * subset = False <=> keep current state for those indices
-            <!> User is responsible for having tensor values that are consistent with `subset` shape (i.e. valid broadcasting)
-            for the forked node and all of its children.
+            <!> User is responsible for having tensor values that are consistent with
+            `subset` shape (i.e. valid broadcasting) for the forked node and all of its children.
            <!> When the current OR forked state is not set (value = None) on a particular node of forked DAG,
            then the reverted result is always None.
         right_broadcasting : bool (default True)
@@ -231,8 +257,8 @@ class State(MutableMapping):
         """
         if self._last_fork is None:
             raise LeaspyInputError(
-                "No forked state to revert from, "
-                "please use within `.auto_fork()` context, or set `.auto_fork_type` to  `StateForkType.REF` or `StateForkType.COPY`."
+                "No forked state to revert from, please use within `.auto_fork()` context, "
+                "or set `.auto_fork_type` to  `StateForkType.REF` or `StateForkType.COPY`."
             )
 
         if subset is None:
@@ -286,7 +312,12 @@ class State(MutableMapping):
             else:
                 self[pp] = var.get_init_func(method).call(self)
 
-    def put_individual_latent_variables(self, method: Optional[LatentVariableInitType], *, n_individuals: Optional[int] = None) -> None:
+    def put_individual_latent_variables(
+        self,
+        method: Optional[LatentVariableInitType],
+        *,
+        n_individuals: Optional[int] = None,
+    ) -> None:
         """Put some predefined values in state for all individual latent variables (in-place)."""
         if method is not None and n_individuals is None:
             raise LeaspyInputError("`n_individuals` should not be None when `method` is not None.")

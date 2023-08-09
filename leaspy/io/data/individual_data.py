@@ -24,15 +24,15 @@ class IndividualData:
     observations : np.ndarray[float, 2D]
         Observed data points.
         Shape is ``(n_timepoints, n_features)``
-    cofactors : Dict[FeatureType, Any]
-        Cofactors in the form {cofactor_name: cofactor_value}
+    covariates : Dict[FeatureType, Any]
+        Covariates in the form {covariate_name: covariate_value}
     """
 
     def __init__(self, idx: IDType):
         self.idx: IDType = idx
         self.timepoints: np.ndarray = None
         self.observations: np.ndarray = None
-        self.cofactors: Dict[FeatureType, Any] = {}
+        self.covariates: Dict[FeatureType, Any] = {}
 
     def add_observations(self, timepoints: List[float], observations: List[List[float]]) -> None:
         """
@@ -69,14 +69,14 @@ class IndividualData:
                     self.observations[index:]
                 ])
 
-    def add_cofactors(self, d: Dict[FeatureType, Any]) -> None:
+    def add_covariates(self, d: Dict[FeatureType, Any]) -> None:
         """
-        Include new cofactors
+        Include new covariates
 
         Parameters
         ----------
         d : Dict[FeatureType, Any]
-            Cofactors to include, in the form `{name: value}`
+            Covariates to include, in the form `{name: value}`
 
         Raises
         ------
@@ -90,7 +90,7 @@ class IndividualData:
             raise LeaspyTypeError("Invalid argument type for `d`")
 
         for k, v in d.items():
-            if k in self.cofactors.keys() and v != self.cofactors[k]:
-                raise LeaspyDataInputError(f"Cofactor {k} is already present "
+            if k in self.covariates.keys() and v != self.covariates[k]:
+                raise LeaspyDataInputError(f"Covariate {k} is already present "
                                            f"for patient {self.idx}")
-            self.cofactors[k] = v
+            self.covariates[k] = v

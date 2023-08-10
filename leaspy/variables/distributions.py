@@ -370,6 +370,60 @@ class NormalFamily(StatelessDistributionFamilyFromTorchDistribution):
     # def sample(cls, loc, scale, *, sample_shape = ()):
     #    # Hardcode method for efficiency? (<!> broadcasting)
 
+class WeibullRightCensoredFamily(StatelessDistributionFamilyFromTorchDistribution):
+    parameters: ClassVar = ("nu","rho")
+    dist_factory: ClassVar = torch.distributions.weibull.Weibull
+
+    @classmethod
+    def _nll(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor,) -> torch.Tensor:
+
+        # Get inputs
+        event_rep_time, event_bool = x
+
+        # Survival neg log-likelihood
+        n_log_survival = (event_rep_time / nu) ** rho
+
+        # Hazard neg log-likelihood only for patient with event not censored
+        hazard = (rho / nu) * ((event_rep_time * nu) ** (rho - 1.))
+        hazard = torch.where(event_bool == 0, torch.tensor(1., dtype=torch.double), hazard)
+
+        attachment_events = n_log_survival - torch.log(hazard)
+
+        return attachment_events
+
+    @classmethod
+    def _nll_and_jacobian(
+        cls,
+        x: torch.Tensor,
+        nu: torch.Tensor,
+        rho: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+
+        nll = cls._nll(x, nu, rho)
+        nll_grad_value = cls._nll_jacobian(x, nu, rho)
+
+        return nll, nll_grad_value
+
+    @classmethod
+    def _nll_jacobian(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor, *params: torch.Tensor) -> torch.Tensor:
+
+        # Get inputs
+        event_rep_time, event_bool = x
+
+        # Survival
+        grad_xi = rho * (event_rep_time / nu) ** rho - event_bool * rho
+        grad_tau = (rho / nu * torch.exp(xi)) * ((event_rep_time / nu) ** (rho - 1.)) + event_bool * (
+                    rho - 1) / (t_min - tau)
+
+        # Normalise as compute on normalised variables
+        to_cat = [
+            grad_xi * self.parameters['xi_std'],
+            grad_tau * self.parameters['tau_std'],
+        ]
+
+        grads = torch.cat(to_cat, dim=-1).squeeze(0)
+
+        return grads
 
 @dataclass(frozen=True)
 class SymbolicDistribution:
@@ -536,7 +590,7 @@ class SymbolicDistribution:
 Normal = SymbolicDistribution.bound_to(NormalFamily)
 Bernoulli = SymbolicDistribution.bound_to(BernoulliFamily)
 Ordinal = SymbolicDistribution.bound_to(OrdinalFamily)
-
+WeibullRightCensored = SymbolicDistribution.bound_to(WeibullRightCensoredFamily)
 
 # INLINE UNIT TESTS
 if __name__ == "__main__":

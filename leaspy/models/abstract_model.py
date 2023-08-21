@@ -879,6 +879,7 @@ class AbstractModel(BaseModel):
         """
         d = NamedVariables({
             "t": DataVariable(),
+            "y": DataVariable(),
             "rt": LinkedVariable(self.time_reparametrization),
             #"model": LinkedVariable(self.model),  # function arguments may depends on hyperparameters so postpone (e.g. presence of sources or not)
             #"model_jacobian_{ip}": LinkedVariable(self.model_jacobian), for ip in IndividualLatentVariables....
@@ -953,14 +954,25 @@ class AbstractModel(BaseModel):
         # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
         state["t"], _ = WeightedTensor.get_filled_value_and_weight(timepoints, fill_value=0.)
 
+    def _put_data_y_values(self, state: State, y_values: TensorOrWeightedTensor[float]) -> None:
+        """Put the timepoints variables inside the provided state (in-place)."""
+        # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
+        # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
+        # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
+        state["y"], _ = WeightedTensor.get_filled_value_and_weight(y_values, fill_value=0.)
+
     def put_data_variables(self, state: State, dataset: Dataset) -> None:
         """Put all the needed data variables inside the provided state (in-place)."""
         self._put_data_timepoints(
             state,
             WeightedTensor(dataset.timepoints, dataset.mask.to(torch.bool).any(dim=LVL_FT))
         )
+        self._put_data_y_values(
+            state,
+            WeightedTensor(dataset.values, dataset.mask.to(torch.bool).any(dim=LVL_FT))
+        )
         for obs_model in self.obs_models:
-            state[obs_model.name] = obs_model.getter(dataset)
+            state[obs_model.name] = obs_model.getter(state)
 
     def reset_data_variables(self, state: State) -> None:
         """Reset all data variables inside the provided state (in-place)."""

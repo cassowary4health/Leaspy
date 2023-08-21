@@ -18,7 +18,6 @@ from leaspy.variables.specs import (
     Collect,
     LVL_FT,
 )
-from leaspy.io.data.dataset import Dataset
 from leaspy.variables.state import State
 
 from ._base import ObservationModel
@@ -30,7 +29,7 @@ class GaussianObservationModel(ObservationModel):
     def __init__(
         self,
         name: VarName,
-        getter: Callable[[Dataset], WeightedTensor],
+        getter: Callable[[State], WeightedTensor],
         loc: VarName,
         scale: VarName,
         **extra_vars: VariableInterface,
@@ -66,10 +65,10 @@ class FullGaussianObservationModel(GaussianObservationModel):
         )
 
     @staticmethod
-    def y_getter(dataset: Dataset) -> WeightedTensor:
+    def y_getter(state: State) -> WeightedTensor:
         assert dataset.values is not None
         assert dataset.mask is not None
-        return WeightedTensor(dataset.values, weight=dataset.mask.to(torch.bool))
+        return WeightedTensor(state['y'], weight=dataset.mask.to(torch.bool))
 
     @classmethod
     def noise_std_suff_stats(cls) -> Dict[VarName, LinkedVariable]:

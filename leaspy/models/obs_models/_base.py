@@ -22,7 +22,7 @@ from leaspy.variables.specs import (
     LinkedVariable,
     LVL_IND,
 )
-from leaspy.io.data.dataset import Dataset
+from leaspy.variables.state import State
 
 
 @dataclass(frozen=True)
@@ -37,8 +37,8 @@ class ObservationModel:
     ----------
     name : :obj:`str`
         The name of observed variable (to name the data variable & attachment term related to this observation).
-    getter : function :class:`.Dataset` -> :class:`.WeightedTensor`
-        The way to retrieve the observed values from the :class:`.Dataset` (as a :class:`.WeightedTensor`):
+    getter : function :class:`.State` -> :class:`.WeightedTensor`
+        The way to retrieve the observed values from the :class:`.State` (as a :class:`.WeightedTensor`):
         e.g. all values, subset of values - only x, y, z features, one-hot encoded features, ...
     dist : :class:`.SymbolicDistribution`
         The symbolic distribution, parametrized by model variables, for observed values (so to compute attachment).
@@ -48,7 +48,7 @@ class ObservationModel:
     """
 
     name: VarName
-    getter: Callable[[Dataset], WeightedTensor]
+    getter: Callable[[State], WeightedTensor]
     dist: SymbolicDistribution
     extra_vars: Optional[TMapping[VarName, VariableInterface]] = None
 

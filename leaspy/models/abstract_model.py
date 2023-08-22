@@ -954,12 +954,13 @@ class AbstractModel(BaseModel):
         # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
         state["t"], _ = WeightedTensor.get_filled_value_and_weight(timepoints, fill_value=0.)
 
-    def _put_data_y_values(self, state: State, y_values: TensorOrWeightedTensor[float]) -> None:
+    def _put_data_y_values(self, state: State, dataset: Dataset) -> None:
         """Put the timepoints variables inside the provided state (in-place)."""
         # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
         # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
         # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
-        state["y"], _ = WeightedTensor.get_filled_value_and_weight(y_values, fill_value=0.)
+
+        state["y"] = WeightedTensor(dataset.values, weight=dataset.mask.to(torch.bool))
 
     def put_data_variables(self, state: State, dataset: Dataset) -> None:
         """Put all the needed data variables inside the provided state (in-place)."""
@@ -969,7 +970,7 @@ class AbstractModel(BaseModel):
         )
         self._put_data_y_values(
             state,
-            WeightedTensor(dataset.values, dataset.mask.to(torch.bool).any(dim=LVL_FT))
+            dataset
         )
         for obs_model in self.obs_models:
             state[obs_model.name] = obs_model.getter(state)

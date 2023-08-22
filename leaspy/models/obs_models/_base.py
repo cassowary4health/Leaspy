@@ -63,7 +63,6 @@ class ObservationModel:
         else:
             nll_attach_var = f"nll_attach"
         return {
-            self.name: DataVariable(),
             # Dependent vars
             **(self.extra_vars or {}),
             # Attachment variables

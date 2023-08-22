@@ -24,11 +24,11 @@ class OrdinalObservationModel(ObservationModel):
         )
 
     def y_getter(self, state: State) -> WeightedTensor:
-        if dataset.values is None or dataset.mask is None:
+        if state['y'] is None :
             raise ValueError(
                 "Provided dataset is not valid. "
                 "Both values and mask should be not None."
             )
         # Why isn't it computed once for all ?
         #pdf = dataset.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
-        return WeightedTensor(state['y'], weight=dataset.mask.to(torch.bool))
+        return state['y']

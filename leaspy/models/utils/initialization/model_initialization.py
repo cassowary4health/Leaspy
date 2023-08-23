@@ -1,12 +1,9 @@
-import warnings
 from operator import itemgetter
-from typing import Dict, List
+from typing import Dict
 
 import torch
-from scipy import stats
 import pandas as pd
 
-# <!> circular imports
 import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
 from leaspy.models.obs_models import (
@@ -19,11 +16,6 @@ XI_STD = .5
 TAU_STD = 5.
 NOISE_STD = .1
 SOURCES_STD = 1.
-
-
-def _torch_round(t: torch.FloatTensor, *, tol: float = 1 << 16) -> torch.FloatTensor:
-    # Round values to ~ 10**-4.8
-    return (t * tol).round() * (1./tol)
 
 
 def initialize_parameters(model, dataset, method="default") -> tuple:
@@ -71,12 +63,8 @@ def initialize_parameters(model, dataset, method="default") -> tuple:
         return lme_init(model, df) # support kwargs?
 
     name = model.name
-    if name in ['logistic', 'univariate_logistic']:
-        parameters = initialize_logistic(model, df, method)
-    elif name == 'logistic_parallel':
+    if name == 'logistic_parallel':
         parameters = initialize_logistic_parallel(model, df, method)
-    elif name in ['linear', 'univariate_linear']:
-        parameters = initialize_linear(model, df, method)
     elif name == 'mixed_linear-logistic':
         raise NotImplementedError("legacy")
     else:
@@ -329,97 +317,6 @@ def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters: dict) -> None
     #parameters['v0'] = torch.zeros_like(parameters['v0'])
 
 
-def linregress_against_time(s: pd.Series) -> Dict[str, float]:
-    """Return intercept & slope of a linear regression of series values against time (present in series index)."""
-    y = s.values
-    t = s.index.get_level_values('TIME').values
-    # Linear regression
-    slope, intercept, r_value, p_value, std_err = stats.linregress(t, y)
-    return {'intercept': intercept, 'slope': slope}
-
-
-def get_log_velocities(velocities: torch.Tensor, features: List[str], *, min: float = 1e-2) -> torch.Tensor:
-    """Warn if some negative velocities are provided, clamp them to `min` and return their log."""
-    neg_velocities = velocities <= 0
-    if neg_velocities.any():
-        warnings.warn(f"Mean slope of individual linear regressions made at initialization is negative for "
-                      f"{[f for f, vel in zip(features, velocities) if vel <= 0]}: not properly handled in model...")
-    return velocities.clamp(min=min).log()
-
-
-def initialize_logistic(model, df: pd.DataFrame, method: str) -> Dict[str, torch.Tensor]:
-    """
-    Initialize the logistic model's group parameters.
-
-    Parameters
-    ----------
-    model : :class:`.AbstractModel`
-        The model to initialize.
-    df : :class:`pd.DataFrame`
-        Contains the individual scores (with nans).
-    method : str
-        Must be one of:
-            * ``'default'``: initialize at mean.
-            * ``'random'``:  initialize with a gaussian realization with same mean and variance.
-
-    Returns
-    -------
-    parameters : dict [str, `torch.Tensor`]
-        Contains the initialized model's group parameters.
-        The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
-        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std'.
-
-    Raises
-    ------
-    :exc:`.LeaspyInputError`
-        If method is not handled
-    """
-
-    # Get the slopes / values / times mu and sigma
-    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(df)
-    values_mu, values_sigma = compute_patient_values_distribution(df)
-    time_mu, time_sigma = compute_patient_time_distribution(df)
-
-    # Method
-    if method == "default":
-        slopes = slopes_mu
-        values = values_mu
-        t0 = time_mu
-        betas = torch.zeros((model.dimension - 1, model.source_dimension))
-    elif method == "random":
-        slopes = torch.normal(slopes_mu, slopes_sigma)
-        values = torch.normal(values_mu, values_sigma)
-        t0 = torch.normal(time_mu, time_sigma)
-        betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(sample_shape=(model.dimension - 1, model.source_dimension))
-    else:
-        raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
-
-    # Enforce values are between 0 and 1
-    values = values.clamp(min=1e-2, max=1-1e-2)  # always "works" for ordinal (values >= 1)
-
-    # Do transformations
-    v0_array = get_log_velocities(slopes, model.features)
-    g_array = torch.log(1. / values - 1.)  # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
-
-    # Create smart initialization dictionary
-    parameters = {
-        "log_g_mean": g_array,
-        "log_v0_mean": v0_array,
-        "tau_mean": t0,
-        "tau_std": torch.tensor([TAU_STD]),
-        "xi_std": torch.tensor([XI_STD]),
-    }
-
-    if model.source_dimension >= 1:
-        parameters["betas_mean"] = betas
-
-    # TODO
-    #if model.is_ordinal:
-    #    initialize_deltas_ordinal(model, df, parameters)
-
-    return parameters
-
-
 def initialize_logistic_parallel(model, df, method):
     """
     Initialize the logistic parallel model's group parameters.
@@ -490,147 +387,3 @@ def initialize_logistic_parallel(model, df, method):
     }
 
     return parameters
-
-
-def initialize_linear(model, df: pd.DataFrame, method):
-    """
-    Initialize the linear model's group parameters.
-
-    Parameters
-    ----------
-    model : :class:`.AbstractModel`
-        The model to initialize.
-    df : :class:`pd.DataFrame`
-        Contains the individual scores (with nans).
-    method : str
-        not used for now
-
-    Returns
-    -------
-    parameters : dict [str, `torch.Tensor`]
-        Contains the initialized model's group parameters. The parameters' keys are 'g', 'v0', 'betas', 'tau_mean',
-        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std'.
-    """
-    raise NotImplementedError("WIP")
-
-    times = df.index.get_level_values('TIME').values
-    t0 = times.mean()
-
-    d_regress_params = compute_linregress_subjects(df, max_inds=None)
-    df_all_regress_params = pd.concat(d_regress_params, names=['feature'])
-    df_all_regress_params['position'] = df_all_regress_params['intercept'] + t0 * df_all_regress_params['slope']
-
-    df_grp = df_all_regress_params.groupby('feature', sort=False)
-    positions = torch.tensor(df_grp['position'].mean().values)
-    velocities = torch.tensor(df_grp['slope'].mean().values)
-
-    # always take the log (even in non univariate model!)
-    velocities = get_log_velocities(velocities, model.features)
-
-    parameters = {
-        "g": positions,
-        "v0": velocities,
-        "betas": torch.zeros((model.dimension - 1, model.source_dimension)),
-        "tau_mean": torch.tensor(t0),
-        "tau_std": torch.tensor(TAU_STD),
-        "xi_mean": torch.tensor(0.),
-        "xi_std": torch.tensor(XI_STD),
-        "sources_mean": torch.tensor(0.),
-        "sources_std": torch.tensor(SOURCES_STD),
-    }
-
-    return parameters
-
-
-def compute_linregress_subjects(df: pd.DataFrame, *, max_inds: int = None) -> Dict[str, pd.DataFrame]:
-    """
-    Linear Regression on each feature to get intercept & slopes
-
-    Parameters
-    ----------
-    df : :class:`pd.DataFrame`
-        Contains the individual scores (with nans).
-    max_inds : int, optional (default None)
-        Restrict computation to first `max_inds` individuals.
-
-    Returns
-    -------
-    dict[feat_name: str, regress_params_per_subj: pandas.DataFrame]
-    """
-
-    d_regress_params = {}
-
-    for ft, s in df.items():
-        s = s.dropna()
-        nvis = s.groupby('ID').size()
-        inds_train = nvis[nvis >= 2].index
-        if max_inds is not None:
-            inds_train = inds_train[:max_inds]
-        s_train = s.loc[inds_train]
-        d_regress_params[ft] = s_train.groupby('ID').apply(linregress_against_time).unstack(-1)
-
-    return d_regress_params
-
-
-def compute_patient_slopes_distribution(df: pd.DataFrame, *, max_inds: int = None):
-    """
-    Linear Regression on each feature to get slopes
-
-    Parameters
-    ----------
-    df : :class:`pd.DataFrame`
-        Contains the individual scores (with nans).
-    max_inds : int, optional (default None)
-        Restrict computation to first `max_inds` individuals.
-
-    Returns
-    -------
-    slopes_mu : :class:`torch.Tensor` [n_features,]
-    slopes_sigma : :class:`torch.Tensor` [n_features,]
-    """
-
-    d_regress_params = compute_linregress_subjects(df, max_inds=max_inds)
-    slopes_mu, slopes_sigma = [], []
-
-    for ft, df_regress_ft in d_regress_params.items():
-        slopes_mu.append(df_regress_ft['slope'].mean())
-        slopes_sigma.append(df_regress_ft['slope'].std())
-
-    return torch.tensor(slopes_mu), torch.tensor(slopes_sigma)
-
-
-def compute_patient_values_distribution(df: pd.DataFrame):
-    """
-    Returns means and standard deviations for the features of the given dataset values.
-
-    Parameters
-    ----------
-    df : :class:`pd.DataFrame`
-        Contains the individual scores (with nans).
-
-    Returns
-    -------
-    means : :class:`torch.Tensor` [n_features,]
-        One mean per feature.
-    std : :class:`torch.Tensor` [n_features,]
-        One standard deviation per feature.
-    """
-    return torch.tensor(df.mean().values), torch.tensor(df.std().values)
-
-
-def compute_patient_time_distribution(df: pd.DataFrame):
-    """
-    Returns mu / sigma of given dataset times.
-
-    Parameters
-    ----------
-    df : :class:`pd.DataFrame`
-        Contains the individual scores (with nans).
-
-    Returns
-    -------
-    mean : :class:`torch.Tensor` scalar
-    sigma : :class:`torch.Tensor` scalar
-    """
-    times = df.index.get_level_values('TIME').values
-    return torch.tensor([times.mean()]), torch.tensor([times.std()])

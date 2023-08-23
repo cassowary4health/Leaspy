@@ -1,7 +1,7 @@
 from unittest import skip
 
 from leaspy.models.abstract_model import AbstractModel
-from leaspy.models.univariate import UnivariateModel
+from leaspy.models.univariate import LogisticUnivariateModel, LinearUnivariateModel
 from leaspy.models.obs_models import FullGaussianObservationModel
 
 from tests import LeaspyTestCase
@@ -17,15 +17,11 @@ class ManifoldModelTestMixin(LeaspyTestCase):
 
 class UnivariateModelTest(ManifoldModelTestMixin):
 
-    def _generic_testing(self, model_name: str):
-        model = UnivariateModel(model_name)
-
-        self.assertIsInstance(model, UnivariateModel)
-        self.assertEqual(model.name, model_name)
+    def _generic_testing(self, model: AbstractModel):
+        self.assertEqual(model.name, "test_model")
         self.assertEqual(model.dimension, 1)
         self.assertEqual(model.source_dimension, 0)
         self.assertIsInstance(model.obs_models[0], FullGaussianObservationModel)
-
         model.initialize_state()
         self.check_common_attrs(model)
 
@@ -33,15 +29,16 @@ class UnivariateModelTest(ManifoldModelTestMixin):
         """
         Test attribute's initialization of leaspy univariate logistic model.
         """
-        self._generic_testing("univariate_logistic")
+        model = LogisticUnivariateModel("test_model")
+        self.assertIsInstance(model, LogisticUnivariateModel)
+        self._generic_testing(model)
 
     @skip("Linear models are currently broken")
     def test_univariate_linear_constructor(self):
         """
         Test attribute's initialization of leaspy univariate linear model.
         """
-        self._generic_testing("univariate_linear")
+        model = LinearUnivariateModel("test_model")
+        self.assertIsInstance(model, LinearUnivariateModel)
+        self._generic_testing(model)
 
-    def test_wrong_name(self):
-        with self.assertRaises(ValueError):
-            UnivariateModel("univariate_unknown-suffix")

@@ -92,16 +92,16 @@ class AbstractModel(BaseModel):
     """
 
     def __init__(
-        self,
-        name: str,
-        *,
-        # TODO? if we'd allow to pass a state there should be a all bunch of checks I guess? only "equality" of DAG is OK?
-        # (WIP: cf. comment regarding inclusion of state here)
-        # state: Optional[State] = None,
-        # TODO? Factory of `ObservationModel` instead? (typically one would need the dimension to instantiate the `noise_std` variable of the right shape...)
-        obs_models: Union[ObservationModel, Iterable[ObservationModel]],
-        fit_metrics: Optional[Dict[str, float]] = None,
-        **kwargs
+            self,
+            name: str,
+            *,
+            # TODO? if we'd allow to pass a state there should be a all bunch of checks I guess? only "equality" of DAG is OK?
+            # (WIP: cf. comment regarding inclusion of state here)
+            # state: Optional[State] = None,
+            # TODO? Factory of `ObservationModel` instead? (typically one would need the dimension to instantiate the `noise_std` variable of the right shape...)
+            obs_models: Union[ObservationModel, Iterable[ObservationModel]],
+            fit_metrics: Optional[Dict[str, float]] = None,
+            **kwargs
     ):
         super().__init__(name, **kwargs)
 
@@ -134,7 +134,7 @@ class AbstractModel(BaseModel):
     #     self.check_noise_model_compatibility(noise_model)
     #     self._noise_model = noise_model
     #
-    #def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
+    # def check_noise_model_compatibility(self, model: BaseNoiseModel) -> None:
     #    """
     #    Raise a LeaspyModelInputError is the provided noise model isn't compatible with the model instance.
     #    This needs to be implemented in subclasses.
@@ -267,9 +267,10 @@ class AbstractModel(BaseModel):
         extra_vars = set(parameters).difference(self.dag)
         if len(extra_vars):
             raise LeaspyModelInputError(f"Unknown model variables: {extra_vars}")
+
         # TODO: check no DataVariable provided???
-        #extra_params = set(parameters).difference(cur_params)
-        #if len(extra_params):
+        # extra_params = set(parameters).difference(cur_params)
+        # if len(extra_params):
         #    # e.g. mixing matrix, which is a derived variable - checking their values only
         #    warnings.warn(f"Ignoring some provided values that are not model parameters: {extra_params}")
 
@@ -386,20 +387,20 @@ class AbstractModel(BaseModel):
 
         # Model supports and needs sources?
         has_sources = (
-            hasattr(self, 'source_dimension')
-            and isinstance(self.source_dimension, int)
-            and self.source_dimension > 0
+                hasattr(self, 'source_dimension')
+                and isinstance(self.source_dimension, int)
+                and self.source_dimension > 0
         )
 
         # Check parameters names
-        expected_parameters = set(['xi', 'tau'] + int(has_sources)*['sources'])
+        expected_parameters = set(['xi', 'tau'] + int(has_sources) * ['sources'])
         given_parameters = set(ips.keys())
         symmetric_diff = expected_parameters.symmetric_difference(given_parameters)
         if len(symmetric_diff) > 0:
             raise LeaspyIndividualParamsInputError(
-                    f'Individual parameters dict provided {given_parameters} '
-                    f'is not compatible for {self.name} model. '
-                    f'The expected individual parameters are {expected_parameters}.')
+                f'Individual parameters dict provided {given_parameters} '
+                f'is not compatible for {self.name} model. '
+                f'The expected individual parameters are {expected_parameters}.')
 
         # Check number of individuals present (with low constraints on shapes)
         ips_is_array_like = {k: is_array_like(v) for k, v in ips.items()}
@@ -485,11 +486,11 @@ class AbstractModel(BaseModel):
         return x
 
     def _get_tensorized_inputs(
-        self,
-        timepoints: torch.Tensor,
-        individual_parameters: DictParamsTorch,
-        *,
-        skip_ips_checks: bool = False,
+            self,
+            timepoints: torch.Tensor,
+            individual_parameters: DictParamsTorch,
+            *,
+            skip_ips_checks: bool = False,
     ) -> Tuple[torch.Tensor, DictParamsTorch]:
         if not skip_ips_checks:
             # Perform checks on ips and gets tensorized version if needed
@@ -521,11 +522,11 @@ class AbstractModel(BaseModel):
 
     # TODO: unit tests? (functional tests covered by api.estimate)
     def compute_individual_trajectory(
-        self,
-        timepoints,
-        individual_parameters: DictParams,
-        *,
-        skip_ips_checks: bool = False,
+            self,
+            timepoints,
+            individual_parameters: DictParams,
+            *,
+            skip_ips_checks: bool = False,
     ) -> TensorOrWeightedTensor[float]:
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
@@ -571,11 +572,11 @@ class AbstractModel(BaseModel):
         return local_state["model"]
 
     def compute_prior_trajectory(
-        self,
-        timepoints: torch.Tensor,
-        prior_type: LatentVariableInitType,
-        *,
-        n_individuals: Optional[int] = None,
+            self,
+            timepoints: torch.Tensor,
+            prior_type: LatentVariableInitType,
+            *,
+            n_individuals: Optional[int] = None,
     ) -> TensorOrWeightedTensor[float]:
         """
         Compute trajectory of the model for prior mode or mean of individual parameters.
@@ -601,8 +602,8 @@ class AbstractModel(BaseModel):
                 raise exc_n_ind_iff_prior_samples
             n_individuals = 1
         elif (
-            prior_type is not LatentVariableInitType.PRIOR_SAMPLES
-            or not (isinstance(n_individuals, int) and n_individuals >= 1)
+                prior_type is not LatentVariableInitType.PRIOR_SAMPLES
+                or not (isinstance(n_individuals, int) and n_individuals >= 1)
         ):
             raise exc_n_ind_iff_prior_samples
         local_state = self.state.clone(disable_auto_fork=True)
@@ -622,10 +623,10 @@ class AbstractModel(BaseModel):
 
     # TODO: unit tests? (functional tests covered by api.estimate)
     def compute_individual_ages_from_biomarker_values(
-        self,
-        value: Union[float, List[float]],
-        individual_parameters: DictParams,
-        feature: Optional[FeatureType] = None,
+            self,
+            value: Union[float, List[float]],
+            individual_parameters: DictParams,
+            feature: Optional[FeatureType] = None,
     ) -> torch.Tensor:
         """
         For one individual, compute age(s) at which the given features values
@@ -668,12 +669,12 @@ class AbstractModel(BaseModel):
             value, individual_parameters, feature
         )
 
-    #@abstractmethod
+    # @abstractmethod
     def compute_individual_ages_from_biomarker_values_tensorized(
-        self,
-        value: torch.Tensor,
-        individual_parameters: DictParamsTorch,
-        feature: Optional[FeatureType],
+            self,
+            value: torch.Tensor,
+            individual_parameters: DictParamsTorch,
+            feature: Optional[FeatureType],
     ) -> torch.Tensor:
         """
         For one individual, compute age(s) at which the given features values are
@@ -704,8 +705,8 @@ class AbstractModel(BaseModel):
         raise NotImplementedError("TODO in child classes")
 
     def compute_jacobian_tensorized(
-        self,
-        state: State,
+            self,
+            state: State,
     ) -> DictParamsTorch:
         """
         Compute the jacobian of the model w.r.t. each individual parameter, given the input state.
@@ -758,11 +759,11 @@ class AbstractModel(BaseModel):
 
     @classmethod
     def update_parameters(
-        cls,
-        state: State,
-        sufficient_statistics: SuffStatsRO,
-        *,
-        burn_in: bool,
+            cls,
+            state: State,
+            sufficient_statistics: SuffStatsRO,
+            *,
+            burn_in: bool,
     ) -> None:
         """
         Update model parameters of the provided state.
@@ -794,7 +795,7 @@ class AbstractModel(BaseModel):
         if isinstance(v, float) or getattr(v, 'ndim', -1) == 0:
             # for 0D tensors / arrays the default behavior is to print all digits...
             # change this!
-            return f'{v:.{1+torch_print_opts.precision}g}'
+            return f'{v:.{1 + torch_print_opts.precision}g}'
         if isinstance(v, (list, frozenset, set, tuple)):
             try:
                 return cls._serialize_tensor(torch.tensor(list(v)), indent=indent, sub_indent=sub_indent)
@@ -804,7 +805,7 @@ class AbstractModel(BaseModel):
             if not len(v):
                 return ""
             subs = [
-                f"{p} : " + cls._serialize_tensor(vp, indent="  ", sub_indent=" "*len(f"{p} : ["))
+                f"{p} : " + cls._serialize_tensor(vp, indent="  ", sub_indent=" " * len(f"{p} : ["))
                 for p, vp in v.items()
             ]
             lines = [indent + _ for _ in "\n".join(subs).split("\n")]
@@ -833,10 +834,10 @@ class AbstractModel(BaseModel):
 
     @staticmethod
     def time_reparametrization(
-        *,
-        t: torch.Tensor,  # TODO: TensorOrWeightedTensor?
-        alpha: torch.Tensor,
-        tau: torch.Tensor,
+            *,
+            t: torch.Tensor,  # TODO: TensorOrWeightedTensor?
+            alpha: torch.Tensor,
+            tau: torch.Tensor,
     ) -> torch.Tensor:
         """
         Tensorized time reparametrization formula.
@@ -859,12 +860,12 @@ class AbstractModel(BaseModel):
         """
         return alpha * (t - tau)
 
-    #@abstractmethod
-    #def model(self, **kws) -> torch.Tensor:
+    # @abstractmethod
+    # def model(self, **kws) -> torch.Tensor:
     #    pass
     #
-    #@abstractmethod
-    #def model_jacobian(self, **kws) -> torch.Tensor:
+    # @abstractmethod
+    # def model_jacobian(self, **kws) -> torch.Tensor:
     #    pass
 
     def get_variables_specs(self) -> NamedVariables:
@@ -881,8 +882,8 @@ class AbstractModel(BaseModel):
             "t": DataVariable(),
             "y": DataVariable(),
             "rt": LinkedVariable(self.time_reparametrization),
-            #"model": LinkedVariable(self.model),  # function arguments may depends on hyperparameters so postpone (e.g. presence of sources or not)
-            #"model_jacobian_{ip}": LinkedVariable(self.model_jacobian), for ip in IndividualLatentVariables....
+            # "model": LinkedVariable(self.model),  # function arguments may depends on hyperparameters so postpone (e.g. presence of sources or not)
+            # "model_jacobian_{ip}": LinkedVariable(self.model_jacobian), for ip in IndividualLatentVariables....
         })
 
         single_obs_model = len(self.obs_models) == 1
@@ -894,7 +895,7 @@ class AbstractModel(BaseModel):
                 "WIP: Only 1 noise model supported for now, but to be extended."
             )
             d.update(
-                #nll_attach_full=LinkedVariable(Sum(...)),
+                # nll_attach_full=LinkedVariable(Sum(...)),
                 nll_attach_ind=LinkedVariable(Sum(...)),
                 nll_attach=LinkedVariable(Sum(...)),
                 # TODO Same for nll_attach_ind jacobian, w.r.t each observation var???
@@ -940,7 +941,6 @@ class AbstractModel(BaseModel):
 
         # WIP: design of this may be better somehow?
         with self._state.auto_fork(None):
-
             # Set model parameters
             self.initialize_model_parameters(dataset, method=method)
 

@@ -13,8 +13,8 @@ class OrdinalObservationModel(ObservationModel):
     ordinal_infos = {}
 
     def __init__(
-        self,
-        **extra_vars: VariableInterface,
+            self,
+            **extra_vars: VariableInterface,
     ):
         super().__init__(
             name="y",
@@ -25,5 +25,5 @@ class OrdinalObservationModel(ObservationModel):
 
     def y_getter(self, state: State) -> WeightedTensor:
         # Why isn't it computed once for all ?
-        #pdf = dataset.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
+        # pdf = dataset.get_one_hot_encoding(sf=False, ordinal_infos=self.ordinal_infos)
         return state['y']

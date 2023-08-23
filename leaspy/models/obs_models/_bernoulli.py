@@ -11,8 +11,8 @@ from ._base import ObservationModel
 class BernoulliObservationModel(ObservationModel):
 
     def __init__(
-        self,
-        **extra_vars: VariableInterface,
+            self,
+            **extra_vars: VariableInterface,
     ):
         super().__init__(
             name="y",

@@ -27,12 +27,12 @@ class GaussianObservationModel(ObservationModel):
     """Specialized `ObservationModel` for noisy observations with Gaussian residuals assumption."""
 
     def __init__(
-        self,
-        name: VarName,
-        getter: Callable[[State], WeightedTensor],
-        loc: VarName,
-        scale: VarName,
-        **extra_vars: VariableInterface,
+            self,
+            name: VarName,
+            getter: Callable[[State], WeightedTensor],
+            loc: VarName,
+            scale: VarName,
+            **extra_vars: VariableInterface,
     ):
         super().__init__(name, getter, Normal(loc, scale), extra_vars=extra_vars)
 
@@ -78,11 +78,11 @@ class FullGaussianObservationModel(GaussianObservationModel):
 
     @classmethod
     def scalar_noise_std_update(
-        cls,
-        *,
-        state: State,
-        y_x_model: WeightedTensor[float],
-        model_x_model: WeightedTensor[float],
+            cls,
+            *,
+            state: State,
+            y_x_model: WeightedTensor[float],
+            model_x_model: WeightedTensor[float],
     ) -> torch.Tensor:
         """Update rule for scalar `noise_std` (when directly a model parameter), from state & sufficient statistics."""
         y_l2, n_obs = state["y_L2_and_n_obs"]
@@ -99,11 +99,11 @@ class FullGaussianObservationModel(GaussianObservationModel):
 
     @classmethod
     def diagonal_noise_std_update(
-        cls,
-        *,
-        state: State,
-        y_x_model: WeightedTensor[float],
-        model_x_model: WeightedTensor[float],
+            cls,
+            *,
+            state: State,
+            y_x_model: WeightedTensor[float],
+            model_x_model: WeightedTensor[float],
     ) -> torch.Tensor:
         """
         Update rule for feature-wise `noise_std` (when directly a model parameter),
@@ -159,10 +159,10 @@ class FullGaussianObservationModel(GaussianObservationModel):
 
     @classmethod
     def compute_rmse(
-        cls,
-        *,
-        y: WeightedTensor[float],
-        model: WeightedTensor[float],
+            cls,
+            *,
+            y: WeightedTensor[float],
+            model: WeightedTensor[float],
     ) -> torch.Tensor:
         """Compute root mean square error."""
         l2: WeightedTensor[float] = (model - y) ** 2
@@ -171,10 +171,10 @@ class FullGaussianObservationModel(GaussianObservationModel):
 
     @classmethod
     def compute_rmse_per_ft(
-        cls,
-        *,
-        y: WeightedTensor[float],
-        model: WeightedTensor[float],
+            cls,
+            *,
+            y: WeightedTensor[float],
+            model: WeightedTensor[float],
     ) -> torch.Tensor:
         """Compute root mean square error, per feature."""
         l2: WeightedTensor[float] = (model - y) ** 2

@@ -11,7 +11,6 @@ from typing import (
 )
 from dataclasses import dataclass
 
-
 from leaspy.variables.distributions import SymbolicDistribution
 from leaspy.utils.weighted_tensor import WeightedTensor, sum_dim
 from leaspy.utils.functional import SumDim
@@ -53,8 +52,8 @@ class ObservationModel:
     extra_vars: Optional[TMapping[VarName, VariableInterface]] = None
 
     def get_variables_specs(
-        self,
-        named_attach_vars: bool = True,
+            self,
+            named_attach_vars: bool = True,
     ) -> Dict[VarName, VariableInterface]:
         """Automatic specifications of variables for this observation model."""
         # TODO change? a bit dirty? possibility of having aliases for variables?

@@ -954,13 +954,19 @@ class AbstractModel(BaseModel):
         # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
         state["t"], _ = WeightedTensor.get_filled_value_and_weight(timepoints, fill_value=0.)
 
-    def _put_data_y_values(self, state: State, dataset: Dataset) -> None:
+    def _put_data_y_values(self, state: State, values: TensorOrWeightedTensor[float]) -> None:
         """Put the timepoints variables inside the provided state (in-place)."""
         # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
         # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
         # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
 
-        state["y"] = WeightedTensor(dataset.values, weight=dataset.mask.to(torch.bool))
+        val, mask = WeightedTensor.get_filled_value_and_weight(values, fill_value=0.)
+        if val is None or mask is None:
+            raise ValueError(
+                "Provided dataset is not valid. "
+                "Both values and mask should be not None."
+            )
+        state["y"] = values
 
     def put_data_variables(self, state: State, dataset: Dataset) -> None:
         """Put all the needed data variables inside the provided state (in-place)."""
@@ -970,10 +976,8 @@ class AbstractModel(BaseModel):
         )
         self._put_data_y_values(
             state,
-            dataset
+            WeightedTensor(dataset.values, weight=dataset.mask.to(torch.bool))
         )
-        for obs_model in self.obs_models:
-            state[obs_model.name] = obs_model.getter(state)
 
     def reset_data_variables(self, state: State) -> None:
         """Reset all data variables inside the provided state (in-place)."""

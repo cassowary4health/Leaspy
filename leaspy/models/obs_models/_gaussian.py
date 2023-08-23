@@ -66,7 +66,6 @@ class FullGaussianObservationModel(GaussianObservationModel):
 
     @staticmethod
     def y_getter(state: State) -> WeightedTensor:
-        assert  state['y'] is not None
         return state['y']
 
     @classmethod

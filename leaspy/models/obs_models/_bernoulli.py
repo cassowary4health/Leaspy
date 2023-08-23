@@ -23,9 +23,4 @@ class BernoulliObservationModel(ObservationModel):
 
     @staticmethod
     def y_getter(state: State) -> WeightedTensor:
-        if state['y'] is None:
-            raise ValueError(
-                "Provided dataset is not valid. "
-                "Both values and mask should be not None."
-            )
         return state['y']

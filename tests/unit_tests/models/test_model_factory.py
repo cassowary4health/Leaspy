@@ -1,6 +1,6 @@
 from unittest import skipIf
 
-from leaspy.models import ALL_MODELS, UnivariateModel
+from leaspy.models import ALL_MODELS, LogisticUnivariateModel
 from leaspy.models.factory import ModelFactory
 from leaspy.models.obs_models import FullGaussianObservationModel
 
@@ -40,7 +40,7 @@ class ModelFactoryTest(ModelFactoryTestMixin):
         """Test lower case"""
         for name in ("univariate_logistic", "uNIVariaTE_LogIsTIc", "UNIVARIATE_LOGISTIC"):
             model = ModelFactory.model(name)
-            self.assertEqual(type(model), UnivariateModel)
+            self.assertEqual(type(model), LogisticUnivariateModel)
 
     def test_wrong_arg(self):
         """Test if raise error for wrong argument"""

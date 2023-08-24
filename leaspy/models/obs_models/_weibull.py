@@ -6,20 +6,31 @@ from leaspy.utils.weighted_tensor import WeightedTensor
 from leaspy.io.data.dataset import Dataset
 
 from ._base import ObservationModel
+from leaspy.variables.specs import (
+    VarName,
+    VariableInterface,
+    LinkedVariable,
+    ModelParameter,
+    Collect,
+    LVL_FT,
+)
 
 
-class WeibullObservationModel(ObservationModel):
+
+class WeibullRightCensoredObservationModel(ObservationModel):
 
     def __init__(
             self,
-            nu_rep: VarName,
+            nu: VarName,
             rho: VarName,
+            xi: VarName,
+            tau: VarName,
             **extra_vars: VariableInterface,
     ):
         super().__init__(
             name="event_shifted",
-            getter=self.y_getter,
-            dist=WeibullRightCensored(nu_rep, rho),
+            getter=self.getter,
+            dist=WeibullRightCensored(nu, rho, xi, tau),
             extra_vars=extra_vars,
         )
 
@@ -30,4 +41,4 @@ class WeibullObservationModel(ObservationModel):
                 "Provided dataset is not valid. "
                 "Both values and mask should be not None."
             )
-        return WeightedTensor(dataset.values, weight=dataset.mask.to(torch.bool))
+        return dataset.event_time, dataset.event_bool

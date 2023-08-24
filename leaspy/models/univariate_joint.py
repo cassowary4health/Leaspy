@@ -1,6 +1,6 @@
 import torch
 
-from leaspy.models.multivariate import MultivariateModel
+from leaspy.models.univariate import UnivariateModel
 from leaspy.io.data.dataset import Dataset
 
 from leaspy.utils.docs import doc_with_super  # doc_with_
@@ -22,6 +22,8 @@ from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import Exp, Sqr, OrthoBasis
 from leaspy.utils.weighted_tensor import unsqueeze_right
 
+from leaspy.models.obs_models import observation_model_factory
+
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either
@@ -32,7 +34,7 @@ from leaspy.utils.weighted_tensor import unsqueeze_right
 
 
 @doc_with_super()
-class JointModel(MultivariateModel):
+class UnivariateJointModel(UnivariateModel):
     """
     Manifold model for multiple variables of interest (logistic or linear formulation).
 
@@ -50,10 +52,13 @@ class JointModel(MultivariateModel):
         * If hyperparameters are inconsistent
     """
 
+    SUBTYPES_SUFFIXES = {
+        'univariate_joint': '_joint',
+    }
 
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
-
+        self.obs_models += (observation_model_factory('weibull-right-censored', nu = 'nu', rho = 'rho', xi = 'xi', tau = 'tau'),)
 
 
     def get_variables_specs(self) -> NamedVariables:
@@ -101,12 +106,7 @@ class JointModel(MultivariateModel):
             rho=LinkedVariable(
                 Exp("log_rho"),
             ),
-            nu_rep=LinkedVariable(
-                self.nu_rep,
-            ),
-            event_shifted=LinkedVariable(
-                self.event_shifted,
-            ),
+
         )
 
         if self.source_dimension >= 1:
@@ -120,64 +120,6 @@ class JointModel(MultivariateModel):
         # self.update_ordinal_population_random_variable_information(variables_info)
 
         return d
-
-    ##############################
-    ### MCMC-related functions ###
-    ##############################
-
-    @staticmethod
-    def event_shifted(
-            *,
-            event_time: torch.Tensor,  # TODO: TensorOrWeightedTensor?
-            tau: torch.Tensor,
-    ) -> torch.Tensor:
-        """
-        Tensorized time reparametrization formula.
-
-        .. warning::
-            Shapes of tensors must be compatible between them.
-
-        Parameters
-        ----------
-        t : :class:`torch.Tensor`
-            Timepoints to reparametrize
-        alpha : :class:`torch.Tensor`
-            Acceleration factors of individual(s)
-        tau : :class:`torch.Tensor`
-            Time-shift(s).
-
-        Returns
-        -------
-        :class:`torch.Tensor` of same shape as `timepoints`
-        """
-        return (event_time - tau)
-
-    @staticmethod
-    def nu_rep(
-            *,
-            nu: torch.Tensor,  # TODO: TensorOrWeightedTensor?
-            alpha: torch.Tensor,
-    ) -> torch.Tensor:
-        """
-        Tensorized time reparametrization formula.
-
-        .. warning::
-            Shapes of tensors must be compatible between them.
-
-        Parameters
-        ----------
-        t : :class:`torch.Tensor`
-            Timepoints to reparametrize
-        alpha : :class:`torch.Tensor`
-            Acceleration factors of individual(s)
-        tau : :class:`torch.Tensor`
-            Time-shift(s).
-
-        Returns
-        -------
-        :class:`torch.Tensor` of same shape as `timepoints`
-        """
-        return alpha/nu
 
     ##############################
     ### MCMC-related functions ###

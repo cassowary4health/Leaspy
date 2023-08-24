@@ -9,6 +9,7 @@ from ._base import ObservationModel
 from ._gaussian import FullGaussianObservationModel
 from ._bernoulli import BernoulliObservationModel
 from ._ordinal import OrdinalObservationModel
+from ._weibull import WeibullRightCensoredObservationModel
 
 
 class ObservationModelNames(Enum):
@@ -17,6 +18,7 @@ class ObservationModelNames(Enum):
     GAUSSIAN_SCALAR = "gaussian-scalar"
     BERNOULLI = "bernoulli"
     ORDINAL = "ordinal"
+    WEIBULL_RIGHT_CENSORED = "weibull-right-censored"
 
     @classmethod
     def from_string(cls, model_name: str):
@@ -36,6 +38,7 @@ OBSERVATION_MODELS: Dict[ObservationModelNames, Type[ObservationModel]] = {
     ObservationModelNames.GAUSSIAN_SCALAR: FullGaussianObservationModel,
     ObservationModelNames.BERNOULLI: BernoulliObservationModel,
     ObservationModelNames.ORDINAL: OrdinalObservationModel,
+    ObservationModelNames.WEIBULL_RIGHT_CENSORED: WeibullRightCensoredObservationModel,
 }
 
 

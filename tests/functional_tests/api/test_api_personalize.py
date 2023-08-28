@@ -24,7 +24,7 @@ SKIP_LOGISTIC_BINARY_MODELS = "Logistic binary models are currently broken."
 
 # Linear models are currently broken in Leaspy v2.
 # Flip to True to test with them.
-TEST_LINEAR_MODELS = False
+TEST_LINEAR_MODELS = True
 SKIP_LINEAR_MODELS = "Linear models are currently broken."
 
 # Ordinal observation models are not yet implemented in Leaspy v2.

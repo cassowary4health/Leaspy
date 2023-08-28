@@ -11,9 +11,9 @@ from tests import LeaspyTestCase
 class AbstractModelTest(LeaspyTestCase):
 
     model_names = (
-        # "linear",  currently broken
+         "linear",
         "univariate_logistic",
-        # "univariate_linear",  currently broken
+        "univariate_linear",
         "logistic",
         # "logistic_parallel",  currently broken
     )

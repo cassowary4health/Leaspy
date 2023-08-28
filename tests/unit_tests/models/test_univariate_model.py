@@ -33,7 +33,7 @@ class UnivariateModelTest(ManifoldModelTestMixin):
         self.assertIsInstance(model, LogisticUnivariateModel)
         self._generic_testing(model)
 
-    @skip("Linear models are currently broken")
+    # @skip("Linear models are currently broken")
     def test_univariate_linear_constructor(self):
         """
         Test attribute's initialization of leaspy univariate linear model.

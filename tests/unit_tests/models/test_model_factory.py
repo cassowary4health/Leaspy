@@ -6,7 +6,7 @@ from leaspy.models.obs_models import FullGaussianObservationModel
 
 from tests import LeaspyTestCase
 
-TEST_LINEAR_MODELS = False
+TEST_LINEAR_MODELS = True
 SKIP_LINEAR_MODELS = "Linear models are currently broken"
 
 TEST_LOGISTIC_PARALLEL_MODELS = False

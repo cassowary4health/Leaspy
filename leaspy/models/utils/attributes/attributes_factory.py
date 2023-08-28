@@ -12,11 +12,13 @@ class AttributesFactory:
     _attributes = {
         'logistic': LogisticAttributes,
         'univariate_logistic': LogisticAttributes,
+        'velocity_logistic': LogisticAttributes,
 
         'logistic_parallel': LogisticParallelAttributes,
 
         'linear': LinearAttributes,
         'univariate_linear': LinearAttributes,
+        'velocity_linear': LinearAttributes,
 
         #'mixed_linear-logistic': ... # TODO
     }

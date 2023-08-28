@@ -65,11 +65,11 @@ def initialize_parameters(model, dataset, method="default"):
         return lme_init(model, df) # support kwargs?
 
     name = model.name
-    if name in ['logistic', 'univariate_logistic']:
+    if name in ['logistic', 'univariate_logistic', 'velocity_logistic']:
         parameters = initialize_logistic(model, df, method)
     elif name == 'logistic_parallel':
         parameters = initialize_logistic_parallel(model, df, method)
-    elif name in ['linear', 'univariate_linear']:
+    elif name in ['linear', 'univariate_linear', 'velocity_linear']:
         parameters = initialize_linear(model, df, method)
     #elif name == 'univariate':
     #    parameters = initialize_univariate(df, method)
@@ -78,6 +78,10 @@ def initialize_parameters(model, dataset, method="default"):
         #parameters = initialize_logistic(model, df, method)
     else:
         raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
+
+    if "velocity" in name:
+        parameters["vi_mean"] = torch.tensor(0.)
+        parameters["vi_std"] = torch.tensor(0.1)
 
     # convert to float 32 bits & add a rounding step on the initial parameters to ensure full reproducibility
     rounded_parameters = {

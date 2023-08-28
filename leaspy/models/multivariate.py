@@ -474,8 +474,66 @@ class LinearMultivariateModel(MultivariateModel):
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
 
+    @classmethod
+    def model_with_sources(
+        cls,
+        *,
+        rt: torch.Tensor,
+        space_shifts: torch.Tensor,
+        metric,
+        v0,
+        log_g,
+    ) -> torch.Tensor:
+        """Returns a model with sources."""
+        pop_s = (None, None, ...)
+        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
+        return torch.exp(log_g[pop_s]) + v0[pop_s] * rt + space_shifts[:, None, ...]
+
+    @classmethod
+    def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
+        """Returns a model without source. A bit dirty?"""
+        return cls.model_with_sources(
+            rt=rt,
+            metric=metric,
+            v0=v0,
+            log_g=log_g,
+            space_shifts=torch.zeros((1, 1)),
+        )
+
     def get_variables_specs(self) -> NamedVariables:
-        raise NotImplementedError
+        d = super().get_variables_specs()
+        d.update(
+            # PRIORS
+            log_v0_mean=ModelParameter.for_pop_mean(
+                "log_v0",
+                shape=(self.dimension,),
+            ),
+            log_v0_std=Hyperparameter(0.01),
+            xi_mean=Hyperparameter(0.),
+            # LATENT VARS
+            log_v0=PopulationLatentVariable(
+                Normal("log_v0_mean", "log_v0_std"),
+            ),
+            # DERIVED VARS
+            v0=LinkedVariable(
+                Exp("log_v0"),
+            ),
+            metric=LinkedVariable(self.metric),  # for linear model: metric & metric_sqr are fixed = 1.
+        )
+        if self.source_dimension >= 1:
+            d.update(
+                model=LinkedVariable(self.model_with_sources),
+                metric_sqr=LinkedVariable(Sqr("metric")),
+                orthonormal_basis=LinkedVariable(OrthoBasis("v0", "metric_sqr")),
+            )
+        else:
+            d['model'] = LinkedVariable(self.model_no_sources)
+
+        # TODO: WIP
+        # variables_info.update(self.get_additional_ordinal_population_random_variable_information())
+        # self.update_ordinal_population_random_variable_information(variables_info)
+
+        return d
 
     def get_initial_model_parameters(self, dataset: Dataset, method: str) -> VariablesValuesRO:
         from leaspy.models.utilities import (
@@ -490,8 +548,9 @@ class LinearMultivariateModel(MultivariateModel):
 
         d_regress_params = compute_linear_regression_subjects(df, max_inds=None)
         df_all_regress_params = pd.concat(d_regress_params, names=['feature'])
-        df_all_regress_params['position'] = df_all_regress_params['intercept'] + t0 * df_all_regress_params['slope']
-
+        df_all_regress_params['position'] = (
+                df_all_regress_params['intercept'] + t0 * df_all_regress_params['slope']
+        )
         df_grp = df_all_regress_params.groupby('feature', sort=False)
         positions = torch.tensor(df_grp['position'].mean().values)
         velocities = torch.tensor(df_grp['slope'].mean().values)
@@ -500,16 +559,18 @@ class LinearMultivariateModel(MultivariateModel):
         velocities = get_log_velocities(velocities, self.features)
 
         parameters = {
-            "g": positions,
-            "v0": velocities,
-            "betas": torch.zeros((self.dimension - 1, self.source_dimension)),
+            "log_g_mean": positions,
+            "log_v0_mean": velocities,
+            # "betas": torch.zeros((self.dimension - 1, self.source_dimension)),
             "tau_mean": torch.tensor(t0),
-            "tau_std": torch.tensor(TAU_STD),
-            "xi_mean": torch.tensor(0.),
-            "xi_std": torch.tensor(XI_STD),
-            "sources_mean": torch.tensor(0.),
-            "sources_std": torch.tensor(SOURCES_STD),
+            "tau_std": torch.tensor([TAU_STD]),
+            # "xi_mean": torch.tensor(0.),
+            "xi_std": torch.tensor([XI_STD]),
+            # "sources_mean": torch.tensor(0.),
+            # "sources_std": torch.tensor(SOURCES_STD),
         }
+        if self.source_dimension >= 1:
+            parameters["betas_mean"] = torch.zeros((self.dimension - 1, self.source_dimension))
         rounded_parameters = {
             str(p): torch_round(v.to(torch.float32)) for p, v in parameters.items()
         }

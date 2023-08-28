@@ -1,6 +1,7 @@
 import pandas as pd
 import torch
 from enum import Enum
+from abc import abstractmethod
 
 from typing import Iterable, Optional
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
@@ -411,10 +412,6 @@ class MultivariateModel(AbstractMultivariateModel):
         return derivatives
     """
 
-    ##############################
-    ### MCMC-related functions ###
-    ##############################
-
     @classmethod
     def _center_xi_realizations(cls, state: State) -> None:
         """
@@ -436,14 +433,12 @@ class MultivariateModel(AbstractMultivariateModel):
         state["xi"] = state["xi"] - mean_xi
         state["log_v0"] = state["log_v0"] + mean_xi
 
-        # TODO: find a way to prevent re-computation of orthonormal basis since it should not have changed (v0_collinear update)
+        # TODO: find a way to prevent re-computation of orthonormal basis since it should
+        #  not have changed (v0_collinear update)
         #self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
     @classmethod
-    def compute_sufficient_statistics(
-        cls,
-        state: State,
-    ) -> SuffStatsRW:
+    def compute_sufficient_statistics(cls, state: State) -> SuffStatsRW:
         """
         Compute the model's :term:`sufficient statistics`.
 
@@ -463,44 +458,16 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return super().compute_sufficient_statistics(state)
 
-    @staticmethod
-    def metric(*, g: torch.Tensor) -> torch.Tensor:
-        """Used to define the corresponding variable."""
-        return (g + 1) ** 2 / g
-
-
-class LinearMultivariateModel(MultivariateModel):
-    """Manifold model for multiple variables of interest (linear formulation)."""
-    def __init__(self, name: str, **kwargs):
-        super().__init__(name, **kwargs)
-
-    @classmethod
-    def model_with_sources(
-        cls,
-        *,
-        rt: torch.Tensor,
-        space_shifts: torch.Tensor,
-        metric,
-        v0,
-        log_g,
-    ) -> torch.Tensor:
-        """Returns a model with sources."""
-        pop_s = (None, None, ...)
-        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
-        return torch.exp(log_g[pop_s]) + v0[pop_s] * rt + space_shifts[:, None, ...]
-
-    @classmethod
-    def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
-        """Returns a model without source. A bit dirty?"""
-        return cls.model_with_sources(
-            rt=rt,
-            metric=metric,
-            v0=v0,
-            log_g=log_g,
-            space_shifts=torch.zeros((1, 1)),
-        )
-
     def get_variables_specs(self) -> NamedVariables:
+        """
+        Return the specifications of the variables (latent variables, derived variables,
+        model 'parameters') that are part of the model.
+
+        Returns
+        -------
+        NamedVariables :
+            The specifications of the model's variables.
+        """
         d = super().get_variables_specs()
         d.update(
             # PRIORS
@@ -530,10 +497,65 @@ class LinearMultivariateModel(MultivariateModel):
             d['model'] = LinkedVariable(self.model_no_sources)
 
         # TODO: WIP
-        # variables_info.update(self.get_additional_ordinal_population_random_variable_information())
-        # self.update_ordinal_population_random_variable_information(variables_info)
+        #variables_info.update(self.get_additional_ordinal_population_random_variable_information())
+        #self.update_ordinal_population_random_variable_information(variables_info)
 
         return d
+
+    @staticmethod
+    @abstractmethod
+    def metric(*, g: torch.Tensor) -> torch.Tensor:
+        pass
+
+    @classmethod
+    def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
+        """Returns a model without source. A bit dirty?"""
+        return cls.model_with_sources(
+            rt=rt,
+            metric=metric,
+            v0=v0,
+            log_g=log_g,
+            space_shifts=torch.zeros((1, 1)),
+        )
+
+    @classmethod
+    @abstractmethod
+    def model_with_sources(
+        cls,
+        *,
+        rt: torch.Tensor,
+        space_shifts: torch.Tensor,
+        metric,
+        v0,
+        log_g,
+    ) -> torch.Tensor:
+        pass
+
+
+class LinearMultivariateModel(MultivariateModel):
+    """Manifold model for multiple variables of interest (linear formulation)."""
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+
+    @staticmethod
+    def metric(*, g: torch.Tensor) -> torch.Tensor:
+        """Used to define the corresponding variable."""
+        return torch.ones_like(g)
+
+    @classmethod
+    def model_with_sources(
+        cls,
+        *,
+        rt: torch.Tensor,
+        space_shifts: torch.Tensor,
+        metric,
+        v0,
+        log_g,
+    ) -> torch.Tensor:
+        """Returns a model with sources."""
+        pop_s = (None, None, ...)
+        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
+        return torch.exp(log_g[pop_s]) + v0[pop_s] * rt + space_shifts[:, None, ...]
 
     def get_initial_model_parameters(self, dataset: Dataset, method: str) -> VariablesValuesRO:
         from leaspy.models.utilities import (
@@ -587,6 +609,11 @@ class LogisticMultivariateModel(MultivariateModel):
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
 
+    @staticmethod
+    def metric(*, g: torch.Tensor) -> torch.Tensor:
+        """Used to define the corresponding variable."""
+        return (g + 1) ** 2 / g
+
     @classmethod
     def model_with_sources(
         cls,
@@ -598,76 +625,12 @@ class LogisticMultivariateModel(MultivariateModel):
         log_g: TensorOrWeightedTensor[float],
     ) -> torch.Tensor:
         """Returns a model with sources."""
-        # TODO WIP: logistic model only for now
         # Shape: (Ni, Nt, Nfts)
         pop_s = (None, None, ...)
         rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
         w_model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
         model_logit, weights = WeightedTensor.get_filled_value_and_weight(w_model_logit, fill_value=0.)
         return WeightedTensor(torch.sigmoid(model_logit), weights).weighted_value
-
-    @classmethod
-    def model_no_sources(
-        cls,
-        *,
-        rt: TensorOrWeightedTensor[float],
-        metric: TensorOrWeightedTensor[float],
-        v0: TensorOrWeightedTensor[float],
-        log_g: TensorOrWeightedTensor[float],
-    ) -> torch.Tensor:
-        """Returns a model without source. A bit dirty?"""
-        return cls.model_with_sources(
-            rt=rt,
-            metric=metric,
-            v0=v0,
-            log_g=log_g,
-            space_shifts=torch.zeros((1, 1)),
-        )
-
-    def get_variables_specs(self) -> NamedVariables:
-        """
-        Return the specifications of the variables (latent variables, derived variables,
-        model 'parameters') that are part of the model.
-
-        Returns
-        -------
-        NamedVariables :
-            The specifications of the model's variables.
-        """
-        d = super().get_variables_specs()
-
-        d.update(
-            # PRIORS
-            log_v0_mean=ModelParameter.for_pop_mean(
-                "log_v0",
-                shape=(self.dimension,),
-            ),
-            log_v0_std=Hyperparameter(0.01),
-            xi_mean=Hyperparameter(0.),
-            # LATENT VARS
-            log_v0=PopulationLatentVariable(
-                Normal("log_v0_mean", "log_v0_std"),
-            ),
-            # DERIVED VARS
-            v0=LinkedVariable(
-                Exp("log_v0"),
-            ),
-            metric=LinkedVariable(self.metric),  # for linear model: metric & metric_sqr are fixed = 1.
-        )
-        if self.source_dimension >= 1:
-            d.update(
-                model=LinkedVariable(self.model_with_sources),
-                metric_sqr=LinkedVariable(Sqr("metric")),
-                orthonormal_basis=LinkedVariable(OrthoBasis("v0", "metric_sqr")),
-            )
-        else:
-            d['model'] = LinkedVariable(self.model_no_sources)
-
-        # TODO: WIP
-        #variables_info.update(self.get_additional_ordinal_population_random_variable_information())
-        #self.update_ordinal_population_random_variable_information(variables_info)
-
-        return d
 
     def get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
         """Get initial values for model parameters."""

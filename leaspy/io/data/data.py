@@ -4,9 +4,7 @@ from collections.abc import Iterable, Iterator
 
 import numpy as np
 import pandas as pd
-
-from leaspy.io.data.csv_data_reader import CSVDataReader
-from leaspy.io.data.dataframe_data_reader import DataframeDataReader
+from leaspy.io.data.factory import dataframe_data_reader_factory
 from leaspy.io.data.individual_data import IndividualData
 
 from leaspy.exceptions import LeaspyDataInputError, LeaspyTypeError
@@ -36,11 +34,26 @@ class Data(Iterable):
         Total number of visits
     cofactors : List[FeatureType]
         Feature names corresponding to cofactors
+    event_time_name : str
+        Name of the header that store the time at event in the original dataframe
+    event_bool_name : str
+        Name of the header that store the bool at event (censored or observed) in the original dataframe
     """
+
     def __init__(self):
+
+        # Patients information
         self.individuals: Dict[IDType, IndividualData] = {}
         self.iter_to_idx: Dict[int, IDType] = {}
+
+        # Longitudinal outcomes information
         self.headers: Optional[List[FeatureType]] = None
+
+        # Event information
+        self.event_time_name: Optional[str] = None
+        self.event_bool_name: Optional[str] = None
+
+        # Cofactor information (?)
 
     @property
     def dimension(self) -> Optional[int]:
@@ -57,7 +70,8 @@ class Data(Iterable):
     @property
     def n_visits(self) -> int:
         """Total number of visits"""
-        return sum(len(indiv.timepoints) for indiv in self.individuals.values())
+        if self.dimension:
+            return sum(len(indiv.timepoints) for indiv in self.individuals.values())
 
     @property
     def cofactors(self) -> List[FeatureType]:
@@ -130,11 +144,11 @@ class Data(Iterable):
         """
 
         if not (
-            isinstance(df, pd.DataFrame)
-            and isinstance(df.index, pd.Index)
-            and df.index.names == ["ID"]
-            and df.index.notnull().all()
-            and df.index.is_unique
+                isinstance(df, pd.DataFrame)
+                and isinstance(df.index, pd.Index)
+                and df.index.names == ["ID"]
+                and df.index.notnull().all()
+                and df.index.is_unique
         ):
             raise LeaspyDataInputError("You should pass a dataframe whose index ('ID') should "
                                        "not contain any NaN nor any duplicate.")
@@ -165,7 +179,8 @@ class Data(Iterable):
             self.individuals[idx_subj].add_cofactors(d_cofactors_subj)
 
     @staticmethod
-    def from_csv_file(path: str, **kws) -> Data:
+    def from_csv_file(path: str, data_type: str = 'visit', *, pd_read_csv_kws: dict = {}, facto_kws: dict = {},
+                      **df_reader_kws) -> Data:
         """
         Create a `Data` object from a CSV file.
 
@@ -180,10 +195,17 @@ class Data(Iterable):
         -------
         :class:`.Data`
         """
-        reader = CSVDataReader(path, **kws)
-        return Data._from_reader(reader)
 
-    def to_dataframe(self, *, cofactors: Union[List[FeatureType], str, None] = None, reset_index: bool = True) -> pd.DataFrame:
+        # enforce ID to be interpreted as string as default (can be overwritten)
+        pd_read_csv_kws = {'dtype': {'ID': str}, **pd_read_csv_kws}
+        df = pd.read_csv(path, **pd_read_csv_kws)
+
+        reader = dataframe_data_reader_factory(data_type, **facto_kws)
+        reader.read(df=df, **df_reader_kws)
+        return Data._from_reader(reader, )
+
+    def to_dataframe(self, *, cofactors: Union[List[FeatureType], str, None] = None,
+                     reset_index: bool = True) -> pd.DataFrame:
         """
         Convert the Data object to a :class:`pandas.DataFrame`
 
@@ -215,8 +237,8 @@ class Data(Iterable):
             else:
                 raise LeaspyDataInputError("Invalid `cofactors` argument value")
         elif (
-            isinstance(cofactors, list)
-            and all(isinstance(c, str) for c in cofactors)
+                isinstance(cofactors, list)
+                and all(isinstance(c, str) for c in cofactors)
         ):
             cofactors_list = cofactors
         else:
@@ -229,13 +251,27 @@ class Data(Iterable):
 
         # Build the dataframe, one individual at a time
         def get_individual_df(individual_data: IndividualData):
-            ix_tpts = pd.Index(individual_data.timepoints, name='TIME')
-            return pd.DataFrame(individual_data.observations, columns=self.headers, index=ix_tpts)
+            type_to_concat = []
+            if self.dimension:
+                ix_tpts = pd.MultiIndex.from_product([[individual_data.idx], individual_data.timepoints],
+                                                     names=["ID", "TIME"])
+                type_to_concat.append(pd.DataFrame(individual_data.observations,
+                                                   columns=self.headers,
+                                                   index=ix_tpts))
+            if self.event_time_name:
+                ix_tpts = pd.Index([individual_data.idx], name='ID')
+                type_to_concat.append(pd.DataFrame([[individual_data.event_time, individual_data.event_bool]],
+                                                   columns=[self.event_time_name, self.event_bool_name],
+                                                   index=ix_tpts))
+            if len(type_to_concat) == 1:
+                return type_to_concat[0]
+            else:
+                return type_to_concat[1].join(type_to_concat[0])
 
-        df = pd.concat({
-            individual_data.idx: get_individual_df(individual_data)
+        df = pd.concat([
+            get_individual_df(individual_data)
             for individual_data in self.individuals.values()
-        }, names=['ID'])
+        ])
 
         for cofactor in cofactors_list:
             for i in self.individuals.values():
@@ -248,7 +284,7 @@ class Data(Iterable):
         return df
 
     @staticmethod
-    def from_dataframe(df: pd.DataFrame, **kws) -> Data:
+    def from_dataframe(df: pd.DataFrame, data_type: str = 'visit', factory_kws: Dict = {}, **kws) -> Data:
         """
         Create a `Data` object from a :class:`pandas.DataFrame`.
 
@@ -263,7 +299,8 @@ class Data(Iterable):
         -------
         :class:`.Data`
         """
-        reader = DataframeDataReader(df, **kws)
+        reader = dataframe_data_reader_factory(data_type,**factory_kws)
+        reader.read(df, **kws)
         return Data._from_reader(reader)
 
     @staticmethod
@@ -271,15 +308,24 @@ class Data(Iterable):
         data = Data()
         data.individuals = reader.individuals
         data.iter_to_idx = reader.iter_to_idx
-        data.headers = reader.headers
+        if hasattr(reader, 'long_outcome_names'):
+            data.headers = reader.long_outcome_names
+        if hasattr(reader, 'event_time_name'):
+            data.event_time_name = reader.event_time_name
+            data.event_bool_name = reader.event_bool_name
         return data
 
     @staticmethod
     def from_individual_values(
-        indices: List[IDType],
-        timepoints: List[List[float]],
-        values: List[List[List[float]]],
-        headers: List[FeatureType]
+            indices: List[IDType],
+            timepoints: Optional[List[List[float]]] = None,
+            values: Optional[List[List[List[float]]]] = None,
+            headers: Optional[List[FeatureType]] = None,
+            event_time_name: Optional[str] = None,
+            event_bool_name: Optional[str] = None,
+            event_time: Optional[List[List[float]]] = None,
+            event_bool: Optional[List[List[bool]]] = None
+
     ) -> Data:
         """
         Construct `Data` from a collection of individual data points
@@ -304,16 +350,37 @@ class Data(Iterable):
         -------
         :class:`.Data`
         """
+
+        # Longitudinal input check
+        if not headers:
+            if timepoints or values:
+                raise('Not coherent inputs for longitudinal data')
+        else:
+            if not timepoints or not values:
+                raise('Not coherent inputs for longitudinal data')
+
+        # Event input checks
+        if not event_time_name:
+            if event_bool_name or event_time or event_bool:
+                raise('Not coherent inputs for longitudinal data')
+        else:
+            if not event_bool_name or not event_time or not event_bool:
+                raise('Not coherent inputs for longitudinal data')
+
         individuals = []
         for i, idx in enumerate(indices):
             indiv = IndividualData(idx)
-            indiv.add_observations(timepoints[i], values[i])
+            if headers:
+                indiv.add_observations(timepoints[i], values[i])
+            if event_time_name:
+                indiv.add_event(event_time[i], event_bool[i])
             individuals.append(indiv)
 
         return Data.from_individuals(individuals, headers)
 
     @staticmethod
-    def from_individuals(individuals: List[IndividualData], headers: List[FeatureType]) -> Data:
+    def from_individuals(individuals: List[IndividualData], headers: Optional[List[FeatureType]] = None, event_time_name: Optional[str] = None,
+        event_bool_name: Optional[str] = None) -> Data:
         """
         Construct `Data` from a list of individuals
 
@@ -328,9 +395,17 @@ class Data(Iterable):
         -------
         :class:`.Data`
         """
+
         data = Data()
-        data.headers = headers
-        n_features = len(headers)
+
+        if headers:
+            data.headers = headers
+            n_features = len(headers)
+
+        if event_time_name and event_bool_name:
+            self.event_time_name = event_time_name
+            self.event_bool_name = event_bool_name
+
         for indiv in individuals:
             idx = indiv.idx
             _, n_features_i = indiv.observations.shape

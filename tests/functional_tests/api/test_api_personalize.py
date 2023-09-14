@@ -1040,7 +1040,7 @@ class LeaspyPersonalizeWithNansTest(LeaspyPersonalizeTestMixin):
                 algo = self.get_algo_settings(name=perso_algo, seed=0, progress_bar=False, **perso_kws)
 
                 data_without_empty_visits = Data.from_dataframe(df)
-                data_with_empty_visits = Data.from_dataframe(df, drop_full_nan=False)
+                data_with_empty_visits = Data.from_dataframe(df, drop_full_nan = False)
 
                 dataset_without_empty_visits = Dataset(data_without_empty_visits)
                 dataset_with_empty_visits = Dataset(data_with_empty_visits)

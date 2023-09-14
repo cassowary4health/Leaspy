@@ -66,6 +66,34 @@ class DatasetTest(LeaspyTestCase):
         self.assertTrue(torch.equal(dataset.mask, mask))
         self.assertAllClose(dataset.timepoints, timepoints)
 
+    def test_constructor_event_univariate(self):
+        # no nans
+        path_to_data = self.get_test_data_path('data_mock', 'event_univariate_data_for_dataset.csv')
+        data = Data.from_csv_file(path_to_data, data_type = 'joint')
+        dataset = Dataset(data)
+
+        self.assertEqual(dataset.n_individuals, 3)
+        self.assertEqual(dataset.n_visits_max, 4)
+        self.assertEqual(dataset.dimension, 1)
+        self.assertEqual(dataset.n_visits, 9)
+        self.assertEqual(dataset.n_observations, 9)  # since univariate
+
+        values = torch.tensor([[[1.], [5.], [2.], [0.]],
+                           [[1.], [5.], [0.], [0.]],
+                           [[1.], [8.], [1.], [3.]]])
+
+        mask = torch.tensor([[[1.], [1.], [1.], [0.]],
+                        [[1.], [1.], [0.], [0.]],
+                        [[1.], [1.], [1.], [1.]]])
+
+        event_time = torch.tensor([4., 3., 6.], dtype = torch.double)
+        event_bool = torch.tensor([False,True,False], dtype = torch.bool)
+
+        self.assertTrue(torch.equal(dataset.values, values))
+        self.assertTrue(torch.equal(dataset.mask, mask))
+        self.assertTrue(torch.equal(dataset.event_time, event_time))
+        self.assertTrue(torch.equal(dataset.event_bool, event_bool))
+
     def test_n_observations_missing_values(self):
 
         path_to_data = self.get_test_data_path('data_mock', 'multivariate_data_for_dataset_with_nans.csv')

@@ -37,6 +37,10 @@ class Dataset:
         Number of individuals
     indices : list[ID]
         Order of patients
+    event_time: torch.FloatTensor
+        Time of an event, if the event is censored, the time correspond to the last patient observation
+    event_bool: torch.BoolTensor
+        Boolean to indicate if an event is censored or not: 1 observed, 0 censored
     n_visits_per_individual : list[int]
         Number of visits per individual
     n_visits_max : int
@@ -78,22 +82,31 @@ class Dataset:
 
     def __init__(self, data: Data, *, no_warning: bool = False):
 
-        self.headers = data.headers
-        self.dimension = data.dimension
+        # Patients information
         self.n_individuals = data.n_individuals
-        self.n_visits = data.n_visits
         self.indices = list(data.individuals.keys())
 
+        # Longitudinal outcome information
+        self.headers: List[FeatureType] = data.headers
+        self.dimension: int = data.dimension
+        self.n_visits: int = data.n_visits
         self.timepoints: Optional[torch.FloatTensor] = None
         self.values: Optional[torch.FloatTensor] = None
         self.mask: Optional[torch.FloatTensor] = None
-
         self.n_observations: Optional[int] = None
         self.n_observations_per_ft: Optional[torch.LongTensor] = None
         self.n_observations_per_ind_per_ft: Optional[torch.LongTensor] = None
-
         self.n_visits_per_individual: Optional[List[int]] = None
         self.n_visits_max: Optional[int] = None
+
+        # Event information
+        self.event_time_name: Optional[str] = data.event_time_name
+        self.event_bool_name: Optional[str] = data.event_bool_name
+        self.event_time: Optional[torch.FloatTensor] = None
+        self.event_bool: Optional[torch.BoolTensor] = None
+
+        # Cofactor information (?)
+
 
         # internally used by ordinal models only (cache)
         self._one_hot_encoding: Optional[Dict[bool, torch.LongTensor]] = None
@@ -101,16 +114,21 @@ class Dataset:
         self.L2_norm_per_ft: Optional[torch.FloatTensor] = None
         self.L2_norm: Optional[torch.FloatTensor] = None
 
-        self._construct_values(data)
-        self._construct_timepoints(data)
-        self._compute_L2_norm()
+        if data.dimension:
+            self._construct_values(data)
+            self._construct_timepoints(data)
+            self._compute_L2_norm()
+
+        if self.event_time_name:
+            self._construct_events(data)
 
         self.no_warning = no_warning
 
     def _construct_values(self, data: Data):
 
         self.n_visits_per_individual = [len(_.timepoints) for _ in data]
-        self.n_visits_max = max(self.n_visits_per_individual) if self.n_visits_per_individual else 0  # handle case when empty dataset
+        self.n_visits_max = max(
+            self.n_visits_per_individual) if self.n_visits_per_individual else 0  # handle case when empty dataset
 
         values = torch.zeros((self.n_individuals, self.n_visits_max, self.dimension))
         padding_mask = torch.zeros_like(values)
@@ -146,9 +164,14 @@ class Dataset:
         for i, nb_vis in enumerate(nbs_vis):
             self.timepoints[i, 0:nb_vis] = torch.tensor(data[i].timepoints)
 
+    def _construct_events(self, data: Data):
+        self.event_time = torch.tensor([_.event_time for _ in data], dtype=torch.double)
+        self.event_bool = torch.tensor([_.event_bool for _ in data], dtype=torch.bool)
+
     def _compute_L2_norm(self):
-        self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values, dim=(0, 1))  # 1D tensor of shape (dimension,)
-        self.L2_norm = self.L2_norm_per_ft.sum() # sum on all features
+        self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values,
+                                        dim=(0, 1))  # 1D tensor of shape (dimension,)
+        self.L2_norm = self.L2_norm_per_ft.sum()  # sum on all features
 
     def get_times_patient(self, i: int) -> torch.FloatTensor:
         """
@@ -166,7 +189,25 @@ class Dataset:
         """
         return self.timepoints[i, :self.n_visits_per_individual[i]]
 
-    def get_values_patient(self, i: int, *, adapt_for_model = None) -> torch.FloatTensor:
+    def get_event_patient(self, idx_patient: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get ages at event for patient number ``idx_patient``
+
+        Parameters
+        ----------
+        idx_patient : int
+            The index of the patient (<!> not its identifier)
+
+        Returns
+        -------
+        :class:`torch.Tensor`, shape (n_obs_of_patient,)
+            Contains float
+        """
+        if self.event_time and self.event_bool:
+            return self.event_time[idx_patient], self.event_bool[idx_patient]
+        raise ValueError("Dataset has no event. Please verify your data.")
+
+    def get_values_patient(self, i: int, *, adapt_for_model=None) -> torch.FloatTensor:
         """
         Get values for patient number ``i``, with nans.
 
@@ -213,13 +254,29 @@ class Dataset:
         -------
         :class:`pandas.DataFrame`
         """
-        to_concat = {}
-        for i, idx in enumerate(self.indices):
-            times = self.get_times_patient(i).cpu().numpy()
-            x = self.get_values_patient(i).cpu().numpy()
-            to_concat[idx] = pd.DataFrame(data=x, index=times.reshape(-1), columns=self.headers)
+        type_to_concat = []
+        if self.event_time:
+            to_concat = []
+            for i, idx in enumerate(self.indices):
+                pat_event_time, pat_event_bool = self.get_event_patient(i)
+                to_concat.append(pd.DataFrame(data=[[pat_event_time.numpy(), pat_event_bool.numpy()]],
+                                              index=[idx], columns=[self.event_time_name, self.event_bool_name]))
+            df_event = pd.concat(to_concat, names=['ID'])
+            df_event.index.name = "ID"
+            type_to_concat.append(df_event)
 
-        return pd.concat(to_concat, names=['ID', 'TIME'])
+        if self.values != None:
+            to_concat = {}
+            for i, idx in enumerate(self.indices):
+                times = self.get_times_patient(i).cpu().numpy()
+                x = self.get_values_patient(i).cpu().numpy()
+                to_concat[idx] = pd.DataFrame(data=x, index=times.reshape(-1), columns=self.headers)
+            type_to_concat.append(pd.concat(to_concat, names=['ID', 'TIME']))
+
+        if len(type_to_concat) == 1:
+            return type_to_concat[0]
+        else:
+            return type_to_concat[1].join(type_to_concat[0])
 
     def move_to_device(self, device: torch.device) -> None:
         """
@@ -266,12 +323,14 @@ class Dataset:
 
         # Check for values different than non-negative integers
         if (self.values != self.values.round()).any() or (self.values < 0).any():
-            raise LeaspyInputError("Please make sure your data contains only integers >= 0 when using ordinal noise modelling.")
+            raise LeaspyInputError(
+                "Please make sure your data contains only integers >= 0 when using ordinal noise modelling.")
 
         # First of all check consistency of features given in ordinal_infos compared to the ones in the dataset (names & order!)
         ordinal_feat_names = list(ordinal_infos['max_levels'])
         if ordinal_feat_names != self.headers:
-            raise LeaspyInputError(f"Features stored in ordinal model ({ordinal_feat_names}) are not consistent with features in data ({self.headers})")
+            raise LeaspyInputError(
+                f"Features stored in ordinal model ({ordinal_feat_names}) are not consistent with features in data ({self.headers})")
 
         # Now check that integers are within the expected range, per feature [0, max_level_ft]
         # (masked values are encoded by 0 at this point)
@@ -281,7 +340,7 @@ class Dataset:
             'missing': [],
         }
         for ft_i, (ft, max_level_ft) in enumerate(ordinal_infos['max_levels'].items()):
-            expected_codes = set(range(0, max_level_ft + 1)) # max level is included
+            expected_codes = set(range(0, max_level_ft + 1))  # max level is included
 
             vals_ft = vals[:, :, ft_i]
 
@@ -292,7 +351,8 @@ class Dataset:
                 unexpected_codes = sorted(actual_codes.difference(expected_codes))
                 missing_codes = sorted(expected_codes.difference(actual_codes))
                 if len(unexpected_codes):
-                    vals_issues['unexpected'].append(f"- {ft} [[0..{max_level_ft}]]: {unexpected_codes} were unexpected")
+                    vals_issues['unexpected'].append(
+                        f"- {ft} [[0..{max_level_ft}]]: {unexpected_codes} were unexpected")
                 if len(missing_codes):
                     vals_issues['missing'].append(f"- {ft} [[0..{max_level_ft}]]: {missing_codes} are missing")
 

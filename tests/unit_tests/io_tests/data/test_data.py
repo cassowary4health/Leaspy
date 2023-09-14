@@ -26,6 +26,8 @@ class DataTest(LeaspyTestCase):
         self.assertEqual(data.n_individuals, 7)
         self.assertEqual(data.n_visits, 33)
         self.assertEqual(data.cofactors, [])
+        self.assertEqual(data.event_time_name, None)
+        self.assertEqual(data.event_bool_name, None)
 
         self.assertEqual(individual.idx, '027_S_0179')
         self.assertEqual(individual.timepoints.tolist(), [80.9, 81.9, 82.4, 82.8])
@@ -42,6 +44,8 @@ class DataTest(LeaspyTestCase):
         self.assertEqual(data.n_individuals, 5)
         self.assertEqual(data.n_visits, 18)
         self.assertEqual(data.cofactors, [])
+        self.assertEqual(data.event_time_name, None)
+        self.assertEqual(data.event_bool_name, None)
 
         self.assertEqual(individual.idx, '130_S_0102')
         self.assertEqual(individual.timepoints.tolist(), [71.3, 71.8])
@@ -171,3 +175,83 @@ class DataTest(LeaspyTestCase):
         
         with pytest.raises(LeaspyDataInputError):
             _ = data.to_dataframe(cofactors=["Wrong_cofactor"])
+
+    def test_data_with_event(self):
+        # Load data
+        path_to_data = self.get_test_data_path('data_mock', 'event_univariate_data.csv')
+        df = pd.read_csv(path_to_data, sep = ';')
+        data = Data.from_dataframe(df, data_type = 'joint')
+        individual = data[2]
+
+        # Assert everything ok for univariate
+        self.assertEqual(data.iter_to_idx[0], '100_S_0006')
+        self.assertEqual(data.iter_to_idx[len(data.iter_to_idx) - 1], '130_S_0232')
+        self.assertEqual(data.headers, ['MMSE'])
+        self.assertEqual(data.dimension, 1)
+        self.assertEqual(data.n_individuals, 7)
+        self.assertEqual(data.n_visits, 33)
+        self.assertEqual(data.cofactors, [])
+
+        self.assertEqual(individual.idx, '027_S_0179')
+        self.assertEqual(individual.timepoints.tolist(), [80.9, 81.9, 82.4, 82.8])
+        self.assertEqual(individual.observations.tolist(), [[0.2], [0.2], [0.3], [0.5]])
+
+        # Test events
+        self.assertEqual(data.event_time_name, 'EVENT_TIME')
+        self.assertEqual(data.event_bool_name, 'EVENT_BOOL')
+        self.assertEqual(individual.event_time, 83)
+        self.assertEqual(individual.event_bool, False)
+
+    def test_data_only_event(self):
+        # Load data
+        path_to_data = self.get_test_data_path('data_mock', 'event_data.csv')
+        df = pd.read_csv(path_to_data, sep = ';')
+        data = Data.from_dataframe(df, data_type = 'event')
+        individual = data[2]
+
+        # Data attributes
+        self.assertEqual(data.iter_to_idx[0], 0)
+        self.assertEqual(data.iter_to_idx[len(data.iter_to_idx) - 1], 4)
+        self.assertEqual(data.headers, None)
+        self.assertEqual(data.dimension, None)
+        self.assertEqual(data.n_individuals, 5)
+        self.assertEqual(data.n_visits, None)
+        self.assertEqual(data.cofactors, [])
+        self.assertEqual(data.event_time_name, 'EVENT_TIME')
+        self.assertEqual(data.event_bool_name, 'EVENT_BOOL')
+
+        # Check individual
+        self.assertEqual(individual.idx, 2)
+        self.assertEqual(individual.timepoints, None)
+        self.assertEqual(individual.observations, None)
+        self.assertEqual(individual.event_time, round(1.4975665315766469,6))
+        self.assertEqual(individual.event_bool, True)
+
+    def test_error_events(self):
+
+        # If different bool for the same patient
+        df = pd.DataFrame([[0.        , 2.23357831, 1.        ],
+       [0.        , 2.23357831, 0.        ]])
+
+        with pytest.raises(LeaspyDataInputError):
+            data = Data.from_dataframe(df)
+
+        # If boolean not 0 or 1
+        df = pd.DataFrame([[0., 2.23357831, 2],
+                           [0., 2.23357831, 0.]])
+
+        with pytest.raises(LeaspyDataInputError):
+            data = Data.from_dataframe(df)
+
+        df = pd.DataFrame([[0., 2.23357831, True],
+                           [0., 2.23357831, 0.]])
+
+        with pytest.raises(LeaspyDataInputError):
+            data = Data.from_dataframe(df)
+
+        # If event below 0
+        df = pd.DataFrame([[0., -2.23357831, 1.],
+                           [0., 2.23357831, 0.]])
+
+        with pytest.raises(LeaspyDataInputError):
+            data = Data.from_dataframe(df)

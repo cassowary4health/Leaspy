@@ -258,7 +258,6 @@ class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFami
     def _nll_jacobian(cls, x: torch.Tensor, *params: torch.Tensor) -> torch.Tensor:
         return cls._nll_and_jacobian(x, *params)[1]
 
-
 class BernoulliFamily(StatelessDistributionFamilyFromTorchDistribution):
     """Bernoulli family (stateless)."""
     parameters: ClassVar = ("loc",)

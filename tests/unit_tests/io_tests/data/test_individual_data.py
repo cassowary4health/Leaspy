@@ -53,3 +53,10 @@ class IndividualDataTest(LeaspyTestCase):
         with pytest.raises(LeaspyDataInputError):
             data.add_cofactors({"weight": 5})
         
+    def test_add_event(self):
+        # Add first observation
+        data = IndividualData('test')
+        data.add_event(2., True)
+
+        self.assertEqual(data.event_time, 2.)
+        self.assertEqual(data.event_bool, True)

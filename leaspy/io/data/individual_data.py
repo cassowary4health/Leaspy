@@ -26,12 +26,18 @@ class IndividualData:
         Shape is ``(n_timepoints, n_features)``
     cofactors : Dict[FeatureType, Any]
         Cofactors in the form {cofactor_name: cofactor_value}
+    event_time: Float
+        Time of an event, if the event is censored, the time correspond to the last patient observation
+    event_bool: bool
+        Boolean to indicate if an event is censored or not: 1 observed, 0 censored
     """
 
     def __init__(self, idx: IDType):
         self.idx: IDType = idx
         self.timepoints: np.ndarray = None
         self.observations: np.ndarray = None
+        self.event_time: float = None
+        self.event_bool: Optional[bool] = None
         self.cofactors: Dict[FeatureType, Any] = {}
 
     def add_observations(self, timepoints: List[float], observations: List[List[float]]) -> None:
@@ -68,6 +74,21 @@ class IndividualData:
                     [obs],
                     self.observations[index:]
                 ])
+
+    def add_event(self, event_time: float, event_bool: bool) -> None:
+        """
+        Include event time and associated censoring bool
+
+        Parameters
+        ----------
+        event_time : float
+            Time of the event
+        event_bool : float
+            0 if censored (not observed) and 1 if observed
+
+        """
+        self.event_time = event_time
+        self.event_bool = event_bool
 
     def add_cofactors(self, d: Dict[FeatureType, Any]) -> None:
         """

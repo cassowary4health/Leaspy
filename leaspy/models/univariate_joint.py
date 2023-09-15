@@ -1,11 +1,18 @@
 import torch
+from lifelines import WeibullFitter
 
 from leaspy.models.univariate import UnivariateModel
 from leaspy.io.data.dataset import Dataset
 
 from leaspy.utils.docs import doc_with_super  # doc_with_
 # from leaspy.utils.subtypes import suffixed_method
-from leaspy.exceptions import LeaspyModelInputError
+from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
+from leaspy.models.utils.initialization.model_initialization import (
+    compute_patient_slopes_distribution,
+    compute_patient_values_distribution,
+    compute_patient_time_distribution,
+    get_log_velocities,
+    _torch_round)
 
 from leaspy.variables.state import State
 from leaspy.variables.specs import (
@@ -19,7 +26,7 @@ from leaspy.variables.specs import (
     VariablesValuesRO,
 )
 from leaspy.variables.distributions import Normal
-from leaspy.utils.functional import Exp, Sqr, OrthoBasis
+from leaspy.utils.functional import Exp, Sqr, OrthoBasis, Sum
 from leaspy.utils.weighted_tensor import unsqueeze_right
 
 from leaspy.models.obs_models import observation_model_factory
@@ -74,10 +81,6 @@ class UnivariateJointModel(UnivariateModel):
 
         d.update(
 
-            # Input data
-            event_time = DataVariable(),
-            event_bool = DataVariable(),
-
             # PRIORS
             n_log_nu_mean=ModelParameter.for_pop_mean(
                 "n_log_nu",
@@ -99,16 +102,26 @@ class UnivariateJointModel(UnivariateModel):
                 Normal("log_rho_mean", "log_rho_std"),
             ),
             # DERIVED VARS
-            nu=LinkedVariable(
-                Exp(-"n_log_nu"),
-            ),
+            nu = LinkedVariable(self.exp_neg_n_log_nu),
             rho=LinkedVariable(
                 Exp("log_rho"),
             ),
+        )
 
+        d.update(
+            nll_attach_xi_ind=LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
+            nll_attach_tau_ind=LinkedVariable(Sum("nll_attach_y_ind")),
+            nll_attach=LinkedVariable(Sum("nll_attach_y", "nll_attach_event")),
         )
 
         return d
+
+    @staticmethod
+    def exp_neg_n_log_nu(
+            *,
+            n_log_nu: torch.Tensor,  # TODO: TensorOrWeightedTensor?
+    ) -> torch.Tensor:
+        return torch.exp(-1*n_log_nu)
 
     ##############################
     ### MCMC-related functions ###
@@ -151,12 +164,12 @@ class UnivariateJointModel(UnivariateModel):
         NOISE_STD = .1
 
         # Get dataframe
-        df = dataset.to_pandas().dropna(how='all').set_index(['ID', 'TIME']).sort_index()
+        df = dataset.to_pandas().dropna(how='all').sort_index()[dataset.headers]
 
         # Make basic data checks
         assert df.index.is_unique
         assert df.index.to_frame().notnull().all(axis=None)
-        if model.features != df.columns.tolist():
+        if self.features != df.columns:
             raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {df.columns}")
 
         # Guet mean time
@@ -168,17 +181,16 @@ class UnivariateJointModel(UnivariateModel):
 
         # Extract lopes and convert into parameters
         slopes, _ = compute_patient_slopes_distribution(df)
-        v0_array = get_log_velocities(slopes, model.features)
+        v0_array = get_log_velocities(slopes, self.features)
         g_array = torch.log(
             1. / values - 1.)  # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
 
         # Create smart initialization dictionary
         parameters = {
-                'g': g_array.squeeze(),
-                'v0': v0_array.squeeze(),
+                'log_g_mean': g_array.squeeze(),
+                'log_v0_mean': v0_array.squeeze(),
                 'tau_mean': t0,
                 'tau_std': torch.tensor(TAU_STD),
-                'xi_mean': torch.tensor(0.),
                 'xi_std': torch.tensor(XI_STD),
             'noise_std' : torch.tensor(NOISE_STD)
             }
@@ -188,8 +200,8 @@ class UnivariateJointModel(UnivariateModel):
         wbf = WeibullFitter().fit(dataset.event_time,  # - dataset.timepoints[:,0],
                                   dataset.event_bool)
         parameters = {
-            'rho': torch.log(torch.tensor(wbf.rho_)),
-            'nu': -torch.log(torch.tensor(wbf.lambda_))
+            'log_rho_mean': torch.log(torch.tensor(wbf.rho_)),
+            'n_log_nu_mean': -torch.log(torch.tensor(wbf.lambda_))
         }
         return parameters
 

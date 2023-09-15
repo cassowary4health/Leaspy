@@ -477,8 +477,8 @@ class MultivariateModel(AbstractMultivariateModel):
         """
         d = super().get_variables_specs()
 
-        if self._subtype_suffix != "_logistic":
-            raise NotImplementedError("WIP: Only implemented for logistic models.")
+        #if self._subtype_suffix != "_logistic":
+        #    raise NotImplementedError("WIP: Only implemented for logistic models.")
 
         d.update(
             # PRIORS

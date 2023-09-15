@@ -28,7 +28,7 @@ class WeibullRightCensoredObservationModel(ObservationModel):
             **extra_vars: VariableInterface,
     ):
         super().__init__(
-            name="event_shifted",
+            name="event",
             getter=self.getter,
             dist=WeibullRightCensored(nu, rho, xi, tau),
             extra_vars=extra_vars,

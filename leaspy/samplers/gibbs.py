@@ -666,7 +666,7 @@ class IndividualGibbsSampler(GibbsSamplerMixin, AbstractIndividualSampler):
         def compute_attachment_regularity():
             # compute neg log-likelihood of just the given variable (tau, xi or sources)
             # (per subject; all dimensions of the individual parameter are summed together)
-            return state["nll_attach_ind"], state[f"nll_regul_{self.name}_ind"]
+            return state[f"nll_attach_{self.name}_ind"], state[f"nll_regul_{self.name}_ind"]
 
         previous_attachment, previous_regularity = compute_attachment_regularity()
         # with state.auto_fork():

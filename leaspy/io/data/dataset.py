@@ -203,7 +203,7 @@ class Dataset:
         :class:`torch.Tensor`, shape (n_obs_of_patient,)
             Contains float
         """
-        if self.event_time and self.event_bool:
+        if self.event_time != None and self.event_bool != None:
             return self.event_time[idx_patient], self.event_bool[idx_patient]
         raise ValueError("Dataset has no event. Please verify your data.")
 
@@ -255,7 +255,7 @@ class Dataset:
         :class:`pandas.DataFrame`
         """
         type_to_concat = []
-        if self.event_time:
+        if self.event_time != None:
             to_concat = []
             for i, idx in enumerate(self.indices):
                 pat_event_time, pat_event_bool = self.get_event_patient(i)

@@ -1,8 +1,9 @@
 import warnings
 
 import torch
+import pandas as pd
 
-from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.abstract_model import AbstractModel, InitializationMethod
 from leaspy.models.obs_models import observation_model_factory
 
 # WIP
@@ -16,6 +17,7 @@ from leaspy.variables.specs import (
     PopulationLatentVariable,
     IndividualLatentVariable,
     LinkedVariable,
+    VariablesValuesRO,
 )
 from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import (
@@ -23,10 +25,11 @@ from leaspy.utils.functional import (
     MatMul,
     Sum
 )
+from leaspy.models.obs_models import FullGaussianObservationModel
 
-from leaspy.utils.typing import KwargsType
+from leaspy.utils.typing import KwargsType, Optional
 from leaspy.utils.docs import doc_with_super
-from leaspy.exceptions import LeaspyModelInputError
+from leaspy.exceptions import LeaspyModelInputError, LeaspyInputError
 
 
 @doc_with_super()
@@ -46,9 +49,30 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
     :exc:`.LeaspyModelInputError`
         If inconsistent hyperparameters.
     """
+    _xi_std = .5
+    _tau_std = 5.
+    _noise_std = .1
+    _sources_std = 1.
+
+    @property
+    def xi_std(self) -> torch.Tensor:
+        return torch.tensor([self._xi_std])
+
+    @property
+    def tau_std(self) -> torch.Tensor:
+        return torch.tensor([self._tau_std])
+
+    @property
+    def noise_std(self) -> torch.Tensor:
+        return torch.tensor(self._noise_std)
+
+    @property
+    def sources_std(self) -> float:
+        return self._sources_std
+
     def __init__(self, name: str, **kwargs):
 
-        self.source_dimension: int = None
+        self.source_dimension: Optional[int] = None
 
         # TODO / WIP / TMP: dirty for now...
         # Should we:
@@ -143,23 +167,72 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
         return d
 
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
-        """
-        Overloads base initialization of model (base method takes care of features consistency checks).
+    def _get_dataframe_from_dataset(self, dataset: Dataset) -> pd.DataFrame:
+        df = dataset.to_pandas().dropna(how='all').sort_index()
+        if not df.index.is_unique:
+            raise LeaspyInputError("Index of DataFrame is not unique.")
+        assert df.index.to_frame().notnull().all(axis=None)
+        if self.features != df.columns.tolist():
+            raise LeaspyInputError(
+                f"Features mismatch between model and dataset: {self.features} != {df.columns}"
+            )
+        return df
 
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            Input :class:`.Dataset` from which to initialize the model.
-        method : :obj:`str`, optional
-            The initialization method to be used.
-            Default='default'.
-        """
-        # TODO? split method in two so that it would overwritting of method would be cleaner?
-        self._validate_source_dimension(dataset)
-        super().initialize(dataset, method=method)
+    def _get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
+        """Get initial values for model parameters."""
+        from leaspy.models.utilities import (
+            compute_patient_slopes_distribution,
+            compute_patient_values_distribution,
+            compute_patient_time_distribution,
+            get_log_velocities,
+            torch_round,
+        )
 
-    def _validate_source_dimension(self, dataset: Dataset):
+        df = self._get_dataframe_from_dataset(dataset)
+        slopes_mu, slopes_sigma = compute_patient_slopes_distribution(df)
+        values_mu, values_sigma = compute_patient_values_distribution(df)
+        time_mu, time_sigma = compute_patient_time_distribution(df)
+
+        if method == InitializationMethod.DEFAULT:
+            slopes = slopes_mu
+            values = values_mu
+            t0 = time_mu
+            betas = torch.zeros((self.dimension - 1, self.source_dimension))
+
+        if method == InitializationMethod.RANDOM:
+            slopes = torch.normal(slopes_mu, slopes_sigma)
+            values = torch.normal(values_mu, values_sigma)
+            t0 = torch.normal(time_mu, time_sigma)
+            betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(
+                sample_shape=(self.dimension - 1, self.source_dimension)
+            )
+
+        # Enforce values are between 0 and 1
+        values = values.clamp(min=1e-2, max=1 - 1e-2)  # always "works" for ordinal (values >= 1)
+
+        parameters = {
+            "log_g_mean": torch.log(1. / values - 1.),
+            "log_v0_mean": get_log_velocities(slopes, self.features),
+            "tau_mean": t0,
+            "tau_std": self.tau_std,
+            "xi_std": self.xi_std,
+        }
+        if self.source_dimension >= 1:
+            parameters["betas_mean"] = betas
+        rounded_parameters = {
+            str(p): torch_round(v.to(torch.float32)) for p, v in parameters.items()
+        }
+        obs_model = next(iter(self.obs_models))  # WIP: multiple obs models...
+        if isinstance(obs_model, FullGaussianObservationModel):
+            rounded_parameters["noise_std"] = self.noise_std.expand(
+                obs_model.extra_vars['noise_std'].shape
+            )
+        return rounded_parameters
+
+    def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
+        super()._validate_compatibility_of_dataset(dataset)
+        if not dataset:
+            return
         if self.source_dimension is None:
             self.source_dimension = int(dataset.dimension ** .5)
             warnings.warn(
@@ -194,7 +267,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
     #
     #    self._check_ordinal_parameters_consistency()
 
-    def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
+    def _load_hyperparameters(self, hyperparameters: KwargsType) -> None:
         """
         Updates all model hyperparameters from the provided hyperparameters.
 

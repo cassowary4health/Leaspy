@@ -10,7 +10,7 @@ import torch
 from torch._tensor_str import PRINT_OPTS as torch_print_opts
 
 from leaspy import __version__
-from leaspy.models.base import BaseModel
+from leaspy.models.base import BaseModel, InitializationMethod
 from leaspy.models.obs_models import ObservationModel
 from leaspy.models.utilities import tensor_to_list
 from leaspy.io.data.dataset import Dataset
@@ -30,6 +30,7 @@ from leaspy.variables.specs import (
     SuffStatsRO,
     SuffStatsRW,
     LVL_FT,
+    VariablesValuesRO,
 )
 from leaspy.variables.dag import VariablesDAG
 from leaspy.variables.state import State, StateForkType
@@ -119,7 +120,7 @@ class AbstractModel(BaseModel):
         # load hyperparameters
         # <!> some may still be missing at this point (e.g. `dimension`, `source_dimension`, ...)
         # (thus we sh/could NOT instantiate the DAG right now!)
-        self.load_hyperparameters(kwargs)
+        self._load_hyperparameters(kwargs)
 
         # TODO: dirty hack for now, cf. AbstractFitAlgo
         self.fit_metrics = fit_metrics
@@ -260,7 +261,7 @@ class AbstractModel(BaseModel):
             Contains the model's parameters.
         """
         if self._state is None:
-            self.initialize_state()
+            self._initialize_state()
 
         # TODO: a bit dirty due to hyperparams / params mix (cf. `.parameters` property note)
 
@@ -315,7 +316,7 @@ class AbstractModel(BaseModel):
             assert torch.allclose(val, cur_val, atol=1e-5), (p, val, cur_val)
 
     @abstractmethod
-    def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
+    def _load_hyperparameters(self, hyperparameters: KwargsType) -> None:
         """
         Load model's hyperparameters.
 
@@ -510,7 +511,7 @@ class AbstractModel(BaseModel):
         timepoints = self._tensorize_2D(timepoints, unsqueeze_dim=0)  # 1 individual
         return timepoints, individual_parameters
 
-    def check_individual_parameters_provided(self, individual_parameters_keys: Iterable[str]) -> None:
+    def _check_individual_parameters_provided(self, individual_parameters_keys: Iterable[str]) -> None:
         """Check consistency of individual parameters keys provided."""
         ind_vars = set(self.individual_variables_names)
         unknown_ips = set(individual_parameters_keys).difference(ind_vars)
@@ -560,7 +561,7 @@ class AbstractModel(BaseModel):
         :exc:`.LeaspyIndividualParamsInputError`
             if invalid individual parameters.
         """
-        self.check_individual_parameters_provided(individual_parameters.keys())
+        self._check_individual_parameters_provided(individual_parameters.keys())
         timepoints, individual_parameters = self._get_tensorized_inputs(
             timepoints, individual_parameters, skip_ips_checks=skip_ips_checks
         )
@@ -905,7 +906,7 @@ class AbstractModel(BaseModel):
 
         return d
 
-    def initialize_state(self) -> None:
+    def _initialize_state(self) -> None:
         """
         Initialize the internal state of model, as well as the underlying DAG.
 
@@ -916,13 +917,15 @@ class AbstractModel(BaseModel):
         -------
         None
         """
+        if self._state is not None:
+            raise LeaspyModelInputError("Trying to initialize the model's state again")
         self.state = State(
             VariablesDAG.from_dict(self.get_variables_specs()),
             auto_fork_type=StateForkType.REF
         )
         self.state.track_variables(self.tracked_variables)
 
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+    def initialize(self, dataset: Optional[Dataset] = None, method: Optional[InitializationMethod] = None) -> None:
         """
         Overloads base model initialization (in particular to handle internal model State).
 
@@ -930,23 +933,22 @@ class AbstractModel(BaseModel):
 
         Parameters
         ----------
-        dataset : :class:`.Dataset`
+        dataset : :class:`.Dataset`, optional
             Input dataset from which to initialize the model.
-        method : str, optional
+        method : InitializationMethod, optional
             The initialization method to be used.
             Default='default'.
         """
-        super().initialize(dataset, method=method)
-
-        if self._state is not None:
-            raise LeaspyModelInputError("Trying to initialize model again")
-        self.initialize_state()
-
+        method = method or InitializationMethod.DEFAULT
+        super().initialize(dataset=dataset, method=method)
+        self._initialize_state()
+        if not dataset:
+            return
         # WIP: design of this may be better somehow?
         with self._state.auto_fork(None):
 
             # Set model parameters
-            self.initialize_model_parameters(dataset, method=method)
+            self._initialize_model_parameters(dataset, method=method)
 
             # Initialize population latent variables to their mode
             self._state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
@@ -986,9 +988,9 @@ class AbstractModel(BaseModel):
         for obs_model in self.obs_models:
             state[obs_model.name] = None
 
-    def initialize_model_parameters(self, dataset: Dataset, method: str):
+    def _initialize_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> None:
         """Initialize model parameters (in-place, in `_state`)."""
-        d = self.get_initial_model_parameters(dataset, method=method)
+        d = self._get_initial_model_parameters(dataset, method=method)
         model_params = self.dag.sorted_variables_by_type[ModelParameter]
         assert set(d.keys()) == set(model_params)
         for mp, var in model_params.items():
@@ -998,7 +1000,7 @@ class AbstractModel(BaseModel):
             self._state[mp] = val.expand(var.shape)
 
     @abstractmethod
-    def get_initial_model_parameters(self, dataset: Dataset, method: str) -> Dict[VarName, VarValue]:
+    def _get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
         """Get initial values for model parameters."""
 
     def move_to_device(self, device: torch.device) -> None:

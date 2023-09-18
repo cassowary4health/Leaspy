@@ -1,9 +1,15 @@
 from abc import ABC, abstractmethod
 import warnings
+from enum import Enum
 
 from leaspy.utils.typing import FeatureType, List, Optional
 from leaspy.exceptions import LeaspyModelInputError
 from leaspy.io.data.dataset import Dataset
+
+
+class InitializationMethod(str, Enum):
+    DEFAULT = "default"
+    RANDOM = "random"
 
 
 class BaseModel(ABC):
@@ -90,13 +96,13 @@ class BaseModel(ABC):
                 f"Model has {len(self.features)} features. Cannot set the dimension to {dimension}."
             )
 
-    def validate_compatibility_of_dataset(self, dataset: Dataset) -> None:
+    def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
         """
         Raise if the given :class:`.Dataset` is not compatible with the current model.
 
         Parameters
         ----------
-        dataset : :class:`.Dataset`
+        dataset : :class:`.Dataset`, optional
             The :class:`.Dataset` we want to model.
 
         Raises
@@ -106,6 +112,8 @@ class BaseModel(ABC):
             - If the :class:`.Dataset` does not have the same dimensionality as the model.
             - If the :class:`.Dataset`'s headers do not match the model's.
         """
+        if not dataset:
+            return
         if self.dimension is not None and dataset.dimension != self.dimension:
             raise LeaspyModelInputError(
                 f"Unmatched dimensions: {self.dimension} (model) ≠ {dataset.dimension} (data)."
@@ -115,7 +123,7 @@ class BaseModel(ABC):
                 f"Unmatched features: {self.features} (model) ≠ {dataset.headers} (data)."
             )
 
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+    def initialize(self, dataset: Optional[Dataset] = None, method: Optional[InitializationMethod] = None) -> None:
         """
         Initialize the model given a :class:`.Dataset` and an initialization method.
 
@@ -124,9 +132,9 @@ class BaseModel(ABC):
 
         Parameters
         ----------
-        dataset : :class:`.Dataset`
+        dataset : :class:`.Dataset`, optional
             The dataset we want to initialize from.
-        method : :obj:`str`
+        method : InitializationMethod, optional
             A custom method to initialize the model
         """
         if self.is_initialized and self.features is not None:
@@ -134,15 +142,15 @@ class BaseModel(ABC):
             # `is_initialized`` is True but as a mock for being personalization-ready,
             # without really being initialized!
             warn_msg = '<!> Re-initializing an already initialized model.'
-            if dataset.headers != self.features:
+            if dataset and dataset.headers != self.features:
                 warn_msg += (
                     f" Overwritting previous model features ({self.features}) "
                     f"with new ones ({dataset.headers})."
                 )
                 self.features = None  # wait validation of compatibility to store new features
             warnings.warn(warn_msg)
-        self.validate_compatibility_of_dataset(dataset)
-        self.features = dataset.headers
+        self._validate_compatibility_of_dataset(dataset)
+        self.features = dataset.headers if dataset else None
         self.is_initialized = True
 
     @abstractmethod

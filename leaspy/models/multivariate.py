@@ -534,7 +534,11 @@ class LinearMultivariateModel(MultivariateModel):
         rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
         return torch.exp(log_g[pop_s]) + v0[pop_s] * rt + space_shifts[:, None, ...]
 
-    def _get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
+    def _compute_initial_values_for_model_parameters(
+        self,
+        dataset: Dataset,
+        method: InitializationMethod,
+    ) -> VariablesValuesRO:
         from leaspy.models.utilities import (
             compute_linear_regression_subjects,
             get_log_velocities,

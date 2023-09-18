@@ -989,19 +989,55 @@ class AbstractModel(BaseModel):
             state[obs_model.name] = None
 
     def _initialize_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> None:
-        """Initialize model parameters (in-place, in `_state`)."""
-        d = self._get_initial_model_parameters(dataset, method=method)
-        model_params = self.dag.sorted_variables_by_type[ModelParameter]
-        assert set(d.keys()) == set(model_params)
-        for mp, var in model_params.items():
-            val = d[mp]
-            if not isinstance(val, (torch.Tensor, WeightedTensor)):
-                val = torch.tensor(val, dtype=torch.float)
-            self._state[mp] = val.expand(var.shape)
+        """Initialize model parameters (in-place, in `_state`).
+
+        The method also checks that the model parameters whose initial values
+        were computed from the dataset match the expected model parameters from
+        the specifications (i.e. the nodes of the DAG of type 'ModelParameter').
+
+        If there is a mismatch, the method raises a ValueError because there is
+        an inconsistency between the definition of the model and the way it computes
+        the initial values of its parameters from a dataset.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to use to compute initial values for the model parameters.
+
+        method : InitializationMethod
+            The initialization method to use to compute these initial values.
+        """
+        model_parameters_initialization = self._compute_initial_values_for_model_parameters(dataset, method=method)
+        model_parameters_spec = self.dag.sorted_variables_by_type[ModelParameter]
+        if set(model_parameters_initialization.keys()) != set(model_parameters_spec):
+            raise ValueError(
+                "Model parameters created at initialization are different "
+                "from the expected model parameters from the specs:\n"
+                f"- From initialization: {sorted(list(model_parameters_initialization.keys()))}\n"
+                f"- From Specs: {sorted(list(model_parameters_spec))}\n"
+            )
+        for model_parameter_name, model_parameter_variable in model_parameters_spec.items():
+            model_parameter_initial_value = model_parameters_initialization[model_parameter_name]
+            if not isinstance(model_parameter_initial_value, (torch.Tensor, WeightedTensor)):
+                try:
+                    model_parameter_initial_value = torch.tensor(model_parameter_initial_value, dtype=torch.float)
+                except ValueError:
+                    raise ValueError(
+                        f"The initial value for model parameter '{model_parameter_name}' "
+                        "should be a tensor, or a weighted tensor.\nInstead, "
+                        f"{model_parameter_initial_value} of type {type(model_parameter_initial_value)} "
+                        "was received and cannot be casted to a tensor.\nPlease verify this parameter "
+                        "initialization code."
+                    )
+            self._state[model_parameter_name] = model_parameter_initial_value.expand(model_parameter_variable.shape)
 
     @abstractmethod
-    def _get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
-        """Get initial values for model parameters."""
+    def _compute_initial_values_for_model_parameters(
+        self,
+        dataset: Dataset,
+        method: InitializationMethod,
+    ) -> VariablesValuesRO:
+        """Compute initial values for model parameters."""
 
     def move_to_device(self, device: torch.device) -> None:
         """

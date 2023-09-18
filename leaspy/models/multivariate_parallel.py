@@ -1,10 +1,20 @@
 import torch
 
+from leaspy.models.base import InitializationMethod
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
-from leaspy.utils.typing import DictParamsTorch, DictParams
+from leaspy.io.data.dataset import Dataset
+from leaspy.variables.specs import VariablesValuesRO
+from leaspy.utils.weighted_tensor import unsqueeze_right
+from leaspy.variables.specs import (
+    NamedVariables,
+    LinkedVariable,
+    ModelParameter,
+    Hyperparameter,
+    PopulationLatentVariable,
+)
+from leaspy.utils.functional import Sqr
 
 
-#@doc_with_super()
 class MultivariateParallelModel(AbstractMultivariateModel):
     """
     Logistic model for multiple variables of interest, imposing same average
@@ -20,52 +30,15 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
 
-        self.parameters["deltas"] = None
-        self.MCMC_toolbox['priors']['deltas_std'] = None
+    def _get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
+        parameters = super()._get_initial_model_parameters(dataset, method)
+        parameters["log_g_mean"] = parameters["log_g_mean"].mean()
+        parameters["xi_mean"] = parameters["log_v0_mean"].mean()
+        del parameters["log_v0_mean"]
+        parameters["deltas"] = torch.zeros((self.dimension - 1,)),
+        return parameters
 
-    def compute_individual_tensorized(
-        self,
-        timepoints: torch.Tensor,
-        individual_parameters: dict,
-        *,
-        attribute_type: str = None,
-    ) -> torch.Tensor:
-        """
-        Compute individual trajectories.
-
-        Parameters
-        ----------
-        timepoints : torch.Tensor
-        individual_parameters : dict
-        attribute_type : str, optional
-
-        Returns
-        -------
-        torch.Tensor
-        """
-        # Population parameters
-        g, deltas, mixing_matrix = self._get_attributes(attribute_type)
-
-        # TODO: use rt instead
-        # Individual parameters
-        xi, tau = individual_parameters['xi'], individual_parameters['tau']
-        reparametrized_time = self.time_reparametrization(timepoints, xi, tau)
-
-        # Reshaping
-        reparametrized_time = reparametrized_time.unsqueeze(-1)  # (n_individuals, n_timepoints, -> n_features)
-
-        # Model expected value
-        t = reparametrized_time + deltas
-        if self.source_dimension != 0:
-            sources = individual_parameters['sources']
-            wi = sources.matmul(mixing_matrix.t())  # (n_individuals, n_features)
-            g_deltas_exp = g * torch.exp(-deltas)
-            b = (1. + g_deltas_exp) ** 2 / g_deltas_exp
-            t += (b * wi).unsqueeze(-2)  # to get n_timepoints dimension
-        model = 1. / (1. + g * torch.exp(-t))
-
-        return model
-
+    """
     def compute_jacobian_tensorized(
         self,
         timepoints: torch.Tensor,
@@ -73,19 +46,6 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         *,
         attribute_type=None,
     ) -> DictParamsTorch:
-        """
-        Compute jacobian.
-
-        Parameters
-        ----------
-        timepoints : torch.Tensor
-        individual_parameters : dict
-        attribute_type : str, optional
-
-        Returns
-        -------
-        DictParamsTorch
-        """
         # TODO: refact highly inefficient (many duplicated code from `compute_individual_tensorized`)
 
         # Population parameters
@@ -128,19 +88,6 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         individual_parameters: dict,
         feature: str,
     ) -> torch.Tensor:
-        """
-        Compute individual ages.
-
-        Parameters
-        ----------
-        value : torch.Tensor
-        individual_parameters : dict
-        feature : str
-
-        Returns
-        -------
-        torch.Tensor
-        """
         raise NotImplementedError("Open an issue on Gitlab if needed.")  # pragma: no cover
 
     ##############################
@@ -193,71 +140,61 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     #            param_variance, varname=f"{param}_std"
     #        )
     #        self.parameters[f"{param}_mean"] = param_cur_mean
+    """
 
-    def get_population_random_variable_information(self) -> DictParams:
-        """
-        Return the information on population random variables relative to the model.
+    @staticmethod
+    def metric(*, g_deltas_exp: torch.Tensor) -> torch.Tensor:
+        """Used to define the corresponding variable."""
+        return (g_deltas_exp + 1) ** 2 / g_deltas_exp
 
-        Returns
-        -------
-        DictParams :
-            The information on the population random variables.
-        """
-        g_info = {
-            "name": "g",
-            "shape": torch.Size([1]),
-            "rv_type": "multigaussian"
-        }
-        deltas_info = {
-            "name": "deltas",
-            "shape": torch.Size([self.dimension - 1]),
-            "rv_type": "multigaussian",
-            "scale": 1.  # cf. GibbsSampler
-        }
-        betas_info = {
-            "name": "betas",
-            "shape": torch.Size([self.dimension - 1, self.source_dimension]),
-            "rv_type": "multigaussian",
-            "scale": .5  # cf. GibbsSampler
-        }
-        variables_info = {
-            "g": g_info,
-            "deltas": deltas_info,
-        }
-        if self.source_dimension != 0:
-            variables_info['betas'] = betas_info
+    @staticmethod
+    def g_deltas_exp(*, g: torch.Tensor, deltas: torch.Tensor) -> torch.Tensor:
+        return g * torch.exp(-1 * deltas)
 
-        return variables_info
+    @classmethod
+    def model_with_sources(cls, *, rt: torch.Tensor, space_shifts: torch.Tensor, metric, deltas, log_g) -> torch.Tensor:
+        """Returns a model with sources."""
+        # TODO WIP: logistic model only for now
+        # Shape: (Ni, Nt, Nfts)
+        pop_s = (None, None, ...)
+        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
+        model_logit = metric[pop_s] * space_shifts[:, None, ...] + rt + deltas - log_g[pop_s]
+        return torch.sigmoid(model_logit)
 
-    def get_individual_random_variable_information(self) -> DictParams:
-        """
-        Return the information on individual random variables relative to the model.
+    @classmethod
+    def model_no_sources(cls, *, rt: torch.Tensor, metric, deltas, log_g) -> torch.Tensor:
+        """Returns a model without source. A bit dirty?"""
+        return cls.model_with_sources(
+            rt=rt,
+            metric=metric,
+            deltas=deltas,
+            log_g=log_g,
+            space_shifts=torch.zeros((1, 1)),
+        )
 
-        Returns
-        -------
-        DictParams :
-            The information on the individual random variables.
-        """
-        tau_info = {
-            "name": "tau",
-            "shape": torch.Size([1]),
-            "rv_type": "gaussian"
-        }
-        xi_info = {
-            "name": "xi",
-            "shape": torch.Size([1]),
-            "rv_type": "gaussian"
-        }
-        sources_info = {
-            "name": "sources",
-            "shape": torch.Size([self.source_dimension]),
-            "rv_type": "gaussian"
-        }
-        variables_info = {
-            "tau": tau_info,
-            "xi": xi_info,
-        }
-        if self.source_dimension != 0:
-            variables_info['sources'] = sources_info
+    def get_variables_specs(self) -> NamedVariables:
+        from leaspy.variables.distributions import Normal
+        d = super().get_variables_specs()
+        d.update(
+            xi_mean=Hyperparameter(0.),
+            g_deltas_exp=LinkedVariable(self.g_deltas_exp),
+            deltas_mean=ModelParameter.for_pop_mean(
+                "deltas",
+                shape=(self.dimension - 1,),
+            ),
+            deltas_std=Hyperparameter(0.01),
+            deltas=PopulationLatentVariable(
+                Normal("deltas_mean", "deltas_std"),
+                sampling_kws={"scale": .1},
+            ),
+            metric=LinkedVariable(self.metric),
+        )
+        if self.source_dimension >= 1:
+            d.update(
+                model=LinkedVariable(self.model_with_sources),
+                metric_sqr=LinkedVariable(Sqr("metric")),
+            )
+        else:
+            d["model"] = LinkedVariable(self.model_no_sources)
 
-        return variables_info
+        return d

@@ -1,16 +1,10 @@
 from operator import itemgetter
-from typing import Dict
 
 import torch
 import pandas as pd
 
 import leaspy
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
-from leaspy.models.obs_models import (
-    FullGaussianObservationModel,
-    BernoulliObservationModel,
-    OrdinalObservationModel,
-)
 
 XI_STD = .5
 TAU_STD = 5.
@@ -60,39 +54,7 @@ def initialize_parameters(model, dataset, method="default") -> tuple:
 
     if method == 'lme':
         raise NotImplementedError("legacy")
-        return lme_init(model, df) # support kwargs?
-
-    name = model.name
-    if name == 'logistic_parallel':
-        parameters = initialize_logistic_parallel(model, df, method)
-    elif name == 'mixed_linear-logistic':
-        raise NotImplementedError("legacy")
-    else:
-        raise LeaspyInputError(f"There is no initialization method for the parameters of the model '{name}'")
-
-    # convert to float 32 bits & add a rounding step on the initial parameters to ensure full reproducibility
-    rounded_parameters = {
-        str(p): _torch_round(v.to(torch.float32))
-        for p, v in parameters.items()
-    }
-
-    # for gaussian obs model
-    noise_model_params = None
-    obs_model = next(iter(model.obs_models))  # WIP: multiple obs models...
-    if isinstance(obs_model, FullGaussianObservationModel):
-        noise_model_params = {
-            "noise_std": torch.tensor(NOISE_STD).expand(obs_model.extra_vars['noise_std'].shape)
-        }
-    elif isinstance(obs_model, BernoulliObservationModel):
-        noise_model_params = {}
-    elif isinstance(obs_model, OrdinalObservationModel):
-        noise_model_params = {}
-    else:
-        raise NotImplementedError(
-            f"The observation model {obs_model} is not supported."
-        )
-
-    return rounded_parameters, noise_model_params
+        # return lme_init(model, df) # support kwargs?
 
 
 def get_lme_results(df: pd.DataFrame, n_jobs=-1, *,
@@ -315,75 +277,3 @@ def initialize_deltas_ordinal(model, df: pd.DataFrame, parameters: dict) -> None
 
     # Changes the meaning of v0 # How do we initialize this ?
     #parameters['v0'] = torch.zeros_like(parameters['v0'])
-
-
-def initialize_logistic_parallel(model, df, method):
-    """
-    Initialize the logistic parallel model's group parameters.
-
-    Parameters
-    ----------
-    model : :class:`.AbstractModel`
-        The model to initialize.
-    df : :class:`pd.DataFrame`
-        Contains the individual scores (with nans).
-    method : str
-        Must be one of:
-            * ``'default'``: initialize at mean.
-            * ``'random'``:  initialize with a gaussian realization with same mean and variance.
-
-    Returns
-    -------
-    parameters : dict [str, `torch.Tensor`]
-        Contains the initialized model's group parameters. The parameters' keys are 'g',  'tau_mean',
-        'tau_std', 'xi_mean', 'xi_std', 'sources_mean', 'sources_std', 'deltas' and 'betas'.
-
-    Raises
-    ------
-    :exc:`.LeaspyInputError`
-        If method is not handled
-    """
-    raise NotImplementedError("WIP")
-
-    # Get the slopes / values / times mu and sigma
-    slopes_mu, slopes_sigma = compute_patient_slopes_distribution(df)
-    values_mu, values_sigma = compute_patient_values_distribution(df)
-    time_mu, time_sigma = compute_patient_time_distribution(df)
-
-    if method == 'default':
-        slopes = slopes_mu
-        values = values_mu
-        t0 = time_mu
-        betas = torch.zeros((model.dimension - 1, model.source_dimension))
-    elif method == 'random':
-        # Get random variations
-        slopes = torch.normal(slopes_mu, slopes_sigma)
-        values = torch.normal(values_mu, values_sigma)
-        t0 = torch.normal(time_mu, time_sigma)
-        betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(sample_shape=(model.dimension - 1, model.source_dimension))
-    else:
-        raise LeaspyInputError("Initialization method not supported, must be in {'default', 'random'}")
-
-    # Enforce values are between 0 and 1
-    values = values.clamp(min=1e-2, max=1-1e-2)
-
-    # Do transformations
-    v0_array = get_log_velocities(slopes, model.features)
-    v0 = v0_array.mean()
-    #v0 = slopes.mean().log() # mean before log
-    g = torch.log(1. / values - 1.).mean() # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
-    #g = torch.log(1. / values.mean() - 1.) # mean before transfo
-
-    parameters = {
-        'g': g,
-        'deltas': torch.zeros((model.dimension - 1,)),
-        'betas': betas,
-        'tau_mean': t0,
-        'tau_std': torch.tensor(TAU_STD),
-        'xi_mean': v0,
-        'xi_std': torch.tensor(XI_STD),
-        'sources_mean': torch.tensor(0.),
-        'sources_std': torch.tensor(SOURCES_STD),
-    }
-
-    return parameters

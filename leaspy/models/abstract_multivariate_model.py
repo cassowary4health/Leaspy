@@ -178,8 +178,12 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             )
         return df
 
-    def _get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
-        """Get initial values for model parameters."""
+    def _compute_initial_values_for_model_parameters(
+        self,
+        dataset: Dataset,
+        method: InitializationMethod,
+    ) -> VariablesValuesRO:
+        """Compute initial values for model parameters."""
         from leaspy.models.utilities import (
             compute_patient_slopes_distribution,
             compute_patient_values_distribution,

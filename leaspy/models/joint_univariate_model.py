@@ -759,8 +759,8 @@ class JointUnivariateModel(ABC):
 
         # Normalise as compute on normalised variables
         to_cat = [
-            grad_xi * self.parameters['xi_std'],
-            grad_tau * self.parameters['tau_std'],
+            torch.tensor([grad_xi * self.parameters['xi_std']]),
+           torch.tensor([grad_tau * self.parameters['tau_std']]),
         ]
         grads = torch.cat(to_cat, dim=-1).squeeze(0)
         return grads  # 1 individual at a time

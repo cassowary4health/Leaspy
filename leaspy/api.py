@@ -135,7 +135,6 @@ class Leaspy:
         """
         algorithm = AlgoFactory.algo("fit", settings)
         dataset = Dataset(data)
-        self.model.validate_compatibility_of_dataset(dataset)
         if not self.model.is_initialized:
             # at this point randomness is not yet fixed even if seed was set in AlgoSettings
             # it will only be set at the beginning of `algorithm.run` just afterwards
@@ -207,7 +206,6 @@ class Leaspy:
 
         algorithm = AlgoFactory.algo("personalize", settings)
         dataset = Dataset(data)
-        self.model.validate_compatibility_of_dataset(dataset)
 
         # only do the following for proper type hints due to the fact that algorithm.run is improper (return type depends on algorithm class... TODO fix this)
         if return_loss:

@@ -69,7 +69,7 @@ class AbstractMultivariateModelTest(ManifoldModelTestMixin):
             m.initialize(mock_dataset)
 
         m = AbstractMultivariateModel("logistic")
-        m._validate_source_dimension(mock_dataset)
+        m._validate_compatibility_of_dataset(mock_dataset)
         self.assertEqual(m.source_dimension, 1)  # int(sqrt(3))
 
     @skip("broken in v2")

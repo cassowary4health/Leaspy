@@ -1,15 +1,14 @@
 import pandas as pd
 import torch
-from enum import Enum
 from abc import abstractmethod
 
 from typing import Iterable, Optional
+from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
+from leaspy.models.base import InitializationMethod
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.io.data.dataset import Dataset
-from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
-from leaspy.utils.docs import doc_with_super  # doc_with_
-# from leaspy.utils.subtypes import suffixed_method
-from leaspy.exceptions import LeaspyInputError
+
+from leaspy.utils.docs import doc_with_super
 
 from leaspy.variables.state import State
 from leaspy.variables.specs import (
@@ -34,17 +33,6 @@ from leaspy.models.obs_models import FullGaussianObservationModel
 
 # TODO refact? subclass or other proper code technique to extract model's concrete
 #  formulation depending on if linear, logistic, mixed log-lin, ...
-
-
-XI_STD = .5
-TAU_STD = 5.
-NOISE_STD = .1
-SOURCES_STD = 1.
-
-
-class InitializationMethod(str, Enum):
-    DEFAULT = "default"
-    RANDOM = "random"
 
 
 @doc_with_super()
@@ -83,17 +71,6 @@ class MultivariateModel(AbstractMultivariateModel):
             "tau"
         )
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
-
-    def _get_dataframe_from_dataset(self, dataset: Dataset) -> pd.DataFrame:
-        df = dataset.to_pandas().dropna(how='all').sort_index()
-        if not df.index.is_unique:
-            raise LeaspyInputError("Index of DataFrame is not unique.")
-        assert df.index.to_frame().notnull().all(axis=None)
-        if self.features != df.columns.tolist():
-            raise LeaspyInputError(
-                f"Features mismatch between model and dataset: {self.features} != {df.columns}"
-            )
-        return df
 
     """
     @suffixed_method
@@ -557,7 +534,7 @@ class LinearMultivariateModel(MultivariateModel):
         rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
         return torch.exp(log_g[pop_s]) + v0[pop_s] * rt + space_shifts[:, None, ...]
 
-    def get_initial_model_parameters(self, dataset: Dataset, method: str) -> VariablesValuesRO:
+    def _get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
         from leaspy.models.utilities import (
             compute_linear_regression_subjects,
             get_log_velocities,
@@ -571,23 +548,20 @@ class LinearMultivariateModel(MultivariateModel):
         d_regress_params = compute_linear_regression_subjects(df, max_inds=None)
         df_all_regress_params = pd.concat(d_regress_params, names=['feature'])
         df_all_regress_params['position'] = (
-                df_all_regress_params['intercept'] + t0 * df_all_regress_params['slope']
+            df_all_regress_params['intercept'] + t0 * df_all_regress_params['slope']
         )
         df_grp = df_all_regress_params.groupby('feature', sort=False)
         positions = torch.tensor(df_grp['position'].mean().values)
         velocities = torch.tensor(df_grp['slope'].mean().values)
 
-        # always take the log (even in non univariate model!)
-        velocities = get_log_velocities(velocities, self.features)
-
         parameters = {
             "log_g_mean": positions,
-            "log_v0_mean": velocities,
+            "log_v0_mean": get_log_velocities(velocities, self.features),
             # "betas": torch.zeros((self.dimension - 1, self.source_dimension)),
             "tau_mean": torch.tensor(t0),
-            "tau_std": torch.tensor([TAU_STD]),
+            "tau_std": self.tau_std,
             # "xi_mean": torch.tensor(0.),
-            "xi_std": torch.tensor([XI_STD]),
+            "xi_std": self.xi_std,
             # "sources_mean": torch.tensor(0.),
             # "sources_std": torch.tensor(SOURCES_STD),
         }
@@ -598,7 +572,7 @@ class LinearMultivariateModel(MultivariateModel):
         }
         obs_model = next(iter(self.obs_models))  # WIP: multiple obs models...
         if isinstance(obs_model, FullGaussianObservationModel):
-            rounded_parameters["noise_std"] = torch.tensor(NOISE_STD).expand(
+            rounded_parameters["noise_std"] = self.noise_std.expand(
                 obs_model.extra_vars['noise_std'].shape
             )
         return rounded_parameters
@@ -631,61 +605,6 @@ class LogisticMultivariateModel(MultivariateModel):
         w_model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
         model_logit, weights = WeightedTensor.get_filled_value_and_weight(w_model_logit, fill_value=0.)
         return WeightedTensor(torch.sigmoid(model_logit), weights).weighted_value
-
-    def get_initial_model_parameters(self, dataset: Dataset, method: InitializationMethod) -> VariablesValuesRO:
-        """Get initial values for model parameters."""
-        from leaspy.models.utilities import (
-            compute_patient_slopes_distribution,
-            compute_patient_values_distribution,
-            compute_patient_time_distribution,
-            get_log_velocities,
-            torch_round,
-        )
-
-        df = self._get_dataframe_from_dataset(dataset)
-        slopes_mu, slopes_sigma = compute_patient_slopes_distribution(df)
-        values_mu, values_sigma = compute_patient_values_distribution(df)
-        time_mu, time_sigma = compute_patient_time_distribution(df)
-
-        if method == InitializationMethod.DEFAULT:
-            slopes = slopes_mu
-            values = values_mu
-            t0 = time_mu
-            betas = torch.zeros((self.dimension - 1, self.source_dimension))
-
-        if method == InitializationMethod.RANDOM:
-            slopes = torch.normal(slopes_mu, slopes_sigma)
-            values = torch.normal(values_mu, values_sigma)
-            t0 = torch.normal(time_mu, time_sigma)
-            betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(
-                sample_shape=(self.dimension - 1, self.source_dimension)
-            )
-
-        # Enforce values are between 0 and 1
-        values = values.clamp(min=1e-2, max=1 - 1e-2)  # always "works" for ordinal (values >= 1)
-
-        v0_array = get_log_velocities(slopes, self.features)
-        # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
-        g_array = torch.log(1. / values - 1.)
-
-        parameters = {
-            "log_g_mean": g_array,
-            "log_v0_mean": v0_array,
-            "tau_mean": t0,
-            "tau_std": torch.tensor([TAU_STD]),
-            "xi_std": torch.tensor([XI_STD]),
-        }
-        if self.source_dimension >= 1:
-            parameters["betas_mean"] = betas
-        rounded_parameters = {
-            str(p): torch_round(v.to(torch.float32)) for p, v in parameters.items()
-        }
-        obs_model = next(iter(self.obs_models))  # WIP: multiple obs models...
-        if isinstance(obs_model, FullGaussianObservationModel):
-            rounded_parameters["noise_std"] = torch.tensor(NOISE_STD).expand(
-                obs_model.extra_vars['noise_std'].shape
-            )
-        return rounded_parameters
 
 
 """

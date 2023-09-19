@@ -111,7 +111,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     def get_variables_specs(self) -> NamedVariables:
         d = super().get_variables_specs()
         d.update(
-            xi_mean=Hyperparameter(0.),
+            xi_mean=ModelParameter.for_ind_mean("xi", shape=(1,)),
             deltas_mean=ModelParameter.for_pop_mean(
                 "deltas",
                 shape=(self.dimension - 1,),

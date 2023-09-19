@@ -38,7 +38,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     ) -> VariablesValuesRO:
         parameters = super()._compute_initial_values_for_model_parameters(dataset, method)
         parameters["log_g_mean"] = parameters["log_g_mean"].mean()
-        # parameters["xi_mean"] = parameters["log_v0_mean"].mean()
+        parameters["xi_mean"] = parameters["log_v0_mean"].mean()
         del parameters["log_v0_mean"]
         parameters["deltas_mean"] = torch.zeros((self.dimension - 1,))
         return parameters
@@ -115,7 +115,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     def get_variables_specs(self) -> NamedVariables:
         d = super().get_variables_specs()
         d.update(
-            xi_mean=Hyperparameter(0.),
+            xi_mean=ModelParameter.for_ind_mean("xi", shape=(1,)),
             deltas_mean=ModelParameter.for_pop_mean(
                 "deltas",
                 shape=(self.dimension - 1,),

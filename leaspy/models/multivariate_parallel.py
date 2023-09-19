@@ -38,6 +38,82 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         parameters["deltas"] = torch.zeros((self.dimension - 1,)),
         return parameters
 
+    @staticmethod
+    def metric(*, g_deltas_exp: torch.Tensor) -> torch.Tensor:
+        """Used to define the corresponding variable."""
+        return (g_deltas_exp + 1) ** 2 / g_deltas_exp
+
+    @staticmethod
+    def g_deltas_exp(*, g: torch.Tensor, deltas_padded: torch.Tensor) -> torch.Tensor:
+        return g * torch.exp(-1 * deltas_padded)
+
+    @staticmethod
+    def pad_deltas(*, deltas: torch.Tensor) -> torch.Tensor:
+        """Prepend deltas with a zero as delta_1 is set to zero in the equations."""
+        return torch.cat((torch.tensor([0.]), deltas))
+
+    @classmethod
+    def model_with_sources(
+        cls,
+        *,
+        rt: torch.Tensor,
+        space_shifts: torch.Tensor,
+        metric: torch.Tensor,
+        deltas_padded: torch.Tensor,
+        log_g: torch.Tensor,
+    ) -> torch.Tensor:
+        """Returns a model with sources."""
+        # Shape: (Ni, Nt, Nfts)
+        pop_s = (None, None, ...)
+        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
+        model_logit = metric[pop_s] * space_shifts[:, None, ...] + rt + deltas_padded - log_g[pop_s]
+        return torch.sigmoid(model_logit)
+
+    @classmethod
+    def model_no_sources(
+        cls,
+        *,
+        rt: torch.Tensor,
+        metric: torch.Tensor,
+        deltas_padded: torch.Tensor,
+        log_g: torch.Tensor,
+    ) -> torch.Tensor:
+        """Returns a model without source. A bit dirty?"""
+        return cls.model_with_sources(
+            rt=rt,
+            metric=metric,
+            deltas_padded=deltas_padded,
+            log_g=log_g,
+            space_shifts=torch.zeros((1, 1)),
+        )
+
+    def get_variables_specs(self) -> NamedVariables:
+        d = super().get_variables_specs()
+        d.update(
+            xi_mean=Hyperparameter(0.),
+            g_deltas_exp=LinkedVariable(self.g_deltas_exp),
+            deltas_mean=ModelParameter.for_pop_mean(
+                "deltas",
+                shape=(self.dimension - 1,),
+            ),
+            deltas_std=Hyperparameter(0.01),
+            deltas=PopulationLatentVariable(
+                Normal("deltas_mean", "deltas_std"),
+                sampling_kws={"scale": .1},
+            ),
+            deltas_padded=LinkedVariable(self.pad_deltas),
+            metric=LinkedVariable(self.metric),
+        )
+        if self.source_dimension >= 1:
+            d.update(
+                model=LinkedVariable(self.model_with_sources),
+                metric_sqr=LinkedVariable(Sqr("metric")),
+            )
+        else:
+            d["model"] = LinkedVariable(self.model_no_sources)
+
+        return d
+
     """
     def compute_jacobian_tensorized(
         self,
@@ -141,60 +217,3 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     #        )
     #        self.parameters[f"{param}_mean"] = param_cur_mean
     """
-
-    @staticmethod
-    def metric(*, g_deltas_exp: torch.Tensor) -> torch.Tensor:
-        """Used to define the corresponding variable."""
-        return (g_deltas_exp + 1) ** 2 / g_deltas_exp
-
-    @staticmethod
-    def g_deltas_exp(*, g: torch.Tensor, deltas: torch.Tensor) -> torch.Tensor:
-        return g * torch.exp(-1 * deltas)
-
-    @classmethod
-    def model_with_sources(cls, *, rt: torch.Tensor, space_shifts: torch.Tensor, metric, deltas, log_g) -> torch.Tensor:
-        """Returns a model with sources."""
-        # TODO WIP: logistic model only for now
-        # Shape: (Ni, Nt, Nfts)
-        pop_s = (None, None, ...)
-        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
-        model_logit = metric[pop_s] * space_shifts[:, None, ...] + rt + deltas - log_g[pop_s]
-        return torch.sigmoid(model_logit)
-
-    @classmethod
-    def model_no_sources(cls, *, rt: torch.Tensor, metric, deltas, log_g) -> torch.Tensor:
-        """Returns a model without source. A bit dirty?"""
-        return cls.model_with_sources(
-            rt=rt,
-            metric=metric,
-            deltas=deltas,
-            log_g=log_g,
-            space_shifts=torch.zeros((1, 1)),
-        )
-
-    def get_variables_specs(self) -> NamedVariables:
-        from leaspy.variables.distributions import Normal
-        d = super().get_variables_specs()
-        d.update(
-            xi_mean=Hyperparameter(0.),
-            g_deltas_exp=LinkedVariable(self.g_deltas_exp),
-            deltas_mean=ModelParameter.for_pop_mean(
-                "deltas",
-                shape=(self.dimension - 1,),
-            ),
-            deltas_std=Hyperparameter(0.01),
-            deltas=PopulationLatentVariable(
-                Normal("deltas_mean", "deltas_std"),
-                sampling_kws={"scale": .1},
-            ),
-            metric=LinkedVariable(self.metric),
-        )
-        if self.source_dimension >= 1:
-            d.update(
-                model=LinkedVariable(self.model_with_sources),
-                metric_sqr=LinkedVariable(Sqr("metric")),
-            )
-        else:
-            d["model"] = LinkedVariable(self.model_no_sources)
-
-        return d

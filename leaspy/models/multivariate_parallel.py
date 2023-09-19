@@ -12,7 +12,8 @@ from leaspy.variables.specs import (
     Hyperparameter,
     PopulationLatentVariable,
 )
-from leaspy.utils.functional import Sqr
+from leaspy.utils.functional import OrthoBasis
+from leaspy.variables.distributions import Normal
 
 
 class MultivariateParallelModel(AbstractMultivariateModel):
@@ -51,6 +52,22 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     def pad_deltas(*, deltas: torch.Tensor) -> torch.Tensor:
         """Prepend deltas with a zero as delta_1 is set to zero in the equations."""
         return torch.cat((torch.tensor([0.]), deltas))
+
+    @staticmethod
+    def denom(*, g_deltas_exp: torch.Tensor) -> torch.Tensor:
+        return 1 + g_deltas_exp
+
+    @staticmethod
+    def gamma_t0(*, denom: torch.Tensor) -> torch.Tensor:
+        return 1 / denom
+
+    @staticmethod
+    def g_metric(*, gamma_t0: torch.Tensor) -> torch.Tensor:
+        return 1 / (gamma_t0 * (1 - gamma_t0)) ** 2
+
+    @staticmethod
+    def collin_to_d_gamma_t0(*, deltas_padded: torch.Tensor, denom: torch.Tensor) -> torch.Tensor:
+        return torch.exp(-1 * deltas_padded) / denom ** 2
 
     @classmethod
     def model_with_sources(
@@ -91,7 +108,6 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         d = super().get_variables_specs()
         d.update(
             xi_mean=Hyperparameter(0.),
-            g_deltas_exp=LinkedVariable(self.g_deltas_exp),
             deltas_mean=ModelParameter.for_pop_mean(
                 "deltas",
                 shape=(self.dimension - 1,),
@@ -102,12 +118,19 @@ class MultivariateParallelModel(AbstractMultivariateModel):
                 sampling_kws={"scale": .1},
             ),
             deltas_padded=LinkedVariable(self.pad_deltas),
+            g_deltas_exp=LinkedVariable(self.g_deltas_exp),
             metric=LinkedVariable(self.metric),
         )
         if self.source_dimension >= 1:
             d.update(
+                denom=LinkedVariable(self.denom),
+                gamma_t0=LinkedVariable(self.gamma_t0),
+                collin_to_d_gamma_t0=LinkedVariable(self.collin_to_d_gamma_t0),
+                g_metric=LinkedVariable(self.g_metric),
+                orthonormal_basis=LinkedVariable(
+                    OrthoBasis("collin_to_d_gamma_t0", "g_metric"),
+                ),
                 model=LinkedVariable(self.model_with_sources),
-                metric_sqr=LinkedVariable(Sqr("metric")),
             )
         else:
             d["model"] = LinkedVariable(self.model_no_sources)

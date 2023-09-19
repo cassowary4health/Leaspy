@@ -49,8 +49,12 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         return (g_deltas_exp + 1) ** 2 / g_deltas_exp
 
     @staticmethod
-    def g_deltas_exp(*, g: torch.Tensor, deltas_padded: torch.Tensor) -> torch.Tensor:
-        return g * torch.exp(-1 * deltas_padded)
+    def deltas_exp(*, deltas_padded: torch.Tensor) -> torch.Tensor:
+        return torch.exp(-1 * deltas_padded)
+
+    @staticmethod
+    def g_deltas_exp(*, g: torch.Tensor, deltas_exp: torch.Tensor) -> torch.Tensor:
+        return g * deltas_exp
 
     @staticmethod
     def pad_deltas(*, deltas: torch.Tensor) -> torch.Tensor:
@@ -70,8 +74,8 @@ class MultivariateParallelModel(AbstractMultivariateModel):
         return 1 / (gamma_t0 * (1 - gamma_t0)) ** 2
 
     @staticmethod
-    def collin_to_d_gamma_t0(*, deltas_padded: torch.Tensor, denom: torch.Tensor) -> torch.Tensor:
-        return torch.exp(-1 * deltas_padded) / denom ** 2
+    def collin_to_d_gamma_t0(*, deltas_exp: torch.Tensor, denom: torch.Tensor) -> torch.Tensor:
+        return deltas_exp / denom ** 2
 
     @classmethod
     def model_with_sources(
@@ -122,6 +126,7 @@ class MultivariateParallelModel(AbstractMultivariateModel):
                 sampling_kws={"scale": .1},
             ),
             deltas_padded=LinkedVariable(self.pad_deltas),
+            deltas_exp=LinkedVariable(self.deltas_exp),
             g_deltas_exp=LinkedVariable(self.g_deltas_exp),
             metric=LinkedVariable(self.metric),
         )

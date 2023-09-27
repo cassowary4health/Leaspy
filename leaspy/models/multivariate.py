@@ -2,7 +2,7 @@ import torch
 
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.io.data.dataset import Dataset
-
+from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
 from leaspy.utils.docs import doc_with_super  # doc_with_
 # from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
@@ -446,8 +446,9 @@ class MultivariateModel(AbstractMultivariateModel):
         # Shape: (Ni, Nt, Nfts)
         pop_s = (None, None, ...)
         rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
-        model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
-        return torch.sigmoid(model_logit)
+        w_model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
+        model_logit, weights = WeightedTensor.get_filled_value_and_weight(w_model_logit, fill_value=0.)
+        return WeightedTensor(torch.sigmoid(model_logit),weights)
 
     @classmethod
     def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:

@@ -131,7 +131,7 @@ class StatelessDistributionFamily(ABC):
             *params: torch.Tensor,
     ) -> WeightedTensor[float]:
         """Negative log-likelihood of value, given distribution parameters."""
-        return cls._get_func_result_for_tensor_or_weighted_tensor(cls._nll, x, *params)
+        return cls._nll(x, *params)
 
     @classmethod
     def nll_jacobian(
@@ -140,9 +140,7 @@ class StatelessDistributionFamily(ABC):
             *params: torch.Tensor,
     ) -> WeightedTensor[float]:
         """Jacobian w.r.t. value of negative log-likelihood, given distribution parameters."""
-        return cls._get_func_result_for_tensor_or_weighted_tensor(
-            cls._nll_jacobian, x, *params
-        )
+        return cls._nll_jacobian(x, *params)
 
     @classmethod
     def nll_and_jacobian(
@@ -151,9 +149,7 @@ class StatelessDistributionFamily(ABC):
             *params: torch.Tensor,
     ) -> Tuple[WeightedTensor[float], WeightedTensor[float]]:
         """Negative log-likelihood of value and its jacobian w.r.t. value, given distribution parameters."""
-        return cls._get_func_result_for_tensor_or_weighted_tensor(
-            cls._nll_and_jacobian, x, *params
-        )
+        return cls._nll_and_jacobian(x, *params)
 
 
 class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFamily):

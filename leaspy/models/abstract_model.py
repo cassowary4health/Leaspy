@@ -951,7 +951,11 @@ class AbstractModel(BaseModel):
         # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
         # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
         # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
-        state["t"], _ = WeightedTensor.get_filled_value_and_weight(timepoints, fill_value=0.)
+
+        if type(timepoints) == WeightedTensor:
+            state["t"] = timepoints
+        else:
+            raise()
 
     def put_data_variables(self, state: State, dataset: Dataset) -> None:
         """Put all the needed data variables inside the provided state (in-place)."""

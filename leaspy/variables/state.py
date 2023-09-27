@@ -5,6 +5,9 @@ from typing import Tuple, Optional
 from contextlib import contextmanager
 from enum import Enum, auto
 import copy
+import os
+import csv
+
 
 import torch
 
@@ -337,3 +340,17 @@ class State(MutableMapping):
                 self[ip] = None
             else:
                 self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
+
+
+    def save(self, iteration):
+
+        for key in self.dag.keys():
+            if key in ['log_g_mean', 'log_v0_mean', 'noise_std', 'tau_mean', 'tau_std', 'xi_mean', 'xi_std', 'nll_attach',
+                       'nll_regul_log_g', 'nll_regul_log_v0']:
+                path = os.path.join( "log/"+key + ".csv")
+                with open(path, 'a', newline='') as filename:
+                    writer = csv.writer(filename)
+                    if key in ['noise_std', 'xi_mean', 'nll_attach','nll_regul_log_g', 'nll_regul_log_v0']:
+                        writer.writerow([iteration] + [float(self[key])])
+                    else:
+                        writer.writerow([iteration] + [float(i) for i in list(self[key])])

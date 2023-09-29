@@ -94,7 +94,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
 
             if self.algo_parameters['progress_bar']:
                 self._display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
-
+            state.save(0)
             # Iterate
             for self.current_iteration in range(1, self.algo_parameters['n_iter']+1):
 
@@ -113,7 +113,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                         suffix='iterations',
                     )
 
-        loss = self._terminate_algo(model, state)
+        loss = -1 #self._terminate_algo(model, state)
         return state, loss
 
     def _get_fit_metrics(self) -> Optional[Dict[str, float]]:

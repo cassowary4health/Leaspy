@@ -7,6 +7,7 @@ from enum import Enum, auto
 import copy
 import os
 import csv
+import datetime
 
 
 import torch
@@ -82,6 +83,11 @@ class State(MutableMapping):
     def __init__(
         self, dag: VariablesDAG, *, auto_fork_type: Optional[StateForkType] = None
     ):
+        now = datetime.datetime.now()
+        dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
+        self.logs_folder = f"log_{dt_string}"
+        if not os.path.isdir(self.logs_folder):
+            os.makedirs(self.logs_folder)
         self.dag = dag
         self.auto_fork_type = auto_fork_type
         self.clear()
@@ -316,11 +322,12 @@ class State(MutableMapping):
                 self[pp] = var.get_init_func(method).call(self)
 
     def put_individual_latent_variables(
-        self,
-        method: Optional[LatentVariableInitType],
-        *,
-        n_individuals: Optional[int] = None,
-    ) -> None:
+                self,
+                method: Optional[LatentVariableInitType] = None,
+                *,
+                n_individuals: Optional[int] = None,
+                df: Optional[pd.DataFrame] = None,
+        ) -> None:
         """Put some predefined values in state for all individual latent variables (in-place)."""
         if method is not None and n_individuals is None:
             raise LeaspyInputError("`n_individuals` should not be None when `method` is not None.")
@@ -333,24 +340,27 @@ class State(MutableMapping):
             vars_order = ['tau', 'xi', 'sources']
         # END TMP
 
-        #for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
-        for ip in vars_order:
-            var: IndividualLatentVariable = self.dag[ip]  # for type-hint only
-            if method is None:
-                self[ip] = None
-            else:
-                self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
-
+        if method is None and n_individuals is None:
+            for ip in vars_order:
+                self[ip] = torch.tensor(df[[ip]].values)
+        else:
+            # for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
+            for ip in vars_order:
+                var: IndividualLatentVariable = self.dag[ip]  # for type-hint only
+                if method is None:
+                    self[ip] = None
+                else:
+                    self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
 
     def save(self, iteration):
 
         for key in self.dag.keys():
-            if key in ['log_g_mean', 'log_v0_mean', 'noise_std', 'tau_mean', 'tau_std', 'xi_mean', 'xi_std', 'nll_attach',
-                       'nll_regul_log_g', 'nll_regul_log_v0']:
-                path = os.path.join( "log/"+key + ".csv")
+            if key in ['log_g_mean', 'log_v0_mean', 'tau_mean', 'tau_std', 'xi_mean', 'xi_std', 'nll_attach',
+                       'nll_regul_log_g', 'nll_regul_log_v0',"nll_attach_y", "nll_attach_event", 'log_rho_mean', 'n_log_nu_mean']:
+                path = os.path.join( f"{self.logs_folder}/"+key + ".csv")
                 with open(path, 'a', newline='') as filename:
                     writer = csv.writer(filename)
-                    if key in ['noise_std', 'xi_mean', 'nll_attach','nll_regul_log_g', 'nll_regul_log_v0']:
+                    if key in ['noise_std', 'xi_mean', 'nll_attach','nll_regul_log_g', 'nll_regul_log_v0',"nll_attach_y", "nll_attach_event"]:
                         writer.writerow([iteration] + [float(self[key])])
                     else:
                         writer.writerow([iteration] + [float(i) for i in list(self[key])])

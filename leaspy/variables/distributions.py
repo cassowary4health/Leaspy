@@ -457,17 +457,18 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
              tau: torch.Tensor) -> WeightedTensor[float]:
         # Get inputs
         event_time, event_bool = x
-
+        xi_format = xi[:,0]
+        tau_format = tau[:, 0]
         # Construct reparametrized variables
-        event_rep_time = torch.clamp(event_time - tau, min=0.)
-        nu_rep = torch.exp(-xi) * nu
+        event_rep_time = torch.clamp(event_time - tau_format, min=0.)
+        nu_rep = torch.exp(-xi_format) * nu
 
         # Survival neg log-likelihood
         n_log_survival = (event_rep_time / nu_rep) ** rho
 
         # Hazard neg log-likelihood only for patient with event not censored
-        hazard = (rho / nu_rep) * ((event_rep_time * nu_rep) ** (rho - 1.))
-        hazard = torch.where(event_bool == 0, torch.tensor(1., dtype=torch.double), hazard)
+        hazard = (rho / nu_rep) * ((event_rep_time / nu_rep) ** (rho - 1.))*event_bool
+        hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
 
         attachment_events = n_log_survival - torch.log(hazard)
 
@@ -492,14 +493,16 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
                       tau: torch.Tensor, *params: torch.Tensor) -> torch.Tensor:
         # Get inputs
         event_time, event_bool = x
+        xi_format = xi[:, 0]
+        tau_format = tau[:, 0]
 
         # Construct reparametrized variables
-        event_rep_time = torch.clamp(event_time - tau, min=0.)
-        nu_rep = torch.exp(-xi) * nu
+        event_rep_time = torch.clamp(event_time - tau_format, min=0.)
+        nu_rep = torch.exp(-xi_format) * nu
 
         # Survival
         grad_xi = rho * (event_rep_time / nu_rep) ** rho - event_bool * rho
-        grad_tau = (rho / nu_rep * torch.exp(xi)) * ((event_rep_time / nu_rep) ** (rho - 1.)) + event_bool * (
+        grad_tau = (rho / nu_rep * torch.exp(xi_format)) * ((event_rep_time / nu_rep) ** (rho - 1.)) + event_bool * (
                 rho - 1) / event_rep_time
 
         # Normalise as compute on normalised variables

@@ -108,3 +108,5 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
 
         # Annealing mixin
         self._update_temperature()
+
+

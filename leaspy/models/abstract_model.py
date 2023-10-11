@@ -43,6 +43,7 @@ from leaspy.utils.typing import (
     Union,
     List,
     Dict,
+    Set,
     Tuple,
     Iterable,
     Optional,
@@ -121,6 +122,8 @@ class AbstractModel(BaseModel):
 
         # TODO: dirty hack for now, cf. AbstractFitAlgo
         self.fit_metrics = fit_metrics
+
+        self.tracked_variables: Set[str, ...] = set()
 
     # @property
     # def noise_model(self) -> BaseNoiseModel:
@@ -526,7 +529,7 @@ class AbstractModel(BaseModel):
         individual_parameters: DictParams,
         *,
         skip_ips_checks: bool = False,
-    ) -> TensorOrWeightedTensor[float]:
+    ) -> torch.Tensor:
         """
         Compute scores values at the given time-point(s) given a subject's individual parameters.
 
@@ -834,10 +837,10 @@ class AbstractModel(BaseModel):
     @staticmethod
     def time_reparametrization(
         *,
-        t: torch.Tensor,  # TODO: TensorOrWeightedTensor?
+        t: TensorOrWeightedTensor[float],
         alpha: torch.Tensor,
         tau: torch.Tensor,
-    ) -> torch.Tensor:
+    ) -> TensorOrWeightedTensor[float]:
         """
         Tensorized time reparametrization formula.
 
@@ -916,6 +919,7 @@ class AbstractModel(BaseModel):
             VariablesDAG.from_dict(self.get_variables_specs()),
             auto_fork_type=StateForkType.REF
         )
+        self.state.track_variables(self.tracked_variables)
 
     def initialize(self, dataset: Dataset, method: str = 'default') -> None:
         """
@@ -951,7 +955,15 @@ class AbstractModel(BaseModel):
         # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor
         # (to avoid having to cope with `StatelessDistributionFamily` having some `WeightedTensor` as parameters)
         # (but we might need it at some point, especially for `batched_deltas` of ordinal model for instance)
-        state["t"], _ = WeightedTensor.get_filled_value_and_weight(timepoints, fill_value=0.)
+        if isinstance(timepoints, WeightedTensor):
+            state["t"] = timepoints
+        elif isinstance(timepoints, torch.Tensor):
+            state["t"] = WeightedTensor(timepoints)
+        else:
+            raise TypeError(
+                f"Time points should be either torch Tensors or WeightedTensors. "
+                f"Instead, a {type(timepoints)} was provided."
+            )
 
     def put_data_variables(self, state: State, dataset: Dataset) -> None:
         """Put all the needed data variables inside the provided state (in-place)."""

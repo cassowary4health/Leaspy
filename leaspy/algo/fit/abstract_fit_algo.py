@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Dict, Optional, Any
 from abc import abstractmethod
+import os
 
 from leaspy.algo.abstract_algo import AbstractAlgo
 from leaspy.algo.utils.algo_with_device import AlgoWithDeviceMixin
@@ -49,6 +50,8 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
 
         super().__init__(settings)
 
+        self.logs = settings.logs
+
         # The algorithm is proven to converge if the sequence `burn_in_step` is positive, with an infinite sum \sum
         # (\sum_k \epsilon_k = + \infty) but a finite sum of the squares (\sum_k \epsilon_k^2 < \infty )
         # cf page 657 of the book that contains the paper
@@ -94,11 +97,13 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
 
             if self.algo_parameters['progress_bar']:
                 self._display_progress_bar(-1, self.algo_parameters['n_iter'], suffix='iterations')
+            if self.logs:
+                state.save(self.logs.parameter_convergence_path, iteration=0)
 
-            # Iterate
             for self.current_iteration in range(1, self.algo_parameters['n_iter']+1):
-
                 self.iteration(model, state)
+                if self.logs:
+                    state.save(self.logs.parameter_convergence_path, iteration=self.current_iteration)
 
                 if self.output_manager is not None:
                     # print/plot first & last iteration!

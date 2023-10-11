@@ -111,24 +111,46 @@ class StatelessDistributionFamily(ABC):
     def _get_func_result_for_tensor_or_weighted_tensor(
         func: Callable,
         x: TensorOrWeightedTensor[float],
-        *params: torch.Tensor,
+        *params: TensorOrWeightedTensor[float],
     ) -> Any:
         """Automatic compatibility layer for value `x` being a regular or a weighted tensor."""
+        StatelessDistributionFamily._check_weighted_tensors_have_same_weights(*(x, *params))
         if isinstance(x, WeightedTensor):
-            r = func(x.value, *params)
+            r = func(x.value, *StatelessDistributionFamily._cast_parameters_to_tensors(params))
             conv = x.valued
         else:
-            r = func(x, *params)
+            r = func(x, *StatelessDistributionFamily._cast_parameters_to_tensors(params))
             conv = WeightedTensor
         if isinstance(r, tuple):
             return tuple(map(conv, r))
         return conv(r)
 
+    @staticmethod
+    def _check_weighted_tensors_have_same_weights(*tensors: TensorOrWeightedTensor[float]):
+        """Check that all weighted tensors passed as input have the same weights."""
+        pass
+
+    @staticmethod
+    def _cast_parameters_to_tensors(parameters: Tuple[TensorOrWeightedTensor[float]]) -> Tuple[torch.Tensor]:
+        """Cast a tuple of tensor or WeightedTensor objects to a tuple of tensors."""
+        new_parameters = []
+        for param in parameters:
+            if isinstance(param, WeightedTensor):
+                new_parameters.append(param.value)
+            elif isinstance(param, torch.Tensor):
+                new_parameters.append(param)
+            else:
+                raise TypeError(
+                    f"Parameters of StatelessDistributionFamily should be Tensors "
+                    f"or WeightedTensors but a {type(param)} was received."
+                )
+        return tuple(new_parameters)
+
     @classmethod
     def nll(
         cls,
         x: TensorOrWeightedTensor[float],
-        *params: torch.Tensor,
+        *params: TensorOrWeightedTensor[float],
     ) -> WeightedTensor[float]:
         """Negative log-likelihood of value, given distribution parameters."""
         return cls._get_func_result_for_tensor_or_weighted_tensor(cls._nll, x, *params)
@@ -137,23 +159,19 @@ class StatelessDistributionFamily(ABC):
     def nll_jacobian(
         cls,
         x: TensorOrWeightedTensor[float],
-        *params: torch.Tensor,
+        *params: TensorOrWeightedTensor[float],
     ) -> WeightedTensor[float]:
         """Jacobian w.r.t. value of negative log-likelihood, given distribution parameters."""
-        return cls._get_func_result_for_tensor_or_weighted_tensor(
-            cls._nll_jacobian, x, *params
-        )
+        return cls._get_func_result_for_tensor_or_weighted_tensor(cls._nll_jacobian, x, *params)
 
     @classmethod
     def nll_and_jacobian(
         cls,
         x: TensorOrWeightedTensor[float],
-        *params: torch.Tensor,
+        *params: TensorOrWeightedTensor[float],
     ) -> Tuple[WeightedTensor[float], WeightedTensor[float]]:
         """Negative log-likelihood of value and its jacobian w.r.t. value, given distribution parameters."""
-        return cls._get_func_result_for_tensor_or_weighted_tensor(
-            cls._nll_and_jacobian, x, *params
-        )
+        return cls._get_func_result_for_tensor_or_weighted_tensor(cls._nll_and_jacobian, x, *params)
 
 
 class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFamily):

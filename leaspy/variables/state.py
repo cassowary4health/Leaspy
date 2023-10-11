@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Set, Iterable, List
 from contextlib import contextmanager
 from enum import Enum, auto
 import copy
-
+import csv
+from pathlib import Path
 import torch
 
 from leaspy.variables.specs import (
@@ -18,7 +19,7 @@ from leaspy.variables.specs import (
     IndividualLatentVariable,
     LatentVariableInitType,
 )
-from leaspy.utils.weighted_tensor import unsqueeze_right
+from leaspy.utils.weighted_tensor import unsqueeze_right, WeightedTensor
 from leaspy.variables.dag import VariablesDAG
 from leaspy.exceptions import LeaspyInputError
 
@@ -80,8 +81,29 @@ class State(MutableMapping):
         self, dag: VariablesDAG, *, auto_fork_type: Optional[StateForkType] = None
     ):
         self.dag = dag
+        self._tracked_variables: Set[str, ...] = set()
         self.auto_fork_type = auto_fork_type
         self.clear()
+
+    @property
+    def tracked_variables(self) -> Set[str, ...]:
+        return self._tracked_variables
+
+    def track_variables(self, variable_names: Iterable[str]) -> None:
+        for variable_name in variable_names:
+            self.track_variable(variable_name)
+
+    def track_variable(self, variable_name: str) -> None:
+        if variable_name in self.dag:
+            self._tracked_variables.add(variable_name)
+
+    def untrack_variables(self, variable_names: Iterable[str]) -> None:
+        for variable_name in variable_names:
+            self.untrack_variable(variable_name)
+
+    def untrack_variable(self, variable_name: str) -> None:
+        if variable_name in self.dag:
+            self._tracked_variables.discard(variable_name)
 
     def clear(self) -> None:
         """Reset last forked state and reset all values to their canonical values."""
@@ -337,3 +359,40 @@ class State(MutableMapping):
                 self[ip] = None
             else:
                 self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
+
+    def save(self, output_folder: str, iteration: Optional[int] = None) -> None:
+        """Save the tracked variable values of the state.
+
+        Parameters
+        ----------
+        output_folder : str
+            The path to the output folder in which the state's tracked variables
+            should be saved.
+        iteration : int, optional
+            The iteration number when this method is called from an
+            algorithm. This iteration number will appear at the beginning of the row.
+        """
+        output_folder = Path(output_folder)
+        for variable in self._tracked_variables:
+            value = self._get_value_as_list_of_floats(variable)
+            if iteration != None:
+                value.insert(0, iteration)
+            with open(output_folder / f"{variable}.csv", 'a', newline='') as filename:
+                writer = csv.writer(filename)
+                writer.writerow(value)
+
+    def _get_value_as_list_of_floats(self, variable_name: str) -> List[float, ...]:
+        """Return the value of the given variable as a list of floats."""
+        value = self.__getitem__(variable_name)
+        if isinstance(value, WeightedTensor):
+            value = value.weighted_value
+        try:
+            return [value.item()]
+        except ValueError:
+            try:
+                return [tensor.item() for tensor in value]
+            except ValueError:
+                raise ValueError(
+                    f"Unable to get the value of variable {variable_name} as a list of floats. "
+                    f"The value in the state for this variable is : {value}."
+                )

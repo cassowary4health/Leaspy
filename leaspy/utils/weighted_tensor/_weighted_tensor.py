@@ -56,6 +56,17 @@ class WeightedTensor(Generic[VT]):
                 self.weight.device == self.value.device
             ), f"Bad devices: {self.weight.device} != {self.value.device}"
 
+    @property
+    def weighted_value(self) -> torch.Tensor:
+        if self.weight is None:
+            return self.value
+        return self.weight * self.filled(0)
+
+    def __getitem__(self, indices):
+        if self.weight is None:
+            return WeightedTensor(self.value.__getitem__(indices), None)
+        return WeightedTensor(self.value.__getitem__(indices), self.weight.__getitem__(indices))
+
     def filled(self, fill_value: Optional[VT] = None) -> torch.Tensor:
         """Return the values tensor filled with `fill_value` where the `weight` is exactly zero.
 
@@ -155,6 +166,9 @@ class WeightedTensor(Generic[VT]):
     def to(self, *, device: torch.device) -> WeightedTensor[VT]:
         """Apply the `torch.to` out-of-place function to both values and weights (only to move to device for now)."""
         return self.map_both(torch.Tensor.to, device=device)
+
+    def cpu(self) -> WeightedTensor[VT]:
+        return self.map_both(torch.Tensor.cpu)
 
     def __pow__(self, exponent: Union[int, float]) -> WeightedTensor[VT]:
         return self.valued(self.value**exponent)

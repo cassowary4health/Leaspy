@@ -1,8 +1,9 @@
 import torch
 
+from typing import Iterable, Optional
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.io.data.dataset import Dataset
-
+from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
 from leaspy.utils.docs import doc_with_super  # doc_with_
 # from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyModelInputError
@@ -55,11 +56,25 @@ class MultivariateModel(AbstractMultivariateModel):
         'mixed_linear-logistic': '_mixed',
     }
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, variables_to_track: Optional[Iterable[str]] = None, **kwargs):
         super().__init__(name, **kwargs)
 
         # TODO: remove this, use children classes instead (more proper)
         self._subtype_suffix = self._check_subtype()
+
+        variables_to_track = variables_to_track or (
+            "log_g_mean",
+            "log_v0_mean",
+            "noise_std",
+            "tau_mean",
+            "tau_std",
+            "xi_mean",
+            "xi_std",
+            "nll_attach",
+            "nll_regul_log_g",
+            "nll_regul_log_v0",
+        )
+        self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
 
     def _check_subtype(self) -> str:
         if self.name not in self.SUBTYPES_SUFFIXES.keys():
@@ -440,17 +455,33 @@ class MultivariateModel(AbstractMultivariateModel):
         return super().compute_sufficient_statistics(state)
 
     @classmethod
-    def model_with_sources(cls, *, rt: torch.Tensor, space_shifts: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
+    def model_with_sources(
+        cls,
+        *,
+        rt: TensorOrWeightedTensor[float],
+        space_shifts: TensorOrWeightedTensor[float],
+        metric: TensorOrWeightedTensor[float],
+        v0: TensorOrWeightedTensor[float],
+        log_g: TensorOrWeightedTensor[float],
+    ) -> torch.Tensor:
         """Returns a model with sources."""
         # TODO WIP: logistic model only for now
         # Shape: (Ni, Nt, Nfts)
         pop_s = (None, None, ...)
         rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
-        model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
-        return torch.sigmoid(model_logit)
+        w_model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
+        model_logit, weights = WeightedTensor.get_filled_value_and_weight(w_model_logit, fill_value=0.)
+        return WeightedTensor(torch.sigmoid(model_logit), weights).weighted_value
 
     @classmethod
-    def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
+    def model_no_sources(
+        cls,
+        *,
+        rt: TensorOrWeightedTensor[float],
+        metric: TensorOrWeightedTensor[float],
+        v0: TensorOrWeightedTensor[float],
+        log_g: TensorOrWeightedTensor[float],
+    ) -> torch.Tensor:
         """Returns a model without source. A bit dirty?"""
         return cls.model_with_sources(
             rt=rt,
@@ -461,7 +492,7 @@ class MultivariateModel(AbstractMultivariateModel):
         )
 
     @staticmethod
-    def metric(*, g: torch.Tensor) -> torch.Tensor:
+    def metric(*, g: TensorOrWeightedTensor[float]) -> TensorOrWeightedTensor[float]:
         """Used to define the corresponding variable."""
         return (g + 1) ** 2 / g
 

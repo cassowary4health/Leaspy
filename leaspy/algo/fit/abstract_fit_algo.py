@@ -118,7 +118,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
                         suffix='iterations',
                     )
 
-        loss = self._terminate_algo(model, state)
+        loss = -1 #self._terminate_algo(model, state)
         return state, loss
 
     def _get_fit_metrics(self) -> Optional[Dict[str, float]]:

@@ -351,11 +351,13 @@ class State(MutableMapping):
                 self[pp] = var.get_init_func(method).call(self)
 
     def put_individual_latent_variables(
-        self,
-        method: Optional[LatentVariableInitType],
-        *,
-        n_individuals: Optional[int] = None,
+            self,
+            method: Optional[LatentVariableInitType] = None,
+            *,
+            n_individuals: Optional[int] = None,
+            df: Optional[pd.DataFrame] = None,
     ) -> None:
+
         """Put some predefined values in state for all individual latent variables (in-place)."""
         if method is not None and n_individuals is None:
             raise LeaspyInputError("`n_individuals` should not be None when `method` is not None.")
@@ -368,13 +370,17 @@ class State(MutableMapping):
             vars_order = ['tau', 'xi', 'sources']
         # END TMP
 
-        #for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
-        for ip in vars_order:
-            var: IndividualLatentVariable = self.dag[ip]  # for type-hint only
-            if method is None:
-                self[ip] = None
-            else:
-                self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
+        if method is None and n_individuals is None:
+            for ip in vars_order:
+                self[ip] = torch.tensor(df[[ip]].values)
+        else:
+            # for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
+            for ip in vars_order:
+                var: IndividualLatentVariable = self.dag[ip]  # for type-hint only
+                if method is None:
+                    self[ip] = None
+                else:
+                    self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
 
     def save(self, output_folder: str, iteration: Optional[int] = None) -> None:
         """Save the tracked variable values of the state.

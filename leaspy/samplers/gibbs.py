@@ -666,7 +666,10 @@ class IndividualGibbsSampler(GibbsSamplerMixin, AbstractIndividualSampler):
         def compute_attachment_regularity():
             # compute neg log-likelihood of just the given variable (tau, xi or sources)
             # (per subject; all dimensions of the individual parameter are summed together)
-            return state[f"nll_attach_{self.name}_ind"], state[f"nll_regul_{self.name}_ind"]
+            if  type(state[f"nll_attach_{self.name}_ind"]) == torch.Tensor:
+                return state[f"nll_attach_{self.name}_ind"], state[f"nll_regul_{self.name}_ind"]
+            else:
+                return state[f"nll_attach_{self.name}_ind"].weighted_value, state[f"nll_regul_{self.name}_ind"]
 
         previous_attachment, previous_regularity = compute_attachment_regularity()
         # with state.auto_fork():

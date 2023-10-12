@@ -7,6 +7,7 @@ from leaspy.io.data.dataset import Dataset
 from leaspy.utils.docs import doc_with_super  # doc_with_
 # from leaspy.utils.subtypes import suffixed_method
 from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
+from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
 from leaspy.models.utils.initialization.model_initialization import (
     compute_patient_slopes_distribution,
     compute_patient_values_distribution,
@@ -66,6 +67,11 @@ class UnivariateJointModel(UnivariateModel):
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
         self.obs_models += (observation_model_factory('weibull-right-censored', nu = 'nu', rho = 'rho', xi = 'xi', tau = 'tau'),)
+        variables_to_track = (
+            "n_log_nu_mean",
+            "log_rho_mean",
+        )
+        self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
 
     def get_variables_specs(self) -> NamedVariables:
         """

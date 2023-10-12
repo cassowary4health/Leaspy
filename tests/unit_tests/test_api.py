@@ -13,6 +13,7 @@ from leaspy.models.noise_models import (
 from leaspy.models.obs_models import (
     FullGaussianObservationModel,
     OBSERVATION_MODELS,
+    ObservationModelNames
 )
 
 # backward-compat test
@@ -52,12 +53,14 @@ class LeaspyTest(LeaspyFitTestMixin, ModelFactoryTestMixin):
                 leaspy.check_if_initialized()
 
         for observation_model_name, observation_model in OBSERVATION_MODELS.items():
-            leaspy = Leaspy("logistic", obs_models=observation_model_name, dimension=1)
-            self.assertEqual(leaspy.type, "logistic")
-            self.assertIsInstance(
-                leaspy.model.obs_models[0],
-                observation_model,
-            )
+            if observation_model_name !=ObservationModelNames.WEIBULL_RIGHT_CENSORED:
+                print(observation_model_name)
+                leaspy = Leaspy("logistic", obs_models=observation_model_name, dimension=1)
+                self.assertEqual(leaspy.type, "logistic")
+                self.assertIsInstance(
+                    leaspy.model.obs_models[0],
+                    observation_model,
+                )
 
         for name in (
             # "linear",

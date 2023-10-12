@@ -110,8 +110,11 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             d.update(
                 nll_attach_xi_ind=LinkedVariable(Sum("nll_attach_ind")),
                 nll_attach_tau_ind=LinkedVariable(Sum("nll_attach_ind")),
-                nll_attach_sources_ind=LinkedVariable(Sum("nll_attach_ind")),
             )
+            if self.source_dimension >= 1:
+                d.update(
+                    nll_attach_sources_ind=LinkedVariable(Sum("nll_attach_ind")),
+                )
 
         if self.source_dimension >= 1:
             d.update(

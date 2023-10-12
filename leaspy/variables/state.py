@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from enum import Enum, auto
 import copy
 import csv
+import pandas as pd
 from pathlib import Path
 import torch
 
@@ -370,7 +371,7 @@ class State(MutableMapping):
             vars_order = ['tau', 'xi', 'sources']
         # END TMP
 
-        if method is None and n_individuals is None:
+        if type(df) == pd.DataFrame:
             for ip in vars_order:
                 self[ip] = torch.tensor(df[[ip]].values)
         else:

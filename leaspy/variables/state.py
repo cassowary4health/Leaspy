@@ -403,3 +403,11 @@ class State(MutableMapping):
                     f"Unable to get the value of variable {variable_name} as a list of floats. "
                     f"The value in the state for this variable is : {value}."
                 )
+
+    def get_tensor_value(self, variable_name: str) -> torch.Tensor:
+        if isinstance(self[variable_name], WeightedTensor):
+            return self[variable_name].weighted_value
+        return self[variable_name]
+
+    def get_tensor_values(self, variable_names: Iterable[str]) -> Tuple[torch.Tensor, ...]:
+        return tuple(self.get_tensor_value(name) for name in variable_names)

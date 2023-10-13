@@ -127,7 +127,7 @@ class UnivariateJointModel(UnivariateModel):
             *,
             n_log_nu: torch.Tensor,  # TODO: TensorOrWeightedTensor?
     ) -> torch.Tensor:
-        return torch.exp(-1*n_log_nu)
+        return torch.exp(-1 * n_log_nu)
 
     ##############################
     ### MCMC-related functions ###
@@ -178,7 +178,7 @@ class UnivariateJointModel(UnivariateModel):
         if self.features != df.columns:
             raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {df.columns}")
 
-        # Guet mean time
+        # Get mean time
         t0, _ = compute_patient_time_distribution(df)
 
         # Enforce values are between 0 and 1

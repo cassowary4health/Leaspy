@@ -162,7 +162,7 @@ class UnivariateJointModel(UnivariateModel):
     ###      Initialisation    ###
     ##############################
 
-    def estimate_initial_longitudinal_parameters(self, dataset) -> VariablesValuesRO:
+    def _estimate_initial_longitudinal_parameters(self, dataset) -> VariablesValuesRO:
 
         # Hardcoded
         XI_STD = .5
@@ -202,8 +202,8 @@ class UnivariateJointModel(UnivariateModel):
             }
         return parameters
 
-    def estimate_initial_event_parameters(self, dataset) -> VariablesValuesRO:
-        wbf = WeibullFitter().fit(dataset.event_time,  # - dataset.timepoints[:,0],
+    def _estimate_initial_event_parameters(self, dataset) -> VariablesValuesRO:
+        wbf = WeibullFitter().fit(dataset.event_time,
                                   dataset.event_bool)
         parameters = {
             'log_rho_mean': torch.log(torch.tensor(wbf.rho_)),
@@ -215,8 +215,8 @@ class UnivariateJointModel(UnivariateModel):
         """Get initial values for model parameters."""
 
         # Estimate initial parameters from the data
-        params = self.estimate_initial_longitudinal_parameters(dataset)
-        params_event = self.estimate_initial_event_parameters(dataset)
+        params = self._estimate_initial_longitudinal_parameters(dataset)
+        params_event = self._estimate_initial_event_parameters(dataset)
         params.update(params_event)
 
         # convert to float 32 bits & add a rounding step on the initial parameters to ensure full reproducibility

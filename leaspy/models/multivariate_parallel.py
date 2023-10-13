@@ -3,7 +3,7 @@ import torch
 from leaspy.models.base import InitializationMethod
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.io.data.dataset import Dataset
-from leaspy.utils.weighted_tensor import unsqueeze_right
+from leaspy.utils.weighted_tensor import unsqueeze_right, WeightedTensor, TensorOrWeightedTensor
 from leaspy.variables.specs import (
     NamedVariables,
     LinkedVariable,
@@ -81,27 +81,28 @@ class MultivariateParallelModel(AbstractMultivariateModel):
     def model_with_sources(
         cls,
         *,
-        rt: torch.Tensor,
-        space_shifts: torch.Tensor,
-        metric: torch.Tensor,
-        deltas_padded: torch.Tensor,
-        log_g: torch.Tensor,
+        rt: TensorOrWeightedTensor[float],
+        space_shifts: TensorOrWeightedTensor[float],
+        metric: TensorOrWeightedTensor[float],
+        deltas_padded: TensorOrWeightedTensor[float],
+        log_g: TensorOrWeightedTensor[float],
     ) -> torch.Tensor:
         """Returns a model with sources."""
         # Shape: (Ni, Nt, Nfts)
         pop_s = (None, None, ...)
         rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
-        model_logit = metric[pop_s] * space_shifts[:, None, ...] + rt + deltas_padded - log_g[pop_s]
-        return torch.sigmoid(model_logit)
+        w_model_logit = metric[pop_s] * space_shifts[:, None, ...] + rt + deltas_padded - log_g[pop_s]
+        model_logit, weights = WeightedTensor.get_filled_value_and_weight(w_model_logit, fill_value=0.)
+        return WeightedTensor(torch.sigmoid(model_logit), weights).weighted_value
 
     @classmethod
     def model_no_sources(
         cls,
         *,
-        rt: torch.Tensor,
-        metric: torch.Tensor,
-        deltas_padded: torch.Tensor,
-        log_g: torch.Tensor,
+        rt: TensorOrWeightedTensor[float],
+        metric: TensorOrWeightedTensor[float],
+        deltas_padded: TensorOrWeightedTensor[float],
+        log_g: TensorOrWeightedTensor[float],
     ) -> torch.Tensor:
         """Returns a model without source. A bit dirty?"""
         return cls.model_with_sources(

@@ -162,7 +162,7 @@ class UnivariateJointModel(UnivariateModel):
     ###      Initialisation    ###
     ##############################
 
-    def _estimate_initial_longitudinal_parameters(self, dataset) -> VariablesValuesRO:
+    def _estimate_initial_longitudinal_parameters(self, dataset: Dataset) -> VariablesValuesRO:
 
         # Hardcoded
         XI_STD = .5
@@ -202,7 +202,7 @@ class UnivariateJointModel(UnivariateModel):
             }
         return parameters
 
-    def _estimate_initial_event_parameters(self, dataset) -> VariablesValuesRO:
+    def _estimate_initial_event_parameters(self, dataset: Dataset) -> VariablesValuesRO:
         wbf = WeibullFitter().fit(dataset.event_time,
                                   dataset.event_bool)
         parameters = {

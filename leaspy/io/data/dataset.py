@@ -259,8 +259,11 @@ class Dataset:
             to_concat = []
             for i, idx in enumerate(self.indices):
                 pat_event_time, pat_event_bool = self.get_event_patient(i)
-                to_concat.append(pd.DataFrame(data=[[pat_event_time.numpy(), pat_event_bool.numpy()]],
-                                              index=[idx], columns=[self.event_time_name, self.event_bool_name]))
+                df_event = pd.DataFrame(data=[[pat_event_time.numpy(), pat_event_bool.numpy()]],
+                                              index=[idx], columns=[self.event_time_name, self.event_bool_name])
+                df_event[self.event_time_name] = df_event[self.event_time_name].astype(float)
+                df_event[self.event_bool_name] = df_event[self.event_bool_name].astype(bool)
+                to_concat.append(df_event)
             df_event = pd.concat(to_concat, names=['ID'])
             df_event.index.name = "ID"
             type_to_concat.append(df_event)

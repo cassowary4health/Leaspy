@@ -483,7 +483,7 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
 
     @staticmethod
     def compute_log_survival(event_time, nu, rho):
-        return (event_time / nu) ** rho
+        return -(event_time / nu) ** rho
 
     @staticmethod
     def get_reparametrized_event(event_time, tau):

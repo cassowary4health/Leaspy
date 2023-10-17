@@ -389,8 +389,7 @@ class NormalFamily(StatelessDistributionFamilyFromTorchDistribution):
     #    # Hardcode method for efficiency? (<!> broadcasting)
 
 
-class WeibullRightCensoredFamily(StatelessDistributionFamily):
-    parameters: ClassVar = ("nu", "rho", 'xi', 'tau')
+class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
     dist_weibull: ClassVar = torch.distributions.weibull.Weibull
 
     @classmethod
@@ -414,11 +413,15 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
     @classmethod
     def sample(
             cls,
-            nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
             tau: torch.Tensor,
+            *params: torch.Tensor,
             sample_shape: Tuple[int, ...] = (),
     ) -> torch.Tensor:
-        return cls.dist_weibull(nu * torch.exp(-xi), rho).sample(sample_shape) + tau
+        return cls.dist_weibull(cls.get_reparametrized_nu(nu, rho, xi, *params),
+                                rho).sample(sample_shape) + tau
 
     @classmethod
     def mode(cls, *params: torch.Tensor) -> torch.Tensor:
@@ -454,7 +457,8 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
         torch.Tensor :
             The value of the distribution's mean.
         """
-        return cls.dist_weibull(nu * torch.exp(-xi), rho).mean + tau
+        return cls.dist_weibull(cls.get_reparametrized_nu(nu, rho, xi, *params),
+                                rho).mean + tau
 
     @classmethod
     def stddev(cls, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
@@ -472,7 +476,8 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
         torch.Tensor :
             The value of the distribution's standard deviation.
         """
-        return cls.dist_weibull(nu * torch.exp(-xi), rho).stddev
+        return cls.dist_weibull(cls.get_reparametrized_nu(nu, rho, xi, *params),
+                                rho).stddev
 
     @staticmethod
     def compute_hazard(event_time, event_bool, nu, rho):
@@ -490,12 +495,13 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
         return torch.clamp(event_time - tau, min=0.)
 
     @staticmethod
-    def get_reparametrized_nu(xi, nu):
-        return torch.exp(-xi) * nu
+    @abstractmethod
+    def get_reparametrized_nu(nu, rho, xi, *params):
+       """ """
 
     @classmethod
     def _nll(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
-             tau: torch.Tensor) -> torch.Tensor[float]:
+             tau: torch.Tensor, *params: torch.Tensor) -> torch.Tensor[float]:
         # Get inputs
         event_time, event_bool = x
         xi_format = xi[:,0]
@@ -503,7 +509,7 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
 
         # Construct reparametrized variables
         event_rep_time = cls.get_reparametrized_event(event_time, tau_format)
-        nu_rep =  cls.get_reparametrized_nu(xi_format, nu)
+        nu_rep =  cls.get_reparametrized_nu(nu, rho, xi_format, *params)
 
         # Survival neg log-likelihood
         log_survival = cls.compute_log_survival(event_rep_time, nu_rep, rho)
@@ -512,7 +518,6 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
 
         return attachment_events
 
-
     @classmethod
     def _nll_and_jacobian(
             cls,
@@ -520,10 +525,11 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
             nu: torch.Tensor,
             rho: torch.Tensor,
             xi: torch.Tensor,
-            tau: torch.Tensor
+            tau: torch.Tensor,
+            *params: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        nll = cls._nll(x, nu, rho)
-        nll_grad_value = cls._nll_jacobian(x, nu, rho)
+        nll = cls._nll(x, nu, rho, xi, tau, *params)
+        nll_grad_value = cls._nll_jacobian(x, nu, rho, xi, tau, *params)
 
         return nll, nll_grad_value
 
@@ -537,7 +543,7 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
 
         # Construct reparametrized variables
         event_rep_time = cls.get_reparametrized_event(event_time, tau_format)
-        nu_rep = cls.get_reparametrized_nu(xi_format, nu)
+        nu_rep = cls.get_reparametrized_nu(nu, rho, xi_format, *params)
 
         # Survival
         log_survival = cls.compute_log_survival(event_rep_time, nu_rep, rho)
@@ -555,6 +561,21 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
 
         return grads
 
+
+
+class WeibullRightCensoredFamily(AbstractWeibullRightCensoredFamily):
+    parameters: ClassVar = ("nu", "rho", 'xi', 'tau')
+
+    @staticmethod
+    def get_reparametrized_nu(nu, rho, xi):
+        return torch.exp(-xi) * nu
+
+class WeibullRightCensoredMultivariateFamily(StatelessDistributionFamily):
+    parameters: ClassVar = ("nu", "rho", "zeta", 'xi', 'tau', 'sources')
+
+    @staticmethod
+    def get_reparametrized_nu(nu, rho, xi, zeta, sources):
+        return nu * torch.exp(-xi + (1/rho)*(zeta*sources))
 
 @dataclass(frozen=True)
 class SymbolicDistribution:

@@ -82,6 +82,14 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         """
         d = super().get_variables_specs()
 
+        if len(self.obs_models) == 1:
+            key_ind_attach = ''
+            d.update(
+                nll_attach_xi_ind = LinkedVariable(Sum(f"nll_attach_{key_ind_attach}ind")),
+            )
+        else:
+            key_ind_attach = 'y_'
+
         d.update(
             # PRIORS
             log_g_mean=ModelParameter.for_pop_mean("log_g", shape=(self.dimension,)),
@@ -105,16 +113,9 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             g=LinkedVariable(Exp("log_g")),
             alpha=LinkedVariable(Exp("xi")),
             # rt=LinkedVariable(self.time_reparametrization),  # in super class...
+            # ATTACHMENT OF IND PARAM
+            nll_attach_tau_ind=LinkedVariable(Sum(f"nll_attach_{key_ind_attach}ind")),
         )
-        if len(self.obs_models) == 1:
-            d.update(
-                nll_attach_xi_ind=LinkedVariable(Sum("nll_attach_ind")),
-                nll_attach_tau_ind=LinkedVariable(Sum("nll_attach_ind")),
-            )
-            if self.source_dimension >= 1:
-                d.update(
-                    nll_attach_sources_ind=LinkedVariable(Sum("nll_attach_ind")),
-                )
 
         if self.source_dimension >= 1:
             d.update(
@@ -143,6 +144,8 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
                 space_shifts=LinkedVariable(
                     MatMul("sources", "mixing_matrix")
                 ),  # shape: (Ni, Nfts)
+                # ATTACHMENT OF IND PARAM
+                nll_attach_sources_ind=LinkedVariable(Sum(f"nll_attach_{key_ind_attach}ind")),
             )
 
         return d

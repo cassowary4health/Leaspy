@@ -42,7 +42,7 @@ from leaspy.models.obs_models import observation_model_factory
 
 
 @doc_with_super()
-class UnivariateJointModel(UnivariateModel):
+class JointModel(MultivariateModel):
     """
     Manifold model for multiple variables of interest (logistic or linear formulation).
 
@@ -61,12 +61,17 @@ class UnivariateJointModel(UnivariateModel):
     """
 
     SUBTYPES_SUFFIXES = {
-        'univariate_joint': '_joint',
+        'multivariate_joint': '_joint',
     }
 
     def __init__(self, name: str, **kwargs):
+
+        # Two observation models must be given one for each process
+        observation_models = kwargs.get("obs_models", None)
+        assert(isinstance(observation_models, (list, tuple)))
         super().__init__(name, **kwargs)
-        self.obs_models += (observation_model_factory('weibull-right-censored', nu = 'nu', rho = 'rho', xi = 'xi', tau = 'tau'),)
+
+        # TODO: find a way so that it depend on the obs model
         variables_to_track = (
             "n_log_nu_mean",
             "log_rho_mean",
@@ -118,6 +123,7 @@ class UnivariateJointModel(UnivariateModel):
             nll_attach_xi_ind=LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
             nll_attach=LinkedVariable(Sum("nll_attach_y", "nll_attach_event")),
         )
+        # TODO: if weibull-multivariate add zetas
 
         return d
 
@@ -162,6 +168,7 @@ class UnivariateJointModel(UnivariateModel):
     ##############################
 
     def _estimate_initial_longitudinal_parameters(self, dataset: Dataset) -> VariablesValuesRO:
+        # TODO: it should be inside of the multivariate model
 
         # Hardcoded
         XI_STD = .5
@@ -202,6 +209,7 @@ class UnivariateJointModel(UnivariateModel):
         return parameters
 
     def _estimate_initial_event_parameters(self, dataset: Dataset) -> VariablesValuesRO:
+        # TODO: it should depend on the obs model => zeta
         wbf = WeibullFitter().fit(dataset.event_time,
                                   dataset.event_bool)
         parameters = {

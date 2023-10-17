@@ -984,12 +984,7 @@ class AbstractModel(BaseModel):
         """Initialize model parameters (in-place, in `_state`)."""
         d = self.get_initial_model_parameters(dataset, method=method)
         model_params = self.dag.sorted_variables_by_type[ModelParameter]
-        dag_keys = list(d.keys())
-        dag_keys.sort()
-        model_params_keys = list(model_params)
-        model_params_keys.sort()
-        print(dag_keys , model_params_keys)
-        assert dag_keys == model_params_keys
+        assert set(d.keys()) == set(model_params)
         for mp, var in model_params.items():
             val = d[mp]
             if not isinstance(val, (torch.Tensor, WeightedTensor)):

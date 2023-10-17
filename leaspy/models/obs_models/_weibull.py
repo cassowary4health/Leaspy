@@ -47,7 +47,7 @@ class WeibullRightCensoredObservationModel(ObservationModel):
 
     @staticmethod
     def getter(dataset: Dataset) -> WeightedTensor:
-        if dataset.values is None or dataset.mask is None:
+        if dataset.event_time is None or dataset.event_bool is None:
             raise ValueError(
                 "Provided dataset is not valid. "
                 "Both values and mask should be not None."

@@ -371,7 +371,7 @@ class State(MutableMapping):
             vars_order = ['tau', 'xi', 'sources']
         # END TMP
 
-        if type(df) == pd.DataFrame:
+        if df is not None:
             for ip in vars_order:
                 self[ip] = torch.tensor(df[[ip]].values)
         else:

@@ -414,7 +414,9 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
     @classmethod
     def sample(
             cls,
-            nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
             tau: torch.Tensor,
             sample_shape: Tuple[int, ...] = (),
     ) -> torch.Tensor:
@@ -475,22 +477,34 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
         return cls.dist_weibull(nu * torch.exp(-xi), rho).stddev
 
     @staticmethod
-    def compute_hazard(event_time, event_bool, nu, rho):
+    def compute_hazard(
+        event_time: torch.Tensor,
+        event_bool: torch.Tensor,
+        nu: torch.Tensor,
+        rho: torch.Tensor,
+    ) -> torch.Tensor:
         # Hazard neg log-likelihood only for patient with event not censored
         hazard = (rho / nu) * ((event_time / nu) ** (rho - 1.)) * event_bool
         hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
         return hazard
 
     @staticmethod
-    def compute_log_survival(event_time, nu, rho):
+    def compute_log_survival(
+        event_time: torch.Tensor,
+        nu: torch.Tensor,
+        rho: torch.Tensor,
+    ) -> torch.Tensor:
         return -(event_time / nu) ** rho
 
     @staticmethod
-    def get_reparametrized_event(event_time, tau):
+    def get_reparametrized_event(
+        event_time: torch.Tensor,
+        tau: torch.Tensor,
+    ) -> torch.Tensor:
         return torch.clamp(event_time - tau, min=0.)
 
     @staticmethod
-    def get_reparametrized_nu(xi, nu):
+    def get_reparametrized_nu(xi: torch.Tensor, nu: torch.Tensor) -> torch.Tensor:
         return torch.exp(-xi) * nu
 
     @classmethod

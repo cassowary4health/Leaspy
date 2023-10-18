@@ -48,6 +48,7 @@ class LeaspyTestCase(TestCase):
     example_data_covars_path = os.path.join(_test_data_dir, "data_mock", "data_tiny_covariate.csv")
     binary_data_path = os.path.join(_test_data_dir, "data_mock", "binary_data.csv")
     ordinal_data_path = os.path.join(_test_data_dir, "data_mock", "data_tiny_ordinal.csv")
+    joint_data_path = os.path.join(_test_data_dir, "data_mock", "data_tiny_joint.csv")
 
     # to store temporary data (used during tests)
     _test_tmp_dir = os.path.join(_test_data_dir, "_tmp")
@@ -166,14 +167,23 @@ class LeaspyTestCase(TestCase):
             df = pd.read_csv(cls.binary_data_path, dtype={'ID': str})
         elif 'ordinal' in model_name:
             df = pd.read_csv(cls.ordinal_data_path, dtype={'ID': str})
+        elif 'joint' in model_name:
+            df = pd.read_csv(cls.joint_data_path, dtype={'ID': str}, sep = ';')
         else:
             # continuous
             df = pd.read_csv(cls.example_data_path, dtype={'ID': str})
 
-        if 'univariate' in model_name:
+        if ('univariate' in model_name) and ('joint' in model_name):
+
+            df = df.iloc[:, :5]  # only pick one feature column (the first after ID & TIME & EVENT_TIME & EVENT_BOOL)
+        elif 'univariate' in model_name:
             df = df.iloc[:, :3]  # only pick one feature column (the first after ID & TIME)
 
-        return Data.from_dataframe(df)
+        if 'joint' in model_name:
+            print(df)
+            return Data.from_dataframe(df, data_type = 'joint')
+        else:
+            return Data.from_dataframe(df)
 
     @staticmethod
     def get_algo_settings(*, path: str = None, name: str = None, **params):

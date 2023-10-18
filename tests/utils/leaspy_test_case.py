@@ -180,7 +180,6 @@ class LeaspyTestCase(TestCase):
             df = df.iloc[:, :3]  # only pick one feature column (the first after ID & TIME)
 
         if 'joint' in model_name:
-            print(df)
             return Data.from_dataframe(df, data_type = 'joint')
         else:
             return Data.from_dataframe(df)

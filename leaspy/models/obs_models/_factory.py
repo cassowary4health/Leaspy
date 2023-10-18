@@ -79,6 +79,7 @@ def observation_model_factory(model: ObservationModelFactoryInput, **kwargs) -> 
             return FullGaussianObservationModel.with_noise_std_as_model_parameter(1)
         return OBSERVATION_MODELS[model](**kwargs)
     raise LeaspyModelInputError(
-        "The provided `model` should be a valid instance of `ObservationModel`, a string "
-        f"among {[c.value for c in ObservationModelNames]}."
+        "The provided `model` should be a valid instance of `ObservationModel`, "
+        f"or a string among {[c.value for c in ObservationModelNames]}."
+        f"Instead, {model} of type {type(model)} was provided."
     )

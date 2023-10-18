@@ -213,7 +213,7 @@ class AbstractModel(BaseModel):
             'features': self.features,
             'dimension': self.dimension,
             'obs_models': {
-                obs_model.name: obs_model.serialized()
+                obs_model.name: obs_model.to_string()
                 for obs_model in self.obs_models
             },
             # 'obs_models': export_obs_models(self.obs_models),

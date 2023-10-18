@@ -6,8 +6,8 @@
   ],
   "dimension": 1,
   "obs_models": {
-    "y": "SymbolicDistribution(parameters_names=('model', 'noise_std'), dist_family=<class 'leaspy.variables.distributions.NormalFamily'>)",
-    "event": "SymbolicDistribution(parameters_names=('nu', 'rho', 'xi', 'tau'), dist_family=<class 'leaspy.variables.distributions.WeibullRightCensoredFamily'>)"
+    "y": "gaussian-scalar",
+    "event": "weibull-right-censored"
   },
   "parameters": {
     "log_g_std": 0.009999999776482582,

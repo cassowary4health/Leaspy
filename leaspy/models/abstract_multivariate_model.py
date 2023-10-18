@@ -66,6 +66,11 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
                 [observation_model_factory(obs_model, dimension=dimension)
                  for obs_model in observation_models]
             )
+        elif isinstance(observation_models, (dict)):
+            # Not really satisfied... Used for api load
+            kwargs["obs_models"] = tuple(
+                [observation_model_factory(observation_models['y'], dimension=dimension)]
+            )
         else:
             kwargs["obs_models"] = (observation_model_factory(observation_models, dimension=dimension),)
         super().__init__(name, **kwargs)

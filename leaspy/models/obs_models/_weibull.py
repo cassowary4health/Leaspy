@@ -29,6 +29,7 @@ from leaspy.utils.functional import SumDim
 
 
 class WeibullRightCensoredObservationModel(ObservationModel):
+    string_for_json = "weibull-right-censored"
 
     def __init__(
             self,

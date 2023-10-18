@@ -183,3 +183,10 @@ class FullGaussianObservationModel(GaussianObservationModel):
         l2: WeightedTensor[float] = (model - y) ** 2
         l2_sum_per_ft, n_obs_per_ft = wsum_dim(l2, but_dim=LVL_FT)
         return (l2_sum_per_ft / n_obs_per_ft.float()) ** 0.5
+
+    def to_string(self) -> dict:
+        """method for parameter saving"""
+        if self.extra_vars['noise_std'].shape == (1,):
+            return "gaussian-scalar"
+        else:
+            return "gaussian-diagonal"

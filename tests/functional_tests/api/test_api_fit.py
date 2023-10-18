@@ -110,18 +110,15 @@ class LeaspyFitTestMixin(MatplotlibTestCase):
         ModelSettings._check_settings(old_model_dict)
 
         # Transition tests refacto/old
-        if 'nll_regul_tot' in old_model_dict['fit_metrics'].keys():
-            old_model_dict['fit_metrics']['nll_regul_ind_sum'] = old_model_dict['fit_metrics']['nll_regul_tot']
-        else:
-            old_model_dict['fit_metrics']['nll_regul_ind_sum'] = old_model_dict['fit_metrics']['nll_regul_ind_sum']
+        old_model_dict['fit_metrics']['nll_regul_ind_sum'] = old_model_dict['fit_metrics']['nll_regul_tot']
+
         for ip in ("tau", "xi", "sources", "tot"):
             old_model_dict['fit_metrics'].pop(f'nll_regul_{ip}', None)
         for p in ("tau_mean", "tau_std", "xi_std"):
             new_shape = torch.tensor(new_model_dict['parameters'][p]).shape
             old_model_dict['parameters'][p] = torch.tensor(old_model_dict['parameters'][p]).expand(new_shape).tolist()
         # Transition tests refacto/old
-        if "log_g_std" not in old_model_dict.keys():
-            for pp in ("log_g_std", "log_v0_std", "betas_std", "sources_mean", "sources_std", "xi_mean"):
+        for pp in ("log_g_std", "log_v0_std", "betas_std", "sources_mean", "sources_std", "xi_mean"):
                new_model_dict['parameters'].pop(pp, None)
 
         del new_model_dict['obs_models']
@@ -141,7 +138,8 @@ class LeaspyFitTestMixin(MatplotlibTestCase):
             model_parameters_new = json.load(f2)
 
         # TODO/WIP: on-the-fly conversion old<->new models:
-        self._tmp_convert_old_to_new(expected_model_parameters, model_parameters_new)
+        if "log_g_std" not in expected_model_parameters['parameters']:
+            self._tmp_convert_old_to_new(expected_model_parameters, model_parameters_new)
         # END WIP
 
         # Remove the temporary file saved (before asserts since they may fail!)
@@ -158,10 +156,10 @@ class LeaspyFitTestMixin(MatplotlibTestCase):
         # TODO: use `.load(expected_dict_adapted)` instead of `.load(expected_file_not_adapted)`
         #  until expected file are regenerated
         # expected_model = Leaspy.load(path_to_backup_model).model
-        expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
+        #expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
         expected_model_parameters['leaspy_version'] = model_parameters_new['leaspy_version'] = new_model_version
-        #Leaspy.load(expected_model_parameters) TODO: Load is broken
-       # Leaspy.load(model_parameters_new) TODO: Load is broken
+        Leaspy.load(expected_model_parameters)
+        Leaspy.load(model_parameters_new)
 
 
 # some noticeable reproducibility errors btw MacOS and Linux here...
@@ -296,7 +294,8 @@ class LeaspyFitTest(LeaspyFitTestMixin):
         self.generic_fit(
             "univariate_joint",
             "univariate_joint",
-            check_kws=DEFAULT_CHECK_KWS
+            check_kws=DEFAULT_CHECK_KWS,
+            check_model = True
         )
 
     @skip("Linear models are currently broken.")
@@ -320,6 +319,7 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=2,
         )
+
 
     def test_fit_logistic_binary(self):
         self.generic_fit(

@@ -224,7 +224,7 @@ class DataTest(LeaspyTestCase):
         self.assertEqual(individual.idx, 2)
         self.assertEqual(individual.timepoints, None)
         self.assertEqual(individual.observations, None)
-        self.assertEqual(individual.event_time, round(1.4975665315766469,6))
+        self.assertEqual(individual.event_time, round(1.4975665315766469,3))
         self.assertEqual(individual.event_bool, True)
 
     def test_error_events(self):

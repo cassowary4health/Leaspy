@@ -86,7 +86,7 @@ class ObservationModel:
         """To be implemented..."""
         return {}
 
-    def to_string(self) -> dict:
+    def to_string(self) -> str:
         """method for parameter saving"""
         return self.string_for_json
 

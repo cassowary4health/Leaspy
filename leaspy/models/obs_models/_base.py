@@ -52,16 +52,24 @@ class ObservationModel:
     dist: SymbolicDistribution
     extra_vars: Optional[TMapping[VarName, VariableInterface]] = None
 
+    def get_nll_attach_var_name(self, named_attach_vars: bool = True) -> str:
+        """
+        Return the name of the negative log likelihood attachement
+        variable.
+        """
+        return f"nll_attach_{self.name}" if named_attach_vars else "nll_attach"
+
     def get_variables_specs(
         self,
         named_attach_vars: bool = True,
     ) -> Dict[VarName, VariableInterface]:
         """Automatic specifications of variables for this observation model."""
         # TODO change? a bit dirty? possibility of having aliases for variables?
-        if named_attach_vars:
-            nll_attach_var = f"nll_attach_{self.name}"
-        else:
-            nll_attach_var = f"nll_attach"
+
+        nll_attach_var = self.get_nll_attach_var_name(
+            named_attach_vars
+        )
+
         return {
             self.name: DataVariable(),
             # Dependent vars

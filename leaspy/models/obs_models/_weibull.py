@@ -60,22 +60,13 @@ class WeibullRightCensoredObservationModel(ObservationModel):
         named_attach_vars: bool = True,
     ) -> Dict[VarName, VariableInterface]:
         """Automatic specifications of variables for this observation model."""
-        # TODO change? a bit dirty? possibility of having aliases for variables?
-        if named_attach_vars:
-            nll_attach_var = f"nll_attach_{self.name}"
-        else:
-            nll_attach_var = f"nll_attach"
-        return {
-            self.name: DataVariable(),
-            # Dependent vars
-            **(self.extra_vars or {}),
-            # Attachment variables
-            # not really memory efficient nor useful...
-            # f"{nll_attach_var}_full": LinkedVariable(self.dist.get_func_nll(self.name)),
-            f"{nll_attach_var}_ind": LinkedVariable(
-                # SumDim(f"{nll_attach_var}_full", but_dim=LVL_IND)
-                self.dist.get_func_nll(self.name)#.then(sum_dim, but_dim=1)
-            ),
-            nll_attach_var: LinkedVariable(SumDim(f"{nll_attach_var}_ind")),
-            # TODO jacobian of {nll_attach_var}_ind_jacobian_{self.name} wrt "y" as well? (for scipy minimize)
-        }
+
+        specs = super().get_variables_specs(named_attach_vars)
+
+        nll_attach_var = self.get_nll_attach_var_name(
+            named_attach_vars
+        )
+        specs[f"{nll_attach_var}_ind"] = LinkedVariable(
+            self.dist.get_func_nll(self.name)
+        )
+        return specs

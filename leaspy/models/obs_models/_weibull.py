@@ -69,4 +69,7 @@ class WeibullRightCensoredObservationModel(ObservationModel):
         specs[f"{nll_attach_var}_ind"] = LinkedVariable(
             self.dist.get_func_nll(self.name)
         )
+        specs[f"survival_{self.name}"] = LinkedVariable(
+            self.dist._get_func("compute_log_survival", self.name)
+        )
         return specs

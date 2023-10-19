@@ -31,6 +31,10 @@ from leaspy.utils.functional import Exp, Sqr, OrthoBasis, Sum
 from leaspy.utils.weighted_tensor import unsqueeze_right
 
 from leaspy.models.obs_models import observation_model_factory
+from leaspy.utils.typing import (
+
+    DictParams,
+)
 
 
 # TODO refact? implement a single function
@@ -227,3 +231,62 @@ class UnivariateJointModel(UnivariateModel):
         }
 
         return rounded_parameters
+
+    ##############################
+    ###      Estimation        ###
+    ##############################
+
+
+    def compute_individual_trajectory(
+        self,
+        timepoints,
+        individual_parameters: DictParams,
+        *,
+        skip_ips_checks: bool = False,
+    ) -> torch.Tensor:
+        """
+        Compute scores values at the given time-point(s) given a subject's individual parameters.
+
+        Nota: model uses its current internal state.
+
+        Parameters
+        ----------
+        timepoints : scalar or array_like[scalar] (:obj:`list`, :obj:`tuple`, :class:`numpy.ndarray`)
+            Contains the age(s) of the subject.
+        individual_parameters : :obj:`dict`
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like.
+        skip_ips_checks : :obj:`bool` (default: ``False``)
+            Flag to skip consistency/compatibility checks and tensorization
+            of ``individual_parameters`` when it was done earlier (speed-up).
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's scores computed at the given age(s)
+            Shape of tensor is ``(1, n_tpts, n_features)``.
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            If computation is tried on more than 1 individual.
+        :exc:`.LeaspyIndividualParamsInputError`
+            if invalid individual parameters.
+        """
+        self.check_individual_parameters_provided(individual_parameters.keys())
+        timepoints, individual_parameters = self._get_tensorized_inputs(
+            timepoints, individual_parameters, skip_ips_checks=skip_ips_checks
+        )
+
+        # TODO? ability to revert back after **several** assignments?
+        # instead of cloning the state for this op?
+        local_state = self.state.clone(disable_auto_fork=True)
+
+        self._put_data_timepoints(local_state, timepoints)
+        local_state.put('event', (timepoints, torch.zeros(timepoints.shape).bool()))
+
+        for ip, ip_v in individual_parameters.items():
+            local_state[ip] = ip_v
+            
+        return torch.cat((local_state["model"],
+                   torch.exp(local_state["survival_event"]).reshape(-1,1).expand((1,-1,-1))),2)

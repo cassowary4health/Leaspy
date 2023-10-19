@@ -237,3 +237,20 @@ class LeaspyEstimateTest(LeaspyEstimateTestMixin):
             'idx2': [[0.03098414]]
         }
         self.batch_checks(individual_parameters, timepoints, models, expected_ests)
+
+    def test_estimate_joint_univariate(self):
+            individual_parameters = self.get_hardcoded_individual_params('ip_univariate_save.json')
+            timepoints = {
+                'idx1': [78, 81],
+                'idx2': [71]
+            }
+            # first batch of tests same logistic model but with / without diag noise (no impact in estimation!)
+            models = ('univariate_joint',)
+            expected_ests = {
+                'idx1': [
+                    [0.989, 0.9945],
+                     [0.998, 0.9542]
+                ],
+                'idx2': [[0.1993, 1.    ]]
+            }
+            self.batch_checks(individual_parameters, timepoints, models, expected_ests)

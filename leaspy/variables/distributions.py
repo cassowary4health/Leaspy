@@ -476,52 +476,73 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
         """
         return cls.dist_weibull(nu * torch.exp(-xi), rho).stddev
 
-    @staticmethod
+    @classmethod
+    def _extract_reparametrised_parameters(
+            cls,
+            x: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
+            tau: torch.Tensor,
+    ) -> tuple(torch.Tensor):
+        # Get inputs
+        event_time, event_bool = x
+        xi_format = xi[:, 0]
+        tau_format = tau[:, 0]
+
+        # Construct reparametrized variables
+        event_rep_time = cls._get_reparametrized_event(event_time, tau_format)
+        nu_rep = cls._get_reparametrized_nu(xi_format, nu)
+        return (event_rep_time, event_bool, nu_rep)
+
+    @classmethod
     def compute_hazard(
-        event_time: torch.Tensor,
-        event_bool: torch.Tensor,
-        nu: torch.Tensor,
-        rho: torch.Tensor,
+            cls,
+            x: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
+            tau: torch.Tensor,
     ) -> torch.Tensor:
+
+        event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau)
         # Hazard neg log-likelihood only for patient with event not censored
-        hazard = (rho / nu) * ((event_time / nu) ** (rho - 1.)) * event_bool
+        hazard = (rho / nu_rep) * ((event_rep_time / nu_rep) ** (rho - 1.)) * event_bool
         hazard = torch.where(hazard == 0, torch.tensor(1., dtype=torch.double), hazard)
         return hazard
 
-    @staticmethod
+    @classmethod
     def compute_log_survival(
-        event_time: torch.Tensor,
-        nu: torch.Tensor,
-        rho: torch.Tensor,
+            cls,
+            x: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
+            tau: torch.Tensor,
     ) -> torch.Tensor:
-        return -(event_time / nu) ** rho
+
+        event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x,nu,rho,xi,tau)
+
+        return -(event_rep_time / nu_rep) ** rho
 
     @staticmethod
-    def get_reparametrized_event(
+    def _get_reparametrized_event(
         event_time: torch.Tensor,
         tau: torch.Tensor,
     ) -> torch.Tensor:
         return torch.clamp(event_time - tau, min=0.)
 
     @staticmethod
-    def get_reparametrized_nu(xi: torch.Tensor, nu: torch.Tensor) -> torch.Tensor:
+    def _get_reparametrized_nu(xi: torch.Tensor, nu: torch.Tensor) -> torch.Tensor:
         return torch.exp(-xi) * nu
 
     @classmethod
     def _nll(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
              tau: torch.Tensor) -> torch.Tensor[float]:
-        # Get inputs
-        event_time, event_bool = x
-        xi_format = xi[:,0]
-        tau_format = tau[:, 0]
-
-        # Construct reparametrized variables
-        event_rep_time = cls.get_reparametrized_event(event_time, tau_format)
-        nu_rep =  cls.get_reparametrized_nu(xi_format, nu)
 
         # Survival neg log-likelihood
-        log_survival = cls.compute_log_survival(event_rep_time, nu_rep, rho)
-        hazard = cls.compute_hazard(event_rep_time, event_bool, nu_rep, rho)
+        log_survival = cls.compute_log_survival(x,nu,rho,xi,tau)
+        hazard = cls.compute_hazard(x,nu,rho,xi,tau)
         attachment_events = - (log_survival + torch.log(hazard))
 
         return attachment_events
@@ -545,16 +566,13 @@ class WeibullRightCensoredFamily(StatelessDistributionFamily):
     def _nll_jacobian(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
                       tau: torch.Tensor, *params: torch.Tensor) -> torch.Tensor:
         # Get inputs
-        event_time, event_bool = x
         xi_format = xi[:, 0]
-        tau_format = tau[:, 0]
-
-        # Construct reparametrized variables
-        event_rep_time = cls.get_reparametrized_event(event_time, tau_format)
-        nu_rep = cls.get_reparametrized_nu(xi_format, nu)
+        event_rep_time, event_bool, nu_rep = self._extract_reparametrised_parameters(x,nu,rho,xi,tau)
 
         # Survival
-        log_survival = cls.compute_log_survival(event_rep_time, nu_rep, rho)
+        log_survival = cls.compute_log_survival(x, nu, rho, xi, tau)
+
+        # Gradients
         grad_xi = rho * log_survival - event_bool * rho
         grad_tau = (rho / nu_rep * torch.exp(xi_format)) * ((event_rep_time / nu_rep) ** (rho - 1.)) + event_bool * (
             rho - 1) / event_rep_time

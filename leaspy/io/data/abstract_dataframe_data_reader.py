@@ -17,7 +17,7 @@ class AbstractDataframeDataReader:
     ------
     :exc:`.LeaspyDataInputError`
     """
-    time_rounding_digits = 3
+    time_rounding_digits = 6
 
     def __init__(self):
 

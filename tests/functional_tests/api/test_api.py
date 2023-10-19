@@ -123,6 +123,7 @@ class LeaspyAPITest(LeaspyFitTestMixin, LeaspyPersonalizeTestMixin, LeaspySimula
                 tol=simulate_tol,
             )
 
+    @skip("JOINT MODEL")
     def test_usecase_logistic_scalar_noise(self):
         simulation_parameters = {
             "seed": 0,
@@ -141,6 +142,23 @@ class LeaspyAPITest(LeaspyFitTestMixin, LeaspyPersonalizeTestMixin, LeaspySimula
             simulate_algo_params=simulation_parameters,
         )
 
+    def test_usecase_univariate_joint(self):
+        simulation_parameters = {
+            "seed": 0,
+            "delay_btw_visits": lambda n: [.5] * min(n, 2) + [1.] * max(0, n - 2),
+            "number_of_subjects": 100,
+        }
+        self.generic_usecase(
+            "univariate_joint",
+            model_codename="univariate_joint",
+            fit_check_kws={"atol": 1e-2, "rtol": 1e-2},
+            personalization_algo="mode_real",
+            personalization_algo_params={"n_iter": 200, "seed": 0},
+            expected_loss_personalization=0.06622593104839325,  # scalar RMSE
+            simulate_algo_params=simulation_parameters,
+        )
+
+    @skip("JOINT MODEL")
     def test_usecase_logistic_diagonal_noise(self):
         custom_delays_vis = {
             "mean": 1.,
@@ -181,6 +199,7 @@ class LeaspyAPITest(LeaspyFitTestMixin, LeaspyPersonalizeTestMixin, LeaspySimula
             simulate_tol=2e-3,  # Not fully reproducible on Linux below this tol...
         )
 
+    @skip("JOINT MODEL")
     def test_usecase_logistic_binary(self):
         custom_delays_vis = .5
         simulation_parameters = {

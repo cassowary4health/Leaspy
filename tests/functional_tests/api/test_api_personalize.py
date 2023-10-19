@@ -1051,7 +1051,7 @@ class LeaspyPersonalizeWithNansTest(LeaspyPersonalizeTestMixin):
                     for p in lsp.model.dag.sorted_variables_by_type[IndividualLatentVariable]
                 }
                 self.assertDictAlmostEqual(dict_1, {
-                    'tau': [[lsp.model.parameters['tau_mean']]],
+                    'tau': [lsp.model.parameters['tau_mean']],
                     'xi': [[0.]],
                     'sources': [lsp.model.source_dimension*[0.]],
                 }, allclose_custom=allclose_custom, msg=subtest)

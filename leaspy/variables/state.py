@@ -81,8 +81,10 @@ class State(MutableMapping):
         self, dag: VariablesDAG, *, auto_fork_type: Optional[StateForkType] = None
     ):
         self.dag = dag
-        self._tracked_variables: Set[str, ...] = set()
         self.auto_fork_type = auto_fork_type
+        self._tracked_variables: Set[str, ...] = set()
+        self._values: VariablesLazyValuesRW = {}
+        self._last_fork: Optional[VariablesLazyValuesRO] = None
         self.clear()
 
     @property
@@ -107,16 +109,17 @@ class State(MutableMapping):
 
     def clear(self) -> None:
         """Reset last forked state and reset all values to their canonical values."""
-        self._values: VariablesLazyValuesRW = {
+        self._values = {
             n: var.value if isinstance(var, Hyperparameter) else None
             for n, var in self.dag.items()
         }
-        self._last_fork: Optional[VariablesLazyValuesRO] = None
+        self._last_fork = None
 
     def clone(self, *, disable_auto_fork: bool = False, keep_last_fork: bool = False) -> State:
         """Clone current state (no copy of DAG)."""
         cloned = State(self.dag, auto_fork_type=None if disable_auto_fork else self.auto_fork_type)
         cloned._values = copy.deepcopy(self._values)
+        cloned._tracked_variables = self._tracked_variables
         if keep_last_fork:
             cloned._last_fork = copy.deepcopy(self._last_fork)
         return cloned
@@ -155,8 +158,7 @@ class State(MutableMapping):
         assuming node exists and all its ancestors have cached values.
         """
         if not force_computation:
-            val = self._values[k]
-            if val is not None:
+            if (val := self._values[k]) is not None:
                 return val
 
         val = self.dag[k].compute(self._values)
@@ -172,13 +174,27 @@ class State(MutableMapping):
         Retrieve cached variable value or compute it and cache it
         (as well as all intermediate computations that were needed).
         """
-        self._check_key_exists(k)
-        val = self._values[k]
-        if val is not None:
+        if (val := self._get_value_from_cache(k)) is not None:
             return val
         for a in self.dag.sorted_ancestors[k]:
             self._get_or_compute_and_cache(a, why=f" to get '{k}'")
         return self._get_or_compute_and_cache(k, force_computation=True)
+
+    def __contains__(self, k: VarName) -> bool:
+        return k in self.dag
+
+    def _get_value_from_cache(self, k: VarName) -> Optional[VarValue]:
+        """Get the value for variable named k from the cache. Raise if not in DAG."""
+        self._check_key_exists(k)
+        return self._values[k]
+
+    def is_variable_set(self, k: VarName) -> bool:
+        """Returns True if the variable is in the DAG and if its value is not None."""
+        return self._get_value_from_cache(k) is not None
+
+    def are_variables_set(self, variable_names: Iterable[VarName]) -> bool:
+        """Returns True if all the variables are in the DAG with values different from None."""
+        return all(self.is_variable_set(k) for k in variable_names)
 
     def __setitem__(self, k: VarName, v: Optional[VarValue]) -> None:
         """Smart and protected assignment of a variable value."""

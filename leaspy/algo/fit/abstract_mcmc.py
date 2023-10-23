@@ -56,7 +56,7 @@ class AbstractFitMCMC(AlgoWithAnnealingMixin, AlgoWithSamplersMixin, AbstractFit
         state = super()._initialize_algo(model, dataset)
 
         # Initialize individual latent variables (population ones should be initialized before)
-        if not state.is_variable_set('xi') or not state.is_variable_set('tau'):
+        if not state.are_variables_set(('xi','tau')):
             with state.auto_fork(None):
                 state.put_individual_latent_variables(LatentVariableInitType.PRIOR_SAMPLES, n_individuals=dataset.n_individuals)
 

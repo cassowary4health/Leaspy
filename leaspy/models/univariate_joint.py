@@ -287,6 +287,7 @@ class UnivariateJointModel(UnivariateModel):
 
         for ip, ip_v in individual_parameters.items():
             local_state[ip] = ip_v
-            
+        # reshape survival_event from (len(timepoints)) to (1, len(timepoints), 1) so it is compatible with the
+        # model shape 
         return torch.cat((local_state["model"],
                    torch.exp(local_state["survival_event"]).reshape(-1,1).expand((1,-1,-1))),2)

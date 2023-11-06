@@ -123,7 +123,6 @@ class LeaspyAPITest(LeaspyFitTestMixin, LeaspyPersonalizeTestMixin, LeaspySimula
                 tol=simulate_tol,
             )
 
-    @skip("JOINT MODEL")
     def test_usecase_logistic_scalar_noise(self):
         simulation_parameters = {
             "seed": 0,
@@ -158,7 +157,6 @@ class LeaspyAPITest(LeaspyFitTestMixin, LeaspyPersonalizeTestMixin, LeaspySimula
             simulate_algo_params=simulation_parameters,
         )
 
-    @skip("JOINT MODEL")
     def test_usecase_logistic_diagonal_noise(self):
         custom_delays_vis = {
             "mean": 1.,
@@ -199,7 +197,6 @@ class LeaspyAPITest(LeaspyFitTestMixin, LeaspyPersonalizeTestMixin, LeaspySimula
             simulate_tol=2e-3,  # Not fully reproducible on Linux below this tol...
         )
 
-    @skip("JOINT MODEL")
     def test_usecase_logistic_binary(self):
         custom_delays_vis = .5
         simulation_parameters = {

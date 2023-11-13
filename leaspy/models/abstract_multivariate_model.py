@@ -111,15 +111,6 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             alpha=LinkedVariable(Exp("xi")),
             # rt=LinkedVariable(self.time_reparametrization),  # in super class...
         )
-        if len(self.obs_models) == 1:
-            d.update(
-                nll_attach_xi_ind=LinkedVariable(Sum("nll_attach_ind")),
-                nll_attach_tau_ind=LinkedVariable(Sum("nll_attach_ind")),
-            )
-            if self.source_dimension >= 1:
-                d.update(
-                    nll_attach_sources_ind=LinkedVariable(Sum("nll_attach_ind")),
-                )
 
         if self.source_dimension >= 1:
             d.update(

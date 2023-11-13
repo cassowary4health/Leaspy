@@ -119,8 +119,6 @@ class UnivariateJointModel(UnivariateModel):
         )
 
         d.update(
-            nll_attach_xi_ind=LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
-            nll_attach_tau_ind=LinkedVariable(Sum("nll_attach_y_ind")),
             nll_attach=LinkedVariable(Sum("nll_attach_y", "nll_attach_event")),
             nll_attach_ind = LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
         )

@@ -156,7 +156,8 @@ class LeaspyFitTestMixin(MatplotlibTestCase):
         # TODO: use `.load(expected_dict_adapted)` instead of `.load(expected_file_not_adapted)`
         #  until expected file are regenerated
         # expected_model = Leaspy.load(path_to_backup_model).model
-        #expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
+        expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = {
+                obs_model.name: obs_model.to_string() for obs_model in leaspy.model.obs_models } # WIP: not properly serialized for now
         expected_model_parameters['leaspy_version'] = model_parameters_new['leaspy_version'] = new_model_version
         Leaspy.load(expected_model_parameters)
         Leaspy.load(model_parameters_new)

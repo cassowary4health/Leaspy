@@ -608,6 +608,12 @@ class WeibullRightCensoredFamily(AbstractWeibullRightCensoredFamily):
                                *params:torch.Tensor, ) -> torch.Tensor:
         return torch.exp(-xi) * nu
 
+class WeibullRightCensoredWithSourcesFamily(StatelessDistributionFamily):
+    parameters: ClassVar = ("nu", "rho", "zeta", 'xi', 'tau', 'sources')
+
+    @staticmethod
+    def get_reparametrized_nu(nu, rho, xi, zeta, sources):
+        return nu * torch.exp(-xi + (1/rho)*(zeta*sources))
 
 @dataclass(frozen=True)
 class SymbolicDistribution:

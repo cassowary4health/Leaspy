@@ -209,15 +209,15 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
         loss = -1.
 
         # WIP: cf. interrogation about internal state in model or not...
-        #model_state = state.clone()
+        model_state = state.clone()
         # TODO? Should those cleaning steps be performed here, or in the model.state setter instead?
-        #with model_state.auto_fork(None):
-        #    model.reset_data_variables(model_state)
+        with model_state.auto_fork(None):
+            #model.reset_data_variables(model_state)
             # <!> At the end of the MCMC, population and individual latent variables may have diverged from final model parameters
             # Thus we reset population latent variables to their mode, and we remove individual latent variables
-        #    model_state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
-        #    model_state.put_individual_latent_variables(None)
-        #model.state = model_state
+            model_state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
+            #model_state.put_individual_latent_variables(None)
+        model.state = model_state
 
         return loss
 

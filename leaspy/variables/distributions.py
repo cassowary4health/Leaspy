@@ -509,9 +509,9 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
     ) -> torch.Tensor:
         event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau)
         # Hazard neg log-likelihood only for patient with event not censored
-        hazard = torch.where((event_bool * event_rep_time) > 0,
+        hazard = torch.where((event_bool * event_rep_time) >= 0,
                              (rho / nu_rep) * ((event_rep_time / nu_rep) ** (rho - 1.)),
-                             (event_bool * event_rep_time) * 1000)
+                             -float('inf'))
         log_hazard = torch.where(hazard > 0, torch.log(hazard), hazard)
         return log_hazard
 

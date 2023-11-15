@@ -79,6 +79,8 @@ class UnivariateJointModel(UnivariateModel):
         variables_to_track = (
             "n_log_nu_mean",
             "log_rho_mean",
+            "nll_attach_y",
+            "nll_attach_event",
         )
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
 

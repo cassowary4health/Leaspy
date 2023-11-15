@@ -3,6 +3,7 @@ from lifelines import WeibullFitter
 
 from leaspy.models.univariate import UnivariateModel
 from leaspy.io.data.dataset import Dataset
+from leaspy.exceptions import LeaspyModelInputError
 
 from leaspy.utils.docs import doc_with_super  # doc_with_
 # from leaspy.utils.subtypes import suffixed_method
@@ -35,7 +36,6 @@ from leaspy.utils.typing import (
 
     DictParams,
 )
-
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either
@@ -70,7 +70,12 @@ class UnivariateJointModel(UnivariateModel):
 
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
-        self.obs_models += (observation_model_factory('weibull-right-censored', nu = 'nu', rho = 'rho', xi = 'xi', tau = 'tau'),)
+        obs_models_to_string = [o.to_string() for o in self.obs_models]
+        if "gaussian-scalar" not in obs_models_to_string:
+            self.obs_models += (observation_model_factory("gaussian-scalar", dimension = 1),)
+        if "weibull-right-censored" not in obs_models_to_string:
+            self.obs_models += (observation_model_factory("weibull-right-censored", nu = 'nu', rho = 'rho', xi = 'xi', tau = 'tau'),)
+
         variables_to_track = (
             "n_log_nu_mean",
             "log_rho_mean",

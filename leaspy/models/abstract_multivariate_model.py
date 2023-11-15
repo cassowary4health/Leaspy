@@ -63,7 +63,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             observation_models = "gaussian-scalar" if dimension is None else "gaussian-diagonal"
         if isinstance(observation_models, (list, tuple)):
             kwargs["obs_models"] = tuple(
-                [observation_model_factory(obs_model, dimension=dimension)
+                [observation_model_factory(obs_model, **kwargs)
                  for obs_model in observation_models]
             )
         elif isinstance(observation_models, (dict)):

@@ -80,6 +80,8 @@ def observation_model_factory(model: ObservationModelFactoryInput, **kwargs) -> 
             return FullGaussianObservationModel.with_noise_std_as_model_parameter(dimension)
         if model == ObservationModelNames.GAUSSIAN_SCALAR:
             return FullGaussianObservationModel.with_noise_std_as_model_parameter(1)
+        if model == ObservationModelNames.WEIBULL_RIGHT_CENSORED:
+            return WeibullRightCensoredObservationModel.default_init(kwargs = kwargs)
         return OBSERVATION_MODELS[model](**kwargs)
     raise LeaspyModelInputError(
         "The provided `model` should be a valid instance of `ObservationModel`, "

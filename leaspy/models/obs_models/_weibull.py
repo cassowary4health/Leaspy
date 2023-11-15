@@ -73,3 +73,10 @@ class WeibullRightCensoredObservationModel(ObservationModel):
             self.dist._get_func("compute_log_survival", self.name)
         )
         return specs
+
+    @classmethod
+    def default_init(self, **kwargs):
+        return self(nu = kwargs.pop("nu", "nu"),
+                    rho = kwargs.pop("rho", "rho"),
+                    xi = kwargs.pop("xi", "xi"),
+                    tau = kwargs.pop("tau", "tau"))

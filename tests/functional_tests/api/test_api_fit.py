@@ -137,7 +137,9 @@ class LeaspyFitTestMixin(MatplotlibTestCase):
         with open(path_to_tmp_saved_model, 'r') as f2:
             model_parameters_new = json.load(f2)
 
-        # TODO/WIP: on-the-fly conversion old<->new models:
+        # TODO/WIP: on-the-fly conversion old<->new models.
+        # This condition is a way to check if the model loaded is in the old or new version as the parameter
+        # "log_g_std" is available in all the different models but only in the new version
         if "log_g_std" not in expected_model_parameters['parameters']:
             self._tmp_convert_old_to_new(expected_model_parameters, model_parameters_new)
         # END WIP

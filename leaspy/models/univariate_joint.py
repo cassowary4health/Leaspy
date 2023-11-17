@@ -36,7 +36,7 @@ from leaspy.utils.typing import (
 
     DictParams,
 )
-
+import pandas as pd
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either
 # model values or model values + jacobians wrt individual parameters
@@ -236,6 +236,33 @@ class UnivariateJointModel(UnivariateModel):
         }
 
         return rounded_parameters
+
+    def _estimate_initial_individual_parameters(self, dataset: Dataset):
+        df = dataset.to_pandas()
+        df_ind = df.reset_index().groupby('ID').min()["TIME"].to_frame(name = 'tau')
+        df_ind['tau'] = min(df_ind['tau'], df.reset_index().groupby('ID').first()["EVENT_TIME"]-0.3)
+        df_ind['xi'] = 0.
+        return df_ind
+
+    def initialize_individual_parameters(self, state, dataset):
+
+        df = dataset.to_pandas().reset_index('TIME').groupby('ID').min()
+
+        # Initialise individual parameters if they are not already initialised
+        if not state.are_variables_set(('xi', 'tau')):
+            df_ind = df["TIME"].to_frame(name='tau')
+            df_ind['xi'] = 0.
+        else:
+            df_ind = pd.DataFrame(torch.concat([state['xi'], state['tau']], axis=1),
+                columns=['xi', 'tau'], index=df.index)
+
+        # Set the right initialisation point fpr barrier methods
+        df_inter = pd.concat([df["EVENT_TIME"] - 0.3, df_ind['tau']], axis=1)
+        df_ind['tau'] = df_inter.min(axis=1)
+
+        with state.auto_fork(None):
+            state.put_individual_latent_variables(df = df_ind)
+        return state
 
     ##############################
     ###      Estimation        ###

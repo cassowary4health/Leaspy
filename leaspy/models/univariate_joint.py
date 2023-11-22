@@ -14,7 +14,6 @@ from leaspy.models.utils.initialization.model_initialization import (
     compute_patient_values_distribution,
     compute_patient_time_distribution,
     get_log_velocities,
-    compute_linregress_subjects,
     _torch_round)
 
 from leaspy.variables.state import State
@@ -197,14 +196,7 @@ class UnivariateJointModel(UnivariateModel):
         values = values.clamp(min=1e-2, max=1 - 1e-2)  # always "works" for ordinal (values >= 1)
 
         # Extract lopes and convert into parameters
-        d_regress_params = compute_linregress_subjects(df)
-        slopes_mu, slopes_sigma = [], []
-
-        for ft, df_regress_ft in d_regress_params.items():
-            slopes_mu.append(df_regress_ft['slope'].mean())
-            slopes_sigma.append(df_regress_ft['slope'].std())
-
-        slopes, _ = torch.tensor(slopes_mu), torch.tensor(slopes_sigma)
+        slopes, _ = compute_patient_slopes_distribution(df)
         v0_array = get_log_velocities(slopes, self.features)
         g_array = torch.log(
             1. / values - 1.)  # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
@@ -245,6 +237,13 @@ class UnivariateJointModel(UnivariateModel):
 
         return rounded_parameters
 
+    def _estimate_initial_individual_parameters(self, dataset: Dataset):
+        df = dataset.to_pandas()
+        df_ind = df.reset_index().groupby('ID').min()["TIME"].to_frame(name = 'tau')
+        df_ind['tau'] = min(df_ind['tau'], df.reset_index().groupby('ID').first()["EVENT_TIME"]-0.3)
+        df_ind['xi'] = 0.
+        return df_ind
+
     def initialize_individual_parameters(self, state, dataset):
 
         df = dataset.to_pandas().reset_index('TIME').groupby('ID').min()
@@ -252,9 +251,7 @@ class UnivariateJointModel(UnivariateModel):
         # Initialise individual parameters if they are not already initialised
         if not state.are_variables_set(('xi', 'tau')):
             df_ind = df["TIME"].to_frame(name='tau')
-            d_regress_params = compute_linregress_subjects(df)
-            df_ind['xi'] =np.log(min(d_regress_params['slopes'], 0.01)) - np.log(min(d_regress_params['slopes'].mean(),
-                                                                                     0.01))
+            df_ind['xi'] = 0.
         else:
             df_ind = pd.DataFrame(torch.concat([state['xi'], state['tau']], axis=1),
                 columns=['xi', 'tau'], index=df.index)

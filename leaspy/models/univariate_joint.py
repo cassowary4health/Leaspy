@@ -163,7 +163,7 @@ class UnivariateJointModel(UnivariateModel):
         mean_xi = torch.mean(state['xi'])
         state["xi"] = state["xi"] - mean_xi
         state["log_v0"] = state["log_v0"] + mean_xi
-        state["n_log_nu"] = state["n_log_nu"] + mean_xi
+        state["n_log_nu"] = state["n_log_nu"] - mean_xi
 
         # TODO: find a way to prevent re-computation of orthonormal basis since it should not have changed (v0_collinear update)
         #self.update_MCMC_toolbox({'v0_collinear'}, realizations)

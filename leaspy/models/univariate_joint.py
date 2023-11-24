@@ -77,6 +77,8 @@ class UnivariateJointModel(UnivariateModel):
             self.obs_models += (observation_model_factory("weibull-right-censored", nu = 'nu', rho = 'rho', xi = 'xi', tau = 'tau'),)
 
         variables_to_track = (
+            "xi",
+            "tau",
             "n_log_nu_mean",
             "log_rho_mean",
             "nll_attach_y",

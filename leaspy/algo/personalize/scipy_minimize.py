@@ -45,7 +45,7 @@ class _AffineScaling:
     def from_latent_variable(cls, var: LatentVariable, state: State) -> _AffineScaling:
         """Natural scaling for latent variable: (mode, stddev)."""
         return cls(
-            var.prior.mode.call(state),
+            torch.tensor([0.]), #var.prior.mode.call(state),
             var.prior.stddev.call(state),
         )
 

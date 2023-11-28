@@ -45,10 +45,17 @@ class _AffineScaling:
     def from_latent_variable(cls, var: LatentVariable, state: State) -> _AffineScaling:
         """Natural scaling for latent variable: (mode, stddev)."""
         return cls(
-            torch.tensor([0.]), #var.prior.mode.call(state),
+            var.prior.mode.call(state),
             var.prior.stddev.call(state),
         )
 
+    @classmethod
+    def from_latent_variable_with_mean(cls, loc: torch.Tensor, var: LatentVariable, state: State) -> _AffineScaling:
+        """Scaling with specific mode (mode, stddev)."""
+        return cls(
+            loc,
+            var.prior.stddev.call(state),
+        )
 
 @dataclass
 class _AffineScalings1D:
@@ -102,6 +109,21 @@ class _AffineScalings1D:
             for var_name, var in state.dag.sorted_variables_by_type[var_type].items()
         })
 
+    @classmethod
+    def from_individual(cls, state: State, dataset: Dataset, var_type: Type[LatentVariable]) -> _AffineScalings1D:
+        """
+        Get the affine scalings of latent variables so their gradients have the same
+        order of magnitude during optimization, using patient information.
+        """
+        dict_return = {}
+        for var_name, var in state.dag.sorted_variables_by_type[var_type].items():
+            if var_name == 'tau':
+                assert dataset.timepoints.shape[0] == 1
+                loc = torch.tensor([dataset.timepoints[0, 0]])
+                dict_return[var_name] = _AffineScaling.from_latent_variable_with_mean(loc, var, state)
+            else:
+                dict_return[var_name] = _AffineScaling.from_latent_variable(var, state)
+        return cls(dict_return)
 
 class ScipyMinimize(AbstractPersonalizeAlgo):
     """
@@ -469,13 +491,13 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
 
         # Fetch model internal state (latent pop. vars should be OK)
         state = model.state
-        # Fixed scalings for individual parameters
-        ips_scalings = _AffineScalings1D.from_state(state, var_type=IndividualLatentVariable)
-
+        
         # Clone model states (1 per individual with the appropriate dataset loaded into each of them)
         states = {}
+        ips_scalings = {}
         for idx in dataset.indices:
             states[idx] = state.clone(disable_auto_fork=True)
+            ips_scalings[idx] = _AffineScalings1D.from_individual(state, datasets[idx], var_type=IndividualLatentVariable)
             model.put_data_variables(states[idx], datasets[idx])
 
         if self.algo_parameters.get('progress_bar', True):
@@ -498,7 +520,7 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         ind_p_all = Parallel(n_jobs=self.algo_parameters['n_jobs'])(
             delayed(self._get_individual_parameters_patient_master)(
                 state_pat,
-                scaling=ips_scalings,
+                scaling=ips_scalings[id_pat],
                 progress=(it_pat, dataset.n_individuals),
                 with_jac=with_jac,
                 patient_id=id_pat,

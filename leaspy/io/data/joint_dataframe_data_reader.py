@@ -28,6 +28,8 @@ class JointDataframeDataReader(AbstractDataframeDataReader):
     :exc:`.LeaspyDataInputError`
     """
 
+    tol_diff = 0.001
+
     def __init__(self, *,
                  event_time_name: str = 'EVENT_TIME',
                  event_bool_name: str = 'EVENT_BOOL'):
@@ -139,7 +141,7 @@ class JointDataframeDataReader(AbstractDataframeDataReader):
 
         # Additional crossed check
         df_test = df.reset_index().groupby('ID').max()
-        if not (df_test[self.event_time_name] >= df_test['TIME']).all():
+        if not (df_test[self.event_time_name]- df_test['TIME'] >= -self.tol_diff).all():
             raise LeaspyDataInputError('Event should happen after or at the last visit')
 
         return df

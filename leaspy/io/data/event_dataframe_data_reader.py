@@ -105,7 +105,7 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
         if not (df_event[self.event_time_name] > 0).all():
             raise LeaspyDataInputError("Events must be above 0")
         df_event[self.event_bool_name]= df_event[self.event_bool_name].replace({0: False, 1: True})
-        if not (df_event[self.event_bool_name].isin([False, True])).all():
+        if df_event[self.event_bool_name].dtype != 'bool':
             raise LeaspyDataInputError("event bool should be boolean or 0 or 1")
 
         # Assert one unique event per patient and group to drop duplicates

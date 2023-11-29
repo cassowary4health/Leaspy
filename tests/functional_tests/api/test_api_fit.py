@@ -109,15 +109,17 @@ class LeaspyFitTestMixin(MatplotlibTestCase):
         from leaspy.io.settings.model_settings import ModelSettings
         ModelSettings._check_settings(old_model_dict)
 
+        # Transition tests refacto/old
         old_model_dict['fit_metrics']['nll_regul_ind_sum'] = old_model_dict['fit_metrics']['nll_regul_tot']
+
         for ip in ("tau", "xi", "sources", "tot"):
             old_model_dict['fit_metrics'].pop(f'nll_regul_{ip}', None)
         for p in ("tau_mean", "tau_std", "xi_std"):
             new_shape = torch.tensor(new_model_dict['parameters'][p]).shape
             old_model_dict['parameters'][p] = torch.tensor(old_model_dict['parameters'][p]).expand(new_shape).tolist()
-
+        # Transition tests refacto/old
         for pp in ("log_g_std", "log_v0_std", "betas_std", "sources_mean", "sources_std", "xi_mean"):
-            new_model_dict['parameters'].pop(pp, None)
+               new_model_dict['parameters'].pop(pp, None)
 
         del new_model_dict['obs_models']
         del old_model_dict['obs_models']
@@ -135,8 +137,11 @@ class LeaspyFitTestMixin(MatplotlibTestCase):
         with open(path_to_tmp_saved_model, 'r') as f2:
             model_parameters_new = json.load(f2)
 
-        # TODO/WIP: on-the-fly conversion old<->new models:
-        self._tmp_convert_old_to_new(expected_model_parameters, model_parameters_new)
+        # TODO/WIP: on-the-fly conversion old<->new models.
+        # This condition is a way to check if the model loaded is in the old or new version as the parameter
+        # "log_g_std" is available in all the different models but only in the new version
+        if "log_g_std" not in expected_model_parameters['parameters']:
+            self._tmp_convert_old_to_new(expected_model_parameters, model_parameters_new)
         # END WIP
 
         # Remove the temporary file saved (before asserts since they may fail!)
@@ -153,7 +158,8 @@ class LeaspyFitTestMixin(MatplotlibTestCase):
         # TODO: use `.load(expected_dict_adapted)` instead of `.load(expected_file_not_adapted)`
         #  until expected file are regenerated
         # expected_model = Leaspy.load(path_to_backup_model).model
-        expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = leaspy.model.obs_models  # WIP: not properly serialized for now
+        expected_model_parameters['obs_models'] = model_parameters_new['obs_models'] = {
+                obs_model.name: obs_model.to_string() for obs_model in leaspy.model.obs_models } # WIP: not properly serialized for now
         expected_model_parameters['leaspy_version'] = model_parameters_new['leaspy_version'] = new_model_version
         Leaspy.load(expected_model_parameters)
         Leaspy.load(model_parameters_new)
@@ -185,6 +191,7 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             check_kws=DEFAULT_CHECK_KWS,
         )
 
+
     def test_fit_logistic_diagonal_noise(self):
         """Test MCMC-SAEM (1 noise per feature)."""
         # TODO: dimension should not be needed at this point...
@@ -195,6 +202,7 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             source_dimension=2,
             check_kws=DEFAULT_CHECK_KWS,
         )
+
 
     def test_fit_logistic_diagonal_noise_fast_gibbs(self):
         # TODO: dimension should not be needed at this point...
@@ -207,6 +215,7 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             check_kws=DEFAULT_CHECK_KWS,
         )
 
+
     def test_fit_logistic_diagonal_noise_mh(self):
         # TODO: dimension should not be needed at this point...
         self.generic_fit(
@@ -217,6 +226,7 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             algo_params={"n_iter": 100, "seed": 0, "sampler_pop": "Metropolis-Hastings"},
             check_kws=DEFAULT_CHECK_KWS,
         )
+
 
     def test_fit_logistic_diagonal_noise_with_custom_tuning_no_sources(self):
         # TODO: dimension should not be needed at this point...
@@ -275,11 +285,20 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             source_dimension=0,
         )
 
+
     def test_fit_univariate_logistic(self):
         self.generic_fit(
             "univariate_logistic",
             "univariate_logistic",
             check_kws=DEFAULT_CHECK_KWS,
+        )
+
+    def test_fit_univariate_joint(self):
+        self.generic_fit(
+            "univariate_joint",
+            "univariate_joint",
+            check_kws=DEFAULT_CHECK_KWS,
+            check_model = True
         )
 
     @skip("Linear models are currently broken.")
@@ -303,6 +322,7 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             obs_models=observation_model_factory("gaussian-diagonal", dimension=4),
             source_dimension=2,
         )
+
 
     def test_fit_logistic_binary(self):
         self.generic_fit(

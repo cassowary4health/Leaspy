@@ -213,7 +213,7 @@ class AbstractModel(BaseModel):
             'features': self.features,
             'dimension': self.dimension,
             'obs_models': {
-                obs_model.name: obs_model.serialized()
+                obs_model.name: obs_model.to_string()
                 for obs_model in self.obs_models
             },
             # 'obs_models': export_obs_models(self.obs_models),
@@ -891,16 +891,16 @@ class AbstractModel(BaseModel):
         for obs_model in self.obs_models:
             d.update(obs_model.get_variables_specs(named_attach_vars=not single_obs_model))
 
-        if not single_obs_model:
-            raise NotImplementedError(
-                "WIP: Only 1 noise model supported for now, but to be extended."
-            )
-            d.update(
-                #nll_attach_full=LinkedVariable(Sum(...)),
-                nll_attach_ind=LinkedVariable(Sum(...)),
-                nll_attach=LinkedVariable(Sum(...)),
-                # TODO Same for nll_attach_ind jacobian, w.r.t each observation var???
-            )
+        #if not single_obs_model:
+        #    raise NotImplementedError(
+        #        "WIP: Only 1 noise model supported for now, but to be extended."
+        #    )
+        #    d.update(
+        #        #nll_attach_full=LinkedVariable(Sum(...)),
+        #        nll_attach_ind=LinkedVariable(Sum(...)),
+        #        nll_attach=LinkedVariable(Sum(...)),
+        #        # TODO Same for nll_attach_ind jacobian, w.r.t each observation var???
+        #    )
 
         return d
 
@@ -984,7 +984,7 @@ class AbstractModel(BaseModel):
         """Initialize model parameters (in-place, in `_state`)."""
         d = self.get_initial_model_parameters(dataset, method=method)
         model_params = self.dag.sorted_variables_by_type[ModelParameter]
-        assert d.keys() == set(model_params), (d.keys(), set(model_params))
+        assert set(d.keys()) == set(model_params)
         for mp, var in model_params.items():
             val = d[mp]
             if not isinstance(val, (torch.Tensor, WeightedTensor)):

@@ -21,6 +21,7 @@ from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import (
     Exp,
     MatMul,
+    Sum
 )
 
 from leaspy.utils.typing import KwargsType
@@ -62,8 +63,13 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
             observation_models = "gaussian-scalar" if dimension is None else "gaussian-diagonal"
         if isinstance(observation_models, (list, tuple)):
             kwargs["obs_models"] = tuple(
-                [observation_model_factory(obs_model, dimension=dimension)
+                [observation_model_factory(obs_model, **kwargs)
                  for obs_model in observation_models]
+            )
+        elif isinstance(observation_models, (dict)):
+            # Not really satisfied... Used for api load
+            kwargs["obs_models"] = tuple(
+                [observation_model_factory(observation_models['y'], dimension=dimension)]
             )
         else:
             kwargs["obs_models"] = (observation_model_factory(observation_models, dimension=dimension),)

@@ -355,6 +355,9 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
             [0.0671, 0.0553, 0.1040, 0.1509],
         )
 
+    ################################################################
+    # Univariate logistic
+
     def test_univariate_logistic_scipy_minimize(self):
         self._personalize_generic(
             "univariate_logistic",
@@ -385,6 +388,45 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
             "mean_real",
             0.1351,
         )
+
+    ################################################################
+    # Univariate joint
+
+    def test_univariate_joint_scipy_minimize(self):
+        self._personalize_generic(
+            "univariate_joint",
+            "scipy_minimize",
+            0.30333825945854187,
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_univariate_joint_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "univariate_joint",
+            "scipy_minimize",
+            0.1341,
+            {"use_jacobian": True},
+        )
+
+
+    def test_univariate_joint_mode_real(self):
+        self._personalize_generic(
+            "univariate_joint",
+            "mode_real",
+            0.27811428904533386,
+        )
+
+
+    def test_univariate_joint_mean_real(self):
+        self._personalize_generic(
+            "univariate_joint",
+            "mean_real",
+            0.2970614433288574,
+        )
+
+    ################################################################
+    # Univariate linear
 
     @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
     def test_univariate_linear_scipy_minimize(self):
@@ -1009,7 +1051,7 @@ class LeaspyPersonalizeWithNansTest(LeaspyPersonalizeTestMixin):
                     for p in lsp.model.dag.sorted_variables_by_type[IndividualLatentVariable]
                 }
                 self.assertDictAlmostEqual(dict_1, {
-                    'tau': [[lsp.model.parameters['tau_mean']]],
+                    'tau': [lsp.model.parameters['tau_mean']],
                     'xi': [[0.]],
                     'sources': [lsp.model.source_dimension*[0.]],
                 }, allclose_custom=allclose_custom, msg=subtest)

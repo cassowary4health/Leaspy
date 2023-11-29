@@ -104,7 +104,7 @@ class Data(Iterable):
                                           "a list of this type")
 
             individuals = [self.individuals[i] for i in individual_indices]
-            return Data.from_individuals(individuals, self.headers)
+            return Data.from_individuals(individuals, self.headers, self.event_time_name, self.event_bool_name)
 
         raise LeaspyTypeError("Cannot access a Data object this way")
 
@@ -376,7 +376,7 @@ class Data(Iterable):
                 indiv.add_event(event_time[i], event_bool[i])
             individuals.append(indiv)
 
-        return Data.from_individuals(individuals, headers)
+        return Data.from_individuals(individuals, headers, event_time_name, event_bool_name)
 
     @staticmethod
     def from_individuals(individuals: List[IndividualData], headers: Optional[List[FeatureType]] = None, event_time_name: Optional[str] = None,
@@ -403,8 +403,8 @@ class Data(Iterable):
             n_features = len(headers)
 
         if event_time_name and event_bool_name:
-            self.event_time_name = event_time_name
-            self.event_bool_name = event_bool_name
+            data.event_time_name = event_time_name
+            data.event_bool_name = event_bool_name
 
         for indiv in individuals:
             idx = indiv.idx

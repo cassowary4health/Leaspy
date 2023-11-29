@@ -138,8 +138,8 @@ class AbstractMCMCPersonalizeAlgo(AlgoWithAnnealingMixin, AlgoWithSamplersMixin,
                 if not self._is_burn_in():
                     for ip in ind_vars_names:
                         realizations_history[ip].append(state[ip])
-                    attachment_history.append(state["nll_attach_ind"])
-                    regularity_history.append(state["nll_regul_ind_sum_ind"])
+                    attachment_history.append(state.get_tensor_value("nll_attach_ind"))
+                    regularity_history.append(state.get_tensor_value("nll_regul_ind_sum_ind"))
 
                 # Annealing
                 self._update_temperature()

@@ -166,7 +166,7 @@ class Dataset:
 
     def _construct_events(self, data: Data):
         self.event_time = torch.tensor([_.event_time for _ in data], dtype=torch.double)
-        self.event_bool = torch.tensor([_.event_bool for _ in data], dtype=torch.bool)
+        self.event_bool = torch.tensor([bool(_.event_bool) for _ in data], dtype=torch.bool)
 
     def _compute_L2_norm(self):
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values,
@@ -203,7 +203,7 @@ class Dataset:
         :class:`torch.Tensor`, shape (n_obs_of_patient,)
             Contains float
         """
-        if self.event_time and self.event_bool:
+        if self.event_time != None and self.event_bool != None:
             return self.event_time[idx_patient], self.event_bool[idx_patient]
         raise ValueError("Dataset has no event. Please verify your data.")
 
@@ -255,12 +255,15 @@ class Dataset:
         :class:`pandas.DataFrame`
         """
         type_to_concat = []
-        if self.event_time:
+        if self.event_time != None:
             to_concat = []
             for i, idx in enumerate(self.indices):
                 pat_event_time, pat_event_bool = self.get_event_patient(i)
-                to_concat.append(pd.DataFrame(data=[[pat_event_time.numpy(), pat_event_bool.numpy()]],
-                                              index=[idx], columns=[self.event_time_name, self.event_bool_name]))
+                df_event = pd.DataFrame(data=[[pat_event_time.cpu().numpy(), pat_event_bool.cpu().numpy()]],
+                                              index=[idx], columns=[self.event_time_name, self.event_bool_name])
+                df_event[self.event_time_name] = df_event[self.event_time_name].astype(float)
+                df_event[self.event_bool_name] = df_event[self.event_bool_name].astype(bool)
+                to_concat.append(df_event)
             df_event = pd.concat(to_concat, names=['ID'])
             df_event.index.name = "ID"
             type_to_concat.append(df_event)

@@ -455,7 +455,13 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         import pandas as pd
         assert pd.api.types.is_string_dtype(df.index.dtypes["ID"]), "Individuals ID should be strings"
 
-        data = Data.from_dataframe(df, drop_full_nan=False, warn_empty_column=False)
+        data = Data.from_dataframe(
+            df,
+            drop_full_nan=False,
+            warn_empty_column=False,
+            data_type="joint" if "joint" in model.name else "visit",
+        )
+
         datasets = {
             idx: Dataset(data[[idx]], no_warning=True)
             for idx in dataset.indices

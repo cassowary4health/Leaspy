@@ -1,0 +1,47 @@
+{
+  "leaspy_version": "2.0.0-dev",
+  "name": "univariate_joint",
+  "features": [
+    "Y0"
+  ],
+  "dimension": 1,
+  "obs_models": {
+    "y": "gaussian-scalar",
+    "event": "weibull-right-censored"
+  },
+  "parameters": {
+    "log_g_std": 0.009999999776482582,
+    "log_rho_std": 0.009999999776482582,
+    "log_v0_std": 0.009999999776482582,
+    "n_log_nu_std": 0.009999999776482582,
+    "xi_mean": 0.0,
+    "log_g_mean": [
+      0.11592314392328262
+    ],
+    "log_rho_mean": [
+      2.2958390712738037
+    ],
+    "log_v0_mean": [
+      -1.984712839126587
+    ],
+    "n_log_nu_mean": [
+      -2.6873233318328857
+    ],
+    "noise_std": 0.27066153287887573,
+    "tau_mean": [
+      77.55196380615234
+    ],
+    "tau_std": [
+      4.905155181884766
+    ],
+    "xi_std": [
+      1.777756929397583
+    ]
+  },
+  "fit_metrics": {
+    "nll_attach": 32.6984646581179,
+    "nll_regul_ind_sum": 85.09535217285156,
+    "nll_tot": 117.7938177726546
+  },
+  "source_dimension": 0
+}

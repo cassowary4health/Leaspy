@@ -508,9 +508,6 @@ class MultivariateModel(AbstractMultivariateModel):
         """
         d = super().get_variables_specs()
 
-        if self._subtype_suffix != "_logistic":
-            raise NotImplementedError("WIP: Only implemented for logistic models.")
-
         d.update(
             # PRIORS
             log_v0_mean=ModelParameter.for_pop_mean(

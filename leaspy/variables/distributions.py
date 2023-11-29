@@ -58,9 +58,9 @@ class StatelessDistributionFamily(ABC):
     @classmethod
     @abstractmethod
     def sample(
-        cls,
-        *params: torch.Tensor,
-        sample_shape: Tuple[int, ...] = (),
+            cls,
+            *params: torch.Tensor,
+            sample_shape: Tuple[int, ...] = (),
     ) -> torch.Tensor:
         """
         Sample values, given distribution parameters (`sample_shape` is
@@ -97,9 +97,9 @@ class StatelessDistributionFamily(ABC):
 
     @classmethod
     def _nll_and_jacobian(
-        cls,
-        x: torch.Tensor,
-        *params: torch.Tensor,
+            cls,
+            x: torch.Tensor,
+            *params: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Negative log-likelihood of value and its jacobian w.r.t. value, given distribution parameters."""
         # not efficient implementation by default
@@ -109,9 +109,9 @@ class StatelessDistributionFamily(ABC):
 
     @staticmethod
     def _get_func_result_for_tensor_or_weighted_tensor(
-        func: Callable,
-        x: TensorOrWeightedTensor[float],
-        *params: TensorOrWeightedTensor[float],
+            func: Callable,
+            x: TensorOrWeightedTensor[float],
+            *params: TensorOrWeightedTensor[float],
     ) -> Any:
         """Automatic compatibility layer for value `x` being a regular or a weighted tensor."""
         StatelessDistributionFamily._check_weighted_tensors_have_same_weights(*(x, *params))
@@ -148,27 +148,27 @@ class StatelessDistributionFamily(ABC):
 
     @classmethod
     def nll(
-        cls,
-        x: TensorOrWeightedTensor[float],
-        *params: TensorOrWeightedTensor[float],
+            cls,
+            x: TensorOrWeightedTensor[float],
+            *params: TensorOrWeightedTensor[float],
     ) -> WeightedTensor[float]:
         """Negative log-likelihood of value, given distribution parameters."""
         return cls._get_func_result_for_tensor_or_weighted_tensor(cls._nll, x, *params)
 
     @classmethod
     def nll_jacobian(
-        cls,
-        x: TensorOrWeightedTensor[float],
-        *params: TensorOrWeightedTensor[float],
+            cls,
+            x: TensorOrWeightedTensor[float],
+            *params: TensorOrWeightedTensor[float],
     ) -> WeightedTensor[float]:
         """Jacobian w.r.t. value of negative log-likelihood, given distribution parameters."""
         return cls._get_func_result_for_tensor_or_weighted_tensor(cls._nll_jacobian, x, *params)
 
     @classmethod
     def nll_and_jacobian(
-        cls,
-        x: TensorOrWeightedTensor[float],
-        *params: TensorOrWeightedTensor[float],
+            cls,
+            x: TensorOrWeightedTensor[float],
+            *params: TensorOrWeightedTensor[float],
     ) -> Tuple[WeightedTensor[float], WeightedTensor[float]]:
         """Negative log-likelihood of value and its jacobian w.r.t. value, given distribution parameters."""
         return cls._get_func_result_for_tensor_or_weighted_tensor(cls._nll_and_jacobian, x, *params)
@@ -200,9 +200,9 @@ class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFami
 
     @classmethod
     def sample(
-        cls,
-        *params: torch.Tensor,
-        sample_shape: Tuple[int, ...] = (),
+            cls,
+            *params: torch.Tensor,
+            sample_shape: Tuple[int, ...] = (),
     ) -> torch.Tensor:
         return cls.dist_factory(*params).sample(sample_shape)
 
@@ -264,9 +264,9 @@ class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFami
 
     @classmethod
     def _nll_and_jacobian(
-        cls,
-        x: torch.Tensor,
-        *params: torch.Tensor,
+            cls,
+            x: torch.Tensor,
+            *params: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         nll = cls._nll(x, *params)
         (nll_grad_value,) = grad(nll, (x,), create_graph=x.requires_grad)
@@ -275,6 +275,7 @@ class StatelessDistributionFamilyFromTorchDistribution(StatelessDistributionFami
     @classmethod
     def _nll_jacobian(cls, x: torch.Tensor, *params: torch.Tensor) -> torch.Tensor:
         return cls._nll_and_jacobian(x, *params)[1]
+
 
 class BernoulliFamily(StatelessDistributionFamilyFromTorchDistribution):
     """Bernoulli family (stateless)."""
@@ -362,9 +363,9 @@ class NormalFamily(StatelessDistributionFamilyFromTorchDistribution):
     def _nll(cls, x: torch.Tensor, loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
         # Hardcode method for efficiency
         return (
-            0.5 * ((x - loc) / scale) ** 2
-            + torch.log(scale)
-            + cls.nll_constant_standard
+                0.5 * ((x - loc) / scale) ** 2
+                + torch.log(scale)
+                + cls.nll_constant_standard
         )
 
     @classmethod
@@ -374,19 +375,237 @@ class NormalFamily(StatelessDistributionFamilyFromTorchDistribution):
 
     @classmethod
     def _nll_and_jacobian(
-        cls,
-        x: torch.Tensor,
-        loc: torch.Tensor,
-        scale: torch.Tensor,
+            cls,
+            x: torch.Tensor,
+            loc: torch.Tensor,
+            scale: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Hardcode method for efficiency
         z = (x - loc) / scale
-        nll = 0.5 * z**2 + torch.log(scale) + cls.nll_constant_standard
+        nll = 0.5 * z ** 2 + torch.log(scale) + cls.nll_constant_standard
         return nll, z / scale
 
     # @classmethod
     # def sample(cls, loc, scale, *, sample_shape = ()):
     #    # Hardcode method for efficiency? (<!> broadcasting)
+
+
+class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
+    dist_weibull: ClassVar = torch.distributions.weibull.Weibull
+
+    @classmethod
+    def validate_parameters(cls, *params: Any) -> Tuple[torch.Tensor, ...]:
+        """
+        Validate consistency of distribution parameters,
+        returning them with out-of-place modifications if needed.
+
+        Parameters
+        ----------
+        params : Any
+            The parameters to pass to the distribution factory.
+
+        Returns
+        -------
+        Tuple[torch.Tensor, ...] :
+            The validated parameters.
+        """
+        raise NotImplementedError("Validate parameters not implemented")
+
+    @classmethod
+    def sample(
+            cls,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
+            tau: torch.Tensor,
+            *params: torch.Tensor,
+            sample_shape: Tuple[int, ...] = (),
+    ) -> torch.Tensor:
+        return cls.dist_weibull(nu * torch.exp(-xi), rho).sample(sample_shape) + tau
+
+    @classmethod
+    def mode(cls, *params: torch.Tensor) -> torch.Tensor:
+        """
+        Mode of distribution (returning first value if discrete ties),
+        given distribution parameters.
+
+        Parameters
+        ----------
+        params : torch.Tensor
+            The distribution parameters.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's mode.
+        """
+        raise NotImplementedError("Mode not implemented")
+
+    @classmethod
+    def mean(cls, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
+             tau: torch.Tensor, *params: torch.Tensor) -> torch.Tensor:
+        """
+        Mean of distribution (if defined), given distribution parameters.
+
+        Parameters
+        ----------
+        params : torch.Tensor
+            The distribution parameters.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's mean.
+        """
+        return cls.dist_weibull(cls._get_reparametrized_nu(xi, nu), rho).mean + tau
+
+    @classmethod
+    def stddev(cls, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
+               tau: torch.Tensor, *params: torch.Tensor) -> torch.Tensor:
+        """
+        Return the standard-deviation of the distribution, given distribution parameters.
+
+        Parameters
+        ----------
+        params : torch.Tensor
+            The distribution parameters.
+
+        Returns
+        -------
+        torch.Tensor :
+            The value of the distribution's standard deviation.
+        """
+        return cls.dist_weibull(cls._get_reparametrized_nu(nu,rho,xi,tau), rho).stddev
+
+    @classmethod
+    def _extract_reparametrised_parameters(
+            cls,
+            x: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
+            tau: torch.Tensor,
+            *params: torch.Tensor,
+    ) -> tuple(torch.Tensor):
+        # Get inputs
+        event_time, event_bool = x
+        xi_format = xi[:, 0]
+        tau_format = tau[:, 0]
+
+        # Construct reparametrized variables
+        event_rep_time = cls._get_reparametrized_event(event_time, tau_format)
+        nu_rep = cls._get_reparametrized_nu(nu,rho,xi_format,tau_format)
+        return (event_rep_time, event_bool, nu_rep)
+
+    @classmethod
+    def compute_log_likelihood_hazard(
+            cls,
+            x: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
+            tau: torch.Tensor,
+            *params: torch.Tensor,
+    ) -> torch.Tensor:
+        event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau)
+        # Hazard neg log-likelihood only for patient with event not censored
+        hazard = torch.where((event_bool * event_rep_time) > 0,
+                             (rho / nu_rep) * ((event_rep_time / nu_rep) ** (rho - 1.)),
+                             (event_bool * event_rep_time) * 1000)
+        log_hazard = torch.where(hazard > 0, torch.log(hazard), hazard)
+        return log_hazard
+
+    @classmethod
+    def compute_log_survival(
+            cls,
+            x: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
+            tau: torch.Tensor,
+            *params: torch.Tensor,
+    ) -> torch.Tensor:
+        event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau)
+        return -(torch.clamp(event_rep_time, min=0.) / nu_rep) ** rho
+
+    @staticmethod
+    def _get_reparametrized_event(
+            event_time: torch.Tensor,
+            tau: torch.Tensor,
+    ) -> torch.Tensor:
+        return event_time - tau
+
+    @staticmethod
+    @abstractmethod
+    def _get_reparametrized_nu(nu: torch.Tensor,
+                               rho: torch.Tensor,
+                               xi: torch.Tensor,
+                               tau: torch.Tensor,
+                               *params: torch.Tensor, ) -> torch.Tensor:
+        """reparametrization of nu using individual parameter xi"""
+
+    @classmethod
+    def _nll(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
+             tau: torch.Tensor, *params: torch.Tensor, ) -> torch.Tensor[float]:
+        # Survival neg log-likelihood
+        log_survival = cls.compute_log_survival(x, nu, rho, xi, tau)
+        log_hazard = cls.compute_log_likelihood_hazard(x, nu, rho, xi, tau)
+        attachment_events = - (log_survival + log_hazard)
+
+        return attachment_events
+
+    @classmethod
+    def _nll_and_jacobian(
+            cls,
+            x: torch.Tensor,
+            nu: torch.Tensor,
+            rho: torch.Tensor,
+            xi: torch.Tensor,
+            tau: torch.Tensor,
+            *params: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        nll = cls._nll(x, nu, rho)
+        nll_grad_value = cls._nll_jacobian(x, nu, rho)
+
+        return nll, nll_grad_value
+
+    @classmethod
+    def _nll_jacobian(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
+                      tau: torch.Tensor, *params: torch.Tensor) -> torch.Tensor:
+        pass  # WIP
+        # Get inputs
+        xi_format = xi[:, 0]
+        event_rep_time, event_bool, nu_rep = self._extract_reparametrised_parameters(x, nu, rho, xi, tau)
+
+        # Survival
+        log_survival = cls.compute_log_survival(x, nu, rho, xi, tau)
+
+        # Gradients
+        grad_xi = rho * log_survival - event_bool * rho
+        grad_tau = (rho / nu_rep * torch.exp(xi_format)) * ((event_rep_time / nu_rep) ** (rho - 1.)) + event_bool * (
+                rho - 1) / event_rep_time
+
+        # Normalise as compute on normalised variables
+        to_cat = [
+            grad_xi,
+            grad_tau,
+        ]
+
+        grads = torch.cat(to_cat, dim=-1).squeeze(0)
+
+        return grads
+
+
+class WeibullRightCensoredFamily(AbstractWeibullRightCensoredFamily):
+    parameters: ClassVar = ("nu", "rho", 'xi', 'tau')
+
+    @staticmethod
+    def _get_reparametrized_nu(nu: torch.Tensor,
+                               rho: torch.Tensor,
+                               xi: torch.Tensor,
+                               tau: torch.Tensor,
+                               *params:torch.Tensor, ) -> torch.Tensor:
+        return torch.exp(-xi) * nu
 
 
 @dataclass(frozen=True)
@@ -432,7 +651,7 @@ class SymbolicDistribution:
         )
 
     def get_func_sample(
-        self, sample_shape: Tuple[int, ...] = ()
+            self, sample_shape: Tuple[int, ...] = ()
     ) -> NamedInputFunction[torch.Tensor]:
         """
         Factory of symbolic sampling function.
@@ -451,7 +670,7 @@ class SymbolicDistribution:
         return self._get_func("sample", sample_shape=sample_shape)
 
     def get_func_nll(
-        self, value_name: str
+            self, value_name: str
     ) -> NamedInputFunction[WeightedTensor[float]]:
         """
         Factory of symbolic function: state -> negative log-likelihood of value.
@@ -468,7 +687,7 @@ class SymbolicDistribution:
         return self._get_func("nll", value_name)
 
     def get_func_nll_jacobian(
-        self, value_name: str
+            self, value_name: str
     ) -> NamedInputFunction[WeightedTensor[float]]:
         """
         Factory of symbolic function: state -> jacobian w.r.t. value of negative log-likelihood.
@@ -485,7 +704,7 @@ class SymbolicDistribution:
         return self._get_func("nll_jacobian", value_name)
 
     def get_func_nll_and_jacobian(
-        self, value_name: str
+            self, value_name: str
     ) -> NamedInputFunction[Tuple[WeightedTensor[float], WeightedTensor[float]]]:
         """
         Factory of symbolic function: state -> (negative log-likelihood, its jacobian w.r.t. value).
@@ -503,8 +722,8 @@ class SymbolicDistribution:
 
     @classmethod
     def bound_to(
-        cls,
-        dist_family: Type[StatelessDistributionFamily],
+            cls,
+            dist_family: Type[StatelessDistributionFamily],
     ) -> Callable[..., SymbolicDistribution]:
         """
         Return a factory to create `SymbolicDistribution` bound to the provided distribution family.
@@ -554,7 +773,7 @@ class SymbolicDistribution:
 Normal = SymbolicDistribution.bound_to(NormalFamily)
 Bernoulli = SymbolicDistribution.bound_to(BernoulliFamily)
 Ordinal = SymbolicDistribution.bound_to(OrdinalFamily)
-
+WeibullRightCensored = SymbolicDistribution.bound_to(WeibullRightCensoredFamily)
 
 # INLINE UNIT TESTS
 if __name__ == "__main__":

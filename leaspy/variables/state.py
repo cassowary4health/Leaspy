@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from enum import Enum, auto
 import copy
 import csv
+import pandas as pd
 from pathlib import Path
 import torch
 
@@ -334,7 +335,10 @@ class State(MutableMapping):
         """
         for k, v in self._values.items():
             if v is not None:
-                self._values[k] = v.to(device=device)
+                if type(v) == tuple:
+                    self._values[k] = (_.to(device=device) for _ in v)
+                else:
+                    self._values[k] = v.to(device=device)
         if self._last_fork is not None:
             for k, v in self._last_fork.items():
                 if v is not None:
@@ -351,11 +355,13 @@ class State(MutableMapping):
                 self[pp] = var.get_init_func(method).call(self)
 
     def put_individual_latent_variables(
-        self,
-        method: Optional[LatentVariableInitType],
-        *,
-        n_individuals: Optional[int] = None,
+            self,
+            method: Optional[LatentVariableInitType] = None,
+            *,
+            n_individuals: Optional[int] = None,
+            df: Optional[pd.DataFrame] = None,
     ) -> None:
+
         """Put some predefined values in state for all individual latent variables (in-place)."""
         if method is not None and n_individuals is None:
             raise LeaspyInputError("`n_individuals` should not be None when `method` is not None.")
@@ -368,13 +374,17 @@ class State(MutableMapping):
             vars_order = ['tau', 'xi', 'sources']
         # END TMP
 
-        #for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
-        for ip in vars_order:
-            var: IndividualLatentVariable = self.dag[ip]  # for type-hint only
-            if method is None:
-                self[ip] = None
-            else:
-                self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
+        if df is not None:
+            for ip in vars_order:
+                self[ip] = torch.tensor(df[[ip]].values)
+        else:
+            # for ip, var in self.dag.sorted_variables_by_type[IndividualLatentVariable].items():
+            for ip in vars_order:
+                var: IndividualLatentVariable = self.dag[ip]  # for type-hint only
+                if method is None:
+                    self[ip] = None
+                else:
+                    self[ip] = var.get_init_func(method, n_individuals=n_individuals).call(self)
 
     def save(self, output_folder: str, iteration: Optional[int] = None) -> None:
         """Save the tracked variable values of the state.
@@ -412,3 +422,11 @@ class State(MutableMapping):
                     f"Unable to get the value of variable {variable_name} as a list of floats. "
                     f"The value in the state for this variable is : {value}."
                 )
+
+    def get_tensor_value(self, variable_name: str) -> torch.Tensor:
+        if isinstance(self[variable_name], WeightedTensor):
+            return self[variable_name].weighted_value
+        return self[variable_name]
+
+    def get_tensor_values(self, variable_names: Iterable[str]) -> Tuple[torch.Tensor, ...]:
+        return tuple(self.get_tensor_value(name) for name in variable_names)

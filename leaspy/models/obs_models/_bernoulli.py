@@ -9,6 +9,7 @@ from ._base import ObservationModel
 
 
 class BernoulliObservationModel(ObservationModel):
+    string_for_json = 'bernoulli'
 
     def __init__(
         self,

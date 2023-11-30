@@ -168,7 +168,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         return d
 
     def _get_dataframe_from_dataset(self, dataset: Dataset) -> pd.DataFrame:
-        df = dataset.to_pandas().dropna(how='all').sort_index()
+        df = dataset.to_pandas().dropna(how='all').sort_index()[dataset.headers]
         if not df.index.is_unique:
             raise LeaspyInputError("Index of DataFrame is not unique.")
         assert df.index.to_frame().notnull().all(axis=None)

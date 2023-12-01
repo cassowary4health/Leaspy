@@ -142,7 +142,12 @@ class JointDataframeDataReader(AbstractDataframeDataReader):
         # Additional crossed check
         df_test = df.reset_index().groupby('ID').max()
         if not (df_test[self.event_time_name]- df_test['TIME'] >= -self.tol_diff).all():
-            raise LeaspyDataInputError('Event should happen after or at the last visit')
+            df_before = df_test[~(df_test[self.event_time_name]- df_test['TIME'] >= -self.tol_diff)]
+            if (df_before[self.event_bool_name] == False).all():
+                warnings.warn('You are in a prediction set-up')
+            else:
+                display(df_before)
+                raise LeaspyDataInputError('Event should happen after or at the last visit')
 
         return df
 

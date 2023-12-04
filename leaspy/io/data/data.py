@@ -420,7 +420,7 @@ class Data(Iterable):
         return data
 
 
-    def extract_longitudinal_only(self):
+    def extract_longitudinal_only(self) -> Data:
 
         if not self.headers:
             raise("You can't extract longitudinal data from data that have none")

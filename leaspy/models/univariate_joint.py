@@ -67,7 +67,7 @@ class UnivariateJointModel(UnivariateModel):
     SUBTYPES_SUFFIXES = {
         'univariate_joint': '_joint',
     }
-
+    init_tolerance = 0.3
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
         obs_models_to_string = [o.to_string() for o in self.obs_models]
@@ -250,7 +250,7 @@ class UnivariateJointModel(UnivariateModel):
                 columns=['xi', 'tau'], index=df.index)
 
         # Set the right initialisation point fpr barrier methods
-        df_inter = pd.concat([df["EVENT_TIME"] - 0.3, df_ind['tau']], axis=1)
+        df_inter = pd.concat([df["EVENT_TIME"] - self.init_tolerance, df_ind['tau']], axis=1)
         df_ind['tau'] = df_inter.min(axis=1)
 
         with state.auto_fork(None):

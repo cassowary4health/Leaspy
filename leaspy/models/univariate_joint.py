@@ -237,13 +237,6 @@ class UnivariateJointModel(UnivariateModel):
 
         return rounded_parameters
 
-    def _estimate_initial_individual_parameters(self, dataset: Dataset):
-        df = dataset.to_pandas()
-        df_ind = df.reset_index().groupby('ID').min()["TIME"].to_frame(name = 'tau')
-        df_ind['tau'] = min(df_ind['tau'], df.reset_index().groupby('ID').first()["EVENT_TIME"]-0.3)
-        df_ind['xi'] = 0.
-        return df_ind
-
     def initialize_individual_parameters(self, state, dataset):
 
         df = dataset.to_pandas().reset_index('TIME').groupby('ID').min()

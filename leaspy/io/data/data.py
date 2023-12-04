@@ -423,7 +423,7 @@ class Data(Iterable):
     def extract_longitudinal_only(self) -> Data:
 
         if not self.headers:
-            raise("You can't extract longitudinal data from data that have none")
+            raise LeaspyDataInputError("You can't extract longitudinal data from data that have none")
 
         individuals = []
         for id, individual_data in self.individuals.items():

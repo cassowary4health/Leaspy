@@ -991,6 +991,8 @@ class AbstractModel(BaseModel):
         """Initialize model parameters (in-place, in `_state`)."""
         d = self.get_initial_model_parameters(dataset, method=method)
         model_params = self.dag.sorted_variables_by_type[ModelParameter]
+        print(set(d.keys()))
+        print(set(model_params))
         assert set(d.keys()) == set(model_params)
         for mp, var in model_params.items():
             val = d[mp]

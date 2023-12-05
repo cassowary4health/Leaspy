@@ -8,6 +8,7 @@ from .multivariate import MultivariateModel
 from .multivariate_parallel import MultivariateParallelModel
 from .univariate import UnivariateModel
 from .univariate_joint import UnivariateJointModel
+from .joint import JointModel
 
 
 # flexible dictionary to have a simpler and more maintainable ModelFactory
@@ -19,6 +20,7 @@ ALL_MODELS = {
     # multivariate Leaspy models
     'logistic': MultivariateModel,
     'univariate_joint':UnivariateJointModel,
+    'multivariate_joint': JointModel,
     # 'linear': MultivariateModel,
     # 'mixed_linear-logistic': MultivariateModel,
     # 'logistic_parallel': MultivariateParallelModel,

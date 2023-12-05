@@ -217,7 +217,7 @@ class AbstractFitAlgo(AlgoWithDeviceMixin, AbstractAlgo):
             # Thus we reset population latent variables to their mode, and we remove individual latent variables
             model_state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
             #model_state.put_individual_latent_variables(None)
-        model.state = model_state
+        #model.state = model_state
 
         return loss
 

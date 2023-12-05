@@ -400,6 +400,7 @@ class State(MutableMapping):
         """
         output_folder = Path(output_folder)
         for variable in self._tracked_variables:
+            print(variable)
             value = self._get_value_as_list_of_floats(variable)
             if iteration != None:
                 value.insert(0, iteration)

@@ -1,8 +1,9 @@
 import torch
 from lifelines import WeibullFitter
 
-from leaspy.models.univariate import UnivariateModel
+from leaspy.models.univariate import MultivariateModel
 from leaspy.io.data.dataset import Dataset
+from leaspy.exceptions import LeaspyModelInputError
 
 from leaspy.utils.docs import doc_with_super  # doc_with_
 # from leaspy.utils.subtypes import suffixed_method
@@ -31,8 +32,11 @@ from leaspy.utils.functional import Exp, Sqr, OrthoBasis, Sum
 from leaspy.utils.weighted_tensor import unsqueeze_right
 
 from leaspy.models.obs_models import observation_model_factory
+from leaspy.utils.typing import (
 
-
+    DictParams,
+)
+import pandas as pd
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either
 # model values or model values + jacobians wrt individual parameters
@@ -63,18 +67,21 @@ class JointModel(MultivariateModel):
     SUBTYPES_SUFFIXES = {
         'multivariate_joint': '_joint',
     }
-
+    init_tolerance = 0.3
     def __init__(self, name: str, **kwargs):
-
-        # Two observation models must be given one for each process
-        observation_models = kwargs.get("obs_models", None)
-        assert(isinstance(observation_models, (list, tuple)))
         super().__init__(name, **kwargs)
+        obs_models_to_string = [o.to_string() for o in self.obs_models]
+        # TODO: can be gaussian diagonal noise also here
+        #if "gaussian-scalar" not in obs_models_to_string:
+        #    self.obs_models += (observation_model_factory("gaussian-scalar", dimension = 1),)
+        if "weibull-right-censored" not in obs_models_to_string:
+            self.obs_models += (observation_model_factory("weibull-right-censored", nu = 'nu', rho = 'rho', xi = 'xi', tau = 'tau'),)
 
-        # TODO: find a way so that it depend on the obs model
         variables_to_track = (
             "n_log_nu_mean",
             "log_rho_mean",
+            "nll_attach_y",
+            "nll_attach_event",
         )
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
 
@@ -95,13 +102,13 @@ class JointModel(MultivariateModel):
             # PRIORS
             n_log_nu_mean=ModelParameter.for_pop_mean(
                 "n_log_nu",
-                shape=(self.dimension,),
+                shape=(1,),
             ),
             n_log_nu_std=Hyperparameter(0.01),
 
             log_rho_mean=ModelParameter.for_pop_mean(
                 "log_rho",
-                shape=(self.dimension,),
+                shape=(1,),
             ),
             log_rho_std=Hyperparameter(0.01),
 
@@ -120,10 +127,9 @@ class JointModel(MultivariateModel):
         )
 
         d.update(
-            nll_attach_xi_ind=LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
             nll_attach=LinkedVariable(Sum("nll_attach_y", "nll_attach_event")),
+            nll_attach_ind = LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
         )
-        # TODO: if weibull-multivariate add zetas
 
         return d
 
@@ -168,7 +174,6 @@ class JointModel(MultivariateModel):
     ##############################
 
     def _estimate_initial_longitudinal_parameters(self, dataset: Dataset) -> VariablesValuesRO:
-        # TODO: it should be inside of the multivariate model
 
         # Hardcoded
         XI_STD = .5
@@ -181,7 +186,7 @@ class JointModel(MultivariateModel):
         # Make basic data checks
         assert df.index.is_unique
         assert df.index.to_frame().notnull().all(axis=None)
-        if self.features != df.columns:
+        if (self.features != df.columns).all():
             raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {df.columns}")
 
         # Get mean time
@@ -197,6 +202,7 @@ class JointModel(MultivariateModel):
         g_array = torch.log(
             1. / values - 1.)  # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
 
+
         # Create smart initialization dictionary
         parameters = {
                 'log_g_mean': g_array.squeeze(),
@@ -206,10 +212,12 @@ class JointModel(MultivariateModel):
                 'xi_std': torch.tensor(XI_STD),
             'noise_std' : torch.tensor(NOISE_STD)
             }
+
+        if self.source_dimension >= 1:
+            parameters["betas_mean"] = torch.zeros((self.dimension - 1, self.source_dimension))
         return parameters
 
     def _estimate_initial_event_parameters(self, dataset: Dataset) -> VariablesValuesRO:
-        # TODO: it should depend on the obs model => zeta
         wbf = WeibullFitter().fit(dataset.event_time,
                                   dataset.event_bool)
         parameters = {
@@ -233,3 +241,89 @@ class JointModel(MultivariateModel):
         }
 
         return rounded_parameters
+
+    def initialize_individual_parameters(self, state, dataset):
+
+        df = dataset.to_pandas().reset_index('TIME').groupby('ID').min()
+
+        # Initialise individual parameters if they are not already initialised
+        if not state.are_variables_set(('xi', 'tau')):
+            df_ind = df["TIME"].to_frame(name='tau')
+            df_ind['xi'] = 0.
+        else:
+            df_ind = pd.DataFrame(torch.concat([state['xi'], state['tau']], axis=1),
+                columns=['xi', 'tau'], index=df.index)
+
+        # Set the right initialisation point fpr barrier methods
+        df_inter = pd.concat([df["EVENT_TIME"] - self.init_tolerance, df_ind['tau']], axis=1)
+        df_ind['tau'] = df_inter.min(axis=1)
+
+        if self.source_dimension == 1:
+            df_ind[f'sources'] = 0
+        elif self.source_dimension > 1:
+            for i in range(self.source_dimension):
+                df_ind[f'sources_{i}'] = 0.
+
+        with state.auto_fork(None):
+            state.put_individual_latent_variables(df = df_ind)
+        return state
+
+    ##############################
+    ###      Estimation        ###
+    ##############################
+
+
+    def compute_individual_trajectory(
+        self,
+        timepoints,
+        individual_parameters: DictParams,
+        *,
+        skip_ips_checks: bool = False,
+    ) -> torch.Tensor:
+        """
+        Compute scores values at the given time-point(s) given a subject's individual parameters.
+
+        Nota: model uses its current internal state.
+
+        Parameters
+        ----------
+        timepoints : scalar or array_like[scalar] (:obj:`list`, :obj:`tuple`, :class:`numpy.ndarray`)
+            Contains the age(s) of the subject.
+        individual_parameters : :obj:`dict`
+            Contains the individual parameters.
+            Each individual parameter should be a scalar or array_like.
+        skip_ips_checks : :obj:`bool` (default: ``False``)
+            Flag to skip consistency/compatibility checks and tensorization
+            of ``individual_parameters`` when it was done earlier (speed-up).
+
+        Returns
+        -------
+        :class:`torch.Tensor`
+            Contains the subject's scores computed at the given age(s)
+            Shape of tensor is ``(1, n_tpts, n_features)``.
+
+        Raises
+        ------
+        :exc:`.LeaspyModelInputError`
+            If computation is tried on more than 1 individual.
+        :exc:`.LeaspyIndividualParamsInputError`
+            if invalid individual parameters.
+        """
+        self.check_individual_parameters_provided(individual_parameters.keys())
+        timepoints, individual_parameters = self._get_tensorized_inputs(
+            timepoints, individual_parameters, skip_ips_checks=skip_ips_checks
+        )
+
+        # TODO? ability to revert back after **several** assignments?
+        # instead of cloning the state for this op?
+        local_state = self.state.clone(disable_auto_fork=True)
+
+        self._put_data_timepoints(local_state, timepoints)
+        local_state.put('event', (timepoints, torch.zeros(timepoints.shape).bool()))
+
+        for ip, ip_v in individual_parameters.items():
+            local_state[ip] = ip_v
+        # reshape survival_event from (len(timepoints)) to (1, len(timepoints), 1) so it is compatible with the
+        # model shape 
+        return torch.cat((local_state["model"],
+                   torch.exp(local_state["survival_event"]).reshape(-1,1).expand((1,-1,-1))),self.source_dimension+1)

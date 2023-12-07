@@ -37,7 +37,7 @@ class IndividualData:
         self.timepoints: np.ndarray = None
         self.observations: np.ndarray = None
         self.event_time: float = None
-        self.event_bool: Optional[bool] = None
+        self.event_bool: Optional[int] = None
         self.cofactors: Dict[FeatureType, Any] = {}
 
     def add_observations(self, timepoints: List[float], observations: List[List[float]]) -> None:

@@ -103,7 +103,7 @@ class Dataset:
         self.event_time_name: Optional[str] = data.event_time_name
         self.event_bool_name: Optional[str] = data.event_bool_name
         self.event_time: Optional[torch.FloatTensor] = None
-        self.event_bool: Optional[torch.BoolTensor] = None
+        self.event_bool: Optional[torch.IntTensor] = None
 
         # Cofactor information (?)
 
@@ -166,7 +166,7 @@ class Dataset:
 
     def _construct_events(self, data: Data):
         self.event_time = torch.tensor([_.event_time for _ in data], dtype=torch.double)
-        self.event_bool = torch.tensor([bool(_.event_bool) for _ in data], dtype=torch.bool)
+        self.event_bool = torch.tensor([bool(_.event_bool) for _ in data], dtype=torch.int)
 
     def _compute_L2_norm(self):
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values,
@@ -262,7 +262,7 @@ class Dataset:
                 df_event = pd.DataFrame(data=[[pat_event_time.cpu().numpy(), pat_event_bool.cpu().numpy()]],
                                               index=[idx], columns=[self.event_time_name, self.event_bool_name])
                 df_event[self.event_time_name] = df_event[self.event_time_name].astype(float)
-                df_event[self.event_bool_name] = df_event[self.event_bool_name].astype(bool)
+                df_event[self.event_bool_name] = df_event[self.event_bool_name].astype(int)
                 to_concat.append(df_event)
             df_event = pd.concat(to_concat, names=['ID'])
             df_event.index.name = "ID"

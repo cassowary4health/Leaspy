@@ -324,7 +324,7 @@ class Data(Iterable):
             event_time_name: Optional[str] = None,
             event_bool_name: Optional[str] = None,
             event_time: Optional[List[List[float]]] = None,
-            event_bool: Optional[List[List[bool]]] = None
+            event_bool: Optional[List[List[int]]] = None
 
     ) -> Data:
         """

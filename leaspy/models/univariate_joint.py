@@ -169,6 +169,23 @@ class UnivariateJointModel(UnivariateModel):
     ##############################
     ###      Initialisation    ###
     ##############################
+    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
+        """
+        Overloads base initialization of model (base method takes care of features consistency checks).
+
+        Parameters
+        ----------
+        dataset : :class:`.Dataset`
+            Input :class:`.Dataset` from which to initialize the model.
+        method : :obj:`str`, optional
+            The initialization method to be used.
+            Default='default'.
+        """
+        # Check that there is only one event stored
+        if not (dataset.event_bool.unique() == torch.tensor([0, 1])).all():
+            raise LeaspyInputError('You are using a one event model, your event_bool value should only contain 0 and 1,'
+                                   'with at least one censored event and one observed event')
+        super().initialize(dataset, method=method)
 
     def _estimate_initial_longitudinal_parameters(self, dataset: Dataset) -> VariablesValuesRO:
 

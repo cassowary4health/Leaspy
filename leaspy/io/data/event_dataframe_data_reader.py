@@ -101,12 +101,14 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
         df_event[self.event_time_name] = round(df_event[self.event_time_name],
                                                self.time_rounding_digits)  # avoid missing duplicates due to rounding errors
 
-        # Check event data good format
+        # Check event time data good format
         if not (df_event[self.event_time_name] > 0).all():
             raise LeaspyDataInputError("Events must be above 0")
-        df_event[self.event_bool_name]= df_event[self.event_bool_name].replace({0: False, 1: True})
-        if df_event[self.event_bool_name].dtype != 'bool':
-            raise LeaspyDataInputError("event bool should be boolean or 0 or 1")
+
+        # Check event bool good format
+        if not np.array_equal(df[self.event_bool_name], df[self.event_bool_name].astype(int)):
+            raise LeaspyDataInputError(
+                "Events must be stored in type int, with 0 equal to censored event")
 
         # Assert one unique event per patient and group to drop duplicates
         if not (df_event.groupby('ID').nunique()[[self.event_time_name, self.event_bool_name]].eq(1)).all().all():

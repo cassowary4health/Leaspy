@@ -939,7 +939,6 @@ class AbstractModel(BaseModel):
             The initialization method to be used.
             Default='default'.
         """
-        method = method or InitializationMethod.DEFAULT
         super().initialize(dataset=dataset, method=method)
         self._initialize_state()
         if not dataset:

@@ -418,3 +418,17 @@ class Data(Iterable):
             data.iter_to_idx[data.n_individuals - 1] = idx
 
         return data
+
+
+    def extract_longitudinal_only(self) -> Data:
+
+        if not self.headers:
+            raise LeaspyDataInputError("You can't extract longitudinal data from data that have none")
+
+        individuals = []
+        for id, individual_data in self.individuals.items():
+            indiv = IndividualData(id)
+            indiv.add_observations(individual_data.timepoints, individual_data.observations)
+            individuals.append(indiv)
+
+        return Data.from_individuals(individuals, self.headers)

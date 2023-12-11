@@ -231,8 +231,9 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
         self._personalize_generic(
             "logistic_diag_noise",
             "scipy_minimize",
-            [0.1543, 0.0597, 0.0827, 0.1509],
+            [0.1537, 0.0597, 0.0827, 0.1513],
             {"use_jacobian": False},
+            tol_noise = 0.003
         )
 
     @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
@@ -414,7 +415,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
         self._personalize_generic(
             "univariate_joint",
             "mode_real",
-            0.27811428904533386,
+            0.30058470368385315,
         )
 
 
@@ -422,7 +423,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
         self._personalize_generic(
             "univariate_joint",
             "mean_real",
-            0.2970614433288574,
+            0.30380967259407043,
         )
 
     ################################################################

@@ -14,6 +14,7 @@ from leaspy.models.base import BaseModel
 from leaspy.models.obs_models import ObservationModel
 from leaspy.models.utilities import tensor_to_list
 from leaspy.io.data.dataset import Dataset
+from leaspy.variables.specs import PopulationLatentVariable, IndividualLatentVariable, LatentVariableInitType
 
 from leaspy.variables.specs import (
     VarName,
@@ -950,6 +951,11 @@ class AbstractModel(BaseModel):
             # Initialize population latent variables to their mode
             self._state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
 
+    def put_individual_parameters(self, state: State, dataset: Dataset):
+        if not state.are_variables_set(('xi', 'tau')):
+            with state.auto_fork(None):
+                state.put_individual_latent_variables(LatentVariableInitType.PRIOR_SAMPLES,
+                                                      n_individuals=dataset.n_individuals)
     def _put_data_timepoints(self, state: State, timepoints: TensorOrWeightedTensor[float]) -> None:
         """Put the timepoints variables inside the provided state (in-place)."""
         # TODO/WIP: we use a regular tensor with 0 for times so that 'model' is a regular tensor

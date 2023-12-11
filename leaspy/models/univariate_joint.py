@@ -18,7 +18,8 @@ from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import Exp, Sum
 from leaspy.models.obs_models import observation_model_factory
 import pandas as pd
-from leaspy.utils.typing import DictParams
+from leaspy.utils.typing import DictParams, Optional
+from leaspy.exceptions import LeaspyInputError
 
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either
@@ -148,23 +149,14 @@ class UnivariateJointModel(LogisticUnivariateModel):
         # TODO: find a way to prevent re-computation of orthonormal basis since it should not have changed (v0_collinear update)
         #self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
-        """
-        Overloads base initialization of model (base method takes care of features consistency checks).
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            Input :class:`.Dataset` from which to initialize the model.
-        method : :obj:`str`, optional
-            The initialization method to be used.
-            Default='default'.
-        """
+    def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
+        super()._validate_compatibility_of_dataset(dataset)
         # Check that there is only one event stored
         if not (dataset.event_bool.unique() == torch.tensor([0, 1])).all():
-            raise LeaspyInputError('You are using a one event model, your event_bool value should only contain 0 and 1,'
-                                   'with at least one censored event and one observed event')
-        super().initialize(dataset, method=method)
+            raise LeaspyInputError(
+                "You are using a one event model, your event_bool value should only contain 0 and 1, "
+                "with at least one censored event and one observed event"
+            )
 
     def _compute_initial_values_for_model_parameters(
         self,

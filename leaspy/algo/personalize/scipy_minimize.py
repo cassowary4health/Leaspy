@@ -76,20 +76,86 @@ class _AffineScalings1D:
     def __len__(self) -> int:
         return self.length
 
-    def zeros(self, *, dtype=np.float32, **kws) -> np.ndarray:
-        """New concatenated numpy array of scaled values (with good length)."""
-        return np.zeros(len(self), dtype=dtype, **kws)
-
-    def pull(self, x: np.ndarray) -> Dict[VarName, torch.Tensor]:
+    def stack(self, x: Dict[VarName, torch.Tensor]) -> torch.Tensor:
         """
-        Pull dictionary of values (in their natural scale) from the concatenated
-        1D tensor of scaled values provided.
+        Stack the provided mapping in a multidimensional numpy array.
+
+        Parameters
+        ----------
+        x : Dict[VarName, torch.Tensor]
+            Mapping to stack.
+
+        Return
+        ------
+        np.ndarray :
+            Stacked array of values.
+        """
+        return torch.cat(
+            [x[n].float() for n, _ in self.scalings.items()]
+        )
+
+    def unstack(self, x: torch.Tensor) -> Dict[VarName, torch.Tensor]:
+        """"
+        Unstack the provided concatenated array.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Concatenated array to unstack.
+
+        Return
+        ------
+        dict :
+            Mapping from variable names to their tensor values.
         """
         return {
-            # unsqueeze 1 dimension at left
-            n: scl.loc + scl.scale * torch.tensor(x[None, self.slices[n]]).float()
-            for n, scl in self.scalings.items()
+            n: x[None,self.slices[n]].float()
+            for n, _ in self.scalings.items()
         }
+
+    def unscaling(self, x: np.ndarray) -> Dict[VarName, torch.Tensor]:
+        """
+        Unstack the concatenated array and unscale
+        each element to bring it back to its natural scale.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            The concatenated array to scale.
+
+        Returns
+        -------
+        dict :
+            Mapping from variable name to tensor values scaled.
+        """
+        x_unscaled = torch.cat([
+            # unsqueeze 1 dimension at left
+             scaling.loc + scaling.scale * x[self.slices[n]]
+            for n, scaling in self.scalings.items()
+        ])
+        return self.unstack(x_unscaled)
+
+    def scaling(self, x: Dict[VarName, torch.Tensor]) -> np.ndarray:
+        """
+        Scale and concatenate provided mapping of values
+        from their natural scale to the defined scale.
+
+        Parameters
+        ----------
+        x : Dict[VarName, torch.Tensor]
+            The mapping to unscale.
+
+        Return
+        ------
+        np.ndarray :
+            Concatenated array of scaled values.
+        """
+        x_stacked = self.stack(x)
+        return torch.cat([
+            # unsqueeze 1 dimension at left
+             (x_stacked[self.slices[n]].float() - scaling.loc)/scaling.scale
+            for n, scaling in self.scalings.items()
+        ]).detach().numpy()
 
     @classmethod
     def from_state(cls, state: State, var_type: Type[LatentVariable]) -> _AffineScalings1D:
@@ -258,7 +324,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         objective : float
             Value of the loss function (negative log-likelihood).
         """
-        ips = scaling.pull(x)
+
+        ips = scaling.unscaling(x)
         for ip, ip_val in ips.items():
             state[ip] = ip_val
         loss = state["nll_attach"] + self.regularity_factor * state["nll_regul_ind_sum"]
@@ -348,14 +415,22 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
             TODO
         """
         obj = self.obj_with_jac if with_jac else self.obj_no_jac
+
+        # Initialize the optimization at the state's values
+        # for individual parameters
+        initial_point = {
+            n: state.get_tensor_value(n)[0]
+            for n in state.dag.individual_variable_names
+        }
+
         res = minimize(
             obj,
             jac=with_jac,
-            x0=scaling.zeros(),
+            x0=scaling.scaling(initial_point),
             args=(state, scaling),
             **self.scipy_minimize_params
         )
-        pyt_individual_params = scaling.pull(res.x)
+        pyt_individual_params = scaling.unscaling(res.x)
         # TODO/WIP: we may want to return residuals MAE or RMSE instead (since nll is not very interpretable...)
         # loss = model.compute_canonical_loss_tensorized(patient_dataset, pyt_individual_params)
         loss = self.obj_no_jac(res.x, state, scaling)
@@ -477,6 +552,8 @@ class ScipyMinimize(AbstractPersonalizeAlgo):
         for idx in dataset.indices:
             states[idx] = state.clone(disable_auto_fork=True)
             model.put_data_variables(states[idx], datasets[idx])
+            # Get an individual initial value for minimisation
+            model.put_individual_parameters(states[idx], datasets[idx])
 
         if self.algo_parameters.get('progress_bar', True):
             self._display_progress_bar(-1, dataset.n_individuals, suffix='subjects')

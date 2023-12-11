@@ -14,7 +14,7 @@ from typing import (
 
 import torch
 
-from leaspy.variables.specs import VarName, VariableInterface
+from leaspy.variables.specs import VarName, VariableInterface, IndividualLatentVariable
 from leaspy.utils.filtered_mapping_proxy import FilteredMappingProxy
 from leaspy.exceptions import LeaspyInputError
 
@@ -353,3 +353,9 @@ class VariablesDAG(Mapping):
             for idx_node, node in enumerate(sorted_nodes)
         }
         return sorted_children, sorted_ancestors
+
+    @property
+    def individual_variable_names(self) -> Tuple[VarName]:
+        return tuple(
+            self.sorted_variables_by_type[IndividualLatentVariable].keys()
+        )

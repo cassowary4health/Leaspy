@@ -499,21 +499,23 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
 
     @classmethod
     def compute_log_likelihood_hazard(
-            cls,
-            x: torch.Tensor,
-            nu: torch.Tensor,
-            rho: torch.Tensor,
-            xi: torch.Tensor,
-            tau: torch.Tensor,
-            *params: torch.Tensor,
+        cls,
+        x: torch.Tensor,
+        nu: torch.Tensor,
+        rho: torch.Tensor,
+        xi: torch.Tensor,
+        tau: torch.Tensor,
+        *params: torch.Tensor,
     ) -> torch.Tensor:
         event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau)
         # Hazard neg log-likelihood only for patient with event not censored
-        hazard = torch.where(event_rep_time > 0,
-                             (rho / nu_rep) * ((event_rep_time / nu_rep) ** (rho - 1.)),
-                             -float('inf'))
+        hazard = torch.where(
+            event_rep_time > 0,
+            (rho / nu_rep) * ((event_rep_time / nu_rep) ** (rho - 1.)),
+            -float('inf')
+        )
         log_hazard = torch.where(hazard > 0, torch.log(hazard), hazard)
-        log_hazard = torch.where(event_bool, log_hazard, torch.tensor(0., dtype=torch.double))
+        log_hazard = torch.where(event_bool > 0, log_hazard, torch.tensor(0., dtype=torch.double))
         return log_hazard
 
     @classmethod
@@ -538,12 +540,14 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
 
     @staticmethod
     @abstractmethod
-    def _get_reparametrized_nu(nu: torch.Tensor,
-                               rho: torch.Tensor,
-                               xi: torch.Tensor,
-                               tau: torch.Tensor,
-                               *params: torch.Tensor, ) -> torch.Tensor:
-        """reparametrization of nu using individual parameter xi"""
+    def _get_reparametrized_nu(
+        nu: torch.Tensor,
+        rho: torch.Tensor,
+        xi: torch.Tensor,
+        tau: torch.Tensor,
+        *params: torch.Tensor,
+    ) -> torch.Tensor:
+        """Reparametrization of nu using individual parameter xi"""
 
     @classmethod
     def _nll(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,

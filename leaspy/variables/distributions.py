@@ -494,7 +494,7 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
 
         # Construct reparametrized variables
         event_rep_time = cls._get_reparametrized_event(event_time, tau_format)
-        nu_rep = cls._get_reparametrized_nu(nu,rho,xi_format,tau_format)
+        nu_rep = cls._get_reparametrized_nu(nu,rho,xi_format,tau_format, *params)
         return (event_rep_time, event_bool, nu_rep)
 
     @classmethod
@@ -507,7 +507,7 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
             tau: torch.Tensor,
             *params: torch.Tensor,
     ) -> torch.Tensor:
-        event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau)
+        event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau, *params)
         # Hazard neg log-likelihood only for patient with event not censored
         hazard = torch.where(event_rep_time > 0,
                              (rho / nu_rep) * ((event_rep_time / nu_rep) ** (rho - 1.)),
@@ -526,7 +526,7 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
             tau: torch.Tensor,
             *params: torch.Tensor,
     ) -> torch.Tensor:
-        event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau)
+        event_rep_time, event_bool, nu_rep = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau, *params)
         return -(torch.clamp(event_rep_time, min=0.) / nu_rep) ** rho
 
     @staticmethod
@@ -549,8 +549,8 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
     def _nll(cls, x: torch.Tensor, nu: torch.Tensor, rho: torch.Tensor, xi: torch.Tensor,
              tau: torch.Tensor, *params: torch.Tensor, ) -> torch.Tensor[float]:
         # Survival neg log-likelihood
-        log_survival = cls.compute_log_survival(x, nu, rho, xi, tau)
-        log_hazard = cls.compute_log_likelihood_hazard(x, nu, rho, xi, tau)
+        log_survival = cls.compute_log_survival(x, nu, rho, xi, tau, *params)
+        log_hazard = cls.compute_log_likelihood_hazard(x, nu, rho, xi, tau, *params)
         attachment_events = - (log_survival + log_hazard)
 
         return attachment_events
@@ -607,6 +607,13 @@ class WeibullRightCensoredFamily(AbstractWeibullRightCensoredFamily):
                                tau: torch.Tensor,
                                *params:torch.Tensor, ) -> torch.Tensor:
         return torch.exp(-xi) * nu
+
+class WeibullRightCensoredWithSourcesFamily(AbstractWeibullRightCensoredFamily):
+    parameters: ClassVar = ("nu", "rho", 'xi', 'tau', "zeta", 'sources')
+
+    @staticmethod
+    def _get_reparametrized_nu(nu, rho, xi, tau, zeta, sources):
+        return nu * torch.exp(-xi + (1/rho)*(zeta*sources).sum(axis = 1))
 
 
 @dataclass(frozen=True)
@@ -775,6 +782,7 @@ Normal = SymbolicDistribution.bound_to(NormalFamily)
 Bernoulli = SymbolicDistribution.bound_to(BernoulliFamily)
 Ordinal = SymbolicDistribution.bound_to(OrdinalFamily)
 WeibullRightCensored = SymbolicDistribution.bound_to(WeibullRightCensoredFamily)
+WeibullRightCensoredWithSources = SymbolicDistribution.bound_to(WeibullRightCensoredWithSourcesFamily)
 
 # INLINE UNIT TESTS
 if __name__ == "__main__":

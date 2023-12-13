@@ -53,16 +53,36 @@ class JointModel(LogisticMultivariateModel):
         super().__init__(name, **kwargs)
         obs_models_to_string = [o.to_string() for o in self.obs_models]
 
-        if "weibull-right-censored" not in obs_models_to_string:
-            self.obs_models += (
-                observation_model_factory(
-                    "weibull-right-censored",
-                    nu='nu',
-                    rho='rho',
-                    xi='xi',
-                    tau='tau',
-                ),
-            )
+        if (self.dimension == 1):
+            if ("weibull-right-censored-with-sources" in obs_models_to_string):
+                raise LeaspyInputError("You cannot use a weibull with sources for an univariate model")
+            if ("weibull-right-censored" not in obs_models_to_string):
+                self.obs_models += (
+                    observation_model_factory(
+                        "weibull-right-censored",
+                        nu='nu',
+                        rho='rho',
+                        xi='xi',
+                        tau='tau',
+                    ),
+                )
+        else:
+            if ("weibull-right-censored" in obs_models_to_string):
+                warnings.warn('You are using a multivariate model with a weibull model without sources')
+            elif ("weibull-right-censored-with-sources" not in obs_models_to_string):
+                self.obs_models += (
+                    observation_model_factory(
+                        "weibull-right-censored-with-sources",
+                        nu='nu',
+                        rho='rho',
+                        zeta = 'zeta',
+                        xi='xi',
+                        tau='tau',
+                        sources = 'sources'
+                    ),
+                )
+
+
         variables_to_track = (
             "n_log_nu_mean",
             "log_rho_mean",
@@ -112,6 +132,16 @@ class JointModel(LogisticMultivariateModel):
             nll_attach=LinkedVariable(Sum("nll_attach_y", "nll_attach_event")),
             nll_attach_ind=LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
         )
+        if self.source_dimension >= 1:
+            d.update(
+                zeta_mean=ModelParameter.for_pop_mean(
+                "zeta_mean",
+                shape=(self.source_dimension,),),
+                zeta_std=Hyperparameter(0.01),
+                zeta = PopulationLatentVariable(
+                Normal("zeta_mean", "zeta_std"),
+            ),
+            )
 
         return d
 
@@ -197,10 +227,13 @@ class JointModel(LogisticMultivariateModel):
 
     def _estimate_initial_event_parameters(self, dataset: Dataset) -> VariablesValuesRO:
         wbf = WeibullFitter().fit(dataset.event_time, dataset.event_bool)
-        return {
+        event_params = {
             'log_rho_mean': torch.log(torch.tensor(wbf.rho_)),
-            'n_log_nu_mean': -torch.log(torch.tensor(wbf.lambda_))
+            'n_log_nu_mean': -torch.log(torch.tensor(wbf.lambda_)),
         }
+        if self.source_dimension > 0:
+            event_params['zeta_mean'] = torch.ones(self.source_dimension)
+        return event_params
 
     def compute_individual_trajectory(
         self,
@@ -257,7 +290,7 @@ class JointModel(LogisticMultivariateModel):
         return torch.cat(
             (
                 local_state["model"],
-                torch.exp(local_state["survival_event"]).reshape(-1, 1).expand((1, -1, -1))
+                torch.exp(local_state["log_survival_event"]).reshape(-1, 1).expand((1, -1, -1))
             ),
             self.dimension + self.nb_event
         )

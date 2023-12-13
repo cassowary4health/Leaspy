@@ -137,6 +137,7 @@ class BaseModel(ABC):
         method : InitializationMethod, optional
             A custom method to initialize the model
         """
+        method = InitializationMethod(method or InitializationMethod.DEFAULT)
         if self.is_initialized and self.features is not None:
             # we also test that self.features is not None, since for `ConstantModel`:
             # `is_initialized`` is True but as a mock for being personalization-ready,

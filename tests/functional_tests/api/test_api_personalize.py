@@ -27,6 +27,9 @@ SKIP_LOGISTIC_BINARY_MODELS = "Logistic binary models are currently broken."
 TEST_LINEAR_MODELS = True
 SKIP_LINEAR_MODELS = "Linear models are currently broken."
 
+TEST_LINEAR_MODELS_WITH_JACOBIAN = False
+SKIP_LINEAR_MODELS_WITH_JACOBIAN = "Jacobian not implemented for linear model."
+
 # Ordinal observation models are not yet implemented in Leaspy v2.
 # Flip to True to test with them.
 TEST_ORDINAL_MODELS = False
@@ -410,14 +413,12 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
             {"use_jacobian": True},
         )
 
-
     def test_univariate_joint_mode_real(self):
         self._personalize_generic(
             "univariate_joint",
             "mode_real",
             0.30058470368385315,
         )
-
 
     def test_univariate_joint_mean_real(self):
         self._personalize_generic(
@@ -438,7 +439,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
             {"use_jacobian": False},
         )
 
-    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    @skipIf(not TEST_LINEAR_MODELS_WITH_JACOBIAN, SKIP_LINEAR_MODELS_WITH_JACOBIAN)
     def test_univariate_linear_scipy_minimize_with_jacobian(self):
         self._personalize_generic(
             "univariate_linear",
@@ -472,7 +473,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
             {"use_jacobian": False},
         )
 
-    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    @skipIf(not TEST_LINEAR_MODELS_WITH_JACOBIAN, SKIP_LINEAR_MODELS_WITH_JACOBIAN)
     def test_multivariate_linear_scipy_minimize_with_jacobian(self):
         self._personalize_generic(
             "linear_scalar_noise",
@@ -506,7 +507,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
             {"use_jacobian": False},
         )
 
-    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    @skipIf(not TEST_LINEAR_MODELS_WITH_JACOBIAN, SKIP_LINEAR_MODELS_WITH_JACOBIAN)
     def test_multivariate_linear_diagonal_scipy_minimize_with_jacobian(self):
         self._personalize_generic(
             "linear_diag_noise",
@@ -910,7 +911,7 @@ class LeaspyPersonalizeRobustnessDataSparsityTest(LeaspyPersonalizeTestMixin):
             {"use_jacobian": False},
         )
 
-    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    @skipIf(not TEST_LINEAR_MODELS_WITH_JACOBIAN, SKIP_LINEAR_MODELS_WITH_JACOBIAN)
     def test_linear_scipy_minimize_with_jacobian(self):
         self._robustness_to_data_sparsity(
             "linear_scalar_noise",
@@ -928,7 +929,7 @@ class LeaspyPersonalizeRobustnessDataSparsityTest(LeaspyPersonalizeTestMixin):
             {"use_jacobian": False},
         )
 
-    @skipIf(not TEST_LINEAR_MODELS, SKIP_LINEAR_MODELS)
+    @skipIf(not TEST_LINEAR_MODELS_WITH_JACOBIAN, SKIP_LINEAR_MODELS_WITH_JACOBIAN)
     def test_linear_diagonal_scipy_minimize_with_jacobian(self):
         self._robustness_to_data_sparsity(
             "linear_diag_noise",

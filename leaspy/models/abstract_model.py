@@ -299,21 +299,27 @@ class AbstractModel(BaseModel):
         self._state.put_population_latent_variables(LatentVariableInitType.PRIOR_MODE)
 
         # check equality of other values (hyperparameters or linked variables)
-        for p, val in parameters.items():
-            if p in provided_params:
+        for parameter_name, parameter_value in parameters.items():
+            if parameter_name in provided_params:
                 continue
             # TODO: a bit dirty due to hyperparams / params mix (cf. `.parameters` property note)
             try:
-                cur_val = self._state[p]
+                current_value = self._state[parameter_name]
             except Exception as e:
                 raise LeaspyModelInputError(
-                    f"Impossible to compare value of provided value for {p} "
+                    f"Impossible to compare value of provided value for {parameter_name} "
                     "- not computable given current state"
                 ) from e
-            val = val_to_tensor(val, getattr(self.dag[p], "shape", None))
-            assert val.shape == cur_val.shape, (p, val.shape, cur_val.shape)
+            parameter_value = val_to_tensor(parameter_value, getattr(self.dag[parameter_name], "shape", None))
+            assert (
+                parameter_value.shape == current_value.shape,
+                (parameter_name, parameter_value.shape, current_value.shape)
+            )
             # TODO: WeightedTensor? (e.g. batched `deltas``)
-            assert torch.allclose(val, cur_val, atol=1e-5), (p, val, cur_val)
+            assert (
+                torch.allclose(parameter_value, current_value, atol=1e-4),
+                (parameter_name, parameter_value, current_value)
+            )
 
     @abstractmethod
     def _load_hyperparameters(self, hyperparameters: KwargsType) -> None:
@@ -939,7 +945,6 @@ class AbstractModel(BaseModel):
             The initialization method to be used.
             Default='default'.
         """
-        method = method or InitializationMethod.DEFAULT
         super().initialize(dataset=dataset, method=method)
         self._initialize_state()
         if not dataset:

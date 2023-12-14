@@ -292,5 +292,5 @@ class JointModel(LogisticMultivariateModel):
                 local_state["model"],
                 torch.exp(local_state["log_survival_event"]).reshape(-1, 1).expand((1, -1, -1))
             ),
-            self.dimension + self.nb_event
+            2
         )

@@ -139,7 +139,7 @@ class JointModel(LogisticMultivariateModel):
         if self.source_dimension >= 1:
             d.update(
                 zeta_mean=ModelParameter.for_pop_mean(
-                "zeta_mean",
+                "zeta",
                 shape=(self.source_dimension,),),
                 zeta_std=Hyperparameter(0.01),
                 zeta = PopulationLatentVariable(

@@ -617,7 +617,7 @@ class WeibullRightCensoredWithSourcesFamily(AbstractWeibullRightCensoredFamily):
 
     @staticmethod
     def _get_reparametrized_nu(nu, rho, xi, tau, zeta, sources):
-        return nu * torch.exp(-xi + (1/rho)*(zeta*sources).sum(axis = 1))
+        return nu * torch.exp(-(xi + (1/rho)*(zeta*sources).sum(axis = 1)))
 
 
 @dataclass(frozen=True)

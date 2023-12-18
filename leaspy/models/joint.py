@@ -92,7 +92,7 @@ class JointModel(LogisticMultivariateModel):
             "nll_attach_event",
         ]
         if ("weibull-right-censored-with-sources" in obs_models_to_string):
-            variables_to_track += ["zeta", 'sources']
+            variables_to_track += ["zeta", 'sources','betas']
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
         self.nb_event = 1
 
@@ -144,6 +144,7 @@ class JointModel(LogisticMultivariateModel):
                 zeta_std=Hyperparameter(0.01),
                 zeta = PopulationLatentVariable(
                 Normal("zeta_mean", "zeta_std"),
+                sampling_kws={"scale": .5},   # cf. GibbsSampler (for retro-compat)
             ),
             )
 
@@ -236,7 +237,7 @@ class JointModel(LogisticMultivariateModel):
             'n_log_nu_mean': -torch.log(torch.tensor(wbf.lambda_)),
         }
         if self.source_dimension > 0:
-            event_params['zeta_mean'] = torch.ones(self.source_dimension)
+            event_params['zeta_mean'] = torch.zeros(self.source_dimension)
         return event_params
 
     def compute_individual_trajectory(

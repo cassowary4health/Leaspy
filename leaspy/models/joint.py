@@ -66,6 +66,7 @@ class JointModel(LogisticMultivariateModel):
                         tau='tau',
                     ),
                 )
+                obs_models_to_string += ["weibull-right-censored"]
         else:
             if ("weibull-right-censored" in obs_models_to_string):
                 warnings.warn('You are using a multivariate model with a weibull model without sources')
@@ -81,14 +82,17 @@ class JointModel(LogisticMultivariateModel):
                         sources = 'sources'
                     ),
                 )
+                obs_models_to_string += ["weibull-right-censored-with-sources"]
 
 
-        variables_to_track = (
+        variables_to_track = [
             "n_log_nu_mean",
             "log_rho_mean",
             "nll_attach_y",
             "nll_attach_event",
-        )
+        ]
+        if ("weibull-right-censored-with-sources" in obs_models_to_string):
+            variables_to_track += ["zeta", 'sources']
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
         self.nb_event = 1
 

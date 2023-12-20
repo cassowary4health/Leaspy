@@ -513,7 +513,7 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
                              (rho / nu_rep) * ((event_rep_time / nu_rep) ** (rho - 1.)),
                              -float('inf'))
         log_hazard = torch.where(hazard > 0, torch.log(hazard), hazard)
-        log_hazard = torch.where(event_bool, log_hazard, torch.tensor(0., dtype=torch.double))
+        log_hazard = torch.where(event_bool !=0, log_hazard, torch.tensor(0., dtype=torch.double))
         return log_hazard
 
     @classmethod

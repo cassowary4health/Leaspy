@@ -409,7 +409,7 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
         self._personalize_generic(
             "univariate_joint",
             "scipy_minimize",
-            0.1341,
+            0.1341, # TODO: random value
             {"use_jacobian": True},
         )
 
@@ -425,6 +425,37 @@ class LeaspyPersonalizeTest(LeaspyPersonalizeTestMixin):
             "univariate_joint",
             "mean_real",
             0.30380967259407043,
+        )
+
+    def test_joint_scipy_minimize(self):
+        self._personalize_generic(
+            "joint_diagonal",
+            "scipy_minimize",
+            [0.1695, 0.0520, 0.0949, 0.1986],
+            {"use_jacobian": False},
+        )
+
+    @skipIf(not TEST_LOGISTIC_MODELS_WITH_JACOBIAN, SKIP_LOGISTIC_MODELS_WITH_JACOBIAN)
+    def test_joint_scipy_minimize_with_jacobian(self):
+        self._personalize_generic(
+            "joint_diagonal",
+            "scipy_minimize",
+            [0.0671, 0.0553, 0.1040, 0.1509], # TODO: random value
+            {"use_jacobian": True},
+        )
+
+    def test_joint_mode_real(self):
+        self._personalize_generic(
+            "joint_diagonal",
+            "mode_real",
+            [0.1695, 0.0520, 0.0953, 0.1980],
+        )
+
+    def test_joint_mean_real(self):
+        self._personalize_generic(
+            "joint_diagonal",
+            "mean_real",
+            [0.1695, 0.0520, 0.0949, 0.1986],
         )
 
     ################################################################

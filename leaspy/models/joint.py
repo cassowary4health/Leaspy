@@ -53,7 +53,7 @@ class JointModel(LogisticMultivariateModel):
         super().__init__(name, **kwargs)
         obs_models_to_string = [o.to_string() for o in self.obs_models]
 
-        if (self.dimension == 1):
+        if (self.dimension == 1) or (self.source_dimension == 0):
             if ("weibull-right-censored-with-sources" in obs_models_to_string):
                 raise LeaspyInputError("You cannot use a weibull with sources for an univariate model")
             if ("weibull-right-censored" not in obs_models_to_string):

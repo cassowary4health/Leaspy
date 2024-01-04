@@ -166,7 +166,7 @@ class Dataset:
 
     def _construct_events(self, data: Data):
         self.event_time = torch.tensor([_.event_time for _ in data], dtype=torch.double)
-        self.event_bool = torch.tensor([bool(_.event_bool) for _ in data], dtype=torch.int)
+        self.event_bool = torch.tensor([_.event_bool for _ in data], dtype=torch.bool)
 
     def _compute_L2_norm(self):
         self.L2_norm_per_ft = torch.sum(self.mask.float() * self.values * self.values,
@@ -259,7 +259,13 @@ class Dataset:
             to_concat = []
             for i, idx in enumerate(self.indices):
                 pat_event_time, pat_event_bool = self.get_event_patient(i)
-                df_event = pd.DataFrame(data=[[pat_event_time.cpu().numpy(), pat_event_bool.cpu().numpy()]],
+
+                pat_event_time = pat_event_time.cpu().tolist()
+                pat_event_bool = pat_event_bool.cpu().tolist()
+                assert (pat_event_time.count(pat_event_time[0]) == len(pat_event_time))
+                assert (np.array(pat_event_bool).sum() == 1)
+
+                df_event = pd.DataFrame(data=[[pat_event_time[0], pat_event_bool.index(True)+1]],
                                               index=[idx], columns=[self.event_time_name, self.event_bool_name])
                 df_event[self.event_time_name] = df_event[self.event_time_name].astype(float)
                 df_event[self.event_bool_name] = df_event[self.event_bool_name].astype(int)

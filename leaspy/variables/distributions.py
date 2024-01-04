@@ -489,12 +489,10 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
     ) -> tuple(torch.Tensor):
         # Get inputs
         event_time, event_bool = x
-        xi_format = xi[:, 0]
-        tau_format = tau[:, 0]
 
         # Construct reparametrized variables
-        event_rep_time = cls._get_reparametrized_event(event_time, tau_format)
-        nu_rep = cls._get_reparametrized_nu(nu,rho,xi_format,tau_format, *params)
+        event_rep_time = cls._get_reparametrized_event(event_time, tau)
+        nu_rep = cls._get_reparametrized_nu(nu,rho,xi,tau, *params)
         return (event_rep_time, event_bool, nu_rep)
 
     @classmethod
@@ -617,7 +615,7 @@ class WeibullRightCensoredWithSourcesFamily(AbstractWeibullRightCensoredFamily):
 
     @staticmethod
     def _get_reparametrized_nu(nu, rho, xi, tau, zeta, sources):
-        return nu * torch.exp(-(xi + (1/rho)*(zeta*sources).sum(axis = 1)))
+        return nu * torch.exp(-(xi + (1/rho)*(torch.tensordot(sources,zeta, dims = [[1],[0]]))))
 
 
 @dataclass(frozen=True)

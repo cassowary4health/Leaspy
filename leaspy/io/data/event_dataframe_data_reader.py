@@ -33,6 +33,7 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
         super().__init__()
         self.event_time_name = event_time_name
         self.event_bool_name = event_bool_name
+        self.nb_events = None
 
     ######################################################
     #               ABSTRACT METHODS IMPLEMENTED
@@ -106,10 +107,10 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
             raise LeaspyDataInputError("Events must be above 0")
 
         # Check event bool good format
-        if not np.array_equal(df[self.event_bool_name], df[self.event_bool_name].astype(int)):
+        if not np.array_equal(df_event[self.event_bool_name], df_event[self.event_bool_name].astype(int)):
             raise LeaspyDataInputError(
                 "Events must be stored in type int, with 0 equal to censored event")
-
+        df_event[self.event_bool_name] = df_event[self.event_bool_name].astype(int)
         # Assert one unique event per patient and group to drop duplicates
         if not (df_event.groupby('ID').nunique()[[self.event_time_name, self.event_bool_name]].eq(1)).all().all():
             raise LeaspyDataInputError(
@@ -119,6 +120,12 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
         # Event must be empty to raise an error
         if len(df_event) == 0:
             raise LeaspyDataInputError('Dataframe should have at least 1 feature or an event')
+
+        nb_events = df_event[self.event_bool_name].max()
+        for i in range(nb_events):
+            if df[self.event_bool_name].isin([i]).sum()==0:
+                raise LeaspyDataInputError(f'There must be at least one event for each type, no event for event {i}')
+        self.nb_events = nb_events
 
         return df_event
 
@@ -134,6 +141,8 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
         df_subj: pd.DataFrame
             One patient with her/his information
         """
+        time_at_event = [df_subj[self.event_time_name].unique()[0]]*self.nb_events
+        event_observed = [False]*self.nb_events
+        event_observed[df_subj[self.event_bool_name].unique()[0]-1] = True
 
-        subj.add_event(df_subj[self.event_time_name].unique()[0],
-                       df_subj[self.event_bool_name].unique()[0])
+        subj.add_event(time_at_event, event_observed)

@@ -16,6 +16,7 @@ from leaspy.variables.specs import (
 )
 from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import Exp, Sum
+from leaspy.utils.typing import KwargsType
 from leaspy.models.obs_models import observation_model_factory
 import pandas as pd
 from leaspy.utils.typing import DictParams, Optional
@@ -94,7 +95,7 @@ class JointModel(LogisticMultivariateModel):
         if ("weibull-right-censored-with-sources" in obs_models_to_string):
             variables_to_track += ["zeta", 'sources','betas']
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
-        self.nb_event = 1
+
 
     def get_variables_specs(self) -> NamedVariables:
         """
@@ -111,12 +112,12 @@ class JointModel(LogisticMultivariateModel):
             # PRIORS
             n_log_nu_mean=ModelParameter.for_pop_mean(
                 "n_log_nu",
-                shape=(self.nb_event,),
+                shape=(self.nb_events,),
             ),
             n_log_nu_std=Hyperparameter(0.01),
             log_rho_mean=ModelParameter.for_pop_mean(
                 "log_rho",
-                shape=(self.nb_event,),
+                shape=(self.nb_events,),
             ),
             log_rho_std=Hyperparameter(0.01),
             # LATENT VARS
@@ -140,7 +141,7 @@ class JointModel(LogisticMultivariateModel):
             d.update(
                 zeta_mean=ModelParameter.for_pop_mean(
                 "zeta",
-                shape=(self.source_dimension,),),
+                shape=(self.nb_events, self.source_dimension),),
                 zeta_std=Hyperparameter(0.01),
                 zeta = PopulationLatentVariable(
                 Normal("zeta_mean", "zeta_std"),
@@ -181,6 +182,16 @@ class JointModel(LogisticMultivariateModel):
 
         # TODO: find a way to prevent re-computation of orthonormal basis since it should not have changed (v0_collinear update)
         #self.update_MCMC_toolbox({'v0_collinear'}, realizations)
+
+    def _load_hyperparameters(self, hyperparameters: KwargsType) -> None:
+        if 'nb_events' in hyperparameters:
+            self.nb_events = hyperparameters['nb_events']
+            del hyperparameters['nb_events']
+        else:
+            self.nb_events = 1
+
+        super()._load_hyperparameters(hyperparameters)
+
 
     def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
         super()._validate_compatibility_of_dataset(dataset)
@@ -231,13 +242,22 @@ class JointModel(LogisticMultivariateModel):
             state.put_individual_latent_variables(df = df_ind)
 
     def _estimate_initial_event_parameters(self, dataset: Dataset) -> VariablesValuesRO:
-        wbf = WeibullFitter().fit(dataset.event_time, dataset.event_bool)
+
+        log_rho_mean = [0]*self.nb_events
+        n_log_nu_mean = [0]*self.nb_events
+        for i in range(self.nb_events):
+            wbf = WeibullFitter().fit(dataset.event_time[:,i], dataset.event_bool[:,i])
+            log_rho_mean[i] = torch.log(torch.tensor(wbf.rho_))
+            n_log_nu_mean[i] = -torch.log(torch.tensor(wbf.lambda_))
+
         event_params = {
-            'log_rho_mean': torch.log(torch.tensor(wbf.rho_)),
-            'n_log_nu_mean': -torch.log(torch.tensor(wbf.lambda_)),
+            'log_rho_mean': torch.tensor(log_rho_mean),
+            'n_log_nu_mean': torch.tensor(n_log_nu_mean),
         }
+
         if self.source_dimension > 0:
-            event_params['zeta_mean'] = torch.zeros(self.source_dimension)
+            event_params['zeta_mean'] = torch.zeros(self.nb_events, self.source_dimension)
+
         return event_params
 
     def compute_individual_trajectory(

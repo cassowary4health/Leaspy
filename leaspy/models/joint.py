@@ -310,7 +310,7 @@ class JointModel(LogisticMultivariateModel):
         local_state = self.state.clone(disable_auto_fork=True)
 
         self._put_data_timepoints(local_state, timepoints)
-        local_state.put('event', (timepoints, torch.zeros(timepoints.shape).bool()))
+        local_state.put('event', (timepoints.T, torch.zeros(timepoints.shape).bool()))
 
         for ip, ip_v in individual_parameters.items():
             local_state[ip] = ip_v
@@ -319,7 +319,7 @@ class JointModel(LogisticMultivariateModel):
         return torch.cat(
             (
                 local_state["model"],
-                torch.exp(local_state["log_survival_event"]).reshape(-1, 1).expand((1, -1, -1))
+                torch.exp(local_state["log_survival_event"]).expand((1, timepoints.shape[1], self.nb_events))
             ),
             2
         )

@@ -200,7 +200,8 @@ class JointModel(LogisticMultivariateModel):
     def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
         super()._validate_compatibility_of_dataset(dataset)
         # Check that there is only one event stored
-        if not (dataset.event_bool.unique() == torch.tensor([0, 1])).all():
+
+        if not set(dataset.event_bool.unique().tolist()) == set([False, True]):
             raise LeaspyInputError(
                 "You are using a one event model, your event_bool value should only contain 0 and 1, "
                 "with at least one censored event and one observed event"

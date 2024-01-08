@@ -263,10 +263,15 @@ class Dataset:
                 pat_event_time = pat_event_time.cpu().tolist()
                 pat_event_bool = pat_event_bool.cpu().tolist()
                 assert (pat_event_time.count(pat_event_time[0]) == len(pat_event_time))
-                assert (np.array(pat_event_bool).sum() == 1)
-
-                df_event = pd.DataFrame(data=[[pat_event_time[0], pat_event_bool.index(True)+1]],
+                if (np.array(pat_event_bool).sum() == 1):
+                    df_event = pd.DataFrame(data=[[pat_event_time[0], pat_event_bool.index(True)+1]],
                                               index=[idx], columns=[self.event_time_name, self.event_bool_name])
+                elif (np.array(pat_event_bool).sum() == 0):
+                    df_event = pd.DataFrame(data=[[pat_event_time[0], 0]],
+                                            index=[idx], columns=[self.event_time_name, self.event_bool_name])
+                else:
+                    raise LeaspyInputError(
+                        "Please make sure your data contains maximum one observed event per patient")
                 df_event[self.event_time_name] = df_event[self.event_time_name].astype(float)
                 df_event[self.event_bool_name] = df_event[self.event_bool_name].astype(int)
                 to_concat.append(df_event)

@@ -122,7 +122,7 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
             raise LeaspyDataInputError('Dataframe should have at least 1 feature or an event')
 
         nb_events = df_event[self.event_bool_name].max()
-        for i in range(nb_events):
+        for i in range(nb_events+1):
             if df[self.event_bool_name].isin([i]).sum()==0:
                 warnings.warn(f'There are no event for event {i}')
         self.nb_events = nb_events
@@ -141,8 +141,18 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
         df_subj: pd.DataFrame
             One patient with her/his information
         """
-        time_at_event = [df_subj[self.event_time_name].unique()[0]]*self.nb_events
-        event_observed = [False]*self.nb_events
-        event_observed[df_subj[self.event_bool_name].unique()[0]-1] = True
 
-        subj.add_event(time_at_event, event_observed)
+        if self.nb_events == 1:
+            time_at_event = [df_subj[self.event_time_name].unique()[0]]
+            bool_at_event = [df_subj[self.event_bool_name].unique()[0]]
+        elif self.nb_events > 1:
+            time_at_event = [df_subj[self.event_time_name].unique()[0]]*self.nb_events
+            bool_at_event = [False]*self.nb_events
+            event_subj = df_subj[self.event_bool_name].unique()[0]
+            if event_subj != 0:
+                bool_at_event[event_subj-1] = True
+        else:
+            raise LeaspyDataInputError(
+                "The number of event should be equal or greater than 1")
+
+        subj.add_event(time_at_event, bool_at_event)

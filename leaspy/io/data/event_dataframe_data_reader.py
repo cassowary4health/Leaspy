@@ -121,9 +121,6 @@ class EventDataframeDataReader(AbstractDataframeDataReader):
         if len(df_event) == 0:
             raise LeaspyDataInputError('Dataframe should have at least 1 feature or an event')
 
-        if len(df_event[self.event_bool_name].unique())<2:
-            raise LeaspyDataInputError(
-                "There must be at least two events or one censored to use survival")
         nb_events = df_event[self.event_bool_name].max()
         for i in range(nb_events):
             if df[self.event_bool_name].isin([i]).sum()==0:

@@ -192,6 +192,10 @@ class JointModel(LogisticMultivariateModel):
 
         super()._load_hyperparameters(hyperparameters)
 
+    def to_dict(self, *, with_mixing_matrix: bool = True) -> KwargsType:
+        dict_params = super().to_dict(with_mixing_matrix=with_mixing_matrix)
+        dict_params['nb_events'] = self.nb_events
+        return dict_params
 
     def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
         super()._validate_compatibility_of_dataset(dataset)

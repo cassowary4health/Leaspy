@@ -93,7 +93,7 @@ class JointModel(LogisticMultivariateModel):
             "nll_attach_event",
         ]
         if ("weibull-right-censored-with-sources" in obs_models_to_string):
-            variables_to_track += ["zeta", 'sources','betas','mixing_matrix']
+            variables_to_track += ["zeta"]
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
 
 

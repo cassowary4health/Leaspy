@@ -73,7 +73,7 @@ class MultivariateModel(AbstractMultivariateModel):
             "nll_tot"]
 
         if self.source_dimension>0:
-            default_variables_to_track += ['sources','betas','mixing_matrix']
+            default_variables_to_track += ['sources','betas','mixing_matrix', 'space_shifts']
 
         variables_to_track = variables_to_track or default_variables_to_track
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))

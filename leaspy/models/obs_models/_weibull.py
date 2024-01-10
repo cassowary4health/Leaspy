@@ -91,14 +91,13 @@ class WeibullRightCensoredWithSourcesObservationModel(AbstractWeibullRightCensor
             rho: VarName,
             xi: VarName,
             tau: VarName,
-            zeta: VarName,
-            sources: VarName,
+            survival_shifts: VarName,
             **extra_vars: VariableInterface,
     ):
         super().__init__(
             name="event",
             getter=self.getter,
-            dist=WeibullRightCensoredWithSources(nu, rho, xi, tau, zeta, sources),
+            dist=WeibullRightCensoredWithSources(nu, rho, xi, tau, survival_shifts),
             extra_vars=extra_vars,
         )
 
@@ -108,5 +107,4 @@ class WeibullRightCensoredWithSourcesObservationModel(AbstractWeibullRightCensor
                     rho = kwargs.pop("rho", "rho"),
                     xi = kwargs.pop("xi", "xi"),
                     tau = kwargs.pop("tau", "tau"),
-                    zeta=kwargs.pop("zeta", "zeta"),
-                    sources = kwargs.pop("sources", "sources"),)
+                    survival_shifts=kwargs.pop("survival_shifts", "survival_shifts"))

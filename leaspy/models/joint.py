@@ -15,7 +15,7 @@ from leaspy.variables.specs import (
     VariablesValuesRO,
 )
 from leaspy.variables.distributions import Normal
-from leaspy.utils.functional import Exp, Sum
+from leaspy.utils.functional import Exp, Sum, MatMul
 from leaspy.utils.typing import KwargsType
 from leaspy.models.obs_models import observation_model_factory
 import pandas as pd
@@ -93,7 +93,7 @@ class JointModel(LogisticMultivariateModel):
             "nll_attach_event",
         ]
         if ("weibull-right-censored-with-sources" in obs_models_to_string):
-            variables_to_track += ["zeta"]
+            variables_to_track += ["zeta", "survival_shifts"]
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
 
 
@@ -141,12 +141,15 @@ class JointModel(LogisticMultivariateModel):
             d.update(
                 zeta_mean=ModelParameter.for_pop_mean(
                 "zeta",
-                shape=(self.nb_events, self.source_dimension),),
+                shape=(self.source_dimension, self.nb_events),),
                 zeta_std=Hyperparameter(0.01),
                 zeta = PopulationLatentVariable(
                 Normal("zeta_mean", "zeta_std"),
                 sampling_kws={"scale": .5},   # cf. GibbsSampler (for retro-compat)
-            ),
+                ),
+                survival_shifts=LinkedVariable(
+                        MatMul("sources", "zeta")
+                ),
             )
 
         return d
@@ -261,7 +264,7 @@ class JointModel(LogisticMultivariateModel):
         }
 
         if self.source_dimension > 0:
-            event_params['zeta_mean'] = torch.zeros(self.nb_events, self.source_dimension)
+            event_params['zeta_mean'] = torch.zeros(self.source_dimension, self.nb_events)
 
         return event_params
 

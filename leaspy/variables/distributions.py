@@ -611,11 +611,11 @@ class WeibullRightCensoredFamily(AbstractWeibullRightCensoredFamily):
         return torch.exp(-xi) * nu
 
 class WeibullRightCensoredWithSourcesFamily(AbstractWeibullRightCensoredFamily):
-    parameters: ClassVar = ("nu", "rho", 'xi', 'tau', "zeta", 'sources')
+    parameters: ClassVar = ("nu", "rho", 'xi', 'tau', "survival_shifts")
 
     @staticmethod
-    def _get_reparametrized_nu(nu, rho, xi, tau, zeta, sources):
-        return nu * torch.exp(-(xi + (1/rho)*(torch.tensordot(sources,zeta, dims = [[1],[1]]))))
+    def _get_reparametrized_nu(nu, rho, xi, tau, survival_shifts):
+        return nu * torch.exp(-(xi + (1/rho)*(survival_shifts)))
 
 
 @dataclass(frozen=True)

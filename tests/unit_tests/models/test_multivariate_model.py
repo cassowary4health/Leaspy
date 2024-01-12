@@ -1,14 +1,10 @@
 import torch
-from leaspy.models.multivariate import MultivariateModel
+from leaspy.models.multivariate import LogisticMultivariateModel
 
 from tests import LeaspyTestCase
 
 
 class TestMultivariateModel(LeaspyTestCase):
-
-    def test_wrong_name(self):
-        with self.assertRaises(ValueError):
-            MultivariateModel('unknown-suffix')
 
     def test_load_parameters(self):
         """
@@ -16,10 +12,7 @@ class TestMultivariateModel(LeaspyTestCase):
         """
         leaspy_object = self.get_hardcoded_model("logistic_scalar_noise")
 
-        model = MultivariateModel(
-            "logistic",
-            obs_models="gaussian-scalar",
-        )
+        model = LogisticMultivariateModel("test_model", obs_models="gaussian-scalar")
         model.source_dimension = 2
         model.dimension = 4
         model.load_parameters(leaspy_object.model.parameters)

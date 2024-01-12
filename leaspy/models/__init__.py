@@ -4,22 +4,19 @@ from .base import BaseModel
 from .constant import ConstantModel
 from .generic import GenericModel
 from .lme import LMEModel
-from .multivariate import MultivariateModel
+from .multivariate import MultivariateModel, LogisticMultivariateModel, LinearMultivariateModel
 from .multivariate_parallel import MultivariateParallelModel
-from .univariate import UnivariateModel
 from .univariate_joint import UnivariateJointModel
+from .univariate import LinearUnivariateModel, LogisticUnivariateModel
 
 
 # flexible dictionary to have a simpler and more maintainable ModelFactory
 ALL_MODELS = {
-    ## univariate Leaspy models
-    'univariate_logistic': UnivariateModel,
-    #'univariate_linear': UnivariateModel,
-
-    # multivariate Leaspy models
-    'logistic': MultivariateModel,
-    'univariate_joint':UnivariateJointModel,
-    # 'linear': MultivariateModel,
+    "univariate_joint": UnivariateJointModel,
+    "univariate_logistic": LogisticUnivariateModel,
+    "univariate_linear": LinearUnivariateModel,
+    "logistic": LogisticMultivariateModel,
+    "linear": LinearMultivariateModel,
     # 'mixed_linear-logistic': MultivariateModel,
     # 'logistic_parallel': MultivariateParallelModel,
 
@@ -42,6 +39,10 @@ __all__ = [
     "LMEModel",
     "ModelFactory",
     "MultivariateModel",
+    "LogisticMultivariateModel",
+    "LinearMultivariateModel",
     "MultivariateParallelModel",
-    "UnivariateModel",
+    "LinearUnivariateModel",
+    "LogisticUnivariateModel",
+    "UnivariateJointModel",
 ]

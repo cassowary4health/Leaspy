@@ -1,12 +1,14 @@
+import pandas as pd
 import torch
+from abc import abstractmethod
 
 from typing import Iterable, Optional
+from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
+from leaspy.models.base import InitializationMethod
 from leaspy.models.abstract_multivariate_model import AbstractMultivariateModel
 from leaspy.io.data.dataset import Dataset
-from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
-from leaspy.utils.docs import doc_with_super  # doc_with_
-# from leaspy.utils.subtypes import suffixed_method
-from leaspy.exceptions import LeaspyModelInputError
+
+from leaspy.utils.docs import doc_with_super
 
 from leaspy.variables.state import State
 from leaspy.variables.specs import (
@@ -21,6 +23,8 @@ from leaspy.variables.specs import (
 from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import Exp, Sqr, OrthoBasis
 from leaspy.utils.weighted_tensor import unsqueeze_right
+
+from leaspy.models.obs_models import FullGaussianObservationModel
 
 
 # TODO refact? implement a single function
@@ -46,21 +50,11 @@ class MultivariateModel(AbstractMultivariateModel):
     Raises
     ------
     :exc:`.LeaspyModelInputError`
-        * If `name` is not one of allowed sub-type: 'univariate_linear' or 'univariate_logistic'
         * If hyperparameters are inconsistent
     """
 
-    SUBTYPES_SUFFIXES = {
-        'linear': '_linear',
-        'logistic': '_logistic',
-        'mixed_linear-logistic': '_mixed',
-    }
-
     def __init__(self, name: str, variables_to_track: Optional[Iterable[str]] = None, **kwargs):
         super().__init__(name, **kwargs)
-
-        # TODO: remove this, use children classes instead (more proper)
-        self._subtype_suffix = self._check_subtype()
 
         variables_to_track = variables_to_track or (
             "log_g_mean",
@@ -77,15 +71,6 @@ class MultivariateModel(AbstractMultivariateModel):
             "tau"
         )
         self.tracked_variables = self.tracked_variables.union(set(variables_to_track))
-
-    def _check_subtype(self) -> str:
-        if self.name not in self.SUBTYPES_SUFFIXES.keys():
-            raise LeaspyModelInputError(
-                f"{type(self).__name__} name should be among these valid sub-types: "
-                f"{list(self.SUBTYPES_SUFFIXES.keys())}."
-            )
-
-        return self.SUBTYPES_SUFFIXES[self.name]
 
     """
     @suffixed_method
@@ -404,10 +389,6 @@ class MultivariateModel(AbstractMultivariateModel):
         return derivatives
     """
 
-    ##############################
-    ### MCMC-related functions ###
-    ##############################
-
     @classmethod
     def _center_xi_realizations(cls, state: State) -> None:
         """
@@ -429,14 +410,12 @@ class MultivariateModel(AbstractMultivariateModel):
         state["xi"] = state["xi"] - mean_xi
         state["log_v0"] = state["log_v0"] + mean_xi
 
-        # TODO: find a way to prevent re-computation of orthonormal basis since it should not have changed (v0_collinear update)
+        # TODO: find a way to prevent re-computation of orthonormal basis since it should
+        #  not have changed (v0_collinear update)
         #self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
     @classmethod
-    def compute_sufficient_statistics(
-        cls,
-        state: State,
-    ) -> SuffStatsRW:
+    def compute_sufficient_statistics(cls, state: State) -> SuffStatsRW:
         """
         Compute the model's :term:`sufficient statistics`.
 
@@ -456,48 +435,6 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return super().compute_sufficient_statistics(state)
 
-    @classmethod
-    def model_with_sources(
-        cls,
-        *,
-        rt: TensorOrWeightedTensor[float],
-        space_shifts: TensorOrWeightedTensor[float],
-        metric: TensorOrWeightedTensor[float],
-        v0: TensorOrWeightedTensor[float],
-        log_g: TensorOrWeightedTensor[float],
-    ) -> torch.Tensor:
-        """Returns a model with sources."""
-        # TODO WIP: logistic model only for now
-        # Shape: (Ni, Nt, Nfts)
-        pop_s = (None, None, ...)
-        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
-        w_model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
-        model_logit, weights = WeightedTensor.get_filled_value_and_weight(w_model_logit, fill_value=0.)
-        return WeightedTensor(torch.sigmoid(model_logit), weights).weighted_value
-
-    @classmethod
-    def model_no_sources(
-        cls,
-        *,
-        rt: TensorOrWeightedTensor[float],
-        metric: TensorOrWeightedTensor[float],
-        v0: TensorOrWeightedTensor[float],
-        log_g: TensorOrWeightedTensor[float],
-    ) -> torch.Tensor:
-        """Returns a model without source. A bit dirty?"""
-        return cls.model_with_sources(
-            rt=rt,
-            metric=metric,
-            v0=v0,
-            log_g=log_g,
-            space_shifts=torch.zeros((1, 1)),
-        )
-
-    @staticmethod
-    def metric(*, g: TensorOrWeightedTensor[float]) -> TensorOrWeightedTensor[float]:
-        """Used to define the corresponding variable."""
-        return (g + 1) ** 2 / g
-
     def get_variables_specs(self) -> NamedVariables:
         """
         Return the specifications of the variables (latent variables, derived variables,
@@ -509,7 +446,6 @@ class MultivariateModel(AbstractMultivariateModel):
             The specifications of the model's variables.
         """
         d = super().get_variables_specs()
-
         d.update(
             # PRIORS
             log_v0_mean=ModelParameter.for_pop_mean(
@@ -528,7 +464,6 @@ class MultivariateModel(AbstractMultivariateModel):
             ),
             metric=LinkedVariable(self.metric),  # for linear model: metric & metric_sqr are fixed = 1.
         )
-
         if self.source_dimension >= 1:
             d.update(
                 model=LinkedVariable(self.model_with_sources),
@@ -544,16 +479,191 @@ class MultivariateModel(AbstractMultivariateModel):
 
         return d
 
-    def get_initial_model_parameters(self, dataset: Dataset, method: str) -> VariablesValuesRO:
-        """Get initial values for model parameters."""
+    @staticmethod
+    @abstractmethod
+    def metric(*, g: torch.Tensor) -> torch.Tensor:
+        pass
 
-        # TODO - WIP (put back `initialize_parameters` function in this one, with possible utils functions in models.utilities?)
-        from leaspy.models.utils.initialization.model_initialization import initialize_parameters
-        params, obs_model_params = initialize_parameters(self, dataset, method=method)
-        # all parameters in one
-        params.update(obs_model_params)
+    @classmethod
+    def model_no_sources(cls, *, rt: torch.Tensor, metric, v0, log_g) -> torch.Tensor:
+        """Returns a model without source. A bit dirty?"""
+        return cls.model_with_sources(
+            rt=rt,
+            metric=metric,
+            v0=v0,
+            log_g=log_g,
+            space_shifts=torch.zeros((1, 1)),
+        )
 
-        return params
+    @classmethod
+    @abstractmethod
+    def model_with_sources(
+        cls,
+        *,
+        rt: torch.Tensor,
+        space_shifts: torch.Tensor,
+        metric,
+        v0,
+        log_g,
+    ) -> torch.Tensor:
+        pass
+
+
+class LinearMultivariateModel(MultivariateModel):
+    """Manifold model for multiple variables of interest (linear formulation)."""
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+
+    @staticmethod
+    def metric(*, g: torch.Tensor) -> torch.Tensor:
+        """Used to define the corresponding variable."""
+        return torch.ones_like(g)
+
+    @classmethod
+    def model_with_sources(
+        cls,
+        *,
+        rt: torch.Tensor,
+        space_shifts: torch.Tensor,
+        metric,
+        v0,
+        log_g,
+    ) -> torch.Tensor:
+        """Returns a model with sources."""
+        pop_s = (None, None, ...)
+        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
+        return torch.exp(log_g[pop_s]) + v0[pop_s] * rt + space_shifts[:, None, ...]
+
+    def _compute_initial_values_for_model_parameters(
+        self,
+        dataset: Dataset,
+        method: InitializationMethod,
+    ) -> VariablesValuesRO:
+        from leaspy.models.utilities import (
+            compute_linear_regression_subjects,
+            get_log_velocities,
+            torch_round,
+        )
+
+        df = self._get_dataframe_from_dataset(dataset)
+        times = df.index.get_level_values("TIME").values
+        t0 = times.mean()
+
+        d_regress_params = compute_linear_regression_subjects(df, max_inds=None)
+        df_all_regress_params = pd.concat(d_regress_params, names=['feature'])
+        df_all_regress_params['position'] = (
+            df_all_regress_params['intercept'] + t0 * df_all_regress_params['slope']
+        )
+        df_grp = df_all_regress_params.groupby('feature', sort=False)
+        positions = torch.tensor(df_grp['position'].mean().values)
+        velocities = torch.tensor(df_grp['slope'].mean().values)
+
+        parameters = {
+            "log_g_mean": positions,
+            "log_v0_mean": get_log_velocities(velocities, self.features),
+            # "betas": torch.zeros((self.dimension - 1, self.source_dimension)),
+            "tau_mean": torch.tensor(t0),
+            "tau_std": self.tau_std,
+            # "xi_mean": torch.tensor(0.),
+            "xi_std": self.xi_std,
+            # "sources_mean": torch.tensor(0.),
+            # "sources_std": torch.tensor(SOURCES_STD),
+        }
+        if self.source_dimension >= 1:
+            parameters["betas_mean"] = torch.zeros((self.dimension - 1, self.source_dimension))
+        rounded_parameters = {
+            str(p): torch_round(v.to(torch.float32)) for p, v in parameters.items()
+        }
+        obs_model = next(iter(self.obs_models))  # WIP: multiple obs models...
+        if isinstance(obs_model, FullGaussianObservationModel):
+            rounded_parameters["noise_std"] = self.noise_std.expand(
+                obs_model.extra_vars['noise_std'].shape
+            )
+        return rounded_parameters
+
+
+class LogisticMultivariateModel(MultivariateModel):
+    """Manifold model for multiple variables of interest (logistic formulation)."""
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+
+    @staticmethod
+    def metric(*, g: torch.Tensor) -> torch.Tensor:
+        """Used to define the corresponding variable."""
+        return (g + 1) ** 2 / g
+
+    @classmethod
+    def model_with_sources(
+        cls,
+        *,
+        rt: TensorOrWeightedTensor[float],
+        space_shifts: TensorOrWeightedTensor[float],
+        metric: TensorOrWeightedTensor[float],
+        v0: TensorOrWeightedTensor[float],
+        log_g: TensorOrWeightedTensor[float],
+    ) -> torch.Tensor:
+        """Returns a model with sources."""
+        # Shape: (Ni, Nt, Nfts)
+        pop_s = (None, None, ...)
+        rt = unsqueeze_right(rt, ndim=1)  # .filled(float('nan'))
+        w_model_logit = metric[pop_s] * (v0[pop_s] * rt + space_shifts[:, None, ...]) - log_g[pop_s]
+        model_logit, weights = WeightedTensor.get_filled_value_and_weight(w_model_logit, fill_value=0.)
+        return WeightedTensor(torch.sigmoid(model_logit), weights).weighted_value
+
+    def _compute_initial_values_for_model_parameters(
+        self,
+        dataset: Dataset,
+        method: InitializationMethod,
+    ) -> VariablesValuesRO:
+        """Compute initial values for model parameters."""
+        from leaspy.models.utilities import (
+            compute_patient_slopes_distribution,
+            compute_patient_values_distribution,
+            compute_patient_time_distribution,
+            get_log_velocities,
+            torch_round,
+        )
+
+        df = self._get_dataframe_from_dataset(dataset)
+        slopes_mu, slopes_sigma = compute_patient_slopes_distribution(df)
+        values_mu, values_sigma = compute_patient_values_distribution(df)
+        time_mu, time_sigma = compute_patient_time_distribution(df)
+
+        if method == InitializationMethod.DEFAULT:
+            slopes = slopes_mu
+            values = values_mu
+            t0 = time_mu
+            betas = torch.zeros((self.dimension - 1, self.source_dimension))
+
+        if method == InitializationMethod.RANDOM:
+            slopes = torch.normal(slopes_mu, slopes_sigma)
+            values = torch.normal(values_mu, values_sigma)
+            t0 = torch.normal(time_mu, time_sigma)
+            betas = torch.distributions.normal.Normal(loc=0., scale=1.).sample(
+                sample_shape=(self.dimension - 1, self.source_dimension)
+            )
+
+        # Enforce values are between 0 and 1
+        values = values.clamp(min=1e-2, max=1 - 1e-2)  # always "works" for ordinal (values >= 1)
+
+        parameters = {
+            "log_g_mean": torch.log(1. / values - 1.),
+            "log_v0_mean": get_log_velocities(slopes, self.features),
+            "tau_mean": t0,
+            "tau_std": self.tau_std,
+            "xi_std": self.xi_std,
+        }
+        if self.source_dimension >= 1:
+            parameters["betas_mean"] = betas
+        rounded_parameters = {
+            str(p): torch_round(v.to(torch.float32)) for p, v in parameters.items()
+        }
+        obs_model = next(iter(self.obs_models))  # WIP: multiple obs models...
+        if isinstance(obs_model, FullGaussianObservationModel):
+            rounded_parameters["noise_std"] = self.noise_std.expand(
+                obs_model.extra_vars['noise_std'].shape
+            )
+        return rounded_parameters
 
 """
 # document some methods (we cannot decorate them at method creation since they are

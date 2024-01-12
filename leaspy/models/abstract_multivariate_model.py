@@ -1,8 +1,9 @@
 import warnings
 
 import torch
+import pandas as pd
 
-from leaspy.models.abstract_model import AbstractModel
+from leaspy.models.abstract_model import AbstractModel, InitializationMethod
 from leaspy.models.obs_models import observation_model_factory
 
 # WIP
@@ -16,6 +17,7 @@ from leaspy.variables.specs import (
     PopulationLatentVariable,
     IndividualLatentVariable,
     LinkedVariable,
+    VariablesValuesRO,
 )
 from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import (
@@ -23,10 +25,11 @@ from leaspy.utils.functional import (
     MatMul,
     Sum
 )
+from leaspy.models.obs_models import FullGaussianObservationModel
 
-from leaspy.utils.typing import KwargsType
+from leaspy.utils.typing import KwargsType, Optional
 from leaspy.utils.docs import doc_with_super
-from leaspy.exceptions import LeaspyModelInputError
+from leaspy.exceptions import LeaspyModelInputError, LeaspyInputError
 
 
 @doc_with_super()
@@ -46,9 +49,30 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
     :exc:`.LeaspyModelInputError`
         If inconsistent hyperparameters.
     """
+    _xi_std = .5
+    _tau_std = 5.
+    _noise_std = .1
+    _sources_std = 1.
+
+    @property
+    def xi_std(self) -> torch.Tensor:
+        return torch.tensor([self._xi_std])
+
+    @property
+    def tau_std(self) -> torch.Tensor:
+        return torch.tensor([self._tau_std])
+
+    @property
+    def noise_std(self) -> torch.Tensor:
+        return torch.tensor(self._noise_std)
+
+    @property
+    def sources_std(self) -> float:
+        return self._sources_std
+
     def __init__(self, name: str, **kwargs):
 
-        self.source_dimension: int = None
+        self.source_dimension: Optional[int] = None
 
         # TODO / WIP / TMP: dirty for now...
         # Should we:
@@ -143,23 +167,22 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
         return d
 
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
-        """
-        Overloads base initialization of model (base method takes care of features consistency checks).
+    def _get_dataframe_from_dataset(self, dataset: Dataset) -> pd.DataFrame:
+        df = dataset.to_pandas().dropna(how='all').sort_index()[dataset.headers]
+        if not df.index.is_unique:
+            raise LeaspyInputError("Index of DataFrame is not unique.")
+        if not df.index.to_frame().notnull().all(axis=None):
+            raise LeaspyInputError("Index of DataFrame contains unvalid values.")
+        if self.features != df.columns.tolist():
+            raise LeaspyInputError(
+                f"Features mismatch between model and dataset: {self.features} != {df.columns}"
+            )
+        return df
 
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            Input :class:`.Dataset` from which to initialize the model.
-        method : :obj:`str`, optional
-            The initialization method to be used.
-            Default='default'.
-        """
-        # TODO? split method in two so that it would overwritting of method would be cleaner?
-        self._validate_source_dimension(dataset)
-        super().initialize(dataset, method=method)
-
-    def _validate_source_dimension(self, dataset: Dataset):
+    def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
+        super()._validate_compatibility_of_dataset(dataset)
+        if not dataset:
+            return
         if self.source_dimension is None:
             self.source_dimension = int(dataset.dimension ** .5)
             warnings.warn(
@@ -194,7 +217,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
     #
     #    self._check_ordinal_parameters_consistency()
 
-    def load_hyperparameters(self, hyperparameters: KwargsType) -> None:
+    def _load_hyperparameters(self, hyperparameters: KwargsType) -> None:
         """
         Updates all model hyperparameters from the provided hyperparameters.
 

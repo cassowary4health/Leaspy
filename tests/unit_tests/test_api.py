@@ -28,8 +28,8 @@ from tests.unit_tests.models.test_model_factory import ModelFactoryTestMixin
 class LeaspyTest(LeaspyFitTestMixin, ModelFactoryTestMixin):
     model_names = (
         "univariate_logistic",
-        # "univariate_linear",
-        # "linear",
+        "univariate_linear",
+        "linear",
         "logistic",
         # "logistic_parallel",
         # "mixed_linear-logistic",
@@ -87,7 +87,7 @@ class LeaspyTest(LeaspyFitTestMixin, ModelFactoryTestMixin):
 
 
         for name in (
-            # "linear",
+            "linear",
             "logistic",
             # "logistic_parallel",
             # "mixed_linear-logistic",
@@ -96,7 +96,7 @@ class LeaspyTest(LeaspyFitTestMixin, ModelFactoryTestMixin):
             self.assertEqual(leaspy.model.source_dimension, 2)
 
         for name in (
-            # "linear",
+            "linear",
             "logistic",
         ):
             leaspy = Leaspy(f"univariate_{name}")
@@ -113,7 +113,7 @@ class LeaspyTest(LeaspyFitTestMixin, ModelFactoryTestMixin):
 
     def test_load_hyperparameters(self):
         leaspy = self.get_hardcoded_model('logistic_diag_noise')
-        leaspy.model.load_hyperparameters({'source_dimension': 3})
+        leaspy.model._load_hyperparameters({'source_dimension': 3})
 
         self.assertEqual(leaspy.model.source_dimension, 3)
         self.assertIsInstance(leaspy.model.obs_models[0], FullGaussianObservationModel)

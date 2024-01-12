@@ -301,11 +301,11 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             check_model = True
         )
 
-    @skip("Linear models are currently broken.")
+    #@skip("Linear models are currently broken.")
     def test_fit_univariate_linear(self):
         self.generic_fit("univariate_linear", "univariate_linear")
 
-    @skip("Linear models are currently broken.")
+    #@skip("Linear models are currently broken.")
     def test_fit_linear(self):
         self.generic_fit(
             "linear",
@@ -314,7 +314,7 @@ class LeaspyFitTest(LeaspyFitTestMixin):
             source_dimension=2,
         )
 
-    @skip("Linear models are currently broken.")
+    #@skip("Linear models are currently broken.")
     def test_fit_linear_diagonal_noise(self):
         self.generic_fit(
             "linear",

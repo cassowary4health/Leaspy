@@ -1,42 +1,26 @@
 import torch
 from lifelines import WeibullFitter
 
-from leaspy.models.univariate import UnivariateModel
+from leaspy.models.univariate import LogisticUnivariateModel
 from leaspy.io.data.dataset import Dataset
-from leaspy.exceptions import LeaspyModelInputError
-
 from leaspy.utils.docs import doc_with_super  # doc_with_
-# from leaspy.utils.subtypes import suffixed_method
-from leaspy.exceptions import LeaspyInputError, LeaspyModelInputError
-from leaspy.utils.weighted_tensor import WeightedTensor, TensorOrWeightedTensor
-from leaspy.models.utils.initialization.model_initialization import (
-    compute_patient_slopes_distribution,
-    compute_patient_values_distribution,
-    compute_patient_time_distribution,
-    get_log_velocities,
-    _torch_round)
-
+from leaspy.models.base import InitializationMethod
 from leaspy.variables.state import State
 from leaspy.variables.specs import (
-    DataVariable,
     NamedVariables,
     ModelParameter,
     PopulationLatentVariable,
     LinkedVariable,
     Hyperparameter,
-    SuffStatsRW,
     VariablesValuesRO,
 )
 from leaspy.variables.distributions import Normal
-from leaspy.utils.functional import Exp, Sqr, OrthoBasis, Sum
-from leaspy.utils.weighted_tensor import unsqueeze_right
-
+from leaspy.utils.functional import Exp, Sum
 from leaspy.models.obs_models import observation_model_factory
-from leaspy.utils.typing import (
-
-    DictParams,
-)
 import pandas as pd
+from leaspy.utils.typing import DictParams, Optional
+from leaspy.exceptions import LeaspyInputError
+
 # TODO refact? implement a single function
 # compute_individual_tensorized(..., with_jacobian: bool) -> returning either
 # model values or model values + jacobians wrt individual parameters
@@ -46,7 +30,7 @@ import pandas as pd
 
 
 @doc_with_super()
-class UnivariateJointModel(UnivariateModel):
+class UnivariateJointModel(LogisticUnivariateModel):
     """
     Manifold model for multiple variables of interest (logistic or linear formulation).
 
@@ -63,19 +47,25 @@ class UnivariateJointModel(UnivariateModel):
         * If `name` is not one of allowed sub-type: 'univariate_linear' or 'univariate_logistic'
         * If hyperparameters are inconsistent
     """
-
-    SUBTYPES_SUFFIXES = {
-        'univariate_joint': '_joint',
-    }
     init_tolerance = 0.3
+
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
         obs_models_to_string = [o.to_string() for o in self.obs_models]
         if "gaussian-scalar" not in obs_models_to_string:
-            self.obs_models += (observation_model_factory("gaussian-scalar", dimension = 1),)
+            self.obs_models += (
+                observation_model_factory("gaussian-scalar", dimension=1),
+            )
         if "weibull-right-censored" not in obs_models_to_string:
-            self.obs_models += (observation_model_factory("weibull-right-censored", nu = 'nu', rho = 'rho', xi = 'xi', tau = 'tau'),)
-
+            self.obs_models += (
+                observation_model_factory(
+                    "weibull-right-censored",
+                    nu='nu',
+                    rho='rho',
+                    xi='xi',
+                    tau='tau',
+                ),
+            )
         variables_to_track = (
             "n_log_nu_mean",
             "log_rho_mean",
@@ -95,22 +85,18 @@ class UnivariateJointModel(UnivariateModel):
             The specifications of the model's variables.
         """
         d = super().get_variables_specs()
-
         d.update(
-
             # PRIORS
             n_log_nu_mean=ModelParameter.for_pop_mean(
                 "n_log_nu",
                 shape=(self.dimension,),
             ),
             n_log_nu_std=Hyperparameter(0.01),
-
             log_rho_mean=ModelParameter.for_pop_mean(
                 "log_rho",
                 shape=(self.dimension,),
             ),
             log_rho_std=Hyperparameter(0.01),
-
             # LATENT VARS
             n_log_nu=PopulationLatentVariable(
                 Normal("n_log_nu_mean", "n_log_nu_std"),
@@ -119,29 +105,24 @@ class UnivariateJointModel(UnivariateModel):
                 Normal("log_rho_mean", "log_rho_std"),
             ),
             # DERIVED VARS
-            nu = LinkedVariable(self.exp_neg_n_log_nu),
+            nu=LinkedVariable(self.exp_neg_n_log_nu),
             rho=LinkedVariable(
                 Exp("log_rho"),
             ),
         )
-
         d.update(
             nll_attach=LinkedVariable(Sum("nll_attach_y", "nll_attach_event")),
-            nll_attach_ind = LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
+            nll_attach_ind=LinkedVariable(Sum("nll_attach_y_ind", "nll_attach_event_ind")),
         )
 
         return d
 
     @staticmethod
     def exp_neg_n_log_nu(
-            *,
-            n_log_nu: torch.Tensor,  # TODO: TensorOrWeightedTensor?
+        *,
+        n_log_nu: torch.Tensor,  # TODO: TensorOrWeightedTensor?
     ) -> torch.Tensor:
         return torch.exp(-1 * n_log_nu)
-
-    ##############################
-    ### MCMC-related functions ###
-    ##############################
 
     @classmethod
     def _center_xi_realizations(cls, state: State) -> None:
@@ -168,87 +149,26 @@ class UnivariateJointModel(UnivariateModel):
         # TODO: find a way to prevent re-computation of orthonormal basis since it should not have changed (v0_collinear update)
         #self.update_MCMC_toolbox({'v0_collinear'}, realizations)
 
-    ##############################
-    ###      Initialisation    ###
-    ##############################
-    def initialize(self, dataset: Dataset, method: str = 'default') -> None:
-        """
-        Overloads base initialization of model (base method takes care of features consistency checks).
-
-        Parameters
-        ----------
-        dataset : :class:`.Dataset`
-            Input :class:`.Dataset` from which to initialize the model.
-        method : :obj:`str`, optional
-            The initialization method to be used.
-            Default='default'.
-        """
+    def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
+        super()._validate_compatibility_of_dataset(dataset)
         # Check that there is only one event stored
         if not (dataset.event_bool.unique() == torch.tensor([0, 1])).all():
-            raise LeaspyInputError('You are using a one event model, your event_bool value should only contain 0 and 1,'
-                                   'with at least one censored event and one observed event')
-        super().initialize(dataset, method=method)
+            raise LeaspyInputError(
+                "You are using a one event model, your event_bool value should only contain 0 and 1, "
+                "with at least one censored event and one observed event"
+            )
 
-    def _estimate_initial_longitudinal_parameters(self, dataset: Dataset) -> VariablesValuesRO:
+    def _compute_initial_values_for_model_parameters(
+        self,
+        dataset: Dataset,
+        method: InitializationMethod,
+    ) -> VariablesValuesRO:
+        from leaspy.models.utilities import torch_round
 
-        # Hardcoded
-        XI_STD = .5
-        TAU_STD = 5.
-        NOISE_STD = .1
-
-        # Get dataframe
-        df = dataset.to_pandas().dropna(how='all').sort_index()[dataset.headers]
-
-        # Make basic data checks
-        assert df.index.is_unique
-        assert df.index.to_frame().notnull().all(axis=None)
-        if self.features != df.columns:
-            raise LeaspyInputError(f"Features mismatch between model and dataset: {model.features} != {df.columns}")
-
-        # Get mean time
-        t0, _ = compute_patient_time_distribution(df)
-
-        # Enforce values are between 0 and 1
-        values, _ = compute_patient_values_distribution(df)
-        values = values.clamp(min=1e-2, max=1 - 1e-2)  # always "works" for ordinal (values >= 1)
-
-        # Extract lopes and convert into parameters
-        slopes, _ = compute_patient_slopes_distribution(df)
-        v0_array = get_log_velocities(slopes, self.features)
-        g_array = torch.log(
-            1. / values - 1.)  # cf. Igor thesis; <!> exp is done in Attributes class for logistic models
-
-        # Create smart initialization dictionary
-        parameters = {
-                'log_g_mean': g_array.squeeze(),
-                'log_v0_mean': v0_array.squeeze(),
-                'tau_mean': t0,
-                'tau_std': torch.tensor(TAU_STD),
-                'xi_std': torch.tensor(XI_STD),
-            'noise_std' : torch.tensor(NOISE_STD)
-            }
-        return parameters
-
-    def _estimate_initial_event_parameters(self, dataset: Dataset) -> VariablesValuesRO:
-        wbf = WeibullFitter().fit(dataset.event_time,
-                                  dataset.event_bool)
-        parameters = {
-            'log_rho_mean': torch.log(torch.tensor(wbf.rho_)),
-            'n_log_nu_mean': -torch.log(torch.tensor(wbf.lambda_))
-        }
-        return parameters
-
-    def get_initial_model_parameters(self, dataset: Dataset, method: str) -> VariablesValuesRO:
-        """Get initial values for model parameters."""
-
-        # Estimate initial parameters from the data
-        params = self._estimate_initial_longitudinal_parameters(dataset)
-        params_event = self._estimate_initial_event_parameters(dataset)
-        params.update(params_event)
-
-        # convert to float 32 bits & add a rounding step on the initial parameters to ensure full reproducibility
+        params = super()._compute_initial_values_for_model_parameters(dataset, method)
+        params.update(self._estimate_initial_event_parameters(dataset))
         rounded_parameters = {
-            str(p): _torch_round(v.to(torch.float32))
+            str(p): torch_round(v.to(torch.float32))
             for p, v in params.items()
         }
 
@@ -273,10 +193,12 @@ class UnivariateJointModel(UnivariateModel):
         with state.auto_fork(None):
             state.put_individual_latent_variables(df = df_ind)
 
-    ##############################
-    ###      Estimation        ###
-    ##############################
-
+    def _estimate_initial_event_parameters(self, dataset: Dataset) -> VariablesValuesRO:
+        wbf = WeibullFitter().fit(dataset.event_time, dataset.event_bool)
+        return {
+            'log_rho_mean': torch.log(torch.tensor(wbf.rho_)),
+            'n_log_nu_mean': -torch.log(torch.tensor(wbf.lambda_))
+        }
 
     def compute_individual_trajectory(
         self,
@@ -314,7 +236,7 @@ class UnivariateJointModel(UnivariateModel):
         :exc:`.LeaspyIndividualParamsInputError`
             if invalid individual parameters.
         """
-        self.check_individual_parameters_provided(individual_parameters.keys())
+        self._check_individual_parameters_provided(individual_parameters.keys())
         timepoints, individual_parameters = self._get_tensorized_inputs(
             timepoints, individual_parameters, skip_ips_checks=skip_ips_checks
         )
@@ -330,5 +252,10 @@ class UnivariateJointModel(UnivariateModel):
             local_state[ip] = ip_v
         # reshape survival_event from (len(timepoints)) to (1, len(timepoints), 1) so it is compatible with the
         # model shape 
-        return torch.cat((local_state["model"],
-                   torch.exp(local_state["survival_event"]).reshape(-1,1).expand((1,-1,-1))),2)
+        return torch.cat(
+            (
+                local_state["model"],
+                torch.exp(local_state["survival_event"]).reshape(-1, 1).expand((1, -1, -1))
+            ),
+            2
+        )

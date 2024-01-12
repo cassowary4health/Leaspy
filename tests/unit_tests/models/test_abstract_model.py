@@ -11,9 +11,9 @@ from tests import LeaspyTestCase
 class AbstractModelTest(LeaspyTestCase):
 
     model_names = (
-        # "linear",  currently broken
+         "linear",
         "univariate_logistic",
-        # "univariate_linear",  currently broken
+        "univariate_linear",
         "logistic",
         # "logistic_parallel",  currently broken
     )
@@ -43,17 +43,17 @@ class AbstractModelTest(LeaspyTestCase):
             "compute_mode_traj",
             "compute_prior_trajectory",
             "compute_sufficient_statistics",
-            "get_initial_model_parameters",
+            # "get_initial_model_parameters",
             "get_variables_specs",
             "initialize",
             "initialize_model_parameters",
-            "initialize_state",
-            "load_hyperparameters",
+            # "initialize_state",
+            # "load_hyperparameters",
             "load_parameters",
             "move_to_device",
             "to_dict",
             "update_parameters",
-            "validate_compatibility_of_dataset",
+            # "validate_compatibility_of_dataset",
         )
 
         present_attributes = [_ for _ in dir(model) if _[:2] != '__']  # Get the present method

@@ -8,7 +8,13 @@ import torch
 
 from leaspy.models.utilities import compute_std_from_variance
 from leaspy.variables.distributions import Normal
-from leaspy.utils.weighted_tensor import WeightedTensor, sum_dim, wsum_dim
+from leaspy.utils.weighted_tensor import (
+    WeightedTensor,
+    sum_dim,
+    wsum_dim_return_weighted_sum_only,
+    wsum_dim_return_sum_of_weights_only,
+    wsum_dim,
+)
 from leaspy.utils.functional import Sqr, Prod
 from leaspy.variables.specs import (
     VarName,
@@ -88,7 +94,8 @@ class FullGaussianObservationModel(GaussianObservationModel):
         model_x_model: WeightedTensor[float],
     ) -> torch.Tensor:
         """Update rule for scalar `noise_std` (when directly a model parameter), from state & sufficient statistics."""
-        y_l2, n_obs = state["y_L2_and_n_obs"]
+        y_l2 = state["y_L2"]
+        n_obs = state["n_obs"]
         # TODO? by linearity couldn't we only require `-2*y_x_model + model_x_model` as summary stat?
         # and couldn't we even collect the already summed version of it?
         s1 = sum_dim(y_x_model)
@@ -112,7 +119,8 @@ class FullGaussianObservationModel(GaussianObservationModel):
         Update rule for feature-wise `noise_std` (when directly a model parameter),
         from state & sufficient statistics.
         """
-        y_l2_per_ft, n_obs_per_ft = state["y_L2_and_n_obs_per_ft"]
+        y_l2_per_ft = state["y_L2_per_ft"]
+        n_obs_per_ft = state["n_obs_per_ft"]
         # TODO: same remark as in `.scalar_noise_std_update()`
         s1 = sum_dim(y_x_model, but_dim=LVL_FT)
         s2 = sum_dim(model_x_model, but_dim=LVL_FT)
@@ -145,17 +153,16 @@ class FullGaussianObservationModel(GaussianObservationModel):
         """
         if not isinstance(dimension, int) or dimension < 1:
             raise ValueError(f"Dimension should be an integer >= 1. You provided {dimension}.")
-        # <!> Value of the following variable will be a `tuple[tensor[float], tensor[int]]`
-        # (not suited for partial reversion)
-        # TODO? -> split in 2 vars even if less efficient for computations?
         if dimension == 1:
-            extra_vars = dict(y_L2_and_n_obs=LinkedVariable(Sqr("y").then(wsum_dim)))
+            extra_vars = {
+                "y_L2": LinkedVariable(Sqr("y").then(wsum_dim_return_weighted_sum_only)),
+                "n_obs": LinkedVariable(Sqr("y").then(wsum_dim_return_sum_of_weights_only)),
+            }
         else:
-            extra_vars = dict(
-                y_L2_and_n_obs_per_ft=LinkedVariable(
-                    Sqr("y").then(wsum_dim, but_dim=LVL_FT)
-                )
-            )
+            extra_vars = {
+                "y_L2_per_ft": LinkedVariable(Sqr("y").then(wsum_dim_return_weighted_sum_only, but_dim=LVL_FT)),
+                "n_obs_per_ft": LinkedVariable(Sqr("y").then(wsum_dim_return_sum_of_weights_only, but_dim=LVL_FT)),
+            }
         return cls(noise_std=cls.noise_std_specs(dimension), **extra_vars)
 
     # Util functions not directly used in code
@@ -188,5 +195,4 @@ class FullGaussianObservationModel(GaussianObservationModel):
         """method for parameter saving"""
         if self.extra_vars['noise_std'].shape == (1,):
             return "gaussian-scalar"
-        else:
-            return "gaussian-diagonal"
+        return "gaussian-diagonal"

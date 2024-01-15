@@ -236,6 +236,7 @@ class UnivariateJointModel(LogisticUnivariateModel):
         :exc:`.LeaspyIndividualParamsInputError`
             if invalid individual parameters.
         """
+        from leaspy.utils.weighted_tensor import WeightedTensor
         self._check_individual_parameters_provided(individual_parameters.keys())
         timepoints, individual_parameters = self._get_tensorized_inputs(
             timepoints, individual_parameters, skip_ips_checks=skip_ips_checks
@@ -246,8 +247,10 @@ class UnivariateJointModel(LogisticUnivariateModel):
         local_state = self.state.clone(disable_auto_fork=True)
 
         self._put_data_timepoints(local_state, timepoints)
-        local_state.put('event', (timepoints, torch.zeros(timepoints.shape).bool()))
-
+        local_state.put(
+            "event",
+            WeightedTensor(timepoints, torch.zeros(timepoints.shape).bool()),
+        )
         for ip, ip_v in individual_parameters.items():
             local_state[ip] = ip_v
         # reshape survival_event from (len(timepoints)) to (1, len(timepoints), 1) so it is compatible with the
@@ -257,5 +260,5 @@ class UnivariateJointModel(LogisticUnivariateModel):
                 local_state["model"],
                 torch.exp(local_state["survival_event"]).reshape(-1, 1).expand((1, -1, -1))
             ),
-            2
+            2,
         )

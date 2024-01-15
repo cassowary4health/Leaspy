@@ -1,5 +1,13 @@
 from ._factory import factory_weighted_tensor_unary_operator
-from ._utils import expand_left, expand_right, sum_dim, unsqueeze_right, wsum_dim
+from ._utils import (
+    expand_left,
+    expand_right,
+    sum_dim,
+    unsqueeze_right,
+    wsum_dim,
+    wsum_dim_return_weighted_sum_only,
+    wsum_dim_return_sum_of_weights_only,
+)
 from ._weighted_tensor import WeightedTensor, TensorOrWeightedTensor
 
 
@@ -12,4 +20,6 @@ __all__ = [
     "unsqueeze_right",
     "WeightedTensor",
     "wsum_dim",
+    "wsum_dim_return_weighted_sum_only",
+    "wsum_dim_return_sum_of_weights_only",
 ]

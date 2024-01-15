@@ -355,7 +355,7 @@ class VariablesDAG(Mapping):
         return sorted_children, sorted_ancestors
 
     @property
-    def individual_variable_names(self) -> Tuple[VarName]:
+    def individual_variable_names(self) -> Tuple[VarName, ...]:
         return tuple(
             self.sorted_variables_by_type[IndividualLatentVariable].keys()
         )

@@ -615,7 +615,7 @@ class WeibullRightCensoredWithSourcesFamily(AbstractWeibullRightCensoredFamily):
 
     @staticmethod
     def _get_reparametrized_nu(nu, rho, xi, tau, survival_shifts):
-        return nu * torch.exp(-(xi + (1/rho)*(survival_shifts)))
+        return (nu + survival_shifts) * torch.exp(-(xi))
 
 
 @dataclass(frozen=True)

@@ -2,6 +2,7 @@ import torch
 
 from leaspy.models.generic import GenericModel
 from leaspy.exceptions import LeaspyModelInputError
+from leaspy.utils.typing import DictParams
 
 from leaspy.utils.docs import doc_with_super
 
@@ -61,17 +62,17 @@ class ConstantModel(GenericModel):
     """
 
     def __init__(self, name: str, **kwargs):
-
         super().__init__(name, **kwargs)
-
         # no fit algorithm is needed for constant model; every "personalization" will re-initialize model
         # however, we need to mock that model is personalization-ready by setting self.is_initialized (API requirement)
         self.is_initialized = True
 
     def compute_individual_trajectory(
         self,
-        timepoints: torch.Tensor,
-        individual_parameters: dict,
+        timepoints,
+        individual_parameters: DictParams,
+        *,
+        skip_ips_checks: bool = False,
     ) -> torch.Tensor:
         if self.features is None:
             raise LeaspyModelInputError('The model was not properly initialized.')

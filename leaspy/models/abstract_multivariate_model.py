@@ -1,14 +1,11 @@
 import warnings
+from typing import List
 
 import torch
-import pandas as pd
 
-from leaspy.models.abstract_model import AbstractModel, InitializationMethod
+from leaspy.models.abstract_model import AbstractModel
 from leaspy.models.obs_models import observation_model_factory
 
-# WIP
-# from leaspy.models.utils.initialization.model_initialization import initialize_parameters
-# from leaspy.models.utils.ordinal import OrdinalModelMixin
 from leaspy.io.data.dataset import Dataset
 from leaspy.variables.specs import (
     NamedVariables,
@@ -17,23 +14,19 @@ from leaspy.variables.specs import (
     PopulationLatentVariable,
     IndividualLatentVariable,
     LinkedVariable,
-    VariablesValuesRO,
 )
 from leaspy.variables.distributions import Normal
 from leaspy.utils.functional import (
     Exp,
     MatMul,
-    Sum
 )
-from leaspy.models.obs_models import FullGaussianObservationModel
-
 from leaspy.utils.typing import KwargsType, Optional
 from leaspy.utils.docs import doc_with_super
-from leaspy.exceptions import LeaspyModelInputError, LeaspyInputError
+from leaspy.exceptions import LeaspyModelInputError
 
 
 @doc_with_super()
-class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
+class AbstractMultivariateModel(AbstractModel):
     """
     Contains the common attributes & methods of the multivariate models.
 
@@ -71,8 +64,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         return self._sources_std
 
     def __init__(self, name: str, **kwargs):
-
-        self.source_dimension: Optional[int] = None
+        self._source_dimension: Optional[int] = None
 
         # TODO / WIP / TMP: dirty for now...
         # Should we:
@@ -90,7 +82,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
                 [observation_model_factory(obs_model, **kwargs)
                  for obs_model in observation_models]
             )
-        elif isinstance(observation_models, (dict)):
+        elif isinstance(observation_models, dict):
             # Not really satisfied... Used for api load
             kwargs["obs_models"] = tuple(
                 [observation_model_factory(observation_models['y'], dimension=dimension)]
@@ -98,6 +90,27 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         else:
             kwargs["obs_models"] = (observation_model_factory(observation_models, dimension=dimension),)
         super().__init__(name, **kwargs)
+
+    def _get_settable_hyperparameters(self) -> List[str]:
+        settable_hyperparameters = super()._get_settable_hyperparameters()
+        settable_hyperparameters.append("source_dimension")
+        return settable_hyperparameters
+
+    @property
+    def source_dimension(self) -> Optional[int]:
+        return self._source_dimension
+
+    @source_dimension.setter
+    def source_dimension(self, source_dimension: Optional[int]):
+        if not (
+            isinstance(source_dimension, int)
+            and (source_dimension >= 0)
+            and (self.dimension is None or source_dimension <= self.dimension - 1)
+        ):
+            raise LeaspyModelInputError(
+                f"Source dimension should be an integer in [0, dimension - 1], not {source_dimension}"
+            )
+        self._source_dimension = source_dimension
 
     def get_variables_specs(self) -> NamedVariables:
         """
@@ -164,18 +177,6 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
 
         return d
 
-    def _get_dataframe_from_dataset(self, dataset: Dataset) -> pd.DataFrame:
-        df = dataset.to_pandas().dropna(how='all').sort_index()[dataset.headers]
-        if not df.index.is_unique:
-            raise LeaspyInputError("Index of DataFrame is not unique.")
-        if not df.index.to_frame().notnull().all(axis=None):
-            raise LeaspyInputError("Index of DataFrame contains unvalid values.")
-        if self.features != df.columns.tolist():
-            raise LeaspyInputError(
-                f"Features mismatch between model and dataset: {self.features} != {df.columns}"
-            )
-        return df
-
     def _validate_compatibility_of_dataset(self, dataset: Optional[Dataset] = None) -> None:
         super()._validate_compatibility_of_dataset(dataset)
         if not dataset:
@@ -214,47 +215,7 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
     #
     #    self._check_ordinal_parameters_consistency()
 
-    def _load_hyperparameters(self, hyperparameters: KwargsType) -> None:
-        """
-        Updates all model hyperparameters from the provided hyperparameters.
-
-        Parameters
-        ----------
-        hyperparameters : KwargsType
-            The hyperparameters to be loaded.
-        """
-        expected_hyperparameters = ('features', 'dimension', 'source_dimension')
-
-        if 'features' in hyperparameters:
-            self.features = hyperparameters['features']
-
-        if 'dimension' in hyperparameters:
-            if self.features and hyperparameters['dimension'] != len(self.features):
-                raise LeaspyModelInputError(
-                    f"Dimension provided ({hyperparameters['dimension']}) does not match "
-                    f"features ({len(self.features)})"
-                )
-            self.dimension = hyperparameters['dimension']
-
-        if 'source_dimension' in hyperparameters:
-            if not (
-                isinstance(hyperparameters['source_dimension'], int)
-                and (hyperparameters['source_dimension'] >= 0)
-                and (self.dimension is None or hyperparameters['source_dimension'] <= self.dimension - 1)
-            ):
-                raise LeaspyModelInputError(
-                    f"Source dimension should be an integer in [0, dimension - 1], "
-                    f"not {hyperparameters['source_dimension']}"
-                )
-            self.source_dimension = hyperparameters['source_dimension']
-
-        # WIP
-        ## special hyperparameter(s) for ordinal model
-        #expected_hyperparameters += self._handle_ordinal_hyperparameters(hyperparameters)
-
-        self._raise_if_unknown_hyperparameters(expected_hyperparameters, hyperparameters)
-
-    def to_dict(self, *, with_mixing_matrix: bool = True) -> KwargsType:
+    def to_dict(self, *, with_mixing_matrix: bool = True, **kwargs) -> KwargsType:
         """
         Export ``Leaspy`` object as dictionary ready for :term:`JSON` saving.
 
@@ -275,8 +236,8 @@ class AbstractMultivariateModel(AbstractModel):  # OrdinalModelMixin,
         KwargsType :
             The object as a dictionary.
         """
-        model_settings = super().to_dict()
-        model_settings['source_dimension'] = self.source_dimension
+        model_settings = super().to_dict(**kwargs)
+        # model_settings["source_dimension"] = self.source_dimension
 
         if with_mixing_matrix and self.source_dimension >= 1:
             # transposed compared to previous version

@@ -37,7 +37,7 @@ class AbstractWeibullRightCensoredObservationModel(ObservationModel):
                 "Provided dataset is not valid. "
                 "Both values and mask should be not None."
             )
-        return dataset.event_time, dataset.event_bool
+        return WeightedTensor(dataset.event_time, dataset.event_bool)
 
     def get_variables_specs(
         self,

@@ -64,12 +64,93 @@ def wsum_dim(
     **kws,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Sum dimension(s) of provided weighted tensor (filling with
-    `fill_value` aggregates without any summed weighting if any),
-    and returns sum of weights as well.
+    Sum dimension(s) of provided weighted tensor.
+
+    The weighted tensor is filled with `fill_value` if provided.
+    The function returns the sum of weights as well.
+
+    Parameters
+    ----------
+    x : WeightedTensor
+        The weighted tensor on which to compute the sum.
+    fill_value : float
+        The value to use for filling the weighted tensor.
+    dim : int or tuple of int, optional
+        The dimension(s) on which to sum.
+    but_dim : int or tuple of int, optional
+        The dimension(s) to omit when summing.
+
+    Returns
+    -------
+    weighted_sum : torch.Tensor
+        Weighted sum, with totally un-weighted aggregates filled with `fill_value`.
+    sum_weights : torch.Tensor
+        The sum of weights.
     """
     dim = _get_dim(x, dim=dim, but_dim=but_dim)
     return x.wsum(fill_value=fill_value, dim=dim, **kws)
+
+
+def wsum_dim_return_weighted_sum_only(
+    x: WeightedTensor,
+    *,
+    fill_value=0,
+    dim: Union[None, int, Tuple[int, ...]] = None,
+    but_dim: Union[None, int, Tuple[int, ...]] = None,
+    **kws,
+) -> torch.Tensor:
+    """
+    Sum dimension(s) of provided weighted tensor like `wsum_dim` but
+    only return the weighted sum and not the sum of weights.
+
+    Parameters
+    ----------
+    x : WeightedTensor
+        The weighted tensor on which to compute the sum.
+    fill_value : float
+        The value to use for filling the weighted tensor.
+    dim : int or tuple of int, optional
+        The dimension(s) on which to sum.
+    but_dim : int or tuple of int, optional
+        The dimension(s) to omit when summing.
+
+    Returns
+    -------
+    torch.Tensor :
+        Weighted sum, with totally un-weighted aggregates filled with `fill_value`.
+    """
+    return wsum_dim(x, fill_value=fill_value, dim=dim, but_dim=but_dim, **kws)[0]
+
+
+def wsum_dim_return_sum_of_weights_only(
+    x: WeightedTensor,
+    *,
+    fill_value=0,
+    dim: Union[None, int, Tuple[int, ...]] = None,
+    but_dim: Union[None, int, Tuple[int, ...]] = None,
+    **kws,
+) -> torch.Tensor:
+    """
+    Sum dimension(s) of provided weighted tensor like `wsum_dim` but
+    only return the sum of weights and not the weighted sum.
+
+    Parameters
+    ----------
+    x : WeightedTensor
+        The weighted tensor on which to compute the sum.
+    fill_value : float
+        The value to use for filling the weighted tensor.
+    dim : int or tuple of int, optional
+        The dimension(s) on which to sum.
+    but_dim : int or tuple of int, optional
+        The dimension(s) to omit when summing.
+
+    Returns
+    -------
+    torch.Tensor :
+        The sum of weights.
+    """
+    return wsum_dim(x, fill_value=fill_value, dim=dim, but_dim=but_dim, **kws)[1]
 
 
 def _get_dim(

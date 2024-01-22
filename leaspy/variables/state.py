@@ -219,7 +219,7 @@ class State(MutableMapping):
     def put(
         self,
         variable_name: VarName,
-        variable_value: torch.Tensor,
+        variable_value: VarValue,
         *,
         indices: Tuple[int, ...] = (),
         accumulate: bool = False,
@@ -335,10 +335,7 @@ class State(MutableMapping):
         """
         for k, v in self._values.items():
             if v is not None:
-                if type(v) == tuple:
-                    self._values[k] = (_.to(device=device) for _ in v)
-                else:
-                    self._values[k] = v.to(device=device)
+                self._values[k] = v.to(device=device)
         if self._last_fork is not None:
             for k, v in self._last_fork.items():
                 if v is not None:

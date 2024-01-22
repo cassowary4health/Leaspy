@@ -461,11 +461,11 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
         torch.Tensor :
             The value of the distribution's mean.
         """
-        return cls.dist_weibull(cls._get_reparametrized_nu(nu, xi), rho).mean + tau
+        return cls.dist_weibull(cls._extract_reparametrized_nu(nu, xi), rho).mean + tau
 
     @staticmethod
     @abstractmethod
-    def _get_reparametrized_nu(nu: torch.Tensor, xi: torch.Tensor) -> torch.Tensor:
+    def _extract_reparametrized_nu(nu: torch.Tensor, xi: torch.Tensor) -> torch.Tensor:
         """Reparametrization of nu using individual parameter xi."""
 
     @classmethod
@@ -491,10 +491,10 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
         torch.Tensor :
             The value of the distribution's standard deviation.
         """
-        return cls.dist_weibull(cls._get_reparametrized_nu(nu,rho,xi,tau), rho).stddev
+        return cls.dist_weibull(cls._extract_reparametrized_nu(nu,rho,xi,tau), rho).stddev
 
     @classmethod
-    def _extract_reparametrised_parameters(
+    def _extract_reparametrized_parameters(
             cls,
             x: WeightedTensor,
             nu: torch.Tensor,
@@ -505,8 +505,8 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         
         # Construct reparametrized variables
-        event_reparametrized_time = cls._get_reparametrized_event(event_time, tau)
-        nu_reparametrized = cls._get_reparametrized_nu(nu,rho,xi,tau, *params)
+        event_reparametrized_time = cls._extract_reparametrized_event(x.value, tau)
+        nu_reparametrized = cls._extract_reparametrized_nu(nu,rho,xi,tau, *params)
         return event_reparametrized_time, x.weight, nu_reparametrized
 
     @classmethod
@@ -519,9 +519,9 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
         tau: torch.Tensor,
         *params: torch.Tensor,
     ) -> torch.Tensor:
-        event_reparametrized_time, event_bool, nu_reparametrized = cls._extract_reparametrised_parameters(x, nu, rho, xi, tau, *params)
+        event_reparametrized_time, event_bool, nu_reparametrized = cls._extract_reparametrized_parameters(x, nu, rho, xi, tau, *params)
         # Hazard neg log-likelihood only for patient with event not censored
-         hazard = torch.where(
+        hazard = torch.where(
             event_reparametrized_time > 0,
             (rho / nu_reparametrized) * ((event_reparametrized_time / nu_reparametrized) ** (rho - 1.)),
             -float('inf')
@@ -544,12 +544,12 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
         return -(torch.clamp(event_reparametrized_time, min=0.) / nu_reparametrized) ** rho
 
     @staticmethod
-    def _get_reparametrized_event(event_time: torch.Tensor, tau: torch.Tensor) -> torch.Tensor:
+    def _extract_reparametrized_event(event_time: torch.Tensor, tau: torch.Tensor) -> torch.Tensor:
         return event_time - tau
 
     @staticmethod
     @abstractmethod
-    def _get_reparametrized_nu(
+    def _extract_reparametrized_nu(
         nu: torch.Tensor,
         rho: torch.Tensor,
         xi: torch.Tensor,
@@ -568,7 +568,7 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
         tau: torch.Tensor, 
         *params: torch.Tensor, 
     ) -> torch.Tensor:
-       """Compute survival neg log-likelihood."""
+        """Compute survival neg log-likelihood."""
         log_survival = cls.compute_log_survival(x, nu, rho, xi, tau, *params)
         log_hazard = cls.compute_log_likelihood_hazard(x, nu, rho, xi, tau, *params)
         return -1 * (log_survival + log_hazard)
@@ -596,7 +596,7 @@ class AbstractWeibullRightCensoredFamily(StatelessDistributionFamily):
         pass  # WIP
         # Get inputs
         xi_format = xi[:, 0]
-        event_rep_time, event_bool, nu_rep = self._extract_reparametrised_parameters(x, nu, rho, xi, tau)
+        event_rep_time, event_bool, nu_rep = self._extract_reparametrized_parameters(x, nu, rho, xi, tau)
 
         # Survival
         log_survival = cls.compute_log_survival(x, nu, rho, xi, tau)
@@ -621,14 +621,18 @@ class WeibullRightCensoredFamily(AbstractWeibullRightCensoredFamily):
     parameters: ClassVar = ("nu", "rho", 'xi', 'tau')
 
     @staticmethod
-    def _get_reparametrized_nu(nu: torch.Tensor, xi: torch.Tensor) -> torch.Tensor:
+    def _extract_reparametrized_nu(nu: torch.Tensor,
+                               rho: torch.Tensor,
+                               xi: torch.Tensor,
+                               tau: torch.Tensor,
+                               *params:torch.Tensor, ) -> torch.Tensor:
         return torch.exp(-xi) * nu
 
 class WeibullRightCensoredWithSourcesFamily(AbstractWeibullRightCensoredFamily):
     parameters: ClassVar = ("nu", "rho", 'xi', 'tau', "survival_shifts")
 
     @staticmethod
-    def _get_reparametrized_nu(nu, rho, xi, tau, survival_shifts):
+    def _extract_reparametrized_nu(nu, rho, xi, tau, survival_shifts):
         return nu * torch.exp(-(xi + (1 / rho) * (survival_shifts)))
 
 
